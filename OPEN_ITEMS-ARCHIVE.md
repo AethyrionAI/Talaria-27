@@ -8941,6 +8941,15 @@ microphone audio somewhere the UI says it is not going.
 > SCOPE (a whole-transcript content map solving a one-row, in-flight
 > problem) is recorded there as unresolved.
 
+> **Pointer update 2026-08-07 (tracker tidy pass) — "See #281 (live)" above
+> is now "see #281, in THIS file."** #281 closed the same day (281-E MET on
+> device, OTA 2154) and was swept here. Its unresolved SCOPE question — the
+> one the note above hands forward — is carried on the LIVE board as
+> **#282** (the claim tier's demand side is unbounded and order-keyed; a
+> `.failed` row can eat a later identical prompt's claim). Nothing in #281's
+> fix is retracted; the four pins here (248-A..D) remain green and
+> byte-unmodified under it.
+
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
 > that started on the mac on talaria, and asked a follow up question that
 > will need research and tools - Question not duplicated. Response below
@@ -13097,6 +13106,23 @@ egress (links, forms, meta-refresh, window.open) and stays unmodified.
 
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 late evening: all five bars MET (258-E on device), white canvas DECIDED (stays white), chip relocation spun off to #262**
 
+> **⚠️ SUPERSEDED IN PART, 2026-08-07 — the artifact chips this item shipped
+> DID NOT SURVIVE LEAVING THE THREAD, and this closure's bars could not see
+> it. See #277 (archived, closed the same day) and #276.** 258-A..E all
+> exercised a chip inside ONE thread; none of them switched away and came
+> back, which is the path that was broken. `ChatStore.openSession` is a
+> straight assignment of the fetched transcript over the local one, and the
+> conversation cache is a single slot, so a client-side Tier-1 attachment
+> was destroyed on the way out — *"write file card is present. Just not the
+> chip WITH the file to view in the chat."* Owen lost the chips on three
+> real threads (two markdown, one HTML) before the mechanism was found, and
+> that loss is not self-healing (277-D). Fixed 2026-08-07 by #277's
+> on-device sidecar; 277-C MET on device (OTA 2154). **Nothing measured in
+> this entry is retracted** — mid-turn rendering, the one-chip merge, and
+> SVG rendering all held on device exactly as recorded. What is corrected is
+> the implication that "the chip persists" was tested: it was tested within
+> a thread only.
+
 **Framing (established by the terrain map, `G-preview-panes-terrain.md`,
 and the approved proposal `planning/superpowers/specs/2026-08-06-f1-artifact-panes-proposal.md`):
 this is an ITERATION on shipped work, not a new subsystem.** #21 (SSE
@@ -13393,6 +13419,16 @@ Deferred 2026-06-27 — revisit after the active items clear.
 
 ## 265. 🎨 Artifact chip anchor can split a word — the #262 pin is honest but lands mid-token ("The file lan ⟨card+chip⟩ ded at ~/…") — **FILED 2026-08-06 late night from Owen's first 262-E screenshots on OTA 2107** — **✅ CLOSED 2026-08-07: 265-E MET on device (OTA 2120), all bars MET**
 
+> **Pointer 2026-08-07 (tracker tidy pass) — nothing here is retracted, but
+> the field this fix rides was being dropped elsewhere.** The word-boundary
+> anchor is carried in `MessageAttachment.anchorOffset`, and
+> `ChatStore.mergeAttachments` rebuilt that value field-by-field WITHOUT it,
+> so any refresh merge reaching that line discarded the anchor — a #262
+> regression filed as **#276** and fixed the same day, hours after 265-E
+> passed. 265-E's own verdict stands as recorded (the split is gone, and it
+> was verified in the same prompt as #262's). See also **#277**: the chip
+> itself did not survive leaving the thread until that landed.
+
 Observed on the first #262 device run: Deepseek-flash narrated across the
 write ("…The file landed at…") and the tool fired mid-word, so the anchor
 (content length at fire time) split "landed" into "lan" / "ded" around the
@@ -13439,6 +13475,36 @@ code, per convention.
 > inside one night.
 
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")** — **✅ CLOSED 2026-08-07: 262-E MET on device (OTA 2120), all five bars MET**
+
+> **⚠️ SUPERSEDED IN PART, 2026-08-07 (same day, hours later) — TWO defects
+> this closure could not see, one of them a regression this lane
+> introduced. See #276 and #277 (both archived).**
+>
+> **(1) A regression, and it was mine: `ChatStore.mergeAttachments` DROPS
+> the `anchorOffset` this lane added** — it rebuilds each
+> `MessageAttachment` field by field and simply omits the new one, so any
+> relay-poll or refresh merge that reached that line silently demoted an
+> anchored chip back to end-of-response: *the exact jump this item was built
+> to remove*, reintroduced through a path none of this lane's tests touched
+> (no test referenced `mergeAttachments` at all). Filed as **#276**, fixed
+> the same day in #78's lane, both bars MET. Standing lesson recorded there:
+> when a lane adds a field to a persisted model, grep for every site that
+> RECONSTRUCTS that model rather than copying it — the type system cannot
+> catch a field-by-field rebuild, because every field has a default.
+>
+> **(2) 262-E's "survives kill + relaunch" was tested INTO THE SAME THREAD
+> only.** The closing note below reads *"the placement survived kill +
+> relaunch + history reload — confirming the anchor persists with the
+> message"*; that is true of the thread it was run in, and the bar never
+> crossed a thread boundary. Navigating away to another thread and back
+> destroyed the chip entirely (**#277** — `openSession` assigns the server
+> transcript over the local one; three of Owen's real threads were already
+> damaged). PRE-EXISTING, not caused by this lane, and fixed 2026-08-07 by
+> #277's on-device sidecar.
+>
+> **Nothing measured here is retracted** — placement stability across the
+> finish boundary, the mid-turn tap, and the anchor persisting with the
+> message all held on device as recorded.
 
 Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
 stay in line where its generated, its moved to the end of the response on both
@@ -13535,3 +13601,629 @@ streamed anchor onto the final-list twin.
 > reload — confirming the anchor persists with the message, not just within
 > a live turn. The word-split wart the first screenshots caught was fixed in
 > the same window as #265 and verified in the same prompt.
+
+## 139. 🐛 Engine truth + settings-origin session start — silent realtime→local fallback label lie; slow realtime connect with NO timeout and NO cancel-on-dismiss — abandoned session RESURRECTS with live audio (zombie, 2026-07-20 eve) — **✅ CLOSED 2026-08-07: 139-F MET on device, both brains, full-minute waits**
+
+**Dispatch spec 2026-07-20:** `dispatch/FABLE-T27-139-connect-teardown.md` — **READY TO
+SEND** (commit `1e9d57e`). Mechanism source-confirmed: `startSessionDirectly` awaits the
+connect inline while `isSessionActive` stays false until the post-await snapshot, and the
+overlay’s onDisappear teardown guards on `isSessionActive` — so dismissal during connect
+schedules nothing and the late return flips the store live + starts the Live Activity.
+Spec: session-generation intent (stale connects discarded at return), abandonSession()
+covering .connecting, 12s connect timeout with honest failure wording, fallback stated
+truthfully (overlay + settings row). NativeVoicePipelineService explicitly out of bounds
+(open probe PR #128 owns it).
+
+**Same-evening escalation 2026-07-20 — the hang is a SLOW CONNECT and dismissal does not
+cancel it: ZOMBIE SESSION confirmed.** One of the "failed" settings-origin sessions kept
+connecting after Owen bailed; minutes later, mid-#61 chat testing, it came alive and started
+speaking — a full two-way conversation ensued. Reclassifies observation (2): ESTABLISHING LINK
+was realtime connect latency, not a dead session. Two concrete defects fall out: (a)
+dismissing/abandoning a connecting session MUST tear it down — a session that resurrects later
+with a live mic and speaker is a privacy-grade surprise, arguably launch-blocking on its own;
+(b) connect needs a timeout + an honest failure/fallback surface (ties to the label lie in
+(1)). Bonus data: once live, realtime quality and latency were excellent ("much different
+experience than local… so quick") — the earlier slow-per-turn read likely conflated connect
+latency or a local-engine session. Self-barge-in persisted throughout → #138.
+
+**Observed 2026-07-20 (Session V sweep); circle-back deferred to end of launch pass (Owen's
+call).** Two linked observations, host-config-dependent (OJAMD is voice-configured; the Mac much
+less so):
+(1) **Label mismatch:** Voice Settings displayed "realtime" while the live session showed the
+local engine — a silent fallback (#73 path) with no user-facing truth. If realtime is
+unavailable or fails to connect on the selected host, the session should SAY it fell back (and
+settings should reflect per-host availability), not claim realtime.
+(2) **Settings-origin start hang:** cycling several voice auditions in Voice Settings, then
+starting the session from INSIDE settings, hung at ESTABLISHING LINK. Not reproducible later the
+same day. Suspects: realtime connect attempt timing out before fallback (consistent with (1)),
+or voice-asset downloads in flight from the auditions. Composer-origin start passed immediately
+after.
+
+**Circle-back checklist:** repro attempts on BOTH hosts; Console capture during a
+settings-origin start; verify what (if anything) the fallback logs; then re-run the exact #128
+and #129 DoDs on whichever engine is truthfully active. #128/#129 stay open until then.
+
+Logged 2026-07-20.
+
+> **Update 2026-08-06 late night — LANE OPENED from batch-2 triage (this
+> item was the sweep's sharpest miss: spec'd, marked READY TO SEND, never
+> dispatched, zero implementation). Phase-1 re-validation FALSIFIED the
+> spec's diagnosis — and found the bug got WORSE on 2026-08-04.**
+> The spec's mechanism ("`isSessionActive` still false during connect")
+> was wrong the day it was written: both engines publish `.connecting`
+> through the event stream before the slow work, so the store IS active
+> and the overlay's teardown DOES fire — it is just ineffective. The real
+> crux: `prepareWebRTC()` returns the peer connection/track/channel as
+> LOCALS (`LiveVoiceSessionService.swift:894-912`); `endSession()` tears
+> down only the properties (`:310-314`), which are nil during the connect
+> window, so the in-flight start later assigns a live connection over the
+> nil'd fields → mic + speaker up, no overlay. Worse, **#247's 12s belt
+> (2026-08-04, `29a9812`) created three NEW zombie routes**: the router's
+> fallback (`VoiceEngineRouter.swift:241-252`) starts a LIVE LOCAL MIC
+> after dismissal on `.failed`, `.idle`, and belt-timeout resolutions.
+> Both engines affected (realtime directly; native via the router);
+> standalone-native not source-provable either way. The spec's "don't
+> touch NativeVoicePipelineService (#128 owns it)" constraint is expired
+> (#128 closed 2026-08-01). Fix shape F1-F4: TalkStore generation counter
+> + unconditional `abandonSession()`; router start-generation guard on
+> the fallback block; an `isEndingSession` guard at realtime's
+> post-bootstrap seam (the one change that stops the mic coming up at
+> all); overlay dismissal paths call abandon (camera hedge preserved).
+> D3/D4 (honest-failure copy + fallback-truth surface) recommended to
+> SPLIT into a sibling item — Owen's morning call.
+>
+> **BARS — written 2026-08-06 late night BEFORE any phase-2 code:**
+> - **139-A (unit):** a voice service resolving `startSession()` AFTER
+>   `abandonSession()` ends with `isSessionActive == false`, no
+>   `.connected`, ZERO `liveActivity.startVoiceSession()` calls, and
+>   exactly one extra `endSession()` (the stale-return belt). RED today.
+> - **139-B (unit):** `abandonSession()` during `.connecting` with
+>   `isSessionActive == false` (the prefix window) still calls
+>   `voiceService.endSession()` — the `guard isSessionActive` hole gone.
+> - **139-C (unit, the #247-created path):** router with a slow realtime
+>   start and `endSession()` mid-flight ends with `native.startCalls == 0`
+>   for ALL THREE resolutions (`.failed`, `.idle`, belt-timeout). This is
+>   the bar that stops a dismissed session starting a live local mic.
+> - **139-D (unit):** realtime with `isEndingSession == true` at the
+>   post-bootstrap seam never reaches `.connected`, never enables audio.
+> - **139-E (unit, no-regression):** happy path unchanged; start→abandon→
+>   start lands only the newest generation; the 500ms camera hedge still
+>   holds; and the four existing #247 router tests stay green UNMODIFIED
+>   — if the fix forces an edit to any of them, the fix shape is
+>   falsified, not the test.
+> - **139-F (device, Owen, ENGINE-TAGGED per #220):** dismiss during
+>   ESTABLISHING LINK / LOCAL VOICE · STARTING against a slow/dark host,
+>   wait ≥60s: no audio, no Live Activity, mic indicator never lights —
+>   BOTH arms (hermes-paired realtime incl. the fallback branch; on-device
+>   native), BOTH origins (composer + settings), each verdict quoting the
+>   `voice session starting on engine …` log line. A run that cannot name
+>   its engine does not count.
+>
+> Adjacent finding flagged (not asserted): reachable states where
+> realtime is never attempted (`canStartSession` false + overlay skipping
+> readiness) would produce observation (1)'s label lie — settleable for
+> free from the engine log line during 139-F.
+
+> **Update 2026-08-06 very late — PHASE 2 BUILT + GATED; branch
+> `claude/t27-139-connect-teardown` @ `1f65208`, pushed, NO merge (Owen's
+> morning call — privacy surface).** TDD: behavioral RED witnessed on
+> 139-C's three arms (`native.startCalls == 0` failed on `.failed`/`.idle`/
+> belt-timeout — the #247-created zombie routes, live), compile RED on the
+> new API; the belt arm's first RED was itself a FALSE GREEN (default state
+> exempted the guarded branch) — caught, fixed, recorded in the test's own
+> comment. GREEN in dependency order (F3 `afe3c6b` → F2 `15cc5f5` →
+> F1/F4 `1f65208`); **GATE: PASS — 1705→1713 units (+8), 12 XCUITest,
+> Release green; the four #247 router tests byte-unmodified** (the fix
+> shape's own falsifiability condition held). **139-D AMENDED, recorded as
+> a falsification of the bar as written, not a redefinition:** "never
+> reaches `.connected` via `startSession()`" cannot run headless (system
+> permission prompt + real RTCPeerConnection); the unit pins the mechanism
+> (an intentional end invalidates the in-flight start's generation) and the
+> call-site placement rides 139-F on device. 139-F needs a build containing
+> this fix (NOT OTA 2120) — it rides the post-merge OTA, and its verdicts
+> must quote the engine line (`voice session starting on engine …`,
+> `VoiceEngineRouter:225`); the two `(#139)` guard lines are positive
+> evidence to assert PRESENT, not just absence of audio. Branch needs a
+> rebase onto current main before merge. Ops note for the record: the
+> build agent's assigned worktree did not exist (harness fault) — phase 1
+> ran read-only in the main checkout, verified harmless; the agent
+> self-provisioned a real worktree for phase 2 and the main checkout ends
+> clean.
+
+> **Update 2026-08-07 — 139-F MET on device (OTA 2145). ITEM CLOSED, all
+> bars MET.** Owen dismissed connecting voice sessions repeatedly on BOTH
+> brains — *"did it a few times on both Hermes and on device"* — waiting a
+> **full minute on each brain** on the first pass (the belt fires at 12s and
+> the fallback start follows it, so a short wait would not have caught the
+> zombie). Result: *"Mic goes off after about 1s. no pop ups scaring me in
+> office today"* — the teardown completes about a second after dismissal and
+> nothing comes back. No audio, no Live Activity, no late mic.
+>
+> **One honest deviation from the bar as written:** 139-F required each
+> verdict to QUOTE the `voice session starting on engine …` line per #220's
+> rule. Owen ran it from the phone in an office, so engine identity is
+> INFERRED from the brain setting rather than quoted — Hermes-paired routes
+> to realtime (including the fallback branch this lane created guards for),
+> on-device routes to native, so both engines were exercised by
+> construction. Recorded as inference, not as a quoted verdict, because
+> #220's rule exists precisely to stop that distinction being blurred. If a
+> future regression is suspected here, re-run tethered and quote the line.
+>
+> **Adjacent finding (the `canStartSession`-false label lie) was NOT
+> settled** — it needed the same log line. It stays flagged, unasserted,
+> for whoever next runs voice work tethered.
+
+## 281. 🐛 A re-sent prompt VANISHES from the transcript — an already-id-confirmed refreshed row still mints a content claim, and the genuinely-new row consumes it — **FILED 2026-08-07 from the 78-F device failure; a #248 defect, PRE-EXISTING, newly ARMED on the regenerate path by #78's adopt** — **✅ CLOSED 2026-08-07: 281-E MET on device (OTA 2154)**
+
+**This is what actually failed Owen's first 78-F run.** #78's truncation
+origin is correct (verified in the merged code: the backward scan finds the
+producing user turn and `truncateTranscript` removes from there). What went
+missing was the **fresh user row** the re-send mints — which is why Owen
+saw no current timestamp: *"It didn't show the current time for when I
+actually regenerated it."* There was no new user row at all; the bubble he
+read as the unchanged producing turn was an earlier content-identical ask,
+stamped the same as the one that was removed and indistinguishable on
+screen.
+
+**Mechanism.** `ChatStore.unconfirmedLocalMessages` builds its claim map
+from **every** refreshed user row lacking a `clientMessageID` — including
+rows already confirmed against a local twin by id at tier 1. Tier 1 returns
+without decrementing, so each content-identical historical row leaves a
+**surplus claim**, and the genuinely-new row consumes it and is filtered out
+of the merge. The second ingredient is `clientMessageID == nil` on those
+historical rows, which on the Hermes path is guaranteed once a thread has
+been opened from the drawer: `mapStoredMessage` builds every row from the
+server transcript and never sets it (which is also why the old timestamps
+are preserved verbatim).
+
+**Why the suite never saw it — the second bar-quality defect of the day, in
+the same family as the first.** #78's own `MirroringReplyClient` double sets
+`clientMessageID` on mirrored user rows; **the real Hermes mirror never
+does**. And its fixture history uses four distinct contents, so no claim can
+ever fire. A double built to expose one resurrection path was not audited
+against the merge's other heuristics. The #248 pins don't cover it either —
+their refreshed rows have no local id twin, so none exercises "an
+already-confirmed row mints a claim the new row then eats."
+
+**Fix (smallest correct):** a refreshed user row mints a content claim only
+if it is NOT already confirmed against a local row by identity — gate the
+claim-map loop on `!localIDs.contains(row.id)`. All four existing #248 pins
+survive (their refreshed rows carry fresh server ids absent from `local`).
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **281-A (unit, fails today):** local `[Hist(id:H, clientMessageID:nil,
+  "X"), New(id:N, clientMessageID:N, "X")]` against refreshed
+  `[Hist(id:H)]` leaves `New` unconfirmed (it survives the merge).
+- **281-B (unit, fails today):** a store-level regenerate against a
+  mirroring double whose history REPEATS a user string and whose mirrored
+  rows carry `clientMessageID == nil` — the new user row is present after
+  settle, with a timestamp later than every pre-existing row.
+- **281-C (unit, fixture fidelity):** the mirroring double's rows match what
+  the real Hermes mirror produces — no `clientMessageID` on rows that came
+  from a server transcript. A double that cannot express the production
+  shape is not a pin; this bar exists because two doubles in a row failed
+  this way.
+- **281-D (unit, regression):** all four existing #248 pins stay green
+  UNMODIFIED. If the fix forces an edit to any of them, the fix is wrong.
+- **281-E (device, Owen) — the case that failed:** on a thread where the
+  SAME prompt text has been sent more than once, regenerate one of those
+  replies. The fresh user row appears, carrying the regenerate-time
+  timestamp. Expected RED until this lands.
+
+> **BUILT + GATED 2026-08-07 (`claude/t27-281-surplus-claim`). Bars 281-A,
+> 281-B, 281-C, 281-D MET; 281-E (device, Owen) still owed — item stays
+> OPEN pending that.** The fix is the one the diagnosis named and nothing
+> more: `let localIDs = Set(local.map(\.id))`, and the claim-map loop gains
+> `&& !localIDs.contains(row.id)`. One production line.
+>
+> **RED evidence, verbatim.** 281-A: `unconfirmed.map(\.id) → []` where
+> `[freshID]` was wanted — the new row was not merely mis-ordered, it was
+> gone. 281-B: `messages.map(\.content) → ["How many are left", "Five.",
+> "Done."]` against the wanted `["How many are left", "Five.", "How many
+> are left", "Done."]`; `userRows.count → 1`; and the assertion that
+> reproduces Owen's own sentence — `fresh.timestamp → 775692800.0` vs
+> `history[2].timestamp → 775692802.0`, i.e. the user bubble left on
+> screen was the OLDER twin, stamped two seconds BEFORE the turn that was
+> removed. *"It didn't show the current time for when I actually
+> regenerated it"*, reproduced in a unit.
+>
+> **281-C and 281-D passed pre-fix, and that is recorded rather than
+> dressed up.** 281-C is a fixture-fidelity pin: its RED is that the
+> capability did not exist — `MirroringReplyClient` could only express
+> `LocalChatBackend`'s shape, and in that shape the bug is unreachable
+> (the mirrored user row carries the client's own id, so the new row
+> confirms at tier 1 and never reaches the claim). The double now takes a
+> `MirrorShape`; `.hermesFetchCache` mirrors what `mapStoredMessage`
+> actually produces — no `clientMessageID` on any row — and does NOT
+> append the turn it just sent, because `SessionsHermesClient`'s
+> `currentConversation` is a fetch cache, not an append log. Once
+> expressible, the assertion is green on both sides of the fix, which is
+> what a fidelity pin should be. 281-D likewise: the four #248 pins passed
+> before and after and are **byte-unmodified** (the diff on
+> `AppStoresTests.swift` is purely additive).
+>
+> **A sibling the fix does NOT reach, filed as a finding, deliberately not
+> built here.** #281 removes the surplus SUPPLY of claims; the DEMAND side
+> is still unbounded. Any local user row that fails the id and
+> `clientMessageID` tiers can consume a claim, and the consumer is chosen
+> by local ORDER — first content match wins, not the row the refreshed row
+> actually corresponds to. Concretely: a `.failed` user row the host never
+> stored sits above a later identical prompt that succeeded; the server's
+> echo of the SUCCESSFUL turn mints one claim and the FAILED row eats it,
+> so the failed row silently leaves the transcript on the next merge.
+> Separately, `mapStoredMessage`'s honest `stableID ?? UUID()` fallback
+> means a server row with no `id` mints a fresh claim on EVERY fetch,
+> forever. See the closing note on the third tier's scope below.
+>
+> **Should the third tier exist at all? Yes — but not at this scope.**
+> Deleting it re-opens #248 outright (all four of its pins go red) for as
+> long as the gateway transcript carries no `clientMessageID`, which is
+> not ours to change and is on #223's deletion path anyway. The defect is
+> that a whole-transcript, order-free content map is being used to solve a
+> problem that is exactly one row wide and a few seconds long: the turn
+> currently in flight. Every local row it can touch beyond that one is
+> collateral, and both device-visible bugs came out of that gap. The
+> scoped form is to let only an IN-FLIGHT local row consume a claim —
+> `!localRow.status.isSettled`, the predicate #278 already added and which
+> covers exactly `.sending`/`.working`/`.queued`. That would have made
+> #281 impossible by construction (a `.delivered` historical row could
+> never eat anything) and all four #248 pins already satisfy it: every one
+> of their local rows is `.working` or `.sending`. **Not built in this
+> lane and not smuggled in: it is a different change with its own bars.**
+
+**Repair of already-damaged threads: DECLINED, with reasoning.** Owen has at
+least one thread carrying stacked replies under a single user turn from the
+pre-fix bug. Do NOT write a normaliser: consecutive assistant rows are
+LEGITIMATE in this app (tool-calls-only rows, `.voiceHermes` + `.hermes`
+pairs — pinned by 275-D), so a "a run of assistant rows is corruption"
+heuristic would delete real rows in healthy threads to tidy one damaged one.
+And it is unnecessary: **regenerate self-heals the shape** once this lands —
+truncating from the single producing turn removes the whole stacked run and
+re-sends one clean turn. The repair path is the feature.
+
+> **Update 2026-08-07 — BUILT, GATED, MERGED, and 281-E MET on device (OTA
+> 2154). ALL BARS MET; ITEM CLOSED.** One production line: a refreshed user
+> row mints a content claim only if it is not already confirmed against a
+> local row by identity. GATE PASS, 1748 → 1751 units, Release clean; the
+> four #248 pins are byte-unmodified (bar 281-D's own condition). RED
+> verbatim — 281-A: `unconfirmed.map(\.id) → []` where `[freshID]` was
+> wanted (the new row was GONE, not mis-ordered); 281-B: the transcript
+> came back `["How many are left", "Five.", "Done."]` with `userRows.count
+> → 1`, and the surviving bubble's timestamp was **two seconds earlier**
+> than the removed turn's — Owen's sentence in test form.
+>
+> **281-C's honest status:** it passed pre-fix because the CAPABILITY did
+> not exist — the mirroring double could only express the local-brain
+> shape, in which this bug is structurally unreachable. The double gained a
+> shape switch: the Hermes form stamps no `clientMessageID` and does NOT
+> append the turn it just sent (that mirror is a fetch cache, not an append
+> log), plus a repeated-prompt fixture, since four distinct strings can
+> never fire a claim. Green either side of the fix, which is what a
+> fidelity pin should be.
+>
+> **281-E MET:** Owen sent the same prompt twice on OTA 2154 and regenerated
+> the second reply — *"regenerated text has new timestamp and removed the
+> old"* — two visibly distinct bubbles with identical text, 10:37 and
+> 10:39. Same run satisfied 78-G.
+>
+> **SIBLING DEFECT, filed here and NOT built — it needs its own bars and
+> Owen's call.** This fix removes the surplus SUPPLY of claims; the DEMAND
+> side is still unbounded and order-keyed. Two reachable cases: (a) a
+> `.failed` user row sitting above a later identical prompt that succeeded
+> — the server's echo of the SUCCESSFUL turn mints one claim and the FAILED
+> row eats it, silently leaving the transcript on the next merge; (b)
+> `mapStoredMessage`'s honest `stableID ?? UUID()` fallback means a server
+> row with no id mints a fresh claim on EVERY fetch, forever. The scoped
+> form: only an IN-FLIGHT local row may consume a claim
+> (`!localRow.status.isSettled` — the predicate #278 already added). That
+> would have made #281 impossible by construction, and all four #248 pins
+> already satisfy it. **The honest framing of the whole tier: a
+> whole-transcript, order-free content map is solving a problem that is one
+> row wide and a few seconds long. Every local row it can touch beyond the
+> in-flight turn is collateral — and both device-visible bugs of 2026-08-07
+> came out of exactly that gap.** Tier 3 cannot simply be deleted (that
+> re-opens #248 for as long as the gateway echoes no `clientMessageID`,
+> which is not ours to change), so the question is scope, not existence.
+
+## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session** — **✅ CLOSED 2026-08-07: 278-D MET on device (OTA 2145)**
+
+Owen, OTA 2120: *"no edit and resend in a live streaming session. If you
+leave and come bck immediately, it presents the option."* Screenshot shows
+the item offered on a row still in flight (clock icon, no reply yet).
+
+**Mechanism (source-read).** Leaving the chat screen does not cancel the
+stream; the SSE connection drops and the stream yields `.interrupted`, whose
+handler removes the reply placeholder, sets the user row to **`.working`**,
+and — critically — sets `streamingMessageID = nil` while `pendingRun` stays
+live and the reconcile loop keeps running. `streamingMessageID` is never
+re-armed by reconcile. So for the entire reconcile window (minutes),
+`isStreaming` is false while the run is live server-side. The menu gate
+excludes only `.sending`, so both its conditions pass and the item appears.
+The clock glyph in Owen's screenshot is `.working`, not `.sending` —
+confirming the path.
+
+**Consequence, which is the real severity.** `extractTurnForEditing` carries
+the SAME insufficient belt (`guard !isStreaming`), so tapping it truncates
+and persists — under a live run. When the reply lands, reconcile merges the
+server transcript back and the deleted turn REAPPEARS (#78's resurrection,
+reached through a second door). And `sendMessage` never clears `pendingRun`,
+so the edited resend posts a **second run to the same server session while
+the first is still live**, after which reconcile can adopt the OLD run's
+reply into the NEW turn's transcript.
+
+**Fix shape:** one shared in-flight predicate (`streamingMessageID != nil ||
+pendingRun != nil`, plus `.working`/`.queued` in the excluded statuses) used
+by BOTH the menu gate and the store guard — they must move together or the
+menu hides an item the store would still honor. This is the same seam as
+#275's shared-predicate bar; land it there rather than as a parallel fix.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **278-A (unit, fails today):** drive a send to `.interrupted`; assert
+  `isStreaming == false`, the user row is `.working`, `pendingRun != nil` —
+  then `extractTurnForEditing` returns nil and leaves the message count
+  unchanged. Today it truncates.
+- **278-B (unit, fails today):** same setup — the shared in-flight predicate
+  is true, so the menu's `isTranscriptBusy` would be true.
+- **278-C (unit, no over-tightening):** with a `.delivered` row and no
+  pending run, Edit & Resend still truncates and returns the turn.
+- **278-D (device, Owen):** send, and while the reply streams leave the chat
+  screen and immediately return. Long-press the user bubble — no Edit &
+  Resend, no Regenerate, while the clock icon shows. Both reappear once the
+  reply lands.
+
+> **Bars 278-A, 278-B, 278-C MET, 2026-08-07;** **278-D (device, Owen)
+> still owed** — item stays OPEN pending that. RED verbatim: 278-A after
+> `.interrupted`, `isStreaming == false` with a live `pendingRun` and a
+> `.working` row, `extractTurnForEditing` returned an editable turn and
+> took the message count from 1 to 0. 278-C passed — no over-tightening: a
+> settled turn on an idle thread still truncates and returns. 278-B's
+> status, recorded honestly: its RED is that `isTranscriptBusy` did not
+> exist as a shared predicate and the menu was wired directly to
+> `isStreaming`; the test now pins both halves in the state Owen
+> photographed.
+
+> **Update 2026-08-07 — 278-D MET on device (OTA 2145). ITEM CLOSED, all
+> bars MET.** Owen: *"278D pass. No regenerate presented mid stream."* The
+> guard now holds across leaving the chat screen and returning while a run
+> is still live — the state that previously offered Edit & Resend on a row
+> whose run was in flight, which would have truncated under that run and
+> posted a second run to the same session.
+
+## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads** — **✅ CLOSED 2026-08-07: 277-C and 277-D MET on device (OTA 2154)**
+
+Owen, after 262-E passed in a fresh thread (chip survived force-quit +
+relaunch INTO the same thread): three older threads — two markdown, one HTML
+— all show *"write file card is present. Just not the chip WITH the file to
+view in the chat."*
+
+**Mechanism.** The drawer tap calls `ChatStore.openSession`, which is a
+straight **assignment** of the fetched conversation — `mergeConversationMetadata`,
+the only thing that preserves client-side fields, is never reached on that
+path. The server transcript rebuilds `toolActivities` from its stored tool
+calls but constructs messages with **no attachments** (defaulting to `[]`),
+because Tier-1 attachments are client-side reconstructions that never
+round-trip: the stored tool call decodes only `name` and `detail`, never
+`args`/`content`. And the conversation cache is a **single slot** keyed once,
+so opening any other thread evicts the previous thread's rows. That
+asymmetry — card survives, chip does not — is the fingerprint of this path
+and no other.
+
+**Why 262-E still passed honestly:** relaunching INTO the same thread reloads
+that one cache slot, attachments included. Only switching away evicts.
+
+**The bytes are fine — this is pure metadata loss.** Staged files live under
+Application Support and nothing enumerates or prunes them; only the
+`MessageAttachment` record pointing at them is gone. No durable record of the
+attachment survives anywhere (journal carries none, the keyed local store is
+local-origin threads only, the server never had them).
+
+**Fix shapes, ranked:** (a) a per-thread attachment sidecar replayed on
+session open — correct, restores going forward, **cannot restore the three
+already-lost threads**; (b) re-derive from stored tool-call args — NOT VIABLE,
+the server carries no args, and name-matching surviving staged files would
+attach the wrong bytes to the wrong turn (declined on real-data-only
+grounds); (c) accept and document — zero cost but the failure is silent and
+destructive. **Recommended: (a), with the already-lost cases stated plainly.**
+Cheap intermediate worth taking first: route `openSession` through
+`mergeConversationMetadata` instead of assigning, which fixes the round trip
+within a session's lifetime though not across cache eviction.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **277-A (unit, fails today):** with a cached conversation whose Hermes row
+  carries a staged agent-file attachment, and a server fetch of the same
+  session returning that row with a `write_file` tool call and no
+  attachments, the conversation after `openSession` STILL carries the
+  attachment. Today it is `[]`.
+- **277-B (unit):** pin the asymmetry as known and deliberate until (a)
+  lands — a stored assistant row with a `write_file` call yields one tool
+  activity AND no attachments, so the next reader does not rediscover this
+  from a device report.
+- **277-C (device, Owen):** new chat, ask for a file, chip renders. Open a
+  DIFFERENT conversation from the drawer. Return. **Chip still there, still
+  anchored.** Then force-quit, relaunch, and repeat the switch-away-return.
+- **277-D (device, diagnostic only):** in one already-affected thread,
+  confirm the card renders with no chip — pins the current broken state so
+  the fix has a visible before/after and confirms the loss is not
+  self-healing.
+
+**BAR-QUALITY FINDING, recorded so it is not mistaken for a falsification:**
+#262-E and #258's bars were MET as written and were honestly verified. They
+said "after relaunch/history reload the placement persists," and Owen
+force-quit, relaunched, reopened, and saw the chip correctly anchored. The
+bars were **too narrow** — they exercised relaunch into the SAME thread,
+which reloads the same cache slot, and never exercised switch-away → open
+another thread → return, the only path that evicts. Nothing was
+mis-verified; the state space was under-specified. Device bars that involve
+persistence must name WHICH re-entry path they cover.
+
+**CORRECTION 2026-08-07, from the build lane — the "cheap intermediate"
+recommended above is NOT safe and was not taken.** Routing `openSession`
+through `mergeConversationMetadata` inverts every rule that merge is built on,
+because on this path the local conversation is a **different thread**, not
+another view of the same one: `unconfirmedLocalMessages` (#248) re-appends
+every departing row the arriving transcript "hasn't echoed" — i.e. all of them
+— smearing thread A into thread B; the P1/#90 identity rule hands the arriving
+thread the DEPARTING conversation's UUID, which the journal hop and #27's
+per-conversation brain pins key on; and the #4.8 title rule keeps the
+departing thread's title because the fetched one is the placeholder. So
+`openSession` stays an assignment and shape (a) is the whole fix. Pinned by
+`openSessionDoesNotAdoptTheDepartingThreadsRowsTitleOrIdentity` in
+`AgentFileChipPersistenceTests`, so a later lane cannot reach for the merge
+here without a red test. The bars above are untouched.
+
+> **Update 2026-08-07 — BUILT, GATED, MERGED, and 277-C + 277-D MET on
+> device (OTA 2154). ALL BARS MET; ITEM CLOSED.** GATE PASS, 1739 → 1748
+> units, Release clean. RED witnessed on every behavioural pin (the chip
+> came back `attachments.count → 0` after a thread switch, and the inline
+> anchor came back nil with it).
+>
+> **The sidecar's key choice, recorded because it is the crux:** thread key
+> = the server session id (the only identity surviving the single-slot
+> cache and conversation-UUID churn); message key is TWO-TIER, because
+> identity is not stable across the boundary the fix must cross — live, the
+> reply carries the client-minted streaming placeholder id; refetched, it
+> carries the #237 stable id. So: exact message id first, then a hash of
+> sender + trimmed content claimed with dequeue counting, the same
+> precedence the merge already uses. A restore re-files each record under
+> the id the fetch just handed back, so the content tier carries exactly
+> ONE crossing and every later reopen matches by identity. Hashed, not
+> stored as text, so the sidecar is not a second copy of the transcript at
+> rest. Bounded 40 threads × 60 rows, LRU.
+>
+> **277-C MET:** Owen, on 2154 — *"made a new one, force quit, returned —
+> still there. Force quit again, changed threads, came back, still there,
+> pass."* That is the exact path #258's and #262's bars both missed.
+> **277-D MET (diagnostic marker):** *"already lost threads don't regenerate
+> from before this build"* — confirming the loss is not self-healing and
+> that the fix is forward-looking, as filed.
+>
+> **Honest limits, unchanged from the build:** a different device — no (the
+> sidecar and the staged bytes are both on-device, so there is nothing to
+> show there anyway); cache clear / reinstall / unpair — no, `reset()`
+> deliberately clears it, because it names every file the agent wrote and
+> must not outlive the pairing; the three already-lost threads — still
+> lost, re-derivation stays declined on real-data-only grounds.
+
+## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis** — **✅ CLOSED 2026-08-07: fixed in #78's lane**
+
+`ChatStore.mergeAttachments` rebuilds each `MessageAttachment` field by field
+and omits the `anchorOffset` #262 added, so the rebuilt value defaults to
+nil. Any relay-poll or refresh merge that reaches that line demotes an
+anchored chip back to end-of-response — **the exact jump #262 was built to
+remove**, reintroduced through a path #262's own tests never touched (no test
+references `mergeAttachments` at all).
+
+Fix is one line: carry `remote.anchorOffset ?? match.anchorOffset`.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **276-A (unit, fails today):** with a local anchored attachment and a
+  remote echo of the same id, `mergeAttachments` returns an attachment whose
+  anchor is preserved. Today it returns nil.
+- **276-B (unit):** the merge preserves every other client-side field it
+  already preserved — a field-by-field rebuild is exactly how this was lost,
+  so pin the whole shape, not just the new field.
+
+**Lesson for the next lane that adds a field to a persisted model:** grep for
+every site that RECONSTRUCTS that model rather than copying it. A
+field-by-field rebuild is a silent-drop hazard that the type system does not
+catch, because every field has a default.
+
+> **Bars MET, 2026-08-07.** RED verbatim: 276-A merged anchor came back nil
+> when 42 was wanted; 276-B every OTHER field survived — the exact
+> signature of a field-by-field rebuild. Both bars MET.
+
+## 275. 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history and re-send the wrong prompt — **FILED 2026-08-07 from #78's diagnosis; data-destruction class, not cosmetic**
+
+`ChatStore.regenerateReply` finds the turn that produced a reply by scanning
+backwards for `$0.sender == .user` — and `.voiceUser` is a distinct sender
+case. So when the producing turn was DICTATED, the scan skips it and finds
+an **earlier text turn**, truncating far more history than the user asked
+for and re-sending the wrong prompt. `retryMessage` shares the assumption.
+
+Neither symptom is visible until it happens to a mixed voice/text thread,
+which is exactly how Owen uses the app. **Filed separately from #78 because
+its fix is a sender-set correction, not the mirror-adoption work** — but
+78's lane should not ship without it, since 78's own bars pass on
+text-only threads while this stays broken.
+
+**Reachability confirmed by source read, not assumed:** `MessageBubble`
+offers Regenerate on any delivered `.hermes` row, so a reply produced by a
+dictated turn is menu-eligible today. Four sites share the assumption —
+`ChatStore.regenerateReply`, `ChatStore.retryMessage`, and (duplicated into
+the view layer, which is #274's problem) `ChatScreen.performRetry` and
+`performUndo`.
+
+**Explicitly NOT part of this:** Edit & Resend excludes voice rows on
+purpose — this entry's sibling #78 records that voice-transcript rows get
+Copy/Share/Select only. That is a product decision, not this bug, and the
+lane leaves it alone.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **275-A (unit, fails today):** in `[user, hermes, voiceUser, hermes]`,
+  regenerating the last reply truncates from the DICTATED turn — the two
+  earlier rows survive verbatim and the prompt re-sent is the dictated
+  text. Today it truncates from index 0 and re-sends the wrong prompt.
+- **275-B (unit, fails today):** in `[voiceUser, hermes]` — no earlier text
+  turn at all — regenerating truncates from the dictated turn and re-sends
+  it. Today the scan finds nothing and the function returns silently:
+  nothing truncated, nothing sent, no log. A dead menu item.
+- **275-C (unit, fails today):** `retryMessage` on a failed reply whose
+  producing turn was dictated re-sends the DICTATED text, not the last
+  typed turn's.
+- **275-D (unit, regression):** text-only behavior byte-unchanged — the
+  existing #44 pins pass, and no `.system`/`.hermes`/`.voiceHermes` row is
+  ever selected as a producing turn.
+- **275-E (structural):** every producing-turn and retry-source search
+  routes through ONE shared predicate, so no site matches `.user` alone and
+  a future sender case cannot silently re-open this by omission.
+
+> **Bars 275-A..E MET, 2026-08-07.** RED verbatim: 275-A re-sent "First
+> question" instead of "Dictated second question" and collapsed the
+> transcript to ["First question", "Done."] — three rows lost; 275-B on a
+> dictated-only thread the scan found nothing, nothing was sent, dead menu
+> item, no log; 275-C `retryMessage` re-sent "Typed question". 275-D and
+> 275-E passed pre-fix, which is correct for a regression bar and a
+> predicate pin. Implemented via one shared `MessageSender.isUserAuthored`;
+> 275-E verified by grep — all four named sites route through it and no
+> remaining `.user`-only match is a producing-turn or retry-source search.
+> Item CLOSED (no device bar was registered for it; its behavior is
+> covered by 78-F's device run).
+
+> **Correction 2026-08-07 (tracker tidy pass) — "covered by 78-F's device
+> run" overstates what that run touched. The closure STANDS on the five
+> unit bars; the device-coverage clause does not.** 78-F was ultimately run
+> on a CLEAN thread of three TYPED turns on Deepseek Flash (a Hermes-hosted
+> model). It exercised no dictated turn at all, so the producing-turn search
+> this item fixes — the `.voiceUser` case — was never crossed on device.
+> Recorded rather than converted into a new bar (inventing a device bar
+> after closure would be a redefinition, which this project treats as worse
+> than an honest gap). Consequence for a future regression here: it would be
+> caught by 275-A..E in the suite, and by nothing on the phone. If a mixed
+> voice/text thread ever misbehaves on regenerate/retry, do not assume this
+> path was device-verified — it was not.
+>
+> Header form note: this entry never gained the `✅ CLOSED` suffix its
+> closing note asserts. Left as written; the note above is the closure of
+> record, and the item is archived on the strength of it.
+
+## 274. 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists — **FILED 2026-08-07 from #78's diagnosis** — **✅ CLOSED 2026-08-07: collapsed in substance by #78's lane**
+
+`/retry` and `/undo` each mutate `chatStore.conversation?.messages`
+directly from `ChatScreen`, duplicating what `ChatStore.regenerateReply`
+and `extractTurnForEditing` do — three implementations of one operation,
+two of them in the view layer. Both View paths carry #78's resurrection
+defect by construction, and **`/undo` never saves the conversation cache at
+all**, so its effect does not survive a relaunch even before the merge
+undoes it.
+
+Fix shape: collapse to a single `ChatStore` truncation primitive (the same
+one #78's lane introduces) and have every caller route through it. Cheap
+once #78 lands; pointless before it. **Bars pre-register here before any
+code.**
+
+> **✅ CLOSED 2026-08-07.** `/retry` and `/undo` now both call the shared
+> `truncateTranscript` primitive — two one-line call-site swaps once the
+> primitive existed, mechanical as scoped. That collapses three
+> implementations to one and gives `/undo` the cache persistence it never
+> had. Both View paths therefore no longer carry #78's resurrection
+> defect.

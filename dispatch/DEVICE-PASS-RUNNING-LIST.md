@@ -87,6 +87,46 @@ Folded in below as new **Group 2** (drawer surfaces) and new **Group 7**
 This is a real, not cosmetic, growth in scope — the total estimate at the
 bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 
+> ## ⏸ WHERE THIS RUN STOPPED — reconciled 2026-08-07 (tracker tidy pass)
+>
+> **The run started, paused twice for fixes, and is PART WAY THROUGH GROUP 1.
+> Do not re-run what is already marked below.** Three OTA builds carried it:
+> 2120 (first attempt), 2145, then 2154.
+>
+> **MET on device today — all closed, nothing owed on these:**
+> 262-E · 265-E (OTA 2120) · **78-F** (2145) · **139-F** (2145) · **278-D**
+> (2145) · **277-C + 277-D** (2154) · **281-E** (2154) · **78-G** (2154, the
+> same run as 281-E — one pass satisfied both). Items #139, #274, #275,
+> #276, #277, #278 and #281 are closed and swept to
+> `OPEN_ITEMS-ARCHIVE.md`.
+>
+> **THE FRONT OF THE QUEUE — two things, in this order:**
+>
+> **1. 78-F2 — the ONLY device bar left over from the fix lanes, and it is
+> OWED.** ⚠️ **It requires the ON-DEVICE brain selected in Settings.** Every
+> passing run of 78-F used **Deepseek flash — a Hermes-hosted model** — so
+> the local-brain clauses have never been exercised, and *a runner who
+> repeats this on Hermes has not run this bar.* On a CLEAN thread (no user
+> turn carrying more than one reply), send at least three turns, regenerate
+> the reply to the MIDDLE user turn, and assert: that reply and every row
+> below it vanish at the tap; the producing user row is a FRESH row carrying
+> the regenerate-time timestamp; the new reply appears at that position;
+> after 10s and a background/foreground the removed turns have NOT
+> reappeared; force-quit + relaunch — still absent. **Two clauses only the
+> local brain can reach:** the re-roll must genuinely re-ask WITHOUT the
+> original answer in context (falsified by a reply that acknowledges having
+> already answered — on the Hermes path the model DOES know and said so:
+> *"Still 4"*), and the truncated mirror must be what a relaunch restores.
+> Full text in OPEN_ITEMS #78.
+>
+> **2. The Group 1 remainder, from the `#80` row onward** — #80, #21
+> (OJAMD side), #21 (announcement-scan noise), C1, C3, #184/#185 — then
+> Groups 2–8 unchanged. Also still unrun from the #78 row and NOT a bar:
+> **Edit & Resend on a turn that HAD an attachment** (does the attachment
+> return to the composer).
+>
+> Nothing above Group 1's `#80` row needs the phone again except 78-F2.
+
 ### (a) Runnable now, ordered to minimize churn
 
 **Group 1 — Default state: PAIRED + CONNECTED to OJAMD, no settings changes
@@ -131,7 +171,25 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   attachment; confirm no context menu on a streaming bubble. STILL UNRUN
   from this check when the pause was called: **Edit & Resend on a turn that
   HAD an attachment** — does the attachment return to the composer.)*
-- [ ] **NEW 2026-08-07, found mid-run — agent-file chips vanish from a
+  - **RESOLUTION 2026-08-07 — both ❌ rows above are FIXED and re-verified
+    on device. Neither needs re-running.**
+    - **Regenerate a mid-history reply → ✅ 78-F MET on OTA 2145.** Owen,
+      fresh chat, three turns, middle reply regenerated: *"did 3, regnerated
+      the middle, the 3rd disappeared."* Durability held: *"Backgrounded and
+      returned - no change. Force quit and returned - no change."* A first
+      attempt failed diagnostically — it ran against a thread the PRE-FIX
+      bug had already corrupted (one user turn carrying two stacked
+      replies), and the real defect behind it was **#281**, fixed and
+      **281-E MET on OTA 2154** (*"regenerated text has new timestamp and
+      removed the old"*). The same 2154 run satisfied **78-G** (repeated
+      identical prompts — two visibly distinct bubbles, 10:37 and 10:39).
+    - **Streaming guard does not survive re-entry → ✅ 278-D MET on OTA
+      2145.** Owen: *"278D pass. No regenerate presented mid stream."* Filed
+      and closed as **#278**.
+    - ⚠️ **STILL OWED from this row: 78-F2** — the same regenerate bar on
+      the **ON-DEVICE brain**, which no passing run has used. See the
+      "WHERE THIS RUN STOPPED" block above; it is the front of the queue.
+- [x] **NEW 2026-08-07, found mid-run — agent-file chips vanish from a
   thread you navigate away from and return to.** Owen, after 262-E passed
   in a fresh thread (chip survived force-quit + relaunch INTO THE SAME
   THREAD): all three older threads he reopened — two markdown, one HTML —
@@ -140,6 +198,19 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   transcript; the Tier-1 attachment is client-side only. Under diagnosis;
   bar to be written to cover SWITCH AWAY → other thread → RETURN, the path
   #258's and #262's bars both missed.
+  - **✅ PASS 2026-08-07 on OTA 2154. FILED AND CLOSED AS #277.** Owen:
+    *"made a new one, force quit, returned — still there. Force quit again,
+    changed threads, came back, still there, pass."* (277-C). Cause was
+    `ChatStore.openSession` assigning the fetched transcript over the local
+    one against a single-slot conversation cache; fixed with an on-device
+    sidecar keyed on the server session id. **277-D, the diagnostic marker,
+    also confirmed:** *"already lost threads don't regenerate from before
+    this build"* — the loss is not self-healing and the fix is
+    forward-looking. **Owen's three already-damaged threads stay damaged;
+    do not queue a re-check for them.** A sibling regression found in the
+    same diagnosis (`mergeAttachments` silently dropping `anchorOffset`) was
+    filed as **#276** and fixed in #78's lane. Nothing left on the phone for
+    this row.
 - [ ] #80 (revised — push-delivery sub-checks are dead, see MAJOR FINDING
   above) — Ask Hermes, in a Talaria chat, to create an inbox item; then
   pull-to-refresh the Inbox screen (or leave/reopen it); approve it in-app
@@ -360,6 +431,21 @@ second person to actually call the phone.
 - [ ] #129 — Audition a voice mid-session. Read which engine the
   `voice session starting on engine …` log line names. (PASS: no crash,
   session survives, mic live afterwards.)
+- [ ] **#139 residual (added 2026-08-07) — free while tethered, costs no
+  extra setup.** #139 itself is CLOSED (139-F MET on OTA 2145: dismiss a
+  connecting voice session on BOTH brains, wait a full minute each — *"Mic
+  goes off after about 1s. no pop ups scaring me in office today"*), but its
+  verdicts were run from the phone in an office, so the engine was
+  **INFERRED from the brain setting, not quoted** from the log. Two things
+  are therefore still worth capturing on the next TETHERED voice sitting:
+  (1) re-run one dismissal per brain and **quote** the
+  `voice session starting on engine …` line (`VoiceEngineRouter`), per
+  #220's rule that a run which cannot name its engine does not count; and
+  (2) the adjacent finding #139 flagged and did not settle — the reachable
+  states where realtime is never attempted (`canStartSession` false + the
+  overlay skipping readiness) would present a label lie, and the same log
+  line settles it for free. Not a bar and not a regression suspicion;
+  recorded so it is not lost. Also filed under OPEN_ITEMS #180.
 - [ ] #82 residual (new — see note above) — If #129 named an engine that is
   NOT the one #82's 2026-07-16 confirm used (unknown which that was — the
   log line didn't exist yet), repeat #129 once more forcing the OTHER
