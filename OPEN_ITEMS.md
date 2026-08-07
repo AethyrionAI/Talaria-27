@@ -176,6 +176,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#267** 💬 Message QUEUING while a turn streams — compose the next message mid-turn, auto-send at run end …
 - **#266** 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so …
 - **#265** 🎨 Artifact chip anchor can split a word — snap the anchor back to the last word boundary …
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
@@ -4533,6 +4534,25 @@ Manual/Off app lane).**
 > ungated under mode=off. Also learned: `approvals.cron_mode: deny` — cron
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
+
+## 267. 💬 Message QUEUING while a turn streams — compose the next message mid-turn, auto-send at run end — **FILED 2026-08-06 late night (Owen: "How close are we to the steering / queuing stuff?"); the buildable half of 156f's pair**
+
+Steering (injecting into a RUNNING turn) stays parked per 156f — the
+current `api_server.py` was re-probed tonight (2026-08-06) and still has
+no steer route; `AIAgent.steer()` remains unreachable from the Sessions
+API, and Owen's no-upstream-PRs ruling (2026-07-22) stands. QUEUING is
+the half that needs nothing upstream: let the composer stay unlocked
+while a turn streams, hold the composed message app-side, and post it
+when `run.completed` lands.
+
+**Scope sketch (route before building):** composer unlock during
+streaming · an app-held queue (likely depth 1 to start — a "next
+message," not a mailbox) · visible state ("queued — sends when this turn
+ends") with edit/cancel before it fires · edge cases: stream dies (queued
+message must not silently vanish OR silently fire into a broken session —
+degradation visible, #180's rule), user hits Stop, app backgrounded
+mid-stream (does the queued send survive relaunch?), voice turns.
+Size: S-M. Bars pre-register here before any code.
 
 ## 266. 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so OPEN_ITEMS reads as "what we need to work on" — **FILED 2026-08-06 late night (Owen: "we should probably separate the doc notes and other things from open items, so that its truly only 'open' items. Then, we'll know what we need to work on"); the successor to #261's archive split**
 
