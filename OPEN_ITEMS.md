@@ -1503,7 +1503,7 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 
 ---
 
-## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44)
+## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07: all bars MET, 78-F verified on device (OTA 2145)**
 
 > **Audit 2026-07-13:** PR #52 merged to main (GitHub #44 closed); code confirmed on main (`MessageBubble.swift` `.contextMenu`/`SelectableTextSheet`, `ChatStore.regenerateReply`/`extractTurnForEditing`/`EditableTurn`). The 'not compiled'/'Needs Mac: CLI build + tests' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
 
@@ -1668,6 +1668,44 @@ Regenerate/Edit while another run streams.
 > the local brain there is no gap: the mirror and the
 > `LanguageModelSession` transcript both drop the removed turns, so the
 > re-roll genuinely re-asks without the original answer in context.
+
+> **Update 2026-08-07 — 78-F MET on device (OTA 2145). ALL BARS MET.**
+> Owen, fresh chat on Deepseek flash, three turns sent, MIDDLE reply
+> regenerated: *"did 3, regnerated the middle, the 3rd disappeared."* Then
+> the durability clause — the half that actually broke before: *"Backgrounded
+> and returned - no change. Force quit and returned - no change."* The
+> truncation held across two poll ticks, a background cycle, and a cold
+> relaunch.
+>
+> **A first attempt FAILED and the failure was diagnostic, not a defect.**
+> He first ran the bar against a thread the PRE-FIX bug had already
+> corrupted — one user turn carrying two stacked replies — and regenerated
+> the second of the two. The user row survived with its ORIGINAL timestamp
+> (Owen caught this: *"It didn't show the current time for when I actually
+> regenerated it"*), and the older reply survived with it. Ruled out at the
+> time by live evidence, not inference: the gateway access log showed only
+> the `chat/stream` POST and no session re-fetch, so the rows were never
+> removed rather than restored. The clean-thread re-test then passed, which
+> is what established the first result as legacy damage meeting the fix
+> rather than the fix failing. **What that leaves open is not #78: it is
+> whether already-damaged threads should be repaired, and whether any unit
+> fixture covers the two-replies-one-user-turn shape** — that shape occurs
+> in real transcripts because the old bug produced it. Under separate
+> diagnosis; will be filed on its own if it warrants a lane.
+>
+> **Cost consequence worth recording, seen live:** the corrupted-thread
+> attempt re-sent into a server session holding `history=29` and cost 35,557
+> input tokens, because truncation does not propagate to the host. On the
+> Hermes path a regenerate is locally-truncated and remotely-complete — it
+> does not shrink context, it re-asks against the whole session. The model
+> even says so out loud: Owen's clean re-roll answered *"Still 4"*, knowing
+> it had already answered. Correctness caveat AND a spend caveat.
+>
+> **Bar-quality note:** 78-F as written was satisfiable without the
+> assertion that actually exposed the problem. The revised wording (under
+> diagnosis) must name a CLEAN thread, say which reply is regenerated
+> relative to the transcript, and assert the producing user row carries a
+> FRESH timestamp.
 
 ---
 
