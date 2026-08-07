@@ -2902,6 +2902,32 @@ Logged 2026-07-20.
 > readiness) would produce observation (1)'s label lie — settleable for
 > free from the engine log line during 139-F.
 
+> **Update 2026-08-06 very late — PHASE 2 BUILT + GATED; branch
+> `claude/t27-139-connect-teardown` @ `1f65208`, pushed, NO merge (Owen's
+> morning call — privacy surface).** TDD: behavioral RED witnessed on
+> 139-C's three arms (`native.startCalls == 0` failed on `.failed`/`.idle`/
+> belt-timeout — the #247-created zombie routes, live), compile RED on the
+> new API; the belt arm's first RED was itself a FALSE GREEN (default state
+> exempted the guarded branch) — caught, fixed, recorded in the test's own
+> comment. GREEN in dependency order (F3 `afe3c6b` → F2 `15cc5f5` →
+> F1/F4 `1f65208`); **GATE: PASS — 1705→1713 units (+8), 12 XCUITest,
+> Release green; the four #247 router tests byte-unmodified** (the fix
+> shape's own falsifiability condition held). **139-D AMENDED, recorded as
+> a falsification of the bar as written, not a redefinition:** "never
+> reaches `.connected` via `startSession()`" cannot run headless (system
+> permission prompt + real RTCPeerConnection); the unit pins the mechanism
+> (an intentional end invalidates the in-flight start's generation) and the
+> call-site placement rides 139-F on device. 139-F needs a build containing
+> this fix (NOT OTA 2120) — it rides the post-merge OTA, and its verdicts
+> must quote the engine line (`voice session starting on engine …`,
+> `VoiceEngineRouter:225`); the two `(#139)` guard lines are positive
+> evidence to assert PRESENT, not just absence of audio. Branch needs a
+> rebase onto current main before merge. Ops note for the record: the
+> build agent's assigned worktree did not exist (harness fault) — phase 1
+> ran read-only in the main checkout, verified harmless; the agent
+> self-provisioned a real worktree for phase 2 and the main checkout ends
+> clean.
+
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
 **Accuracy half DONE 2026-07-20 (`3367626`).** README status table corrected: voice row now
