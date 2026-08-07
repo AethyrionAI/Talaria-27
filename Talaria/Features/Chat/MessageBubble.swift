@@ -429,13 +429,37 @@ struct MessageBubble: View {
         transcriptLayout(content: content, activities: activities, attachments: []).segments
     }
 
+    /// The rendered split point for a raw anchor (#265). The raw anchor is
+    /// content length at fire time, so a model that narrates THROUGH a tool
+    /// call lands mid-token and the split cuts a word ("The file lan⟨card+
+    /// chip⟩ded at ~/…" — Owen's first #262 screenshots). Snap the split back
+    /// to just after the last whitespace/newline at-or-before the offset. The
+    /// STORED `anchorOffset` is untouched: it stays raw and honest, and only
+    /// the rendering moves.
+    ///
+    /// Untouched cases, both deliberate: an offset that already sits on a
+    /// boundary — the character before it or at it is whitespace — is a no-op,
+    /// and a word with no whitespace anywhere before it falls to 0, where the
+    /// caller's cursor clamp catches it. `offset` must already be bounded to
+    /// `0...characters.count`.
+    private static func wordBoundarySnappedOffset(_ offset: Int, in characters: [Character]) -> Int {
+        guard offset > 0, offset < characters.count else { return offset }
+        guard !characters[offset - 1].isWhitespace, !characters[offset].isWhitespace else { return offset }
+        guard let boundary = (0 ..< offset).last(where: { characters[$0].isWhitespace }) else { return 0 }
+        return boundary + 1
+    }
+
     /// Splits the assistant content at each anchored item's offset so chips
     /// render where the model actually produced them. Tool anchors are
     /// non-decreasing while streaming, and so are artifact anchors (#262 —
     /// stamped at `.artifactProduced`); clamping keeps reloaded history
-    /// (anchor 0) and any stale cache safe. Consecutive items of one kind at
-    /// the same anchor share a group; at an equal anchor the tool card renders
-    /// before the chip, so a file sits beneath the call that wrote it.
+    /// (anchor 0) and any stale cache safe. Each anchor's rendered split is
+    /// snapped back to a word boundary first (#265), which composes with the
+    /// clamp — snapping is monotonic, so it never reorders items, and the
+    /// clamp still forbids moving before the walk cursor. Consecutive items of
+    /// one kind at the same (snapped) anchor share a group; at an equal anchor
+    /// the tool card renders before the chip, so a file sits beneath the call
+    /// that wrote it.
     static func transcriptLayout(
         content: String,
         activities: [ToolActivity],
@@ -499,7 +523,8 @@ struct MessageBubble: View {
         }
 
         for (rawAnchor, item) in items {
-            let anchor = min(max(rawAnchor, cursor), characters.count)
+            let bounded = min(max(rawAnchor, 0), characters.count)
+            let anchor = max(wordBoundarySnappedOffset(bounded, in: characters), cursor)
             if (toolGroup.isEmpty && chipGroup.isEmpty) || anchor != groupAnchor {
                 emitGroups()
                 emitText(upTo: anchor)
