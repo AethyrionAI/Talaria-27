@@ -5052,7 +5052,7 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
-## 281. 🐛 A re-sent prompt VANISHES from the transcript — an already-id-confirmed refreshed row still mints a content claim, and the genuinely-new row consumes it — **FILED 2026-08-07 from the 78-F device failure; a #248 defect, PRE-EXISTING, newly ARMED on the regenerate path by #78's adopt**
+## 281. 🐛 A re-sent prompt VANISHES from the transcript — an already-id-confirmed refreshed row still mints a content claim, and the genuinely-new row consumes it — **FILED 2026-08-07 from the 78-F device failure; a #248 defect, PRE-EXISTING, newly ARMED on the regenerate path by #78's adopt** — **✅ CLOSED 2026-08-07: 281-E MET on device (OTA 2154)**
 
 **This is what actually failed Owen's first 78-F run.** #78's truncation
 origin is correct (verified in the merged code: the backward scan finds the
@@ -5180,6 +5180,50 @@ And it is unnecessary: **regenerate self-heals the shape** once this lands —
 truncating from the single producing turn removes the whole stacked run and
 re-sends one clean turn. The repair path is the feature.
 
+> **Update 2026-08-07 — BUILT, GATED, MERGED, and 281-E MET on device (OTA
+> 2154). ALL BARS MET; ITEM CLOSED.** One production line: a refreshed user
+> row mints a content claim only if it is not already confirmed against a
+> local row by identity. GATE PASS, 1748 → 1751 units, Release clean; the
+> four #248 pins are byte-unmodified (bar 281-D's own condition). RED
+> verbatim — 281-A: `unconfirmed.map(\.id) → []` where `[freshID]` was
+> wanted (the new row was GONE, not mis-ordered); 281-B: the transcript
+> came back `["How many are left", "Five.", "Done."]` with `userRows.count
+> → 1`, and the surviving bubble's timestamp was **two seconds earlier**
+> than the removed turn's — Owen's sentence in test form.
+>
+> **281-C's honest status:** it passed pre-fix because the CAPABILITY did
+> not exist — the mirroring double could only express the local-brain
+> shape, in which this bug is structurally unreachable. The double gained a
+> shape switch: the Hermes form stamps no `clientMessageID` and does NOT
+> append the turn it just sent (that mirror is a fetch cache, not an append
+> log), plus a repeated-prompt fixture, since four distinct strings can
+> never fire a claim. Green either side of the fix, which is what a
+> fidelity pin should be.
+>
+> **281-E MET:** Owen sent the same prompt twice on OTA 2154 and regenerated
+> the second reply — *"regenerated text has new timestamp and removed the
+> old"* — two visibly distinct bubbles with identical text, 10:37 and
+> 10:39. Same run satisfied 78-G.
+>
+> **SIBLING DEFECT, filed here and NOT built — it needs its own bars and
+> Owen's call.** This fix removes the surplus SUPPLY of claims; the DEMAND
+> side is still unbounded and order-keyed. Two reachable cases: (a) a
+> `.failed` user row sitting above a later identical prompt that succeeded
+> — the server's echo of the SUCCESSFUL turn mints one claim and the FAILED
+> row eats it, silently leaving the transcript on the next merge; (b)
+> `mapStoredMessage`'s honest `stableID ?? UUID()` fallback means a server
+> row with no id mints a fresh claim on EVERY fetch, forever. The scoped
+> form: only an IN-FLIGHT local row may consume a claim
+> (`!localRow.status.isSettled` — the predicate #278 already added). That
+> would have made #281 impossible by construction, and all four #248 pins
+> already satisfy it. **The honest framing of the whole tier: a
+> whole-transcript, order-free content map is solving a problem that is one
+> row wide and a few seconds long. Every local row it can touch beyond the
+> in-flight turn is collateral — and both device-visible bugs of 2026-08-07
+> came out of exactly that gap.** Tier 3 cannot simply be deleted (that
+> re-opens #248 for as long as the gateway echoes no `clientMessageID`,
+> which is not ours to change), so the question is scope, not existence.
+
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
 `ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
@@ -5264,7 +5308,7 @@ menu hides an item the store would still honor. This is the same seam as
 > whose run was in flight, which would have truncated under that run and
 > posted a second run to the same session.
 
-## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads**
+## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads** — **✅ CLOSED 2026-08-07: 277-C and 277-D MET on device (OTA 2154)**
 
 Owen, after 262-E passed in a fresh thread (chip survived force-quit +
 relaunch INTO the same thread): three older threads — two markdown, one HTML
@@ -5345,6 +5389,39 @@ departing thread's title because the fetched one is the placeholder. So
 `openSessionDoesNotAdoptTheDepartingThreadsRowsTitleOrIdentity` in
 `AgentFileChipPersistenceTests`, so a later lane cannot reach for the merge
 here without a red test. The bars above are untouched.
+
+> **Update 2026-08-07 — BUILT, GATED, MERGED, and 277-C + 277-D MET on
+> device (OTA 2154). ALL BARS MET; ITEM CLOSED.** GATE PASS, 1739 → 1748
+> units, Release clean. RED witnessed on every behavioural pin (the chip
+> came back `attachments.count → 0` after a thread switch, and the inline
+> anchor came back nil with it).
+>
+> **The sidecar's key choice, recorded because it is the crux:** thread key
+> = the server session id (the only identity surviving the single-slot
+> cache and conversation-UUID churn); message key is TWO-TIER, because
+> identity is not stable across the boundary the fix must cross — live, the
+> reply carries the client-minted streaming placeholder id; refetched, it
+> carries the #237 stable id. So: exact message id first, then a hash of
+> sender + trimmed content claimed with dequeue counting, the same
+> precedence the merge already uses. A restore re-files each record under
+> the id the fetch just handed back, so the content tier carries exactly
+> ONE crossing and every later reopen matches by identity. Hashed, not
+> stored as text, so the sidecar is not a second copy of the transcript at
+> rest. Bounded 40 threads × 60 rows, LRU.
+>
+> **277-C MET:** Owen, on 2154 — *"made a new one, force quit, returned —
+> still there. Force quit again, changed threads, came back, still there,
+> pass."* That is the exact path #258's and #262's bars both missed.
+> **277-D MET (diagnostic marker):** *"already lost threads don't regenerate
+> from before this build"* — confirming the loss is not self-healing and
+> that the fix is forward-looking, as filed.
+>
+> **Honest limits, unchanged from the build:** a different device — no (the
+> sidecar and the staged bytes are both on-device, so there is nothing to
+> show there anyway); cache clear / reinstall / unpair — no, `reset()`
+> deliberately clears it, because it names every file the agent wrote and
+> must not outlive the pairing; the three already-lost threads — still
+> lost, re-derivation stays declined on real-data-only grounds.
 
 ## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis** — **✅ CLOSED 2026-08-07: fixed in #78's lane**
 
