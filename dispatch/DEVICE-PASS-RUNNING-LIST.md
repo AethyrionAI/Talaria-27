@@ -126,6 +126,51 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 > return to the composer).
 >
 > Nothing above Group 1's `#80` row needs the phone again except 78-F2.
+>
+> **3. NEW 2026-08-07 — Phase 3 slice 3A device bars (#283), added when the
+> lane's build-side work went green.** A SEPARATE sitting from the fix-lane
+> debt above, and it needs **the Developer switch "Runs Transport (Phase 3)"
+> turned ON** — it ships **OFF**, and with it off none of these paths
+> execute at all (pinned in the suite), so an accidental off-run measures
+> the old transport and proves nothing. Run against a REMOTE host; the local
+> brain is untouched by this lane.
+>
+> - **3A-F (the headline):** one real remote conversation end-to-end on the
+>   runs path — including a **tool-using turn** and a turn whose stream you
+>   kill by **backgrounding the app mid-answer**. The answer must still
+>   arrive exactly once (it is fetched by status poll, not replayed).
+>   **Write down how LONG that recovery took** — the poll knobs (2s interval
+>   / 120s budget; 20s on the sync path) are engineering guesses, and a
+>   zombie stream composes to ~60s stall + up to ~120s poll ≈ 3 minutes of
+>   silent-looking screen. If it feels broken, the knobs are the fix, not
+>   the design.
+> - **3A-G (history continuity — the one that fails QUIETLY):** turn N+1
+>   must demonstrably see turn N's content. **Assert the actual content, not
+>   merely that an answer arrived** — runs do not read server history, the
+>   app supplies it, and a missing history does NOT error: the agent answers
+>   plausibly from long-term memory instead. Use a marker ("reply with
+>   exactly KUMQUAT-N4A", then next turn "what marker did I ask for?"). A
+>   confident wrong answer is a FAILED bar. Then leave the thread, re-open
+>   it, and confirm the transcript matches what the sessions plane shows.
+> - **3A-H (attachments):** send an image on the runs path and ask about it;
+>   the agent must answer correctly about the image (attachment turns are
+>   wrapped differently on this plane — the old shape the app used is
+>   rejected by the server outright).
+> - **3A-C (stop is REAL now — and the walk-away contrast is half the bar):**
+>   on a long tool-using turn, tap **Stop** → host-side work actually stops.
+>   **Evidence must be the HOST's own log, not the app's UI** (the
+>   sessions-plane Stop only stops the app listening; the host keeps
+>   generating and spending). Then the contrast: start another long turn and
+>   **switch threads or start a new chat instead of tapping Stop** — the
+>   host must KEEP working and the answer must still be there when you come
+>   back. The two halves are deliberately different behaviors; if walking
+>   away also kills the run, that is a regression.
+> - **Artifacts on this path are EXPECTED to be content-less** (a chip
+>   naming the file, no inline content) — the runs stream carries no tool
+>   arguments. Honest absence, not a bug; the mirror that restores it is
+>   slice 3D. **Fabricated content would be the bar failure.**
+> - **Not built yet, so do not look for them:** in-chat approvals (3B) and
+>   steering (3C).
 
 ### (a) Runnable now, ordered to minimize churn
 
