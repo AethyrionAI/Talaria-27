@@ -125,6 +125,21 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     private var ignoreCurrentAssistantFinalization = false
     private var lastImageItemID: String?
     fileprivate var isEndingSession = false
+    /// #139: monotonic start intent. `endSession()` bumps it, so a start whose
+    /// relay bootstrap returns AFTER the user dismissed can tell that it was
+    /// abandoned and refuse to finish connecting.
+    ///
+    /// This is load-bearing, not defensive. `prepareWebRTC()` returns the peer
+    /// connection, data channel and audio track as a LOCAL value; they are
+    /// assigned to `self` only inside `connectWithPrepared`. So during the whole
+    /// connect window `peerConnection`/`dataChannel`/`audioTrack` are still nil,
+    /// `endSession()`'s teardown closes NOTHING, and the late
+    /// `connectWithPrepared` re-arms a live mic over the nil'd properties and
+    /// flips `.connected` — with no overlay on screen. `isEndingSession` alone
+    /// could not cover this: it guards the delegate callbacks, and the direct
+    /// path through `connectWithPrepared` never consults it.
+    // harness-visible
+    private(set) var startGeneration = 0
     // #84 flatline tripwire — armed at `.connected`, disarmed by the first
     // speech evidence off the data channel or by session teardown.
     private var flatlineTask: Task<Void, Never>?
@@ -205,6 +220,9 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     func startSession() async {
         latencyMetrics = TalkLatencyMetrics(sessionStartRequestedAt: .now)
         isEndingSession = false
+        // #139: claim this start's generation before the first await.
+        startGeneration &+= 1
+        let generation = startGeneration
         // Skip readiness check — already done by VoiceOverlayScreen.task before
         // calling startSession. Removing it saves one HTTP round trip + RPC.
         guard canStartSession else { return }
@@ -263,6 +281,21 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 )
             }
             voiceSessionID = response.voiceSession.id
+            // #139: the user dismissed while this request was in flight. Do not
+            // open a microphone for a session nobody is in — close the prepared
+            // WebRTC objects (they are LOCAL, so `endSession()` could not reach
+            // them) and hand the freshly-minted remote session straight back.
+            if generation != startGeneration || isEndingSession {
+                Self.logger.notice("realtime start abandoned mid-connect — discarding the bootstrap without connecting (#139)")
+                #if canImport(WebRTC)
+                prepared.channel?.close()
+                prepared.connection.close()
+                #endif
+                try? await endRemoteSession()
+                voiceSessionID = nil
+                stopTimer()
+                return
+            }
             startedAt = .now
             latencyMetrics.relayBootstrapReceivedAt = .now
             startTimer()
@@ -294,6 +327,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         stopTimer()
         startedAt = nil
         isEndingSession = true
+        // #139: revoke any start still in flight. `isEndingSession` is reset by
+        // the NEXT startSession, so it cannot by itself distinguish "this start
+        // was abandoned" from "a new start is underway"; the generation can.
+        startGeneration &+= 1
         currentAssistantItemID = nil
         currentUserConversationItemID = nil
         assistantTextSource = nil
