@@ -4773,6 +4773,54 @@ the final transcript depend on WHEN a tool fired mid-prose; lean away.
 
 **Queued behind #260. Bars pre-register HERE before any code.**
 
+**Update 2026-08-07 — lane opened; mechanism validated and the filed guess
+FALSIFIED in both halves (recorded, not redefined):**
+1. **There is no discrete `run.completed` re-anchor.** The chip renders in a
+   fixed after-transcript section (`MessageBubble.hermesAttachments`, after
+   `interleavedTranscript`) at every instant. At `.artifactProduced` time the
+   streamed message happens to END at the generation point, so the chip
+   momentarily sits below the write_file tool card; each subsequent
+   `assistant.delta` grows the transcript's trailing text segment ABOVE the
+   grid, pushing the chip down delta-by-delta until it lands at
+   end-of-response. A fast model (Owen's Deepseek-flash run) makes the slide
+   read as a jump. The `.finished` merge only dedupes the attachment list —
+   it never changes where the grid renders.
+2. **Consequently the filed "likely fix shape" — anchor the chip below the
+   streaming text for the whole turn — describes CURRENT behavior.** It is a
+   no-op, and the lean away from the inline pin was backwards. The fix that
+   changes what Owen observed is the inline pin: the same anchoring
+   convention tool chips have had since #10 ("the final transcript depends on
+   WHEN a tool fired" is #10's shipped, accepted behavior for the very card
+   this chip appears under).
+
+**Fix shape (routed by the validation):** `MessageAttachment` gains optional
+`anchorOffset: Int?` (synthesized Codable — pre-lane caches decode nil);
+`ChatStore` stamps `content.count` at `.artifactProduced` (mirror of the tool
+chip stamp); the transcript builder interleaves anchored attachments at their
+offsets; unanchored attachments (old caches, Tier-2 fetchables appended at
+finish) keep today's trailing grid; the `.finished` id-dedupe transfers the
+streamed anchor onto the final-list twin.
+
+**BARS — written 2026-08-07 BEFORE any production code:**
+- **262-A (unit, placement + boundary):** for content with a write_file
+  activity and an artifact anchored mid-content, the segment list places the
+  artifact chip AT its anchor, between the surrounding text runs — and the
+  list is IDENTICAL for the streaming and finished renders of the same data
+  (the finish boundary changes nothing).
+- **262-B (unit, conservation + degrade):** every attachment renders exactly
+  once — anchored → inline, unanchored (nil anchor) → trailing grid with
+  layout identical to today; an anchored attachment on a message with NO tool
+  activities still renders (never vanishes).
+- **262-C (unit, merge):** `.finished` delivering a same-id anchorless twin of
+  a streamed anchored artifact resolves to ONE row carrying the STREAMED
+  anchor; two genuine writes to one path stay two rows (258-A re-asserted).
+- **262-D (gate):** full lane gate green — unit count MOVED, Release build
+  included.
+- **262-E (device, Owen):** fast-model artifact turn — the chip appears under
+  the write_file card and DOES NOT MOVE while text streams beneath; tappable
+  mid-turn; after relaunch/history reload the placement persists (anchor is
+  persisted with the message).
+
 ## 261. 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file that goes to GitHub — **ROUTED 2026-08-06 evening (Owen: "lets add an item to OI, ironically, to clean up and archive close OI as a start. Its starting to get out of hand")**
 
 **The numbers, measured at filing:** **21,051 lines · 1.5 MB · 268
