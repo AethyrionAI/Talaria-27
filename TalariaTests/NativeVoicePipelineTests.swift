@@ -179,9 +179,35 @@ struct NativeVoicePipelineTests {
 
     // MARK: - Router seam behavior
 
+    /// #139: a releasable suspension point, so a test can hold a
+    /// `startSession()` open across the window a user dismisses in. The whole
+    /// zombie lives inside that window, so no bar here is meaningful without
+    /// a start that can actually be caught mid-flight.
+    @MainActor
+    final class StartGate {
+        private var waiters: [CheckedContinuation<Void, Never>] = []
+        private var isOpen = false
+
+        func wait() async {
+            if isOpen { return }
+            await withCheckedContinuation { waiters.append($0) }
+        }
+
+        func open() {
+            isOpen = true
+            let pending = waiters
+            waiters = []
+            for waiter in pending { waiter.resume() }
+        }
+    }
+
     /// Scriptable engine stub: enough of the protocol to drive the router.
     @MainActor
     final class StubVoiceService: VoiceSessionServiceProtocol {
+        /// #139: when set, `startSession()` suspends here until the test opens
+        /// it. Unset (the default) keeps every pre-#139 test synchronous.
+        var startGate: StartGate?
+        var endCalls = 0
         var voiceState: VoiceState = .idle
         var connectionState: TalkConnectionState = .idle
         var transcriptItems: [TranscriptItem] = []
@@ -229,9 +255,13 @@ struct NativeVoicePipelineTests {
         }
         func startSession() async {
             startCalls += 1
+            if let startGate { await startGate.wait() }
             connectionState = stateAfterStart
         }
-        func endSession() async { connectionState = .idle }
+        func endSession() async {
+            endCalls += 1
+            connectionState = .idle
+        }
         func toggleMute() async { isMuted.toggle() }
         func manuallyInterruptAssistantOutput() {}
         @discardableResult
@@ -341,6 +371,253 @@ struct NativeVoicePipelineTests {
         #expect(realtime.startCalls == 0, "the stale realtime routing must not survive a brain change")
         #expect(native.startCalls == 1)
         #expect(router.activeEngine == .native)
+    }
+
+    // MARK: - #139: a dismissed session must never reach a live mic
+
+    /// Bounded pump — polls a MainActor condition instead of guessing at a
+    /// sleep. Returns whether the condition ever held.
+    @MainActor
+    private func waitUntil(
+        _ description: String,
+        _ condition: @MainActor () -> Bool
+    ) async -> Bool {
+        for _ in 0..<400 {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        Issue.record("timed out waiting for: \(description)")
+        return false
+    }
+
+    /// **139-C — the bar that covers the zombie #247 created.**
+    ///
+    /// `VoiceEngineRouter.startSession()` falls back to the native engine
+    /// after the realtime start resolves, and nothing in that path asks
+    /// whether the session is still wanted. So a user who dismisses during
+    /// ESTABLISHING LINK gets a LOCAL microphone opened seconds later, by the
+    /// very belt that was added to bound the hang.
+    ///
+    /// Every realtime resolution reaches the fallback branch: `.failed` and
+    /// `.idle` both land in `shouldFallBackToNative`'s `default: return true`,
+    /// and `.idle` is precisely what the user's own `endSession()` leaves
+    /// behind.
+    @MainActor
+    @Test(arguments: [TalkConnectionState.failed, .idle])
+    func abandonedRealtimeStartNeverOpensTheLocalMic(outcome: TalkConnectionState) async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        realtime.startGate = gate
+        realtime.stateAfterStart = outcome
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isRelayPaired: { true }, activeBrain: { .hermes }
+        )
+        // Keep the belt out of this arm — the timeout has its own test below.
+        router.realtimeStartTimeout = .seconds(600)
+
+        let start = Task { await router.startSession() }
+        let inFlight = await waitUntil("the realtime start to be in flight") { realtime.startCalls == 1 }
+        #expect(inFlight)
+
+        // The user gives up and dismisses, mid-connect.
+        await router.endSession()
+        // …and only now does the slow relay finally answer.
+        gate.open()
+        await start.value
+
+        #expect(native.startCalls == 0,
+                "an abandoned session must not fall back into a live local mic (outcome: \(outcome))")
+    }
+
+    /// **139-C, timeout arm.** Same invariant on the belt path: the 12s
+    /// cancellation is what makes `timedOut` true, and `shouldFallBackToNative`
+    /// treats a timed-out start as fallback-worthy by design (#247 B1). That is
+    /// correct for a session the user still wants and wrong for one they left.
+    @MainActor
+    @Test func abandonedRealtimeStartNeverFallsBackAfterTheBeltFires() async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        realtime.startGate = gate
+        // MUST be set, and the first draft of this test did not set it: the
+        // default is `.connected`, and `shouldFallBackToNative` exempts a
+        // late-but-connected start by design (`lateButConnectedStartIsNotBounced`).
+        // So the test passed on the pre-fix code — a green that proved nothing,
+        // because it never reached the fallback branch it claimed to guard.
+        realtime.stateAfterStart = .failed
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isRelayPaired: { true }, activeBrain: { .hermes }
+        )
+        router.realtimeStartTimeout = .milliseconds(50)
+
+        let start = Task { await router.startSession() }
+        let inFlight = await waitUntil("the realtime start to be in flight") { realtime.startCalls == 1 }
+        #expect(inFlight)
+
+        await router.endSession()
+        // Let the belt reach its deadline and cancel the start, then release
+        // the stub: the continuation is not cancellation-aware, so the gate
+        // must open or `start.value` would never return.
+        try? await Task.sleep(for: .milliseconds(150))
+        gate.open()
+        await start.value
+
+        #expect(native.startCalls == 0,
+                "a timed-out start on an abandoned session must not open the local mic either")
+    }
+
+    /// **139-A — the core bar.** A start that resolves AFTER the user
+    /// dismissed must be discarded: no live state, and no Live Activity.
+    ///
+    /// On the Live Activity assertion: `TalkStore` starts it at
+    /// `startSessionDirectly()`'s tail, guarded by `isSessionActive` in the
+    /// same four lines — so pinning that flag false is what proves the call did
+    /// not happen. `LiveActivityService` is a concrete `private let` with no
+    /// counter, and widening it purely for this assertion would be a
+    /// production change made for a test.
+    @MainActor
+    @Test func startResolvingAfterDismissalIsDiscarded() async {
+        let stub = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        stub.startGate = gate
+        let store = TalkStore(voiceService: stub)
+
+        let start = Task { await store.startSessionDirectly() }
+        let inFlight = await waitUntil("the start to be in flight") { stub.startCalls == 1 }
+        #expect(inFlight)
+
+        await store.abandonSession()
+        gate.open()
+        await start.value
+
+        #expect(store.isSessionActive == false,
+                "an abandoned session must never flip live — this also gates the Live Activity")
+        #expect(store.connectionState != .connected)
+        #expect(stub.endCalls == 2,
+                "one end from the dismissal, one from the stale-return belt")
+    }
+
+    /// **139-B — abandon must not guard on `isSessionActive`.**
+    ///
+    /// The prefix window: the engine has not published `.connecting` yet
+    /// (it is still inside the microphone-permission await), so
+    /// `isSessionActive` is false and every teardown that guards on it —
+    /// `onDisappear`, `endSessionIfNeeded`, the background rule — sees nothing
+    /// to do. The stub models this exactly by publishing no snapshot until its
+    /// start completes.
+    @MainActor
+    @Test func abandonTearsDownAStartThatHasNotReportedConnectingYet() async {
+        let stub = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        stub.startGate = gate
+        let store = TalkStore(voiceService: stub)
+
+        let start = Task { await store.startSessionDirectly() }
+        let inFlight = await waitUntil("the start to be in flight") { stub.startCalls == 1 }
+        #expect(inFlight)
+        #expect(store.isSessionActive == false,
+                "precondition: the prefix window is exactly where isSessionActive is false")
+
+        await store.abandonSession()
+
+        #expect(stub.endCalls >= 1, "abandon must tear down regardless of isSessionActive")
+
+        gate.open()
+        await start.value
+        #expect(store.isSessionActive == false)
+    }
+
+    /// **139-D — the engine-level guard.**
+    ///
+    /// AMENDED from the pre-registered bar, and this is a falsification of that
+    /// text rather than a redefinition of it. The bar asked for "never reaches
+    /// `.connected`" driven through `startSession()`, and
+    /// `LiveVoiceSessionService.startSession()` cannot be run in a headless test
+    /// host: it awaits `ensureMicrophonePermission()` (a system prompt on an
+    /// undetermined permission), then `configureAudioSession()`, then builds a
+    /// real `RTCPeerConnection`. The suite's existing convention for this class
+    /// (see `AppStoresTests.liveVoiceSessionServiceIgnoresLateRealtimeErrors…`)
+    /// is to drive it by poking state, never by running a start.
+    ///
+    /// What IS pinned here is the mechanism the guard rides on: an intentional
+    /// end invalidates the generation an in-flight start captured. Placement of
+    /// the call site is covered by 139-F on device.
+    @MainActor
+    @Test func intentionalEndInvalidatesAnInFlightRealtimeStart() async {
+        let service = LiveVoiceSessionService(
+            apiClient: RelayAPIClient(baseURLProvider: { "https://relay.example.com/v1" }),
+            accessTokenProvider: { "token" }
+        )
+        let captured = service.startGeneration
+
+        await service.endSession()
+
+        #expect(service.startGeneration != captured,
+                "endSession must revoke a start that is still in flight")
+    }
+
+    /// **139-E (ii) — control.** Abandon revokes only the start it superseded.
+    /// A fresh start afterwards goes fully live — the fix must not leave the
+    /// store permanently poisoned.
+    @MainActor
+    @Test func aRestartAfterAbandonStillGoesLive() async {
+        let stub = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        stub.startGate = gate
+        let store = TalkStore(voiceService: stub)
+
+        let first = Task { await store.startSessionDirectly() }
+        let inFlight = await waitUntil("the first start to be in flight") { stub.startCalls == 1 }
+        #expect(inFlight)
+        await store.abandonSession()
+        gate.open()
+        await first.value
+        #expect(store.isSessionActive == false)
+
+        // A new session, ungated this time.
+        stub.startGate = nil
+        await store.startSessionDirectly()
+
+        #expect(store.isSessionActive, "the newest start must win")
+        #expect(store.connectionState == .connected)
+    }
+
+    /// **139-E (i) — control.** The no-regression half: a healthy start with
+    /// nobody dismissing still goes fully live. This one passes before the fix
+    /// and must keep passing after it.
+    @MainActor
+    @Test func healthyStartStillGoesFullyLive() async {
+        let stub = StubVoiceService(engine: .realtime)
+        let store = TalkStore(voiceService: stub)
+
+        await store.startSessionDirectly()
+
+        #expect(store.isSessionActive, "an unabandoned start must still go live")
+        #expect(store.connectionState == .connected)
+        #expect(stub.startCalls == 1)
+        #expect(stub.endCalls == 0, "a healthy start must not be torn down")
+    }
+
+    /// **139-E (i) — control, router half.** The four #247 routing tests above
+    /// cover the engine choice; this pins that an ungated, unabandoned start
+    /// still reaches the realtime engine and never touches native.
+    @MainActor
+    @Test func healthyRealtimeStartIsUnaffectedByTheAbandonGuard() async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isRelayPaired: { true }, activeBrain: { .hermes }
+        )
+
+        await router.startSession()
+
+        #expect(realtime.startCalls == 1)
+        #expect(native.startCalls == 0)
+        #expect(router.activeEngine == .realtime)
     }
 
     // MARK: - Snapshot / hand-off tagging
