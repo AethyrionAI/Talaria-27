@@ -100,7 +100,40 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 > #276, #277, #278 and #281 are closed and swept to
 > `OPEN_ITEMS-ARCHIVE.md`.
 >
-> **THE FRONT OF THE QUEUE — two things, in this order:**
+> ## ✅ RUN 2026-08-07 EVENING (OTA 2171, Mac Mini profile) — 78-F2 AND ALL FOUR 3A BARS MET. DO NOT RE-RUN THESE.
+>
+> **78-F2 ✅ MET ~17:51** on the ON-DEVICE brain (the requirement that kept
+> it owed). Regenerated reply read "2 + 2 is 4." — no acknowledgement of a
+> prior answer, which is the clause the Hermes path could never satisfy.
+> Removed turns stayed gone through 10s, background/foreground, and
+> force-quit. **#78 is CLOSED**; it leaves this queue.
+>
+> **3A-G ✅ · 3A-H ✅ · 3A-F ✅ · 3A-C ✅** — all four with host-log
+> evidence (`~/.hermes/logs/agent.log` watched live). Full detail in
+> OPEN_ITEMS #283's device-pass note. Three things a future runner needs:
+> 1. **3A-F took THREE attempts to trigger.** Backgrounding ~40s and a
+>    ~20-40s network drop did NOT kill the stream — TCP bridged both, no
+>    poll ever ran. Only an outage held **past the 60s stall guard** (75s+)
+>    engaged recovery. If you re-run it, hold the interruption past 60
+>    seconds or you will measure the happy path and think you measured
+>    recovery.
+> 2. **The recovery is invisible by design** — the UI keeps showing "still
+>    working" while it polls, so the screen cannot tell you which path ran.
+>    Only the host log can. Owen's read ("never stopped") was correct AND
+>    the mechanism had switched underneath.
+> 3. **3A-C is two halves and both are load-bearing:** Stop → host log shows
+>    `exit_code 130` / `interrupted_by_user`; walking away → NO `/stop` sent
+>    and the turn completes normally. If a future change makes walking away
+>    also stop the host, that is a regression.
+>
+> **Still open from Group 1 and below:** the `#80` row onward (#80, #21
+> dual-host, C1/C3, #184/#185), then Groups 2–8. Also still unrun and not a
+> bar: **Edit & Resend on a turn that HAD an attachment**.
+>
+> ---
+>
+> **THE FRONT OF THE QUEUE — two things, in this order:** *(superseded by
+> the ✅ block above — 78-F2 is done; the Group 1 remainder stands)*
 >
 > **1. 78-F2 — the ONLY device bar left over from the fix lanes, and it is
 > OWED.** ⚠️ **It requires the ON-DEVICE brain selected in Settings.** Every

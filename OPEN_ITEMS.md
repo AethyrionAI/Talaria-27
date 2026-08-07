@@ -127,7 +127,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
 - **#75** 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
-- **#78** 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — 78-A..G MET; **78-F2 (local brain) OWED** — front of the device queue
+- **#78** 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07 evening: 78-F2 MET on the local brain (OTA 2171); awaiting the archive sweep**
 - **#80** 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
 - **#81** 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
 - **#82** 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) …
@@ -1523,7 +1523,7 @@ a Developer-screen toggle later? Shipped stance is seed-only.
 
 ---
 
-## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07: all bars MET, 78-F verified on device (OTA 2145)** — **78-A..F and 78-G ARE MET (78-G on the 281-E run); 78-F2 (local-brain run) STILL OWED, so the item STAYS LIVE** *(Owen's call, 2026-08-07: "keep 78 live, 78-F2 still needs the local brain run." The ✅ suffix was true of 78-A..F when written; 78-F2 was added afterwards, when #281's diagnosis showed the passing run had been on a Hermes-hosted model. See the final note.)*
+## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07 evening — 78-F2 MET ON THE LOCAL BRAIN (OTA 2171), the last owed bar. Every bar 78-A..G plus 78-F2 is now met; ready for the archive sweep.** *(History, kept because it is the lesson: an earlier header read "✅ CLOSED … all bars MET" while 78-F2 was outstanding — that bar was added after #281's diagnosis showed the passing 78-F run had used a Hermes-hosted model, not the local brain the bar named. Owen ruled 2026-08-07 morning: "keep 78 live, 78-F2 still needs the local brain run." It got that run the same evening. See the final note.)*
 
 > **Audit 2026-07-13:** PR #52 merged to main (GitHub #44 closed); code confirmed on main (`MessageBubble.swift` `.contextMenu`/`SelectableTextSheet`, `ChatStore.regenerateReply`/`extractTurnForEditing`/`EditableTurn`). The 'not compiled'/'Needs Mac: CLI build + tests' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
 
@@ -1810,6 +1810,36 @@ Regenerate/Edit while another run streams.
 > One sub-check from the original device row is also still unrun and is not
 > a bar: **Edit & Resend on a turn that HAD an attachment** — does the
 > attachment return to the composer. It sits in the same running-list row.
+
+> **✅ 78-F2 MET 2026-08-07 ~17:51 (OTA 2171) — THE ITEM CLOSES.** Run on
+> the **ON-DEVICE brain** (screenshot confirms the ON-DEVICE pill on both
+> the header and the thread selector), clean thread, three turns, the
+> MIDDLE reply regenerated. Owen's report, all clauses met: the regenerated
+> reply and everything below it vanished at the tap; the producing user row
+> carried a fresh timestamp; the new reply appeared at that position; the
+> removed turns did NOT return after 10s, after a background/foreground, or
+> after a force-quit + relaunch.
+>
+> **The clause only the local brain could ever reach — MET, and it is the
+> whole reason this bar existed.** The re-roll genuinely re-asked without
+> the original answer in context: the new reply read **"2 + 2 is 4."** On
+> the Hermes path the model *knew* it had already answered and said so
+> (*"Still 4"*), which is exactly the falsification 78-F2 was written to
+> catch. A local-brain run was therefore not a formality — it tested a
+> different code path's context assembly, and it passed.
+>
+> **One honest evidence note (recorded, not glossed):** the screenshot
+> cannot *independently* prove the timestamp moved, because the original
+> send and the regenerate both landed within the 5:51 PM minute. That
+> clause rests on Owen's direct observation ("New timestamp"), watched
+> live. Every other clause is artifact-visible. Flagged because this
+> project has twice been burned by evidence that looked stronger than it
+> was.
+>
+> **Consequence:** every bar 78-A..G plus 78-F2 is met. #78 is CLOSED and
+> should move VERBATIM to `OPEN_ITEMS-ARCHIVE.md` on the next tidy pass
+> (deliberately not moved tonight — a late-night sweep is how counts get
+> broken). The device-queue front-of-line entry for 78-F2 is retired.
 
 ---
 
@@ -5284,6 +5314,78 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > — the doc block was corrected in place rather than left aspirational.
 > Three stop-related doc comments were likewise rewritten to describe what
 > the code does; two review rounds were spent on exactly that.
+
+> ## ✅ DEVICE PASS COMPLETE — 2026-08-07 evening, OTA 2171, Mac Mini profile. ALL FOUR 3A DEVICE BARS MET, every one with HOST-LOG evidence rather than screen-reading.
+>
+> Run by Owen with this session watching `~/.hermes/logs/agent.log` live.
+> Host = Mac gateway 0.20.0 (chosen over OJAMD precisely so the host side
+> was observable; OJAMD was separately probed and has all four runs routes).
+> Every turn below shows user-agent `Talaria 27/2171`.
+>
+> - **3A-G (history continuity) — MET, proven at the MECHANISM level.**
+>   Marker shape ran as designed and the answer came back `KUMQUAT-N4A`.
+>   The decisive evidence is not the answer, it is the host's own turn log:
+>   `history=0` on turn 1, **`history=2` on turn 2** — the gateway
+>   confirming it RECEIVED app-supplied history. Request ordering also
+>   verified on the wire: `GET /api/sessions/{id}/messages` at 17:59:15
+>   immediately followed by `POST /v1/runs` at 17:59:15. Had history not
+>   ridden the request, the host would have logged `history=0` and the model
+>   would have improvised — the exact quiet failure this bar was rewritten
+>   to catch.
+> - **3A-H (attachments) — MET.** Photo of a fire hydrant; the reply read
+>   the stencil **"R-016"** off the object. No text-only fallback invents
+>   that. Transport confirmed `/v1/runs` (not `chat/stream`). Ran on
+>   KIMI-K3, and the mid-session model change took effect on the runs plane.
+> - **3A-F (recovery) — MET, and it took three attempts to even TRIGGER the
+>   path, which is a finding in itself.** Attempts 1 (backgrounding ~40s)
+>   and 2 (airplane mode ~20-40s) both delivered the answer correctly — but
+>   the host log showed the SSE stream stayed open the whole time and NO
+>   status poll ever ran, so the recovery mechanism was never exercised.
+>   Declaring those a pass would have been the narrow-bar mistake this
+>   project has made twice. Attempt 3 (**airplane mode held 75s+**, clearing
+>   the 60s stall guard) finally tripped it, and the evidence is clean:
+>   `GET /v1/runs/{id}/events` ran 18:21:35→18:23:10 and delivered
+>   **200, ZERO BYTES** — the stream contributed nothing — then the app
+>   polled **9 times at ~2s intervals** (18:23:26…18:23:43) and the final
+>   poll's response jumped 727→944 bytes carrying the completed `output`,
+>   **~1 second after the host finished**. Exactly once, no duplicate.
+> - **3A-C (stop) — MET, BOTH halves, and the asymmetry is confirmed live.**
+>   Half 1 (explicit Stop): `POST /v1/runs/{id}/stop` → 200, then the host
+>   logged `Tool terminal … {"output": "[Command interrupted]", "exit_code":
+>   130}` and `Turn ended: reason=interrupted_by_user`. `exit_code 130` is
+>   SIGINT — a `sleep 90` killed at 7.8s. **This is the capability the
+>   sessions plane never had** (S24: its Stop stops the app listening while
+>   the host keeps generating and spending). Half 2 (walk away — switch
+>   threads instead of tapping Stop): **no `/stop` request was sent at all**
+>   and the turn ended `reason=text_response(finish_reason=stop)` with the
+>   answer waiting on return. The walk-away ruling is therefore verified in
+>   both directions on a real device, not just in tests.
+>
+> ### Measured facts that replace this morning's guesses
+> - **`runsPollInterval = 2s` is validated** — observed 9 polls at ~2s on
+>   the wire, picking the answer up ~1s after completion. No change wanted.
+> - **`runsPollBudget = 120s` was never approached.** Untuned, and now known
+>   to be generous rather than tight.
+> - **The stream is far more robust than the design assumed.** Two realistic
+>   interruptions (app backgrounded ~40s; network dropped ~20-40s) did NOT
+>   kill it — TCP retransmission bridged both gaps. **Recovery is therefore
+>   a rarer path in practice than the design implies**, which cuts both
+>   ways: less user-visible risk, but less field exercise, so the unit tests
+>   carry more weight than expected. Worth remembering before anyone "simplifies"
+>   the poll path on the grounds that it never seems to run.
+> - **The 60s stall guard is the real trigger threshold**, and an outage must
+>   OUTLAST it before recovery engages. Anyone re-running this bar must hold
+>   the interruption past 60s or they will measure the happy path and think
+>   they measured recovery.
+> - **The model pick routes correctly on the runs plane.** The runs body
+>   deliberately omits `require_model_lock` (unverified contract), so there
+>   was a real risk the pinned model was ignored while the pill claimed
+>   otherwise — a fabricated serving-model display. Host log says
+>   `model=deepseek-v4-flash provider=deepseek` actually served. The strict
+>   LOCK contract remains untested; routing is verified.
+>
+> **Bar status after this pass: 3A-A/B/D/E/G/H/C/F all MET.** The remaining
+> gate on making runs the default is Owen's call, not evidence.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
