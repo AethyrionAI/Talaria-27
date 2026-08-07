@@ -242,7 +242,12 @@ struct MessageBubble: View {
                 if !(message.isStreaming && message.content.isEmpty) {
                     reasoningDisclosure
                 }
-                if message.toolActivities.isEmpty {
+                let layout = Self.transcriptLayout(
+                    content: message.content,
+                    activities: message.toolActivities,
+                    attachments: message.attachments
+                )
+                if message.toolActivities.isEmpty && !layout.hasInlineArtifacts {
                     if !message.content.isEmpty {
                         streamingText
                     } else if message.isStreaming {
@@ -252,10 +257,10 @@ struct MessageBubble: View {
                         toolActivityPill(activity)
                     }
                 } else {
-                    // #10: tool-call chips render inline at the point in the
-                    // content where each call actually fired, and persist as
-                    // part of the message.
-                    interleavedTranscript
+                    // #10/#262: tool-call chips and agent-file chips render
+                    // inline at the point in the content where each fired,
+                    // and persist as part of the message.
+                    interleavedTranscript(layout.segments)
 
                     if message.isStreaming && message.content.isEmpty {
                         streamingPlaceholder
@@ -266,9 +271,11 @@ struct MessageBubble: View {
                     InlineDiffView(diff: diff)
                 }
 
-                // #21 Tier 1: files the agent wrote, reconstructed from the stream.
-                if !message.attachments.isEmpty {
-                    hermesAttachments(message.attachments)
+                // #21 Tier 1: files the agent wrote, reconstructed from the
+                // stream — anchorless ones only; anchored chips render inline
+                // in the transcript (#262).
+                if !layout.trailingAttachments.isEmpty {
+                    hermesAttachments(layout.trailingAttachments)
                 }
 
                 if !message.isStreaming {
@@ -315,6 +322,11 @@ struct MessageBubble: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Hermes: \(message.content)")
         .accessibilityAddTraits(message.isStreaming ? .updatesFrequently : [])
+        // #99 tap → full-screen preview; hoisted here (#262) so inline and
+        // trailing chips share one presenter.
+        .sheet(item: $previewedAttachment) { attachment in
+            AgentFilePreviewSheet(attachment: attachment)
+        }
     }
 
     // MARK: - Turn Receipt (#46)
@@ -382,32 +394,89 @@ struct MessageBubble: View {
 
     // MARK: - Interleaved Transcript (#10)
 
-    /// One ordered slice of an assistant turn: either a run of streamed text or
-    /// a group of tool calls that fired at that point in the content.
+    /// One ordered slice of an assistant turn: a run of streamed text, a group
+    /// of tool calls that fired at that point in the content, or a group of
+    /// agent-file chips produced there (#262).
     enum TranscriptSegment: Identifiable {
         case text(String, offset: Int)
         case tools([ToolActivity], offset: Int)
+        case artifacts([MessageAttachment], offset: Int)
 
         var id: String {
             switch self {
             case .text(_, let offset): "text-\(offset)"
             case .tools(let group, let offset): "tools-\(offset)-\(group.first?.id.uuidString ?? "")"
+            case .artifacts(let group, let offset): "artifacts-\(offset)-\(group.first?.id.uuidString ?? "")"
             }
         }
     }
 
-    /// Splits the assistant content at each tool call's anchor so chips render
-    /// where the model actually invoked them. Anchors are non-decreasing while
-    /// streaming; clamping keeps reloaded history (anchor 0) and any stale
-    /// cache safe. Consecutive calls at the same anchor share one chip group.
-    static func transcriptSegments(content: String, activities: [ToolActivity]) -> [TranscriptSegment] {
-        guard !activities.isEmpty else {
-            return content.isEmpty ? [] : [.text(content, offset: 0)]
+    /// The full render plan for an assistant turn (#262): the interleaved
+    /// segments, plus the attachments that stay in the trailing grid because
+    /// they carry no anchor (pre-#262 caches, Tier 2 fetchables appended at
+    /// finish).
+    struct TranscriptLayout {
+        var segments: [TranscriptSegment]
+        var trailingAttachments: [MessageAttachment]
+
+        var hasInlineArtifacts: Bool {
+            segments.contains { if case .artifacts = $0 { true } else { false } }
         }
+    }
+
+    /// #10 shape, kept for tool-only callers: segments without attachments.
+    static func transcriptSegments(content: String, activities: [ToolActivity]) -> [TranscriptSegment] {
+        transcriptLayout(content: content, activities: activities, attachments: []).segments
+    }
+
+    /// Splits the assistant content at each anchored item's offset so chips
+    /// render where the model actually produced them. Tool anchors are
+    /// non-decreasing while streaming, and so are artifact anchors (#262 —
+    /// stamped at `.artifactProduced`); clamping keeps reloaded history
+    /// (anchor 0) and any stale cache safe. Consecutive items of one kind at
+    /// the same anchor share a group; at an equal anchor the tool card renders
+    /// before the chip, so a file sits beneath the call that wrote it.
+    static func transcriptLayout(
+        content: String,
+        activities: [ToolActivity],
+        attachments: [MessageAttachment]
+    ) -> TranscriptLayout {
+        let anchoredChips = attachments.compactMap { chip in
+            chip.anchorOffset.map { (anchor: $0, chip: chip) }
+        }
+        let trailing = attachments.filter { $0.anchorOffset == nil }
+
+        guard !activities.isEmpty || !anchoredChips.isEmpty else {
+            return TranscriptLayout(
+                segments: content.isEmpty ? [] : [.text(content, offset: 0)],
+                trailingAttachments: trailing
+            )
+        }
+
+        // Merge the two anchored streams, each already in stream order.
+        enum AnchoredItem {
+            case tool(ToolActivity)
+            case chip(MessageAttachment)
+        }
+        var items: [(anchor: Int, item: AnchoredItem)] = []
+        var t = 0, c = 0
+        while t < activities.count || c < anchoredChips.count {
+            let toolAnchor = t < activities.count ? activities[t].anchorOffset : Int.max
+            let chipAnchor = c < anchoredChips.count ? anchoredChips[c].anchor : Int.max
+            if toolAnchor <= chipAnchor {
+                items.append((toolAnchor, .tool(activities[t])))
+                t += 1
+            } else {
+                items.append((chipAnchor, .chip(anchoredChips[c].chip)))
+                c += 1
+            }
+        }
+
         let characters = Array(content)
         var segments: [TranscriptSegment] = []
         var cursor = 0
-        var group: [ToolActivity] = []
+        var toolGroup: [ToolActivity] = []
+        var chipGroup: [MessageAttachment] = []
         var groupAnchor = 0
 
         func emitText(upTo end: Int) {
@@ -418,32 +487,36 @@ struct MessageBubble: View {
             }
             cursor = end
         }
-        func emitGroup() {
-            guard !group.isEmpty else { return }
-            segments.append(.tools(group, offset: groupAnchor))
-            group = []
+        func emitGroups() {
+            if !toolGroup.isEmpty {
+                segments.append(.tools(toolGroup, offset: groupAnchor))
+                toolGroup = []
+            }
+            if !chipGroup.isEmpty {
+                segments.append(.artifacts(chipGroup, offset: groupAnchor))
+                chipGroup = []
+            }
         }
 
-        for activity in activities {
-            let anchor = min(max(activity.anchorOffset, cursor), characters.count)
-            if group.isEmpty || anchor != groupAnchor {
-                emitGroup()
+        for (rawAnchor, item) in items {
+            let anchor = min(max(rawAnchor, cursor), characters.count)
+            if (toolGroup.isEmpty && chipGroup.isEmpty) || anchor != groupAnchor {
+                emitGroups()
                 emitText(upTo: anchor)
                 groupAnchor = anchor
             }
-            group.append(activity)
+            switch item {
+            case .tool(let activity): toolGroup.append(activity)
+            case .chip(let chip): chipGroup.append(chip)
+            }
         }
-        emitGroup()
+        emitGroups()
         emitText(upTo: characters.count)
-        return segments
+        return TranscriptLayout(segments: segments, trailingAttachments: trailing)
     }
 
     @ViewBuilder
-    private var interleavedTranscript: some View {
-        let segments = Self.transcriptSegments(
-            content: message.content,
-            activities: message.toolActivities
-        )
+    private func interleavedTranscript(_ segments: [TranscriptSegment]) -> some View {
         let lastID = segments.last?.id
         ForEach(segments) { segment in
             switch segment {
@@ -461,6 +534,15 @@ struct MessageBubble: View {
                     activities: group,
                     isStreaming: message.isStreaming && group.contains(where: \.isActive)
                 )
+            case .artifacts(let group, _):
+                // #262: the chip pinned at its generation point — beneath the
+                // card of the call that wrote it, text streams on below.
+                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                    ForEach(group) { attachment in
+                        agentFileBubble(attachment)
+                    }
+                }
+                .padding(.vertical, Design.Spacing.xxs)
             }
         }
     }
@@ -711,10 +793,6 @@ struct MessageBubble: View {
             }
         }
         .padding(.top, Design.Spacing.xxs)
-        // #99: tap → full-screen in-app preview.
-        .sheet(item: $previewedAttachment) { attachment in
-            AgentFilePreviewSheet(attachment: attachment)
-        }
     }
 
     /// A tappable file chip: staged files open the in-app preview sheet
