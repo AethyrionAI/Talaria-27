@@ -13,6 +13,10 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let conversationJournal = "hermes.conversationJournal"
         static let conversationListState = "hermes.conversationListState"
         static let composeOutboxState = "hermes.composeOutboxState"
+        // #277: agent-file chip records per server session id. Sits beside
+        // the conversation cache and is cleared with it on unpair/reset —
+        // it names what the agent wrote, so it must not outlive the pairing.
+        static let agentAttachmentSidecar = "hermes.agentAttachmentSidecar"
         static let healthAnchorPrefix = "hermes.healthAnchor."
         // #137: deliberately the SAME string the migration first stamped into
         // UserDefaults. Re-keying would have read every already-migrated
@@ -362,6 +366,25 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearComposeOutboxState() {
         defaults.removeObject(forKey: Keys.composeOutboxState)
+    }
+
+    // #277: the agent-file chip sidecar. A decode failure lands in `load` and
+    // reads as "no records" — the chip is absent, exactly as it was before
+    // this existed, and never a throw at session-open time.
+    func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar {
+        load(AgentAttachmentSidecar.self, key: Keys.agentAttachmentSidecar) ?? AgentAttachmentSidecar()
+    }
+
+    func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar) {
+        if sidecar.threads.isEmpty {
+            defaults.removeObject(forKey: Keys.agentAttachmentSidecar)
+        } else {
+            save(sidecar, key: Keys.agentAttachmentSidecar)
+        }
+    }
+
+    func clearAgentAttachmentSidecar() {
+        defaults.removeObject(forKey: Keys.agentAttachmentSidecar)
     }
 
     func loadHealthQueryAnchorData(for identifier: String) -> Data? {

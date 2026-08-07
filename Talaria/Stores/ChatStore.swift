@@ -189,6 +189,28 @@ final class ChatStore {
     /// oldest-first once it's reachable again.
     private var composeOutbox: ComposeOutboxState
     private var isDrainingComposeOutbox = false
+
+    /// #277: the durable per-thread record of agent-written file chips (#21),
+    /// write-through cached here. See `AgentAttachmentSidecar` for the key
+    /// design; the short version is that `openSession` ASSIGNS the server
+    /// transcript (which carries no attachments) and the conversation cache is
+    /// a single slot the next thread evicts, so leaving a thread and coming
+    /// back used to lose every chip in it while the staged bytes sat safe on
+    /// disk.
+    private var agentAttachments: AgentAttachmentSidecar
+
+    /// #277: the last thread opened from the drawer. The sidecar's thread key
+    /// is the SERVER SESSION ID; `activeSessionID` (the journal hop) is the
+    /// authority and covers a NEW chat, which never goes through
+    /// `openSession` — this is the fallback for threads that have no hop
+    /// (local-brain sessions). Cleared on New chat and reset so a fresh
+    /// thread's chips can never be filed under the departed thread's id.
+    private var lastOpenedSessionID: String?
+
+    /// The session id this conversation's chips are filed under, or nil when
+    /// the thread has no server handle yet (a brand-new chat before its first
+    /// turn). Nil means "do not record" — never "record under a guess".
+    private var agentAttachmentThreadID: String? { activeSessionID ?? lastOpenedSessionID }
     /// Set when the in-flight send just re-queued its turn (still
     /// unreachable) — tells the drain loop to stop instead of spinning.
     private var didQueueComposeTurnDuringSend = false
@@ -365,6 +387,35 @@ final class ChatStore {
         self.persistence = persistence
         self.journal = journal
         self.composeOutbox = persistence.loadComposeOutboxState()
+        self.agentAttachments = persistence.loadAgentAttachmentSidecar()
+    }
+
+    /// #277: files the current thread's agent-file chips under its server
+    /// session id. Called wherever the settled transcript is persisted, so
+    /// the sidecar's durability matches the conversation cache's exactly —
+    /// a turn that never reached the cache never reached this either.
+    ///
+    /// Recording is a full REPLACE of that thread's rows, not a union: the
+    /// rows are computed over the whole transcript, so they are already the
+    /// complete answer, and a union would resurrect a chip that a truncation
+    /// (#78) deliberately removed. A transcript with no chips writes nothing
+    /// rather than an empty entry — an empty entry would occupy an LRU slot
+    /// and evict a thread that has real records.
+    /// `under` names the thread explicitly. `openSession` passes it because
+    /// at that point the journal has not been re-synced yet, so a non-hop
+    /// backend (the local brain) would still be reporting the DEPARTING
+    /// Hermes thread's hop — filing the arriving thread's chips under the
+    /// wrong session id. Everywhere else the hop is already correct.
+    private func recordAgentAttachments(under explicitSessionID: String? = nil) {
+        guard let sessionID = explicitSessionID ?? agentAttachmentThreadID,
+              let conversation else { return }
+        let rows = AgentAttachmentSidecar.rows(from: conversation.messages)
+        guard !rows.isEmpty else { return }
+        var updated = agentAttachments
+        updated.record(sessionID: sessionID, rows: rows)
+        guard updated != agentAttachments else { return }
+        agentAttachments = updated
+        persistence.saveAgentAttachmentSidecar(updated)
     }
 
     func loadConversationIfNeeded() async {
@@ -921,6 +972,12 @@ final class ChatStore {
 
         if let conversation {
             persistence.saveConversationCache(conversation)
+            // #277: a chip the agent produced this turn becomes durable HERE,
+            // beside the cache save — the cache is a single slot the next
+            // thread evicts, and the server transcript will never give the
+            // chip back. Before the sync below, so the hop that carried this
+            // turn is still the thread's id.
+            recordAgentAttachments()
             onConversationChanged?()
             // P1 (#90): re-sync the durable journal with the settled
             // transcript. A Hermes-brain finish bumps the hop waterline over
@@ -1020,6 +1077,10 @@ final class ChatStore {
         abandonPendingRun(stopSpeech: true)
         let fresh = try await hermesClient.clearConversation()
         conversation = fresh
+        // #277: the new thread has no server handle until its first turn
+        // mints a hop. Clearing this is what stops the fresh thread's chips
+        // being filed under the thread the user just left.
+        lastOpenedSessionID = nil
         lastTokenUsage = fresh.latestUsage
         pendingMessageSentAt = nil
         sessionOpenFailure = nil
@@ -1062,6 +1123,10 @@ final class ChatStore {
 
         if let conversation {
             persistence.saveConversationCache(conversation)
+            // #277: stopping a run does not un-write the file the agent
+            // already produced — a chip on the stopped reply is as durable as
+            // the transcript this line just saved.
+            recordAgentAttachments()
             onConversationChanged?()
         }
     }
@@ -1700,12 +1765,39 @@ final class ChatStore {
         // browse.
         abandonPendingRun(stopSpeech: true)
         do {
-            let convo = try await hermesClient.openSession(id)
+            let fetched = try await hermesClient.openSession(id)
+            // #277: the server transcript rebuilds the write_file CARD from
+            // its stored tool calls and can never rebuild the CHIP — the
+            // stored call decodes name + preview, never `args`/`content`, so
+            // a Tier-1 attachment has nothing to be reconstructed from. Put
+            // the recorded chips back before the conversation is published,
+            // so the cache save below carries them too.
+            //
+            // Deliberately NOT routed through `mergeConversationMetadata`:
+            // that merge is built for two views of ONE thread, and here the
+            // local conversation is a DIFFERENT thread — it would re-append
+            // every departing row as "unconfirmed" (#248), hand the arriving
+            // thread the departing conversation's UUID (P1/#90, which the
+            // journal hop and #27's brain pins key on), and keep the
+            // departing title (#4.8). Pinned in
+            // `AgentFileChipPersistenceTests`.
+            var convo = fetched
+            convo.messages = AgentAttachmentSidecar.replaying(
+                agentAttachments.rows(forSessionID: id),
+                onto: convo.messages
+            )
             conversation = convo
+            lastOpenedSessionID = id
             lastTokenUsage = convo.latestUsage
             pendingMessageSentAt = nil
             sessionOpenFailure = nil
             persistence.saveConversationCache(convo)
+            // Re-file under the ids this fetch just handed us: the server's
+            // stable row identity (#237). That upgrades every record from the
+            // content tier to the id tier, so the content fingerprint is only
+            // ever needed for ONE crossing — the first return after the chip
+            // was made on a client-minted placeholder id.
+            recordAgentAttachments(under: id)
             onConversationChanged?()
             // P1 (#90): the Sessions client already adopted the thread into
             // the journal (identity + current hop); this sync is the no-op
@@ -1765,6 +1857,11 @@ final class ChatStore {
         journal?.reset()
         composeOutbox = ComposeOutboxState()
         persistence.clearComposeOutboxState()
+        // #277: the sidecar names every file the agent wrote for this pairing
+        // — it goes with the conversation cache, not one unpair later.
+        lastOpenedSessionID = nil
+        agentAttachments = AgentAttachmentSidecar()
+        persistence.clearAgentAttachmentSidecar()
     }
 
     func resolvedContextWindow(fallbackModelName: String?) -> Int? {

@@ -5121,6 +5121,21 @@ another thread → return, the only path that evicts. Nothing was
 mis-verified; the state space was under-specified. Device bars that involve
 persistence must name WHICH re-entry path they cover.
 
+**CORRECTION 2026-08-07, from the build lane — the "cheap intermediate"
+recommended above is NOT safe and was not taken.** Routing `openSession`
+through `mergeConversationMetadata` inverts every rule that merge is built on,
+because on this path the local conversation is a **different thread**, not
+another view of the same one: `unconfirmedLocalMessages` (#248) re-appends
+every departing row the arriving transcript "hasn't echoed" — i.e. all of them
+— smearing thread A into thread B; the P1/#90 identity rule hands the arriving
+thread the DEPARTING conversation's UUID, which the journal hop and #27's
+per-conversation brain pins key on; and the #4.8 title rule keeps the
+departing thread's title because the fetched one is the placeholder. So
+`openSession` stays an assignment and shape (a) is the whole fix. Pinned by
+`openSessionDoesNotAdoptTheDepartingThreadsRowsTitleOrIdentity` in
+`AgentFileChipPersistenceTests`, so a later lane cannot reach for the merge
+here without a red test. The bars above are untouched.
+
 ## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis** — **✅ CLOSED 2026-08-07: fixed in #78's lane**
 
 `ChatStore.mergeAttachments` rebuilds each `MessageAttachment` field by field
