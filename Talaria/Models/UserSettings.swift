@@ -407,6 +407,11 @@ struct UserSettings: Codable, Hashable, Sendable {
     var appLockEnabled: Bool
     /// #124: how long the app may sit backgrounded before return requires auth.
     var appLockGracePeriod: AppLockGracePeriod
+    /// #283: Developer-screen switch for the runs-plane transport
+    /// (`/v1/runs` + status-poll recovery). Default OFF — the sessions path
+    /// stays the default transport until 3A-F passes; `SessionsHermesClient`
+    /// reads this through a provider closure, not a direct settings read.
+    var useRunsTransport: Bool
 
     init(
         userName: String = "User",
@@ -437,7 +442,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         spotlightIndexingEnabled: Bool = false,
         showEmptySessions: Bool = false,
         appLockEnabled: Bool = false,
-        appLockGracePeriod: AppLockGracePeriod = .immediate
+        appLockGracePeriod: AppLockGracePeriod = .immediate,
+        useRunsTransport: Bool = false
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -468,6 +474,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.showEmptySessions = showEmptySessions
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
+        self.useRunsTransport = useRunsTransport
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -500,6 +507,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case showEmptySessions
         case appLockEnabled
         case appLockGracePeriod
+        case useRunsTransport
     }
 
     init(from decoder: Decoder) throws {
@@ -540,6 +548,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         showEmptySessions = try container.decodeIfPresent(Bool.self, forKey: .showEmptySessions) ?? false
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
+        useRunsTransport = try container.decodeIfPresent(Bool.self, forKey: .useRunsTransport) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -573,6 +582,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(showEmptySessions, forKey: .showEmptySessions)
         try container.encode(appLockEnabled, forKey: .appLockEnabled)
         try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)
+        try container.encode(useRunsTransport, forKey: .useRunsTransport)
     }
 
     var appLockConfiguration: AppLockConfiguration {

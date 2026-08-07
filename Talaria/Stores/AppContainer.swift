@@ -780,6 +780,10 @@ final class AppContainer {
         // #223 Lane 5: arm the per-turn model lock from the active profile's
         // persisted pick, from the first turn of the launch.
         sessionsClient.modelSelection = container.activeModelSelection
+        // #283 (Phase 3 slice 3A): arm the runs-transport switch from the
+        // Developer screen's persisted setting. Nothing reads this provider
+        // yet — Task 5 wires dispatch.
+        sessionsClient.useRunsTransportProvider = { settingsStore.settings.useRunsTransport }
         // #156a: Tasks — the cron-jobs surface talks to the same :8642
         // gateway with the same API key as chat; no relay, no new services
         // (#161). Bare test containers skip this (nil store → honest

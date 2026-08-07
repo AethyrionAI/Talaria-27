@@ -108,6 +108,13 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// all three turn paths (sync, stream, priming).
     var modelSelection: ModelSelection?
 
+    /// #283 (Phase 3 slice 3A): Developer-screen switch for the runs-plane
+    /// transport (`/v1/runs` + status-poll recovery), armed by AppContainer
+    /// from the persisted setting. Default `false` — the sessions path stays
+    /// the default transport until 3A-F passes; nothing reads this provider
+    /// yet (Task 5 wires dispatch).
+    var useRunsTransportProvider: @MainActor () -> Bool = { false }
+
     /// Normalizes a routing profile id for request building: the ACTIVE
     /// profile (and profile-less nil) collapse to nil so those requests take
     /// the pre-Lane-M provider path exactly.
