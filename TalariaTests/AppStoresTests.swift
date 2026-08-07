@@ -3219,6 +3219,228 @@ struct AppStoresTests {
         #expect(decoded.toolActivities.first?.anchorOffset == 0)
     }
 
+    // MARK: - Anchor word-boundary snap (#265)
+    //
+    // The device-caught shape (#262's first screenshots, OTA 2107): the model
+    // narrated THROUGH the write ("…The file landed at…") so the raw anchor —
+    // content length at fire time — fell inside "landed" and split it into
+    // "lan" / "ded" around the card + chip. The stored anchor stays raw and
+    // honest; only the RENDERED split snaps back to the last whitespace at-or-
+    // before it, composed with the existing cursor clamp and equal-anchor
+    // grouping.
+
+    /// Compact segment dump, so a shape mismatch reports what actually came
+    /// back instead of a bare "unexpected".
+    @MainActor
+    private func describe(_ segments: [MessageBubble.TranscriptSegment]) -> String {
+        segments.map { segment in
+            switch segment {
+            case .text(let text, let offset): "text@\(offset):\(text.debugDescription)"
+            case .tools(let group, let offset): "tools@\(offset):\(group.map(\.label))"
+            case .artifacts(let group, let offset): "artifacts@\(offset):\(group.map(\.fileName))"
+            }
+        }.joined(separator: " | ")
+    }
+
+    @Test @MainActor
+    func midWordAnchorSnapsTheRenderedSplitBackToTheWordBoundary() {
+        // 265-A. "The file lan⟨card+chip⟩ded at ~/notes.md" must render as
+        // "The file " ⟨card+chip⟩ "landed at ~/notes.md".
+        let content = "The file landed at ~/notes.md"
+        let tool = ToolActivity(label: "write_file", isActive: false, anchorOffset: 12)
+        var artifact = MessageAttachment(kind: "file", fileName: "notes.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 12
+
+        let layout = MessageBubble.transcriptLayout(
+            content: content, activities: [tool], attachments: [artifact]
+        )
+
+        guard layout.segments.count == 4,
+              case .text(let head, let headOffset) = layout.segments[0],
+              case .tools(let tools, let toolOffset) = layout.segments[1],
+              case .artifacts(let chips, let chipOffset) = layout.segments[2],
+              case .text(let tail, let tailOffset) = layout.segments[3]
+        else {
+            Issue.record("unexpected segment shape: \(describe(layout.segments))")
+            return
+        }
+        #expect(head == "The file ")
+        #expect(headOffset == 0)
+        #expect(tools.map(\.label) == ["write_file"])
+        #expect(toolOffset == 9)
+        #expect(chips.map(\.id) == [artifact.id])
+        #expect(chipOffset == 9)
+        #expect(tail == "landed at ~/notes.md")
+        #expect(tailOffset == 9)
+
+        // The STORED anchor stays raw — rendering moves the split, not the model.
+        #expect(tool.anchorOffset == 12)
+        #expect(artifact.anchorOffset == 12)
+        #expect(tools.first?.anchorOffset == 12)
+        #expect(chips.first?.anchorOffset == 12)
+    }
+
+    @Test @MainActor
+    func equalMidWordAnchorsStillShareOneGroupAfterSnapping() {
+        // 265-B. Two calls at the same raw mid-word anchor stay ONE group;
+        // snapping moves the group, it does not split it.
+        let tools = [
+            ToolActivity(label: "write_file", isActive: false, anchorOffset: 12),
+            ToolActivity(label: "read_file", isActive: false, anchorOffset: 12),
+        ]
+        let segments = MessageBubble.transcriptSegments(
+            content: "The file landed at ~/notes.md", activities: tools
+        )
+
+        guard segments.count == 3,
+              case .text(let head, _) = segments[0],
+              case .tools(let group, let toolOffset) = segments[1],
+              case .text(let tail, let tailOffset) = segments[2]
+        else {
+            Issue.record("unexpected segment shape: \(describe(segments))")
+            return
+        }
+        #expect(head == "The file ")
+        #expect(group.map(\.label) == ["write_file", "read_file"])
+        #expect(toolOffset == 9)
+        #expect(tail == "landed at ~/notes.md")
+        #expect(tailOffset == 9)
+    }
+
+    @Test @MainActor
+    func distinctRawAnchorsThatSnapToOneBoundaryMergeToolsBeforeChips() {
+        // 265-B. The device shape: the call fires at 12, the file lands at 14
+        // — both inside "landed". They merge into ONE anchor point, and the
+        // card still renders above the chip it produced.
+        let tool = ToolActivity(label: "write_file", isActive: false, anchorOffset: 12)
+        var artifact = MessageAttachment(kind: "file", fileName: "notes.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 14
+
+        let layout = MessageBubble.transcriptLayout(
+            content: "The file landed at ~/notes.md", activities: [tool], attachments: [artifact]
+        )
+
+        guard layout.segments.count == 4,
+              case .text(let head, _) = layout.segments[0],
+              case .tools(let tools, let toolOffset) = layout.segments[1],
+              case .artifacts(let chips, let chipOffset) = layout.segments[2],
+              case .text(let tail, _) = layout.segments[3]
+        else {
+            Issue.record("unexpected segment shape: \(describe(layout.segments))")
+            return
+        }
+        #expect(head == "The file ")
+        #expect(tools.map(\.label) == ["write_file"])
+        #expect(chips.map(\.id) == [artifact.id])
+        #expect(toolOffset == 9)
+        #expect(chipOffset == 9)
+        #expect(tail == "landed at ~/notes.md")
+        #expect(artifact.anchorOffset == 14)
+    }
+
+    @Test @MainActor
+    func snappedAnchorNeverMovesBeforeTheWalkCursor() {
+        // 265-B. A stale cache can carry anchors out of order; a snap must
+        // never rewind past text already emitted — the existing clamp binds
+        // after the snap, so the late anchor joins the group at the cursor.
+        let tools = [
+            ToolActivity(label: "write_file", isActive: false, anchorOffset: 22),
+            ToolActivity(label: "read_file", isActive: false, anchorOffset: 8),
+        ]
+        let segments = MessageBubble.transcriptSegments(
+            content: "Alpha bravo charlie delta echo", activities: tools
+        )
+
+        guard segments.count == 3,
+              case .text(let head, _) = segments[0],
+              case .tools(let group, let toolOffset) = segments[1],
+              case .text(let tail, let tailOffset) = segments[2]
+        else {
+            Issue.record("unexpected segment shape: \(describe(segments))")
+            return
+        }
+        #expect(head == "Alpha bravo charlie ")
+        #expect(group.map(\.label) == ["write_file", "read_file"])
+        #expect(toolOffset == 20)
+        #expect(tail == "delta echo")
+        #expect(tailOffset == 20)
+    }
+
+    @Test @MainActor
+    func anchorAlreadyAtAWordBoundaryIsUnchangedBySnapping() {
+        // 265-C degenerate, and a pin: an anchor that already sits on a
+        // boundary must not move — neither the first-character-of-a-word case
+        // nor the anchor-lands-on-the-whitespace case.
+        let atWordStart = MessageBubble.transcriptSegments(
+            content: "Alpha bravo",
+            activities: [ToolActivity(label: "write_file", isActive: false, anchorOffset: 6)]
+        )
+        guard atWordStart.count == 3,
+              case .text("Alpha ", 0) = atWordStart[0],
+              case .tools(_, 6) = atWordStart[1],
+              case .text("bravo", 6) = atWordStart[2]
+        else {
+            Issue.record("unexpected word-start shape: \(describe(atWordStart))")
+            return
+        }
+
+        let onWhitespace = MessageBubble.transcriptSegments(
+            content: "Done. All set.",
+            activities: [ToolActivity(label: "write_file", isActive: false, anchorOffset: 5)]
+        )
+        guard onWhitespace.count == 3,
+              case .text("Done.", 0) = onWhitespace[0],
+              case .tools(_, 5) = onWhitespace[1],
+              case .text(" All set.", 5) = onWhitespace[2]
+        else {
+            Issue.record("unexpected whitespace-anchor shape: \(describe(onWhitespace))")
+            return
+        }
+    }
+
+    @Test @MainActor
+    func anchorInsideARunWithNoWhitespaceBeforeItClampsToTheCursor() {
+        // 265-C degenerate: nothing to snap back TO, so the split falls to the
+        // walk cursor (0 here) rather than cutting the token.
+        let segments = MessageBubble.transcriptSegments(
+            content: "Antidisestablishmentarianism is a long word",
+            activities: [ToolActivity(label: "write_file", isActive: false, anchorOffset: 10)]
+        )
+
+        guard segments.count == 2,
+              case .tools(let group, let toolOffset) = segments[0],
+              case .text(let text, let textOffset) = segments[1]
+        else {
+            Issue.record("unexpected segment shape: \(describe(segments))")
+            return
+        }
+        #expect(group.map(\.label) == ["write_file"])
+        #expect(toolOffset == 0)
+        #expect(text == "Antidisestablishmentarianism is a long word")
+        #expect(textOffset == 0)
+    }
+
+    @Test @MainActor
+    func outOfRangeAnchorsStillClampToContentEndAfterSnapping() {
+        // 265-C degenerate, and a pin on #10's clamp: an anchor past the end
+        // is bounded to the content end, which is a boundary — no snap.
+        var artifact = MessageAttachment(kind: "file", fileName: "out.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 999
+
+        let layout = MessageBubble.transcriptLayout(
+            content: "Short.", activities: [], attachments: [artifact]
+        )
+
+        guard layout.segments.count == 2,
+              case .text("Short.", 0) = layout.segments[0],
+              case .artifacts(let chips, 6) = layout.segments[1]
+        else {
+            Issue.record("unexpected segment shape: \(describe(layout.segments))")
+            return
+        }
+        #expect(chips.map(\.id) == [artifact.id])
+    }
+
     // MARK: - Offline-first launch (#136)
     //
     // The device-caught shape: Windows Firewall silently DROPS packets to
