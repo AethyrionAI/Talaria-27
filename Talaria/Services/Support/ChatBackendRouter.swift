@@ -485,6 +485,14 @@ final class ChatBackendRouter: HermesClientProtocol {
         Self.logger.notice("abandonActiveRun: releasing routing lock held by \(brain.rawValue, privacy: .public) (#192)")
         currentRunID = nil
         runningBrain = nil
+        // #283 Task 7: releasing the routing lock above only stops the app
+        // LISTENING — it says nothing to the backend that was actually
+        // running the turn. Forward so a real server-side stop (currently
+        // only meaningful on the Hermes runs plane; a no-op everywhere else)
+        // actually happens. Forwarded to the brain that WAS running, not
+        // whatever `activeBrain` re-resolves to next — the run in flight is
+        // the one that needs stopping.
+        backend(for: brain).abandonActiveRun()
         refreshActiveBrain()
     }
 

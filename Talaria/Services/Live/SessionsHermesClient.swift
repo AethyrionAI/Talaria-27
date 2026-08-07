@@ -88,6 +88,53 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Var, not let: the suite shortens it. // harness-visible
     var runsSyncBudget: Duration = .seconds(20)
 
+    /// #283 Task 7: the run `POST /v1/runs/{id}/stop` (and a future
+    /// `/approval`) addresses. Set the moment a submit succeeds
+    /// (`streamTurnViaRuns` / `syncTurnViaRuns`), cleared on that same turn's
+    /// terminal exit — so a stop request always targets the run actually in
+    /// flight, or finds nothing and no-ops. `private(set)`: only
+    /// `setActiveRunContext`/`clearActiveRunContext` below may write it;
+    /// everyone else (the router, `abandonActiveRun`'s own callers) reads.
+    private(set) var activeRunContext: (runID: String, profileID: UUID?)?
+
+    /// #283 Task 7: run ids WE told the host to stop. A late `run.cancelled`
+    /// frame or a polled `cancelled` status for one of these is the
+    /// self-initiated stop completing, not someone else's cancel, and must
+    /// end the turn SILENTLY (no `.interrupted`). Populated by
+    /// `abandonActiveRun()`, drained (checked-and-removed) by the runs
+    /// driver's terminal handling for that same id — never grows past the
+    /// handful of runs actually in flight.
+    private(set) var selfStoppedRunIDs: Set<String> = []
+
+    // runs-path-visible (#283): the only mutators for the two properties
+    // above. Both are declared here because Swift extensions cannot add
+    // stored properties, but every call site is in
+    // `SessionsHermesClient+RunsTransport.swift` — a different file — so
+    // these narrow methods are the seam that lets the driver write them
+    // while keeping the properties themselves `private(set)`.
+    func setActiveRunContext(runID: String, profileID: UUID?) {
+        activeRunContext = (runID, profileID)
+    }
+
+    /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
+    /// it was already cleared (e.g. `abandonActiveRun()` beat this to it) or
+    /// it belongs to a different, later run. Either way there is nothing
+    /// harmful to do: never clears a context this call didn't own.
+    func clearActiveRunContext(matchingRunID: String) {
+        guard activeRunContext?.runID == matchingRunID else { return }
+        activeRunContext = nil
+    }
+
+    func markSelfStopped(runID: String) {
+        selfStoppedRunIDs.insert(runID)
+    }
+
+    /// Checks membership AND removes in one step — the terminal frame/poll
+    /// arm that calls this consumes the flag exactly once.
+    func consumeSelfStopped(runID: String) -> Bool {
+        selfStoppedRunIDs.remove(runID) != nil
+    }
+
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
     /// conversation's identity and the active hop handle; this client only
     /// ever reads the handle and begins/ends hops.

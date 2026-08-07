@@ -313,9 +313,18 @@ struct ChatBackendRouterTests {
     final class NeverFinishingBackend: HermesClientProtocol {
         var connectionStatus: ConnectionStatus = .connected
         var currentConversation: Conversation?
+        /// #283 Task 7: pins that `ChatBackendRouter.abandonActiveRun()`
+        /// forwards to the backend that was actually running, not just its
+        /// own routing lock — the difference between the real server-side
+        /// stop reaching `SessionsHermesClient` and it silently not.
+        var abandonActiveRunCallCount = 0
 
         func connect() async {}
         func disconnect() async {}
+
+        func abandonActiveRun() {
+            abandonActiveRunCallCount += 1
+        }
 
         func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "never", status: .delivered)
@@ -364,6 +373,10 @@ struct ChatBackendRouterTests {
         router.abandonActiveRun()
         #expect(router.activeBrain == .onDevice)
         #expect(router.resolvedBrainForNextTurn() == .onDevice)
+        // #283 Task 7: releasing the routing lock is not enough — the
+        // backend that was actually running the turn must hear about it too,
+        // or a real server-side stop never reaches it.
+        #expect(hermes.abandonActiveRunCallCount == 1)
 
         consumer.cancel()
         _ = await consumer.value

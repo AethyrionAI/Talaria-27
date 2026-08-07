@@ -269,7 +269,21 @@ extension SessionsHermesClient {
         var finishedYielded = false
         var assembledContent = ""
         var assembledReasoning = ""
-        defer { continuation.finish() }
+        // Task 7: the single choke point for every exit path (normal return
+        // OR the catch below, since this whole function body sits inside the
+        // `defer`'s scope) — whichever run THIS call submitted stops being
+        // addressable the moment the turn is over. `clearActiveRunContext`
+        // no-ops harmlessly if `abandonActiveRun()` already cleared it (a
+        // stop that lands while terminal delivery is in flight), and
+        // `consumeSelfStopped` is drained here too so the flag never
+        // outlives the run it was stamped for.
+        defer {
+            if let runID {
+                clearActiveRunContext(matchingRunID: runID)
+                _ = consumeSelfStopped(runID: runID)
+            }
+            continuation.finish()
+        }
 
         do {
             let hop = try await ensureHopForTurn()
@@ -333,11 +347,15 @@ extension SessionsHermesClient {
                 ),
                 profileID: hop.profileID
             )
-            // Task 7 promotes this to `activeRunContext` (what `/stop` and
-            // `/approval` address).
             let acceptedRunID = submit.runID
             runID = acceptedRunID
             runSubmitted = true
+            // Task 7: promoted to client state — this is what `/stop` (and a
+            // future `/approval`) address. Set as soon as the run is
+            // committed server-side, not merely accepted for submission,
+            // because that is the earliest moment a stop request means
+            // anything.
+            setActiveRunContext(runID: acceptedRunID, profileID: hop.profileID)
 
             // Subscribe IMMEDIATELY: the handler tolerates a short
             // registration race (`api_server.py:6730`), and every event
@@ -433,10 +451,20 @@ extension SessionsHermesClient {
                     continuation.yield(.failed(Self.runFailureText(error)))
                     finishedYielded = true
                 case .runCancelled:
-                    // Task 7 adds the client-initiated-stop flag, which ends
-                    // a user's own stop silently. Until then every cancel is
-                    // treated as someone else's — recovery, not failure.
-                    continuation.yield(.interrupted(sessionId: hop.sessionId, runId: acceptedRunID))
+                    // Task 7: a run WE stopped (`abandonActiveRun()`) ends
+                    // SILENTLY here — no `.interrupted` — because ChatStore
+                    // already tore down its own UI state the moment the user
+                    // tapped Stop; announcing recovery for a cancel we asked
+                    // for would be a second, unwanted teardown. Anyone
+                    // else's cancel (server-side, another client) still arms
+                    // recovery exactly as before.
+                    if consumeSelfStopped(runID: acceptedRunID) {
+                        runsTransportLogger.notice(
+                            "runs: \(acceptedRunID, privacy: .public) cancelled — self-stopped, ending silently"
+                        )
+                    } else {
+                        continuation.yield(.interrupted(sessionId: hop.sessionId, runId: acceptedRunID))
+                    }
                     finishedYielded = true
                 case .ignored:
                     continue
@@ -545,6 +573,19 @@ extension SessionsHermesClient {
             ),
             profileID: hop.profileID
         )
+        // Task 7: same promotion as the streamed path, so a stop issued
+        // while a sync `send(...)` is in flight has something to address.
+        // Cleared on every exit below via `defer` — the budget timeout, the
+        // switch's throws, and its one successful return all go through it.
+        setActiveRunContext(runID: submit.runID, profileID: hop.profileID)
+        defer {
+            clearActiveRunContext(matchingRunID: submit.runID)
+            // The sync path has no continuation to silence (it throws or
+            // returns a value, never yields `.interrupted`), but drains the
+            // flag anyway so a stop issued mid-sync-turn never lingers in
+            // the set past this call.
+            _ = consumeSelfStopped(runID: submit.runID)
+        }
 
         // `runsSyncBudget`, NOT `runsPollBudget`: a `send(...)` caller holds
         // no continuation, so there is no `.interrupted` to degrade to and
@@ -826,11 +867,69 @@ extension SessionsHermesClient {
             continuation.yield(.failed(Self.runFailureText(snapshot.error ?? "")))
         default:
             // `cancelled`, `stopped`, or a terminal status name this build
-            // does not know: the run is over and there is no answer to show,
-            // so it is recovery, not a failure claim.
-            continuation.yield(.interrupted(sessionId: sessionId, runId: runID))
+            // does not know: the run is over and there is no answer to show.
+            // Task 7: if WE stopped it (`abandonActiveRun()`), that is the
+            // self-initiated stop resolving and ends SILENTLY — otherwise
+            // it's recovery, not a failure claim, exactly as before.
+            if consumeSelfStopped(runID: runID) {
+                runsTransportLogger.notice(
+                    "runs: status poll for \(runID, privacy: .public) — '\(snapshot.status, privacy: .public)', self-stopped, ending silently"
+                )
+            } else {
+                continuation.yield(.interrupted(sessionId: sessionId, runId: runID))
+            }
         }
         return true
+    }
+
+    // MARK: - Stop (Task 7, #283 S23)
+
+    /// The runs plane's REAL server-side interrupt. Before this, "Stop" only
+    /// stopped the app listening (`ChatStore.cancelStreaming()` cancelling
+    /// its own consumption `Task` + the router releasing its lock) while the
+    /// host kept generating unattended (S24). This is what actually tells
+    /// the host to stop.
+    ///
+    /// Reached through `ChatBackendRouter.abandonActiveRun()` →
+    /// `ResilientHermesClient.abandonActiveRun()` → here — the protocol
+    /// default (`HermesClientProtocol.swift`) is a no-op, so this override is
+    /// what makes the forward do anything.
+    ///
+    /// No-ops when nothing is active: a Stop tapped after the turn already
+    /// finished (or on a backend that never had a run — the local brain)
+    /// finds `activeRunContext` nil and sends no request. Otherwise it
+    /// captures-and-clears the context (so a second tap, or the terminal
+    /// delivery racing this one, both see nil and no-op harmlessly), marks
+    /// the run self-stopped so the driver's own terminal handling
+    /// (`.runCancelled`, `deliverPolledTerminal`'s default arm) ends it
+    /// silently rather than as `.interrupted`, and fires the POST
+    /// fire-and-forget: the caller already tore down its own state and is
+    /// not waiting on this, and a 404 (`run_not_found` — the run already
+    /// ended server-side on its own) is a perfectly fine outcome, not a
+    /// failure worth surfacing.
+    func abandonActiveRun() {
+        guard let context = activeRunContext else { return }
+        clearActiveRunContext(matchingRunID: context.runID)
+        markSelfStopped(runID: context.runID)
+        let runID = context.runID
+        let profileID = context.profileID
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let request = try self.makeRequest(
+                    path: "\(Self.runsPath)/\(runID)/stop",
+                    method: "POST",
+                    body: nil,
+                    accept: "application/json",
+                    profileID: profileID
+                )
+                _ = try await self.session.data(for: request)
+            } catch {
+                runsTransportLogger.notice(
+                    "runs: stop request for \(runID, privacy: .public) did not confirm (already ended is fine) — \(error.localizedDescription, privacy: .public)"
+                )
+            }
+        }
     }
 
     // MARK: - Terminal message assembly

@@ -69,6 +69,15 @@ final class ResilientHermesClient: HermesClientProtocol {
         fallback.adoptTruncatedConversation(conversation)
     }
 
+    /// #283 Task 7: `sendStreaming` above only ever rides `primary` (never
+    /// `fallback`), so an active run — and the real server-side stop for it
+    /// — can only ever be `primary`'s. Forwarding to `fallback` too would be
+    /// a POST that always no-ops (nothing there ever set `activeRunContext`)
+    /// dressed up as coverage.
+    func abandonActiveRun() {
+        primary.abandonActiveRun()
+    }
+
     func availableModels() async throws -> [String] {
         try await primary.availableModels()
     }

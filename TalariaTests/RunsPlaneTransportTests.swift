@@ -34,6 +34,9 @@ struct RunsPlaneTransportTests {
         let method: String
         let path: String
         let body: String
+        /// Task 7: the `abandonActiveRun` tests pin the `/stop` POST's auth
+        /// header, not just that a request landed.
+        let authorization: String?
     }
 
     /// Scriptable stub with the two-closure shape the loss-classification
@@ -102,7 +105,8 @@ struct RunsPlaneTransportTests {
             let recordedRequest = RecordedRequest(
                 method: request.httpMethod ?? "GET",
                 path: request.url?.path ?? "",
-                body: Self.bodyString(request)
+                body: Self.bodyString(request),
+                authorization: request.value(forHTTPHeaderField: "Authorization")
             )
             Self.recorded.withLock { $0.append(recordedRequest) }
 
@@ -234,6 +238,11 @@ struct RunsPlaneTransportTests {
                     return try reply(202, #"{"run_id":"run-r1","status":"started"}"#)
                 case "/v1/runs/run-r1/events":
                     return try reply(eventsStatus, sseBody, contentType: "text/event-stream")
+                case "/v1/runs/run-r1/stop":
+                    // Task 7: the real server-side interrupt. The response
+                    // body is never decoded by `abandonActiveRun` — it fires
+                    // and forgets — so an empty object is enough.
+                    return try reply(200, "{}")
                 case "/v1/runs/run-r1":
                     let call = RunsStubURLProtocol.nextIndex(for: url.path)
                     // A flaky GET: the connection dies before any response.
@@ -996,6 +1005,108 @@ struct RunsPlaneTransportTests {
         #expect(message.sender == .system)
         #expect(message.status == .failed)
         #expect(message.content.contains("model refused"))
+    }
+
+    // MARK: - Task 7: the real server-side stop (#283 S23)
+
+    /// Before this, "Stop" only stopped the app LISTENING (S24: the host
+    /// kept generating unattended). This pins the real interrupt:
+    /// `abandonActiveRun()` must actually POST `/v1/runs/{id}/stop` with the
+    /// client's auth, and the self-initiated cancel that follows must
+    /// resolve SILENTLY — ChatStore already tore its own UI state down the
+    /// moment the user tapped Stop, so a second `.interrupted` would be an
+    /// unwanted, redundant teardown.
+    ///
+    /// The stream is parked (`hangEventsAfterBody`, the same zombie shape
+    /// `zombieRunsStreamTripsTheStallGuard` uses) so the run is still
+    /// "active" from the client's point of view when `abandonActiveRun()`
+    /// fires. `streamStallThreshold` is shortened so the stall guard trips
+    /// promptly afterward, entering the recovery poll — scripted to report
+    /// the run `cancelled`, the shape the host takes after honoring a real
+    /// `/stop`.
+    @Test @MainActor
+    func abandonActiveRunPostsStopWithAuth() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"cancelled"}"#],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "abandon")
+        client.streamStallThreshold = .milliseconds(300)
+
+        let collector = Task { @MainActor in
+            var updates: [StreamingUpdate] = []
+            for await update in client.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID()) {
+                updates.append(update)
+            }
+            return updates
+        }
+        // Same hang belt every test in this suite uses — a safety net, not
+        // the thing under test (see the assertions below).
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+
+        // Pump until the events subscribe has actually gone out — abandoning
+        // before the run is even submitted would find nothing to stop.
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(
+            RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil,
+            "the events subscribe must land before the turn can be abandoned"
+        )
+
+        client.abandonActiveRun()
+
+        let updates = await collector.value
+        belt.cancel()
+
+        // Pump for the stop request — it is fire-and-forget, so it may land
+        // slightly after `abandonActiveRun()` returns.
+        pumps = 0
+        while RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        let stop = try #require(RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop"))
+        #expect(stop.authorization == "Bearer test-key")
+
+        // Silent teardown: no `.interrupted` for the run WE stopped.
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+        // The collector drained the WHOLE stream via `continuation.finish()`
+        // — proven by content, not elapsed time: the only thing collected is
+        // the delta that arrived before the stop, with nothing appended by a
+        // belt-cancellation cutting the loop off early.
+        #expect(labels(updates) == ["textDelta(Wait)"])
+    }
+
+    /// A Stop tapped with nothing running — the turn already finished, or
+    /// this backend never had one (the local brain, reached through the same
+    /// protocol default) — must send no request at all.
+    @Test @MainActor
+    func abandonWithNoActiveRunIsANoOp() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([]))
+        defer { RunsStubURLProtocol.reset() }
+
+        // Fresh client, runs provider on (`makeClient`'s default), no turn
+        // ever started — nothing for `activeRunContext` to hold.
+        let client = makeClient(label: "abandon-noop")
+        client.abandonActiveRun()
+
+        // Give an errant fire-and-forget a moment to (not) fire.
+        try? await Task.sleep(for: .milliseconds(50))
+
+        #expect(RunsStubURLProtocol.requests().isEmpty, "no active run means no request of any kind, not just no /stop")
     }
 
     // MARK: - Task 5: dual-path dispatch pin (#218 guard)
