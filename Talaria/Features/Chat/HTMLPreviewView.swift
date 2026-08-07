@@ -76,16 +76,82 @@ extension HTMLPreviewNavigationPolicy: WKUIDelegate {
     }
 }
 
+// MARK: - #259: the egress block (scripts ON, network BLOCKED)
+
+/// The `.html` artifact's network sandbox. A meta-CSP cannot be injected into
+/// a full agent-authored document without markup-fragile string surgery (and
+/// anything parsed before the injection point loads unprotected), so the block
+/// is a compiled `WKContentRuleList` on the preview configuration —
+/// markup-independent, enforced at the web view's network layer.
+///
+/// Scope, deliberately scheme-shaped: `http(s)` and `ws(s)` are NETWORK
+/// egress and are blocked; `data:` is not network and keeps working (inline
+/// images), and `about:` is the document itself. Navigation-shaped egress —
+/// links, forms, meta-refresh, `window.open` — is already dead via the
+/// one-shot policy above; the rules close the subresource half a navigation
+/// policy never sees. Inline script never passes through a network blocker,
+/// so interactivity survives by construction (Owen's #259 routing: scripts
+/// on, network blocked).
+enum HTMLArtifactSandbox {
+    static let rulesIdentifier = "talaria-html-egress-block-v1"
+
+    static let rulesJSON = """
+    [
+        {"trigger": {"url-filter": "^https?://.*"}, "action": {"type": "block"}},
+        {"trigger": {"url-filter": "^wss?://.*"}, "action": {"type": "block"}}
+    ]
+    """
+
+    enum CompileFailure: Error {
+        case storeReturnedNothing
+    }
+
+    @MainActor private static var cached: WKContentRuleList?
+
+    /// Compiles (once per launch, then cached) the egress-block rule list.
+    /// `WKContentRuleListStore` also persists compilations by identifier, so
+    /// the steady-state cost is a lookup, not a compile.
+    @MainActor
+    static func rules() async throws -> WKContentRuleList {
+        if let cached { return cached }
+        guard let list = try await WKContentRuleListStore.default()
+            .compileContentRuleList(forIdentifier: rulesIdentifier,
+                                    encodedContentRuleList: rulesJSON)
+        else { throw CompileFailure.storeReturnedNothing }
+        cached = list
+        return list
+    }
+}
+
 /// The preview sheet's HTML surface: a hardened `WKWebView` that loads the
 /// reconstructed artifact once and never navigates again.
+///
+/// #259: constructing this view REQUIRES the compiled egress rules — there is
+/// deliberately no rules-free initializer, so "scripts enabled, network open"
+/// is unrepresentable. The async supply seam (and its fail-closed degrade to
+/// the code view) lives in `HTMLArtifactPreview`.
 struct HTMLPreviewView: UIViewRepresentable {
     let html: String
+    let rules: WKContentRuleList
 
     func makeCoordinator() -> HTMLPreviewNavigationPolicy {
         HTMLPreviewNavigationPolicy()
     }
 
-    func makeUIView(context: Context) -> WKWebView {
+    /// The one production recipe for the hardened web view, static so the
+    /// #259 egress tests exercise EXACTLY this configuration rather than a
+    /// test-local imitation of it.
+    ///
+    /// **The caller MUST retain `policy` for the web view's lifetime.**
+    /// `navigationDelegate`/`uiDelegate` are weak; if the policy dies, the
+    /// initial navigation decision is never delivered, the HTML never commits,
+    /// and the sheet renders a BLANK page. SwiftUI's coordinator provides that
+    /// retention in production — a caller outside `makeUIView` must do it
+    /// deliberately (this exact mistake cost a false-green egress test).
+    static func makeHardenedWebView(
+        rules: WKContentRuleList,
+        policy: HTMLPreviewNavigationPolicy
+    ) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         // Nothing the artifact stores (cookies, localStorage) outlives the
         // presentation.
@@ -93,12 +159,19 @@ struct HTMLPreviewView: UIViewRepresentable {
         // No auto-linkified phone numbers/addresses — navigation is dead here
         // anyway, so don't manufacture tappable links.
         configuration.dataDetectorTypes = []
+        // #259: the network egress block. Attached before any content loads.
+        configuration.userContentController.add(rules)
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.navigationDelegate = context.coordinator
-        webView.uiDelegate = context.coordinator
+        webView.navigationDelegate = policy
+        webView.uiDelegate = policy
         webView.allowsLinkPreview = false
         webView.allowsBackForwardNavigationGestures = false
+        return webView
+    }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = Self.makeHardenedWebView(rules: rules, policy: context.coordinator)
         webView.loadHTMLString(html, baseURL: nil)
         return webView
     }
@@ -106,6 +179,71 @@ struct HTMLPreviewView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         // Content is fixed for the life of the presentation; a reload here
         // would be cancelled by the one-shot policy by design.
+    }
+}
+
+/// #259: the async seam between "the sheet wants a web preview" and "the
+/// egress rules exist". Loading shows a spinner (never a blank pane), success
+/// shows the hardened web view, and a compile failure fails CLOSED to the #92
+/// code panel — the malformed-SVG precedent: degraded, visible, honest.
+struct HTMLArtifactPreview: View {
+    /// The document handed to the web view (for SVG this is the wrapped host
+    /// document).
+    let html: String
+    /// What the code panel shows if the rules cannot be had — the RAW
+    /// artifact text, not the wrapper around it.
+    let sourceLanguage: String?
+    let sourceText: String
+
+    enum Destination: Equatable {
+        case loading
+        case web(WKContentRuleList)
+        case source
+
+        /// Pure routing, pinned by the #259-C tests: nil (still compiling) →
+        /// loading; failure → source; success → the web surface.
+        static func resolve(_ result: Result<WKContentRuleList, any Error>?) -> Destination {
+            switch result {
+            case nil: .loading
+            case .success(let rules): .web(rules)
+            case .failure: .source
+            }
+        }
+
+        static func == (lhs: Destination, rhs: Destination) -> Bool {
+            switch (lhs, rhs) {
+            case (.loading, .loading), (.source, .source): true
+            // Reference identity: a rule list has no value semantics, and the
+            // routing's promise is "the web surface gets THE compiled list".
+            case (.web(let a), (.web(let b))): a === b
+            default: false
+            }
+        }
+    }
+
+    @State private var result: Result<WKContentRuleList, any Error>?
+
+    var body: some View {
+        switch Destination.resolve(result) {
+        case .loading:
+            ProgressView()
+                .task {
+                    do {
+                        result = .success(try await HTMLArtifactSandbox.rules())
+                    } catch {
+                        TalariaLog.event("FilePreview: egress rules failed to compile — showing source instead")
+                        result = .failure(error)
+                    }
+                }
+        case .web(let rules):
+            HTMLPreviewView(html: html, rules: rules)
+                .ignoresSafeArea(edges: .bottom)
+        case .source:
+            ScrollView {
+                CodeBlockView(language: sourceLanguage, code: sourceText)
+                    .padding(Design.Spacing.md)
+            }
+        }
     }
 }
 
