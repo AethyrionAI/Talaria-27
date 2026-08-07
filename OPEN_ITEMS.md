@@ -4874,6 +4874,32 @@ depends on which gates exist, so (C) landing later may re-touch it.
 > inconsistent across sessions, so (A)'s matrix must treat both readings as
 > real specimens, not assume the flag side is the only liar.
 
+> **Update 2026-08-06 (night) — BUILT, GATED, MERGED, DEPLOYED same evening as
+> the routing. Bars 260-A/B/C/D MET; 260-E rides Owen's next device pass.**
+> TDD throughout (every new pin watched failing first). **App:** PR #275
+> (merge `ff0f24c`, Owen: "approved") — `RevokeRowState.compute(flag, iOS)`
+> is the revoke row's single pure source (ACTIVE requires BOTH truths;
+> NEEDS PERMISSION / OFF IN iOS / — carry the action that unblocks each);
+> `PhoneQueryResponder.deniedGate` is the one gate table `answer()` itself
+> consults, and the link decorates denials with additive
+> `denied_gate`/`denied_stream` fields (legacy conformers ride a protocol
+> default and keep the exact pre-260 body — both skew directions degrade to
+> shipped behavior); master switch relabeled **"Share Sensors with Hermes"**
+> with a caption naming both acts it gates. **GATE: PASS — 1668 → 1687 units
+> (+19: 10 revoke-matrix, 5 responder, 4 wire), 12 XCUITest, Release green;
+> every pre-existing pin untouched** (260-C held by construction — the
+> classifier is consulted by the same `answer()` path that already returned
+> `.denied`, and `PhoneQueryAnswer` itself is unchanged). **Plugin:** repo
+> `talaria-plugin` main @ `4205d1a` (50 → 60 pytest), deployed on Owen's "Go"
+> — live checkout fast-forwarded, gateway bounced (fresh PID 31094, start
+> 18:59:11, "✓ talaria connected" logged), worktree cleaned. Denial prose now
+> names master vs the actual stream toggle (weather names Location); a bare
+> pre-260 denial keeps the generic prose byte-identical. **OTA staged from
+> merged main for Owen's phone. NOTE for the device pass: OTA 2085 sends no
+> gate fields — the named-gate prose needs the NEW install; the health
+> Permissions row will also read honestly only per-launch (HealthKit hides
+> read grants — see the (A) caveat in `RevokeRowState`'s doc).**
+
 ## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
 
 **The defect, clinically:** the `.html` preview route renders
