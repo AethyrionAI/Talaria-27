@@ -5063,6 +5063,20 @@ pattern the sessions plane has, not a 3A regression, but 285's per-turn
 snapshot answer should eventually cover that seam too. Flagged for #283's
 whole-branch review as a look-at, not a blocker.
 
+> **Update 2026-08-07 — #283's whole-branch review CHECKED that adjacency
+> and the verdict is: parity confirmed, exposure WIDENED IN DURATION, not
+> in kind.** Every runs request carries the hop's birth profile explicitly
+> (submit, events subscribe, status poll, and the stop capture all pass
+> `hop.profileID` / `context.profileID`), so M-5's birth-profile routing
+> holds and the branch does not make this worse structurally. What changed
+> is the window: a sessions streamed turn resolved its endpoint ONCE per
+> long-lived request, whereas a runs turn is MANY requests over up to ~3
+> minutes of wall clock, each re-resolving — so in the profile-less
+> (`profileID == nil`) case a mid-turn base-URL/key change can now redirect
+> a turn's later polls where before there was nothing left to redirect.
+> **Consequence for this lane:** whatever per-turn snapshot 285 lands should
+> cover the runs driver's request family, not just the platform link.
+
 ## 284. 💡 CAPABILITY BROKER for the local brain — capability discovery + selective typed-tool arming over ONE registry (native tools / MCP / Skills / Hermes-side) — **FILED 2026-08-07 from the open-source momentum report (`planning/reports/2026-08-07-open-source-momentum-report.md`), on Owen's instruction ("create / update open items for the ones we want to implement later"); claims VALIDATED same day against tracker, code, and the external repos. NO LANE, NO BARS — post-Phase-3 candidate by the report's own ordering; Owen routes.**
 
 **The idea (OpenWork's pattern, adapted):** instead of arming the full belt
@@ -5196,6 +5210,77 @@ reproducible script =
 Sessions path stays intact and default until 3A-F passes; the runs client
 ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 3A only, wholesale at 3E).
+
+> **Update 2026-08-07 — BUILD-SIDE COMPLETE, device bars owed.** Branch
+> `claude/t27-283-3a-runs-transport`, 12 commits off `58315d3`, ~3,045
+> insertions of which ~1,743 are tests (42 new `@Test`s across four new test
+> files + one router pin). Plan:
+> `planning/superpowers/plans/2026-08-07-283-3a-runs-transport.md`, executed
+> subagent-driven — every task independently reviewed, six fix rounds, one
+> whole-branch review.
+>
+> **Bar status — evidence, not expectation:**
+> - **3A-A decode ✅** `happyTurnDecodesToParitySequence` (full ordered
+>   sequence incl. reasoning + usage; `.modelResolved` pinned ABSENT) + 7
+>   parser units.
+> - **3A-B recovery ✅** `killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce`
+>   (loop proven by call count) and the #237 shape pinned from the other
+>   side by `streamCompletionSuppressesThePollPath` with a discriminating
+>   fixture, plus budget / 404-gone / flaky-read / subscribe-miss arms.
+> - **3A-D artifacts ✅** `writeFileToolStartedProducesNoArtifact` — zero
+>   `.artifactProduced`, the tool preview NOT laundered into a chip, prose
+>   sweep intact. Honest absence, as designed.
+> - **3A-E gate ✅** `GATE: PASS` on `24b2e78` — **1793 Swift Testing + 12
+>   XCUITest**, exactly the 2 known Apple-Intelligence hardware skips,
+>   **Release build green**, no Release compile errors. *(Re-run on the
+>   final head before merge — that run predates the stop-API split.)*
+> - **3A-G history — unit arm ✅** (`historyRidesTheSubmitBody`: marker word
+>   present, GET `/messages` ordered BEFORE POST `/v1/runs`; + 4 mapper
+>   units). **Device arm OWED.**
+> - **3A-H attachments — unit arm ✅** (message-array wrap asserted at both
+>   the encoder and e2e level). The "parts-array unreachable from production"
+>   clause holds **by construction** — `RunsTurnInput` has no bare-parts
+>   encoding — not by a test. **Device arm OWED.**
+> - **3A-C stop — build scaffolding ✅, DEVICE OWED by definition** (the bar
+>   demands host-log evidence).
+> - **3A-F ✅ OWED** — queued in `dispatch/DEVICE-PASS-RUNNING-LIST.md`
+>   behind 78-F2.
+>
+> **THE RULING THIS LANE FORCED (Owen can overturn it — it is a product
+> call, and it is disclosed in the PR).** The whole-branch review caught
+> that `abandonActiveRun` is the WALK-AWAY teardown primitive, not the Stop
+> button: it is called by thread switch, new chat, `reset`, and the
+> continued-send expiration handler. Wiring the real `/v1/runs/{id}/stop`
+> onto it meant *switching threads mid-turn silently killed the host run and
+> destroyed an answer the sessions plane always preserved* — and the
+> self-stop flag suppressed the teardown signal, so it would have been
+> invisible. **Ruled: sessions-plane parity for walk-away. Only an explicit
+> Stop reaches the network** — `hardStopActiveRun()` (Stop tap, Siri Cancel,
+> the intent cancel hook) vs `abandonActiveRun()` (network-free, everything
+> else), with `cancelStreaming(hardStopHost:)` gating the one shared entry
+> because the expiration handler comes through it too. If you would rather
+> a walk-away also stop the host burning tokens, say so and it is a
+> one-line flip. Both directions are pinned.
+>
+> **Known limitations recorded rather than fixed (all behind the OFF
+> switch):** `activeRunContext` is a SINGLE SLOT — an overlapping sync send
+> (Siri/widget) and a streamed turn contend, so Stop can address the wrong
+> run and the other becomes unstoppable (blast radius: wrong-run stop, never
+> a wrong answer). A stop tapped BEFORE `POST /v1/runs` returns has no run
+> id yet and degrades to today's cosmetic behavior. A self-stopped SYNC run
+> surfaces as an error string. Recovery silence windows are real and
+> knob-tunable: ~60s stall + up to ~120s poll ≈ 3 min worst case, sync
+> capped at 20s (#145 Part A parity) — **3A-F must observe the real number**.
+> History rides EVERY submit unbounded (parked deliberately: parity with the
+> server-side context the sessions plane feeds the agent; revisit at 3E,
+> where it compounds with attachment dataURLs toward a request-size cliff).
+>
+> **Falsified upstream in the same lane (close-out rule):** #145 Part A's
+> "everything that is not a stream gets 20s" was made false by the first
+> sync implementation and is now true again via a dedicated `runsSyncBudget`
+> — the doc block was corrected in place rather than left aspirational.
+> Three stop-related doc comments were likewise rewritten to describe what
+> the code does; two review rounds were spent on exactly that.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
