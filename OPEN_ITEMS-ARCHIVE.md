@@ -12980,7 +12980,7 @@ depends on which gates exist, so (C) landing later may re-touch it.
 > transport: split hub + wake-miss) and #264 (gateway bind race, comes up
 > without the chat plane and never retries).**
 
-## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened** — **✅ CLOSED 2026-08-07: 259-F MET on device (OTA 2100) — script demonstrably executed inside the network-blocked sheet**
+## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened** — **✅ CLOSED 2026-08-06 late night: 259-F MET on device (OTA 2100) — script demonstrably executed inside the network-blocked sheet**
 
 **The defect, clinically:** the `.html` preview route renders
 agent-authored markup with **no content-security policy**, so the
@@ -13065,7 +13065,7 @@ egress (links, forms, meta-refresh, window.open) and stays unmodified.
 > accepting silence as success. **GATE: PASS — 1687 → 1693 units (+6), 12
 > XCUITest, Release green.**
 
-> **Update 2026-08-07 — 259-F MET on device; ITEM CLOSED.** Owen, on OTA
+> **Update 2026-08-06 late night — 259-F MET on device; ITEM CLOSED.** Owen, on OTA
 > 2100 (main @ `79481b8`): asked Hermes for a 404 page, "techy, creative" —
 > it produced `404-terminal.html`, an interactive rescue-shell page. His
 > first report ("Able to view it on the phone… i wouldn't say its
@@ -13203,7 +13203,7 @@ have been edited); **258-E rides the OTA**.
 > rather than the iOS 27 sim — a cheap repeat closes that inch if anyone ever
 > wants it.
 
-## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup — **✅ CLOSED 2026-08-06 late night (triage sweep): archived as terminal**
 
 `project.yml` (and the generated pbxproj) carry the hard-coded Apple `DEVELOPMENT_TEAM`
 (`DNL25ZFSD2`). Team IDs are not secrets — this one is embedded in every build's provisioning
@@ -13219,9 +13219,9 @@ as the `aps-environment` regen rule).
 
 Logged 2026-07-10.
 
-> **Update 2026-08-07 — ARCHIVED as a decision record (oldest-20 triage sweep, Owen's call).** The 2026-07-10 decision stands: leave as-is for the personal-fork phase; re-open only if the repo goes public/contributor-facing.
+> **Update 2026-08-06 late night — ARCHIVED as a decision record (oldest-20 triage sweep, Owen's call).** The 2026-07-10 decision stands: leave as-is for the personal-fork phase; re-open only if the repo goes public/contributor-facing.
 
-## 55. 💤 OJAMD service layer reverted to out-of-the-box (2026-07-04) — relay portion SUPERSEDED by NSSM reinstatement (#88, #98, #105); gateway/connector Startup-script arrangement still current — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+## 55. 💤 OJAMD service layer reverted to out-of-the-box (2026-07-04) — relay portion SUPERSEDED by NSSM reinstatement (#88, #98, #105); gateway/connector Startup-script arrangement still current — **✅ CLOSED 2026-08-06 late night (triage sweep): archived as terminal**
 
 > **Audit 2026-07-13:** Confirmed the auditor's core finding but the scope was overstated — this is a *relay-only* reversal, not a full service-layer reversal. Item 55's own latest dated note (2026-07-08, "gateway operations recipe") still describes the gateway as a Startup-launched `pythonw` (via `Hermes_Gateway.vbs`) and predates the reversal, so it does not self-contradict. The contradiction comes from later items: #88 (RESOLVED 2026-07-09) verifies "the relay is NSSM-managed again (`HermesMobileRelay`... nssm.exe → uvicorn)"; #98's 2026-07-12 deploy note uses "elevated `Restart-Service HermesMobileRelay`"; #54's 2026-07-12 update references "the #98 deploy restart of `HermesMobileRelay`"; and #105 (Fixed 2026-07-12) retires the stray `Hermes_Relay.cmd` Startup script specifically because "the relay is NSSM-owned now," calling it "#55's competing-launch-layers problem in mirror image." All four citations verified verbatim at their cited lines. However, #103 (2026-07-11 post-mortem) and #105 itself both state the **gateway and connector are still on #55's Startup-script arrangement** ("HermesGateway now runs as a user pythonw process... not an NSSM service"; "the connector is a plain bat-launched process and the gateway runs as Owen's user pythonw... neither is a service") — so "SUPERSEDED by NSSM reinstatement" as a blanket claim overstates it; only the relay flipped back. (Side note: CLAUDE.md's "OJAMD services" section calling the gateway a "scheduled task" is itself inconsistent with #103/#105's more granular, dated account and is worth a spot-check next OJAMD pass — not something this audit can resolve.) Of item 55's 4 remaining checklist bullets: #1 (PYTHONUTF8 in both bats) is independently mooted by #87's source-level `encoding="utf-8"` fix across 17 subprocess sites (deployed + verified 2026-07-11, connector suite 104/1 skipped) — a durable fix that doesn't depend on the bat env var at all; #3 (reboot/login validation) was not technically validated but was effectively closed by #105's explicit "accepted, not fixed" policy call (Owen: attended-reboots-only, 2026-07-12). Bullets #2 (rework the "Restart All" shortcut, still described as referencing deleted services as of #54's 2026-07-04 evening note) and #4 (first real `hermes-update-safe.ps1` run) have **no confirming evidence anywhere in OPEN_ITEMS.md** and should be carried forward as genuinely open, not swept away by the supersession framing. Precedent for this kind of retroactive annotation already exists in this file: item 24i carries a "> **SUPERSEDED 2026-07-04 by #55**" blockquote added after the fact while keeping its own ✅ header — #55 deserves the equivalent treatment now that its relay premise has been reversed.
 
@@ -13298,11 +13298,11 @@ Logged 2026-07-04.
   the `O:\` bat directly; the Startup wrapper path contains spaces and silently no-ops if
   passed unquoted to `Start-Process`).
 
-> **Update 2026-08-07 — ARCHIVED as graduated (oldest-20 triage sweep, Owen's call).** The service-layer facts live in CLAUDE.md's 'OJAMD services' section (the living copy). The one open bullet — a first real `hermes-update-safe.ps1` run — is moot: CLAUDE.md records 2026-08-04 that Owen's actual practice is bare `hermes update` and that this is fine.
+> **Update 2026-08-06 late night — ARCHIVED as graduated (oldest-20 triage sweep, Owen's call).** The service-layer facts live in CLAUDE.md's 'OJAMD services' section (the living copy). The one open bullet — a first real `hermes-update-safe.ps1` run — is moot: CLAUDE.md records 2026-08-04 that Owen's actual practice is bare `hermes update` and that this is fine.
 
 ---
 
-## 83. 📝 Display Zoom "Larger Text" letterboxes T27 on iPhone18,2 — beta interplay, NOT app layout + toolchain-provenance rule — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+## 83. 📝 Display Zoom "Larger Text" letterboxes T27 on iPhone18,2 — beta interplay, NOT app layout + toolchain-provenance rule — **✅ CLOSED 2026-08-06 late night (triage sweep): archived as terminal**
 
 **The 2026-07-08 evening "text clipped on the left" chase, resolved.** With Display Zoom =
 Larger Text, T27 renders in a **402×874pt window** (iPhone 17 Pro metrics) on the 440×956pt
@@ -13331,11 +13331,11 @@ install *before* auditing app code.
 
 Logged 2026-07-08.
 
-> **Update 2026-08-07 — ARCHIVED, framing obsolete (oldest-20 triage sweep, Owen's call).** The multi-beta toolchain-provenance scenario this item warns about no longer exists: Xcode-beta.app and Xcode-beta3.app were deleted 2026-07-24 (CLAUDE.md, Build/tooling). Whether the letterbox itself still reproduces under beta4 is a one-line re-test now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md; if it does, file a NEW item — do not reopen this one.
+> **Update 2026-08-06 late night — ARCHIVED, framing obsolete (oldest-20 triage sweep, Owen's call).** The multi-beta toolchain-provenance scenario this item warns about no longer exists: Xcode-beta.app and Xcode-beta3.app were deleted 2026-07-24 (CLAUDE.md, Build/tooling). Whether the letterbox itself still reproduces under beta4 is a one-line re-test now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md; if it does, file a NEW item — do not reopen this one.
 
 ---
 
-## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #107 — **✅ CLOSED 2026-08-07: SUBSUMED into #107 (triage reconciliation)**
+## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #107 — **✅ CLOSED 2026-08-06 late night: SUBSUMED into #107 (triage reconciliation)**
 
 > **Audit 2026-07-13:** Header's cross-reference is off by one item — 'Phase 1 → #106' should read '#107'; #106 is a different item entirely (P8 IR v0 / Lane D / PR #65). #107 (the correct Phase-1 tracker, matching the body text's own citations) confirms scaffolding merged via PR #79 but the Mini-execution checklist is still fully unchecked, so 🔧/merged-unverified remains the right status — only the number needs fixing.
 
@@ -13375,4 +13375,4 @@ it isn't rediscovered later.
 
 Deferred 2026-06-27 — revisit after the active items clear.
 
-> **Update 2026-08-07 — ✅ SUBSUMED INTO #107 (oldest-20 triage sweep reconciliation).** #34's own header hands Phase 1 to #107 and Phase 2 to #33, and #107's closure ('T6 Phase 1+2 — EXECUTED + reboot-verified') covers the Mini checklist: 8 of 11 lines confirmed done with citations in #107/#114/#54; the Mac-relay sensor-delivery line was SUPERSEDED by #114's deliberate design (sensors pinned to OJAMD permanently — the 2026-07-16 device note confirms 'SENSORS badge stayed pinned to OJAMD while Mac was active'); the run-completion-APNs line is MOOT (#238 deleted the push-watch/APNs surface app-wide, commit e32f554, 2026-08-03); the optional 'Windows brain, Mac hands' accelerator was explicitly declined in the T6 spec and stays unbuilt by choice. Anything Mac-host that resurfaces files NEW items.
+> **Update 2026-08-06 late night — ✅ SUBSUMED INTO #107 (oldest-20 triage sweep reconciliation).** #34's own header hands Phase 1 to #107 and Phase 2 to #33, and #107's closure ('T6 Phase 1+2 — EXECUTED + reboot-verified') covers the Mini checklist: 8 of 11 lines confirmed done with citations in #107/#114/#54; the Mac-relay sensor-delivery line was SUPERSEDED by #114's deliberate design (sensors pinned to OJAMD permanently — the 2026-07-16 device note confirms 'SENSORS badge stayed pinned to OJAMD while Mac was active'); the run-completion-APNs line is MOOT (#238 deleted the push-watch/APNs surface app-wide, commit e32f554, 2026-08-03); the optional 'Windows brain, Mac hands' accelerator was explicitly declined in the T6 spec and stays unbuilt by choice. Anything Mac-host that resurfaces files NEW items.

@@ -235,9 +235,16 @@ this whole block, then re-pair.** Est. ~25 min.
 - [ ] #123 — Share a URL into the app from Safari, and an image from
   Photos. (PASS: composer receives each, focused, works unpaired on the
   on-device brain.)
+- [ ] #123 — PDF ACCEPT path via share sheet (never exercised; A8-3
+  substituted `.txt`) (PASS: a real PDF shares in and lands as an
+  attachment).
+- [ ] #123 — three-share ORDER confirmation (A8-4 confirmed arrival, not
+  order) (PASS: three rapid shares land in send order).
 - [ ] #124 — Background then foreground with Face ID lock enabled. (PASS:
   the privacy overlay covers the scene root; unlocking offers passcode
   fallback, never biometry-only.)
+- [ ] #124 — attempt repro of the #272 App Lock re-prompt loop
+  (background/foreground churn while the unlock prompt is up).
 - [ ] #225 (confirmation re-run — see note above) — Standalone,
   hand-launched (NOT via Xcode), on-device brain, fresh chat: "what's the
   weather gonna be in Gulfport tomorrow." (PASS, all four required: B1 the

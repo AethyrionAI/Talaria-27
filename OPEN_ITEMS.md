@@ -176,6 +176,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#272** 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode …
 - **#271** 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
 - **#269** 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin, the user never sees a terminal …
@@ -444,7 +445,7 @@ to `RelayAPIClient`; branch `parseWrittenFile` so *content present → Tier 1*, 
 `args.content` is present/absent for binaries, which decides the fetch trigger. Also needs the
 Hermes-side nudge so the agent writes shareable artifacts into `MobileDL`.
 
-> **Update 2026-08-07 (Phase 3 scoping) — Tier 1 does not survive the runs migration
+> **Update 2026-08-06 late night (Phase 3 scoping) — Tier 1 does not survive the runs migration
 > as written.** The `/v1/runs` event stream carries **no tool `args`**: its
 > `tool.started` is `{event, run_id, timestamp, tool, preview}`
 > (`api_server.py:6222-6229`), where the Sessions `/chat/stream` emits `args`
@@ -684,7 +685,7 @@ Near-term scope if pursued = device-side EventKit only. Connectors land with T6.
 
 Logged 2026-06-27.
 
-> **Update 2026-08-07 — reconciled against #107/#114 (oldest-20 triage sweep); KEPT LIVE with the residual named.** #114 closed the from-Talaria-chat reach-through for iMessage ONLY (2026-07-20 device pass: agent-composed iMessage to Shelley, read receipt). The T6 spec's own acceptance scoring called connector end-to-end ⚠️ PARTIAL on exactly this line — Notes read/write 'literally from Talaria chat' was never device-verified. That single check is now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md (2026-08-07 consolidated run); when it passes, this item closes. FindMy remains deliberately parked (explicit non-adoption), Photon rejected — neither is residual.
+> **Update 2026-08-06 late night — reconciled against #107/#114 (oldest-20 triage sweep); KEPT LIVE with the residual named.** #114 closed the from-Talaria-chat reach-through for iMessage ONLY (2026-07-20 device pass: agent-composed iMessage to Shelley, read receipt). The T6 spec's own acceptance scoring called connector end-to-end ⚠️ PARTIAL on exactly this line — Notes read/write 'literally from Talaria chat' was never device-verified. That single check is now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md (2026-08-07 consolidated run); when it passes, this item closes. FindMy remains deliberately parked (explicit non-adoption), Photon rejected — neither is residual.
 
 
 ---
@@ -755,7 +756,7 @@ is "" on still-working paths.
 
 Logged 2026-07-06.
 
-> **Update 2026-08-07 (overnight) — the tailnet-unreachable half LANE-OPENED
+> **Update 2026-08-06 late night (overnight) — the tailnet-unreachable half LANE-OPENED
 > (batch-1 triage routing); diagnosis lands harder than the sweep's wording:
 > unreachable can NEVER error inside the Siri window.** The intent's reply
 > budget is 25s (`AskHermesIntent.swift:105-113`); the SSE send under it
@@ -1611,7 +1612,7 @@ The optional relay-route `kind` validation half of gh#58 remains open (server-si
 Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
 Console names the skipped one.
 
-> **Update 2026-08-07 — the server-side half is formally DECLINED (Owen's call, oldest-20 triage sweep).** 'Optionally validate `kind` at the relay route' is a relay-hardening change, and the standing 2026-08-02 rule declines that family outright (see CLAUDE.md: '⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR'). Declined ≠ refuted — the finding stays recorded, the build does not happen (same disposition as #188's watchdog half and #133's partial index). The app-side row-decode hardening already merged is unaffected; the device checklist half of this item remains live.
+> **Update 2026-08-06 late night — the server-side half is formally DECLINED (Owen's call, oldest-20 triage sweep).** 'Optionally validate `kind` at the relay route' is a relay-hardening change, and the standing 2026-08-02 rule declines that family outright (see CLAUDE.md: '⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR'). Declined ≠ refuted — the finding stays recorded, the build does not happen (same disposition as #188's watchdog half and #133's partial index). The app-side row-decode hardening already merged is unaffected; the device checklist half of this item remains live.
 
 ---
 
@@ -2042,6 +2043,20 @@ Two related gaps surfaced during #114 device verification (2026-07-16):
 Server-side touches ride the fork (relay internal API + connector), app-side is a small lane
 or rides the next Settings lane. Logged 2026-07-16.
 
+> **Update 2026-08-06 late night (reconciliation audit):** this entry's
+> **"KEEP the shim, unchanged; retire nothing"** verdict (2026-07-20) and its
+> still-owed DoD pass are **SUPERSEDED.** #223 Lane 5 (2026-08-04, all five
+> bars met, device-verified — *"Loaded models, picked DS Flash, sent
+> message. No issues."*) retired the shim from the model path entirely: the
+> phone now speaks gateway-only for models, and the OJAMD shim service is
+> stopped/disabled. The DoD steps recorded above (auto-fill lands, shim dot
+> reads honest NO KEY/ONLINE, models surface via the shim) reference shim
+> behaviors the app no longer has. **Needs Owen's morning call:** close this
+> item as superseded by #223 Lane 5, or re-scope it to whatever shim surface
+> still remains (device pairing/provisioning, per #116's original "Two
+> related gaps" — Gap 1 provisioning may be shim-independent; Gap 2 probe
+> honesty is not, since there is no shim probe left to make honest).
+
 ---
 
 ## 117. 🔧 Health-drain give-up paths hammered the connector — no-backoff loop (PR #85 follow-up) — MERGED PR #103; backoff DECAYS under sustained outage (2026-07-25); cross-cycle backoff BUILT 2026-07-27 (Mac run + >25-min device verify owed)
@@ -2218,6 +2233,37 @@ regression (separate seed slots).
 
 Logged 2026-07-17.
 
+> **Update 2026-08-06 late night (reconciliation audit):** this entry was
+> never updated to record its own merge — the "BUILT... in lane... Mac-
+> compiled" framing above is stale. Merged via **PR #118, merge commit
+> `64cd7af`** (branch `claude/t27-123-share-extension`); shipped on `main`
+> since.
+
+> **Update 2026-08-06 late night (reconciliation audit), combined finding —
+> three corrections from the 2026-07-25 device-pass session record
+> (`handoffs/2026-07-25_t27-device-pass-session1.md`), none previously
+> folded in:**
+> (a) **The "25MB-video case refused with visible reasons" claim above is
+> UNREACHABLE BY CONSTRUCTION.** Per the session's DOC-3 finding: video MIME
+> types are not stageable, so a video shared from Files hits the **type**
+> refusal before the **size** refusal ever runs — Photos never even offers
+> Talaria for a video (no movie activation rule). The size guard's actual
+> evidence is a deliberately oversized **25.07 MiB PDF**, verified
+> separately. Read the device checklist's "25MB video → polite refusal"
+> line accordingly — it was never exercised as a size check, and cannot be.
+> (b) **Never filed from the same session: the share-sheet size-limit label
+> is off by a base-10/base-2 conversion.** The cap is 20 MiB, but the
+> refusal text reads "limit 21 MB" (`ByteCountFormatter(.file)` is base-10)
+> — so a 20.5 MB file is refused by a limit the UI just told the user it was
+> under. One call site; honesty-family, alongside #180.
+> (c) **The "APPENDS to a draft (never destroys it)" cross-slot guarantee
+> was never exercised.** `consumeShareSeed` appends, but `consumeComposerSeed`
+> **replaces** (`ChatScreen.swift:1161`) — opposite contracts on two seed
+> slots that can land on the same draft. An ask-seed (`hermes://ask`)
+> arriving while a share is pending may wipe the share's text while its
+> attachments survive. Possibly intended (`:1169`'s "by contract"), but
+> untested — the check exists precisely to ask, not to assume.
+
 ---
 
 ## 124. ✨ Face ID app lock (free tier)
@@ -2262,6 +2308,10 @@ already in main; no ordering interaction.
 - [ ] Incoming push while locked: banner arrives, UI stays locked.
 
 Logged 2026-07-17. Built 2026-07-19 — suite 870/76 green (was 845/72) + UI tests green.
+
+> **Update 2026-08-06 late night (reconciliation audit):** this entry was
+> never updated to record its own merge. Merged via **PR #119, merge commit
+> `c82bcd5`** (branch `claude/t27-124-faceid-lock`); shipped on `main` since.
 
 ---
 
@@ -2422,6 +2472,13 @@ mid-reply drops the reply's un-spoken audio tail (transcript intact) and the nex
 the preview; realtime engine (primary case) previews truly play over the session. Accept, or
 add a third dedicated preview instance? → Device pass (Owen): mid-session audition + apply, no
 crash, session keeps running, mic live after; outside a session, full-fidelity previews.
+
+> **Update 2026-08-06 late night (reconciliation audit):** the **"Dispatch
+> spec 2026-07-17: `dispatch/FABLE-T27-129-preview-instance.md` — READY TO
+> SEND"** line above is stale. That dispatch was **CANCELLED** per this
+> entry's own header: *"Third dedicated preview instance (~4 lines)
+> CANCELLED — Owen accepted the behaviour 2026-07-23."* Nothing is pending
+> send on this item.
 
 ---
 
@@ -3153,6 +3210,12 @@ question is resolved on the beta SDK; 150D is a placeholder. Meta-dispatch retir
 
 Logged 2026-07-20.
 
+> **Update 2026-08-06 late night (reconciliation audit):** the 150A/150B
+> dispatch specs have been sitting **READY TO SEND since 2026-07-20** and
+> were never dispatched. Recorded as **deliberate** — #150 is post-launch
+> scope by design (the entry's own header: "post-launch marquee candidate,"
+> "not launch-pass work") — not a dropped item.
+
 ---
 
 ## 155. 📌 Capture the real UPSTREAM_TESTED_SHA value
@@ -3227,7 +3290,7 @@ Logged 2026-07-22.
 > the steer constraint (consumed at a tool-result boundary; silently dropped
 > mid-prose behind a false-positive `queued` ACK) as the load-bearing rule.
 > Full scoping: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.1.
-> *(Note added 2026-08-07; the original text above is left standing verbatim.)*
+> *(Note added 2026-08-06 late night; the original text above is left standing verbatim.)*
 
 ## 160. 🎨 hermex UI/UX design reference — Tasks, Skills, Projects (K3 analysis 2026-07-22)
 
@@ -3332,7 +3395,7 @@ Logged 2026-07-22.
 > `APIServerAdapter._active_run_agents`) and rides the Phase 3 runs migration — see
 > #267's CORRECTION, #159's own supersession note, and
 > `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.
-> *(Note added 2026-08-07; the bullet above is left standing verbatim.)*
+> *(Note added 2026-08-06 late night; the bullet above is left standing verbatim.)*
 
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
@@ -3724,7 +3787,7 @@ Both axes resolve independently, matching upstream's per-axis resolution — a j
 
 **NOT device-verified.** Owed on device: open a phone-created task and confirm the HOST-SIDE panel reads *Follows host default / was … when this task was created*; then, if convenient, flip the Mac's global default and confirm the phone's wording is now the honest one (it will still name the old snapshot on the second line — that is correct, it is dated to creation).
 
-> **Update 2026-08-07 (Phase 3 scoping) — filed here because its natural home (#9)
+> **Update 2026-08-06 late night (Phase 3 scoping) — filed here because its natural home (#9)
 > is closed and archived, and this is the live model-selection entry.** Research
 > report C found **per-turn `model`/`provider` fields accepted on the chat body** —
 > a per-turn model selection with no session pin involved. That is the surviving
@@ -4078,6 +4141,15 @@ session (`endSessionIfNeeded`) — activation deliberately leaves a live talk se
 alone. One deliberate small delta: the primitive nils `pendingMessageSentAt` up front, so a FAILED
 `openSession` no longer strands a stale send timestamp (previously only the success path cleared
 it). NOT device-verified — sim suite only.
+
+> **Update 2026-08-06 late night (reconciliation audit):** the **`openSession`
+> passes `stopSpeech: false`** line above, and its "flag for Owen if that
+> should change" switch, are **superseded.** All three
+> `abandonPendingRun(stopSpeech:)` call sites now pass `true`
+> (`ChatStore.swift:1003`, `:1589`, `:1643`) — read-aloud stops on every
+> teardown path, including session switch. Per the 2026-07-26 session
+> record and confirmed by tonight's audit source read. The "flag for Owen"
+> switch no longer exists to flip.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 
@@ -4689,7 +4761,7 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
-> **Update 2026-08-07 (Phase 3 scoping):** the §F7d failure has a MECHANISM now,
+> **Update 2026-08-06 late night (Phase 3 scoping):** the §F7d failure has a MECHANISM now,
 > not just a symptom — a Sessions-plane turn under host `manual` is
 > **blocked-and-queued** for an unreachable `/approve` (`_bind_api_server_session`
 > hardwires `platform="api_server"` → `_is_gateway_approval_context()` true →
@@ -4705,7 +4777,51 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
-## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. Unreproduced since; status unknown on the current build.**
+
+**Owen, 2026-07-25** (quoted verbatim in
+`handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
+session note): *"[the app] continually tries to unlock and won't stay
+stagnant on the app provided unlock prompt, and gives the system/faceid
+stuff."*
+
+**Why a clean checklist pass hid this for 12 days.** The same session ran
+A7 (#124 Face ID app lock) and scored it **7/7 — every stated check
+PASSED.** The handoff records the tension in the next sentence: *"A7's
+stated criteria all passed, so this is not folded into A7."* None of A7's
+seven checks (prompt-appears-over-content, retry-to-passcode,
+switcher-obscured, grace period, Siri-while-locked, sheet-above-cover,
+push-while-locked) are written to catch a re-prompt **loop** — they check
+that a prompt appears, not that it stops re-appearing once dismissed. A
+green device pass and a live, Owen-visible loop coexisted in the same
+sitting, on the same build, and that is exactly the gap a standalone item
+exists to close — the handoff said so in as many words, and for 12 days no
+item was filed to hold it.
+
+**Suspect surface (the handoff's own pointer, unexamined since):**
+`AppLockController` state transitions (`Talaria/Core/AppLock/`) — the
+scenePhase × grace × auth matrix (`AppLockCore.swift`) is the obvious place
+a re-entrant unlock could re-arm itself before the prior attempt's result
+is consumed.
+
+**Possible interaction, worth checking before assuming a pure
+state-machine bug:** #252's Settings redesign lane touched this exact
+surface — its own build history (`HANDOFF-2026-08-05-T27-BIG-DAY.md:57-58`)
+records "App Lock grace segments — parity gap caught by review,
+live-verified" as a mid-lane fix. That gap was reportedly caught and fixed
+before #252 merged, and #252's entry shows bars A-F all MET with no
+open App Lock thread — but it is the same Privacy → App Lock surface, and
+the fix predates this item's filing, so it has never been checked against
+this specific symptom. Rule it in or out before diagnosing blind.
+
+**Status: unreproduced since 2026-07-25.** No second sighting, no
+diagnosis, no lane. Needs a repro attempt on the current build before this
+is routed anywhere — queued in `dispatch/DEVICE-PASS-RUNNING-LIST.md`
+(background/foreground churn while the unlock prompt is up).
+
+**Bars pre-register here before any code.**
+
+## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
 **What it is, in #251's own words (the deferral that created this slice):**
 *"**OJAMD install deliberately deferred to Phase 2** — Phase 1 adds no user
@@ -4755,7 +4871,7 @@ rather than copied by reference (a bar that lives in two places drifts).
 whole-turn latency and was falsified at 32s vs ≤5s; the correct bar measures
 the transport leg alone (see #263, which absorbed that instrumentation).
 
-## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
+## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
 
 **Why it exists — the confusion is the product.** From #251's Phase 2 block:
 *"read-only visibility for backend plugins — NOT an installer, but the
@@ -4799,7 +4915,7 @@ independent feature. **v0 grows paired-devices + outbox columns there.**
 
 **Bars pre-register HERE before any code.**
 
-## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
+## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
 **The correction that produced it (Owen, 2026-08-05 late, quoted in #251):**
 *"I didn't even know it had a terminal cli until I had update issues."* Real
@@ -4841,7 +4957,7 @@ rollout)."* It is called "the Phase 2 design star" in #251.
 prose the model must produce, the #200-series discipline applies: measure the
 behaviour, do not assume the instruction landed.
 
-## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-07 (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
+## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-06 late night (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
 
 **The fear was half-right, and the half that was right is worth naming.** The
 plan of record (#251's phase arc) IS filed and has been since 2026-08-05.
@@ -4941,6 +5057,32 @@ handoffs are gitignored and the tracker is not; anything that lives only in a
 handoff is one lost laptop from gone. Corollary, learned the same day: **say
 which plan.** "Phase 3" unqualified has been ambiguous since 2026-08-05.
 
+> **Update 2026-08-06 late night (reconciliation audit) — a correction
+> belonging to #238, filed here per the archive's own no-edit rule (#238 is
+> closed and lives verbatim in `OPEN_ITEMS-ARCHIVE.md`; a correction to a
+> closed item's text goes in the live board, not the archive).** #238's
+> retirement list names *"reply-from-the-lock-screen (#47)"* as accepted
+> collateral of the notification-removal cut. **That `#47` is the GITHUB
+> issue number, not this tracker's #47.** Lock-screen reply is **tracker
+> #81** (its own header already says so: "Lock-screen reply to Hermes —
+> UNTextInputNotificationAction (GitHub #47)"). **Tracker #47** is the
+> archived OpenAI Realtime item, and its own text still carries an unfiled
+> line: *"Residual UNFILED and needs Owen: the billing-cap decision."*
+> That decision is **not** retired by #238 and was never resurfaced — **it
+> goes on Owen's queue:** the tracker-#47 billing-cap residual is still an
+> unfiled decision.
+
+> **Update 2026-08-06 late night (reconciliation audit) — Mac-gateway
+> persistence, corrected against live state.** The Mac gateway **IS**
+> launchd-supervised: `~/Library/LaunchAgents/ai.hermes.gateway.plist`
+> (`KeepAlive` + `RunAtLoad`), in place since 2026-08-03. The 2026-08-04
+> handoff's **"DECIDED — no launchd, stays a plain process"** line, and the
+> `nohup`-based launch recipe that went with it, are **FALSE against live
+> state and must not be followed** — running that recipe now would start a
+> SECOND gateway beside the supervised one. `kill` still gives a clean
+> ~20s respawn (this part of the folklore holds); verify the actual
+> LISTENER after any bounce, per #264, not just the process.
+
 ## 267. 💬 Message QUEUING while a turn streams — compose the next message mid-turn, auto-send at run end — **FILED 2026-08-06 late night (Owen: "How close are we to the steering / queuing stuff?"); the buildable half of 156f's pair**
 
 Steering (injecting into a RUNNING turn) stays parked per 156f — the
@@ -4979,7 +5121,7 @@ degradation visible, #180's rule), user hits Stop, app backgrounded
 mid-stream (does the queued send survive relaunch?), voice turns.
 Size: S-M. Bars pre-register here before any code.
 
-> **Update 2026-08-07 (Phase 3 scoping) — the composition rule for this lane.**
+> **Update 2026-08-06 late night (Phase 3 scoping) — the composition rule for this lane.**
 > Steer and queue are **ONE composer behavior**, not two features: steer while a
 > tool is in flight (the only window where a steer lands), queue for the prose
 > phase — which is exactly where a steer is silently dropped behind a
@@ -5078,7 +5220,7 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 - Filed as a WATCH + ops-rule item, not a lane — we keep zero core edits
   (standing rule), so the fix is an upstream report or an ops habit.
 
-> **Update 2026-08-07 (Phase 3 scoping) — what this state costs a runs-plane
+> **Update 2026-08-06 late night (Phase 3 scoping) — what this state costs a runs-plane
 > client.** After the migration, chat, host approvals, steering and the phone-query
 > transport ALL depend on the one `:8642` listener: the runs routes are api_server
 > routes, and the plugin's webhook (`POST /api/platforms/talaria/events`) rides the
@@ -5124,7 +5266,7 @@ adapter); store-backed liveness as the check_fn source (window widened past
 the 60s store-write throttle); timeout margin (query timeout > park hold);
 and a wake-path integration test that fails on a full-cycle delivery.
 
-> **Update 2026-08-07 — SCOPED against the code + the live logs. (b) PROVEN
+> **Update 2026-08-06 late night — SCOPED against the code + the live logs. (b) PROVEN
 > and it is WORSE than filed (universal, not a race). (a) AS FILED
 > FALSIFIED — the reload path does not split the hub, and the evening's
 > live evidence does not survive the timeline either. Lane splits: ship (b)
@@ -5245,7 +5387,7 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > (a) stays open as a WATCH because the shape is real, but its priors drop
 > hard and nothing should be built for it until a counter fires.
 >
-> **LANE SPLIT (orchestrator decision, 2026-08-07):** ship the (b) fix +
+> **LANE SPLIT (orchestrator decision, 2026-08-06 late night):** ship the (b) fix +
 > the instrumentation; (a) becomes a **WATCH** with counters in place. This
 > honors the entry's own "instrument before fixing" and avoids the #218
 > shape — a fix for a mechanism no test can exercise.
@@ -5383,7 +5525,7 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > to leave; chase it on the next gated-against-live-phone incident, or
 > add a PID to the load stamp when the lane next touches transport.py.
 
-> **Update 2026-08-07 (Phase 3 scoping) — this item's lesson becomes a standing
+> **Update 2026-08-06 late night (Phase 3 scoping) — this item's lesson becomes a standing
 > design rule for the runs migration.** Phase 3's steer/approval reach walks
 > `gateway.run._gateway_runner_ref()` → `runner.adapters[Platform.API_SERVER]` →
 > `._active_run_agents[run_id]`. **That walk resolves LATE, per call — the runner
@@ -5416,7 +5558,7 @@ the final transcript depend on WHEN a tool fired mid-prose; lean away.
 
 **Queued behind #260. Bars pre-register HERE before any code.**
 
-**Update 2026-08-07 — lane opened; mechanism validated and the filed guess
+**Update 2026-08-06 late night — lane opened; mechanism validated and the filed guess
 FALSIFIED in both halves (recorded, not redefined):**
 1. **There is no discrete `run.completed` re-anchor.** The chip renders in a
    fixed after-transcript section (`MessageBubble.hermesAttachments`, after
@@ -5444,7 +5586,7 @@ offsets; unanchored attachments (old caches, Tier-2 fetchables appended at
 finish) keep today's trailing grid; the `.finished` id-dedupe transfers the
 streamed anchor onto the final-list twin.
 
-**BARS — written 2026-08-07 BEFORE any production code:**
+**BARS — written 2026-08-06 late night BEFORE any production code:**
 - **262-A (unit, placement + boundary):** for content with a write_file
   activity and an artifact anchored mid-content, the segment list places the
   artifact chip AT its anchor, between the surrounding text runs — and the
@@ -5464,7 +5606,7 @@ streamed anchor onto the final-list twin.
   mid-turn; after relaunch/history reload the placement persists (anchor is
   persisted with the message).
 
-> **Update 2026-08-07 — BUILT + GATED; PR #277 open, awaiting Owen.** TDD
+> **Update 2026-08-06 late night — BUILT + GATED; PR #277 open, awaiting Owen.** TDD
 > with every RED witnessed (compile RED for `transcriptLayout`/`anchorOffset`,
 > runtime RED for the merge transfer). Bars 262-A/B/C MET in-suite; #10's
 > segment pins and #258's merge pins stayed green. **262-D MET — GATE: PASS,
@@ -6553,7 +6695,7 @@ lane opens.
 > (the 32s-vs-≤5s falsification stands; measure enqueue → phone answer → future
 > resolved, model latency out of scope).
 
-> **Update 2026-08-07 (Phase 3 scoping) — correction to the phase arc's Phase 3
+> **Update 2026-08-06 late night (Phase 3 scoping) — correction to the phase arc's Phase 3
 > line.** The arc says remote turns move `chat/stream` → `/v1/runs` + `/events`
 > with the taxonomy "largely carrying over." **It does not carry over unchanged:**
 > runs `tool.started` has **no `args`** (see #21's note; `api_server.py:6222-6229`)
@@ -6570,7 +6712,7 @@ lane opens.
 > DB (`:6329-6360`). Full scoping, slices 3A–3E, and the settled-findings
 > inventory: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.
 
-> **Update 2026-08-07 (Phase 3 scoping) — an unrelated money leak the same research
+> **Update 2026-08-06 late night (Phase 3 scoping) — an unrelated money leak the same research
 > turned up, recorded here so it is not lost with the reports.** Check Owen's cron
 > configs for `deliver: origin` jobs created via the API: such a job **fires, burns
 > a full agent turn, saves `last_output`, and never delivers**
@@ -6580,7 +6722,7 @@ lane opens.
 > (`agent/prompt_builder.py:929-941`). Cheap to audit, independent of Phase 3.
 > Source: research report C §2.2 (`planning/superpowers/research/251-phase3-gap/`).
 
-> **Update 2026-08-07 (Phase 3 scoping) — HAZARD carried forward for the desktop-face
+> **Update 2026-08-06 late night (Phase 3 scoping) — HAZARD carried forward for the desktop-face
 > slice (#270):** `hermes serve` runs its OWN cron ticker, so a serve process beside
 > `hermes gateway run` puts **two cron tickers on one `state.db`** (double-fire
 > risk). Any serve adoption — including the desktop app's own
@@ -7414,7 +7556,7 @@ REASONING rows — upstream shape, display-only.
 > - **235-F (device):** a dead-stream turn followed by later messages shows
 >   the recovered reply at the BOTTOM with the marker naming its prompt.
 
-> **Update 2026-08-07 (Phase 3 scoping) — what this machinery becomes if the runs
+> **Update 2026-08-06 late night (Phase 3 scoping) — what this machinery becomes if the runs
 > migration lands, and the correction that goes with it.** On the runs plane,
 > recovery = `GET /v1/runs/{id}` — status + `output` + `usage`, retained for
 > `_RUN_STATUS_TTL = 3600s` (`api_server.py:6187`). **The event stream itself has
@@ -8473,6 +8615,18 @@ conversation. Owen routes each lane.
 > the developer `.p8`) is parked as an explicit gate. Lane 3's bar TEMPLATES live in
 > the plan and get copied INTO this entry, dated, before the first measured run. Not
 > started — Owen routes each lane.
+
+> **Update 2026-08-06 late night (reconciliation audit):** the **"Lane 6
+> (upstream re-attach PR) is UNAFFECTED"** line above (from the 2026-08-03
+> push-retirement note) is **superseded** by the 2026-08-04 GOAL-RUN report.
+> Its own premises have collapsed on both readings of what Lane 6 is: the
+> hook-emission half's consumer died with #238 (the notification surface
+> Lane 6 would have re-attached into no longer exists), and the files-mount
+> half serves a sensor plane that is itself being retired (#242/#251
+> direction). Worse, the two sources do not even agree on what Lane 6 IS —
+> one calls it "re-attach PR," the other "hook emission + files mount." This
+> needs a re-scope CONVERSATION with Owen, not code — do not route Lane 6
+> as currently written.
 
 ## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
