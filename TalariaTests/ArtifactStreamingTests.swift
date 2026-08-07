@@ -363,6 +363,25 @@ struct ArtifactStreamingTests {
     }
 
     @Test @MainActor
+    func streamedAnchorSurvivesTheFinishMergeLeadList() async throws {
+        // 262-C: ChatStore stamps the content length at `.artifactProduced`
+        // ("Writing the file." = 17 chars streamed first); the final message's
+        // same-id twin carries no anchor. The lead-list dedupe must resolve to
+        // ONE row that keeps the STREAMED anchor — losing it would drop the
+        // chip to the trailing grid at the finish boundary, the exact jump
+        // this lane removes.
+        let artifact = try makeStagedAttachment(named: "anchored.md", content: "# Report")
+        defer { removeStaged([artifact]) }
+        let (store, _) = makeStore(streamed: [artifact], final: [artifact], label: "anchor-merge")
+
+        await store.sendMessage("Write it")
+
+        let reply = try #require(store.conversation?.messages.last(where: { $0.sender == .hermes }))
+        #expect(reply.attachments.count == 1)
+        #expect(reply.attachments.first?.anchorOffset == 17)
+    }
+
+    @Test @MainActor
     func finishAddingAFetchableKeepsExactlyOneChipPerFile() async throws {
         // The real #21 shape: `write_file` streamed a Tier 1 reconstruction and
         // `run.completed` appended a Tier 2 fetchable announced in prose. Two

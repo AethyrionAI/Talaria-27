@@ -614,7 +614,13 @@ final class ChatStore {
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }),
                        !conv.messages[idx].attachments.contains(where: { $0.id == attachment.id }) {
-                        conv.messages[idx].attachments.append(attachment)
+                        // #262: stamp the generation point — the mirror of the
+                        // tool-chip anchor above — so the chip renders inline
+                        // where the file was written and stays there while the
+                        // rest of the turn streams beneath it.
+                        var anchored = attachment
+                        anchored.anchorOffset = conv.messages[idx].content.count
+                        conv.messages[idx].attachments.append(anchored)
                         self.conversation = conv
                     }
                     continuedSend?.tick()
@@ -671,6 +677,23 @@ final class ChatStore {
                         // genuine writes to one path stay two rows — distinct
                         // ids, distinct staged bytes, write order preserved.
                         if !streamedArtifacts.isEmpty {
+                            // #262: the final list's twin of a streamed chip
+                            // carries no anchor (the client built it before
+                            // the store stamped one) — transfer the streamed
+                            // anchor onto it, or the chip would drop from its
+                            // inline spot to the trailing grid at the finish
+                            // boundary: the exact jump the lane removes.
+                            let streamedAnchors = Dictionary(
+                                streamedArtifacts.compactMap { chip in
+                                    chip.anchorOffset.map { (chip.id, $0) }
+                                },
+                                uniquingKeysWith: { first, _ in first }
+                            )
+                            for i in resolved.attachments.indices
+                            where resolved.attachments[i].anchorOffset == nil {
+                                resolved.attachments[i].anchorOffset =
+                                    streamedAnchors[resolved.attachments[i].id]
+                            }
                             var seen = Set(resolved.attachments.map(\.id))
                             for artifact in streamedArtifacts where seen.insert(artifact.id).inserted {
                                 resolved.attachments.append(artifact)

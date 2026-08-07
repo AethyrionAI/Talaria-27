@@ -3091,6 +3091,116 @@ struct AppStoresTests {
         #expect(group.count == 1)
     }
 
+    // MARK: - Inline artifact chip anchoring (#262)
+
+    @Test @MainActor
+    func anchoredArtifactChipStaysAtItsAnchorWhileContentGrows() {
+        // 262-A. Mid-stream moment: "Writing… " has streamed (9 chars),
+        // write_file fired, the artifact landed. Then the answer streams on.
+        let midStream = "Writing… "
+        let full = "Writing… Here is the file, plus discussion streamed after it."
+        let tool = ToolActivity(label: "write_file", isActive: false, anchorOffset: 9)
+        var artifact = MessageAttachment(kind: "file", fileName: "out.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 9
+
+        let mid = MessageBubble.transcriptLayout(
+            content: midStream, activities: [tool], attachments: [artifact]
+        )
+        let done = MessageBubble.transcriptLayout(
+            content: full, activities: [tool], attachments: [artifact]
+        )
+
+        // Mid-stream: head text, tool card, chip — the chip under the card.
+        #expect(mid.trailingAttachments.isEmpty)
+        guard mid.segments.count == 3,
+              case .text(_, 0) = mid.segments[0],
+              case .tools(_, 9) = mid.segments[1],
+              case .artifacts(let midChips, 9) = mid.segments[2]
+        else {
+            Issue.record("unexpected mid-stream segment shape")
+            return
+        }
+        #expect(midChips.map(\.id) == [artifact.id])
+
+        // Finished: identical prefix — the trailing text renders BENEATH the
+        // chip; the finish boundary moved nothing.
+        #expect(done.trailingAttachments.isEmpty)
+        guard done.segments.count == 4,
+              case .text(let head, 0) = done.segments[0],
+              case .tools(_, 9) = done.segments[1],
+              case .artifacts(let doneChips, 9) = done.segments[2],
+              case .text(let tail, 9) = done.segments[3]
+        else {
+            Issue.record("unexpected finished segment shape")
+            return
+        }
+        #expect(head == "Writing… ")
+        #expect(doneChips.map(\.id) == [artifact.id])
+        #expect(tail == "Here is the file, plus discussion streamed after it.")
+    }
+
+    @Test @MainActor
+    func unanchoredAttachmentsKeepTheTrailingGridAndEveryChipRendersOnce() {
+        // 262-B. A nil anchor (pre-lane cache, Tier 2 fetchable appended at
+        // finish) keeps today's trailing grid; an anchored one goes inline;
+        // every attachment appears exactly once across the two.
+        let tool = ToolActivity(label: "write_file", isActive: false, anchorOffset: 5)
+        var anchored = MessageAttachment(kind: "file", fileName: "new.md", mimeType: "text/markdown")
+        anchored.anchorOffset = 5
+        let legacy = MessageAttachment(kind: "file", fileName: "old.md", mimeType: "text/markdown")
+
+        let layout = MessageBubble.transcriptLayout(
+            content: "Done. All set.", activities: [tool], attachments: [anchored, legacy]
+        )
+
+        #expect(layout.trailingAttachments.map(\.id) == [legacy.id])
+        let inline = layout.segments.flatMap { segment -> [UUID] in
+            if case .artifacts(let chips, _) = segment { return chips.map(\.id) }
+            return []
+        }
+        #expect(inline == [anchored.id])
+    }
+
+    @Test @MainActor
+    func anchoredArtifactWithoutToolActivitiesStillRenders() {
+        // 262-B. No tool chips on the message must not vanish an anchored
+        // artifact — it still renders (inline, at its clamped anchor).
+        var artifact = MessageAttachment(kind: "file", fileName: "solo.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 6
+
+        let layout = MessageBubble.transcriptLayout(
+            content: "Here. And more prose after.", activities: [], attachments: [artifact]
+        )
+
+        #expect(layout.trailingAttachments.isEmpty)
+        guard layout.segments.count == 3,
+              case .text(_, 0) = layout.segments[0],
+              case .artifacts(let chips, 6) = layout.segments[1],
+              case .text(_, 6) = layout.segments[2]
+        else {
+            Issue.record("unexpected segment shape")
+            return
+        }
+        #expect(chips.map(\.id) == [artifact.id])
+    }
+
+    @Test @MainActor
+    func attachmentAnchorRoundTripsAndOldCachesDecodeNil() throws {
+        // 262-E's persistence half: the anchor rides the conversation cache,
+        // and pre-lane JSON (no key) still decodes — as unanchored.
+        var artifact = MessageAttachment(kind: "file", fileName: "out.md", mimeType: "text/markdown")
+        artifact.anchorOffset = 12
+        let data = try JSONEncoder().encode(artifact)
+        let decoded = try JSONDecoder().decode(MessageAttachment.self, from: data)
+        #expect(decoded.anchorOffset == 12)
+
+        let legacyJSON = """
+        {"id":"\(UUID().uuidString)","kind":"file","fileName":"old.md","mimeType":"text/markdown"}
+        """
+        let legacy = try JSONDecoder().decode(MessageAttachment.self, from: Data(legacyJSON.utf8))
+        #expect(legacy.anchorOffset == nil)
+    }
+
     @Test @MainActor
     func messageCodableRoundTripsToolActivities() throws {
         // #10: the tool timeline must survive the conversation cache.

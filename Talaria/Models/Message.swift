@@ -27,6 +27,13 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
     /// OJAMD's). Nil collapses to the active profile at fetch time
     /// (pre-Lane-M records, profile-less constructions).
     let remoteProfileID: UUID?
+    /// #262: character offset into the message content where this file was
+    /// produced — stamped by ChatStore at `.artifactProduced`, mirror of the
+    /// tool-chip anchor (#10). Anchored chips render inline in the transcript
+    /// at that point; nil (pre-#262 caches, Tier 2 fetchables appended at
+    /// finish) keeps the trailing grid. Optional + synthesized Codable ⇒ old
+    /// caches still decode.
+    var anchorOffset: Int?
 
     init(
         id: UUID = UUID(),
@@ -37,7 +44,8 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         localStoragePath: String? = nil,
         voiceMemoAudioPath: String? = nil,
         remotePath: String? = nil,
-        remoteProfileID: UUID? = nil
+        remoteProfileID: UUID? = nil,
+        anchorOffset: Int? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -48,6 +56,7 @@ struct MessageAttachment: Codable, Identifiable, Hashable, Sendable {
         self.voiceMemoAudioPath = voiceMemoAudioPath
         self.remotePath = remotePath
         self.remoteProfileID = remoteProfileID
+        self.anchorOffset = anchorOffset
     }
 
     init(from pending: PendingAttachment) {
