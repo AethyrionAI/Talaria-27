@@ -144,11 +144,23 @@ struct RunsPlaneTransportTests {
     ]}
     """#
 
+    /// The default status-poll body: a run still going. With this, the poll
+    /// seam is exercised as "not terminal yet" and the caller falls through
+    /// to `.interrupted`.
+    private static let runningStatus = #"{"object":"hermes.run","run_id":"run-r1","status":"running"}"#
+
     /// Routes the four endpoints one runs turn touches. Suffix/exact path
     /// match, mirroring the sessions-plane stubs.
+    ///
+    /// `eventsStatus` + `failEventsAfterBody` are what let the loss tests
+    /// script the two ways an events subscription dies: refused outright
+    /// (non-2xx), or opened and then torn down mid-stream.
     private static func script(
         sseBody: String,
-        messagesBody: String = RunsPlaneTransportTests.messagesFixture
+        messagesBody: String = RunsPlaneTransportTests.messagesFixture,
+        statusBody: String = RunsPlaneTransportTests.runningStatus,
+        eventsStatus: Int = 200,
+        failEventsAfterBody: URLError.Code? = nil
     ) -> RunsStubURLProtocol.Script {
         RunsStubURLProtocol.Script(
             response: { request in
@@ -170,16 +182,18 @@ struct RunsPlaneTransportTests {
                 case "/v1/runs":
                     return try reply(202, #"{"run_id":"run-r1","status":"started"}"#)
                 case "/v1/runs/run-r1/events":
-                    return try reply(200, sseBody, contentType: "text/event-stream")
+                    return try reply(eventsStatus, sseBody, contentType: "text/event-stream")
                 case "/v1/runs/run-r1":
-                    // Task 6's business; a live run here means the poll seam
-                    // is exercised only as "not terminal yet".
-                    return try reply(200, #"{"object":"hermes.run","run_id":"run-r1","status":"running"}"#)
+                    return try reply(200, statusBody)
                 default:
                     throw URLError(.badURL)
                 }
             },
-            failAfterBody: { _ in nil }
+            failAfterBody: { request in
+                guard let code = failEventsAfterBody,
+                      request.url?.path == "/v1/runs/run-r1/events" else { return nil }
+                return URLError(code)
+            }
         )
     }
 
@@ -405,5 +419,220 @@ struct RunsPlaneTransportTests {
         let parts = try #require(input[0]["content"] as? [[String: Any]])
         #expect(parts.contains { $0["type"] as? String == "text" })
         #expect(parts.contains { $0["type"] as? String == "image_url" })
+    }
+
+    // MARK: - Loss and recovery (the poll seam)
+
+    /// The mid-stream drop: partial deltas arrive, then the connection dies
+    /// with no terminal frame, and the run is STILL RUNNING when polled. The
+    /// run is committed server-side, so this must arm recovery
+    /// (`.interrupted`) — never `.failed` (a dead end the user must retry) and
+    /// never `.unreachable` (which parks the turn in the compose outbox and
+    /// re-sends it, making Hermes answer twice, #240).
+    @Test @MainActor
+    func droppedStreamOnALiveRunArmsRecovery() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Par"}"#,
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.1,"delta":"tial"}"#,
+            ]),
+            // The poll finds the run still going — nothing terminal to deliver.
+            statusBody: Self.runningStatus,
+            failEventsAfterBody: .networkConnectionLost
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "drop")
+        let updates = await collect(from: client)
+
+        // The deltas that DID arrive are still delivered — a drop loses the
+        // rest of the stream, not what already landed.
+        #expect(labels(updates).prefix(2) == ["textDelta(Par)", "textDelta(tial)"])
+
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1, "exactly one terminal yield, and it must be the recovery one")
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .unreachable = $0 { return true } else { return false } })
+        // Deliberately NOT asserting whether the poll ran here: a THROWN
+        // stream takes the catch classification, which in Task 4 yields
+        // recovery directly. Task 6 is what puts the bounded poll in front of
+        // it; pinning today's absence would just book a failure for that task.
+    }
+
+    /// The clean close: the stream ENDS without a terminal frame (no error to
+    /// classify). This is the branch that enters the poll seam, and with the
+    /// run still live the poll has nothing terminal to deliver — so it falls
+    /// through to the same recovery yield.
+    @Test @MainActor
+    func cleanCloseWithNoTerminalFramePollsThenArmsRecovery() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Half "}"#,
+                #"{"event":"tool.started","run_id":"run-r1","timestamp":1.1,"tool":"shell","preview":"ls"}"#,
+            ]),
+            statusBody: Self.runningStatus
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "clean-close")
+        let updates = await collect(from: client)
+
+        // The poll seam was actually entered — without this assertion the
+        // test would also pass on a driver that never polls at all.
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1") != nil)
+
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1)
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// The subscribe miss: `GET /events` 404s (the run finished before we
+    /// attached, or the registration race was lost). The stream carries no
+    /// answer, but the status object does — for an hour — so the turn still
+    /// finishes with the real output and usage rather than degrading.
+    @Test @MainActor
+    func eventsSubscribeMissRecoversTheAnswerFromTheStatusPoll() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
+            statusBody: #"""
+            {"object":"hermes.run","run_id":"run-r1","status":"completed",
+             "output":"Polled answer","usage":{"input_tokens":7,"output_tokens":4,"total_tokens":11}}
+            """#,
+            eventsStatus: 404
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "subscribe-miss")
+        let updates = await collect(from: client)
+
+        let finishes = updates.filter { if case .finished = $0 { return true } else { return false } }
+        #expect(finishes.count == 1)
+        let finished = try #require(finishedPayload(updates))
+        #expect(finished.message.content == "Polled answer")
+        #expect(finished.usage?.totalTokens == 11)
+        #expect(finished.usage?.promptTokens == 7)
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// #235 F1 on the poll path: a run the host calls `completed` while
+    /// carrying NO answer text anywhere (empty `output`, no streamed deltas).
+    /// Delivering that as `.finished` paints an empty bubble AND suppresses
+    /// recovery — the exact shape the sessions plane converts to
+    /// `.interrupted` via `cleanCloseArmsRecovery`. The runs plane reuses that
+    /// same guard.
+    @Test @MainActor
+    func completedStatusWithNoAnswerTextArmsRecoveryInsteadOfAnEmptyBubble() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
+            statusBody: #"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"","usage":{"input_tokens":7,"output_tokens":0,"total_tokens":7}}"#,
+            eventsStatus: 404
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "empty-completed")
+        let updates = await collect(from: client)
+
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } },
+                "an empty answer must never be delivered as a finished message")
+        let interruptions = updates.filter { if case .interrupted = $0 { return true } else { return false } }
+        #expect(interruptions.count == 1)
+    }
+}
+
+// MARK: - History mapping (the pre-fetch's pure half)
+
+/// Direct unit coverage for the three drop/mapping rules `runsHistory`
+/// implements. Pure and `nonisolated` — no network, no client.
+struct RunsHistoryMappingTests {
+
+    private func message(_ sender: MessageSender, _ content: String) -> Message {
+        Message(sender: sender, content: content, status: .delivered)
+    }
+
+    @Test func mapsUserAndHermesRolesAndDropsEveryoneElse() {
+        let history = SessionsHermesClient.runsHistory(
+            from: [
+                message(.user, "ping"),
+                message(.hermes, "pong"),
+                // System notices are the APP's own text (priming receipts,
+                // outage banners) — never part of the thread the agent is
+                // being handed.
+                message(.system, "Context transplanted."),
+            ],
+            excludingTrailing: ""
+        )
+        #expect(history.map(\.role) == ["user", "assistant"])
+        #expect(history.map(\.content) == ["ping", "pong"])
+    }
+
+    @Test func dropsEmptyAndWhitespaceOnlyRows() {
+        let history = SessionsHermesClient.runsHistory(
+            from: [
+                message(.user, "real"),
+                message(.hermes, ""),
+                message(.hermes, "   \n\t "),
+                message(.hermes, "  also real  "),
+            ],
+            excludingTrailing: ""
+        )
+        // Blank rows carry nothing for the agent and cost tokens; survivors
+        // are trimmed.
+        #expect(history.map(\.content) == ["real", "also real"])
+    }
+
+    @Test func dropsATrailingRowEqualToTheOutgoingTurn() {
+        let history = SessionsHermesClient.runsHistory(
+            from: [
+                message(.user, "what is the weather"),
+                message(.hermes, "sunny"),
+                message(.user, "what is the weather"),
+            ],
+            excludingTrailing: "what is the weather"
+        )
+        // Only the TRAILING duplicate goes: it is the turn about to be sent,
+        // which the body already carries as `input`. The identical EARLIER
+        // row is a genuine thing the user said before and must survive — a
+        // blanket de-dupe would silently rewrite the conversation.
+        #expect(history.map(\.content) == ["what is the weather", "sunny"])
+        #expect(history.map(\.role) == ["user", "assistant"])
+    }
+
+    @Test func keepsATrailingRowThatIsNotTheOutgoingTurn() {
+        let assistantTail = SessionsHermesClient.runsHistory(
+            from: [message(.user, "hi"), message(.hermes, "hello")],
+            excludingTrailing: "hello"
+        )
+        // Same text, but it is the ASSISTANT's — never the outgoing turn.
+        #expect(assistantTail.map(\.content) == ["hi", "hello"])
+
+        let differentTail = SessionsHermesClient.runsHistory(
+            from: [message(.user, "hi"), message(.hermes, "hello")],
+            excludingTrailing: "something else"
+        )
+        #expect(differentTail.count == 2)
+
+        // Whitespace-only outgoing text never drops anything.
+        let blankOutgoing = SessionsHermesClient.runsHistory(
+            from: [message(.user, "hi")],
+            excludingTrailing: "   "
+        )
+        #expect(blankOutgoing.count == 1)
     }
 }

@@ -545,12 +545,28 @@ extension SessionsHermesClient {
         }
         switch snapshot.status {
         case "completed":
+            let output = snapshot.output ?? ""
+            // #235 F1, the SAME guard the sessions plane applies to a clean
+            // close (`cleanCloseArmsRecovery`, applied at
+            // `SessionsHermesClient.swift:521-531`) — reused, not restated, so
+            // the two planes cannot drift on it. A terminal status with no
+            // answer text anywhere paints an EMPTY bubble and suppresses all
+            // recovery; it must arm `.interrupted` instead. `runStarted: true`
+            // is the truth here by construction: we are holding a run id.
+            let effectiveContent = output.isEmpty ? assembledContent : output
+            guard !Self.cleanCloseArmsRecovery(runStarted: true, effectiveContent: effectiveContent) else {
+                runsTransportLogger.notice(
+                    "runs: status 'completed' for \(runID, privacy: .public) carried no answer text — arming recovery, not an empty bubble"
+                )
+                continuation.yield(.interrupted(sessionId: hop.sessionId, runId: runID))
+                return true
+            }
             let usage = Self.decodeRunUsage(snapshot.rawJSON)
             if let usage {
                 usageIndex?.record(sessionID: hop.sessionId, usage: usage)
             }
             let message = runsFinalMessage(
-                output: snapshot.output ?? "",
+                output: output,
                 assembledContent: assembledContent,
                 assembledReasoning: assembledReasoning,
                 profileID: hop.profileID
