@@ -36,6 +36,18 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
 
     private(set) var activeEngine: VoiceEngine
 
+    /// #139: monotonic start intent, bumped by `endSession()`.
+    ///
+    /// The fallback below runs AFTER the realtime start resolves — seconds
+    /// later on a slow host, 12s on a black hole — and until this existed
+    /// nothing in that path asked whether the session was still wanted. So a
+    /// user who dismissed during ESTABLISHING LINK got a LOCAL microphone
+    /// opened by the very belt (#247 B1) that was added to bound the hang.
+    /// Every realtime resolution reaches that branch: `.failed` and `.idle`
+    /// both land in `shouldFallBackToNative`'s `default: return true`, and
+    /// `.idle` is precisely what the user's own `endSession()` leaves behind.
+    private var startGeneration = 0
+
     init(
         realtime: any VoiceSessionServiceProtocol,
         native: any VoiceSessionServiceProtocol,
@@ -211,6 +223,9 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         // the record could not answer "local or realtime?".
         // `self.` is required: os_log interpolations are autoclosures.
         Self.logger.notice("voice session starting on engine \(self.activeEngine.rawValue, privacy: .public) (relayPaired=\(self.isRelayPaired(), privacy: .public))")
+        // #139: claim this start's generation before the first await.
+        startGeneration &+= 1
+        let generation = startGeneration
         // #221: last line of defence. `refreshReadiness` may not have run since
         // the user changed brain, so re-check here rather than trusting
         // `activeEngine` — the whole defect was a stale routing decision nobody
@@ -238,6 +253,13 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             let timedOut = belt.isCancelled == false && start.isCancelled
             belt.cancel()
             let attempted = realtime.snapshot
+            // #139: the user dismissed while the realtime start was in flight.
+            // Falling back now would open a LOCAL microphone for a session
+            // nobody is in — the privacy defect, arriving by the fallback door.
+            if generation != startGeneration {
+                Self.logger.notice("voice start abandoned mid-connect — not falling back to local voice (#139)")
+                return
+            }
             if Self.shouldFallBackToNative(
                 connectionState: attempted.connectionState,
                 blockedReason: attempted.blockedReason,
@@ -257,6 +279,9 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     }
 
     func endSession() async {
+        // #139: revoke any start still in flight, so the post-start fallback
+        // above knows the session was abandoned rather than merely unlucky.
+        startGeneration &+= 1
         await active.endSession()
     }
 
