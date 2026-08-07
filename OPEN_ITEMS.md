@@ -4934,6 +4934,39 @@ pre-register here when a lane opens.
 > survives; the beacon/tailnet reach dies. Lane queued AFTER #260 per Owen's
 > ordering; bars pre-register in this entry when it opens.
 
+**LANE OPENED 2026-08-06 (night). Mechanism chosen before code:** a meta-CSP
+cannot be injected into a full agent-authored document without markup-fragile
+string surgery (and content preceding the injection point loads unprotected),
+so the block rides **WebKit content rules** — a compiled
+`WKContentRuleList` on the preview's configuration blocking `http(s)`/`ws(s)`
+URL loads at the network layer, markup-independent, with `data:` untouched so
+inline images keep working. Inline script never passes through a blocker, so
+interactivity survives by construction. The #99 sandbox (one-shot navigation
+policy, no bridge, ephemeral store, no popups) already kills navigation-shaped
+egress (links, forms, meta-refresh, window.open) and stays unmodified.
+
+**BARS (pre-registered, before any code):**
+- **259-A (the leak dies, EMPIRICALLY):** in-suite against REAL WebKit — an
+  artifact whose inline script beacons a local in-process HTTP listener
+  produces ZERO hits under the shipped configuration, while the SAME artifact
+  in a no-rules control arm produces the hit (the control proves the harness
+  live — #258's review standard, now inside the suite instead of a macOS CLI).
+- **259-B (interactivity survives):** an artifact whose inline script mutates
+  the document demonstrably EXECUTED under the shipped configuration —
+  scripts-on is a bar, not a hope.
+- **259-C (fail closed, never blank):** if rule compilation/attachment fails,
+  the preview degrades to the CODE VIEW (the malformed-SVG precedent) — no
+  path renders an HTML artifact scripts-enabled without the rules attached,
+  and no path paints a blank pane.
+- **259-D (no regression):** #99's policy pins and #258's SVG pins stay green
+  UNMODIFIED; the SVG route may additionally gain the rules (same vehicle)
+  but its CSP and validator behavior change not at all.
+- **259-E (gate):** full `lane-gate.sh` PASS, unit count moved (state the
+  arithmetic).
+- **259-F (device, Owen):** an interactive HTML artifact from a real Hermes
+  turn runs its script on the phone (something visibly dynamic), rendering
+  inside the sheet as before.
+
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 late evening: all five bars MET (258-E on device), white canvas DECIDED (stays white), chip relocation spun off to #262**
 
 **Framing (established by the terrain map, `G-preview-panes-terrain.md`,
