@@ -410,7 +410,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                     if let runtime = Self.decodeTurnRuntime(currentData) {
                         continuation.yield(.modelResolved(runtime))
                     }
-                    let usage = decodeRunUsage(currentData)
+                    let usage = Self.decodeRunUsage(currentData)
                     // #25: persist the run's usage keyed by this hop's server
                     // session — the CTX gauge's only source when the session
                     // is later resumed (the stored transcript carries no
@@ -1010,7 +1010,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                 currentData = ""
             }
             guard !currentData.isEmpty, currentEvent == "run.completed" else { return }
-            usage = decodeRunUsage(currentData)
+            usage = Self.decodeRunUsage(currentData)
         }
         for try await line in bytes.lines {
             if Task.isCancelled { break }
@@ -1504,7 +1504,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Extracts token usage from a `run.completed` SSE payload. Hermes emits
     /// Anthropic-style keys (input/output/total); map onto TokenUsage's
     /// prompt/completion/total. Returns nil if usage is absent or unparseable.
-    nonisolated private func decodeRunUsage(_ data: String) -> TokenUsage? {
+    // runs-path-visible (#283): shared by both planes' run.completed decode
+    nonisolated static func decodeRunUsage(_ data: String) -> TokenUsage? {
         guard let raw = data.data(using: .utf8),
               let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
               let usage = envelope.usage

@@ -96,4 +96,72 @@ extension SessionsHermesClient {
             )
         }
     }
+
+    // MARK: - Runs-plane frame parser (Task 2, #283)
+
+    /// One parsed runs-plane SSE frame. Cases mirror the event names the
+    /// `/v1/runs` stream emits; `.ignored` covers frame types the app
+    /// receives but does not yet act on.
+    enum RunsEvent: Equatable {
+        case messageDelta(String)
+        case toolStarted(name: String, preview: String?)
+        case toolCompleted(name: String, error: String?)
+        case reasoning(String)
+        case runCompleted(output: String, rawJSON: String)
+        case runFailed(error: String)
+        case runCancelled
+        case ignored(String)
+    }
+
+    /// Parses one runs-plane SSE frame.
+    ///
+    /// **Load-bearing dialect note:** the runs stream has NO `event:` lines —
+    /// every frame is a single `data: {json}` line carrying the event name
+    /// INSIDE the JSON under `"event"`, and `bytes.lines` swallows the blank
+    /// separators between frames. So the runs-plane read loop must dispatch
+    /// on EVERY `data:` line immediately, unlike the sessions-plane parser
+    /// (`SessionsHermesClient`'s main SSE loop), which buffers content until
+    /// the NEXT `event:` line flushes it. Reusing that flush-on-next-`event:`
+    /// strategy here would buffer forever, since this dialect never sends one.
+    ///
+    /// `jsonPayload` is the JSON text after `data: `. Returns `nil` for
+    /// payloads that aren't a JSON object or carry no string `"event"` key;
+    /// returns `.ignored(name)` for both known-but-unused event names
+    /// (`approval.request`, `approval.responded`, `subagent.start`,
+    /// `subagent.complete`) and any other event name this parser doesn't
+    /// otherwise recognize — forward-tolerant of new event types the way the
+    /// rest of this client's SSE parsing is (see `decodeJSONString`,
+    /// `thinkingDelta(fromToolProgress:)`).
+    nonisolated static func parseRunsFrame(_ jsonPayload: String) -> RunsEvent? {
+        guard let data = jsonPayload.data(using: .utf8),
+              let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let name = payload["event"] as? String
+        else { return nil }
+
+        switch name {
+        case "message.delta":
+            guard let delta = payload["delta"] as? String else { return nil }
+            return .messageDelta(delta)
+        case "tool.started":
+            guard let toolName = payload["tool"] as? String else { return nil }
+            return .toolStarted(name: toolName, preview: payload["preview"] as? String)
+        case "tool.completed":
+            guard let toolName = payload["tool"] as? String else { return nil }
+            return .toolCompleted(name: toolName, error: payload["error"] as? String)
+        case "reasoning.available":
+            guard let text = payload["text"] as? String else { return nil }
+            return .reasoning(text)
+        case "run.completed":
+            return .runCompleted(output: (payload["output"] as? String) ?? "", rawJSON: jsonPayload)
+        case "run.failed":
+            return .runFailed(error: (payload["error"] as? String) ?? "")
+        case "run.cancelled":
+            return .runCancelled
+        default:
+            // Known-but-unused (approval.*, subagent.*) and any unrecognized
+            // future event name both land here — a valid frame the app
+            // chooses not to act on, distinct from an unparseable one.
+            return .ignored(name)
+        }
+    }
 }
