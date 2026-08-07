@@ -735,6 +735,48 @@ is "" on still-working paths.
 
 Logged 2026-07-06.
 
+> **Update 2026-08-07 (overnight) — the tailnet-unreachable half LANE-OPENED
+> (batch-1 triage routing); diagnosis lands harder than the sweep's wording:
+> unreachable can NEVER error inside the Siri window.** The intent's reply
+> budget is 25s (`AskHermesIntent.swift:105-113`); the SSE send under it
+> carries the **300s** streaming transport budget
+> (`SessionsHermesClient.makeRequest` → `requestTimeout(forAccept:)`), so a
+> black-hole host produces no error for five minutes and the "Hermes is
+> still working on it" hand-off is the ONLY reachable branch — exactly the
+> device sweep's FAIL, now with its arithmetic. Second collapse: failures
+> that DO surface speak raw `localizedDescription` (measured: synthesized
+> `URLError`s even degrade to "(NSURLErrorDomain error -1001.)"). **Design
+> (reviewed + accepted): a ≤4s connect-level preflight** (`GET /v1/models`;
+> any HTTP status = reachable) with one shared failure classifier — sound
+> because connect-time and generation-time are independent, so a
+> slow-but-alive turn cannot be mislabeled. Rejected with named failure
+> modes: classification-only (300s ≫ 25s — the error never arrives),
+> NWPathMonitor (path is `.satisfied` in the exact swept configuration),
+> shrinking the SSE budget (#145's own trade forbids it — pinned by a bar).
+> Siri-Stop stays out of scope (its own half, later). Two residuals
+> recorded, not built: a `queueTurnOffline` seam so the honest dialog can
+> also QUEUE the question (#90's outbox path never fires today), and the
+> Tier-2 idea that fits the launch pivot — route the unreachable Siri ask
+> to the on-device brain (#192's router already does this for in-app turns).
+>
+> **BARS (56-U series) — written before any production code:** 56-U-A
+> transport-budget characterization pin (guards the rejected shortcut);
+> 56-U-B today's strings name no actionable cause (characterization);
+> 56-U-C every URLError variant maps to a distinct, actionable spoken
+> detail (`.noAnswer` names tailnet/asleep); 56-U-D unreachable verdict
+> lands strictly inside the reply budget in ONE round trip; 56-U-E no
+> false positives (any HTTP status = reachable, nil dialog; the
+> still-working string stays byte-identical for slow-but-alive); 56-U-F
+> all waits share one deadline ≤25s (iOS reaps ~30s); 56-U-G preflight
+> SKIPPED when no key is set — a hostless default user's local turn must
+> never hear "host down"; 56-U-H device (Owen): off-tailnet ask answers
+> ~5s naming the cause, one notification; slow-but-alive still says
+> "still working". Compile-RED witnessed (new API); characterization bars
+> behaviorally witnessed. Branch `claude/t27-56-unreachable-honesty`
+> @ `2c48091`. Side-finding for the board: xcodegen version drift churns
+> `Talaria.xcscheme` on every regen (1.3→1.7, app-name rename) — reverted
+> as out of scope, needs its own small look.
+
 ---
 
 ## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25
