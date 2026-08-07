@@ -229,9 +229,13 @@ extension SessionsHermesClient {
     ///
     /// Differences from the sessions driver, each forced by the wire and none
     /// of them papered over:
-    /// - **No `allowStaleHopRetry`.** The submit does not hit
-    ///   `/api/sessions/{id}/…`, so a 404 there is a server error, not an
-    ///   expired hop — it surfaces as `.failed`.
+    /// - **The stale-hop retry guards the HISTORY read, not the submit.** The
+    ///   submit does not hit `/api/sessions/{id}/…`, so a 404 there is a real
+    ///   server error; the pre-fetch does, and a persisted hop whose server
+    ///   session expired 404s exactly there (N4 makes that read mandatory).
+    ///   `allowStaleHopRetry` therefore means the same thing it means on the
+    ///   sessions plane — re-hop ONCE, with a transplant, then give up — and
+    ///   it uses the same `discardStaleHop()` + `ensureHopForTurn()` pieces.
     /// - **No `.artifactProduced`, ever.** The runs `tool.started` carries no
     ///   `args` (`api_server.py:6222-6229`), so #21 Tier 1 reconstruction has
     ///   no source here. Honest absence beats a chip that cannot be opened.
@@ -246,9 +250,15 @@ extension SessionsHermesClient {
     func streamTurnViaRuns(
         message content: String,
         attachments: [PendingAttachment],
-        into continuation: AsyncStream<StreamingUpdate>.Continuation
+        into continuation: AsyncStream<StreamingUpdate>.Continuation,
+        allowStaleHopRetry: Bool = true
     ) async {
         var capturedSessionId = ""
+        // Captured alongside the session id so the catch path — which is
+        // reached without the `PreparedHop` in scope — can still address the
+        // right host for the recovery poll (M-5: a session's requests resolve
+        // from its BIRTH profile, never the active one).
+        var capturedProfileID: UUID?
         var runID: String?
         // The run is COMMITTED the moment the submit returns an id — from
         // there a dropped connection is recoverable, never re-queueable
@@ -264,6 +274,7 @@ extension SessionsHermesClient {
         do {
             let hop = try await ensureHopForTurn()
             capturedSessionId = hop.sessionId
+            capturedProfileID = hop.profileID
             // P1 (#90): the transplant just happened, before this turn hits
             // the wire — surface its cost so the receipts stay honest. The
             // priming turn itself deliberately stays on the SESSIONS plane in
@@ -280,15 +291,36 @@ extension SessionsHermesClient {
             // A failure here is NOT swallowed: a contextless turn does not
             // fail loudly, it answers plausibly from long-term memory — the
             // exact shape the probe caught. Better a visible error the user
-            // can retry. Known gap, named rather than hidden: the sessions
-            // plane re-hops a 404 on a REUSED hop and this path has no
-            // stale-hop retry in 3A, so an expired persisted hop surfaces as
-            // `.failed` here where the sessions plane would recover.
-            let history = try await fetchRunsHistory(
-                sessionId: hop.sessionId,
-                profileID: hop.profileID,
-                excludingTrailing: content
-            )
+            // can retry.
+            //
+            // Except for the ONE failure that is not the server's fault: a
+            // persisted hop whose session the host has since pruned 404s here,
+            // and that is a stale HANDLE, not a missing conversation. Same
+            // response the sessions plane makes (`streamTurn`'s
+            // `allowStaleHopRetry`) and the same two pieces — drop the handle,
+            // re-run the turn setup once on a fresh transplanted hop. The run
+            // has NOT been submitted at this point, so the retry cannot
+            // double-send (#240).
+            let history: [RunsTurnBody.HistoryEntry]
+            do {
+                history = try await fetchRunsHistory(
+                    sessionId: hop.sessionId,
+                    profileID: hop.profileID,
+                    excludingTrailing: content
+                )
+            } catch SessionsClientError.sessionNotFound where hop.wasReused && allowStaleHopRetry {
+                runsTransportLogger.notice(
+                    "runs turn: persisted hop stale server-side (404 on the history read) — re-hopping with transplant"
+                )
+                discardStaleHop()
+                await streamTurnViaRuns(
+                    message: content,
+                    attachments: attachments,
+                    into: continuation,
+                    allowStaleHopRetry: false
+                )
+                return
+            }
 
             let submit: RunSubmitResponse = try await postJSON(
                 path: Self.runsPath,
@@ -330,7 +362,8 @@ extension SessionsHermesClient {
                 )
                 finishedYielded = await deliverPolledTerminal(
                     runID: acceptedRunID,
-                    hop: hop,
+                    sessionId: hop.sessionId,
+                    profileID: hop.profileID,
                     assembledContent: assembledContent,
                     assembledReasoning: assembledReasoning,
                     into: continuation
@@ -412,14 +445,15 @@ extension SessionsHermesClient {
             }
 
             if !finishedYielded {
-                // Clean close with no terminal frame. Task 6 replaces this
-                // with the bounded poll loop; the single-read seam already
-                // resolves the common case where the run finished while the
-                // stream was dying, and anything else arms the #235 recovery
-                // machinery exactly as a dropped sessions stream does.
+                // Clean close with no terminal frame: the bounded poll is the
+                // recovery, resolving both the common case (the run finished
+                // while the stream was dying) and the slower one (it finishes
+                // within the budget). Anything else arms the #235 machinery
+                // exactly as a dropped sessions stream does.
                 finishedYielded = await deliverPolledTerminal(
                     runID: acceptedRunID,
-                    hop: hop,
+                    sessionId: hop.sessionId,
+                    profileID: hop.profileID,
                     assembledContent: assembledContent,
                     assembledReasoning: assembledReasoning,
                     into: continuation
@@ -435,8 +469,27 @@ extension SessionsHermesClient {
             // Defensive: nothing after a terminal yield can throw today, but
             // the exactly-once rule is stated here rather than inferred.
             guard !finishedYielded else { return }
-            if runSubmitted || streamOpened {
-                // Accepted server-side — the run keeps going without us.
+            if let acceptedRunID = runID, runSubmitted {
+                // Accepted server-side, so this is a RECOVERY case and never
+                // a re-send. The stream is gone but the status object is not:
+                // poll it before degrading, because the answer this turn was
+                // waiting for may already exist (3A-B). `Task.isCancelled`
+                // makes the poll a no-op, so a stopped consumer costs nothing.
+                finishedYielded = await deliverPolledTerminal(
+                    runID: acceptedRunID,
+                    sessionId: capturedSessionId,
+                    profileID: capturedProfileID,
+                    assembledContent: assembledContent,
+                    assembledReasoning: assembledReasoning,
+                    into: continuation
+                )
+                if !finishedYielded {
+                    continuation.yield(.interrupted(sessionId: capturedSessionId, runId: acceptedRunID))
+                }
+            } else if runSubmitted || streamOpened {
+                // A submit that returned no id, or a stream opened without
+                // one: still committed server-side, but with no handle to
+                // poll. The run keeps going without us.
                 continuation.yield(.interrupted(sessionId: capturedSessionId, runId: runID))
             } else if Self.isUnreachableError(error) {
                 // Never reached the host: queueable in the offline compose
@@ -446,6 +499,86 @@ extension SessionsHermesClient {
                 continuation.yield(.failed(failureMessage(for: error)))
             }
             finishedYielded = true
+        }
+    }
+
+    // MARK: - The sync turn (Task 6)
+
+    /// One NON-streamed turn over the runs plane — the `send(...)` path
+    /// (Ask-Hermes intents, widgets, anything that wants an answer rather than
+    /// a stream).
+    ///
+    /// **There is no sync runs endpoint**, so submit + poll IS the sync path:
+    /// `POST /v1/runs` returns a 202 with an id, and the answer only ever
+    /// appears on the event stream or the status object. Polling is the honest
+    /// one for a caller holding no continuation.
+    ///
+    /// Throws in every non-answer case, in the sessions sync path's style, so
+    /// `send(...)`'s existing catch turns it into a `.system` failure message:
+    /// a caller that got no answer must never be handed an empty success.
+    /// A `sessionNotFound` from the history pre-fetch propagates deliberately
+    /// — `performSyncTurn`'s stale-hop retry is what catches it.
+    func syncTurnViaRuns(
+        hop: PreparedHop,
+        message: String,
+        attachments: [PendingAttachment]
+    ) async throws -> String {
+        // N4: runs WRITE the session transcript but never READ it, so the
+        // thread's context rides the submit body here exactly as it does on
+        // the streamed path.
+        let history = try await fetchRunsHistory(
+            sessionId: hop.sessionId,
+            profileID: hop.profileID,
+            excludingTrailing: message
+        )
+        let submit: RunSubmitResponse = try await postJSON(
+            path: Self.runsPath,
+            body: RunsTurnBody.make(
+                message: message,
+                attachments: attachments,
+                sessionID: hop.sessionId,
+                history: history,
+                selection: modelSelection
+            ),
+            profileID: hop.profileID
+        )
+
+        guard let snapshot = await pollRunToTerminal(runID: submit.runID, profileID: hop.profileID) else {
+            // Budget, 404 or cancellation. The run may still be going — this
+            // path has no `.interrupted` to arm, so it reports honestly
+            // instead of returning a blank answer.
+            throw SessionsClientError.requestFailed(
+                "The Hermes run did not finish before the status poll gave up."
+            )
+        }
+
+        switch snapshot.status {
+        case "completed":
+            let output = snapshot.output ?? ""
+            // #235 F1's shape on the sync path: a "completed" run with no
+            // answer text is not an answer. There is no recovery machinery
+            // here, so it surfaces as a failure the user can retry rather
+            // than an empty bubble.
+            guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                throw SessionsClientError.requestFailed(
+                    "The Hermes run completed without producing an answer."
+                )
+            }
+            // #25: the sync path's usage is real and rides the status object
+            // (the sessions `/chat` response carries none) — record it so a
+            // resumed session's CTX gauge has a numerator.
+            if let usage = Self.decodeRunUsage(snapshot.rawJSON) {
+                usageIndex?.record(sessionID: hop.sessionId, usage: usage)
+            }
+            return output
+        case "failed":
+            throw SessionsClientError.requestFailed(Self.runFailureText(snapshot.error ?? ""))
+        default:
+            // `cancelled`, `stopped`, or a terminal name this build does not
+            // know. Never invents a cause.
+            throw SessionsClientError.requestFailed(
+                "The Hermes run ended as '\(snapshot.status)' without an answer."
+            )
         }
     }
 
@@ -496,18 +629,97 @@ extension SessionsHermesClient {
         return entries
     }
 
-    // MARK: - Status poll (the Task 6 seam)
+    // MARK: - Status poll (Task 6: the bounded loop)
 
-    /// Reads `GET /v1/runs/{id}` and returns the snapshot only when the run
-    /// has reached a terminal status.
+    /// One read of the status endpoint, CLASSIFIED. The loop needs three
+    /// answers Task 4's seam collapsed into a bare `nil`, and conflating them
+    /// makes the loop wrong in both directions: a run that is merely still
+    /// going has to keep the poll alive, a run the gateway no longer has must
+    /// end it immediately, and a read that died in transport must be retried
+    /// — one flaky GET is not evidence about the run at all.
+    private enum RunStatusRead {
+        case terminal(RunStatusSnapshot)
+        /// Queued / running / waiting_for_approval / stopping — keep waiting.
+        case live
+        /// `404 run_not_found`: the status TTL (3600s) expired, or this id
+        /// belongs to another host. No amount of polling produces an answer.
+        case gone
+        /// The read itself failed — transport error, non-404 HTTP error, or a
+        /// body that is not a status object. Says nothing about the run.
+        case unreadable(String)
+    }
+
+    /// How many CONSECUTIVE unreadable reads the poll tolerates before giving
+    /// up early. One flaky GET must not kill a recovery; a host that answers
+    /// nothing but garbage is not going to start, and burning the whole
+    /// budget on it only delays the `.interrupted` hand-off. Reset by any
+    /// successful read, so intermittent failures never accumulate.
+    private static let runsPollUnreadableLimit = 3
+
+    /// Polls `GET /v1/runs/{id}` until the run reaches a terminal status, and
+    /// returns that snapshot — the recovery path's whole point.
     ///
-    /// **Task 6 owns the LOOP.** What lands here is the honest degenerate
-    /// case — ONE read, terminal-or-nil — so the loss paths call the real
-    /// recovery entry point from day one instead of a stub that would have to
-    /// be re-plumbed. A still-running run returns nil today and the caller
-    /// falls through to `.interrupted`, which is exactly what the sessions
-    /// plane does with a dropped stream.
+    /// This, not stream replay, is what survives a dropped connection: the
+    /// event queue is popped on disconnect (`api_server.py:6765-6766`) so a
+    /// re-subscribe 404s and every delta after the drop is gone, while
+    /// `status` + `output` + `usage` stay readable for an hour.
+    ///
+    /// Returns nil — the caller then arms `.interrupted`, the same hand-off a
+    /// dropped sessions stream makes — when the run is still going at
+    /// `runsPollBudget`, when the host 404s the id, when reads keep failing,
+    /// or on cancellation. **Every one of those exits is bounded**: the loop
+    /// cannot outlive the budget by more than one interval plus one read.
+    ///
+    /// `Task.isCancelled` exits silently: the consumer stopped, so there is
+    /// nothing left to deliver an answer to.
     func pollRunToTerminal(runID: String, profileID: UUID?) async -> RunStatusSnapshot? {
+        let deadline = ContinuousClock.now + runsPollBudget
+        var reads = 0
+        var consecutiveUnreadable = 0
+
+        while true {
+            if Task.isCancelled { return nil }
+            reads += 1
+            switch await readRunStatus(runID: runID, profileID: profileID) {
+            case .terminal(let snapshot):
+                return snapshot
+            case .live:
+                consecutiveUnreadable = 0
+            case .gone:
+                runsTransportLogger.notice(
+                    "runs: status poll for \(runID, privacy: .public) — host no longer has this run (404); arming recovery"
+                )
+                return nil
+            case .unreadable(let reason):
+                consecutiveUnreadable += 1
+                runsTransportLogger.warning(
+                    "runs: status read \(reads, privacy: .public) for \(runID, privacy: .public) failed — \(reason, privacy: .public)"
+                )
+                guard consecutiveUnreadable < Self.runsPollUnreadableLimit else {
+                    runsTransportLogger.notice(
+                        "runs: status poll for \(runID, privacy: .public) gave up after \(consecutiveUnreadable, privacy: .public) consecutive unreadable reads"
+                    )
+                    return nil
+                }
+            }
+
+            guard ContinuousClock.now < deadline else {
+                runsTransportLogger.notice(
+                    "runs: status poll for \(runID, privacy: .public) exhausted its budget after \(reads, privacy: .public) reads — arming recovery"
+                )
+                return nil
+            }
+            do {
+                try await Task.sleep(for: runsPollInterval)
+            } catch {
+                return nil   // cancelled mid-wait — the consumer is gone
+            }
+        }
+    }
+
+    /// One `GET /v1/runs/{id}`, classified. Never throws: every failure mode
+    /// is a case the loop knows how to weigh.
+    private func readRunStatus(runID: String, profileID: UUID?) async -> RunStatusRead {
         do {
             let request = try makeRequest(
                 path: "\(Self.runsPath)/\(runID)",
@@ -517,30 +729,39 @@ extension SessionsHermesClient {
                 profileID: profileID
             )
             let (data, response) = try await session.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200 ..< 300).contains(httpResponse.statusCode),
-                  let snapshot = RunStatusSnapshot(data),
-                  snapshot.isTerminal
-            else { return nil }
-            return snapshot
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .unreadable("non-HTTP response")
+            }
+            // Only 404 is news ABOUT THE RUN. A 5xx is news about the host,
+            // which may well pass — that is a retry, not a verdict.
+            if httpResponse.statusCode == 404 { return .gone }
+            guard (200 ..< 300).contains(httpResponse.statusCode) else {
+                return .unreadable("HTTP \(httpResponse.statusCode)")
+            }
+            guard let snapshot = RunStatusSnapshot(data) else {
+                return .unreadable("status body carried no status field")
+            }
+            return snapshot.isTerminal ? .terminal(snapshot) : .live
         } catch {
-            runsTransportLogger.warning(
-                "runs: status poll for \(runID, privacy: .public) failed — \(error.localizedDescription, privacy: .public)"
-            )
-            return nil
+            return .unreadable(error.localizedDescription)
         }
     }
 
-    /// Polls once and, if the run is terminal, delivers this turn's single
+    /// Polls to terminal and, if it gets there, delivers this turn's single
     /// terminal yield from the status object. Returns whether it did.
+    ///
+    /// Takes the session id and profile rather than the `PreparedHop` because
+    /// the catch path reaches it holding only what it captured before the
+    /// throw.
     private func deliverPolledTerminal(
         runID: String,
-        hop: PreparedHop,
+        sessionId: String,
+        profileID: UUID?,
         assembledContent: String,
         assembledReasoning: String,
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async -> Bool {
-        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: hop.profileID) else {
+        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID) else {
             return false
         }
         switch snapshot.status {
@@ -558,19 +779,22 @@ extension SessionsHermesClient {
                 runsTransportLogger.notice(
                     "runs: status 'completed' for \(runID, privacy: .public) carried no answer text — arming recovery, not an empty bubble"
                 )
-                continuation.yield(.interrupted(sessionId: hop.sessionId, runId: runID))
+                continuation.yield(.interrupted(sessionId: sessionId, runId: runID))
                 return true
             }
             let usage = Self.decodeRunUsage(snapshot.rawJSON)
             if let usage {
-                usageIndex?.record(sessionID: hop.sessionId, usage: usage)
+                usageIndex?.record(sessionID: sessionId, usage: usage)
             }
             let message = runsFinalMessage(
                 output: output,
                 assembledContent: assembledContent,
                 assembledReasoning: assembledReasoning,
-                profileID: hop.profileID
+                profileID: profileID
             )
+            // The poll just completed a round trip and came back with an
+            // answer — whatever killed the stream, the host is reachable.
+            connectionStatus = .connected
             continuation.yield(.finished(message, usage, nil))
         case "failed":
             connectionStatus = .error
@@ -579,7 +803,7 @@ extension SessionsHermesClient {
             // `cancelled`, `stopped`, or a terminal status name this build
             // does not know: the run is over and there is no answer to show,
             // so it is recovery, not a failure claim.
-            continuation.yield(.interrupted(sessionId: hop.sessionId, runId: runID))
+            continuation.yield(.interrupted(sessionId: sessionId, runId: runID))
         }
         return true
     }

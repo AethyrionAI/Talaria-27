@@ -45,20 +45,44 @@ struct RunsPlaneTransportTests {
         struct Script: Sendable {
             let response: @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)
             let failAfterBody: @Sendable (URLRequest) -> Error?
+            /// The ZOMBIE shape (#246 parity): body served, then NOTHING —
+            /// no finish, no error, the connection just stays open. Distinct
+            /// from `failAfterBody`, which at least ends the stream.
+            let hangAfterBody: @Sendable (URLRequest) -> Bool
         }
         nonisolated(unsafe) static var script: Script?
         /// Ordered request log — the GET-before-POST ordering assertion and
         /// the submit-body assertions both read it. Locked: URLProtocol
         /// callbacks arrive on the loader's queues, not the test's.
         static let recorded = OSAllocatedUnfairLock<[RecordedRequest]>(initialState: [])
+        /// Per-path call counter, read INSIDE the script closure so a route
+        /// can answer differently on its 1st, 2nd, … call — what the bounded
+        /// poll loop needs ("running, running, completed") and what the
+        /// stale-hop retry needs ("404, then 200").
+        static let callCounts = OSAllocatedUnfairLock<[String: Int]>(initialState: [:])
 
         static func reset() {
             script = nil
             recorded.withLock { $0 = [] }
+            callCounts.withLock { $0 = [:] }
         }
 
         static func requests() -> [RecordedRequest] {
             recorded.withLock { $0 }
+        }
+
+        /// Zero-based index of THIS call on `path`, incrementing the counter.
+        static func nextIndex(for path: String) -> Int {
+            callCounts.withLock { counts in
+                let index = counts[path, default: 0]
+                counts[path] = index + 1
+                return index
+            }
+        }
+
+        /// How many times `path` has been requested.
+        static func count(_ path: String) -> Int {
+            requests().filter { $0.path == path }.count
         }
 
         /// The first recorded request matching `method` + `path`, or nil.
@@ -95,6 +119,9 @@ struct RunsPlaneTransportTests {
                         guard let self else { return }
                         self.client?.urlProtocol(self, didFailWithError: error)
                     }
+                } else if script.hangAfterBody(request) {
+                    // Deliberately NOTHING: the connection stays open forever
+                    // and only the stall guard can end this turn.
                 } else {
                     client?.urlProtocolDidFinishLoading(self)
                 }
@@ -149,18 +176,35 @@ struct RunsPlaneTransportTests {
     /// to `.interrupted`.
     private static let runningStatus = #"{"object":"hermes.run","run_id":"run-r1","status":"running"}"#
 
+    /// Picks the entry for call number `index` on a route, with the LAST
+    /// entry repeating forever — so `[a]` is "always a" and `[a, b]` is
+    /// "a once, then b from then on".
+    private static func atCall<T>(_ values: [T], _ index: Int) -> T {
+        values[min(index, values.count - 1)]
+    }
+
     /// Routes the four endpoints one runs turn touches. Suffix/exact path
     /// match, mirroring the sessions-plane stubs.
     ///
-    /// `eventsStatus` + `failEventsAfterBody` are what let the loss tests
-    /// script the two ways an events subscription dies: refused outright
-    /// (non-2xx), or opened and then torn down mid-stream.
+    /// `eventsStatus` + `failEventsAfterBody` + `hangEventsAfterBody` are what
+    /// let the loss tests script the three ways an events subscription dies:
+    /// refused outright (non-2xx), opened then torn down mid-stream, or opened
+    /// and left hanging (the zombie).
+    ///
+    /// The three `status*` parameters are per-call SEQUENCES (see `atCall`):
+    /// a run that is still going on the first read and finished on the
+    /// second is the whole point of the bounded poll loop, and a single read
+    /// cannot express it.
     private static func script(
         sseBody: String,
         messagesBody: String = RunsPlaneTransportTests.messagesFixture,
-        statusBody: String = RunsPlaneTransportTests.runningStatus,
+        messagesStatuses: [Int] = [200],
+        statusBodies: [String] = [RunsPlaneTransportTests.runningStatus],
+        statusCodes: [Int] = [200],
+        statusTransportFailures: Set<Int> = [],
         eventsStatus: Int = 200,
-        failEventsAfterBody: URLError.Code? = nil
+        failEventsAfterBody: URLError.Code? = nil,
+        hangEventsAfterBody: Bool = false
     ) -> RunsStubURLProtocol.Script {
         RunsStubURLProtocol.Script(
             response: { request in
@@ -178,13 +222,24 @@ struct RunsPlaneTransportTests {
                 case "/api/sessions":
                     return try reply(200, #"{"session":{"id":"sess-r"}}"#)
                 case "/api/sessions/sess-r/messages":
+                    let call = RunsStubURLProtocol.nextIndex(for: url.path)
+                    let status = atCall(messagesStatuses, call)
+                    guard status == 200 else {
+                        // The stale-hop shape: the persisted hop's server
+                        // session is gone, so its transcript 404s.
+                        return try reply(status, #"{"error":"Session not found"}"#)
+                    }
                     return try reply(200, messagesBody)
                 case "/v1/runs":
                     return try reply(202, #"{"run_id":"run-r1","status":"started"}"#)
                 case "/v1/runs/run-r1/events":
                     return try reply(eventsStatus, sseBody, contentType: "text/event-stream")
                 case "/v1/runs/run-r1":
-                    return try reply(200, statusBody)
+                    let call = RunsStubURLProtocol.nextIndex(for: url.path)
+                    // A flaky GET: the connection dies before any response.
+                    // Recovery must survive one of these, not end on it.
+                    if statusTransportFailures.contains(call) { throw URLError(.networkConnectionLost) }
+                    return try reply(atCall(statusCodes, call), atCall(statusBodies, call))
                 default:
                     throw URLError(.badURL)
                 }
@@ -193,12 +248,15 @@ struct RunsPlaneTransportTests {
                 guard let code = failEventsAfterBody,
                       request.url?.path == "/v1/runs/run-r1/events" else { return nil }
                 return URLError(code)
+            },
+            hangAfterBody: { request in
+                hangEventsAfterBody && request.url?.path == "/v1/runs/run-r1/events"
             }
         )
     }
 
     @MainActor
-    private func makeClient(label: String) -> SessionsHermesClient {
+    private func makeClient(label: String, persistedHop: String? = nil) -> SessionsHermesClient {
         let suiteName = "runs-plane-\(label)-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -207,16 +265,31 @@ struct RunsPlaneTransportTests {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RunsStubURLProtocol.self]
 
+        let journal = ConversationJournalStore(persistence: persistence)
+        // A hop persisted from a previous launch — the only state under which
+        // the stale-hop retry is allowed to fire (`PreparedHop.wasReused`).
+        // The journal stays EMPTY on purpose: the re-hop then has nothing to
+        // transplant, which keeps `ContextTransplanter` (and the on-device
+        // model behind it) out of a unit test.
+        if let persistedHop {
+            journal.beginHop(apiSessionId: persistedHop, primingUsage: nil, profileID: nil)
+        }
+
         let client = SessionsHermesClient(
             baseURLProvider: { "http://hermes.test" },
             apiKeyProvider: { "test-key" },
-            journal: ConversationJournalStore(persistence: persistence),
+            journal: journal,
             transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
             session: URLSession(configuration: configuration)
         )
         // Task 5 pins both directions of the dispatch; here it just arms the
         // runs path so the driver is what runs.
         client.useRunsTransportProvider = { true }
+        // Task 6: the recovery poll's knobs, shortened suite-wide. Production
+        // is 2s/120s — a still-running run would park every loss test on the
+        // 10s belt and report a hang instead of an outcome.
+        client.runsPollInterval = .milliseconds(40)
+        client.runsPollBudget = .milliseconds(800)
         return client
     }
 
@@ -438,7 +511,7 @@ struct RunsPlaneTransportTests {
                 #"{"event":"message.delta","run_id":"run-r1","timestamp":1.1,"delta":"tial"}"#,
             ]),
             // The poll finds the run still going — nothing terminal to deliver.
-            statusBody: Self.runningStatus,
+            statusBodies: [Self.runningStatus],
             failEventsAfterBody: .networkConnectionLost
         )
         defer { RunsStubURLProtocol.reset() }
@@ -478,7 +551,7 @@ struct RunsPlaneTransportTests {
                 #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Half "}"#,
                 #"{"event":"tool.started","run_id":"run-r1","timestamp":1.1,"tool":"shell","preview":"ls"}"#,
             ]),
-            statusBody: Self.runningStatus
+            statusBodies: [Self.runningStatus]
         )
         defer { RunsStubURLProtocol.reset() }
 
@@ -509,10 +582,10 @@ struct RunsPlaneTransportTests {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(
             sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
-            statusBody: #"""
+            statusBodies: [#"""
             {"object":"hermes.run","run_id":"run-r1","status":"completed",
              "output":"Polled answer","usage":{"input_tokens":7,"output_tokens":4,"total_tokens":11}}
-            """#,
+            """#],
             eventsStatus: 404
         )
         defer { RunsStubURLProtocol.reset() }
@@ -541,7 +614,7 @@ struct RunsPlaneTransportTests {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(
             sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
-            statusBody: #"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"","usage":{"input_tokens":7,"output_tokens":0,"total_tokens":7}}"#,
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"","usage":{"input_tokens":7,"output_tokens":0,"total_tokens":7}}"#],
             eventsStatus: 404
         )
         defer { RunsStubURLProtocol.reset() }
@@ -553,6 +626,323 @@ struct RunsPlaneTransportTests {
                 "an empty answer must never be delivered as a finished message")
         let interruptions = updates.filter { if case .interrupted = $0 { return true } else { return false } }
         #expect(interruptions.count == 1)
+        // Task 6 interaction, stated rather than assumed: `completed` is
+        // TERMINAL, so the bounded loop must stop on the first read even
+        // though the guard then converts it to recovery. A loop that kept
+        // polling for an answer that will never appear would burn the whole
+        // budget on every empty run.
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") == 1)
+    }
+
+    // MARK: - Task 6: the bounded poll loop
+
+    /// 3A-B + the #237 pin: the stream is KILLED mid-turn while the run is
+    /// still going, and the answer arrives on a LATER status read. The loop is
+    /// what makes this recoverable — a single read (Task 4's seam) would have
+    /// seen `running` and degraded to `.interrupted`, losing an answer the
+    /// host was about to have.
+    @Test @MainActor
+    func killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"FUL"}"#,
+            ]),
+            // Still going on the first read, finished on every read after it.
+            statusBodies: [
+                Self.runningStatus,
+                #"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"FULL ANSWER","usage":{"input_tokens":9,"output_tokens":3,"total_tokens":12}}"#,
+            ],
+            failEventsAfterBody: .networkConnectionLost
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "poll-recovers")
+        let updates = await collect(from: client)
+
+        let finishes = updates.filter { if case .finished = $0 { return true } else { return false } }
+        #expect(finishes.count == 1, "exactly one terminal yield — a second is the #237 double-bubble")
+        let finished = try #require(finishedPayload(updates))
+        // The authoritative answer is the status object's `output`, NOT the
+        // partial delta that arrived before the stream died.
+        #expect(finished.message.content == "FULL ANSWER")
+        #expect(finished.usage?.totalTokens == 12)
+        #expect(finished.usage?.promptTokens == 9)
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .unreachable = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+        // The LOOP is the thing under test: one read would have found only
+        // `running`. Without this the test would pass on a lucky single read.
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") >= 2)
+    }
+
+    /// The #237 shape pinned from the other side: a turn that finished on the
+    /// STREAM must never also poll. Polling after a delivered answer is how a
+    /// second terminal yield gets minted.
+    @Test @MainActor
+    func streamCompletionSuppressesThePollPath() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Done"}"#,
+                #"{"event":"run.completed","run_id":"run-r1","timestamp":1.1,"output":"Done","usage":{"input_tokens":4,"output_tokens":1,"total_tokens":5}}"#,
+            ]),
+            // If the driver polled anyway it would find a DIFFERENT answer
+            // here — so a stray poll cannot hide behind a matching fixture.
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"POLLED (must not appear)"}"#]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "no-poll-after-finish")
+        let updates = await collect(from: client)
+
+        let finishes = updates.filter { if case .finished = $0 { return true } else { return false } }
+        #expect(finishes.count == 1)
+        let finished = try #require(finishedPayload(updates))
+        #expect(finished.message.content == "Done")
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") == 0,
+                "a completed stream must not touch the status endpoint at all")
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+    }
+
+    /// The budget is a real bound, not decoration: a run that never finishes
+    /// must hand off to the existing `.interrupted` machinery (ChatStore's
+    /// pendingRun reconcile — unchanged in 3A) rather than spin, and it must
+    /// never be reported as a FAILURE, which is a dead end the user has to
+    /// retry by hand.
+    @Test @MainActor
+    func pollBudgetExpiryYieldsInterruptedNotFailed() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Still"}"#,
+            ]),
+            statusBodies: [Self.runningStatus],
+            failEventsAfterBody: .networkConnectionLost
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "budget-expiry")
+        let updates = await collect(from: client)
+
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1)
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+        // It kept polling across the budget rather than giving up on the
+        // first `running` — and it did stop, or the 10s belt would have
+        // ended this test instead of the budget.
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") >= 2)
+    }
+
+    /// TTL expiry / wrong host: `GET /v1/runs/{id}` 404s `run_not_found`.
+    /// Polling harder cannot conjure a run the gateway has forgotten, so the
+    /// loop must bail on the FIRST 404 — the budget is for runs that might
+    /// still finish.
+    @Test @MainActor
+    func runNotFoundStatusBailsPromptlyToRecovery() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Orphan"}"#,
+            ]),
+            statusBodies: [#"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#],
+            statusCodes: [404]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "run-not-found")
+        let updates = await collect(from: client)
+
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") == 1,
+                "a 404 is terminal news about the run — re-reading it is pure delay")
+        let interruptions = updates.filter { if case .interrupted = $0 { return true } else { return false } }
+        #expect(interruptions.count == 1)
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// One flaky GET must not end a recovery. The status read dies in
+    /// transport on its first attempt; the retry finds the finished run and
+    /// the answer still lands.
+    @Test @MainActor
+    func aFlakyStatusGetDoesNotKillRecovery() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Half"}"#,
+            ]),
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"Recovered anyway","usage":{"input_tokens":2,"output_tokens":2,"total_tokens":4}}"#],
+            // The first status GET never gets a response at all.
+            statusTransportFailures: [0]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "flaky-status")
+        let updates = await collect(from: client)
+
+        let finished = try #require(finishedPayload(updates))
+        #expect(finished.message.content == "Recovered anyway")
+        #expect(finished.usage?.totalTokens == 4)
+        #expect(updates.filter { if case .finished = $0 { return true } else { return false } }.count == 1)
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") >= 2)
+    }
+
+    /// #246 parity through the runs loop: 2xx, a partial body, then the
+    /// connection just HANGS. Nothing throws on its own, so only the stall
+    /// guard can end this turn — and it must, before the belt does.
+    @Test @MainActor
+    func zombieRunsStreamTripsTheStallGuard() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Zomb"}"#,
+            ]),
+            statusBodies: [Self.runningStatus],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "zombie")
+        client.streamStallThreshold = .milliseconds(400)
+        let updates = await collect(from: client)
+
+        // The delta that landed before the silence is still delivered.
+        #expect(labels(updates).first == "textDelta(Zomb)")
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1, "the zombie must interrupt, not hang past the belt")
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1")
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// `deliverPolledTerminal`'s `failed` arm: a run the host declares FAILED
+    /// is a real failure, not a recovery case — the run is over and no later
+    /// reconcile will produce an answer, so `.interrupted` would leave the
+    /// turn spinning forever.
+    @Test @MainActor
+    func failedStatusFromThePollYieldsExactlyOneFailure() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"failed","error":"tool budget exhausted"}"#],
+            eventsStatus: 404
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "failed-status")
+        let updates = await collect(from: client)
+
+        let failures = updates.compactMap { update -> String? in
+            if case let .failed(text) = update { return text }
+            return nil
+        }
+        #expect(failures.count == 1)
+        // The host's OWN reason, never an invented one.
+        #expect(failures.first == "tool budget exhausted")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+    }
+
+    /// Stale-hop parity with the sessions plane. A hop persisted from a
+    /// previous launch whose server session has since expired 404s on the
+    /// HISTORY read — the one session-scoped request a runs turn still makes
+    /// (N4). Before this, that surfaced as `.failed` where the sessions plane
+    /// recovers. It re-hops ONCE and the turn completes, and — the assertion
+    /// that matters most — the run is submitted exactly ONCE (#240: a re-sent
+    /// accepted turn makes Hermes answer twice).
+    @Test @MainActor
+    func staleHopOnTheHistoryReadRehopsOnceAndCompletes() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"run.completed","run_id":"run-r1","timestamp":1.0,"output":"after re-hop","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#,
+            ]),
+            // First transcript read 404s (the expired session), the next
+            // one — on the freshly created hop — succeeds.
+            messagesStatuses: [404, 200]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "stale-hop", persistedHop: "sess-r")
+        let updates = await collect(from: client)
+
+        let finishes = updates.filter { if case .finished = $0 { return true } else { return false } }
+        #expect(finishes.count == 1)
+        let finished = try #require(finishedPayload(updates))
+        #expect(finished.message.content == "after re-hop")
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+
+        // Two turn-setup sequences: the persisted hop (which created no
+        // session) then the fresh one, each with its own transcript read.
+        #expect(RunsStubURLProtocol.count("/api/sessions/sess-r/messages") == 2)
+        #expect(RunsStubURLProtocol.count("/api/sessions") == 1)
+        // …and exactly ONE submit. The retry re-runs the SETUP, never the run.
+        #expect(RunsStubURLProtocol.count("/v1/runs") == 1)
+    }
+
+    // MARK: - Task 6: the sync send path
+
+    /// `send(...)` — the non-streaming turn (Ask-Hermes intents, widgets) —
+    /// rides the runs plane too when the switch is on: submit, then poll to
+    /// terminal. There is no sync runs endpoint, so the poll IS the answer
+    /// path; a driver that quietly left `send` on `/chat` would ship a turn on
+    /// the plane the A/B is trying to retire.
+    @Test @MainActor
+    func syncSendRidesRunsWhenSwitchOn() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: "",
+            statusBodies: [
+                Self.runningStatus,
+                #"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"Sync answer","usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}"#,
+            ]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "sync-on")
+        let message = await client.send(message: "hi", attachments: [], clientMessageID: UUID())
+
+        #expect(message.sender == .hermes)
+        #expect(message.content == "Sync answer")
+        #expect(message.status == .delivered)
+
+        let paths = RunsStubURLProtocol.requests().map(\.path)
+        #expect(paths.contains { $0 == "/v1/runs" })
+        #expect(!paths.contains { $0.hasSuffix("/chat") },
+                "the sync sessions endpoint must not be touched while the switch is on")
+        // No SSE either: the sync path polls, it does not subscribe.
+        #expect(!paths.contains { $0.hasSuffix("/events") })
+    }
+
+    /// The sync path's failure half: a run the host declares FAILED must
+    /// surface as a failed message carrying the host's own reason, never as
+    /// an empty successful answer.
+    @Test @MainActor
+    func syncSendSurfacesAFailedRunAsAFailure() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: "",
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"failed","error":"model refused"}"#]
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "sync-failed")
+        let message = await client.send(message: "hi", attachments: [], clientMessageID: UUID())
+
+        #expect(message.sender == .system)
+        #expect(message.status == .failed)
+        #expect(message.content.contains("model refused"))
     }
 
     // MARK: - Task 5: dual-path dispatch pin (#218 guard)
@@ -603,7 +993,8 @@ struct RunsPlaneTransportTests {
                     throw URLError(.badURL)
                 }
             },
-            failAfterBody: { _ in nil }
+            failAfterBody: { _ in nil },
+            hangAfterBody: { _ in false }
         )
     }
 

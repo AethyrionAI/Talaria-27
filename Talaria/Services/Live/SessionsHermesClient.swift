@@ -44,6 +44,25 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// let: the suite shortens it to exercise the guard. // harness-visible
     var streamStallThreshold: Duration = .seconds(60)
 
+    /// #283 slice 3A: how long the runs-plane recovery poll WAITS between
+    /// reads of `GET /v1/runs/{id}`. The status object is cheap and the
+    /// gateway retains it for an hour, but a tight loop would be a spin — 2s
+    /// resolves a run that finished while the stream was dying within one
+    /// interval, and costs one request per 2s for a run that has not.
+    /// Var, not let: the suite shortens it to run the loop in milliseconds.
+    // harness-visible
+    var runsPollInterval: Duration = .seconds(2)
+
+    /// #283 slice 3A: the recovery poll's WALL-CLOCK budget. Past it the turn
+    /// hands off to the same `.interrupted` machinery a dropped sessions
+    /// stream uses (ChatStore's pendingRun reconcile) — degrading, never
+    /// spinning and never claiming failure. This is also what bounds the
+    /// pathological cases the poll can otherwise meet forever: a run parked
+    /// in `waiting_for_approval`, or a host that answers `running` for a run
+    /// nobody will ever finish. 120s clears any turn worth waiting inline for.
+    /// Var, not let: the suite shortens it. // harness-visible
+    var runsPollBudget: Duration = .seconds(120)
+
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
     /// conversation's identity and the active hop handle; this client only
     /// ever reads the handle and begins/ends hops.
@@ -176,15 +195,39 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// retry ONCE on a fresh, transplanted hop. Only a REUSED hop retries; a
     /// just-created session 404ing is a real server problem.
     private func performSyncTurn(message: String, attachments: [PendingAttachment]) async throws -> String {
+        // #283 slice 3A: the Developer switch picks the sync turn's TRANSPORT
+        // exactly as it picks the streamed one — read ONCE, here, so a
+        // mid-turn toggle cannot split a turn (or its stale-hop retry) across
+        // two planes.
+        let viaRuns = useRunsTransportProvider()
         let hop = try await ensureHopForTurn()
         do {
-            return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
+            return try await postSyncTurn(viaRuns: viaRuns, hop: hop, message: message, attachments: attachments)
         } catch SessionsClientError.sessionNotFound where hop.wasReused {
             Self.logger.notice("sync turn: persisted hop stale server-side (404) — re-hopping with transplant")
-            journal.endHop()
+            discardStaleHop()
             let fresh = try await ensureHopForTurn()
-            return try await postSyncChat(sessionId: fresh.sessionId, profileID: fresh.profileID, message: message, attachments: attachments)
+            return try await postSyncTurn(viaRuns: viaRuns, hop: fresh, message: message, attachments: attachments)
         }
+    }
+
+    /// The sync turn's one plane-selecting seam, so the stale-hop retry above
+    /// stays a single mechanism instead of one per transport.
+    private func postSyncTurn(viaRuns: Bool, hop: PreparedHop, message: String, attachments: [PendingAttachment]) async throws -> String {
+        if viaRuns {
+            return try await syncTurnViaRuns(hop: hop, message: message, attachments: attachments)
+        }
+        return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
+    }
+
+    /// The stale-hop swap every turn path makes when a persisted hop's server
+    /// session has expired: drop the dead handle — it is a handle, not the
+    /// conversation's identity — so the next `ensureHopForTurn()` creates a
+    /// fresh, transplanted one.
+    // runs-path-visible (#283): the runs driver's history pre-fetch is the one
+    // session-scoped request a runs turn makes, so it meets the same 404.
+    func discardStaleHop() {
+        journal.endHop()
     }
 
     private func postSyncChat(sessionId: String, profileID: UUID?, message: String, attachments: [PendingAttachment]) async throws -> String {
