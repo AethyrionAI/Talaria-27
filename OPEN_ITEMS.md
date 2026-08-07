@@ -176,6 +176,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#280** 📝 A dictated-only thread gets a blank conversation-card title — bars pre-register before any code …
+- **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — bars pre-register …
 - **#278** 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending` but a detached run is `.working` …
 - **#277** 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one …
 - **#276** 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip (a #262 residual) …
@@ -1627,6 +1629,45 @@ Regenerate/Edit while another run streams.
 > nothing sent, nothing persisted), and `regenerateReply` emits no log line
 > at all — one `chatLog.notice` would have settled this diagnosis in a
 > minute instead of a file-by-file trace.
+
+> **BUILT + GATED + MERGED 2026-08-07 (`claude/t27-78-truncation-durability`,
+> merge `fad619a`).** GATE: PASS — 1739 Swift Testing units (up from 1721)
+> + 12 XCUITest, Release clean, 2 expected `CondenserFidelityTests` skips.
+> TDD throughout; every RED witnessed. Bars 78-A through 78-E MET;
+> **78-F (device, Owen) still owed** — item stays OPEN pending that.
+>
+> RED evidence, verbatim: 78-A `messages.count` came back 6 when 2 was
+> wanted (all four original rows restored plus the new pair); 78-B the
+> original reply and both later rows still present, in the cache too;
+> 78-C one `loadConversation()` merge after a truncation took the count to
+> 4 when 2 was wanted; 78-D the edit-and-resend truncation wiped by the
+> follow-up send; 78-E client half — the mirror kept all 4 ids and the
+> session was not invalidated; backend half against the real
+> `LocalChatBackend` — mirror unchanged (4 ids vs 2) and `session`
+> non-nil. The fix introduced a shared
+> `ChatStore.truncateTranscript(from:reason:)` primitive that persists,
+> syncs the journal, notifies, and hands the truncated thread to the
+> backend. A new `MirroringReplyClient` test double was required because
+> the existing `ImmediateReplyClient` never populates
+> `currentConversation` — the resurrection path is structurally absent
+> from it; that double is now labelled in-file as unfit for durability
+> pins.
+>
+> **Honest limit.** On the Hermes path this fixes our mirror, not the
+> host. `SessionsHermesClient.currentConversation` is a fetch cache;
+> adopting the truncation stops the end-of-turn merge, the 2s poll tick,
+> and the fallback path from restoring the removed rows, and the
+> truncated thread is what gets persisted — so the truncation survives
+> every merge, backgrounding, and force-quit + relaunch (cold load
+> restores from the conversation cache, never from the server, which is
+> why 78-F's relaunch clause is satisfiable). It does NOT survive a
+> server re-fetch: the gateway session still holds every turn, so
+> `openSession` (reopening the thread from the drawer) and
+> `reconcileFromServer` (a dropped-run reconcile) legitimately re-import
+> the full server history, and the agent's own context is unchanged. On
+> the local brain there is no gap: the mirror and the
+> `LanguageModelSession` transcript both drop the removed turns, so the
+> re-roll genuinely re-asks without the original answer in context.
 
 ---
 
@@ -4898,6 +4939,26 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
+
+`ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
+yields empty text when every user turn was dictated. Cosmetic, and NOT a
+producing-turn search, so #275's shared-predicate bar deliberately does not
+cover it; left unchanged rather than altered without a bar. Fix is
+presumably the same `isUserAuthored` predicate, but it needs its own bar
+because the display semantics (should a voice thread's card show the
+transcript text?) are a product question, not a mechanical one.
+
+## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FILED 2026-08-07 from #78's lane; pre-existing. Bars pre-register here before any code.**
+
+`ChatStore.retryMessage` does `messages.removeAll { $0.id == message.id }`
+OUTSIDE the new `truncateTranscript` primitive, so the backend mirror is
+never told. The user row of a failed turn IS in the local brain's mirror
+(`appendUserMessage` runs before generation), so a retry can duplicate it on
+the next merge — the same resurrection family as #78, through a path that
+lane deliberately did not touch. Fix shape: route it through the primitive
+like `/retry` and `/undo` now are.
+
 ## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session**
 
 Owen, OTA 2120: *"no edit and resend in a live streaming session. If you
@@ -4943,6 +5004,17 @@ menu hides an item the store would still honor. This is the same seam as
   screen and immediately return. Long-press the user bubble — no Edit &
   Resend, no Regenerate, while the clock icon shows. Both reappear once the
   reply lands.
+
+> **Bars 278-A, 278-B, 278-C MET, 2026-08-07;** **278-D (device, Owen)
+> still owed** — item stays OPEN pending that. RED verbatim: 278-A after
+> `.interrupted`, `isStreaming == false` with a live `pendingRun` and a
+> `.working` row, `extractTurnForEditing` returned an editable turn and
+> took the message count from 1 to 0. 278-C passed — no over-tightening: a
+> settled turn on an idle thread still truncates and returns. 278-B's
+> status, recorded honestly: its RED is that `isTranscriptBusy` did not
+> exist as a shared predicate and the menu was wired directly to
+> `isStreaming`; the test now pins both halves in the state Owen
+> photographed.
 
 ## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads**
 
@@ -5011,7 +5083,7 @@ another thread → return, the only path that evicts. Nothing was
 mis-verified; the state space was under-specified. Device bars that involve
 persistence must name WHICH re-entry path they cover.
 
-## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis**
+## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis** — **✅ CLOSED 2026-08-07: fixed in #78's lane**
 
 `ChatStore.mergeAttachments` rebuilds each `MessageAttachment` field by field
 and omits the `anchorOffset` #262 added, so the rebuilt value defaults to
@@ -5034,6 +5106,10 @@ Fix is one line: carry `remote.anchorOffset ?? match.anchorOffset`.
 every site that RECONSTRUCTS that model rather than copying it. A
 field-by-field rebuild is a silent-drop hazard that the type system does not
 catch, because every field has a default.
+
+> **Bars MET, 2026-08-07.** RED verbatim: 276-A merged anchor came back nil
+> when 42 was wanted; 276-B every OTHER field survived — the exact
+> signature of a field-by-field rebuild. Both bars MET.
 
 ## 275. 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history and re-send the wrong prompt — **FILED 2026-08-07 from #78's diagnosis; data-destruction class, not cosmetic**
 
@@ -5080,7 +5156,19 @@ lane leaves it alone.
   routes through ONE shared predicate, so no site matches `.user` alone and
   a future sender case cannot silently re-open this by omission.
 
-## 274. 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists — **FILED 2026-08-07 from #78's diagnosis**
+> **Bars 275-A..E MET, 2026-08-07.** RED verbatim: 275-A re-sent "First
+> question" instead of "Dictated second question" and collapsed the
+> transcript to ["First question", "Done."] — three rows lost; 275-B on a
+> dictated-only thread the scan found nothing, nothing was sent, dead menu
+> item, no log; 275-C `retryMessage` re-sent "Typed question". 275-D and
+> 275-E passed pre-fix, which is correct for a regression bar and a
+> predicate pin. Implemented via one shared `MessageSender.isUserAuthored`;
+> 275-E verified by grep — all four named sites route through it and no
+> remaining `.user`-only match is a producing-turn or retry-source search.
+> Item CLOSED (no device bar was registered for it; its behavior is
+> covered by 78-F's device run).
+
+## 274. 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists — **FILED 2026-08-07 from #78's diagnosis** — **✅ CLOSED 2026-08-07: collapsed in substance by #78's lane**
 
 `/retry` and `/undo` each mutate `chatStore.conversation?.messages`
 directly from `ChatScreen`, duplicating what `ChatStore.regenerateReply`
@@ -5094,6 +5182,13 @@ Fix shape: collapse to a single `ChatStore` truncation primitive (the same
 one #78's lane introduces) and have every caller route through it. Cheap
 once #78 lands; pointless before it. **Bars pre-register here before any
 code.**
+
+> **✅ CLOSED 2026-08-07.** `/retry` and `/undo` now both call the shared
+> `truncateTranscript` primitive — two one-line call-site swaps once the
+> primitive existed, mechanical as scoped. That collapses three
+> implementations to one and gives `/undo` the cache persistence it never
+> had. Both View paths therefore no longer carry #78's resurrection
+> defect.
 
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
 
