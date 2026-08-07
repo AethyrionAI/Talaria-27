@@ -5230,10 +5230,13 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > - **3A-D artifacts ✅** `writeFileToolStartedProducesNoArtifact` — zero
 >   `.artifactProduced`, the tool preview NOT laundered into a chip, prose
 >   sweep intact. Honest absence, as designed.
-> - **3A-E gate ✅** `GATE: PASS` on `24b2e78` — **1793 Swift Testing + 12
->   XCUITest**, exactly the 2 known Apple-Intelligence hardware skips,
->   **Release build green**, no Release compile errors. *(Re-run on the
->   final head before merge — that run predates the stop-API split.)*
+> - **3A-E gate ✅ MET on the shipping head `8652633`:** `GATE: PASS` —
+>   **1797 Swift Testing + 12 XCUITest**, exactly the 2 known
+>   Apple-Intelligence hardware skips, **Release build succeeded**, no Swift
+>   compile errors in Release. Count MOVED (pre-lane baseline 1755 → 1797,
+>   the 42 new tests). *(An earlier run on `24b2e78` also passed at 1793,
+>   but it predated the stop-API split and is superseded by this one — the
+>   gate that counts is the one on the head that ships.)*
 > - **3A-G history — unit arm ✅** (`historyRidesTheSubmitBody`: marker word
 >   present, GET `/messages` ordered BEFORE POST `/v1/runs`; + 4 mapper
 >   units). **Device arm OWED.**
