@@ -4909,7 +4909,36 @@ its fix is a sender-set correction, not the mirror-adoption work** — but
 78's lane should not ship without it, since 78's own bars pass on
 text-only threads while this stays broken.
 
-**Bars pre-register here before any code.**
+**Reachability confirmed by source read, not assumed:** `MessageBubble`
+offers Regenerate on any delivered `.hermes` row, so a reply produced by a
+dictated turn is menu-eligible today. Four sites share the assumption —
+`ChatStore.regenerateReply`, `ChatStore.retryMessage`, and (duplicated into
+the view layer, which is #274's problem) `ChatScreen.performRetry` and
+`performUndo`.
+
+**Explicitly NOT part of this:** Edit & Resend excludes voice rows on
+purpose — this entry's sibling #78 records that voice-transcript rows get
+Copy/Share/Select only. That is a product decision, not this bug, and the
+lane leaves it alone.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **275-A (unit, fails today):** in `[user, hermes, voiceUser, hermes]`,
+  regenerating the last reply truncates from the DICTATED turn — the two
+  earlier rows survive verbatim and the prompt re-sent is the dictated
+  text. Today it truncates from index 0 and re-sends the wrong prompt.
+- **275-B (unit, fails today):** in `[voiceUser, hermes]` — no earlier text
+  turn at all — regenerating truncates from the dictated turn and re-sends
+  it. Today the scan finds nothing and the function returns silently:
+  nothing truncated, nothing sent, no log. A dead menu item.
+- **275-C (unit, fails today):** `retryMessage` on a failed reply whose
+  producing turn was dictated re-sends the DICTATED text, not the last
+  typed turn's.
+- **275-D (unit, regression):** text-only behavior byte-unchanged — the
+  existing #44 pins pass, and no `.system`/`.hermes`/`.voiceHermes` row is
+  ever selected as a producing turn.
+- **275-E (structural):** every producing-turn and retry-source search
+  routes through ONE shared predicate, so no site matches `.user` alone and
+  a future sender case cannot silently re-open this by omission.
 
 ## 274. 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists — **FILED 2026-08-07 from #78's diagnosis**
 
