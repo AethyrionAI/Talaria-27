@@ -13334,3 +13334,45 @@ Logged 2026-07-08.
 > **Update 2026-08-07 — ARCHIVED, framing obsolete (oldest-20 triage sweep, Owen's call).** The multi-beta toolchain-provenance scenario this item warns about no longer exists: Xcode-beta.app and Xcode-beta3.app were deleted 2026-07-24 (CLAUDE.md, Build/tooling). Whether the letterbox itself still reproduces under beta4 is a one-line re-test now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md; if it does, file a NEW item — do not reopen this one.
 
 ---
+
+## 34. 🔧 T6 — Mac-hosted Talaria backend (unlocks additive Apple connectors) — ACTIVE (un-deferred 2026-07-12); Phase 1 → #107 — **✅ CLOSED 2026-08-07: SUBSUMED into #107 (triage reconciliation)**
+
+> **Audit 2026-07-13:** Header's cross-reference is off by one item — 'Phase 1 → #106' should read '#107'; #106 is a different item entirely (P8 IR v0 / Lane D / PR #65). #107 (the correct Phase-1 tracker, matching the body text's own citations) confirms scaffolding merged via PR #79 but the Mini-execution checklist is still fully unchecked, so 🔧/merged-unverified remains the right status — only the number needs fixing.
+
+**Update 2026-07-12:** un-deferred by Owen. Spec v0.2 committed at
+`design/T6_MAC_BACKEND_SPEC.md` (architecture verified against the OJAMD deployment; Q1–Q5
+decision defaults in §7); Phase 1 (re-home relay + connector, reboot-proof launchd
+hardening for all four services) is tracked with a full execution + device checklist in
+**#107**, ops runbook at `relay/docs/DEPLOY_MAC.md`. Phase 2 = #33's server-side connectors.
+The "Windows brain, Mac hands" accelerator below is now a documented runbook section
+(DEPLOY_MAC.md), still optional and independent. Non-goal reaffirmed: Phase 1 does NOT make
+the Mac the phone's primary host — that reversal of the #1 consolidation stays deliberate.
+Correction to the old note: #24f is NOT a Phase-1 work item — the live relay is DB-backed
+and persistence is verified (#24f closed 2026-07-12).
+
+**Deferred rationale (Owen, 2026-06-28, superseded 2026-07-12):** hold until the app is closer to feature-complete —
+don't ship an incomplete Mac-hosted version. Revisit once the active open items resolve.
+
+Milestone (Owen, 2026-06-27), explicitly deferred until the rest of the open-items list
+is squared away. Re-home Talaria's full backend stack — models shim (:8765), relay/
+connector (:8000), gateway (:8642), and any sidecars — onto the Mac Mini (macOS Hermes)
+as the primary host, with the same reboot-proof hardening built for OJAMD but in macOS
+terms (launchd / login items instead of NSSM / Task Scheduler).
+
+Why: macOS Hermes exposes connectors Windows Hermes can't, so a Mac-hosted install gets
+the additive layer — iMessage, Notes, FindMy — on top of the universal device-side
+Calendar/Reminders (#33). The host OS is effectively the feature flag: Windows install =
+device-side baseline; Mac install = baseline + connectors.
+
+Scope: re-home + harden on macOS; install / boot-survival testing on the Mac; wire #33's
+server-side connectors once the Mac backend is live. Forks (or partly reverses) the
+OJAMD-as-production consolidation (→ #1) — accepted as the cost of the richer feature set.
+
+Optional accelerator (if iMessage is wanted before full re-homing): keep OJAMD primary
+and expose just the mini's Apple toolset to it via `hermes mcp serve` (mini) → `hermes
+mcp add` (OJAMD) over the tailnet — "Windows brain, Mac hands." Not planned now; noted so
+it isn't rediscovered later.
+
+Deferred 2026-06-27 — revisit after the active items clear.
+
+> **Update 2026-08-07 — ✅ SUBSUMED INTO #107 (oldest-20 triage sweep reconciliation).** #34's own header hands Phase 1 to #107 and Phase 2 to #33, and #107's closure ('T6 Phase 1+2 — EXECUTED + reboot-verified') covers the Mini checklist: 8 of 11 lines confirmed done with citations in #107/#114/#54; the Mac-relay sensor-delivery line was SUPERSEDED by #114's deliberate design (sensors pinned to OJAMD permanently — the 2026-07-16 device note confirms 'SENSORS badge stayed pinned to OJAMD while Mac was active'); the run-completion-APNs line is MOOT (#238 deleted the push-watch/APNs surface app-wide, commit e32f554, 2026-08-03); the optional 'Windows brain, Mac hands' accelerator was explicitly declined in the T6 spec and stays unbuilt by choice. Anything Mac-host that resurfaces files NEW items.
