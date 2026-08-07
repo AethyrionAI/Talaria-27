@@ -104,14 +104,42 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   reply stream — chip appears under the write_file card at its generation
   point, does NOT move while later text streams beneath, is tappable
   mid-turn, and stays anchored after relaunch/history reload.)*
-- [ ] #78 — Long-press a user bubble, a Hermes bubble, and a voice-transcript
-  row; exercise Copy/Share/Select Text on each; Regenerate a MID-history
-  (not-last) reply and confirm the transcript truncates from that turn;
-  Edit & Resend a turn with and without an attachment; start a new send and
-  confirm no context menu appears on the streaming bubble and
-  Regenerate/Edit are hidden while it streams. (PASS: all actions work per
-  bubble type; Regenerate truncates from the right turn; Edit & Resend
-  restores attachments; nothing history-mutating offers itself mid-stream.)
+- [~] #78 — **RUN 2026-08-07 on OTA 2120. PARTIAL: two PASS, two FAIL. The
+  two FAILs paused the whole device run** (Owen: "lets pause the phone work
+  while you fix it") — resume the consolidated run on the build that carries
+  the fixes, starting at the #80 row below.
+  - ✅ **Copy / Share / Select Text** — work on every bubble type.
+  - ✅ **Streaming guard, in session** — no menu appears on a bubble while
+    its run streams; Regenerate/Edit correctly withheld.
+  - ❌ **Regenerate a mid-history reply** — Owen: *"I regnerated the
+    10:50pm, and it never showed that I did anything today until I responded
+    to that regeneration. And it put it below the previous answer I
+    regenerated."* Truncation fires and is then undone by the backend-mirror
+    merge; the regenerated reply lands at the tail. Edit & Resend carries the
+    same defect delayed one turn (*"was weird. worked technically"*).
+    Diagnosed in full — see OPEN_ITEMS #78's 2026-08-07 note; bars 78-A..F
+    pre-registered; fix lane building. Spun out: #274, #275.
+  - ❌ **Streaming guard does NOT survive re-entry** — Owen: *"If you leave
+    and come bck immediately, it presents the option."* Screenshot: Edit &
+    Resend offered on a row still in flight (clock icon, no reply yet).
+    `isTranscriptBusy` ← `chatStore.isStreaming` ← `streamingMessageID`;
+    under diagnosis. Consequence to establish: an edit-resend under a live
+    run truncates and re-sends while that run is streaming.
+  *(original check text, kept for the record: long-press each bubble type;
+  Copy/Share/Select on each; regenerate a MID-history reply and confirm the
+  transcript truncates from that turn; Edit & Resend with and without an
+  attachment; confirm no context menu on a streaming bubble. STILL UNRUN
+  from this check when the pause was called: **Edit & Resend on a turn that
+  HAD an attachment** — does the attachment return to the composer.)*
+- [ ] **NEW 2026-08-07, found mid-run — agent-file chips vanish from a
+  thread you navigate away from and return to.** Owen, after 262-E passed
+  in a fresh thread (chip survived force-quit + relaunch INTO THE SAME
+  THREAD): all three older threads he reopened — two markdown, one HTML —
+  show no chip, while *"write file card is present. Just not the chip WITH
+  the file to view in the chat."* Tool activities ride the refetched
+  transcript; the Tier-1 attachment is client-side only. Under diagnosis;
+  bar to be written to cover SWITCH AWAY → other thread → RETURN, the path
+  #258's and #262's bars both missed.
 - [ ] #80 (revised — push-delivery sub-checks are dead, see MAJOR FINDING
   above) — Ask Hermes, in a Talaria chat, to create an inbox item; then
   pull-to-refresh the Inbox screen (or leave/reopen it); approve it in-app
