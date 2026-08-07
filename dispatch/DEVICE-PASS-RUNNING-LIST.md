@@ -127,6 +127,17 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 >
 > Nothing above Group 1's `#80` row needs the phone again except 78-F2.
 >
+> **📲 THE BUILD FOR ALL OF THIS: OTA build 2171** (`claude/t27-283-3a-runs-transport`
+> @ `8652633`, Release), staged 2026-08-07 15:30 at
+> `https://owens-mac-mini.tail5663a6.ts.net` — install from phone Safari.
+> **It carries BOTH halves of the queue:** every fix lane merged today (so
+> 78-F2 and the Group 1 remainder run on it unchanged) **and** slice 3A
+> behind its OFF-by-default switch. Verified in the shipped binary, not
+> just claimed: the Release ipa contains the "Runs Transport (Phase 3)"
+> toggle string and the `/v1/runs` paths, and the toggle is outside every
+> `#if DEBUG` block, so it is reachable in this Release build. One install
+> covers the whole sitting.
+>
 > **3. NEW 2026-08-07 — Phase 3 slice 3A device bars (#283), added when the
 > lane's build-side work went green.** A SEPARATE sitting from the fix-lane
 > debt above, and it needs **the Developer switch "Runs Transport (Phase 3)"
