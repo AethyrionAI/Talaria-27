@@ -1336,31 +1336,103 @@ final class ChatStore {
         await sendMessage(content, attachments: attachments)
     }
 
+    // MARK: - Transcript truncation (#78)
+
+    /// **The one way to remove rows from the rendered transcript.**
+    ///
+    /// Truncating the local array is only half the operation, and always was
+    /// (#78): every backend keeps its OWN mirror of the thread, and this
+    /// store treats that mirror as an authoritative refresh source — merging
+    /// it back over the transcript at the end of every turn, on every ~2s
+    /// poll tick, and on the streaming fallback path, with the mirror as the
+    /// BASE ordering. A truncation that never reaches the mirror is undone
+    /// within one tick: the removed rows come back IN PLACE and the
+    /// regenerated reply is left stranded at the tail. So the primitive
+    /// persists, syncs the journal, notifies, and hands the truncated thread
+    /// to the client.
+    ///
+    /// Returns the removed rows so a caller whose follow-up send never
+    /// dispatches can put them back (`restoreTruncatedRows`).
+    @discardableResult
+    func truncateTranscript(from index: Int, reason: String) -> [Message] {
+        guard var conv = conversation, conv.messages.indices.contains(index) else { return [] }
+        let removed = Array(conv.messages[index...])
+        conv.messages.removeSubrange(index...)
+        conversation = conv
+        chatLog.notice("truncate [\(reason, privacy: .public)]: removed \(removed.count) row(s) from index \(index); \(conv.messages.count) remain (#78)")
+        adoptLocalTranscript()
+        return removed
+    }
+
+    /// Puts rows a truncation removed back where they were — the safety net
+    /// for a caller that truncated in order to re-send and then didn't send
+    /// (#78's residual: `sendMessage`'s duplicate guard swallowing a
+    /// byte-identical re-roll left history destroyed in memory with nothing
+    /// sent and nothing persisted). Id-deduped, so a partially-recovered
+    /// transcript can't double a row.
+    private func restoreTruncatedRows(_ rows: [Message], at index: Int) {
+        guard !rows.isEmpty, var conv = conversation else { return }
+        let present = Set(conv.messages.map(\.id))
+        let missing = rows.filter { !present.contains($0.id) }
+        guard !missing.isEmpty else { return }
+        conv.messages.insert(contentsOf: missing, at: min(index, conv.messages.count))
+        conversation = conv
+        adoptLocalTranscript()
+    }
+
+    /// Publishes the current transcript as the whole of the thread: persist,
+    /// notify, re-sync the journal, and hand it to the client so its mirror
+    /// stops disagreeing with what the user is looking at (#78).
+    private func adoptLocalTranscript() {
+        guard let conversation else { return }
+        persistence.saveConversationCache(conversation)
+        onConversationChanged?()
+        // P1 (#90): the journal follows the truncation (waterline clamps).
+        journal?.sync(with: conversation)
+        hermesClient.adoptTruncatedConversation(conversation)
+    }
+
     // MARK: - Per-turn regenerate / edit (#44)
 
     /// Re-rolls a successful Hermes reply from its context menu: truncates the
     /// transcript from the user turn that produced the reply, then re-sends
-    /// that turn through the full pipeline (attachments restored). Like
-    /// `/retry` and `/undo`, the truncation is client-side only — the server
-    /// session keeps its history and the re-sent turn continues that session.
+    /// that turn through the full pipeline (attachments restored).
     /// No-op while a run is streaming (the menu also hides the item).
+    ///
+    /// The truncation runs through `truncateTranscript`, so it reaches the
+    /// backend's mirror and survives the merges (#78). On the Hermes path the
+    /// GATEWAY session still holds every turn — the documented `/retry`
+    /// caveat — so the agent's context is unchanged and reopening the session
+    /// from the drawer re-imports the server's history. On the local brain
+    /// the truncation is total: the mirror and the `LanguageModelSession` both
+    /// drop the removed turns.
     func regenerateReply(_ message: Message) async {
-        guard !isStreaming,
-              let conv = conversation,
+        guard !isStreaming else { return }
+        guard let conv = conversation,
               let replyIdx = conv.messages.firstIndex(where: { $0.id == message.id }),
               let userIdx = conv.messages[..<replyIdx].lastIndex(where: { $0.sender == .user })
-        else { return }
+        else {
+            chatLog.notice("regenerate: no producing user turn above this reply — nothing truncated, nothing sent (#78)")
+            return
+        }
 
         let userMessage = conv.messages[userIdx]
         let attachments = userMessage.attachments.compactMap(PendingAttachment.restore)
         let content = normalizedRetryContent(for: userMessage)
-        guard !content.isEmpty || !attachments.isEmpty else { return }
+        guard !content.isEmpty || !attachments.isEmpty else {
+            chatLog.notice("regenerate: the producing turn has nothing re-sendable — nothing truncated (#78)")
+            return
+        }
 
-        conversation?.messages.removeSubrange(userIdx...)
-        // P1 (#90): the journal follows the truncation (waterline clamps; the
-        // server session keeps its history — the documented /retry caveat).
-        if let conversation { journal?.sync(with: conversation) }
-        await sendMessage(content, attachments: attachments)
+        let removed = truncateTranscript(from: userIdx, reason: "regenerate")
+        let dispatched = await sendMessage(content, attachments: attachments)
+        guard !dispatched else { return }
+        // A send guard swallowed the re-roll — in practice the duplicate
+        // check, when an identical turn is still pending elsewhere in the
+        // thread. Nothing was sent, so the truncation destroyed history for
+        // nothing; put it back rather than leave the user short a turn.
+        chatLog.notice("regenerate: the re-send was swallowed by a send guard — restoring \(removed.count) truncated row(s) (#78)")
+        restoreTruncatedRows(removed, at: userIdx)
     }
 
     /// The pieces a truncated user turn hands back to the composer.
@@ -1374,6 +1446,17 @@ final class ChatStore {
     /// caller can seed the composer. Nothing is sent here; the user edits and
     /// taps send. Returns nil (and leaves the transcript untouched) while a
     /// run is streaming or for non-user messages.
+    ///
+    /// `.voiceUser` is deliberately NOT accepted: a voice-transcript row is
+    /// not an editable composed turn, and the bubble menu offers Edit &
+    /// Resend only on `.user` rows to match (#44's recorded decision,
+    /// re-confirmed under #275). That is a product decision, not the #275
+    /// producing-turn bug.
+    ///
+    /// #78: routed through `truncateTranscript`, which is what makes the
+    /// truncation survive the send that follows. Before that it looked
+    /// correct — nothing sends at this moment, so no merge runs — and was
+    /// wiped the instant the user tapped send.
     func extractTurnForEditing(_ message: Message) -> EditableTurn? {
         guard !isStreaming,
               message.sender == .user,
@@ -1383,12 +1466,7 @@ final class ChatStore {
 
         let attachments = message.attachments.compactMap(PendingAttachment.restore)
         let text = normalizedRetryContent(for: message)
-        conversation?.messages.removeSubrange(idx...)
-        if let conversation {
-            persistence.saveConversationCache(conversation)
-            onConversationChanged?()
-            journal?.sync(with: conversation)
-        }
+        truncateTranscript(from: idx, reason: "edit-and-resend")
         return EditableTurn(text: text, attachments: attachments)
     }
 

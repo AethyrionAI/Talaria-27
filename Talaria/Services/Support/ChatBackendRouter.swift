@@ -492,6 +492,16 @@ final class ChatBackendRouter: HermesClientProtocol {
         await backend(for: runningBrain ?? activeBrain).loadConversation()
     }
 
+    /// #78: a truncation is a property of the THREAD, not of a brain — so it
+    /// goes to BOTH backends, not to `backend(for:)`. #192 flips brains
+    /// mid-conversation by design, and `currentConversation` above reads from
+    /// whichever one last ran; a mirror left untruncated on the other side is
+    /// a loaded gun that fires on the first turn after a flip.
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        local.adoptTruncatedConversation(conversation)
+        hermes.adoptTruncatedConversation(conversation)
+    }
+
     func clearConversation() async throws -> Conversation {
         // Clear BOTH sides: a new chat is a new thread on whichever brain the
         // next message routes to, and a stale Hermes session id must not

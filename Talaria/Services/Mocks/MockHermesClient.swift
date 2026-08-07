@@ -118,6 +118,13 @@ final class MockHermesClient: HermesClientProtocol {
         return fresh
     }
 
+    /// #78: this client mirrors the thread too, and the resilient wrapper
+    /// falls back to its `currentConversation` — so a truncation has to reach
+    /// it or the mock resurrects the rows in exactly the same way.
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        currentConversation = conversation
+    }
+
     private func generateResponse(for input: String) -> String {
         let responses = [
             "I've looked into that for you. Based on what I can see, here's what I'd suggest...",

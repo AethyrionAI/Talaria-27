@@ -16,6 +16,8 @@ struct ChatBackendRouterTests {
         var currentConversation: Conversation?
         var sentMessages: [String] = []
         var replyContent: String
+        /// #78: truncations this backend was told to adopt.
+        var adoptedConversations: [Conversation] = []
 
         init(replyContent: String) {
             self.replyContent = replyContent
@@ -50,6 +52,11 @@ struct ChatBackendRouterTests {
         func clearConversation() async throws -> Conversation {
             Conversation(title: Conversation.defaultTitle)
         }
+
+        func adoptTruncatedConversation(_ conversation: Conversation) {
+            adoptedConversations.append(conversation)
+            currentConversation = conversation
+        }
     }
 
     private func makeDefaults() -> UserDefaults {
@@ -72,6 +79,31 @@ struct ChatBackendRouterTests {
             hasHermesHost: { hermesConfigured },
             defaults: defaults ?? makeDefaults()
         )
+    }
+
+    // MARK: Consumer truncation (#78)
+
+    /// A truncation is a property of the THREAD, not of a brain. #192 can
+    /// flip brains mid-conversation, so forwarding only to the brain that
+    /// happens to be active leaves the other backend's mirror holding the
+    /// removed rows — and the first turn after a flip merges them straight
+    /// back into the transcript.
+    @Test func truncationIsForwardedToBothBackendsRegardlessOfRouting() {
+        let hermes = StubBackend(replyContent: "hermes")
+        let local = StubBackend(replyContent: "local")
+        // Routed local (never configured) — the Hermes side must still adopt.
+        let router = makeRouter(hermesConfigured: false, hermes: hermes, local: local)
+        #expect(router.resolvedBrainForNextTurn() == .onDevice)
+
+        let truncated = Conversation(
+            title: "Hermes",
+            messages: [Message(sender: .user, content: "Only turn", status: .delivered)]
+        )
+        router.adoptTruncatedConversation(truncated)
+
+        #expect(local.adoptedConversations.map(\.id) == [truncated.id])
+        #expect(hermes.adoptedConversations.map(\.id) == [truncated.id])
+        #expect(router.currentConversation?.messages.count == 1)
     }
 
     // MARK: Routing rules

@@ -681,6 +681,25 @@ final class LocalChatBackend: HermesClientProtocol {
         return fresh
     }
 
+    /// #78: adopt a consumer-side truncation (regenerate, edit-and-resend).
+    ///
+    /// This backend holds TWO copies of the thread and both have to follow:
+    /// `currentConversation`, which ChatStore merges back over its rendered
+    /// transcript at the end of every turn and on every poll tick (leave it
+    /// alone and the removed rows come straight back), and the live
+    /// `LanguageModelSession`, which carries its own `Transcript`. A re-roll
+    /// that left the session alive would re-ask the question with the
+    /// original answer still in context — the truncation would be undone in
+    /// the model's reply instead of in the transcript. The next turn
+    /// rebuilds the session by replaying the truncated history, which is
+    /// exactly the handover `openSession`/`installTools` already use.
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        currentConversation = conversation
+        session = nil
+        sessionToolNames = []
+        Self.logger.notice("adopted a consumer truncation: thread is now \(conversation.messages.count) message(s); live session invalidated (#78)")
+    }
+
     func clearConversation() async throws -> Conversation {
         session = nil
         condensedMemory = nil

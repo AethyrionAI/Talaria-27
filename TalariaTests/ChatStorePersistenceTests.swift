@@ -9,6 +9,12 @@ import Testing
 /// state instead of leaving it pending forever.
 struct ChatStorePersistenceTests {
 
+    /// ⚠️ **This double does NOT mirror the transcript** — it never appends a
+    /// turn to `currentConversation`, so ChatStore's post-turn / poll-tick
+    /// merge against a client's mirror is a structural no-op here. That is
+    /// exactly why the #44 pins below were green while #78's resurrection
+    /// shipped. Fine for send/persistence/stream-event pins; **never use it
+    /// for a truncation-durability pin** — use `MirroringReplyClient`.
     @MainActor
     private final class ImmediateReplyClient: HermesClientProtocol {
         var connectionStatus: ConnectionStatus = .connected
@@ -303,6 +309,257 @@ struct ChatStorePersistenceTests {
 
         #expect(chatStore.extractTurnForEditing(history[1]) == nil)
         #expect(chatStore.conversation?.messages.count == 4)
+    }
+
+    // MARK: - #78: truncation durability (regenerate / edit-and-resend)
+
+    /// The double the #44 pins should always have had.
+    ///
+    /// Every real backend keeps its OWN copy of the thread —
+    /// `LocalChatBackend` restores it from this same conversation cache and
+    /// appends both halves of every turn; `SessionsHermesClient` caches the
+    /// last server fetch — and ChatStore merges that copy back over its
+    /// transcript at the end of every turn, on every ~2s poll tick, and on
+    /// the streaming fallback path, taking the mirror as the BASE ordering.
+    /// `ImmediateReplyClient` never populates `currentConversation`, so that
+    /// merge is a structural no-op there: the resurrection path is ABSENT
+    /// from the fixture, which is why a correct test passed against broken
+    /// behaviour for a month (#78, the #258/#259 green-certifies-broken
+    /// family). This one mirrors, so the merge is real.
+    @MainActor
+    private final class MirroringReplyClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        var replyText = "Done."
+        /// Prompts handed to `sendStreaming` — #275 reads which turn re-sent.
+        private(set) var sentPrompts: [String] = []
+        /// 78-E: a mirror-less-session client's stand-in for
+        /// `LocalChatBackend.session = nil`. The real half of that bar is
+        /// pinned against `LocalChatBackend` itself in `LocalChatBackendTests`.
+        private(set) var didInvalidateSession = false
+        private(set) var adoptedMessageCounts: [Int] = []
+
+        init(mirroring conversation: Conversation? = nil) {
+            currentConversation = conversation
+        }
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            sentPrompts.append(message)
+            let reply = Message(sender: .hermes, content: replyText, status: .delivered)
+            mirror(message: message, attachments: attachments, clientMessageID: clientMessageID, reply: reply)
+            return reply
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            sentPrompts.append(message)
+            let reply = Message(sender: .hermes, content: replyText, status: .delivered)
+            // Mirrored BEFORE `.finished` is yielded — exactly the order
+            // `LocalChatBackend` uses, which is what lets a mid-stream poll
+            // adopt the reply early (#120).
+            mirror(message: message, attachments: attachments, clientMessageID: clientMessageID, reply: reply)
+            return AsyncStream { continuation in
+                continuation.yield(.finished(reply, nil, nil))
+                continuation.finish()
+            }
+        }
+
+        /// `LocalChatBackend.appendUserMessage` / `appendAssistantMessage`,
+        /// reduced to their mirroring effect: the user row carries the
+        /// client's own id so ChatStore's merge pairs it by identity.
+        private func mirror(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID,
+            reply: Message
+        ) {
+            if currentConversation == nil {
+                currentConversation = Conversation(title: Conversation.defaultTitle)
+            }
+            let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayContent = trimmed.isEmpty && !attachments.isEmpty
+                ? "[\(attachments.count) attachment\(attachments.count == 1 ? "" : "s")]"
+                : trimmed
+            currentConversation?.messages.append(Message(
+                id: clientMessageID,
+                clientMessageID: clientMessageID,
+                sender: .user,
+                content: displayContent,
+                status: .delivered,
+                attachments: attachments.map { MessageAttachment(from: $0) }
+            ))
+            currentConversation?.messages.append(reply)
+        }
+
+        func loadConversation() async -> Conversation {
+            if let currentConversation { return currentConversation }
+            let fresh = Conversation(title: "Hermes")
+            currentConversation = fresh
+            return fresh
+        }
+
+        func clearConversation() async throws -> Conversation {
+            let fresh = Conversation(title: "Hermes")
+            currentConversation = fresh
+            return fresh
+        }
+
+        func adoptTruncatedConversation(_ conversation: Conversation) {
+            currentConversation = conversation
+            didInvalidateSession = true
+            adoptedMessageCounts.append(conversation.messages.count)
+        }
+    }
+
+    /// A four-turn thread that the store AND the backend both hold — the
+    /// production shape, where the backend restored the very same cache.
+    @MainActor
+    private func makeMirroredStore(
+        history: [Message]? = nil
+    ) -> (ChatStore, MirroringReplyClient, [Message], UserDefaultsAppPersistenceStore) {
+        let rows = history ?? [
+            Message(sender: .user, content: "First question", status: .delivered),
+            Message(sender: .hermes, content: "First answer", status: .delivered),
+            Message(sender: .user, content: "Second question", status: .delivered),
+            Message(sender: .hermes, content: "Second answer", status: .delivered),
+        ]
+        let persistence = makePersistence()
+        let cached = Conversation(title: "Hermes", messages: rows)
+        persistence.saveConversationCache(cached)
+        let client = MirroringReplyClient(mirroring: cached)
+        return (ChatStore(hermesClient: client, persistence: persistence), client, rows, persistence)
+    }
+
+    /// **78-A** — the count. A mid-history re-roll truncates from the turn
+    /// that produced the reply and the truncation STAYS truncated through
+    /// the post-turn merge.
+    @Test @MainActor
+    func regenerateSurvivesTheBackendMirrorMerge() async throws {
+        let (store, _, history, _) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[1])
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.count == 2)
+    }
+
+    /// **78-B** — the identity. The original reply row is GONE (not merely
+    /// outnumbered) and the regenerated one is the tail.
+    @Test @MainActor
+    func regenerateLeavesNoResurrectedRowsAndEndsOnTheNewReply() async throws {
+        let (store, _, history, persistence) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[1])
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(!messages.contains { $0.id == history[1].id })
+        #expect(!messages.contains { $0.content == "First answer" })
+        #expect(!messages.contains { $0.content == "Second question" })
+        #expect(!messages.contains { $0.content == "Second answer" })
+        #expect(messages.last?.sender == .hermes)
+        #expect(messages.last?.content == "Done.")
+        // #78's missing save: a re-roll that isn't persisted is undone by a
+        // relaunch even when the merge behaves.
+        let cached = try #require(persistence.loadConversationCache())
+        #expect(!cached.messages.contains { $0.content == "Second answer" })
+    }
+
+    /// **78-C** — the poll tick. One merge against the backend's mirror is
+    /// all it took to put the removed rows back; it must now be inert.
+    @Test @MainActor
+    func oneRefreshMergeAfterATruncationDoesNotResurrectRows() async throws {
+        let (store, _, history, _) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        // Truncate without sending — this isolates the MERGE as the only
+        // thing that runs between the truncation and the assertion.
+        _ = store.extractTurnForEditing(history[2])
+        #expect(store.conversation?.messages.count == 2)
+
+        await store.loadConversation()
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.count == 2)
+        #expect(!messages.contains { $0.content == "Second question" })
+        #expect(!messages.contains { $0.content == "Second answer" })
+    }
+
+    /// **78-D** — edit-and-resend durability. The cruel shape: the
+    /// truncation looks right (nothing sends at that moment, so no merge
+    /// runs) and is wiped the instant the user taps send.
+    @Test @MainActor
+    func editAndResendTruncationSurvivesTheFollowUpSend() async throws {
+        let (store, _, history, persistence) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        let turn = try #require(store.extractTurnForEditing(history[2]))
+        #expect(turn.text == "Second question")
+
+        await store.sendMessage("Second question, rephrased")
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(!messages.contains { $0.content == "Second question" })
+        #expect(!messages.contains { $0.content == "Second answer" })
+        #expect(messages.map(\.content) == [
+            "First question", "First answer", "Second question, rephrased", "Done.",
+        ])
+        let cached = try #require(persistence.loadConversationCache())
+        #expect(!cached.messages.contains { $0.content == "Second answer" })
+    }
+
+    /// **78-E (client half)** — the mechanism. After a truncation the
+    /// backend's mirror IS the truncated thread, and the client was told to
+    /// drop the session state that holds its own copy of the transcript.
+    @Test @MainActor
+    func truncationIsHandedToTheBackendMirror() async throws {
+        let (store, client, history, _) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        _ = store.extractTurnForEditing(history[2])
+
+        let local = try #require(store.conversation?.messages)
+        let mirrored = try #require(client.currentConversation?.messages)
+        #expect(mirrored.map(\.id) == local.map(\.id))
+        #expect(client.didInvalidateSession)
+        #expect(client.adoptedMessageCounts == [2])
+    }
+
+    /// The residual #78 named: `regenerateReply` truncated and then returned
+    /// without sending whenever `sendMessage`'s duplicate guard swallowed the
+    /// byte-identical re-send — history destroyed in memory, nothing sent,
+    /// nothing persisted. A swallowed re-send must leave the transcript as
+    /// it found it.
+    @Test @MainActor
+    func regenerateRestoresHistoryWhenTheResendIsSwallowed() async throws {
+        // An earlier turn identical to the one being re-rolled, still
+        // pending — exactly what `hasPendingDuplicateMessage` refuses on.
+        let rows = [
+            Message(sender: .user, content: "Same question", status: .sending),
+            Message(sender: .user, content: "Same question", status: .delivered),
+            Message(sender: .hermes, content: "An answer", status: .delivered),
+        ]
+        let (store, client, history, persistence) = makeMirroredStore(history: rows)
+        // Adopted directly rather than through `loadConversationIfNeeded`:
+        // cold load finalizes a stale `.sending` row to `.failed` (#56), and
+        // the guard under test is about a row that IS in flight right now.
+        store.conversation = client.currentConversation
+        #expect(store.conversation?.messages.first?.status == .sending)
+
+        await store.regenerateReply(history[2])
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(client.sentPrompts.isEmpty)
+        #expect(messages.map(\.content) == ["Same question", "Same question", "An answer"])
+        let cached = try #require(persistence.loadConversationCache())
+        #expect(cached.messages.count == 3)
     }
 
     // MARK: - #203 (1A) the stall hint's WIRING

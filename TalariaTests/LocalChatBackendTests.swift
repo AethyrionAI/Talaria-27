@@ -490,4 +490,48 @@ struct LocalChatBackendTests {
         #expect(LocalChatBackend.failureMessage(for: FakeError()) == "Something specific broke.")
         #expect(!LocalChatBackend.isContextOverflow(FakeError()))
     }
+
+    // MARK: Consumer truncation (#78)
+
+    /// **78-E (backend half)** — the mechanism pin. A consumer-side
+    /// truncation must reach BOTH copies this backend holds of the thread:
+    /// `currentConversation`, which ChatStore merges back over its transcript
+    /// every turn and every poll tick, and the live `LanguageModelSession`,
+    /// which carries its own `Transcript`. Leaving the session alive makes a
+    /// "re-roll" re-ask the question with the original answer still in
+    /// context — a truncation the user can see undone in the model's reply
+    /// rather than in the transcript.
+    ///
+    /// No generation happens here: the session object is constructed and
+    /// discarded, which needs no on-device assets.
+    @Test @MainActor func adoptingATruncationClearsTheMirrorAndTheLiveSession() {
+        let suiteName = "local-backend-truncation-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let backend = LocalChatBackend(
+            persistence: UserDefaultsAppPersistenceStore(defaults: defaults),
+            intelligence: LocalIntelligenceService()
+        )
+
+        let full = Conversation(title: "Hermes", messages: [
+            Message(sender: .user, content: "First question", status: .delivered),
+            Message(sender: .hermes, content: "First answer", status: .delivered),
+            Message(sender: .user, content: "Second question", status: .delivered),
+            Message(sender: .hermes, content: "Second answer", status: .delivered),
+        ])
+        backend.currentConversation = full
+        backend.session = LanguageModelSession(
+            model: SystemLanguageModel.default,
+            tools: [],
+            transcript: Transcript(entries: [])
+        )
+
+        var truncated = full
+        truncated.messages.removeSubrange(2...)
+        backend.adoptTruncatedConversation(truncated)
+
+        #expect(backend.currentConversation?.messages.map(\.id) == truncated.messages.map(\.id))
+        #expect(backend.currentConversation?.messages.count == 2)
+        #expect(backend.session == nil)
+    }
 }

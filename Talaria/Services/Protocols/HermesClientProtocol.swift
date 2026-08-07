@@ -120,6 +120,21 @@ protocol HermesClientProtocol {
     /// abandoned stream can never wedge later routing; the default is a
     /// no-op.
     func abandonActiveRun()
+
+    /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)
+    /// and this conversation is now the whole of it. Every client that keeps
+    /// its own mirror in `currentConversation` must adopt it here.
+    ///
+    /// Not optional politeness — ChatStore treats a client's mirror as an
+    /// authoritative refresh source and merges it back over the rendered
+    /// transcript at the end of every turn, on every ~2s poll tick, and on
+    /// the streaming fallback path. `mergeConversationMetadata` takes the
+    /// refresh source as the BASE ordering, so a mirror that still holds the
+    /// removed rows restores them IN PLACE and leaves the regenerated reply
+    /// stranded at the tail — the whole of #78's device symptom.
+    ///
+    /// The default is a no-op for mirror-less clients.
+    func adoptTruncatedConversation(_ conversation: Conversation)
 }
 
 extension HermesClientProtocol {
@@ -133,4 +148,5 @@ extension HermesClientProtocol {
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }
     func abandonActiveRun() {}
+    func adoptTruncatedConversation(_ conversation: Conversation) {}
 }

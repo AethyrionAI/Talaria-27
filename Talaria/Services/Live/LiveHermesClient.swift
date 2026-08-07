@@ -246,6 +246,14 @@ final class LiveHermesClient: HermesClientProtocol {
         }
     }
 
+    /// #78: the relay transcript cache is a mirror like any other — a
+    /// consumer truncation has to reach it, or the next refresh re-imports
+    /// the removed rows. (Same honest limit as the Sessions client: the
+    /// relay's own copy is untouched, so a re-fetch legitimately restores it.)
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        currentConversation = conversation
+    }
+
     func clearConversation() async throws -> Conversation {
         let response: ConversationResponse = try await performAuthorizedRequest { [self] token in
             try await self.apiClient.post(

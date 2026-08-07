@@ -60,6 +60,15 @@ final class ResilientHermesClient: HermesClientProtocol {
         try await primary.clearConversation()
     }
 
+    /// #78: both sides, because `currentConversation` above reads
+    /// `primary ?? fallback` — truncating only the primary leaves the
+    /// fallback's mirror ready to restore the removed rows the moment the
+    /// primary has nothing to offer.
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        primary.adoptTruncatedConversation(conversation)
+        fallback.adoptTruncatedConversation(conversation)
+    }
+
     func availableModels() async throws -> [String] {
         try await primary.availableModels()
     }

@@ -572,6 +572,22 @@ final class SessionsHermesClient: HermesClientProtocol {
         return convo
     }
 
+    /// #78: adopt a consumer-side truncation. `currentConversation` here is a
+    /// FETCH CACHE — the last thing this client read from the host — and
+    /// ChatStore treats it as an authoritative refresh source, so a stale
+    /// copy re-imports the rows the user just removed.
+    ///
+    /// **Honest limit, and it is a real one:** this fixes our mirror, not the
+    /// host. The gateway session still holds every turn, so the agent's own
+    /// context is unchanged (the documented `/retry` caveat) and any path
+    /// that RE-FETCHES the server transcript — `openSession`,
+    /// `reconcileFromServer` — legitimately re-imports it. On the Hermes
+    /// path a truncation survives merges and relaunch; it does not survive
+    /// reopening the session from the drawer.
+    func adoptTruncatedConversation(_ conversation: Conversation) {
+        currentConversation = conversation
+    }
+
     func clearConversation() async throws -> Conversation {
         // The hop dies with the thread; the journal's identity reset happens
         // in ChatStore, which knows which fresh conversation was adopted
