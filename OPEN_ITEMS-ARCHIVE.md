@@ -13202,3 +13202,135 @@ have been edited); **258-E rides the OTA**.
 > nicety stays on the record: the CSP enforcement check ran on macOS WebKit
 > rather than the iOS 27 sim — a cheap repeat closes that inch if anyone ever
 > wants it.
+
+## 90. 📝 DEVELOPMENT_TEAM placeholder — deferred to go-public cleanup — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+
+`project.yml` (and the generated pbxproj) carry the hard-coded Apple `DEVELOPMENT_TEAM`
+(`DNL25ZFSD2`). Team IDs are not secrets — this one is embedded in every build's provisioning
+profile and already sits throughout public git history, so scrubbing HEAD now buys nothing
+(a history rewrite would break every open branch for zero security gain).
+
+**Decision 2026-07-10:** leave as-is for the personal-fork phase. **If the repo goes properly
+public / contributor-facing**, swap to a placeholder + developer-local override (e.g. gitignored
+local signing config) as part of a broader signing-config cleanup, alongside bundle-ID
+genericization. Until then, outside builders set their own team in Xcode per README §Setup
+step 5. Whatever mechanism is chosen must survive `xcodegen generate` (same class of concern
+as the `aps-environment` regen rule).
+
+Logged 2026-07-10.
+
+> **Update 2026-08-07 — ARCHIVED as a decision record (oldest-20 triage sweep, Owen's call).** The 2026-07-10 decision stands: leave as-is for the personal-fork phase; re-open only if the repo goes public/contributor-facing.
+
+## 55. 💤 OJAMD service layer reverted to out-of-the-box (2026-07-04) — relay portion SUPERSEDED by NSSM reinstatement (#88, #98, #105); gateway/connector Startup-script arrangement still current — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+
+> **Audit 2026-07-13:** Confirmed the auditor's core finding but the scope was overstated — this is a *relay-only* reversal, not a full service-layer reversal. Item 55's own latest dated note (2026-07-08, "gateway operations recipe") still describes the gateway as a Startup-launched `pythonw` (via `Hermes_Gateway.vbs`) and predates the reversal, so it does not self-contradict. The contradiction comes from later items: #88 (RESOLVED 2026-07-09) verifies "the relay is NSSM-managed again (`HermesMobileRelay`... nssm.exe → uvicorn)"; #98's 2026-07-12 deploy note uses "elevated `Restart-Service HermesMobileRelay`"; #54's 2026-07-12 update references "the #98 deploy restart of `HermesMobileRelay`"; and #105 (Fixed 2026-07-12) retires the stray `Hermes_Relay.cmd` Startup script specifically because "the relay is NSSM-owned now," calling it "#55's competing-launch-layers problem in mirror image." All four citations verified verbatim at their cited lines. However, #103 (2026-07-11 post-mortem) and #105 itself both state the **gateway and connector are still on #55's Startup-script arrangement** ("HermesGateway now runs as a user pythonw process... not an NSSM service"; "the connector is a plain bat-launched process and the gateway runs as Owen's user pythonw... neither is a service") — so "SUPERSEDED by NSSM reinstatement" as a blanket claim overstates it; only the relay flipped back. (Side note: CLAUDE.md's "OJAMD services" section calling the gateway a "scheduled task" is itself inconsistent with #103/#105's more granular, dated account and is worth a spot-check next OJAMD pass — not something this audit can resolve.) Of item 55's 4 remaining checklist bullets: #1 (PYTHONUTF8 in both bats) is independently mooted by #87's source-level `encoding="utf-8"` fix across 17 subprocess sites (deployed + verified 2026-07-11, connector suite 104/1 skipped) — a durable fix that doesn't depend on the bat env var at all; #3 (reboot/login validation) was not technically validated but was effectively closed by #105's explicit "accepted, not fixed" policy call (Owen: attended-reboots-only, 2026-07-12). Bullets #2 (rework the "Restart All" shortcut, still described as referencing deleted services as of #54's 2026-07-04 evening note) and #4 (first real `hermes-update-safe.ps1` run) have **no confirming evidence anywhere in OPEN_ITEMS.md** and should be carried forward as genuinely open, not swept away by the supersession framing. Precedent for this kind of retroactive annotation already exists in this file: item 24i carries a "> **SUPERSEDED 2026-07-04 by #55**" blockquote added after the fact while keeping its own ✅ header — #55 deserves the equivalent treatment now that its relay premise has been reversed.
+
+**Context (2026-07-04 evening session).** Updates kept tanking even via `hermes-update-safe.ps1`,
+requiring manual intervention every time, and `HermesGateway` sat Paused in services.msc while
+the gateway showed connected in Hermes. Audit findings on OJAMD:
+
+- **Three competing launch layers** existed for the same components: nssm services (LocalSystem,
+  Auto), the disabled S4U Scheduled Tasks, and the **Startup-folder scripts**
+  (`Hermes_Gateway.vbs`, `Hermes_Relay.cmd`, `Hermes_Connector.cmd`) -- and the Startup scripts
+  were the *actual* production path: port `:8642` was owned by the VBS-launched gateway, not the
+  Paused service.
+- The Paused `HermesGateway` service held a live **LocalSystem `hermes.exe` zombie** with locks
+  inside `hermes-agent\venv` -- unkillable from an unelevated shell; the true update-tanker.
+- The relay was **down** (`:8000` closed; last clean shutdown 19:03) and the standalone connector
+  had been dead since 07-02 (the #37 cp1252 crash) -- the sensor path was broken and unnoticed.
+- `HermesMobileConnector` (created earlier the same day by a parallel session per #37 /
+  GitHub #8) was itself nssm-wrapped -- rediscovered here without provenance; a coordination
+  gap. **Rule reinforced: pull live OPEN_ITEMS.md before any OJAMD remediation.**
+
+**Decision (Owen):** revert to out-of-the-box, login-time startup through Hermes itself;
+add capabilities back only on proven need. Keep the shim service; keep the relay service dormant.
+
+**Executed 2026-07-04 (all verified):**
+1. Zombie tree killed; **`HermesGateway` and `HermesMobileConnector` services deleted**
+   (elevated; transcript at `C:\Users\Owen\.hermes\logs\service-removal-20260704.log`).
+2. **`HermesMobileRelay` set to Disabled** -- dormant fallback per Owen, cannot race the
+   Startup script at boot. `TalariaModelsShim` untouched (Running/Auto) -- still earns its keep.
+3. `start-relay.bat` / `start-connector.bat` patched (backups `.bak-20260704`):
+   `PYTHONIOENCODING=utf-8` + a launch **breadcrumb** to
+   `C:\Users\Owen\.hermes\logs\launcher-breadcrumbs.log` (diagnoses any future silent
+   login-launch failure). Relay + connector relaunched; **sensor path restored** (Owen
+   smoke-tested green; phone traffic observed on `:8000`).
+4. **`hermes-update-safe.ps1` rewritten** (old script at `.bak-20260704`): stops the shim,
+   gracefully closes the Hermes desktop app, then a **kill-and-verify loop** over every process
+   holding the hermes install tree -- matched by executable path / command line *including* the
+   PYTHONPATH-injected system-Python processes (`hermes_cli`, `tui_gateway` matchers) that the
+   old script's `Get-Process hermes` could never see -- aborts if the tree will not clear, runs
+   `hermes update`, relaunches via the normal login-time launchers (shim service, gateway VBS,
+   connector bat; relay stays up throughout). Supports `-DryRun`; parse-clean; dry-run validated
+   with the full expected kill list.
+
+**Remaining (next OJAMD pass):**
+- [ ] Add `PYTHONUTF8=1` to both bats (see #37 status note -- `PYTHONIOENCODING` does not cover
+      the subprocess pipe decode) and restart the connector.
+- [ ] Rework or retire the "Restart All" desktop shortcut (references deleted services); its
+      replacement should encode #54's dependency-order restart (relay -> connector).
+- [ ] Reboot + login validation: check `launcher-breadcrumbs.log` fired and all four ports come
+      up (`:8642` allows 15-20s warmup). The 19:03-19:04 event timeline is not yet fully
+      explained (manual stops vs. relogin); breadcrumbs will settle it.
+- [ ] First real `hermes-update-safe.ps1` run (note: it closes + relaunches the desktop app).
+
+**Rollback:** disabled S4U Scheduled Tasks retained; `HermesMobileRelay` service retained
+(Disabled); nssm binary untouched at `O:\Hermes\nssm\nssm.exe`; all replaced files have
+dated `.bak` copies.
+
+Logged 2026-07-04.
+
+**Update 2026-07-08 — gateway operations recipe (learned the hard way):**
+- **The gateway is a detached `pythonw`** launched at login by
+  `Hermes_Gateway.vbs` (Startup shim → `%LOCALAPPDATA%\hermes\gateway-service\Hermes_Gateway.vbs`).
+  **Restarting the Hermes desktop app does NOT restart it** — config changes require killing
+  the process that owns `:8642` and relaunching via the vbs (`wscript.exe <real vbs path>`).
+- **New MCP tools need TWO things:** the tool must be in the server's `tools/list` AND in
+  the `tools.include` allowlist under the server's block in `HERMES_HOME\config.yaml`
+  (`C:\Users\Owen\AppData\Local\hermes\config.yaml`). The hermes_mobile allowlist predated
+  the #45 producer tools and silently filtered them; `send_inbox_item` + `get_inbox_verdict`
+  were added 2026-07-08. Config is validated at gateway start only.
+- **Boot window quirk:** right after a gateway start, MCP sessions can be listed-but-dead
+  for ~1–3 min until the keepalive reconnects (a tool call in that window fails in 0.01s
+  with `ClosedResourceError`); one retry after the keepalive cycle succeeds.
+- Also: a relay socket can die with `WinError 64` accept-loop crash while the process
+  lingers — kill the pid and relaunch `scripts\start-relay.bat` detached (quote-safe: launch
+  the `O:\` bat directly; the Startup wrapper path contains spaces and silently no-ops if
+  passed unquoted to `Start-Process`).
+
+> **Update 2026-08-07 — ARCHIVED as graduated (oldest-20 triage sweep, Owen's call).** The service-layer facts live in CLAUDE.md's 'OJAMD services' section (the living copy). The one open bullet — a first real `hermes-update-safe.ps1` run — is moot: CLAUDE.md records 2026-08-04 that Owen's actual practice is bare `hermes update` and that this is fine.
+
+---
+
+## 83. 📝 Display Zoom "Larger Text" letterboxes T27 on iPhone18,2 — beta interplay, NOT app layout + toolchain-provenance rule — **✅ CLOSED 2026-08-07 (triage sweep): archived as terminal**
+
+**The 2026-07-08 evening "text clipped on the left" chase, resolved.** With Display Zoom =
+Larger Text, T27 renders in a **402×874pt window** (iPhone 17 Pro metrics) on the 440×956pt
+17 Pro Max panel, positioned ~27pt off-screen-left with a black band right/bottom — measured
+from native screenshots (window 1206px @ x≈−81 on the 1320px panel) and confirmed in-process
+(`UIScreen.main.bounds` = 402×874). Default zoom renders correctly. **Not caused by the
+#44–#49 wave** (receipt, tool chip, plist, scene manifest, launch screen all individually
+exonerated — runtime `sizeThatFits` measurements, plist diffs, and a full-width Pro Max
+*simulator* control on OS `380g`).
+
+**Trigger matrix:** phone updated to iOS 27 beta `24A5380h`; tonight was the **first device
+install built from Xcode-beta3** (SDK `24A5380g`, installed 7/2) — all prior installs were
+Xcode-beta seed 1 (SDK `24A5355p`) and rendered fine under Larger Text, as does Talaria
+prime (stable Xcode 26 SDK). Classic linked-on-or-after behavior flip meeting a beta bug
+(likely interacting with `UIApplicationSupportsMultipleScenes: true` from the CarPlay
+manifest). **Workarounds:** Display Zoom → Default (Owen's current state), or test
+`UIRequiresFullScreen: true` in project.yml (untried); likely self-resolves on a future
+beta seed — file Apple Feedback with the reproducer above.
+
+**HARD RULE going forward: record which Xcode seed built each device install.** SDK flips
+masquerade as app regressions — tonight's cost an entire evening. Multiple Xcode betas
+coexist on the Mac (`Xcode-beta.app` = seed 1, `Xcode-beta3.app` = seed 3, GUI vs
+`DEVELOPER_DIR` CLI can silently differ); when a device-only behavior "starts today,"
+check `DTXcodeBuild`/`DTSDKBuild` in the installed app's Info.plist against the previous
+install *before* auditing app code.
+
+Logged 2026-07-08.
+
+> **Update 2026-08-07 — ARCHIVED, framing obsolete (oldest-20 triage sweep, Owen's call).** The multi-beta toolchain-provenance scenario this item warns about no longer exists: Xcode-beta.app and Xcode-beta3.app were deleted 2026-07-24 (CLAUDE.md, Build/tooling). Whether the letterbox itself still reproduces under beta4 is a one-line re-test now queued in dispatch/DEVICE-PASS-RUNNING-LIST.md; if it does, file a NEW item — do not reopen this one.
+
+---
