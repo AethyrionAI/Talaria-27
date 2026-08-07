@@ -4868,6 +4868,29 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > throttles store writes to 60s, so widening the window past that makes the
 > gate *less* responsive to a phone that just left.
 
+> **Update 2026-08-06 ~22:33 — BUILT + DEPLOYED LIVE under Owen's 263-G go
+> ("263-G is approved. if you need to install it and then bounce the
+> gateway, thats fine"). Bars 263-A/B/C/D/E/F MET; 263-G's query half
+> remains (Owen's phone, Mac profile).** TDD by Opus subagent, orchestrator-
+> reviewed: RED measured all four cross-loop legs at the FULL hold
+> (5.001s of a 5.0s hold — delivery, wake-all, answer, denial), GREEN at
+> ~0.05s each (bounded by the test's own sleep); `_QUERY_TIMEOUT` 25→40s
+> against the 25s hold (263-C); 263-D's falsifiability DEMONSTRATED (forced
+> `transport` eviction → two hub instances → the pin fails with the right
+> diagnosis; output recorded in the test docstring); suite 60→80, the
+> pre-existing 60 byte-unmodified (`git diff 4205d1a` shows appends only).
+> Plugin main ff'd `4205d1a`→`fd5d7d1`, live checkout ff'd, gateway bounced
+> 22:33 — **listener verified per #264 (new PID 58870), and the new
+> instrumentation's first live lines prove hub coherence at a glance:**
+> `transport module loaded module=4494707664 hub=4494638288` then
+> `adapter attach hub=4494638288` — one load line, same hub id, no
+> inference. The one-grep bar (263-E) worked on its first boot. Latency
+> stamps are stripped in `take_queries` before delivery, with a test
+> pinning that they never reach the phone (#251's strict-decoder lesson).
+> **Remaining: three consecutive sub-3s `talaria_phone_query` answers from
+> Owen's foregrounded phone on the Mac profile (was 25.0s deterministic);
+> then this closes and (a) survives only as the WATCH.**
+
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
 
 Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
@@ -4942,6 +4965,20 @@ streamed anchor onto the final-list twin.
 > re-confirmed the defect on OTA 2100 mid-lane ("Chip still relocated and
 > stayed at the bottom of the generated text" — that build predates the fix).
 > 262-E rides the first OTA after merge.
+
+> **Update 2026-08-06 late night — MERGED (PR #277, `6b2f6d6`, under Owen's
+> tonight-scoped merge clearance); OTA 2107 staged and installed; first
+> 262-E evidence IN (partial).** Owen's screenshots of the narrate-through-
+> a-write prompt (Deepseek-flash, 10:31 PM) show the fix live: the
+> write_file card AND the chip sit inline at the generation point with the
+> narrative continuing beneath — on 2095/2100 that chip sat below the
+> syllable check at end-of-response. **The same screenshots caught a
+> cosmetic wart, filed as #265:** the raw anchor split the word "landed"
+> ("The file lan" ⟨card+chip⟩ "ded at ~/…"). Placement stability held;
+> the split POINT is the new item. **262-E still owed (a still image
+> cannot show them): no movement DURING streaming, mid-turn tap opens the
+> preview, and placement survives kill+relaunch. Queued in the 2026-08-07
+> consolidated device run.**
 
 ## 261. 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file that goes to GitHub — **ROUTED 2026-08-06 evening (Owen: "lets add an item to OI, ironically, to clean up and archive close OI as a start. Its starting to get out of hand")**
 
