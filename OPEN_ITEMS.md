@@ -4752,6 +4752,221 @@ adapter); store-backed liveness as the check_fn source (window widened past
 the 60s store-write throttle); timeout margin (query timeout > park hold);
 and a wake-path integration test that fails on a full-cycle delivery.
 
+> **Update 2026-08-07 — SCOPED against the code + the live logs. (b) PROVEN
+> and it is WORSE than filed (universal, not a race). (a) AS FILED
+> FALSIFIED — the reload path does not split the hub, and the evening's
+> live evidence does not survive the timeline either. Lane splits: ship (b)
+> + instrumentation; (a) → WATCH with counters.** Read-only throughout —
+> the live checkout stayed clean at `4205d1a`, the gateway was never
+> bounced. Study worktree: `~/Documents/Claude/t27-263-plugin/talaria`
+> (branch `claude/t27-263-transport-instrumentation`), 60/60 green.
+>
+> **(b) PROVEN — a cross-loop wake, not a missed one.** The wake is *sent*;
+> it just never wakes the loop. Every async plugin tool is bridged off the
+> caller's loop: `tools.py:132` registers `is_async=True`, and
+> `tools/registry.py:773-775` dispatches through `model_tools._run_async`,
+> which **always** runs the coroutine on a different loop in a different
+> thread (`model_tools.py:150-156` spins a fresh loop when already inside an
+> async context; `:77-89` is the persistent one otherwise). So `park()`
+> (`envelope.py:145` → `transport.py:45-66`) sits on the api_server's HTTP
+> loop while `enqueue_query()` + `wake()` (`transport.py:76-100`) run on the
+> tool loop. `asyncio.Event.set()` resolves its waiter with a plain
+> `loop.call_soon()`, which only checks the calling thread in DEBUG mode —
+> in production it appends to the target loop's `_ready` queue **without**
+> `_write_to_self()`, so the parked loop stays blocked in `select()` until
+> its next scheduled event. On a quietly-parked drain the next event is the
+> 25s hold itself. The answer leg is the same defect mirrored:
+> `resolve_query`'s `future.set_result` (`transport.py:128`,`:130`) fires on
+> the HTTP loop against a future created on the tool loop
+> (`transport.py:78`), and that tool loop is running *only* `phone_query`
+> (`run_until_complete`), so its sole timer is the 25s `_QUERY_TIMEOUT` —
+> every answer lands exactly on the timeout boundary and coin-flips against
+> it inside one loop iteration.
+>
+> **Repro (worktree, hold shortened to 5.0s, wake fires at t=0.5s):**
+> same-loop wake `0.502s` · cross-loop wake **`5.002s`** (full hold, and the
+> query *was* present after the park — coherent hub, dead wake) ·
+> cross-loop resolve **`5.002s`**, answered right on the boundary.
+>
+> **Why the suite could never see it:** `tests/test_transport.py:28-33`
+> (`test_park_returns_early_on_wake`) parks and wakes **on the same loop** —
+> it is the 0.502s arm. Green forever, blind by construction. Same shape as
+> #258: a suite pinning a bar production violates.
+>
+> **(b) is INDEPENDENT of (a) — the entry's "may be (a) wearing another
+> face" is resolved: it is not.** Under a split hub the query is enqueued
+> into hub B while the drain reads hub A, so `take_queries` after the
+> timeout (`envelope.py:148`) returns empty and `resolve_query`
+> (`transport.py:107-109`) returns `False` — the query would never be
+> delivered *or* answered. Ours were answered. The hub was coherent.
+>
+> **The live logs make (b) universal, not intermittent.** Every
+> `talaria_phone_query` in `~/.hermes/logs/agent.log` that reached the phone
+> on 2026-08-06 completed at **25.00–25.01s** — 16:26:04 (25.01s), 16:32:57
+> (25.00s), 18:09:41 (25.01s), 18:14:32 (25.00s), 21:05:56 (25.00s),
+> 21:09:51 (25.00s), 21:16:56 (25.00s), 21:17:49 (25.01s) — **8 for 8,
+> across two different gateway processes (the 18:59 and 21:03 bounces), both
+> denial and allow legs.** The only fast one, 17:39:13 at 0.00s/116 chars,
+> is the *unreachable* prose (`tools.py:68-71`), which never waits. So this
+> is not "sometimes loses the race" — **it is a deterministic full cycle on
+> every single query**, and the 0.4s and retry noted in the filed text are
+> the boundary coin-flip, not the variable. The access log corroborates the
+> mechanism directly: at 21:05 the drain that started 21:05:07 ran its full
+> hold to 21:05:31 carrying the query (545 bytes vs the idle 489), the very
+> next drain returned in ~0.5s with 473 bytes (the leftover set flag being
+> consumed by `park`'s pre-check, `transport.py:52-54` — the predicted
+> side-signature), and the tool completed at 21:05:56.473 with a real
+> 237-char answer, 25.00s after enqueue.
+>
+> **(a) AS FILED FALSIFIED — the loader does not do this.**
+> `hermes_cli/plugins.py:1885-1889` replaces **only the parent package
+> object** (`sys.modules[module_name] = module`; `exec_module`) — the
+> submodules stay cached under their own keys, so `from . import admin,
+> tools` (`__init__.py:14`) and `from .platform_adapter import ...`
+> (`__init__.py:21`) are cache hits and never re-run. Measured: **8 forced
+> `discover_and_load(force=True)` passes against the real `PluginManager`**
+> (isolated `HERMES_HOME`, only this plugin) — the parent module id churned
+> on every pass while `transport` module id, `transport.HUB`,
+> `platform_adapter.HUB` and `tools._hub()` all held at `4464329232`, and an
+> adapter built from the **last** pass's `adapter_factory` reported
+> `_envelope._hub` identical to `tools._hub()`. No split.
+>
+> **The split SHAPE is real, though, and reachable by two routes we did NOT
+> observe — record both, they are what the counters watch for.** The
+> asymmetry the entry describes exists: `tools.py:48-50` re-resolves `HUB`
+> at every call (late), while `platform_adapter.py:20` and `:33` freeze it
+> at import and at adapter construction (early), and `EnvelopeService` holds
+> that reference for life (`envelope.py:57`). Two ways to make them diverge,
+> both reproduced in the worktree: **(1) manifest-name divergence** — the
+> slug comes from the manifest key (`plugins.py:1874-1876`), so the same
+> directory loaded under two names yields two HUBs; one `plugin.yaml` edit
+> or one relocation away; **(2) submodule eviction** — CPython drops a
+> submodule from `sys.modules` when its `exec_module` raises, so any
+> transient import failure inside the package leaves `transport` to be
+> re-executed, after which the late side tracks the new hub and every early
+> holder keeps the old one. Nothing in hermes-agent deliberately pops
+> `hermes_plugins.*` today (grepped).
+>
+> **And the evening's live evidence for (a) does not survive the timeline
+> either.** The symptom string is not ours — it is the deferred-tool bridge
+> (`model_tools.py:1250`, `agent/tool_executor.py:793`), reached when the
+> name is absent from the turn's definitions, which are gated by
+> `tools/registry.py:425`/`:699` → `_check_fn_cached`. That gate logs, and
+> the log has exactly **one** evening hit: `20:51:19,564 WARNING
+> tools.registry: check_fn _transport_available returned False` — followed
+> at `20:51:19,811` by the `talaria_phone_query` turn and at `20:51:32,370`
+> by the "not available in this session" error. But the access log shows the
+> phone's drains **stopped**: continuous `POST /api/platforms/talaria/events`
+> every ~25s through a request starting `20:42:41`, then **nothing until a
+> request starting `20:53:00`** — a ~10-minute app-side polling gap. The 60s
+> liveness window (`tools.py:15`) expired ~`20:43:41`, eight minutes before
+> the warning. **The transport really was dead and the gate reported it
+> correctly.** Ruled out by the same timeline: **#264** (the failed bind was
+> `20:57:12`, six minutes *later*, in a different process); **the 30s
+> False-cache** (`registry.py:216`,`:337` — a 10-minute outage dwarfs a 30s
+> TTL, so the cache was reporting truth, not staleness); **a split hub**
+> (which would show False *while drains arrive* — here they had stopped, and
+> 14 minutes later at `21:05:05` the same check_fn passed and the query was
+> delivered and answered on that same process). The filed "forever, in fresh
+> sessions" is **not** in the log: one hit, not a persistent condition.
+> Recorded as a falsification against the filed claim, not an edit to it —
+> (a) stays open as a WATCH because the shape is real, but its priors drop
+> hard and nothing should be built for it until a counter fires.
+>
+> **LANE SPLIT (orchestrator decision, 2026-08-07):** ship the (b) fix +
+> the instrumentation; (a) becomes a **WATCH** with counters in place. This
+> honors the entry's own "instrument before fixing" and avoids the #218
+> shape — a fix for a mechanism no test can exercise.
+>
+> **BARS PRE-REGISTERED (bars written first, before any code):**
+> - **263-A (wake-miss pin, unit):** a test that parks a drain on one event
+>   loop and calls `enqueue_query`/`wake` from a *second* loop in a second
+>   thread asserts delivery in **< 1s** against a 5s hold. It **FAILS on
+>   today's code at ~5.00s** (measured: 5.002s vs 0.502s same-loop) and
+>   passes after the fix. The existing same-loop
+>   `test_park_returns_early_on_wake` stays, unmodified, as the control.
+> - **263-B (answer-leg pin, unit):** a test that creates the query future
+>   on the tool loop and calls `resolve_query` from a second loop asserts
+>   the awaiting side observes the answer in **< 1s** against a 5s wait.
+>   **FAILS today at the timeout boundary** (measured: 5.002s).
+> - **263-C (timeout margin, unit):** `_QUERY_TIMEOUT` (`tools.py:14`) is
+>   pinned **strictly greater** than the drain hold (`envelope.py:56`) by an
+>   asserted margin, so no future edit can silently re-equalise them. Fails
+>   on today's `25.0 == 25.0`.
+> - **263-D (hub-identity pin, unit):** a test asserts that the hub reached
+>   by `tools._hub()` and the hub held by a constructed
+>   `TalariaPlatformAdapter`'s `EnvelopeService` are **the same object**
+>   after the plugin package has been re-loaded the way
+>   `hermes_cli/plugins.py:1885-1889` re-loads it. Passes today (correctly —
+>   the reload path does not split); it is a **regression pin against the
+>   two real routes above**, and it must be written so that forcing a
+>   `transport` re-execution makes it FAIL — **demonstrate that failure
+>   once, in the PR body, or the bar is unfalsifiable.**
+> - **263-E (instrumentation, the one-grep bar):** with the counters below
+>   in place, a single `grep talaria ~/.hermes/logs/agent.log` answers all
+>   four of tonight's questions without a rebuild: **which** hub instance
+>   the adapter attached, **which** hub the check_fn read, **how many**
+>   module-load passes ran, and **how long** each query waited between
+>   enqueue and drain. Acceptance: a scripted replay of the wake-miss
+>   produces log lines from which the full-cycle delivery is identifiable
+>   **by eye in under a minute.**
+> - **263-F (no regression):** all 60 existing plugin tests stay green
+>   unmodified; the Talaria app is untouched; no relay or connector change
+>   (out of scope by the standing rule, and unnecessary — this plugin is
+>   neither, and instrumentation is measurement, which that rule explicitly
+>   allows).
+> - **263-G (live verification — NEEDS OWEN'S EXPLICIT PER-EXPERIMENT GO):**
+>   on the live install, with the phone paired and the app foregrounded,
+>   three consecutive `talaria_phone_query` calls each resolve in **< 3s**
+>   (today: 25.00s, 8/8), and the instrumentation log shows enqueue→drain
+>   latency well under one hold. **This bar modifies a loaded plugin file
+>   and requires a gateway bounce to take effect, so it is a live-install
+>   experiment under the CLAUDE.md rule and must not run on an assumed
+>   authorization.** The 2026-08-06 time-boxed clearance has expired. And
+>   per #264: after the bounce verify the **LISTENER**
+>   (`lsof -nP -iTCP:8642 -sTCP:LISTEN`), never the PID.
+>
+> **Instrumentation plan (the plugin has NO logger today — only `print`, so
+> step zero is a module `logging.getLogger("talaria")`):** ① module-load
+> stamp `id(module)`+`id(HUB)` right after `transport.py:153` — two lines
+> means split, printed, no inference; ② adapter-attach `id(HUB)` in
+> `platform_adapter.__init__` after `:35`; ③ check_fn-read `id(hub)` + the
+> liveness inputs (`live`, `len(_parked_counts)`) in `tools.py:53-54`, so a
+> *coherent* False (tonight's actual case) is distinguishable from a split
+> at a glance; ④ enqueue→drain latency — stamp `time.monotonic()` into the
+> query at `transport.py:92-94`, log the delta at `envelope.py:148` (**the
+> transport number 2A-B owed**); ⑤ park exit reason `woken` vs `timed_out`
+> + elapsed in `park`'s `finally` (`transport.py:61-66`) — under today's
+> defect this reads `timed_out` on every delivery, the single most
+> diagnostic line in the set; ⑥ `id(asyncio.get_running_loop())` on both
+> the enqueue (`transport.py:78`) and park (`transport.py:46`) sides, so the
+> cross-loop premise is self-evident instead of re-derived. Optional and
+> cheap: surface the counters in `hermes talaria status` (`admin.py:50-62`),
+> which turns the forensic into a CLI call.
+>
+> **Fix plan.** (b): capture the loop at park/enqueue time and schedule
+> through it — `loop.call_soon_threadsafe(event.set)` in `wake()`
+> (`transport.py:68-73`), and store the owning loop with the future at
+> `transport.py:98` so `resolve_query` uses
+> `call_soon_threadsafe(future.set_result, answer)` at `:128`/`:130`.
+> Low risk, confined to `transport.py`; `call_soon_threadsafe` is correct
+> same-loop too, so there is no branch to get wrong. One edge: a
+> closed/finished tool loop raises `RuntimeError` — swallow it, the caller
+> already gave up (`tools.py:76-85` discards on every exit path). Plus
+> **263-C's margin**, which is a mitigation and not the fix — with the
+> margin alone every query still costs a full 25s. Ships with a one-line
+> comment at `transport.py:68` naming the cross-loop contract, so the next
+> caller inherits the invariant rather than the bug. **Disagreement with the
+> filed candidates, on the record:** "tools binding the hub at registration
+> time from the SAME pass as the adapter" would make things *worse* — it
+> converts the one self-healing late resolver into a second early binder,
+> and under eviction two early binders split just as readily. A
+> process-global anchor is the right shape but is a fix for a mechanism we
+> have not observed firing. Store-backed liveness is worth considering on
+> its own merits, with the cost the entry already flags: `envelope.py:132`
+> throttles store writes to 60s, so widening the window past that makes the
+> gate *less* responsive to a phone that just left.
+
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
 
 Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
