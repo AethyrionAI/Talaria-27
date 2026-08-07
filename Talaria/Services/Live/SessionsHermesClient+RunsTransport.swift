@@ -917,14 +917,18 @@ extension SessionsHermesClient {
     /// Reached through `ChatBackendRouter.hardStopActiveRun()` →
     /// `ResilientHermesClient.hardStopActiveRun()` → here — the protocol
     /// default (`HermesClientProtocol.swift`) is a no-op, so this override is
-    /// what makes the forward do anything. `ChatStore.cancelStreaming()` is
-    /// this method's ONE call site (#283 review ruling): every OTHER
-    /// walk-away path (`abandonPendingRun`, a thread switch, clearing the
-    /// conversation, a continued-send expiring) calls plain
-    /// `abandonActiveRun()` instead, which stays a network-free no-op on
-    /// this client — sessions-plane parity, so switching threads mid-turn
-    /// doesn't throw away an answer the write-half would otherwise have
-    /// preserved.
+    /// what makes the forward do anything. `ChatStore.cancelStreaming
+    /// (hardStopHost:)` is this method's ONE entry, and it fires only when
+    /// that flag is `true` — the in-app Stop tap, Siri's Cancel via
+    /// `AskHermesIntent`/`AskHermesLongRunSupport`. The continued-send
+    /// expiration handler (the system revoking a background task's budget
+    /// with NO user action) enters that SAME function, `hardStopHost:
+    /// false`, so it never reaches here at all. The paths that never touch
+    /// `cancelStreaming` in the first place — `abandonPendingRun`'s direct
+    /// callers (a thread switch, clearing the conversation, `reset`) — call
+    /// plain `abandonActiveRun()` instead, which stays a network-free no-op
+    /// on this client: sessions-plane parity, so none of those walk-aways
+    /// throw away an answer the write-half would otherwise have preserved.
     ///
     /// No-ops when nothing is active: a Stop tapped after the turn already
     /// finished (or on a backend that never had a run — the local brain)
