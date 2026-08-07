@@ -2349,13 +2349,29 @@ final class ChatStore {
     /// Without the third tier, the just-sent user row failed both id checks
     /// after a stall-recovery adoption and was re-appended BELOW the
     /// recovered reply — Owen's build-1987 dupe, healed only by re-entry.
+    ///
+    /// **#281 — a refreshed row that ALREADY confirms a local twin by id
+    /// mints no claim.** Tier 1 returns without decrementing, so any claim
+    /// such a row minted was SURPLUS, and the next content-identical local
+    /// user row — the one the user had just re-sent — ate it and was filtered
+    /// out of the merge. On the Hermes path every previously-adopted row has
+    /// exactly that shape once a thread has been opened from the drawer:
+    /// `SessionsHermesClient.mapStoredMessage` stamps a stable
+    /// server-derived id and never a `clientMessageID`. So on a thread where
+    /// the same prompt had been sent twice, a regenerate truncated, re-sent,
+    /// and the fresh user row VANISHED — the bubble left on screen was the
+    /// older content-identical ask, still carrying its original timestamp
+    /// (*"It didn't show the current time for when I actually regenerated
+    /// it"* — Owen, the 78-F device failure).
     nonisolated static func unconfirmedLocalMessages(
         local: [Message], refreshed: [Message]
     ) -> [Message] {
         let refreshedIDs = Set(refreshed.map(\.id))
         let refreshedClientIDs = Set(refreshed.compactMap(\.clientMessageID))
+        let localIDs = Set(local.map(\.id))
         var claimableUserContent: [String: Int] = [:]
-        for row in refreshed where row.sender == .user && row.clientMessageID == nil {
+        for row in refreshed
+        where row.sender == .user && row.clientMessageID == nil && !localIDs.contains(row.id) {
             claimableUserContent[row.content.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
         }
         return local.filter { localRow in

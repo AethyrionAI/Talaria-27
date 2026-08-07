@@ -326,11 +326,41 @@ struct ChatStorePersistenceTests {
     /// from the fixture, which is why a correct test passed against broken
     /// behaviour for a month (#78, the #258/#259 green-certifies-broken
     /// family). This one mirrors, so the merge is real.
+    ///
+    /// **#281 — and it mirrored only ONE of the two production shapes.** As
+    /// first written this double always stamped a `clientMessageID` on the
+    /// user row it mirrored, which is `LocalChatBackend`'s shape and NOT the
+    /// Hermes one: `SessionsHermesClient.currentConversation` is a FETCH
+    /// CACHE built by `mapStoredMessage`, which never sets that field and is
+    /// not appended to by a send at all. The merge's confirmation tiers read
+    /// exactly that field, so the Hermes-path defect (#281) was structurally
+    /// unreachable from this fixture — the same failure as
+    /// `ImmediateReplyClient`, one heuristic further in. `mirrorShape` makes
+    /// both shapes expressible; pinned by 281-C.
     @MainActor
     private final class MirroringReplyClient: HermesClientProtocol {
+        /// Which production mirror this double is imitating. They differ in
+        /// precisely the fields `ChatStore.unconfirmedLocalMessages` reads,
+        /// so a test that does not name one is testing an invented backend.
+        enum MirrorShape {
+            /// `LocalChatBackend` — an APPEND LOG. Both halves of every turn
+            /// land in `currentConversation` as the turn runs, and the user
+            /// row carries the client's own id AND its `clientMessageID`, so
+            /// the merge pairs it by identity.
+            case localBrain
+            /// `SessionsHermesClient` — a FETCH CACHE. A sent turn never
+            /// enters it (only `openSession`, `reconcileFromServer`,
+            /// `adoptTruncatedConversation` and `clearConversation` write
+            /// it), and every row it holds came from `mapStoredMessage`,
+            /// which stamps a server-derived stable id and NEVER a
+            /// `clientMessageID`.
+            case hermesFetchCache
+        }
+
         var connectionStatus: ConnectionStatus = .connected
         var currentConversation: Conversation?
         var replyText = "Done."
+        var mirrorShape: MirrorShape = .localBrain
         /// Prompts handed to `sendStreaming` — #275 reads which turn re-sent.
         private(set) var sentPrompts: [String] = []
         /// 78-E: a mirror-less-session client's stand-in for
@@ -385,12 +415,17 @@ struct ChatStorePersistenceTests {
         /// `LocalChatBackend.appendUserMessage` / `appendAssistantMessage`,
         /// reduced to their mirroring effect: the user row carries the
         /// client's own id so ChatStore's merge pairs it by identity.
+        ///
+        /// **#281:** on `.hermesFetchCache` this is a NO-OP, because the real
+        /// `SessionsHermesClient` does not append the turn it just sent —
+        /// `currentConversation` there only changes on a fetch or an adopt.
         private func mirror(
             message: String,
             attachments: [PendingAttachment],
             clientMessageID: UUID,
             reply: Message
         ) {
+            guard mirrorShape == .localBrain else { return }
             if currentConversation == nil {
                 currentConversation = Conversation(title: Conversation.defaultTitle)
             }
@@ -433,7 +468,8 @@ struct ChatStorePersistenceTests {
     /// production shape, where the backend restored the very same cache.
     @MainActor
     private func makeMirroredStore(
-        history: [Message]? = nil
+        history: [Message]? = nil,
+        shape: MirroringReplyClient.MirrorShape = .localBrain
     ) -> (ChatStore, MirroringReplyClient, [Message], UserDefaultsAppPersistenceStore) {
         let rows = history ?? [
             Message(sender: .user, content: "First question", status: .delivered),
@@ -445,7 +481,29 @@ struct ChatStorePersistenceTests {
         let cached = Conversation(title: "Hermes", messages: rows)
         persistence.saveConversationCache(cached)
         let client = MirroringReplyClient(mirroring: cached)
+        client.mirrorShape = shape
         return (ChatStore(hermesClient: client, persistence: persistence), client, rows, persistence)
+    }
+
+    /// #281's fixture: a thread reopened from the drawer on the Hermes path.
+    /// Every row came off the server transcript, so none carries a
+    /// `clientMessageID` — and the SAME prompt text appears TWICE, which is
+    /// what arms the content-claim tier. The four-distinct-strings fixture
+    /// above cannot fire a claim at all, which is the other half of why the
+    /// suite never saw this.
+    @MainActor
+    private func repeatedPromptServerHistory() -> [Message] {
+        let base = Date(timeIntervalSince1970: 1_754_000_000)
+        return [
+            Message(sender: .user, content: "How many are left",
+                    timestamp: base, status: .delivered),
+            Message(sender: .hermes, content: "Five.",
+                    timestamp: base.addingTimeInterval(1), status: .delivered),
+            Message(sender: .user, content: "How many are left",
+                    timestamp: base.addingTimeInterval(2), status: .delivered),
+            Message(sender: .hermes, content: "Four.",
+                    timestamp: base.addingTimeInterval(3), status: .delivered),
+        ]
     }
 
     /// **78-A** — the count. A mid-history re-roll truncates from the turn
@@ -728,6 +786,63 @@ struct ChatStorePersistenceTests {
         let turn = try #require(store.extractTurnForEditing(history[2]))
         #expect(turn.text == "Second question")
         #expect(store.conversation?.messages.count == 2)
+    }
+
+    // MARK: - #281: the surplus content claim
+
+    /// **281-C** — fixture fidelity, and it is pinned as a bar because two
+    /// doubles in a row have now certified broken behaviour in this exact
+    /// function. The Hermes-shaped mirror must produce what
+    /// `SessionsHermesClient.mapStoredMessage` produces — **no**
+    /// `clientMessageID` on any row — and must NOT append the turn it just
+    /// sent, because a fetch cache is not an append log. The fixture must
+    /// also be able to FIRE a content claim at all: the four-distinct-strings
+    /// history the #78 pins use cannot, whatever else it proves.
+    @Test @MainActor
+    func theHermesShapedMirrorMatchesTheRealFetchCache() async throws {
+        let rows = repeatedPromptServerHistory()
+        let userContents = rows.filter { $0.sender == .user }.map(\.content)
+        #expect(Set(userContents).count < userContents.count)   // a claim CAN fire
+        #expect(rows.allSatisfy { $0.clientMessageID == nil })   // server-transcript shape
+
+        let (store, client, _, _) = makeMirroredStore(history: rows, shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+        await store.sendMessage("How many are left")
+
+        #expect(client.sentPrompts == ["How many are left"])
+        let mirrored = try #require(client.currentConversation?.messages)
+        #expect(mirrored.allSatisfy { $0.clientMessageID == nil })
+        // Not an append log: the sent turn is absent until the next fetch.
+        #expect(mirrored.count == rows.count)
+    }
+
+    /// **281-B** — the case that failed 78-F on Owen's device. A thread
+    /// reopened from the drawer (every row `clientMessageID == nil`) in which
+    /// the SAME prompt was sent twice. Regenerating the second reply re-sends
+    /// that prompt — and the fresh user row was eaten by a content claim the
+    /// already-id-confirmed historical row had minted, so there was no new
+    /// row at all. *"It didn't show the current time for when I actually
+    /// regenerated it."*
+    @Test @MainActor
+    func aRepeatedPromptsRegenerateKeepsItsFreshUserRow() async throws {
+        let rows = repeatedPromptServerHistory()
+        let (store, client, history, _) = makeMirroredStore(history: rows, shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[3])
+
+        #expect(client.sentPrompts == ["How many are left"])
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == [
+            "How many are left", "Five.", "How many are left", "Done.",
+        ])
+        // And it is a NEW row, not the surviving historical twin — which is
+        // the half the screen showed Owen: same text, stale timestamp.
+        let userRows = messages.filter { $0.sender == .user }
+        #expect(userRows.count == 2)
+        let fresh = try #require(userRows.last)
+        #expect(!history.contains { $0.id == fresh.id })
+        #expect(fresh.timestamp > history[2].timestamp)
     }
 
     // MARK: - #276: mergeAttachments drops nothing

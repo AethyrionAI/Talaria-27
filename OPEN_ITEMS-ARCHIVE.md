@@ -8927,6 +8927,20 @@ microphone audio somewhere the UI says it is not going.
 
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
+> **⚠️ SUPERSEDED IN PART, 2026-08-07 — the third tier as built carried a
+> defect this closure could not see. See #281 (live).** The content-claim
+> map was built from EVERY refreshed user row lacking a `clientMessageID`,
+> including rows already confirmed against a local twin by id at tier 1 —
+> which returns without decrementing, so each such row left a SURPLUS
+> claim that a genuinely-new user row then consumed and vanished. Nothing
+> in the run below is retracted: the dupe this item existed to kill really
+> is dead, and the four pins (248-A..D) are green and byte-unmodified
+> under #281's fix. What is corrected is the implication that the tier was
+> finished — "exactly as designed" describes what was built, and the
+> design was under-specified. #281 fixes the minting side; the tier's
+> SCOPE (a whole-transcript content map solving a one-row, in-flight
+> problem) is recorded there as unresolved.
+
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
 > that started on the mac on talaria, and asked a follow up question that
 > will need research and tools - Question not duplicated. Response below

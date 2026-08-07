@@ -5058,6 +5058,67 @@ survive (their refreshed rows carry fresh server ids absent from `local`).
   replies. The fresh user row appears, carrying the regenerate-time
   timestamp. Expected RED until this lands.
 
+> **BUILT + GATED 2026-08-07 (`claude/t27-281-surplus-claim`). Bars 281-A,
+> 281-B, 281-C, 281-D MET; 281-E (device, Owen) still owed — item stays
+> OPEN pending that.** The fix is the one the diagnosis named and nothing
+> more: `let localIDs = Set(local.map(\.id))`, and the claim-map loop gains
+> `&& !localIDs.contains(row.id)`. One production line.
+>
+> **RED evidence, verbatim.** 281-A: `unconfirmed.map(\.id) → []` where
+> `[freshID]` was wanted — the new row was not merely mis-ordered, it was
+> gone. 281-B: `messages.map(\.content) → ["How many are left", "Five.",
+> "Done."]` against the wanted `["How many are left", "Five.", "How many
+> are left", "Done."]`; `userRows.count → 1`; and the assertion that
+> reproduces Owen's own sentence — `fresh.timestamp → 775692800.0` vs
+> `history[2].timestamp → 775692802.0`, i.e. the user bubble left on
+> screen was the OLDER twin, stamped two seconds BEFORE the turn that was
+> removed. *"It didn't show the current time for when I actually
+> regenerated it"*, reproduced in a unit.
+>
+> **281-C and 281-D passed pre-fix, and that is recorded rather than
+> dressed up.** 281-C is a fixture-fidelity pin: its RED is that the
+> capability did not exist — `MirroringReplyClient` could only express
+> `LocalChatBackend`'s shape, and in that shape the bug is unreachable
+> (the mirrored user row carries the client's own id, so the new row
+> confirms at tier 1 and never reaches the claim). The double now takes a
+> `MirrorShape`; `.hermesFetchCache` mirrors what `mapStoredMessage`
+> actually produces — no `clientMessageID` on any row — and does NOT
+> append the turn it just sent, because `SessionsHermesClient`'s
+> `currentConversation` is a fetch cache, not an append log. Once
+> expressible, the assertion is green on both sides of the fix, which is
+> what a fidelity pin should be. 281-D likewise: the four #248 pins passed
+> before and after and are **byte-unmodified** (the diff on
+> `AppStoresTests.swift` is purely additive).
+>
+> **A sibling the fix does NOT reach, filed as a finding, deliberately not
+> built here.** #281 removes the surplus SUPPLY of claims; the DEMAND side
+> is still unbounded. Any local user row that fails the id and
+> `clientMessageID` tiers can consume a claim, and the consumer is chosen
+> by local ORDER — first content match wins, not the row the refreshed row
+> actually corresponds to. Concretely: a `.failed` user row the host never
+> stored sits above a later identical prompt that succeeded; the server's
+> echo of the SUCCESSFUL turn mints one claim and the FAILED row eats it,
+> so the failed row silently leaves the transcript on the next merge.
+> Separately, `mapStoredMessage`'s honest `stableID ?? UUID()` fallback
+> means a server row with no `id` mints a fresh claim on EVERY fetch,
+> forever. See the closing note on the third tier's scope below.
+>
+> **Should the third tier exist at all? Yes — but not at this scope.**
+> Deleting it re-opens #248 outright (all four of its pins go red) for as
+> long as the gateway transcript carries no `clientMessageID`, which is
+> not ours to change and is on #223's deletion path anyway. The defect is
+> that a whole-transcript, order-free content map is being used to solve a
+> problem that is exactly one row wide and a few seconds long: the turn
+> currently in flight. Every local row it can touch beyond that one is
+> collateral, and both device-visible bugs came out of that gap. The
+> scoped form is to let only an IN-FLIGHT local row consume a claim —
+> `!localRow.status.isSettled`, the predicate #278 already added and which
+> covers exactly `.sending`/`.working`/`.queued`. That would have made
+> #281 impossible by construction (a `.delivered` historical row could
+> never eat anything) and all four #248 pins already satisfy it: every one
+> of their local rows is `.working` or `.sending`. **Not built in this
+> lane and not smuggled in: it is a different change with its own bars.**
+
 **Repair of already-damaged threads: DECLINED, with reasoning.** Owen has at
 least one thread carrying stacked replies under a single user turn from the
 pre-fix bug. Do NOT write a normaliser: consecutive assistant rows are
