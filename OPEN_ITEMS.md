@@ -176,6 +176,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#278** 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending` but a detached run is `.working` …
+- **#277** 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one …
+- **#276** 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip (a #262 residual) …
 - **#275** 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history …
 - **#274** 🔧 Three implementations of one truncation primitive, two of them in the View; `/undo` never persists …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
@@ -4894,6 +4897,143 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session**
+
+Owen, OTA 2120: *"no edit and resend in a live streaming session. If you
+leave and come bck immediately, it presents the option."* Screenshot shows
+the item offered on a row still in flight (clock icon, no reply yet).
+
+**Mechanism (source-read).** Leaving the chat screen does not cancel the
+stream; the SSE connection drops and the stream yields `.interrupted`, whose
+handler removes the reply placeholder, sets the user row to **`.working`**,
+and — critically — sets `streamingMessageID = nil` while `pendingRun` stays
+live and the reconcile loop keeps running. `streamingMessageID` is never
+re-armed by reconcile. So for the entire reconcile window (minutes),
+`isStreaming` is false while the run is live server-side. The menu gate
+excludes only `.sending`, so both its conditions pass and the item appears.
+The clock glyph in Owen's screenshot is `.working`, not `.sending` —
+confirming the path.
+
+**Consequence, which is the real severity.** `extractTurnForEditing` carries
+the SAME insufficient belt (`guard !isStreaming`), so tapping it truncates
+and persists — under a live run. When the reply lands, reconcile merges the
+server transcript back and the deleted turn REAPPEARS (#78's resurrection,
+reached through a second door). And `sendMessage` never clears `pendingRun`,
+so the edited resend posts a **second run to the same server session while
+the first is still live**, after which reconcile can adopt the OLD run's
+reply into the NEW turn's transcript.
+
+**Fix shape:** one shared in-flight predicate (`streamingMessageID != nil ||
+pendingRun != nil`, plus `.working`/`.queued` in the excluded statuses) used
+by BOTH the menu gate and the store guard — they must move together or the
+menu hides an item the store would still honor. This is the same seam as
+#275's shared-predicate bar; land it there rather than as a parallel fix.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **278-A (unit, fails today):** drive a send to `.interrupted`; assert
+  `isStreaming == false`, the user row is `.working`, `pendingRun != nil` —
+  then `extractTurnForEditing` returns nil and leaves the message count
+  unchanged. Today it truncates.
+- **278-B (unit, fails today):** same setup — the shared in-flight predicate
+  is true, so the menu's `isTranscriptBusy` would be true.
+- **278-C (unit, no over-tightening):** with a `.delivered` row and no
+  pending run, Edit & Resend still truncates and returns the turn.
+- **278-D (device, Owen):** send, and while the reply streams leave the chat
+  screen and immediately return. Long-press the user bubble — no Edit &
+  Resend, no Regenerate, while the clock icon shows. Both reappear once the
+  reply lands.
+
+## 277. 🐛 Agent-file chips do not survive leaving a thread — `openSession` ASSIGNS the server transcript over the local one, and the conversation cache is a single slot — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING (not a #262 regression); metadata loss is destructive and already committed for three of his threads**
+
+Owen, after 262-E passed in a fresh thread (chip survived force-quit +
+relaunch INTO the same thread): three older threads — two markdown, one HTML
+— all show *"write file card is present. Just not the chip WITH the file to
+view in the chat."*
+
+**Mechanism.** The drawer tap calls `ChatStore.openSession`, which is a
+straight **assignment** of the fetched conversation — `mergeConversationMetadata`,
+the only thing that preserves client-side fields, is never reached on that
+path. The server transcript rebuilds `toolActivities` from its stored tool
+calls but constructs messages with **no attachments** (defaulting to `[]`),
+because Tier-1 attachments are client-side reconstructions that never
+round-trip: the stored tool call decodes only `name` and `detail`, never
+`args`/`content`. And the conversation cache is a **single slot** keyed once,
+so opening any other thread evicts the previous thread's rows. That
+asymmetry — card survives, chip does not — is the fingerprint of this path
+and no other.
+
+**Why 262-E still passed honestly:** relaunching INTO the same thread reloads
+that one cache slot, attachments included. Only switching away evicts.
+
+**The bytes are fine — this is pure metadata loss.** Staged files live under
+Application Support and nothing enumerates or prunes them; only the
+`MessageAttachment` record pointing at them is gone. No durable record of the
+attachment survives anywhere (journal carries none, the keyed local store is
+local-origin threads only, the server never had them).
+
+**Fix shapes, ranked:** (a) a per-thread attachment sidecar replayed on
+session open — correct, restores going forward, **cannot restore the three
+already-lost threads**; (b) re-derive from stored tool-call args — NOT VIABLE,
+the server carries no args, and name-matching surviving staged files would
+attach the wrong bytes to the wrong turn (declined on real-data-only
+grounds); (c) accept and document — zero cost but the failure is silent and
+destructive. **Recommended: (a), with the already-lost cases stated plainly.**
+Cheap intermediate worth taking first: route `openSession` through
+`mergeConversationMetadata` instead of assigning, which fixes the round trip
+within a session's lifetime though not across cache eviction.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **277-A (unit, fails today):** with a cached conversation whose Hermes row
+  carries a staged agent-file attachment, and a server fetch of the same
+  session returning that row with a `write_file` tool call and no
+  attachments, the conversation after `openSession` STILL carries the
+  attachment. Today it is `[]`.
+- **277-B (unit):** pin the asymmetry as known and deliberate until (a)
+  lands — a stored assistant row with a `write_file` call yields one tool
+  activity AND no attachments, so the next reader does not rediscover this
+  from a device report.
+- **277-C (device, Owen):** new chat, ask for a file, chip renders. Open a
+  DIFFERENT conversation from the drawer. Return. **Chip still there, still
+  anchored.** Then force-quit, relaunch, and repeat the switch-away-return.
+- **277-D (device, diagnostic only):** in one already-affected thread,
+  confirm the card renders with no chip — pins the current broken state so
+  the fix has a visible before/after and confirms the loss is not
+  self-healing.
+
+**BAR-QUALITY FINDING, recorded so it is not mistaken for a falsification:**
+#262-E and #258's bars were MET as written and were honestly verified. They
+said "after relaunch/history reload the placement persists," and Owen
+force-quit, relaunched, reopened, and saw the chip correctly anchored. The
+bars were **too narrow** — they exercised relaunch into the SAME thread,
+which reloads the same cache slot, and never exercised switch-away → open
+another thread → return, the only path that evicts. Nothing was
+mis-verified; the state space was under-specified. Device bars that involve
+persistence must name WHICH re-entry path they cover.
+
+## 276. 🐛 `mergeAttachments` drops `anchorOffset` — any refresh merge silently demotes an anchored chip to the trailing grid — **FILED 2026-08-07; a REGRESSION I introduced with #262 last night, caught by #277's diagnosis**
+
+`ChatStore.mergeAttachments` rebuilds each `MessageAttachment` field by field
+and omits the `anchorOffset` #262 added, so the rebuilt value defaults to
+nil. Any relay-poll or refresh merge that reaches that line demotes an
+anchored chip back to end-of-response — **the exact jump #262 was built to
+remove**, reintroduced through a path #262's own tests never touched (no test
+references `mergeAttachments` at all).
+
+Fix is one line: carry `remote.anchorOffset ?? match.anchorOffset`.
+
+**BARS — written 2026-08-07 BEFORE any code:**
+- **276-A (unit, fails today):** with a local anchored attachment and a
+  remote echo of the same id, `mergeAttachments` returns an attachment whose
+  anchor is preserved. Today it returns nil.
+- **276-B (unit):** the merge preserves every other client-side field it
+  already preserved — a field-by-field rebuild is exactly how this was lost,
+  so pin the whole shape, not just the new field.
+
+**Lesson for the next lane that adds a field to a persisted model:** grep for
+every site that RECONSTRUCTS that model rather than copying it. A
+field-by-field rebuild is a silent-drop hazard that the type system does not
+catch, because every field has a default.
 
 ## 275. 🐛 A dictated turn is invisible to the producing-turn search — regenerate/retry truncate the WRONG history and re-send the wrong prompt — **FILED 2026-08-07 from #78's diagnosis; data-destruction class, not cosmetic**
 
