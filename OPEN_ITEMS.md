@@ -4989,6 +4989,80 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material.**
+
+The launch partition's whole purpose is to be machine-checkable; a ghost step
+makes its tests document a fiction. Fix = remove the case from the enum +
+both lists, update the stale "sensor upload, inbox, push" degraded-mode
+comment, and any launch-partition test lists. No xcodegen needed (no file
+adds). **Bars: (287-A)** no live launch-contract entry claims push
+registration exists; **(287-B)** `backgroundBootstrap` mirrors actual
+execution order; **(287-C)** launch partition tests green; archived history
+stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
+`LaunchInitStep` archive hits are the historical #136-era work, not this.
+
+## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED.**
+
+Drain 200 + ACK 500/timeout ⇒ `.delivered`, and the loop's failure counter
+resets as if settlement succeeded. Severity capped at P2 by a property worth
+protecting: the inbox persists + dedupes on `platformID` BEFORE ack, so
+upstream redelivery does not duplicate visible rows. The cost is false
+success semantics, lost observability, and backoff reset while settlement is
+unhealthy. **Fix shape:** `ack`/`answer` return a typed result; `drain()`
+classifies honestly; no hot-loop on settlement outage. **The query-retry
+half is a PROTOCOL question first** — whether the plugin redelivers
+unanswered queries, whether `query_result` is idempotent — measure/read the
+plugin (never patch Hermes core) before choosing recompute-vs-cache.
+**Bars pre-register here (from the audit, adopted): (286-A)** ACK 500 ≠
+`.delivered`; **(286-B)** ACK transport failure ≠ `.delivered`; **(286-C)**
+query-result 500 ≠ `.delivered`; **(286-D)** happy path stays `.delivered`,
+dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
+**(286-F)** no hot loop; gate + Release green.
+
+## 285. 🐛 P1 CANDIDATE — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes VERIFIED same day; RUNTIME REPRO NOT YET ATTEMPTED — a RED harness comes before any fix, and a falsification is a good result. NOT STARTED; sequenced after #283 (slice 3A) unless Owen reorders.**
+
+**Verified static facts (2026-08-07):** `BackendProfilesStore.swift:141-154`
+— `state = updated` THEN `Task { await onActiveProfileChanged?(target) }`,
+so the after-change callback cannot stop the transport "before the scope
+moves" as `AppContainer`'s comment claims; `TalariaPlatformLink.swift:72/:80`
+— `tokenKey`/`deviceIDKey` are LIVE computed vars over `credentialScopeID()`,
+and `:88`/`:130` freeze only `tokenKey` (`let tokenKey = tokenKey`), so one
+pair/drain turn can mix a captured token key with a live device-ID key and a
+live endpoint; `stop()` (`:282-283`) parks the NEXT iteration — it does not
+invalidate the current turn's side effects (onItemsReceived/ack/answer/
+credential store-delete). Rapid A→B→C switches spawn unserialized rebind
+Tasks with no generation guard around `handleActiveProfileChanged`'s shared
+writes (`hermesAPIKey`, `chatAPIKeyBox`, store resets).
+
+**The invariant to enforce (audit's wording, adopted):** a logical transport
+turn belongs to exactly ONE profile/host; after a newer activation
+supersedes it, old-profile async completion must not mutate current-profile
+state. **Fix direction if RED reproduces:** the already-proven in-repo
+pattern — `AppContainer`'s bootstrap generation/supersede/currentness-guard
+(`startBackgroundBootstrap` family) — applied to profile activation, plus an
+immutable per-turn context (endpoint + scope + both key slots + generation)
+inside the platform link. Snapshot-and-complete or invalidate-and-abandon
+are both acceptable; a MIXED turn is not. Superseded-turn ACK semantics =
+audit Q1, Owen's call if reached.
+
+**Bars pre-register here (RED first, from the audit, adopted): (285-A)**
+one transport turn cannot mix profile A/B keys or endpoints (deterministic
+suspension harness, not sleeps); **(285-B)** superseded drain cannot
+deliver/ACK/answer/write credentials after invalidation; **(285-C)** rapid
+A→B→C is last-writer-wins (active profile, `hermesAPIKey`, key box, scoped
+stores, link all = C; late B completion cannot overwrite); **(285-D)**
+existing platform-link + profile-switch tests stay green; gate + Release
+green; device bar only if sim can't establish the behavior. **If RED cannot
+be produced, record the falsification — do not force a patch.**
+
+**Adjacency noted at filing (same class, different surface):** the #283 runs
+turn driver resolves the ACTIVE profile live per request when `profileID` is
+nil (`resolveEndpoint` → `baseURLProvider()`/`apiKeyProvider()`), across a
+turn whose wall-clock now includes status polling — the SAME pre-existing
+pattern the sessions plane has, not a 3A regression, but 285's per-turn
+snapshot answer should eventually cover that seam too. Flagged for #283's
+whole-branch review as a look-at, not a blocker.
+
 ## 284. 💡 CAPABILITY BROKER for the local brain — capability discovery + selective typed-tool arming over ONE registry (native tools / MCP / Skills / Hermes-side) — **FILED 2026-08-07 from the open-source momentum report (`planning/reports/2026-08-07-open-source-momentum-report.md`), on Owen's instruction ("create / update open items for the ones we want to implement later"); claims VALIDATED same day against tracker, code, and the external repos. NO LANE, NO BARS — post-Phase-3 candidate by the report's own ordering; Owen routes.**
 
 **The idea (OpenWork's pattern, adapted):** instead of arming the full belt
