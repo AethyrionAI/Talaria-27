@@ -444,6 +444,22 @@ to `RelayAPIClient`; branch `parseWrittenFile` so *content present → Tier 1*, 
 `args.content` is present/absent for binaries, which decides the fetch trigger. Also needs the
 Hermes-side nudge so the agent writes shareable artifacts into `MobileDL`.
 
+> **Update 2026-08-07 (Phase 3 scoping) — Tier 1 does not survive the runs migration
+> as written.** The `/v1/runs` event stream carries **no tool `args`**: its
+> `tool.started` is `{event, run_id, timestamp, tool, preview}`
+> (`api_server.py:6222-6229`), where the Sessions `/chat/stream` emits `args`
+> (`:3736-3738`). So client-side reconstruction from `args.content` — Tier 1 here,
+> and the same read behind the artifact chips in #258 (closed, in
+> `OPEN_ITEMS-ARCHIVE.md`), #262 and #265 — goes dark on that plane. **The
+> replacement source is a plugin `pre_tool_call` hook**, which receives the full
+> args dict and fires on BOTH lanes (`hermes_cli/plugins.py:1180` registration,
+> `:2170-2179` payload), with the plugin's existing outbox as the delivery path.
+> ~30 plugin lines, no Hermes-core edit. Planned as Phase 3 slice 3D; until it
+> exists, slice 3A's bar is **honest absence, never invention**. Detail:
+> `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.6 N1 + §2.8. (Ride-along:
+> the unprobed binary question in the Gate paragraph above is answerable on either
+> plane by the same hook, which sees args the stream never carries.)
+
 ---
 
 ## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay onboarding doc shipped (README.md + docs/index.html, 2026-07-10) — diagnostics-panel check (#24e) still open; relay-JWT persistence CLOSED 2026-07-12 (#24f) (bind/firewall/persistence/update-stability ✅)
@@ -3199,6 +3215,20 @@ Owen flagged that Hermes supports Projects natively in the desktop app, contradi
 
 Logged 2026-07-22.
 
+> **⛔ SUPERSEDED 2026-08-06 — read #267's CORRECTION before citing the "156f
+> (mid-run steering) — PARKED" paragraph above.** Steering was PROVEN on the wire
+> twice that day: tui `session.steer` mid-tool-call (the turn's answer changed),
+> and the runs plane via our plugin's in-process reach (control run `BANANA` →
+> steered run `PLUM`, through `APIServerAdapter._active_run_agents`). The parked
+> verdict is correct **only for the bare Sessions API**, which remains
+> structurally unsteerable (nothing publishes that lane's agent — research report
+> F). **Steering rides the Phase 3 runs migration, so "do not design around it"
+> no longer applies** — it is now something to design around deliberately, with
+> the steer constraint (consumed at a tool-result boundary; silently dropped
+> mid-prose behind a false-positive `queued` ACK) as the load-bearing rule.
+> Full scoping: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.1.
+> *(Note added 2026-08-07; the original text above is left standing verbatim.)*
+
 ## 160. 🎨 hermex UI/UX design reference — Tasks, Skills, Projects (K3 analysis 2026-07-22)
 
 Dispatched to K3 on OJAMD (session `api_1784723772_f27fa635`, clone at `O:\Hermes\scratch\hermex`). Design reference only — the brief explicitly forbade pasting their Swift, so provenance stays clean per `THIRD_PARTY_LICENSES.md`. Feeds #156a/b and #159's revised 156e.
@@ -3295,6 +3325,14 @@ But it turns out we barely need even that. Re-checked against #158:
 **Net: the three features worth building need no new services, no new installs, and no upstream changes.** They are client work against endpoints the app already talks to. That is a much better position than the arc looked like when #156 was opened.
 
 Logged 2026-07-22.
+
+> **⛔ SUPERSEDED 2026-08-06 — the "156f Steering — parked per #159" bullet above.**
+> 156f is parked for the **bare Sessions API only**. Steering was PROVEN reachable
+> on the **runs plane** 2026-08-06 (tui `session.steer`; runs plane BANANA→PLUM via
+> `APIServerAdapter._active_run_agents`) and rides the Phase 3 runs migration — see
+> #267's CORRECTION, #159's own supersession note, and
+> `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.
+> *(Note added 2026-08-07; the bullet above is left standing verbatim.)*
 
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 
@@ -3685,6 +3723,17 @@ Implemented as a three-case `CronModelBinding` in `CronJob.swift` rather than a 
 Both axes resolve independently, matching upstream's per-axis resolution — a job can be pinned on model and drifting on provider, and the card now says so. **No model picker was added** (#170b: `model` is absent from both the create body and the PATCH whitelist on 0.19.0), and no relay endpoint was written to work around it.
 
 **NOT device-verified.** Owed on device: open a phone-created task and confirm the HOST-SIDE panel reads *Follows host default / was … when this task was created*; then, if convenient, flip the Mac's global default and confirm the phone's wording is now the honest one (it will still name the old snapshot on the second line — that is correct, it is dated to creation).
+
+> **Update 2026-08-07 (Phase 3 scoping) — filed here because its natural home (#9)
+> is closed and archived, and this is the live model-selection entry.** Research
+> report C found **per-turn `model`/`provider` fields accepted on the chat body** —
+> a per-turn model selection with no session pin involved. That is the surviving
+> value of #9's old "hanging `/model` pin" workaround (the pin itself is gone: PR
+> #255 deleted `switchModel`/`pinSessionInBackground`, so the ~37s-hang class no
+> longer exists). **It does NOT answer this item's own half** — `model` is still
+> absent from the job create body and the PATCH whitelist (#170b), so tasks remain
+> unpinnable from the phone. Recorded as a cheap chat-plane lane, independent of
+> Phase 3. Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.5 S43.
 
 ## 173. 🐛 Silent degradation — the app presents confident replies when the host cannot actually see attachments
 
@@ -4640,6 +4689,22 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+> **Update 2026-08-07 (Phase 3 scoping):** the §F7d failure has a MECHANISM now,
+> not just a symptom — a Sessions-plane turn under host `manual` is
+> **blocked-and-queued** for an unreachable `/approve` (`_bind_api_server_session`
+> hardwires `platform="api_server"` → `_is_gateway_approval_context()` true →
+> the gateway branch finds no notify callback and queues,
+> `tools/approval.py:243-261`, `:3154-3171`), and the agent is handed "⚠️ … Asking
+> the user for approval," which it narrates. **The user sees the agent say it is
+> asking, and then nothing** — neither a hang nor a silent auto-approve. The runs
+> plane has the full wire (`register_gateway_notify` fires in exactly one place,
+> `_handle_runs`, `api_server.py:6524`), proven e2e 2026-08-05. **Half (2) stays
+> parked** (the mode itself is dashboard-only config, `:9119`); the fix for the
+> dead turn is answering approvals, not reading the mode, and it rides **Phase 3
+> slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
+> the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
+> excludes all of this — it governs OUR gate; this governs the HOST's.
+
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-07 by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
 **What it is, in #251's own words (the deferral that created this slice):**
@@ -4914,6 +4979,19 @@ degradation visible, #180's rule), user hits Stop, app backgrounded
 mid-stream (does the queued send survive relaunch?), voice turns.
 Size: S-M. Bars pre-register here before any code.
 
+> **Update 2026-08-07 (Phase 3 scoping) — the composition rule for this lane.**
+> Steer and queue are **ONE composer behavior**, not two features: steer while a
+> tool is in flight (the only window where a steer lands), queue for the prose
+> phase — which is exactly where a steer is silently dropped behind a
+> false-positive `queued` ACK. The composer picks the door from the turn state the
+> app already decodes (`tool.started` with no matching `tool.completed` = a tool is
+> in flight) and **names which one it used**; it never says "sent". A third door
+> exists now that the runs plane has a real stop: interrupt-and-resend
+> (`POST /v1/runs/{id}/stop`). Because the two share one state machine, the Phase 3
+> plan builds them together as **slice 3C** rather than shipping the queue first —
+> shipping it alone means designing the composer twice and unlearning the wording.
+> Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.5 + §2.6.
+
 ## 266. 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so OPEN_ITEMS reads as "what we need to work on" — **FILED 2026-08-06 late night (Owen: "we should probably separate the doc notes and other things from open items, so that its truly only 'open' items. Then, we'll know what we need to work on"); the successor to #261's archive split**
 
 The oldest-20 triage (2026-08-06) put numbers on the problem: of 20 items,
@@ -4999,6 +5077,19 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
   up, or exit nonzero so launchd respawns instead of running headless.
 - Filed as a WATCH + ops-rule item, not a lane — we keep zero core edits
   (standing rule), so the fix is an upstream report or an ops habit.
+
+> **Update 2026-08-07 (Phase 3 scoping) — what this state costs a runs-plane
+> client.** After the migration, chat, host approvals, steering and the phone-query
+> transport ALL depend on the one `:8642` listener: the runs routes are api_server
+> routes, and the plugin's webhook (`POST /api/platforms/talaria/events`) rides the
+> same listener. So the headless-gateway state kills all four at once while
+> `launchctl` shows a healthy PID — the migration does not add a failure mode, it
+> **concentrates** one. **App-side consequence:** the Server screen must not show
+> PLUGIN LINK as PAIRED-and-healthy while chat is refusing — both facts come
+> through the same door, so it is one banner and one truth. **Ops-side:** the
+> listener check above is the first line of the runbook, including in the OJAMD
+> rollout (#271). Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.7 +
+> §4.3.
 
 ## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
 
@@ -5291,6 +5382,21 @@ and a wake-path integration test that fails on a full-cycle delivery.
 > fine either way. This is exactly the breadcrumb the counters were built
 > to leave; chase it on the next gated-against-live-phone incident, or
 > add a PID to the load stamp when the lane next touches transport.py.
+
+> **Update 2026-08-07 (Phase 3 scoping) — this item's lesson becomes a standing
+> design rule for the runs migration.** Phase 3's steer/approval reach walks
+> `gateway.run._gateway_runner_ref()` → `runner.adapters[Platform.API_SERVER]` →
+> `._active_run_agents[run_id]`. **That walk resolves LATE, per call — the runner
+> and the adapter are never cached at import or at construction.** This is exactly
+> the early-binder shape the (a) WATCH exists for: `tools.py`'s late `_hub()` and
+> `platform_adapter.py`'s import-frozen `HUB` are the two sides of it, and a cached
+> reach would add a third. **Its failure mode there is silent** — `_active_run_agents`
+> is a private attribute with no stability contract, so an upstream rename makes a
+> steer stop landing with no error surface, and an unfound agent looks identical to
+> a steer that did not land. So the plugin handler must return an explicit
+> `agent_found:false` and the app must render it, and the steer path should stamp
+> `id()` the way #263-E stamped the hub. Detail:
+> `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.3 + §4.2.
 
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
 
@@ -6447,6 +6553,45 @@ lane opens.
 > (the 32s-vs-≤5s falsification stands; measure enqueue → phone answer → future
 > resolved, model latency out of scope).
 
+> **Update 2026-08-07 (Phase 3 scoping) — correction to the phase arc's Phase 3
+> line.** The arc says remote turns move `chat/stream` → `/v1/runs` + `/events`
+> with the taxonomy "largely carrying over." **It does not carry over unchanged:**
+> runs `tool.started` has **no `args`** (see #21's note; `api_server.py:6222-6229`)
+> and the runs event stream has **no replay** (see #235's note; `:6765-6766`). Both
+> have answers — a plugin `pre_tool_call` mirror for the first, status polling for
+> the second — but they are WORK, not a rename. Good news in the same read: the
+> reasoning channel is NOT lost, only re-enveloped (`reasoning.available` vs
+> `tool.progress`/`_thinking`, same emitter at `agent/conversation_loop.py:5790`),
+> and the runs plane brings a REAL stop, which our chat lane has never had
+> (`api_server.py:3836-3837` cancels only the SSE wrapper; the worker thread runs
+> to completion). One blocking unknown before any code: whether a run carrying an
+> existing `session_id` writes back into the SessionDB row
+> `/api/sessions/{id}/messages` reads — `_handle_runs` never loads history from the
+> DB (`:6329-6360`). Full scoping, slices 3A–3E, and the settled-findings
+> inventory: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.
+
+> **Update 2026-08-07 (Phase 3 scoping) — an unrelated money leak the same research
+> turned up, recorded here so it is not lost with the reports.** Check Owen's cron
+> configs for `deliver: origin` jobs created via the API: such a job **fires, burns
+> a full agent turn, saves `last_output`, and never delivers**
+> (`cron/scheduler.py:1147-1152`; API-created jobs stamp that origin at
+> `api_server.py:1670-1676`). Compounding it, `PLATFORM_HINTS["api_server"]` carries
+> no warning about this failure mode where `["cli"]` and `["tui"]` do
+> (`agent/prompt_builder.py:929-941`). Cheap to audit, independent of Phase 3.
+> Source: research report C §2.2 (`planning/superpowers/research/251-phase3-gap/`).
+
+> **Update 2026-08-07 (Phase 3 scoping) — HAZARD carried forward for the desktop-face
+> slice (#270):** `hermes serve` runs its OWN cron ticker, so a serve process beside
+> `hermes gateway run` puts **two cron tickers on one `state.db`** (double-fire
+> risk). Any serve adoption — including the desktop app's own
+> `hermes serve --port 0` backend, which is how the `plugin.js` pane would be
+> reached — must account for it. Source: D dossier `:804-805`;
+> `hermes_cli/main.py:10388`. Related, same probe: the tui_gateway ws credential is
+> **spawn-owned** (a per-process `_SESSION_TOKEN` unless
+> `HERMES_DASHBOARD_SESSION_TOKEN` is injected at spawn), so a client that did not
+> spawn the server cannot authenticate — that is what makes tui_gateway a
+> desktop-app story rather than a phone story.
+
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; lane not yet scheduled**
 
 **FILED from Owen, 2026-08-04 night, during device testing:** *"In the
@@ -7268,6 +7413,22 @@ REASONING rows — upstream shape, display-only.
 >   APPEARS at the tail with a receipt, no session reopen; ⏱ clears.
 > - **235-F (device):** a dead-stream turn followed by later messages shows
 >   the recovered reply at the BOTTOM with the marker naming its prompt.
+
+> **Update 2026-08-07 (Phase 3 scoping) — what this machinery becomes if the runs
+> migration lands, and the correction that goes with it.** On the runs plane,
+> recovery = `GET /v1/runs/{id}` — status + `output` + `usage`, retained for
+> `_RUN_STATUS_TTL = 3600s` (`api_server.py:6187`). **The event stream itself has
+> NO replay:** `/v1/runs/{id}/events` is a single-consumer queue whose handler pops
+> `_run_streams[run_id]` in its `finally` (`:6765-6766`), and the producer only
+> enqueues while the queue identity still matches (`:6402-6404`) — so a mid-turn
+> drop loses the deltas but never the final answer. That is the shape this
+> machinery **simplifies into, not a superset of it**: the run's own status is
+> authoritative and does not depend on our connection surviving. **This note also
+> covers #246** (closed, in `OPEN_ITEMS-ARCHIVE.md`) — the zombie-stream gap it
+> spun out disappears by construction here, because recovery no longer arms on
+> stream END. Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §1.6 N2 +
+> §2.2. Sharpens the earlier "runs are pollable by id, strictly more robust"
+> reading recorded in #251 — true for the ANSWER, false for the STREAM.
 
 ## 230. 🎨 `currentWeather` is today-only, and "tomorrow" was the trigger: extend it to WeatherKit's daily forecast — **BUILT 2026-08-03 (AM); Bar 3.1 MET ON DEVICE same morning**
 
