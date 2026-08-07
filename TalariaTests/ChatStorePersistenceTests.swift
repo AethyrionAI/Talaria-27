@@ -339,6 +339,11 @@ struct ChatStorePersistenceTests {
         private(set) var didInvalidateSession = false
         private(set) var adoptedMessageCounts: [Int] = []
 
+        /// #278: when true, `sendStreaming` yields `.interrupted` instead of
+        /// `.finished` — the shape a stream takes when the user leaves the
+        /// chat screen mid-run. The run stays live server-side.
+        var interruptsInsteadOfFinishing = false
+
         init(mirroring conversation: Conversation? = nil) {
             currentConversation = conversation
         }
@@ -359,6 +364,13 @@ struct ChatStorePersistenceTests {
             clientMessageID: UUID
         ) -> AsyncStream<StreamingUpdate> {
             sentPrompts.append(message)
+            if interruptsInsteadOfFinishing {
+                return AsyncStream { continuation in
+                    continuation.yield(.messageSent(jobID: UUID()))
+                    continuation.yield(.interrupted(sessionId: "live-session", runId: "live-run"))
+                    continuation.finish()
+                }
+            }
             let reply = Message(sender: .hermes, content: replyText, status: .delivered)
             // Mirrored BEFORE `.finished` is yielded — exactly the order
             // `LocalChatBackend` uses, which is what lets a mid-stream poll
@@ -560,6 +572,215 @@ struct ChatStorePersistenceTests {
         #expect(messages.map(\.content) == ["Same question", "Same question", "An answer"])
         let cached = try #require(persistence.loadConversationCache())
         #expect(cached.messages.count == 3)
+    }
+
+    // MARK: - #275: a dictated turn is a producing turn
+
+    /// **275-A** — the mixed thread. The reply was produced by a DICTATED
+    /// turn; matching `.user` alone skips it, finds the earlier typed turn,
+    /// and truncates far more history than the user asked for while
+    /// re-sending the wrong prompt.
+    @Test @MainActor
+    func regenerateTruncatesFromADictatedProducingTurn() async throws {
+        let rows = [
+            Message(sender: .user, content: "First question", status: .delivered),
+            Message(sender: .hermes, content: "First answer", status: .delivered),
+            Message(sender: .voiceUser, content: "Dictated second question", status: .delivered),
+            Message(sender: .hermes, content: "Second answer", status: .delivered),
+        ]
+        let (store, client, history, _) = makeMirroredStore(history: rows)
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[3])
+
+        #expect(client.sentPrompts == ["Dictated second question"])
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == [
+            "First question", "First answer", "Dictated second question", "Done.",
+        ])
+        // The dictated row is re-sent as a normal composed turn, so the
+        // earlier exchange is untouched — that is the whole point.
+        #expect(messages[0].id == history[0].id)
+        #expect(messages[1].id == history[1].id)
+    }
+
+    /// **275-B** — the dead menu item. With no typed turn anywhere above it,
+    /// the backwards scan found nothing at all and `regenerateReply` returned
+    /// silently: nothing truncated, nothing sent, no log line.
+    @Test @MainActor
+    func regenerateWorksOnAThreadWhoseOnlyUserTurnWasDictated() async throws {
+        let rows = [
+            Message(sender: .voiceUser, content: "Only dictated turn", status: .delivered),
+            Message(sender: .hermes, content: "An answer", status: .delivered),
+        ]
+        let (store, client, history, _) = makeMirroredStore(history: rows)
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[1])
+
+        #expect(client.sentPrompts == ["Only dictated turn"])
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == ["Only dictated turn", "Done."])
+    }
+
+    /// **275-C** — `retryMessage` shares the assumption: a failed reply whose
+    /// producing turn was dictated re-sent the last TYPED turn instead.
+    @Test @MainActor
+    func retryUsesADictatedProducingTurnAsItsSource() async throws {
+        let rows = [
+            Message(sender: .user, content: "Typed question", status: .delivered),
+            Message(sender: .hermes, content: "Typed answer", status: .delivered),
+            Message(sender: .voiceUser, content: "Dictated question", status: .delivered),
+            Message(sender: .hermes, content: "Reply that failed", status: .failed),
+        ]
+        let (store, client, history, _) = makeMirroredStore(history: rows)
+        await store.loadConversationIfNeeded()
+
+        await store.retryMessage(history[3])
+
+        #expect(client.sentPrompts == ["Dictated question"])
+    }
+
+    /// **275-D** — the regression half: widening the set to user-AUTHORED
+    /// must not let an assistant, spoken-assistant, or system row be mistaken
+    /// for a producing turn. Only "Q" is user-authored here, so a re-roll of
+    /// the final reply must truncate from index 0 and re-send "Q" — picking
+    /// the `.voiceHermes` row would re-send "Spoken reply" instead.
+    @Test @MainActor
+    func onlyUserAuthoredRowsCanBeProducingTurns() async throws {
+        let rows = [
+            Message(sender: .user, content: "Q", status: .delivered),
+            Message(sender: .system, content: "[Voice session ended]", status: .delivered),
+            Message(sender: .voiceHermes, content: "Spoken reply", status: .delivered),
+            Message(sender: .hermes, content: "A", status: .delivered),
+        ]
+        let (store, client, history, _) = makeMirroredStore(history: rows)
+        await store.loadConversationIfNeeded()
+
+        await store.regenerateReply(history[3])
+
+        #expect(client.sentPrompts == ["Q"])
+        #expect(store.conversation?.messages.map(\.content) == ["Q", "Done."])
+    }
+
+    /// **275-E** — the predicate every producing-turn search now shares. A
+    /// sixth sender case has to answer this question explicitly rather than
+    /// be silently excluded by four separate `== .user` comparisons.
+    @Test func userAuthoredCoversTypedAndDictatedTurnsOnly() {
+        #expect(MessageSender.user.isUserAuthored)
+        #expect(MessageSender.voiceUser.isUserAuthored)
+        #expect(!MessageSender.hermes.isUserAuthored)
+        #expect(!MessageSender.voiceHermes.isUserAuthored)
+        #expect(!MessageSender.system.isUserAuthored)
+    }
+
+    // MARK: - #278: the in-flight gate
+
+    /// **278-A** — a dropped stream leaves a LIVE run behind, and Edit &
+    /// Resend was both offered and honored on it: it truncated under the run,
+    /// and the resend posted a second run to the same server session.
+    @Test @MainActor
+    func editAndResendIsRefusedWhileADroppedStreamsRunIsStillLive() async throws {
+        let (store, client, _, _) = makeMirroredStore(history: [])
+        await store.loadConversationIfNeeded()
+        client.interruptsInsteadOfFinishing = true
+
+        await store.sendMessage("A question mid-flight")
+
+        // The state the bug lives in: no stream, a live run, a `.working` row.
+        #expect(!store.isStreaming)
+        #expect(store.pendingRunSessionId == "live-session")
+        let userRow = try #require(store.conversation?.messages.first)
+        #expect(userRow.status == .working)
+
+        let countBefore = store.conversation?.messages.count
+        #expect(store.extractTurnForEditing(userRow) == nil)
+        #expect(store.conversation?.messages.count == countBefore)
+        #expect(store.conversation?.messages.contains { $0.id == userRow.id } == true)
+    }
+
+    /// **278-B** — the menu reads the same predicate, so the item is not even
+    /// offered. `isStreaming` (what the menu used to read) is false here,
+    /// which is the entire bug.
+    @Test @MainActor
+    func theBusyPredicateStaysTrueAcrossAnInterruptedRun() async throws {
+        let (store, client, _, _) = makeMirroredStore(history: [])
+        await store.loadConversationIfNeeded()
+        client.interruptsInsteadOfFinishing = true
+
+        await store.sendMessage("A question mid-flight")
+
+        #expect(!store.isStreaming)
+        #expect(store.isTranscriptBusy)
+        // And the row's own status agrees — the belt has two independent
+        // strands on purpose.
+        #expect(store.conversation?.messages.first?.status.isSettled == false)
+    }
+
+    /// **278-C** — no over-tightening. A settled turn on an idle thread must
+    /// still be editable; a gate that refuses everything is not a fix.
+    @Test @MainActor
+    func editAndResendStillWorksOnASettledTurnWithNoRunInFlight() async throws {
+        let (store, _, history, _) = makeMirroredStore()
+        await store.loadConversationIfNeeded()
+
+        #expect(!store.isTranscriptBusy)
+        let turn = try #require(store.extractTurnForEditing(history[2]))
+        #expect(turn.text == "Second question")
+        #expect(store.conversation?.messages.count == 2)
+    }
+
+    // MARK: - #276: mergeAttachments drops nothing
+
+    private func anchoredAttachment(id: UUID, anchor: Int?) -> MessageAttachment {
+        MessageAttachment(
+            id: id,
+            kind: "file",
+            fileName: "notes.md",
+            mimeType: "text/markdown",
+            thumbnailBase64: "THUMB",
+            localStoragePath: "/staged/notes.md",
+            voiceMemoAudioPath: "/staged/memo.m4a",
+            remotePath: "O:/Hermes/notes.md",
+            remoteProfileID: UUID(),
+            anchorOffset: anchor
+        )
+    }
+
+    /// **276-A** — the field the #262 lane added and this merge forgot. Any
+    /// refresh merge demoted an anchored chip back to the trailing grid.
+    @Test @MainActor
+    func mergeAttachmentsPreservesTheInlineAnchor() throws {
+        let id = UUID()
+        let local = anchoredAttachment(id: id, anchor: 42)
+        let remote = MessageAttachment(id: id, kind: "file", fileName: "notes.md", mimeType: "text/markdown")
+
+        let merged = try #require(ChatStore.mergeAttachments([local], onto: [remote]).first)
+
+        #expect(merged.anchorOffset == 42)
+    }
+
+    /// **276-B** — the whole preserved shape, not just the new field. A
+    /// field-by-field rebuild is exactly how the anchor was lost, so every
+    /// client-side field this merge is supposed to carry is pinned here.
+    @Test @MainActor
+    func mergeAttachmentsPreservesEveryClientSideField() throws {
+        let id = UUID()
+        let local = anchoredAttachment(id: id, anchor: 7)
+        let remote = MessageAttachment(id: id, kind: "file", fileName: "notes.md", mimeType: "text/markdown")
+
+        let merged = try #require(ChatStore.mergeAttachments([local], onto: [remote]).first)
+
+        #expect(merged.id == id)
+        #expect(merged.kind == "file")
+        #expect(merged.fileName == "notes.md")
+        #expect(merged.mimeType == "text/markdown")
+        #expect(merged.thumbnailBase64 == "THUMB")
+        #expect(merged.localStoragePath == "/staged/notes.md")
+        #expect(merged.voiceMemoAudioPath == "/staged/memo.m4a")
+        #expect(merged.remotePath == "O:/Hermes/notes.md")
+        #expect(merged.remoteProfileID == local.remoteProfileID)
+        #expect(merged.anchorOffset == 7)
     }
 
     // MARK: - #203 (1A) the stall hint's WIRING

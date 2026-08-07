@@ -80,6 +80,23 @@ final class ChatStore {
 
     var isStreaming: Bool { streamingMessageID != nil }
 
+    /// #278: **the** "is a run in flight" question, for the bubble menu and
+    /// for the store's own history-mutating guards alike.
+    ///
+    /// `isStreaming` is NOT that question and using it as such is what shipped
+    /// the bug: leaving the chat screen mid-run drops the SSE connection, the
+    /// stream yields `.interrupted`, and its handler sets
+    /// `streamingMessageID = nil` while `pendingRun` stays live and the
+    /// reconcile loop keeps going — nothing ever re-arms `streamingMessageID`.
+    /// So for the whole reconcile window (minutes) `isStreaming` reads false
+    /// while the run is very much alive, and Edit & Resend was both OFFERED
+    /// and HONORED on it: it truncated under a live run, and the resend posted
+    /// a SECOND run to the same server session.
+    ///
+    /// The menu and the store must read the same predicate — a menu that
+    /// hides an item the store would still honor is a gate in name only.
+    var isTranscriptBusy: Bool { streamingMessageID != nil || pendingRun != nil }
+
     /// #203 (1A): how long a streaming turn may go with NO sign of life
     /// before the UI says so. 8s is comfortably past a normal on-device
     /// first token (#208 measured whole turns at 35–49 output tokens) and
@@ -1320,12 +1337,15 @@ final class ChatStore {
         // Remove the failed message
         conversation?.messages.removeAll { $0.id == message.id }
 
-        // Determine the user content to retry (attachments can't be recovered from metadata)
+        // Determine the user content to retry (attachments can't be recovered
+        // from metadata). #275: user-AUTHORED, so a dictated turn is a valid
+        // retry source — matching `.user` alone re-sent the last TYPED turn
+        // and silently answered a different question.
         let sourceMessage: Message?
-        if message.sender == .user {
+        if message.sender.isUserAuthored {
             sourceMessage = message
         } else {
-            sourceMessage = conversation?.messages.last(where: { $0.sender == .user })
+            sourceMessage = conversation?.messages.last(where: { $0.sender.isUserAuthored })
         }
 
         guard let sourceMessage else { return }
@@ -1407,12 +1427,20 @@ final class ChatStore {
     /// the truncation is total: the mirror and the `LanguageModelSession` both
     /// drop the removed turns.
     func regenerateReply(_ message: Message) async {
-        guard !isStreaming else { return }
+        // #278: `isTranscriptBusy`, not `isStreaming` — a dropped stream
+        // leaves a live run behind with `streamingMessageID` already nil.
+        guard !isTranscriptBusy else {
+            chatLog.notice("regenerate: refused — a run is still in flight (#278)")
+            return
+        }
         guard let conv = conversation,
               let replyIdx = conv.messages.firstIndex(where: { $0.id == message.id }),
-              let userIdx = conv.messages[..<replyIdx].lastIndex(where: { $0.sender == .user })
+              // #275: user-AUTHORED, so a DICTATED producing turn is found.
+              // Matching `.user` alone skipped it, took an earlier typed turn,
+              // and truncated history the user never asked to lose.
+              let userIdx = conv.messages[..<replyIdx].lastIndex(where: { $0.sender.isUserAuthored })
         else {
-            chatLog.notice("regenerate: no producing user turn above this reply — nothing truncated, nothing sent (#78)")
+            chatLog.notice("regenerate: no producing user turn above this reply — nothing truncated, nothing sent (#78/#275)")
             return
         }
 
@@ -1458,8 +1486,14 @@ final class ChatStore {
     /// correct — nothing sends at this moment, so no merge runs — and was
     /// wiped the instant the user tapped send.
     func extractTurnForEditing(_ message: Message) -> EditableTurn? {
-        guard !isStreaming,
-              message.sender == .user,
+        // #278: the same belt the bubble menu wears. `!isStreaming` alone let
+        // this truncate under a live run whose stream had merely dropped, and
+        // the resend then posted a second run to the same server session.
+        guard !isTranscriptBusy, message.status.isSettled else {
+            chatLog.notice("edit-and-resend: refused — a run is still in flight (#278)")
+            return nil
+        }
+        guard message.sender == .user,
               let conv = conversation,
               let idx = conv.messages.firstIndex(where: { $0.id == message.id })
         else { return nil }
@@ -2166,7 +2200,7 @@ final class ChatStore {
             }
 
             if !local.attachments.isEmpty {
-                refreshedConversation.messages[index].attachments = mergeAttachments(
+                refreshedConversation.messages[index].attachments = Self.mergeAttachments(
                     local.attachments,
                     onto: refreshedConversation.messages[index].attachments
                 )
@@ -2241,7 +2275,20 @@ final class ChatStore {
         }
     }
 
-    private func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
+    /// Pairs a refresh source's attachments with the local ones and carries
+    /// every client-side field across.
+    ///
+    /// **#276: this rebuilds the value field by field, which is a silent-drop
+    /// hazard the type system cannot catch — every field has a default, so an
+    /// omission compiles and reads as `nil`.** `anchorOffset` (#262) was
+    /// omitted here and no test referenced this function at all, so every
+    /// refresh merge quietly demoted an anchored chip back to the trailing
+    /// grid — the exact jump #262 existed to remove. If you add a field to
+    /// `MessageAttachment`, add it here in the same commit.
+    ///
+    /// `nonisolated static` so the pairing rules can be pinned directly,
+    /// alongside `unconfirmedLocalMessages` and `historyAdoptsQueuedTurn`.
+    nonisolated static func mergeAttachments(_ localAttachments: [MessageAttachment], onto remoteAttachments: [MessageAttachment]) -> [MessageAttachment] {
         guard !remoteAttachments.isEmpty else { return localAttachments }
 
         // #185: pair by identity, dequeueing each claimed local so N
@@ -2271,7 +2318,12 @@ final class ChatStore {
                 // Client-only (#21 Tier 2): the fetch pointer and its birth
                 // profile never round-trip through the server either.
                 remotePath: match.remotePath,
-                remoteProfileID: match.remoteProfileID
+                remoteProfileID: match.remoteProfileID,
+                // #276: the inline anchor (#262). Client-derived from the
+                // stream's own ordering, so the server never echoes one —
+                // but prefer a remote value if one ever appears rather than
+                // pinning the local copy as authoritative.
+                anchorOffset: remote.anchorOffset ?? match.anchorOffset
             )
         }
     }

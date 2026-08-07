@@ -10,6 +10,19 @@ enum MessageStatus: String, Codable, Hashable, Sendable {
     /// unreachable; parked durably and auto-sent when it's reachable again.
     case queued
 
+    /// #278: whether this row has SETTLED. A truncation that removes an
+    /// unsettled row is removing something still in motion — and `.working`
+    /// is the case that made this necessary: a stream that drops (leaving the
+    /// chat screen mid-run) leaves the user row `.working` with the run still
+    /// live server-side, which the old `!= .sending` check waved straight
+    /// through. Exhaustive on purpose: a new status has to answer this.
+    var isSettled: Bool {
+        switch self {
+        case .sending, .working, .queued: false
+        case .sent, .delivered, .failed: true
+        }
+    }
+
     var displayIcon: String {
         switch self {
         case .sending: "arrow.up.circle"

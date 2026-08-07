@@ -1025,7 +1025,11 @@ struct ChatScreen: View {
                                 onRetry: { failedMessage in
                                     Task { await chatStore.retryMessage(failedMessage) }
                                 },
-                                isTranscriptBusy: chatStore.isStreaming,
+                                // #278: NOT `isStreaming` — a dropped stream
+                                // leaves a live run with `streamingMessageID`
+                                // already nil, and the menu was offering
+                                // history-mutating items straight into it.
+                                isTranscriptBusy: chatStore.isTranscriptBusy,
                                 onRegenerate: { reply in
                                     Task { await performRegenerate(reply) }
                                 },
@@ -1587,8 +1591,10 @@ struct ChatScreen: View {
             return
         }
 
-        // Find the last user message
-        guard let lastUserIdx = messages.lastIndex(where: { $0.sender == .user }) else {
+        // Find the last user-AUTHORED message. #275: matching `.user` alone
+        // skipped a DICTATED turn and retried an earlier typed one, wiping
+        // the exchange in between.
+        guard let lastUserIdx = messages.lastIndex(where: { $0.sender.isUserAuthored }) else {
             appendSystemMessage("No user message found to retry.")
             return
         }
@@ -1604,8 +1610,12 @@ struct ChatScreen: View {
             normalizedContent = lastUserContent
         }
 
-        // Remove everything from the last user message onward (user msg + assistant response + tool msgs)
-        chatStore.conversation?.messages.removeSubrange(lastUserIdx...)
+        // Remove everything from the last user message onward (user msg +
+        // assistant response + tool msgs). #78/#274: through the store's one
+        // truncation primitive — it persists, syncs the journal, and hands the
+        // truncated thread to the backend, without which the post-turn merge
+        // puts every removed row straight back.
+        chatStore.truncateTranscript(from: lastUserIdx, reason: "/retry")
 
         appendSystemMessage("Retrying: \"\(String(lastUserContent.prefix(60)))\(lastUserContent.count > 60 ? "..." : "")\"")
 
@@ -1620,17 +1630,19 @@ struct ChatScreen: View {
             return
         }
 
-        // Walk backwards to find the last user message
-        guard let lastUserIdx = messages.lastIndex(where: { $0.sender == .user }) else {
+        // Walk backwards to find the last user-AUTHORED message (#275: a
+        // dictated turn is one, and skipping it undid the wrong exchange).
+        guard let lastUserIdx = messages.lastIndex(where: { $0.sender.isUserAuthored }) else {
             appendSystemMessage("No user message found to undo.")
             return
         }
 
         let removedContent = messages[lastUserIdx].content
-        let removedCount = messages.count - lastUserIdx
 
-        // Truncate history to before the last user message
-        chatStore.conversation?.messages.removeSubrange(lastUserIdx...)
+        // Truncate through the store's one primitive (#78/#274). This path
+        // never persisted at all before, so `/undo` was undone by a relaunch
+        // even when the merge left it alone.
+        let removedCount = chatStore.truncateTranscript(from: lastUserIdx, reason: "/undo").count
 
         let remaining = chatStore.conversation?.messages.count ?? 0
         appendSystemMessage("Undid \(removedCount) message\(removedCount == 1 ? "" : "s"). Removed: \"\(String(removedContent.prefix(60)))\(removedContent.count > 60 ? "..." : "")\"\n\(remaining) message\(remaining == 1 ? "" : "s") remaining.")

@@ -105,9 +105,15 @@ struct MessageBubble: View {
                 Label("Regenerate", systemImage: "arrow.counterclockwise")
             }
         }
-        // Edit & Resend: real user turns that aren't mid-flight.
+        // Edit & Resend: real user turns that aren't mid-flight. #278: the
+        // status check used to be `!= .sending`, which waved through
+        // `.working` — the state a turn sits in for the whole reconcile
+        // window after its stream dropped, with the run still live. The store
+        // guard moved to the same predicate in the same commit; if these two
+        // ever diverge again, the menu hides an item the store still honors
+        // (or worse, offers one it will act on).
         if message.sender == .user,
-           message.status != .sending,
+           message.status.isSettled,
            !isTranscriptBusy,
            let onEditResend {
             Divider()
