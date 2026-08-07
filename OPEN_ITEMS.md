@@ -180,6 +180,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
+- **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the …
 - **#262** 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
 - **#260** 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" …
@@ -217,9 +219,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#210** #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
 - **#208** (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
-*105 items on this board (#262 added, #258 newly closed-in-place 2026-08-06 late
-evening; closed items move to the archive at cleanup passes, not instantly);
-163 closed/terminal items are in `OPEN_ITEMS-ARCHIVE.md`.*
+*107 items on this board (#262/#263/#264 added, #258 and #260 newly
+closed-in-place 2026-08-06; closed items move to the archive at cleanup
+passes, not instantly); 163 closed/terminal items are in
+`OPEN_ITEMS-ARCHIVE.md`.*
 
 ---
 
@@ -4698,6 +4701,60 @@ Manual/Off app lane).**
 > runs deny side effects silently under current config. Item stays SHELVED;
 > the #251 venture's interactive half is now the natural reopen path.**
 
+## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
+
+Observed live: `kill` on the listener → the old process's shutdown logged
+"api_server disconnect timed out after 5.0s - forcing continue" → launchd
+respawned → the NEW process logged **"Could not bind 0.0.0.0:8642: address
+already in use"** then **"api_server failed to connect"** — and kept running
+happily WITHOUT the api_server platform. `launchctl` showed a healthy PID;
+the plugin connected; cron ran. The phone could not drain; MCP could not
+chat; `/health` refused. Five minutes of "why is it down" against a process
+that looked up. A second `kill` (port verifiably free by then) came up clean.
+
+- **The ops rule, standing as of tonight: after ANY gateway bounce, verify
+  the LISTENER (`lsof -nP -iTCP:8642 -sTCP:LISTEN`), never the process.**
+  A healthy PID proves nothing about the chat plane.
+- The defect is upstream (hermes core): no bind retry/backoff on a
+  transient EADDRINUSE, and no SO_REUSEADDR-style mitigation on our side to
+  configure. Candidate upstream ask: retry the bind for ~15s before giving
+  up, or exit nonzero so launchd respawns instead of running headless.
+- Filed as a WATCH + ops-rule item, not a lane — we keep zero core edits
+  (standing rule), so the fix is an upstream report or an ops habit.
+
+## 263. 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton (tool gated against a live phone), and the enqueue wake misses the parked drain (every query rides a full 25s poll cycle racing the 25s timeout) — **FILED 2026-08-06 late night from live forensics during the 260-E pass; absorbs 2A-B's owed transport instrumentation**
+
+Two related defects, one module-lifecycle root, both observed live tonight:
+
+**(a) The split hub.** Post-bounce, the gateway ran 8 plugin-discovery
+passes; the platform adapter binds `HUB` at an early pass while `tools._hub()`
+re-resolves `from .transport import HUB` at call time — after any reload
+those are DIFFERENT `TransportHub` instances. Symptom observed: the phone
+long-polling every 25s (access log, store `last_seen` advancing) while
+`_transport_available` read a hub nobody touched — `talaria_phone_query`
+"not available in this session" forever, on a live phone, in fresh sessions.
+A second bounce restored coherence (a fresh process starts aligned, like the
+17:33 process that served the whole evening pass correctly). NOT caused by
+the #260 prose change — nothing in that diff touches imports or hub
+lifecycle; the trigger is bounce + later discovery passes.
+
+**(b) The wake-miss.** Even hub-coherent, tonight's queries resolved at
+EXACTLY 25.00s — one full long-poll hold — with the phone parked the whole
+time: the enqueue-side `wake()` never released the park. With
+`_QUERY_TIMEOUT == 25.0 == park hold`, every query races the timeout: the
+master-off leg won by 0.4s, the allow leg lost once ("did not answer in
+time") and won on retry mid-cycle. This IS the transport-leg number 2A-B
+owed: **delivery-to-answer is fast; DELIVERY waits up to a full park cycle.**
+May be (a) wearing another face (park's event in one hub, wake in another)
+— unresolved; instrument before fixing.
+
+**Fix candidates when the lane opens (bars pre-register HERE):** a
+reload-proof hub anchor (process-global registry keyed by plugin name, or
+tools binding the hub at registration time from the SAME pass as the
+adapter); store-backed liveness as the check_fn source (window widened past
+the 60s store-write throttle); timeout margin (query timeout > park hold);
+and a wake-path integration test that fails on a full-cycle delivery.
+
 ## 262. 🎨 Artifact chip placement is not stable across the finish boundary — inline at the generation point mid-turn, then JUMPS to end-of-response at `run.completed` — **FILED + ROUTED 2026-08-06 late evening (from 258-E's device pass; Owen picked "lane, queued behind #260")**
 
 Observed by Owen on OTA 2085, both 258-E runs: *"The generated file doesn't
@@ -4796,7 +4853,7 @@ other work in flight.
 > is the only item whose text changed — by exactly this appended note, which
 > the verifier whitelists as a prefix-match.
 
-## 260. 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" gates a non-streaming act — **ROUTED 2026-08-06 evening (Owen: "sounds good, bundle them into a lane") from his own 2A device pass; bars pre-registered below BEFORE the build**
+## 260. 🔐 PRIVACY LEGIBILITY: the health row contradicts itself, a denial names the wrong toggle, and "streaming" gates a non-streaming act — **ROUTED 2026-08-06 evening (Owen: "sounds good, bundle them into a lane") from his own 2A device pass; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 night: ALL FIVE BARS MET, 260-E on device (OTA 2095) — the screen agrees with iOS at every instant, and all three refusal shapes name the right switch verbatim**
 
 All three came out of Owen's device pass and share one root: **the app
 has more privacy CONCEPTS than it has honest words for them.**
@@ -4899,6 +4956,28 @@ depends on which gates exist, so (C) landing later may re-touch it.
 > gate fields — the named-gate prose needs the NEW install; the health
 > Permissions row will also read honestly only per-launch (HealthKit hides
 > read grants — see the (A) caveat in `RevokeRowState`'s doc).**
+
+> **Update 2026-08-06 (late night) — 260-E MET on device (Owen, OTA 2095);
+> ITEM CLOSED.** All four legs, live: **(1)** Privacy screen consistent —
+> Permissions Health ENABLED + Revoke ACTIVE agree (both derive from the same
+> live iOS status now; a cold launch reads ACTIVE because the upload service's
+> launch-time `requestAuthorization` resolves silently in seconds — the
+> NEEDS-PERMISSION state exists for the window before any request completes);
+> relabel live ("Share Sensors with Hermes", `// Sensor Sharing`, both-acts
+> caption). **(2)** Master OFF, location query → the master prose VERBATIM
+> ("That one switch gates ALL sensor sharing — streams and queries alike…").
+> **(3)** Master ON + Location toggle OFF, WEATHER query → "the Location
+> sensor toggle is off… enabling Location is what unblocks this" — the exact
+> cross-toggle case that misled Owen originally, now naming the right switch.
+> **(4)** Location back ON → real answer ("Current location: 19200 Crestwick
+> St, Saucier"), one retry needed (see #263's wake-miss). **Residual
+> observation, filed not fixed:** the Revoke rows read from the flag×iOS
+> matrix only, so with the MASTER off they still say ACTIVE while the hero
+> reads SENSORS OFF — the bar's matrix was met as written; whether master-off
+> should demote the row's wording is Owen's call if it ever grates.
+> **The pass also flushed out two infrastructure defects → #263 (plugin
+> transport: split hub + wake-miss) and #264 (gateway bind race, comes up
+> without the chat plane and never retries).**
 
 ## 259. 🔓 The `.html` artifact preview has NO CSP — an agent-authored HTML file can beacon out and reach tailnet services — **FILED 2026-08-06 from #258's independent security review (§6, out of that lane's scope); no lane opened**
 
