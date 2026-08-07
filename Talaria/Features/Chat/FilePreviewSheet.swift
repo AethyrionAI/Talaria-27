@@ -182,11 +182,18 @@ struct AgentFilePreviewSheet: View {
         FilePreviewSheet(title: attachment.fileName, shareItem: shareURL) {
             switch resolved {
             case .html(let html):
-                HTMLPreviewView(html: html)
-                    .ignoresSafeArea(edges: .bottom)
+                // #259: rides the egress-rules seam — loading spinner, then
+                // the hardened web view; a rules failure fails closed to the
+                // artifact's own source in the code panel.
+                HTMLArtifactPreview(html: html, sourceLanguage: "html", sourceText: html)
             case .svg(let markup):
-                HTMLPreviewView(html: SVGPreviewDocument.wrap(markup))
-                    .ignoresSafeArea(edges: .bottom)
+                // Same vehicle, same seam; the source fallback is the RAW
+                // markup, not the wrapper document around it.
+                HTMLArtifactPreview(
+                    html: SVGPreviewDocument.wrap(markup),
+                    sourceLanguage: "xml",
+                    sourceText: markup
+                )
             case .markdown(let text):
                 ScrollView {
                     MarkdownContentView(content: text, isStreaming: false)

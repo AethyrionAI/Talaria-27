@@ -468,6 +468,7 @@
 		E9ADDD5D9D9BD8E28B6D317B /* ContextOverflowGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BF8A2E3B81ED9F412DFD07 /* ContextOverflowGuardTests.swift */; };
 		E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */; };
 		E9CC8616807E52B13A4B50D9 /* EntitlementServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */; };
+		EA081E6354B7FCAAF6CFC487 /* HTMLArtifactSandboxTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */; };
 		EA1059F552C01182EDE5A27B /* Icon-BubblegumMecha@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6C5FDB59E099F96641AB625B /* Icon-BubblegumMecha@2x.png */; };
 		EA7F1D6A8956993BB29AFFC8 /* MarkdownContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */; };
 		EA8E22CFA720246984B1547A /* KeyboardShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A7045D5D1C524A4F69946E /* KeyboardShortcuts.swift */; };
@@ -746,6 +747,7 @@
 		5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockTests.swift; sourceTree = "<group>"; };
 		5EB471468F064EE7016C31FE /* TypingDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingDotsView.swift; sourceTree = "<group>"; };
 		5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptTests.swift; sourceTree = "<group>"; };
+		601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLArtifactSandboxTests.swift; sourceTree = "<group>"; };
 		6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-AutumnHarvest@3x.png"; sourceTree = "<group>"; };
 		6151A7914EC6D46541D58EE1 /* TalariaPlatformLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformLink.swift; sourceTree = "<group>"; };
 		61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStatusWidget.swift; sourceTree = "<group>"; };
@@ -1215,6 +1217,7 @@
 				D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */,
 				E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */,
 				88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */,
+				601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */,
 				7331AE6024E5FB7F16FAD6C3 /* IdlePollingTests.swift */,
 				520B8194AEA8B671E7A43451 /* InsightsAggregationTests.swift */,
 				FF17BA389F0A775916C4A56F /* InsightsFetchTests.swift */,
@@ -2568,6 +2571,7 @@
 				1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */,
 				2DC06B74C1A60E5C3B49A753 /* GatewayModelCatalogTests.swift in Sources */,
 				062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */,
+				EA081E6354B7FCAAF6CFC487 /* HTMLArtifactSandboxTests.swift in Sources */,
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
 				C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */,
 				9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */,
