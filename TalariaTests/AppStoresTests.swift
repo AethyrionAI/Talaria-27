@@ -1243,6 +1243,26 @@ struct AppStoresTests {
         #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: []).count == 1)
     }
 
+    /// 281-A — the SURPLUS claim. A refreshed user row that already confirms
+    /// a local twin BY ID (tier 1, which returns without decrementing) must
+    /// not also mint a content claim: the claim is spare, and the genuinely
+    /// new user row carrying the same text ate it and was filtered out of the
+    /// merge. On the Hermes path every previously-adopted row has this shape
+    /// — `mapStoredMessage` sets a stable server-derived id and never a
+    /// `clientMessageID` — so a re-sent prompt vanished from the transcript.
+    @Test func anAlreadyIDConfirmedRefreshedRowMintsNoContentClaim() {
+        let historyID = UUID(), freshID = UUID()
+        let local = [
+            Message(id: historyID, sender: .user, content: "How many are left", status: .delivered),
+            Message(id: freshID, clientMessageID: freshID, sender: .user,
+                    content: "How many are left", status: .sending),
+        ]
+        let refreshed = [Message(id: historyID, sender: .user,
+                                 content: "How many are left", status: .delivered)]
+        let unconfirmed = ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed)
+        #expect(unconfirmed.map(\.id) == [freshID])
+    }
+
     // MARK: - #247 B2: the profile-switch verdict (bars 247-B)
 
     /// The exact strings are the product surface — pinned.
