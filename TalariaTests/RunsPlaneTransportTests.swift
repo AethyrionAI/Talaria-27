@@ -328,6 +328,18 @@ struct RunsPlaneTransportTests {
         return client
     }
 
+    /// #283 review re-review: a real `ChatStore` wired to a real (test-stub)
+    /// `SessionsHermesClient` — needed for the `cancelStreaming(hardStopHost:)`
+    /// residual pins, which have to exercise `ChatStore`'s own gating logic,
+    /// not just the client's.
+    @MainActor
+    private func makeChatStore(hermesClient: SessionsHermesClient) -> ChatStore {
+        let suiteName = "runs-plane-chatstore-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return ChatStore(hermesClient: hermesClient, persistence: UserDefaultsAppPersistenceStore(defaults: defaults))
+    }
+
     /// One turn, collected with the 10s hang belt every test in this suite
     /// uses: the belt CANCELS the collector, and cancellation genuinely ends
     /// `AsyncStream` iteration, so awaiting `.value` cannot strand.
@@ -1197,6 +1209,132 @@ struct RunsPlaneTransportTests {
         // `abandonActiveRun` leaves `selfStoppedRunIDs` untouched, not just
         // that it skips the network call.
         #expect(updates.contains { if case .interrupted = $0 { return true } else { return false } })
+    }
+
+    // MARK: - Task 7 residual: ChatStore.cancelStreaming's hardStopHost gate
+
+    /// #283 review re-review — the residual the whole-branch pass caught:
+    /// `ChatStore.cancelStreaming()` had exactly ONE caller that is not the
+    /// explicit Stop tap — the continued-send expiration handler
+    /// (`ChatStore.swift:588`), fired when the SYSTEM revokes a background
+    /// task's budget with NO user action. Because `cancelStreaming`
+    /// unconditionally called `hardStopActiveRun()`, a lapsed background
+    /// budget on an attachment turn silently hard-killed the host run,
+    /// destroying an answer the recovery poll would otherwise have
+    /// retrieved. Fix: `cancelStreaming(hardStopHost:)`, defaulting to
+    /// `true` (every explicit-stop caller unchanged), with the expiration
+    /// handler alone passing `false`.
+    ///
+    /// This pair of tests exercises a REAL `ChatStore` wired to a REAL
+    /// `SessionsHermesClient` against this file's HTTP stub — not a
+    /// call-counting double — so what's pinned is the actual network
+    /// effect (a `/stop` POST landing or not), matching
+    /// `walkAwayAbandonNeverTouchesTheNetwork`'s fixture and shape.
+    ///
+    /// **SCOPE NOTE:** both tests call `cancelStreaming(hardStopHost:)`
+    /// directly rather than through the real expiration callback
+    /// (`continuedSend?.onExpiration`). `BGContinuedProcessingTask` has no
+    /// public initializer (`ContinuedProcessingTests`'s own header comment
+    /// states this), so no test can make the system hand a handle a real
+    /// task or simulate the system revoking one. What IS pinned here: the
+    /// `hardStopHost` parameter's gating logic on `cancelStreaming` itself.
+    /// What is NOT pinned: that `ChatStore.swift:588`'s closure actually
+    /// calls `cancelStreaming(hardStopHost: false)` — that one line is
+    /// read-verified only, not exercised by a test.
+    @Test @MainActor
+    func cancelStreamingHardStopHostFalseNeverPostsStop() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [Self.runningStatus],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "chatstore-no-hardstop")
+        client.streamStallThreshold = .milliseconds(300)
+        let chatStore = makeChatStore(hermesClient: client)
+
+        let sendTask = Task { @MainActor in
+            _ = await chatStore.sendMessage("hi")
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            sendTask.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
+
+        // The expiration-handler shape: NOT the explicit Stop tap.
+        chatStore.cancelStreaming(hardStopHost: false)
+
+        await sendTask.value
+        belt.cancel()
+
+        // Give an errant fire-and-forget a moment to (not) fire.
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(
+            RunsStubURLProtocol.requests().filter { $0.path.hasSuffix("/stop") }.isEmpty,
+            "cancelStreaming(hardStopHost: false) must never POST /stop"
+        )
+    }
+
+    /// The other half of the pair: the SAME fixture, but the default
+    /// `hardStopHost: true` — the explicit-Stop-tap shape — must still POST
+    /// `/stop` exactly as `hardStopActiveRunPostsStopWithAuth` already pins
+    /// at the client level. Failing this direction would mean the gate got
+    /// inverted rather than added.
+    @Test @MainActor
+    func cancelStreamingDefaultPostsStop() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"cancelled"}"#],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "chatstore-hardstop")
+        client.streamStallThreshold = .milliseconds(300)
+        let chatStore = makeChatStore(hermesClient: client)
+
+        let sendTask = Task { @MainActor in
+            _ = await chatStore.sendMessage("hi")
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            sendTask.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
+
+        // The explicit-Stop-tap shape: default `hardStopHost: true`.
+        chatStore.cancelStreaming()
+
+        await sendTask.value
+        belt.cancel()
+
+        pumps = 0
+        while RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        let stop = try #require(RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop"))
+        #expect(stop.authorization == "Bearer test-key")
     }
 
     // MARK: - Task 7 review finding 1: the poll's nil-terminal door
