@@ -5046,6 +5046,24 @@ egress (links, forms, meta-refresh, window.open) and stays unmodified.
   turn runs its script on the phone (something visibly dynamic), rendering
   inside the sheet as before.
 
+> **Update 2026-08-06 (late night) — BUILT, GATED, MERGED (PR #276, merge
+> `79481b8`, Owen: "merge it"). Bars 259-A..E MET; 259-F rides the next OTA
+> (staged from merged main same night).** TDD; the mechanism is a compiled
+> `WKContentRuleList` blocking `http(s)`/`ws(s)` at the network layer —
+> `data:` untouched, inline script untouched — with `HTMLPreviewView`
+> requiring the rules BY TYPE and `HTMLArtifactPreview` failing CLOSED to
+> the code panel if compilation ever fails. **259-A verified empirically
+> IN-SUITE**: a no-rules control arm leaks to a live in-process listener;
+> the shipped configuration posts zero — and the zero only counts after the
+> artifact's own script-ran marker proves the document was ALIVE, because
+> **the first version of this test passed falsely**: a dangling weak
+> `navigationDelegate` left the page blank, and a blank page can't beacon
+> (#258's "green suite certified a blank pane", recurring — caught because
+> 259-B failed loudly beside it). The generalized rule, now encoded in the
+> test and on the production helper: assert the subject is alive before
+> accepting silence as success. **GATE: PASS — 1687 → 1693 units (+6), 12
+> XCUITest, Release green.**
+
 ## 258. 🖼️ ARTIFACT PANES v2: agent files appear WHILE the turn streams, and SVG renders instead of "unsupported" — **ROUTED + APPROVED 2026-08-06 (Owen: "5. approved" then "f1 looks good"); design proposal read and blessed; bars pre-registered below BEFORE the build** — **✅ CLOSED 2026-08-06 late evening: all five bars MET (258-E on device), white canvas DECIDED (stays white), chip relocation spun off to #262**
 
 **Framing (established by the terrain map, `G-preview-panes-terrain.md`,
