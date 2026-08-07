@@ -34,7 +34,7 @@ struct RunsPlaneTransportTests {
         let method: String
         let path: String
         let body: String
-        /// Task 7: the `abandonActiveRun` tests pin the `/stop` POST's auth
+        /// Task 7: the `hardStopActiveRun` tests pin the `/stop` POST's auth
         /// header, not just that a request landed.
         let authorization: String?
     }
@@ -56,7 +56,7 @@ struct RunsPlaneTransportTests {
             /// request's response is delivered. The request log entry is
             /// written the INSTANT `startLoading` begins — before this delay
             /// — so a test can deterministically interleave a synchronous
-            /// client-side call (`abandonActiveRun()`) between "the request
+            /// client-side call (`hardStopActiveRun()`) between "the request
             /// went out" and "the response landed" (which is what starts
             /// frame processing), rather than racing a Task.sleep poll loop
             /// against however fast this stub answers. Zero by default so no
@@ -263,7 +263,7 @@ struct RunsPlaneTransportTests {
                     return try reply(eventsStatus, sseBody, contentType: "text/event-stream")
                 case "/v1/runs/run-r1/stop":
                     // Task 7: the real server-side interrupt. The response
-                    // body is never decoded by `abandonActiveRun` — it fires
+                    // body is never decoded by `hardStopActiveRun` — it fires
                     // and forgets — so an empty object is enough.
                     return try reply(200, "{}")
                 case "/v1/runs/run-r1":
@@ -1037,7 +1037,9 @@ struct RunsPlaneTransportTests {
 
     /// Before this, "Stop" only stopped the app LISTENING (S24: the host
     /// kept generating unattended). This pins the real interrupt:
-    /// `abandonActiveRun()` must actually POST `/v1/runs/{id}/stop` with the
+    /// `hardStopActiveRun()` — the explicit Stop tap's entry point, split
+    /// from the network-free `abandonActiveRun()` walk-away teardown by the
+    /// #283 review ruling — must actually POST `/v1/runs/{id}/stop` with the
     /// client's auth, and the self-initiated cancel that follows must
     /// resolve SILENTLY — ChatStore already tore its own UI state down the
     /// moment the user tapped Stop, so a second `.interrupted` would be an
@@ -1045,13 +1047,13 @@ struct RunsPlaneTransportTests {
     ///
     /// The stream is parked (`hangEventsAfterBody`, the same zombie shape
     /// `zombieRunsStreamTripsTheStallGuard` uses) so the run is still
-    /// "active" from the client's point of view when `abandonActiveRun()`
+    /// "active" from the client's point of view when `hardStopActiveRun()`
     /// fires. `streamStallThreshold` is shortened so the stall guard trips
     /// promptly afterward, entering the recovery poll — scripted to report
     /// the run `cancelled`, the shape the host takes after honoring a real
     /// `/stop`.
     @Test @MainActor
-    func abandonActiveRunPostsStopWithAuth() async throws {
+    func hardStopActiveRunPostsStopWithAuth() async throws {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(
             sseBody: Self.runsSSE([
@@ -1088,16 +1090,16 @@ struct RunsPlaneTransportTests {
         }
         #expect(
             RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil,
-            "the events subscribe must land before the turn can be abandoned"
+            "the events subscribe must land before the turn can be stopped"
         )
 
-        client.abandonActiveRun()
+        client.hardStopActiveRun()
 
         let updates = await collector.value
         belt.cancel()
 
         // Pump for the stop request — it is fire-and-forget, so it may land
-        // slightly after `abandonActiveRun()` returns.
+        // slightly after `hardStopActiveRun()` returns.
         pumps = 0
         while RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop") == nil, pumps < 200 {
             pumps += 1
@@ -1119,20 +1121,82 @@ struct RunsPlaneTransportTests {
     /// this backend never had one (the local brain, reached through the same
     /// protocol default) — must send no request at all.
     @Test @MainActor
-    func abandonWithNoActiveRunIsANoOp() async throws {
+    func hardStopWithNoActiveRunIsANoOp() async throws {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([]))
         defer { RunsStubURLProtocol.reset() }
 
         // Fresh client, runs provider on (`makeClient`'s default), no turn
         // ever started — nothing for `activeRunContext` to hold.
-        let client = makeClient(label: "abandon-noop")
-        client.abandonActiveRun()
+        let client = makeClient(label: "hardstop-noop")
+        client.hardStopActiveRun()
 
         // Give an errant fire-and-forget a moment to (not) fire.
         try? await Task.sleep(for: .milliseconds(50))
 
         #expect(RunsStubURLProtocol.requests().isEmpty, "no active run means no request of any kind, not just no /stop")
+    }
+
+    /// #283 review ruling: `abandonActiveRun` — the WALK-AWAY teardown
+    /// (`abandonPendingRun`, a thread switch, clearing the conversation, a
+    /// continued-send expiring) — must never touch the network, even while a
+    /// run is genuinely active. Sessions-plane parity: switching threads or
+    /// clearing mid-turn must not throw away an answer the write-half would
+    /// otherwise have preserved. This is the inverse of
+    /// `hardStopActiveRunPostsStopWithAuth` above — same parked-stream setup,
+    /// but `abandonActiveRun()` instead of `hardStopActiveRun()`, and the
+    /// run is left un-silenced (still reachable) since nobody told the host
+    /// to stop.
+    @Test @MainActor
+    func walkAwayAbandonNeverTouchesTheNetwork() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [Self.runningStatus],
+            hangEventsAfterBody: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "walk-away")
+        client.streamStallThreshold = .milliseconds(300)
+
+        let collector = Task { @MainActor in
+            var updates: [StreamingUpdate] = []
+            for await update in client.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID()) {
+                updates.append(update)
+            }
+            return updates
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
+
+        // Walk-away, NOT Stop.
+        client.abandonActiveRun()
+
+        let updates = await collector.value
+        belt.cancel()
+
+        #expect(
+            RunsStubURLProtocol.requests().filter { $0.path.hasSuffix("/stop") }.isEmpty,
+            "abandonActiveRun (walk-away) must never POST /stop"
+        )
+        // Not silenced either: the host was never told to stop, so its
+        // eventual recovery is the ordinary "still going" shape, not the
+        // self-stopped silence `hardStopActiveRun` produces. Proves
+        // `abandonActiveRun` leaves `selfStoppedRunIDs` untouched, not just
+        // that it skips the network call.
+        #expect(updates.contains { if case .interrupted = $0 { return true } else { return false } })
     }
 
     // MARK: - Task 7 review finding 1: the poll's nil-terminal door
@@ -1183,7 +1247,7 @@ struct RunsPlaneTransportTests {
         }
         #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
 
-        client.abandonActiveRun()
+        client.hardStopActiveRun()
 
         let updates = await collector.value
         belt.cancel()
@@ -1201,10 +1265,10 @@ struct RunsPlaneTransportTests {
     /// Review finding 2a: pins the OTHER silencing branch — a `run.cancelled`
     /// frame arriving directly on the SSE stream (`:461-468`), never
     /// exercised by any prior test. `eventsResponseDelay` holds the events
-    /// response back until well after `abandonActiveRun()` has run:
+    /// response back until well after `hardStopActiveRun()` has run:
     /// the request log entry is written the instant the request goes out
     /// (before the delay), so pumping for it and then calling
-    /// `abandonActiveRun()` is guaranteed to land before the frame is even
+    /// `hardStopActiveRun()` is guaranteed to land before the frame is even
     /// delivered, let alone processed — no race against however fast the
     /// stub would otherwise answer.
     @Test @MainActor
@@ -1239,7 +1303,7 @@ struct RunsPlaneTransportTests {
         }
         #expect(RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil)
 
-        client.abandonActiveRun()
+        client.hardStopActiveRun()
 
         let updates = await collector.value
         belt.cancel()

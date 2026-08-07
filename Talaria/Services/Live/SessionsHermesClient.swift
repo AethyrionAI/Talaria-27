@@ -94,14 +94,14 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// terminal exit — so a stop request always targets the run actually in
     /// flight, or finds nothing and no-ops. `private(set)`: only
     /// `setActiveRunContext`/`clearActiveRunContext` below may write it;
-    /// everyone else (the router, `abandonActiveRun`'s own callers) reads.
+    /// everyone else (the router, `hardStopActiveRun`'s own callers) reads.
     private(set) var activeRunContext: (runID: String, profileID: UUID?)?
 
     /// #283 Task 7: run ids WE told the host to stop. A late `run.cancelled`
     /// frame or a polled `cancelled` status for one of these is the
     /// self-initiated stop completing, not someone else's cancel, and must
     /// end the turn SILENTLY (no `.interrupted`). Populated by
-    /// `abandonActiveRun()`, drained (checked-and-removed) by the runs
+    /// `hardStopActiveRun()`, drained (checked-and-removed) by the runs
     /// driver's terminal handling for that same id — never grows past the
     /// handful of runs actually in flight.
     private(set) var selfStoppedRunIDs: Set<String> = []
@@ -117,7 +117,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
-    /// it was already cleared (e.g. `abandonActiveRun()` beat this to it) or
+    /// it was already cleared (e.g. `hardStopActiveRun()` beat this to it) or
     /// it belongs to a different, later run. Either way there is nothing
     /// harmful to do: never clears a context this call didn't own.
     func clearActiveRunContext(matchingRunID: String) {

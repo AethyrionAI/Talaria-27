@@ -115,11 +115,27 @@ protocol HermesClientProtocol {
     /// Returns nil for clients without a server-backed session (relay / mock).
     func reconcileFromServer() async -> Conversation?
 
-    /// #192: the consumer walked away from the in-flight run (stop, clear,
-    /// session switch). Clients holding per-run state release it here so an
-    /// abandoned stream can never wedge later routing; the default is a
-    /// no-op.
+    /// #192: the consumer walked away from the in-flight run (clear, session
+    /// switch, a continued-send expiring) — NOT the explicit Stop tap.
+    /// Clients holding per-run state release it here so an abandoned stream
+    /// can never wedge later routing; the default is a no-op. Sessions-plane
+    /// parity (#283 review ruling): this MUST NOT reach the network — a
+    /// walk-away lets the host keep generating, so switching threads or
+    /// clearing mid-turn doesn't throw away an answer the write-half would
+    /// otherwise have preserved. `ChatStore.cancelStreaming()` still calls
+    /// this too, but only ALONGSIDE `hardStopActiveRun()` below, never
+    /// instead of it.
     func abandonActiveRun()
+
+    /// #283 Task 7 (S23): the explicit user Stop tap, and ONLY that —
+    /// `ChatStore.cancelStreaming()` is its one call site. A real
+    /// server-side interrupt for clients that can issue one (the Hermes
+    /// runs plane's `POST /v1/runs/{id}/stop`); the default is a no-op for
+    /// clients with nothing to interrupt server-side (mock / relay / the
+    /// on-device brain). Distinct from `abandonActiveRun` above: a walk-away
+    /// must never hard-kill a run the user didn't ask to stop, so this is
+    /// the ONLY door that touches the network.
+    func hardStopActiveRun()
 
     /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)
     /// and this conversation is now the whole of it. Every client that keeps
@@ -148,5 +164,6 @@ extension HermesClientProtocol {
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }
     func abandonActiveRun() {}
+    func hardStopActiveRun() {}
     func adoptTruncatedConversation(_ conversation: Conversation) {}
 }

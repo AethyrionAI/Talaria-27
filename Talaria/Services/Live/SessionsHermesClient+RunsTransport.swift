@@ -273,7 +273,7 @@ extension SessionsHermesClient {
         // OR the catch below, since this whole function body sits inside the
         // `defer`'s scope) — whichever run THIS call submitted stops being
         // addressable the moment the turn is over. `clearActiveRunContext`
-        // no-ops harmlessly if `abandonActiveRun()` already cleared it (a
+        // no-ops harmlessly if `hardStopActiveRun()` already cleared it (a
         // stop that lands while terminal delivery is in flight), and
         // `consumeSelfStopped` is drained here too so the flag never
         // outlives the run it was stamped for.
@@ -451,7 +451,7 @@ extension SessionsHermesClient {
                     continuation.yield(.failed(Self.runFailureText(error)))
                     finishedYielded = true
                 case .runCancelled:
-                    // Task 7: a run WE stopped (`abandonActiveRun()`) ends
+                    // Task 7: a run WE stopped (`hardStopActiveRun()`) ends
                     // SILENTLY here — no `.interrupted` — because ChatStore
                     // already tore down its own UI state the moment the user
                     // tapped Stop; announcing recovery for a cancel we asked
@@ -892,7 +892,7 @@ extension SessionsHermesClient {
         default:
             // `cancelled`, `stopped`, or a terminal status name this build
             // does not know: the run is over and there is no answer to show.
-            // Task 7: if WE stopped it (`abandonActiveRun()`), that is the
+            // Task 7: if WE stopped it (`hardStopActiveRun()`), that is the
             // self-initiated stop resolving and ends SILENTLY — otherwise
             // it's recovery, not a failure claim, exactly as before.
             if consumeSelfStopped(runID: runID) {
@@ -914,10 +914,17 @@ extension SessionsHermesClient {
     /// host kept generating unattended (S24). This is what actually tells
     /// the host to stop.
     ///
-    /// Reached through `ChatBackendRouter.abandonActiveRun()` →
-    /// `ResilientHermesClient.abandonActiveRun()` → here — the protocol
+    /// Reached through `ChatBackendRouter.hardStopActiveRun()` →
+    /// `ResilientHermesClient.hardStopActiveRun()` → here — the protocol
     /// default (`HermesClientProtocol.swift`) is a no-op, so this override is
-    /// what makes the forward do anything.
+    /// what makes the forward do anything. `ChatStore.cancelStreaming()` is
+    /// this method's ONE call site (#283 review ruling): every OTHER
+    /// walk-away path (`abandonPendingRun`, a thread switch, clearing the
+    /// conversation, a continued-send expiring) calls plain
+    /// `abandonActiveRun()` instead, which stays a network-free no-op on
+    /// this client — sessions-plane parity, so switching threads mid-turn
+    /// doesn't throw away an answer the write-half would otherwise have
+    /// preserved.
     ///
     /// No-ops when nothing is active: a Stop tapped after the turn already
     /// finished (or on a backend that never had a run — the local brain)
@@ -928,10 +935,16 @@ extension SessionsHermesClient {
     /// (`.runCancelled`, `deliverPolledTerminal`'s default arm) ends it
     /// silently rather than as `.interrupted`, and fires the POST
     /// fire-and-forget: the caller already tore down its own state and is
-    /// not waiting on this, and a 404 (`run_not_found` — the run already
-    /// ended server-side on its own) is a perfectly fine outcome, not a
-    /// failure worth surfacing.
-    func abandonActiveRun() {
+    /// not waiting on this.
+    ///
+    /// The `catch` below only ever sees a TRANSPORT failure (host
+    /// unreachable, the request cancelled, TLS trouble) — `session.data(for:)`
+    /// does not throw on an HTTP error status. A 404 (`run_not_found` — the
+    /// run already ended server-side on its own) comes back as ordinary,
+    /// successful `data` that this fire-and-forget call deliberately never
+    /// examines (`_ = try await …`), not something the error handling
+    /// catches or tolerates.
+    func hardStopActiveRun() {
         guard let context = activeRunContext else { return }
         clearActiveRunContext(matchingRunID: context.runID)
         markSelfStopped(runID: context.runID)
@@ -950,7 +963,7 @@ extension SessionsHermesClient {
                 _ = try await self.session.data(for: request)
             } catch {
                 runsTransportLogger.notice(
-                    "runs: stop request for \(runID, privacy: .public) did not confirm (already ended is fine) — \(error.localizedDescription, privacy: .public)"
+                    "runs: stop request for \(runID, privacy: .public) did not reach the host — \(error.localizedDescription, privacy: .public)"
                 )
             }
         }

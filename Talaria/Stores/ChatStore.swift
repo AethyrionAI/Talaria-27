@@ -1099,6 +1099,13 @@ final class ChatStore {
     func cancelStreaming() {
         streamingTask?.cancel()
         streamingTask = nil
+        // #283 Task 7 (S23), review ruling: the explicit Stop tap gets the
+        // REAL server-side interrupt — this is `hardStopActiveRun`'s one
+        // call site. Every other walk-away path (thread switch, clear, a
+        // continued-send expiring) calls only `abandonActiveRun()` below and
+        // must never reach the network, or switching threads mid-turn would
+        // throw away an answer the host was still producing.
+        hermesClient.hardStopActiveRun()
         // #192: the stopped run is over from the consumer's side — release
         // the router's routing lock so the brain toggle re-derives now.
         hermesClient.abandonActiveRun()
