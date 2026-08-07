@@ -228,6 +228,7 @@
 		6E7F26765271508DB4015350 /* TalariaPlatformLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6151A7914EC6D46541D58EE1 /* TalariaPlatformLink.swift */; };
 		6F7426E331EBAB6AB9F9DCE6 /* SkillsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF8AAADA890E96CECA5D0CDD /* SkillsStore.swift */; };
 		700F3C77CB181111F0096464 /* DeviceCapability.swift in Sources */ = {isa = PBXBuildFile; fileRef = C70E0AC5FF9CE2176CFE8FBB /* DeviceCapability.swift */; };
+		70397C7350AA9AD6371C655E /* HostReachability.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EF240E4C67102BB6FF22F1 /* HostReachability.swift */; };
 		7105A431C0522A95D5577C02 /* PermissionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5947892A74BA10823951BC62 /* PermissionsStore.swift */; };
 		718B97699DC8A48CD18472B1 /* TranscriptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9DB35CE33537DD35FFADDB5 /* TranscriptView.swift */; };
 		719904EA81DB624316AD387A /* IconPreview-ComicFunnies.png in Resources */ = {isa = PBXBuildFile; fileRef = A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */; };
@@ -607,6 +608,7 @@
 		158695134A208F419A6A9E49 /* HermesClientProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesClientProtocol.swift; sourceTree = "<group>"; };
 		162F451F83C4AC21B06C1920 /* MediaServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServiceProtocol.swift; sourceTree = "<group>"; };
 		17A9783DF0DB78DE9E409FD1 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
+		17EF240E4C67102BB6FF22F1 /* HostReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostReachability.swift; sourceTree = "<group>"; };
 		18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementServiceProtocol.swift; sourceTree = "<group>"; };
 		18D266B207E1D16C45A7C236 /* Icon-LuchaLibre@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LuchaLibre@2x.png"; sourceTree = "<group>"; };
 		193B0D14BC2A55D65BAB1254 /* Icon-PulpNoir@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@3x.png"; sourceTree = "<group>"; };
@@ -1321,6 +1323,7 @@
 				0F42292E29A3C5B4C3A70972 /* ConnectorOutageAlertPolicy.swift */,
 				7B804F21A2AE52DB37E2447E /* ContextTransplanter.swift */,
 				4CFEF9D3A27BC3070CA020E2 /* DocumentTextExtractor.swift */,
+				17EF240E4C67102BB6FF22F1 /* HostReachability.swift */,
 				2573EFA3B69C8859EC660995 /* KeychainSecureStore.swift */,
 				ED2F3827A98FF7496E455C60 /* MonetizationGate.swift */,
 				72FAE396354E7BE313E3BA59 /* ProfileRelaySession.swift */,
@@ -2341,6 +2344,7 @@
 				D7F95D4B5AC3C7A2F1F8DA9E /* HermesWidgetData.swift in Sources */,
 				815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */,
 				EE8BA255BD3A6B50221B7E51 /* HostFedListPresentation.swift in Sources */,
+				70397C7350AA9AD6371C655E /* HostReachability.swift in Sources */,
 				5329B0DC507B49C584F5C6C4 /* InboxActionDescriptor.swift in Sources */,
 				64C9E9F2A1DC10371113CCCA /* InboxActionResult.swift in Sources */,
 				4E4B1F1367DF61EA7F9D835C /* InboxBriefing.swift in Sources */,

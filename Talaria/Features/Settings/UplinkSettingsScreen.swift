@@ -459,15 +459,24 @@ struct UplinkSettingsScreen: View {
 
     /// Transport error → the three network shapes #145/#136 named. Static so
     /// the mapping is unit-testable without a socket.
+    ///
+    /// #56: the SHAPE decision now lives in `HostReachability.classify` — one
+    /// classifier for this screen and the Ask-Hermes intent, so the two
+    /// surfaces can never disagree about what a `-1001` means. This function
+    /// keeps only the translation into this screen's older vocabulary, whose
+    /// wording is settings-row voice (`ConnectionTestFailure.detail` cites the
+    /// 5s budget and the port field) rather than Siri's. Every string below is
+    /// byte-identical to the pre-#56 version.
     static func failure(for code: URLError.Code) -> ConnectionTestFailure {
-        switch code {
-        case .cannotConnectToHost: .refused
-        case .timedOut: .timedOut
-        case .cannotFindHost, .dnsLookupFailed: .hostNotFound
-        case .notConnectedToInternet: .other("This device has no network connection.")
-        case .appTransportSecurityRequiresSecureConnection:
+        switch HostReachability.classify(code) {
+        case .refused: .refused
+        case .noAnswer: .timedOut
+        case .hostNotFound: .hostNotFound
+        case .deviceOffline: .other("This device has no network connection.")
+        case .blockedByATS:
             .other("App Transport Security blocked the request to that address.")
-        default: .other("The connection failed (\(code.rawValue)).")
+        case .notConfigured(let reason): .notConfigured(reason)
+        case .connectionLost, .other: .other("The connection failed (\(code.rawValue)).")
         }
     }
 
