@@ -18,8 +18,9 @@ that session. The 2026-08-02 SITTING PLAN just below is not deleted — its
 Sitting 1 and most of Sitting 2 are DONE (their rows carry ✅ verdicts
 throughout §F1/§F5); Sitting 3 (voice+calls, Shelley, scheduled 2026-08-04)
 has **no verdict recorded anywhere in this file**, so it is treated as
-NOT run and folds into Group 6 below; Sitting 4 (§F8) is **retired outright**
-— see "Dropped from tomorrow" below.
+NOT run and folds into Group 8 below (renumbered from Group 6 by the
+batch-3 addendum just below); Sitting 4 (§F8) is **retired outright** —
+see "Dropped from tomorrow" below.
 
 **New this pass, reconciled against OPEN_ITEMS #21/#56/#58/#61/#74/#75/#77/
 #78/#80/#81/#82, archived #83, and #262 (bar 262-E, PR #277 merged — it WILL
@@ -73,7 +74,18 @@ re-run since the compound fix landed.
 2026-08-01 #220 flag records that the 2026-07-16 device confirm ran on ONE
 voice engine and nothing logged which — "the other engine's half is
 unverified." The engine-naming log line now exists
-(`VoiceEngineRouter.swift:196`, shipped with #221's fix). See Group 6.
+(`VoiceEngineRouter.swift:196`, shipped with #221's fix). See Group 8 (moved
+from Group 6 by tonight's batch-3 addition below).
+
+**Batch-3 addendum (same evening, 2026-08-06, later): three shipped lanes'
+device checklists were never centralized and were at risk of being
+forgotten — #162 (Tasks), #163 (Skills), #165 (Insights), all `SHIPPED, on
+main` with a "device checklist still owed" header, and #93 (continuity
+fabric, Lane A), merged 2026-07-10 and STILL never device-verified at all.
+Folded in below as new **Group 2** (drawer surfaces) and new **Group 7**
+(kill/relaunch cycles), pushing the former Groups 2–6 down to 3–6 and 8.
+This is a real, not cosmetic, growth in scope — the total estimate at the
+bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
 
 ### (a) Runnable now, ordered to minimize churn
 
@@ -121,7 +133,72 @@ unverified." The engine-naming log line now exists
   one turn. (PASS: teardown clears consistently across all three paths;
   each attachment resolves to its own local file, neither overwritten.)
 
-**Group 2 — Settings-dependent (batch these — one trip through Settings).**
+**Group 2 — Drawer surfaces: Tasks / Skills / Insights (added 2026-08-06,
+batch-3). All three are `SHIPPED, on main`, still PAIRED + CONNECTED to
+OJAMD — the same default state as Group 1, just deeper in the app, so no
+extra churn to reach them. Their device checklists lived only inside their
+OPEN_ITEMS entries until tonight; quoted verbatim below, cited to their
+item numbers.** Est. ~35–40 min.
+
+*#162 (Tasks):*
+- [ ] Drawer → SCHEDULED TASKS → list renders real OJAMD jobs (or the
+  honest empty state)
+- [ ] Create via each preset (interval / daily / weekly / once-relative /
+  once-absolute) and confirm the server's `schedule_display` matches the
+  preset's intent
+- [ ] Advanced mode: submit a bad string → sheet stays open with the
+  server's message verbatim; submit a valid cron → server display shown
+  after save
+- [ ] Run Now / Pause / Resume / Delete round-trips; list+detail stay in
+  lockstep with no refetch flicker
+- [ ] Edit an existing job: untouched fields absent from the PATCH (proxy:
+  legacy deliver value survives an unrelated edit)
+- [ ] needsAttention badge on a genuinely dead recurring job (PREREQUISITE:
+  the item's own repro is "disable one host-side with `enabled: false` via
+  PATCH" — a direct host-side API call, not a phone action; do this from
+  wherever you'd run F7d's host call)
+- [ ] Timezone caveat renders next to daily/weekly time input;
+  once-absolute fires at the device-local instant picked
+
+*#163 (Skills):*
+- [ ] Drawer → SKILLS renders the real host list (~98 on the Mac host)
+  grouped by category, Uncategorized last
+- [ ] Search filters live across name/description/category; a garbage
+  query shows the "No skills match" state echoing the query
+- [ ] Expand a row with a long multi-line description — full text,
+  newlines intact; collapse restores the 2-line preview
+- [ ] Pull-to-refresh; then airplane-mode refresh keeps rows on screen
+  with the REFRESH FAILED strip (never a replacement)
+- [ ] Cron editor: SKILLS field shows the picker fed from the host list; a
+  hand-typed value renders "(custom)" and survives an unrelated edit
+  round-trip; with the gateway unreachable the field stays free text
+- [ ] EDIT AS TEXT escape works and round-trips back through the picker
+
+*#165 (Insights):*
+- [ ] Drawer → INSIGHTS renders real host numbers; banner names the window
+  and host, "AS OF" stamp updates on pull-to-refresh
+- [ ] Totals strip agrees with a spot-check against `GET /api/sessions` on
+  OJAMD (tokens in/out, tool calls, api calls); cost row absent while the
+  host serves 0.0/null costs (expected today) — no "$0.00" anywhere
+- [ ] By-source shows api_server/discord/tui split; by-model shows the
+  real model mix; shares sum to ~100%
+- [ ] Session rows: title-or-id-prefix, source badge, relative recency;
+  expand shows duration/cache/reasoning/messages; a usage-less session
+  shows NO zeros (row renders, numbers absent)
+- [ ] >600-session host, if reachable: truncation strip appears and the
+  banner count matches the fetched window, not all-time (AMBIGUOUS: no
+  record of whether OJAMD currently holds >600 sessions — check the count
+  first; if it doesn't, record this as untested-precondition-not-met,
+  don't skip it silently)
+- [ ] Airplane-mode refresh keeps numbers on screen with the REFRESH
+  FAILED strip (never a replacement); CTX gauge in chat unchanged and
+  never contradicted by this screen's copy
+- [ ] Unpaired/bare profile: honest NO HERMES HOST CONFIGURED state — **run
+  this one during Group 4 (Standalone/Unpaired) instead**, not here; it
+  needs the opposite pairing state from the rest of this group, so doing
+  it here would cost an extra churn cycle this document exists to avoid.
+
+**Group 3 — Settings-dependent (batch these — one trip through Settings).**
 Est. ~15 min.
 - [ ] #75 — Check the chat header at: default width, both brains (HERMES /
   ON-DEVICE), a long model name (e.g. `DEEPSEEK-V4-...`), and a Dynamic
@@ -145,7 +222,7 @@ Est. ~15 min.
   framework permission stores — so this is the only way to confirm the
   2026-08-04 grep-verified fix actually holds.)
 
-**Group 3 — STANDALONE / UNPAIRED (§F2). Disconnect from OJAMD once, run
+**Group 4 — STANDALONE / UNPAIRED (§F2). Disconnect from OJAMD once, run
 this whole block, then re-pair.** Est. ~25 min.
 - [ ] #61 — Create local sessions with short/ambiguous first turns
   (attachment-only, or a reply that echoes the question), read the drawer.
@@ -169,8 +246,11 @@ this whole block, then re-pair.** Est. ~25 min.
   real tomorrow forecast since this bar was written, so a correct answer
   now also satisfies it; B4 a normal multi-tool control turn, e.g. "remind
   me to call Shelley tomorrow at 4," still completes normally.)
+- [ ] #165 (Insights, unpaired half — moved here from Group 2) — Open
+  Insights with no Hermes host configured / disconnected. (PASS: an honest
+  NO HERMES HOST CONFIGURED state, not a blank screen or a crash.)
 
-**Group 4 — Mac profile active (batch the one profile switch).**
+**Group 5 — Mac profile active (batch the one profile switch).**
 Est. ~15 min.
 - [ ] #21 (Mac side, re-confirm) — Switch the active backend to the Mac
   profile. `probe-t21.pdf` should already sit in the Mac's MobileDL; tap
@@ -182,7 +262,7 @@ Est. ~15 min.
   the #4 confirm gate fired before the write, and the read-back matches.)
   Switch back to OJAMD afterward if anything later needs it.
 
-**Group 5 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
+**Group 6 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
 `approvals.mode` on the dashboard).** Est. ~25 min, plus however long F7d's
 stall takes (bounded by #145 to 20s/300s — it will not hang forever).
 - [ ] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
@@ -199,7 +279,43 @@ stall takes (bounded by #145 to 20s/300s — it will not hang forever).
 - [ ] F7e (optional) — Repeat F7d with `smart` instead of `manual`. (Record
   whether Smart prompts at all for ordinary agent work.)
 
-**Group 6 — Voice, Control Center, and Siri: the leaving-the-app phase
+**Group 7 — #93 continuity fabric: kill/relaunch cycles (added 2026-08-06,
+batch-3). Batch this with Group 6 above — both need host-side access
+(here, the ability to stop/restart the Hermes gateway process). This lane
+merged 2026-07-10 (`PR #61`) and has NEVER had a device pass of any kind —
+not "unverified since a fix," genuinely never run once. Quoted verbatim
+from OPEN_ITEMS #93's own "Device checklist," items (a)–(f).**
+Est. ~25–30 min, including the gateway restart's downtime.
+- [ ] (a) Kill and relaunch the app mid-conversation. (PASS: the next turn
+  resumes the SAME server session — no priming notice.)
+- [ ] (b) Stop the gateway, relaunch the app, then restart the gateway.
+  (PASS: the next turn shows the transplant notice + priming tokens in
+  StatusCard.) (PREREQUISITE: needs the ability to stop/restart the
+  gateway process on whichever host is active — see CLAUDE.md's OJAMD
+  services section for how the gateway is/isn't a service there.)
+- [ ] (c) Switch models mid-conversation. (PASS: the next turn hops with
+  the notice, and the new model answers WITH context.)
+- [ ] (d) Send local-brain (on-device) turns, then switch back to Hermes.
+  (PASS: the transplant carries the local exchange into the next Hermes
+  turn.)
+- [ ] (e) Airplane mode ON, send a message, then airplane mode OFF. (PASS:
+  the send parks as `.queued`, and reconnecting auto-sends it. **Must be
+  airplane mode specifically** — this item's own later correction narrows
+  `isUnreachableError` so a merely-unreachable/dead host over Tailscale
+  surfaces as `.timedOut` → an honest `.failed` + retry, NOT `.queued`;
+  only genuine offline, `.notConnectedToInternet`, queues. Using a
+  black-holed host instead of airplane mode here would test the wrong
+  path and likely read as a false FAIL.)
+- [ ] (f) After the above, open session totals. (PASS: a PRIMING row
+  appears and the session cost estimate includes priming.)
+
+Separately, and NOT part of tonight's phone session: `CondenserFidelityTests`
+(the suite-side fidelity acceptance, requires on-device Apple Intelligence)
+has been reported SKIPPED rather than run since at least 2026-07-13 — "a
+skip is not a pass." That's a test-run concern for whoever next runs the
+full suite on Apple Intelligence hardware, not a device-pass checkbox.
+
+**Group 8 — Voice, Control Center, and Siri: the leaving-the-app phase
 (§F6 + new §F9/§F10). Run this block LAST among the runnable groups —
 everything in it backgrounds the app or launches it from outside.**
 Est. ~60–75 min, the biggest and least predictable group; A1/A1b need a
@@ -295,14 +411,18 @@ second person to actually call the phone.
   beyond "outstanding from the #206 lane" — re-read #206 before scheduling
   it) **and C4** (matched-thermal replication — explicitly "long; only
   worth a dedicated sitting" per its own row).
-- **A1/A1b** are listed in Group 6 as runnable IF a second person is
+- **A1/A1b** are listed in Group 8 as runnable IF a second person is
   arranged; if nobody can call, they roll to the next sitting untouched.
 
-**Total estimate for Groups 1–6: roughly 3 to 3.5 hours**, not counting
-A1/A1b's dependency on someone else's schedule or F7d's possible full
-timeout wait. This is a full session, not a lunch break — the group
-boundaries above are natural pause points if the day doesn't allow it in
-one sitting.
+**Total estimate for Groups 1–8: roughly 4 to 4.5 hours.** This grew from
+the ~3–3.5h first cut, honestly, not shaded down — batch-3's addition
+(new Group 2's ~20 drawer-checklist items, new Group 7's continuity-fabric
+checklist) added roughly an hour on its own. Breakdown: Group 1 ~30 min,
+Group 2 ~35–40 min, Group 3 ~15 min, Group 4 ~25 min, Group 5 ~15 min,
+Group 6 ~25 min (+ F7d's variable stall), Group 7 ~25–30 min, Group 8
+~60–75 min — plus A1/A1b's dependency on someone else's schedule. This is
+a full session, not a lunch break — the group boundaries above are natural
+pause points if the day doesn't allow it in one sitting.
 
 ---
 
@@ -1033,7 +1153,8 @@ four times total.
 > run against this row's original 4-bar fixture is therefore a
 > **confirmation of a very likely-already-fixed defect**, kept in the queue
 > only because the original fixture itself hasn't been re-run since the
-> compound fix landed. See "Consolidated run 2026-08-07," Group 3.
+> compound fix landed. See "Consolidated run 2026-08-07," Group 4 (renumbered
+> from Group 3 by the 2026-08-06 batch-3 addendum).
 | **#121** | Resume a session that has prior reasoning | thinking panes restore from stored messages. **✅ PASS 2026-08-02** — two resumed sessions verified (one viewed under the on-device brain, one Hermes/cron): expanded AND collapsed reasoning panes restored from stored messages, and the live pane streams on a fresh turn |
 | **#122** | Open a session with known usage | spend row shows real numbers; `$0.00` only where genuinely unknown. **✅ PASS 2026-08-02** — Settings → Sessions rows show real `IN/OUT/CALLS` figures including host-run cron sessions (so the wire carries usage, not just phone-side receipts); a brand-new session's line materialized in 14s (`IN 7.4K · OUT 84 · 1 CALLS`); no `$0.00` placeholder anywhere — absent data hides the line by design. Console corroborates: `run finished on hermes [stream-ended]` |
 | **#191** | Airplane mode ON with **on-device** active | header title + model pill name the ACTIVE brain, not the stale Hermes session. **✅ PASS 2026-08-02** — verified in BOTH an existing Hermes session and a fresh chat: header + pill read ON-DEVICE in airplane mode. Console: the flip was user-initiated (`activeBrain hermes → on-device initiator=refresh/override`), and the offline errors are honest (`listSessions: 'OJAMD' unreachable — Internet offline`) |
