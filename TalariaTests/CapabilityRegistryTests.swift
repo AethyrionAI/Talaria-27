@@ -1,3 +1,4 @@
+import FoundationModels
 import Testing
 @testable import Talaria
 
@@ -36,5 +37,56 @@ struct CapabilityRegistryTests {
         for group in CapabilityGroup.allCases {
             #expect(!group.displayPhrase.isEmpty)
         }
+    }
+
+    // MARK: - Belt pins (#200 actionToolNames pattern, bidirectional)
+
+    @MainActor private static func fullBelt() -> [any Tool] {
+        let relay = ToolEventRelay()
+        var belt = DeviceToolBelt.makeReadTools(
+            relay: relay,
+            conversationProvider: { nil },
+            sessionCacheProvider: { [] },
+            spotlightEnabledProvider: { false })
+        belt += DeviceToolBelt.makeActionTools(
+            relay: relay,
+            confirmations: ToolConfirmationCenter(),
+            alarmService: AlarmService())
+        return belt
+    }
+
+    @Test @MainActor func everyBeltToolHasADescriptorWhoseIdIsItsName() {
+        let belt = Self.fullBelt()
+        let registry = CapabilityRegistry(belt: belt)
+        #expect(registry.descriptors.count == belt.count)  // no undescribed tool
+        for tool in belt {
+            let descriptor = registry.descriptors.first { $0.id == tool.name }
+            #expect(descriptor != nil, "no descriptor for \(tool.name)")
+        }
+    }
+
+    @Test @MainActor func everyGroupMapsToAtLeastOneToolAndEveryToolToExactlyOneGroup() {
+        let registry = CapabilityRegistry(belt: Self.fullBelt())
+        let groups = Set(registry.descriptors.map(\.group))
+        #expect(groups == Set(CapabilityGroup.allCases))   // no orphan group
+        // "exactly one group" is structural (group is a single field), but
+        // duplicate descriptors would double-count — pin id uniqueness.
+        #expect(Set(registry.descriptors.map(\.id)).count == registry.descriptors.count)
+    }
+
+    @Test @MainActor func actionToolsAreWriteClassAndReadToolsAreReadClass() {
+        let registry = CapabilityRegistry(belt: Self.fullBelt())
+        for d in registry.descriptors {
+            let isAction = DeviceToolBelt.actionToolNames.contains(d.id)
+            #expect((d.riskClass == .write) == isAction, "\(d.id) risk class wrong")
+        }
+    }
+
+    @Test @MainActor func visionGroupIsExactlyTheImageDependentTools() {
+        let belt = Self.fullBelt()
+        let registry = CapabilityRegistry(belt: belt)
+        let visionIds = Set(registry.descriptors.filter { $0.group == .vision }.map(\.id))
+        let imageDependent = Set(belt.filter { $0 is any ImageDependentTool }.map(\.name))
+        #expect(visionIds == imageDependent)  // rule V's precondition (spec §6)
     }
 }

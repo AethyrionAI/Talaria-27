@@ -323,6 +323,14 @@ struct ReminderCreateTool: Tool {
     }
 }
 
+extension ReminderCreateTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "createReminder",
+        semanticDescription: "Creates a reminder, behind the user's confirmation card.",
+        source: .device, group: .reminders, riskClass: .write,
+        permissions: ["Reminders"], argumentSummary: "title + due date")
+}
+
 #if DEBUG
 // MARK: - #200B guidefix treatment copy
 
@@ -549,6 +557,14 @@ struct CalendarEventTool: Tool {
     }
 }
 
+extension CalendarEventTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "createCalendarEvent",
+        semanticDescription: "Creates a calendar event, behind the user's confirmation card.",
+        source: .device, group: .calendar, riskClass: .write,
+        permissions: ["Calendars"], argumentSummary: "title + start/end")
+}
+
 #if DEBUG
 /// PRE-PROMOTION tool verbatim — `durationMinutes` and `location`
 /// non-optional, so the schema marks them REQUIRED again. A type change
@@ -649,4 +665,12 @@ struct AlarmTool: Tool {
             return "Couldn't schedule the \(finalRequest.kindNoun): \(error.localizedDescription)"
         }
     }
+}
+
+extension AlarmTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "scheduleAlarm",
+        semanticDescription: "Schedules an alarm, behind the user's confirmation card.",
+        source: .device, group: .alarms, riskClass: .write,
+        permissions: ["Alarms"], argumentSummary: "time + optional label")
 }
