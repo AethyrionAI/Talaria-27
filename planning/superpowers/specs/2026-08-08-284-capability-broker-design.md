@@ -77,6 +77,11 @@ The struct gains fields when a consumer exists.
 - Each belt tool type declares its own descriptor via a small protocol
   (`CapabilityDescribing`). The registry is **built from the live belt
   instances** at the existing single build site (`AppContainer.swift:940-957`)
+  *(Dated note 2026-08-08: as shipped, no AppContainer construction exists —
+  the registry is built from the live belt in the DEBUG probe and in the pin
+  tests, and production reads only the static enumeration; anti-drift is
+  carried by the bidirectional pins rather than construction at the build
+  site.)*
   — it structurally cannot describe a tool the belt doesn't carry.
 - **Pinning tests, the `actionToolNames` pattern (#200), bidirectional:**
   every belt tool has a descriptor; every descriptor's id names a real belt
