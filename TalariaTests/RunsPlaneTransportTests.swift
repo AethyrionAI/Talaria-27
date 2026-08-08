@@ -231,7 +231,13 @@ struct RunsPlaneTransportTests {
         eventsStatus: Int = 200,
         failEventsAfterBody: URLError.Code? = nil,
         hangEventsAfterBody: Bool = false,
-        eventsResponseDelay: TimeInterval = 0
+        eventsResponseDelay: TimeInterval = 0,
+        /// Review of #279, Task 7 fix: makes `/v1/runs/run-r1/stop` die at the
+        /// TRANSPORT level (never an HTTP response at all) — the same shape
+        /// `statusTransportFailures` gives the status GET — so a test can pin
+        /// `hardStopActiveRun()`'s behavior when its own POST never reaches
+        /// the host.
+        stopTransportFails: Bool = false
     ) -> RunsStubURLProtocol.Script {
         RunsStubURLProtocol.Script(
             response: { request in
@@ -265,6 +271,7 @@ struct RunsPlaneTransportTests {
                     // Task 7: the real server-side interrupt. The response
                     // body is never decoded by `hardStopActiveRun` — it fires
                     // and forgets — so an empty object is enough.
+                    if stopTransportFails { throw URLError(.networkConnectionLost) }
                     return try reply(200, "{}")
                 case "/v1/runs/run-r1":
                     let call = RunsStubURLProtocol.nextIndex(for: url.path)
@@ -1127,6 +1134,76 @@ struct RunsPlaneTransportTests {
         // the delta that arrived before the stop, with nothing appended by a
         // belt-cancellation cutting the loop off early.
         #expect(labels(updates) == ["textDelta(Wait)"])
+    }
+
+    /// Review of #279, Task 7 fix: a Stop whose POST never reaches the host
+    /// must NOT read as success. Same fixture and shape as
+    /// `hardStopActiveRunPostsStopWithAuth` above (parked stream, shortened
+    /// stall guard, status poll scripted `cancelled`) but with
+    /// `stopTransportFails: true` — the stop request is attempted (recorded
+    /// by the stub the instant `startLoading` begins) and then dies at the
+    /// transport level, so `hardStopActiveRun()`'s `session.data(for:)` never
+    /// returns success. Before the fix, `markSelfStopped` fired BEFORE the
+    /// POST outcome was known, so this run would still have ended silently —
+    /// a Stop that reads as having worked when the host never heard it. The
+    /// fix makes this run surface as ordinary recovery instead: the polled
+    /// `cancelled` status still yields `.interrupted`, not silence.
+    @Test @MainActor
+    func hardStopWhoseStopPostFailsIsNotMarkedSelfStopped() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Wait"}"#,
+            ]),
+            statusBodies: [#"{"object":"hermes.run","run_id":"run-r1","status":"cancelled"}"#],
+            hangEventsAfterBody: true,
+            stopTransportFails: true
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "hardstop-transport-fail")
+        client.streamStallThreshold = .milliseconds(300)
+
+        let collector = Task { @MainActor in
+            var updates: [StreamingUpdate] = []
+            for await update in client.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID()) {
+                updates.append(update)
+            }
+            return updates
+        }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            collector.cancel()
+        }
+
+        var pumps = 0
+        while RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(
+            RunsStubURLProtocol.index("GET", "/v1/runs/run-r1/events") != nil,
+            "the events subscribe must land before the turn can be stopped"
+        )
+
+        client.hardStopActiveRun()
+
+        let updates = await collector.value
+        belt.cancel()
+
+        // The attempt landed (the stub records the request BEFORE failing
+        // it) even though it never succeeded.
+        pumps = 0
+        while RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop") == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(RunsStubURLProtocol.request("POST", "/v1/runs/run-r1/stop") != nil)
+
+        // NOT silenced: a failed stop POST must not read as a self-stop, so
+        // the polled `cancelled` status still arms ordinary `.interrupted`
+        // recovery — the whole point of this fix.
+        #expect(updates.contains { if case .interrupted = $0 { return true } else { return false } })
     }
 
     /// A Stop tapped with nothing running — the turn already finished, or

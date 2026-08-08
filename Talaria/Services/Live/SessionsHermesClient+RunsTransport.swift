@@ -93,6 +93,30 @@ extension SessionsHermesClient {
                     }
                 })
             }
+
+            // Review of #279 (2026-08-07), LOG ONLY — no trimming: trimming what
+            // history the agent sees is a behavioral decision, filed separately.
+            // `AttachmentInlining.aggregateAttachmentBudget` (900 KB) was sized
+            // against attachment parts alone, before the runs plane existed; on
+            // the sessions plane the transcript lives server-side and never rides
+            // the wire at all, so `conversationHistory` below ships on top of
+            // that budget UNCOUNTED — new wire behavior with no measured
+            // distribution yet. This is instrumentation so a device pass can
+            // measure how often, and by how much, real turns cross the figure
+            // the attachment budget was sized against.
+            let historyBytes = history.reduce(0) { $0 + $1.role.utf8.count + $1.content.utf8.count }
+            let attachmentPayloadBytes = assembly.parts.reduce(0) { total, part in
+                switch part {
+                case .text(let text): return total + text.utf8.count
+                case .imageDataURL(let dataURL): return total + dataURL.utf8.count
+                }
+            }
+            if historyBytes + attachmentPayloadBytes > AttachmentInlining.aggregateAttachmentBudget {
+                Self.logger.warning(
+                    "runs turn body: history \(historyBytes, privacy: .public) bytes + attachment payload \(attachmentPayloadBytes, privacy: .public) bytes exceeds the \(AttachmentInlining.aggregateAttachmentBudget, privacy: .public)-byte figure the attachment budget was sized against (history message count \(history.count, privacy: .public)) — instrumentation only, no trimming"
+                )
+            }
+
             return RunsTurnBody(
                 input: input,
                 sessionID: sessionID,
@@ -315,6 +339,13 @@ extension SessionsHermesClient {
             // re-run the turn setup once on a fresh transplanted hop. The run
             // has NOT been submitted at this point, so the retry cannot
             // double-send (#240).
+            //
+            // A brand-new, never-used session is NOT one of those failures:
+            // probe-verified 2026-08-07 (I-3a0-persistence-attachment-probe.md,
+            // N4 addendum) that `GET …/messages` on a session nobody has ever
+            // turned returns `200` with an empty `data` array, not `404` — so a
+            // fresh install's very first turn hits this pre-fetch safely and
+            // needs no special-casing.
             let history: [RunsTurnBody.HistoryEntry]
             do {
                 history = try await fetchRunsHistory(
@@ -556,7 +587,9 @@ extension SessionsHermesClient {
     ) async throws -> String {
         // N4: runs WRITE the session transcript but never READ it, so the
         // thread's context rides the submit body here exactly as it does on
-        // the streamed path.
+        // the streamed path. Including on a session's first-ever turn: this
+        // GET returns 200/[] on a never-used session, not 404 — see the note
+        // at `streamTurnViaRuns`'s own `fetchRunsHistory` call above.
         let history = try await fetchRunsHistory(
             sessionId: hop.sessionId,
             profileID: hop.profileID,
@@ -933,25 +966,33 @@ extension SessionsHermesClient {
     /// No-ops when nothing is active: a Stop tapped after the turn already
     /// finished (or on a backend that never had a run — the local brain)
     /// finds `activeRunContext` nil and sends no request. Otherwise it
-    /// captures-and-clears the context (so a second tap, or the terminal
-    /// delivery racing this one, both see nil and no-op harmlessly), marks
-    /// the run self-stopped so the driver's own terminal handling
-    /// (`.runCancelled`, `deliverPolledTerminal`'s default arm) ends it
-    /// silently rather than as `.interrupted`, and fires the POST
-    /// fire-and-forget: the caller already tore down its own state and is
-    /// not waiting on this.
+    /// captures-and-clears the context immediately (so a second tap, or the
+    /// terminal delivery racing this one, both see nil and no-op harmlessly —
+    /// the UI teardown stays instant) and fires the POST fire-and-forget: the
+    /// caller already tore down its own state and is not waiting on this.
     ///
-    /// The `catch` below only ever sees a TRANSPORT failure (host
-    /// unreachable, the request cancelled, TLS trouble) — `session.data(for:)`
-    /// does not throw on an HTTP error status. A 404 (`run_not_found` — the
-    /// run already ended server-side on its own) comes back as ordinary,
-    /// successful `data` that this fire-and-forget call deliberately never
-    /// examines (`_ = try await …`), not something the error handling
-    /// catches or tolerates.
+    /// **`markSelfStopped` fires only once the POST has actually reached the
+    /// host** (review of #279, 2026-08-07) — moved here, out of the
+    /// synchronous prelude above, deliberately. Marking it BEFORE the request
+    /// is known to have landed was a correctness bug, not a style choice: if
+    /// the POST never reaches the host (unreachable, TLS trouble, the request
+    /// itself cancelled), the host keeps generating unattended while the
+    /// self-stopped flag makes the driver's own terminal handling
+    /// (`.runCancelled`, `deliverPolledTerminal`'s default arm) end the turn
+    /// SILENTLY — a Stop the user sees as having worked, when it did not
+    /// reach the host at all. Now a transport failure marks nothing, so a
+    /// later `run.cancelled` frame or polled terminal status for this run
+    /// still surfaces as `.interrupted` (ordinary recovery), not silence.
+    ///
+    /// The `catch` below only ever sees a TRANSPORT failure — `session.data
+    /// (for:)` does not throw on an HTTP error status. A 404 (`run_not_found`
+    /// — the run already ended server-side on its own) comes back as
+    /// ordinary, successful `data` and IS success for our purposes: the host
+    /// heard the stop attempt (there was simply nothing left to stop), so
+    /// `markSelfStopped` still fires on that arm.
     func hardStopActiveRun() {
         guard let context = activeRunContext else { return }
         clearActiveRunContext(matchingRunID: context.runID)
-        markSelfStopped(runID: context.runID)
         let runID = context.runID
         let profileID = context.profileID
         Task { @MainActor [weak self] in
@@ -965,9 +1006,14 @@ extension SessionsHermesClient {
                     profileID: profileID
                 )
                 _ = try await self.session.data(for: request)
+                // The POST reached the host — including a 404, which just
+                // means the run was already over. Only NOW is it true that
+                // the host has heard the stop, so only now may the driver's
+                // terminal handling silence itself for this run.
+                self.markSelfStopped(runID: runID)
             } catch {
-                runsTransportLogger.notice(
-                    "runs: stop request for \(runID, privacy: .public) did not reach the host — \(error.localizedDescription, privacy: .public)"
+                runsTransportLogger.error(
+                    "runs: stop request for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public) — NOT marking self-stopped, so this run's eventual terminal delivery surfaces as recovery rather than a false silent success"
                 )
             }
         }

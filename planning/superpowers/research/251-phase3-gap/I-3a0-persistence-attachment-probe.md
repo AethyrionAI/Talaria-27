@@ -62,6 +62,29 @@ thread as `conversation_history`, or (ii) pre-fetch `GET …/messages` and build
 server truth (kept current by the write half, including runs' own turns). Decided inside
 the slice.
 
+### Addendum (2026-08-07, review of #279) — a fresh, never-used session's first read
+
+Slice 3A's runs turn driver GETs `/api/sessions/{id}/messages` before every submit (the
+history pre-fetch decided above) — including a session's very first turn, right after
+`POST /api/sessions` and before anything has ever been written to it. An independent
+reviewer of PR #279 asked whether that pre-fetch 404s on a session nobody has used yet,
+since `SessionsHermesClient.ensureSuccess` maps a 404 there to `SessionsClientError
+.sessionNotFound` and could make a fresh install's very first turn fail before it ever
+reaches `/v1/runs`. **Probed live and REFUTED just now:**
+
+```
+POST /api/sessions            -> 201 api_1786151818_f1050b82
+GET  /api/sessions/{id}/messages on a NEVER-USED session -> 200 {"object":"list","session_id":"...","data":[]}
+```
+
+(Mac gateway, Hermes 0.20.0, 2026-08-07.) The same shape was already captured in this
+report's own N4 Arm 1 step 1 above — `GET …/messages` → `[]` right after session creation
+— but recorded too tersely there for a later reader asking this exact question to find it.
+
+**So a freshly created, never-used session returns `200` with an empty `data` array, NOT
+`404`.** The runs path's history pre-fetch is safe on a first turn by construction, and the
+app needs no special-casing for it.
+
 ## N9 — does the app's attachment body survive `_handle_runs`'s input extraction?
 
 **Answer: NO as-sent; YES with a message-array wrap.**

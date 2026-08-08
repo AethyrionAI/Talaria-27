@@ -206,8 +206,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// #283 (Phase 3 slice 3A): Developer-screen switch for the runs-plane
     /// transport (`/v1/runs` + status-poll recovery), armed by AppContainer
     /// from the persisted setting. Default `false` — the sessions path stays
-    /// the default transport until 3A-F passes; nothing reads this provider
-    /// yet (Task 5 wires dispatch).
+    /// the default transport until 3A-F passes. Read once per turn by both
+    /// `performSyncTurn` and `sendStreaming` (Task 5 wired this dispatch, in
+    /// this same branch), so a mid-turn toggle can never split one turn
+    /// across two transports.
     var useRunsTransportProvider: @MainActor () -> Bool = { false }
 
     /// Normalizes a routing profile id for request building: the ACTIVE
@@ -1236,13 +1238,23 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// at the old 300s each that is most of an hour against a black-holed host.
     ///
     /// **This caps one REQUEST, which stopped being the whole story in #283.**
-    /// The runs-plane sync turn (`syncTurnViaRuns`) answers a `send(...)` with
-    /// submit-then-poll — many short requests, each correctly stamped 20s here,
-    /// and a loop no per-request timeout can bound. `runsSyncBudget` (`:79`) is
-    /// that path's ceiling and is set to this same 20s so the policy holds
-    /// end-to-end; the STREAMED recovery poll is the deliberate exception and
-    /// carries `runsPollBudget` instead, because it degrades to `.interrupted`
-    /// rather than making a user wait.
+    /// This 20s policy holds **PER REQUEST, not per `send(...)`.** The
+    /// runs-plane sync turn (`syncTurnViaRuns`) answers a `send(...)` with
+    /// submit-then-poll — many short requests, each correctly stamped 20s
+    /// here — and `runsSyncBudget` (`:89`) bounds only ONE of those legs, the
+    /// POLL LOOP inside `pollRunToTerminal`. It does NOT sum the history
+    /// pre-fetch GET or the submit POST that precede it; each of those is
+    /// independently capped at this same 20s, but nothing adds the three
+    /// together. **Worst case for one `send(...)` on the runs plane is
+    /// roughly 60–80s** — history GET (20s) + submit POST (20s) + poll
+    /// budget (20s, overshootable by one more in-flight 20s read) — against
+    /// the sessions `/chat` turn it replaces, which was one request capped
+    /// at 20s flat. (Corrected 2026-08-07, review of #279 — the prior text
+    /// here claimed this "holds end-to-end," which was false; no behavior
+    /// changed, this is a documentation-only fix.) The STREAMED recovery
+    /// poll is the deliberate exception and carries `runsPollBudget`
+    /// instead, because it degrades to `.interrupted` rather than making a
+    /// user wait.
     nonisolated static let interactiveRequestTimeout: TimeInterval = 20
 
     /// #145 Part A — which budget a request gets.
