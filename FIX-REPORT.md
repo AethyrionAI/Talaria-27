@@ -264,3 +264,46 @@ project.pbxproj has no uncommitted drift").
 3. **#294's attachment/reasoning protection is read-verified, not tested.** The
    two 294-B cases the filing names (prose, tool activity) are tested; the two I
    added on #277/#4.15 grounds are argued from those items' own rules.
+
+---
+
+## Close-out pass (2026-08-07) — review corrections, docs/annotations only
+
+Status: **DONE.** Commit `07f1b61`.
+
+- **FIX 1** — three comments (`ChatStore.cancelStreaming`,
+  `HermesClientProtocol.hardStopActiveRun`, `RunsPlaneTransportTests`) claimed
+  `hardStopHost: false` "degrades to the ordinary recovery poll." False, and
+  was false before this lane too: `SessionsHermesClient.loadConversation()`
+  (verified by reading it) returns the cached `currentConversation` with NO
+  network call, so `restartPendingPollingIfNeeded`'s loop never asks the host.
+  Rewrote all three to say that plainly, kept the load-bearing part (the host
+  run IS left alone, correctly), and pointed each at #295 (Owen's call on
+  whether the expiration path should settle `.working` + arm the real
+  `pendingRun`/`reconcileFromServer()` route instead) — not implemented here.
+- **FIX 2** — kept `AppStoresTests`' `#expect(sendFailures == 0)` ("291-B")
+  rather than deleting it, with an inline comment naming it a canary: polling
+  is never enabled in that file, so the exhaustion branch that would fire
+  `onSendFailed` can't run regardless of the fix. Named the assertion that
+  actually carries 291-B — the one immediately above asserting no user row is
+  left `.sending` (`ChatStore.hasPendingMessages`'s own predicate, negated).
+- **FIX 3** — added a doc comment on `stoppedPlaceholderHasNothingToShow`
+  naming the three deliberate exclusions (`codeDiff`, `usage`,
+  `reasoningSummary`) and why each is unreachable pre-finish: the first two
+  are set only in the `.finished` stream-event case, the third only by
+  `condensePendingReasoning()`, which requires `!isStreaming`. Framed as the
+  #276 field-by-field hazard so a future field addition fails loudly.
+- **FIX 4** — replaced both stale `ChatStore.swift:588` references in
+  `RunsPlaneTransportTests` with `ChatStore.sendMessage(_:attachments:)` /
+  `ChatStore.sendMessage`'s expiration closure, so it can't rot again.
+
+Test counts (`-only-testing:TalariaTests/AppStoresTests
+-only-testing:TalariaTests/RunsPlaneTransportTests`, one invocation): before
+(diff stashed out) 140/140, `** TEST SUCCEEDED **`; after (diff applied)
+140/140, `** TEST SUCCEEDED **`. Diff is comment-only end to end — confirmed
+by grepping the full `git diff` for any changed line that isn't a `//`/`///`
+line; none found — so the two runs are a belt-and-suspenders check on a
+change that could not have moved the count.
+
+Concerns: none new. #295 is filed as an open decision, not resolved here, per
+the brief.
