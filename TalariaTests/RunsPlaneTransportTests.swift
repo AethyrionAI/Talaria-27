@@ -1288,6 +1288,40 @@ struct RunsPlaneTransportTests {
         #expect(updates.contains { if case .interrupted = $0 { return true } else { return false } })
     }
 
+    /// #293(c): `selfStoppedRunIDs`' doc promised a bound that its own code
+    /// stopped enforcing when the #279 review fix moved the insert to AFTER
+    /// the `/stop` POST returns — an insert landing past the driver's last
+    /// drain has nothing left to remove it, and would sit there for the
+    /// process's life. The bound is now the code's, not the comment's.
+    /// Behaviour that must NOT change: an id still in the list is still
+    /// consumed exactly once, and consuming an unknown id is still false.
+    @Test @MainActor
+    func selfStoppedRunIDsStayBoundedWhenNothingEverDrainsThem() async throws {
+        let client = makeClient(label: "self-stopped-bound")
+
+        for index in 0 ..< (SessionsHermesClient.selfStoppedRunIDLimit * 3) {
+            client.markSelfStopped(runID: "run-\(index)")
+        }
+        #expect(
+            client.selfStoppedRunIDs.count == SessionsHermesClient.selfStoppedRunIDLimit,
+            "an undrained mark must never grow the list past its stated handful"
+        )
+        #expect(
+            client.selfStoppedRunIDs.contains("run-0") == false,
+            "eviction is oldest-first — the newest stops are the ones still owed a terminal"
+        )
+
+        let newest = "run-\(SessionsHermesClient.selfStoppedRunIDLimit * 3 - 1)"
+        #expect(client.consumeSelfStopped(runID: newest), "a live id is still consumed")
+        #expect(client.consumeSelfStopped(runID: newest) == false, "and consumed exactly once")
+        #expect(client.consumeSelfStopped(runID: "never-stopped") == false)
+
+        // Re-marking the same run must not double-count against the bound.
+        client.markSelfStopped(runID: "run-repeat")
+        client.markSelfStopped(runID: "run-repeat")
+        #expect(client.selfStoppedRunIDs.filter { $0 == "run-repeat" }.count == 1)
+    }
+
     // MARK: - Task 7 residual: ChatStore.cancelStreaming's hardStopHost gate
 
     /// #283 review re-review — the residual the whole-branch pass caught:
