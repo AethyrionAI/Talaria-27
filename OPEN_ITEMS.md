@@ -5090,6 +5090,60 @@ query-result 500 ≠ `.delivered`; **(286-D)** happy path stays `.delivered`,
 dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 **(286-F)** no hot loop; gate + Release green.
 
+> **✅ THE PROTOCOL QUESTION IS ANSWERED 2026-08-07 evening — read from the
+> installed plugin source (`~/.hermes/plugins/talaria`), not inferred. The
+> filing said "measure/read the plugin before choosing recompute-vs-cache";
+> this is that read, and it UNBLOCKS the fix design.**
+>
+> - **ACK: retrying with the same item ids is SAFE and needs no caching.**
+>   `outbox.mark_delivered` only touches items where `not delivered_at`
+>   (`outbox.py:86`), so a duplicate ack is a silent no-op returning `[]`
+>   — pinned upstream by `test_mark_delivered_is_idempotent_and_reports_only_real_acks`.
+> - **A missed/failed ack means REDELIVERY, not loss.** `pending()`
+>   (`outbox.py:73-78`) returns everything without `delivered_at` and
+>   `_drain` calls it unconditionally (`envelope.py:136-149`), so items keep
+>   coming back until an ack actually lands. The app's `platformID` dedupe
+>   is what keeps that invisible — which is exactly why this defect has
+>   been survivable, and why it is P2 not P1.
+> - **QUERIES ARE CONSUMED ONCE AND LOST — this is the sharp edge.**
+>   `take_queries` does a `pop` (`transport.py:206-225`), so a query handed
+>   to a drain NEVER reappears. If the phone's `query_result` POST fails,
+>   the waiting agent tool times out at **40s** (`_QUERY_TIMEOUT = 40.0`,
+>   `tools.py:23`) and answers *"The phone did not answer in time."*
+>   **So a failed `answer(...)` is a turn the AGENT experienced as a
+>   failure while the app reported `.delivered` — the app is not merely
+>   imprecise, it is contradicting what the user's agent was told.**
+> - **`query_result` is exactly-once BY `query_id`, and RECOMPUTE IS SAFE
+>   (option (a) of the filing).** `resolve_query` pops `_futures[query_id]`
+>   before settling (`transport.py:229-239`); the first arrival wins, every
+>   later one returns `{"ok": false}` harmlessly, and **the server never
+>   compares payload contents**. So the phone may recompute freely — no
+>   answer cache, no byte-identical resend requirement. **Constraint:** a
+>   retry is only meaningful INSIDE the 40s window; after the tool's timeout
+>   fires, `discard_query` has removed the future and any retry is a
+>   guaranteed no-op. **A settlement retry policy for queries must therefore
+>   be time-bounded to well under 40s, not exponential-backoff-forever.**
+>
+> **⚠️ NEW FINDING from the same read — the outbox has NO TTL, NO retry cap,
+> and NO delivery-attempt counter** (grepped `outbox.py`/`envelope.py`/
+> `transport.py`; items are "marked delivered, never deleted",
+> `outbox.py:1-6`). On its own that is a deliberate fetch-on-connect design
+> and fine. **Combined with this item's defect it compounds:** a
+> persistently failing ack means (1) `outbox.json` grows without bound,
+> (2) EVERY drain re-delivers the entire backlog, and (3) the app reports
+> `.delivered` and RESETS its failure counter, so no backoff ever engages
+> and nothing surfaces to the user. That is the actual worst case here, and
+> it argues the honest-settlement fix matters more than "false success
+> semantics" made it sound. **Whether the plugin should also grow a TTL or
+> attempt cap is a separate decision for Owen — note the ⛔ no-harden rule
+> governs the relay/connector, NOT the plugin, which is the component with
+> a future, so hardening it is legitimate if he wants it.**
+>
+> **Bar 286-E's 401 arm is also now answerable from source** rather than by
+> experiment: a wrong-device `query_result` returns `False` WITHOUT popping
+> (`transport.py:232-237`) specifically so the rightful owner can still
+> resolve it.
+
 ## 285. 🐛 P1 CANDIDATE — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes VERIFIED same day; RUNTIME REPRO NOT YET ATTEMPTED — a RED harness comes before any fix, and a falsification is a good result. NOT STARTED; sequenced after #283 (slice 3A) unless Owen reorders.**
 
 **Verified static facts (2026-08-07):** `BackendProfilesStore.swift:141-154`
