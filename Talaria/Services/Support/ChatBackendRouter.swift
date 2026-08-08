@@ -480,12 +480,31 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// `abandonPendingRun` (#184's teardown primitive) and `cancelStreaming`
     /// so every walk-away path releases the routing lock synchronously
     /// instead of waiting on a stream that may never end.
+    ///
+    /// #283 review ruling: this is LOCK RELEASE ONLY and must never forward
+    /// to the backend — a walk-away (thread switch, clear, a continued-send
+    /// expiring) must not hard-kill a host run the user didn't ask to stop.
+    /// The explicit Stop tap gets `hardStopActiveRun()` below, called
+    /// separately by `ChatStore.cancelStreaming()` BEFORE this.
     func abandonActiveRun() {
         guard let brain = runningBrain else { return }
         Self.logger.notice("abandonActiveRun: releasing routing lock held by \(brain.rawValue, privacy: .public) (#192)")
         currentRunID = nil
         runningBrain = nil
         refreshActiveBrain()
+    }
+
+    /// #283 Task 7 (S23), review ruling: the explicit Stop tap's real
+    /// server-side interrupt — `ChatStore.cancelStreaming()`'s ONE call site
+    /// for this method. Forwards to the brain that IS running (currently
+    /// meaningful only on the Hermes runs plane; a no-op everywhere else)
+    /// WITHOUT touching the routing lock — `abandonActiveRun()` above, which
+    /// `cancelStreaming()` calls immediately afterward, is what releases it.
+    /// Splitting the two means a plain walk-away (no Stop tap) can release
+    /// the lock without ever reaching the network.
+    func hardStopActiveRun() {
+        guard let brain = runningBrain else { return }
+        backend(for: brain).hardStopActiveRun()
     }
 
     func loadConversation() async -> Conversation {

@@ -313,9 +313,25 @@ struct ChatBackendRouterTests {
     final class NeverFinishingBackend: HermesClientProtocol {
         var connectionStatus: ConnectionStatus = .connected
         var currentConversation: Conversation?
+        /// #283 review ruling: `abandonActiveRun` (walk-away teardown) must
+        /// NEVER reach the backend — only `hardStopActiveRun` (the explicit
+        /// Stop tap) may. Both counters exist so a test can assert BOTH
+        /// halves: `hardStopActiveRunCallCount` proves the Stop forward
+        /// works, `abandonActiveRunCallCount` staying 0 proves the walk-away
+        /// teardown never touches the network.
+        var abandonActiveRunCallCount = 0
+        var hardStopActiveRunCallCount = 0
 
         func connect() async {}
         func disconnect() async {}
+
+        func abandonActiveRun() {
+            abandonActiveRunCallCount += 1
+        }
+
+        func hardStopActiveRun() {
+            hardStopActiveRunCallCount += 1
+        }
 
         func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "never", status: .delivered)
@@ -364,6 +380,55 @@ struct ChatBackendRouterTests {
         router.abandonActiveRun()
         #expect(router.activeBrain == .onDevice)
         #expect(router.resolvedBrainForNextTurn() == .onDevice)
+        // #283 review ruling: `abandonActiveRun` is LOCK RELEASE ONLY — a
+        // walk-away teardown (this is one: `abandonPendingRun`'s shape, not
+        // an explicit Stop tap) must never reach the backend's network-
+        // touching stop. Sessions-plane parity: switching threads or
+        // clearing mid-turn must not hard-kill a run the user didn't ask to
+        // stop.
+        #expect(hermes.abandonActiveRunCallCount == 0)
+
+        consumer.cancel()
+        _ = await consumer.value
+    }
+
+    /// #283 Task 7 (S23), review ruling: `hardStopActiveRun` — the explicit
+    /// Stop tap's real server-side interrupt — forwards to whichever backend
+    /// IS running, and does so WITHOUT touching the routing lock (that is
+    /// the subsequent `abandonActiveRun` call's job, exactly as
+    /// `ChatStore.cancelStreaming()` sequences the two). And the negative
+    /// half: `abandonActiveRun` alone — even called right after — must never
+    /// ALSO reach `hardStopActiveRun` on the backend.
+    @Test func hardStopActiveRunForwardsToTheRunningBackendWithoutTouchingTheLock() async {
+        let hermes = NeverFinishingBackend()
+        let local = StubBackend(replyContent: "local")
+        let router = makeRouter(hermesConfigured: true, hermes: hermes, local: local)
+
+        let stream = router.sendStreaming(message: "hi", attachments: [], clientMessageID: UUID())
+        let consumer = Task { @MainActor in
+            for await _ in stream {}
+        }
+        #expect(router.activeBrain == .hermes)
+
+        // Arm a pending brain switch — same setup
+        // `wedgedRunRefusesSwitchUntilAbandonedThenRecovers` uses — so the
+        // lock's eventual release is observable as a flip, not just a
+        // no-op re-derivation back to the same brain.
+        router.setPreferredBrain(.onDevice, forConversation: nil)
+        #expect(router.activeBrain == .hermes, "still wedged — the pick persists but re-derivation is refused")
+
+        router.hardStopActiveRun()
+        #expect(hermes.hardStopActiveRunCallCount == 1)
+        // The lock is untouched by the stop alone — still wedged on hermes,
+        // exactly as `cancelStreaming()`'s ordering expects (hardStop, THEN
+        // abandon).
+        #expect(router.activeBrain == .hermes)
+
+        router.abandonActiveRun()
+        #expect(router.activeBrain == .onDevice)
+        #expect(hermes.abandonActiveRunCallCount == 0, "abandonActiveRun must never reach the backend")
+        // And it didn't ALSO fire a second hard stop.
+        #expect(hermes.hardStopActiveRunCallCount == 1)
 
         consumer.cancel()
         _ = await consumer.value

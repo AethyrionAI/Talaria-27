@@ -69,6 +69,17 @@ final class ResilientHermesClient: HermesClientProtocol {
         fallback.adoptTruncatedConversation(conversation)
     }
 
+    /// #283 review ruling: `abandonActiveRun` (the walk-away teardown) is
+    /// deliberately NOT overridden here — the protocol default no-op is
+    /// correct, matching this type's pre-#283 state. `sendStreaming` above
+    /// only ever rides `primary`, so `hardStopActiveRun` — the explicit Stop
+    /// tap's real server-side interrupt — only ever needs to reach it too;
+    /// forwarding to `fallback` as well would be a POST that always no-ops
+    /// (nothing there ever set `activeRunContext`) dressed up as coverage.
+    func hardStopActiveRun() {
+        primary.hardStopActiveRun()
+    }
+
     func availableModels() async throws -> [String] {
         try await primary.availableModels()
     }

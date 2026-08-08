@@ -584,8 +584,12 @@ final class ChatStore {
         // foreground, from the user's explicit send). Plain text turns stay
         // lightweight. On system revocation the stream would die on suspension
         // anyway, so expiration finalizes partial content via cancelStreaming.
+        // #283 review re-review: `hardStopHost: false` — the SYSTEM revoked
+        // the background budget, not the user tapping Stop, so the host run
+        // must be left alone (recoverable via the ordinary poll) rather than
+        // hard-killed. See `cancelStreaming`'s doc.
         let continuedSend = attachments.isEmpty ? nil : beginContinuedSend?(displayContent)
-        continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming() }
+        continuedSend?.onExpiration = { [weak self] in self?.cancelStreaming(hardStopHost: false) }
 
         let stream = hermesClient.sendStreaming(message: trimmedContent, attachments: attachments, clientMessageID: clientMessageID)
         var acceptedJobID: UUID?
@@ -1096,11 +1100,32 @@ final class ChatStore {
         pollingTask = nil
     }
 
-    func cancelStreaming() {
+    /// `hardStopHost` gates the REAL server-side interrupt
+    /// (`hermesClient.hardStopActiveRun()`) — nothing else in this function
+    /// changes between the two values. Defaults to `true`: every EXPLICIT
+    /// stop (the in-app Stop button via `ChatScreen`, Siri's Cancel via
+    /// `AskHermesIntent`/`AskHermesLongRunSupport`) wants the host actually
+    /// told to stop, and none of those call sites need to change to get it.
+    ///
+    /// #283 Task 7 (S23) review re-review: the continued-send expiration
+    /// handler (below, `beginContinuedSend`'s `onExpiration`) ALSO enters
+    /// through this same function — the system revoking a background task's
+    /// budget with NO user action, not a walk-away that bypasses
+    /// `cancelStreaming` entirely. It passes `hardStopHost: false` so a
+    /// lapsed background budget degrades to the ordinary recovery poll
+    /// instead of hard-killing a run the user never asked to stop. Every
+    /// other effect below — cancelling the local task, releasing the
+    /// router's routing lock, finalizing the UI, ending the Live Activity —
+    /// still happens on BOTH paths; only the network call is gated.
+    func cancelStreaming(hardStopHost: Bool = true) {
         streamingTask?.cancel()
         streamingTask = nil
+        if hardStopHost {
+            hermesClient.hardStopActiveRun()
+        }
         // #192: the stopped run is over from the consumer's side — release
         // the router's routing lock so the brain toggle re-derives now.
+        // Unconditional: correct on BOTH paths, gated or not.
         hermesClient.abandonActiveRun()
         chatLiveActivity.endActivity()
         // User asked for silence along with the stop — cut read-aloud too.

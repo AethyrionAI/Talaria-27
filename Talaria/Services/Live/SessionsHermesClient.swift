@@ -25,7 +25,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     var connectionStatus: ConnectionStatus = .disconnected
     var currentConversation: Conversation?
 
-    private let session: URLSession
+    // runs-path-visible (#283): the runs driver opens its own SSE stream and
+    // status polls on this same session (`SessionsHermesClient+RunsTransport`).
+    let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let baseURLProvider: @MainActor () -> String?
@@ -41,6 +43,97 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// answer. 60s clears any observed healthy inter-event gap. Var, not
     /// let: the suite shortens it to exercise the guard. // harness-visible
     var streamStallThreshold: Duration = .seconds(60)
+
+    /// #283 slice 3A: how long the runs-plane recovery poll WAITS between
+    /// reads of `GET /v1/runs/{id}`. The status object is cheap and the
+    /// gateway retains it for an hour, but a tight loop would be a spin — 2s
+    /// resolves a run that finished while the stream was dying within one
+    /// interval, and costs one request per 2s for a run that has not.
+    /// Var, not let: the suite shortens it to run the loop in milliseconds.
+    // harness-visible
+    var runsPollInterval: Duration = .seconds(2)
+
+    /// #283 slice 3A: the **STREAMED** turn's recovery-poll wall-clock budget
+    /// — `streamTurnViaRuns` only. It does NOT bound `send(...)`; that path
+    /// has its own, much shorter ceiling (`runsSyncBudget` below), because a
+    /// caller holding no continuation has nothing to degrade to.
+    ///
+    /// Past it the turn hands off to the same `.interrupted` machinery a
+    /// dropped sessions stream uses (ChatStore's pendingRun reconcile) —
+    /// degrading, never spinning and never claiming failure. That hand-off is
+    /// what buys the long budget: nothing is lost by waiting, and the answer
+    /// stays recoverable afterwards either way (status TTL is an hour). This
+    /// is also what bounds the pathological cases the poll can otherwise meet
+    /// forever: a run parked in `waiting_for_approval`, or a host that answers
+    /// `running` for a run nobody will ever finish. 120s clears any turn worth
+    /// waiting inline for.
+    /// Var, not let: the suite shortens it. // harness-visible
+    var runsPollBudget: Duration = .seconds(120)
+
+    /// #283 slice 3A: the **SYNC** turn's budget — `syncTurnViaRuns` only.
+    ///
+    /// Deliberately NOT `runsPollBudget`. `send(...)` is a non-stream call
+    /// with a user waiting on a single answer and no `.interrupted` machinery
+    /// to hand off to, so it lives under the #145 Part A policy for
+    /// everything that is not a stream (`interactiveRequestTimeout` = 20s,
+    /// `requestTimeout(forAccept:)`). The sessions sync path it replaces was
+    /// already capped there — its one `POST /chat` carried that 20s stamp —
+    /// so **20s is parity, not a new restriction**; the runs path just has to
+    /// state the ceiling itself, since submit-then-poll is many short requests
+    /// rather than one long one and no per-request timeout can bound it.
+    ///
+    /// Expiring is not the end of the run: the submit was accepted, so the
+    /// answer keeps being produced and stays readable for the status TTL (1h).
+    /// The throw says so rather than implying the turn was lost.
+    /// Var, not let: the suite shortens it. // harness-visible
+    var runsSyncBudget: Duration = .seconds(20)
+
+    /// #283 Task 7: the run `POST /v1/runs/{id}/stop` (and a future
+    /// `/approval`) addresses. Set the moment a submit succeeds
+    /// (`streamTurnViaRuns` / `syncTurnViaRuns`), cleared on that same turn's
+    /// terminal exit — so a stop request always targets the run actually in
+    /// flight, or finds nothing and no-ops. `private(set)`: only
+    /// `setActiveRunContext`/`clearActiveRunContext` below may write it;
+    /// everyone else (the router, `hardStopActiveRun`'s own callers) reads.
+    private(set) var activeRunContext: (runID: String, profileID: UUID?)?
+
+    /// #283 Task 7: run ids WE told the host to stop. A late `run.cancelled`
+    /// frame or a polled `cancelled` status for one of these is the
+    /// self-initiated stop completing, not someone else's cancel, and must
+    /// end the turn SILENTLY (no `.interrupted`). Populated by
+    /// `hardStopActiveRun()`, drained (checked-and-removed) by the runs
+    /// driver's terminal handling for that same id — never grows past the
+    /// handful of runs actually in flight.
+    private(set) var selfStoppedRunIDs: Set<String> = []
+
+    // runs-path-visible (#283): the only mutators for the two properties
+    // above. Both are declared here because Swift extensions cannot add
+    // stored properties, but every call site is in
+    // `SessionsHermesClient+RunsTransport.swift` — a different file — so
+    // these narrow methods are the seam that lets the driver write them
+    // while keeping the properties themselves `private(set)`.
+    func setActiveRunContext(runID: String, profileID: UUID?) {
+        activeRunContext = (runID, profileID)
+    }
+
+    /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
+    /// it was already cleared (e.g. `hardStopActiveRun()` beat this to it) or
+    /// it belongs to a different, later run. Either way there is nothing
+    /// harmful to do: never clears a context this call didn't own.
+    func clearActiveRunContext(matchingRunID: String) {
+        guard activeRunContext?.runID == matchingRunID else { return }
+        activeRunContext = nil
+    }
+
+    func markSelfStopped(runID: String) {
+        selfStoppedRunIDs.insert(runID)
+    }
+
+    /// Checks membership AND removes in one step — the terminal frame/poll
+    /// arm that calls this consumes the flag exactly once.
+    func consumeSelfStopped(runID: String) -> Bool {
+        selfStoppedRunIDs.remove(runID) != nil
+    }
 
     /// The durable journal (shared with ChatStore via AppContainer). Owns the
     /// conversation's identity and the active hop handle; this client only
@@ -59,7 +152,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// `run.completed` delivers usage, read back on `openSession` so a
     /// resumed session's CTX gauge has a numerator (the stored-messages
     /// endpoint carries none). Optional like `profileIndex`.
-    private let usageIndex: SessionUsageIndexStore?
+    // runs-path-visible (#283): the runs `run.completed` records usage the
+    // same way the sessions one does.
+    let usageIndex: SessionUsageIndexStore?
     /// Lane M PR 2 (M-5): resolves a NON-ACTIVE profile's chat endpoint
     /// (gateway base URL + that profile's API key). Requests for the active
     /// profile keep riding `baseURLProvider`/`apiKeyProvider` — byte-identical
@@ -107,6 +202,15 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// no model fields and the host default rules. Read at body-build time by
     /// all three turn paths (sync, stream, priming).
     var modelSelection: ModelSelection?
+
+    /// #283 (Phase 3 slice 3A): Developer-screen switch for the runs-plane
+    /// transport (`/v1/runs` + status-poll recovery), armed by AppContainer
+    /// from the persisted setting. Default `false` — the sessions path stays
+    /// the default transport until 3A-F passes. Read once per turn by both
+    /// `performSyncTurn` and `sendStreaming` (Task 5 wired this dispatch, in
+    /// this same branch), so a mid-turn toggle can never split one turn
+    /// across two transports.
+    var useRunsTransportProvider: @MainActor () -> Bool = { false }
 
     /// Normalizes a routing profile id for request building: the ACTIVE
     /// profile (and profile-less nil) collapse to nil so those requests take
@@ -165,15 +269,39 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// retry ONCE on a fresh, transplanted hop. Only a REUSED hop retries; a
     /// just-created session 404ing is a real server problem.
     private func performSyncTurn(message: String, attachments: [PendingAttachment]) async throws -> String {
+        // #283 slice 3A: the Developer switch picks the sync turn's TRANSPORT
+        // exactly as it picks the streamed one — read ONCE, here, so a
+        // mid-turn toggle cannot split a turn (or its stale-hop retry) across
+        // two planes.
+        let viaRuns = useRunsTransportProvider()
         let hop = try await ensureHopForTurn()
         do {
-            return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
+            return try await postSyncTurn(viaRuns: viaRuns, hop: hop, message: message, attachments: attachments)
         } catch SessionsClientError.sessionNotFound where hop.wasReused {
             Self.logger.notice("sync turn: persisted hop stale server-side (404) — re-hopping with transplant")
-            journal.endHop()
+            discardStaleHop()
             let fresh = try await ensureHopForTurn()
-            return try await postSyncChat(sessionId: fresh.sessionId, profileID: fresh.profileID, message: message, attachments: attachments)
+            return try await postSyncTurn(viaRuns: viaRuns, hop: fresh, message: message, attachments: attachments)
         }
+    }
+
+    /// The sync turn's one plane-selecting seam, so the stale-hop retry above
+    /// stays a single mechanism instead of one per transport.
+    private func postSyncTurn(viaRuns: Bool, hop: PreparedHop, message: String, attachments: [PendingAttachment]) async throws -> String {
+        if viaRuns {
+            return try await syncTurnViaRuns(hop: hop, message: message, attachments: attachments)
+        }
+        return try await postSyncChat(sessionId: hop.sessionId, profileID: hop.profileID, message: message, attachments: attachments)
+    }
+
+    /// The stale-hop swap every turn path makes when a persisted hop's server
+    /// session has expired: drop the dead handle — it is a handle, not the
+    /// conversation's identity — so the next `ensureHopForTurn()` creates a
+    /// fresh, transplanted one.
+    // runs-path-visible (#283): the runs driver's history pre-fetch is the one
+    // session-scoped request a runs turn makes, so it meets the same 404.
+    func discardStaleHop() {
+        journal.endHop()
     }
 
     private func postSyncChat(sessionId: String, profileID: UUID?, message: String, attachments: [PendingAttachment]) async throws -> String {
@@ -198,12 +326,25 @@ final class SessionsHermesClient: HermesClientProtocol {
                     continuation.finish()
                     return
                 }
-                await self.streamTurn(
-                    message: content,
-                    attachments: attachments,
-                    into: continuation,
-                    allowStaleHopRetry: true
-                )
+                // #283 slice 3A: the Developer-screen switch picks the turn
+                // TRANSPORT and nothing else — both drivers yield into this
+                // same continuation, so ChatStore never learns which plane
+                // served the turn. Read once, here, so a mid-turn toggle
+                // cannot split one turn across two transports.
+                if self.useRunsTransportProvider() {
+                    await self.streamTurnViaRuns(
+                        message: content,
+                        attachments: attachments,
+                        into: continuation
+                    )
+                } else {
+                    await self.streamTurn(
+                        message: content,
+                        attachments: attachments,
+                        into: continuation,
+                        allowStaleHopRetry: true
+                    )
+                }
                 continuation.finish()
             }
         }
@@ -410,7 +551,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                     if let runtime = Self.decodeTurnRuntime(currentData) {
                         continuation.yield(.modelResolved(runtime))
                     }
-                    let usage = decodeRunUsage(currentData)
+                    let usage = Self.decodeRunUsage(currentData)
                     // #25: persist the run's usage keyed by this hop's server
                     // session — the CTX gauge's only source when the session
                     // is later resumed (the stored transcript carries no
@@ -783,7 +924,9 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     /// GET + decode + map of one session's history — shared by `openSession`
     /// (which adopts it) and `reconcileFromServer` (which must not).
-    private func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
+    // runs-path-visible (#283): the runs history pre-fetch reads server truth
+    // through this same GET (N4 — runs WRITE the transcript but never read it).
+    func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
         let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
         let (data, httpResponse) = try await session.data(for: request)
@@ -897,7 +1040,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     // MARK: - Hop lifecycle (P1 / OPEN_ITEMS #90)
 
     /// A server session ready to carry the next turn.
-    private struct PreparedHop {
+    // runs-path-visible (#283): both turn drivers take a hop.
+    struct PreparedHop {
         let sessionId: String
         /// True when this call reused a persisted hop — whose server session
         /// may have expired; the 404 stale-hop retry applies only then.
@@ -929,7 +1073,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// If the priming turn fails, no hop is recorded: the just-created server
     /// session is abandoned and the next attempt re-creates and re-primes —
     /// a little server-side litter, never a silently unprimed session.
-    private func ensureHopForTurn() async throws -> PreparedHop {
+    // runs-path-visible (#283): hop preparation (including the transplant
+    // priming turn, which stays on the SESSIONS plane in 3A) is shared.
+    func ensureHopForTurn() async throws -> PreparedHop {
         if let hop = journal.activeHop, journal.activeHopIsCurrent {
             return PreparedHop(sessionId: hop.apiSessionId, wasReused: true, priming: nil, profileID: hop.profileID)
         }
@@ -1010,7 +1156,7 @@ final class SessionsHermesClient: HermesClientProtocol {
                 currentData = ""
             }
             guard !currentData.isEmpty, currentEvent == "run.completed" else { return }
-            usage = decodeRunUsage(currentData)
+            usage = Self.decodeRunUsage(currentData)
         }
         for try await line in bytes.lines {
             if Task.isCancelled { break }
@@ -1040,7 +1186,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         return try decoder.decode(T.self, from: data)
     }
 
-    private func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
+    // runs-path-visible (#283): the runs submit (`POST /v1/runs`) is an
+    // ordinary JSON post — same encode/status/decode discipline.
+    func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
         let encodedBody = try encoder.encode(body)
         let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID)
         let (data, response) = try await session.data(for: request)
@@ -1048,7 +1196,9 @@ final class SessionsHermesClient: HermesClientProtocol {
         return try decoder.decode(T.self, from: data)
     }
 
-    private func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
+    // runs-path-visible (#283): every runs-plane request is built here too, so
+    // auth, base-URL normalization and the #145 timeout split stay one policy.
+    func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
         let endpoint = try resolveEndpoint(profileID: requestProfileID(profileID))
         guard let url = URL(string: normalizedBaseURL(endpoint.baseURL) + path) else {
             throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
@@ -1086,6 +1236,25 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Everything that is not a stream. A user is watching the foreground
     /// refresh, and eight of these run serially in `handleAppDidBecomeActive` —
     /// at the old 300s each that is most of an hour against a black-holed host.
+    ///
+    /// **This caps one REQUEST, which stopped being the whole story in #283.**
+    /// This 20s policy holds **PER REQUEST, not per `send(...)`.** The
+    /// runs-plane sync turn (`syncTurnViaRuns`) answers a `send(...)` with
+    /// submit-then-poll — many short requests, each correctly stamped 20s
+    /// here — and `runsSyncBudget` (`:89`) bounds only ONE of those legs, the
+    /// POLL LOOP inside `pollRunToTerminal`. It does NOT sum the history
+    /// pre-fetch GET or the submit POST that precede it; each of those is
+    /// independently capped at this same 20s, but nothing adds the three
+    /// together. **Worst case for one `send(...)` on the runs plane is
+    /// roughly 60–80s** — history GET (20s) + submit POST (20s) + poll
+    /// budget (20s, overshootable by one more in-flight 20s read) — against
+    /// the sessions `/chat` turn it replaces, which was one request capped
+    /// at 20s flat. (Corrected 2026-08-07, review of #279 — the prior text
+    /// here claimed this "holds end-to-end," which was false; no behavior
+    /// changed, this is a documentation-only fix.) The STREAMED recovery
+    /// poll is the deliberate exception and carries `runsPollBudget`
+    /// instead, because it degrades to `.interrupted` rather than making a
+    /// user wait.
     nonisolated static let interactiveRequestTimeout: TimeInterval = 20
 
     /// #145 Part A — which budget a request gets.
@@ -1489,7 +1658,8 @@ final class SessionsHermesClient: HermesClientProtocol {
         return results
     }
 
-    private func failureMessage(for error: Error) -> String {
+    // runs-path-visible (#283): one failure-text policy across both planes.
+    func failureMessage(for error: Error) -> String {
         if let sessionsError = error as? SessionsClientError {
             return sessionsError.errorDescription ?? "Hermes API request failed."
         }
@@ -1504,7 +1674,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Extracts token usage from a `run.completed` SSE payload. Hermes emits
     /// Anthropic-style keys (input/output/total); map onto TokenUsage's
     /// prompt/completion/total. Returns nil if usage is absent or unparseable.
-    nonisolated private func decodeRunUsage(_ data: String) -> TokenUsage? {
+    // runs-path-visible (#283): shared by both planes' run.completed decode
+    nonisolated static func decodeRunUsage(_ data: String) -> TokenUsage? {
         guard let raw = data.data(using: .utf8),
               let envelope = try? JSONDecoder().decode(RunCompletedEnvelope.self, from: raw),
               let usage = envelope.usage

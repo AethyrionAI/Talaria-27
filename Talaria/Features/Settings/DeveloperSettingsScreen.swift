@@ -198,6 +198,17 @@ struct DeveloperSettingsScreen: View {
                     detail: "FULL PANEL · .writingToolsBehavior(.complete)",
                     isOn: writingToolsBinding
                 )
+
+                Rectangle()
+                    .fill(Design.Colors.hairline)
+                    .frame(height: 1)
+                    .padding(.horizontal, Design.Spacing.md)
+
+                flagRow(
+                    "Runs Transport (Phase 3)",
+                    detail: "/v1/runs + status-poll recovery · #283",
+                    isOn: runsTransportBinding
+                )
             }
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
@@ -493,6 +504,15 @@ struct DeveloperSettingsScreen: View {
         Binding(
             get: { settingsStore.settings.composerWritingToolsEnabled },
             set: { settingsStore.settings.composerWritingToolsEnabled = $0 }
+        )
+    }
+
+    /// #283: no side effect — the client reads this through
+    /// `SessionsHermesClient.useRunsTransportProvider`, armed once at launch.
+    private var runsTransportBinding: Binding<Bool> {
+        Binding(
+            get: { settingsStore.settings.useRunsTransport },
+            set: { settingsStore.settings.useRunsTransport = $0 }
         )
     }
 

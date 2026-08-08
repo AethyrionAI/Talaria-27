@@ -780,6 +780,11 @@ final class AppContainer {
         // #223 Lane 5: arm the per-turn model lock from the active profile's
         // persisted pick, from the first turn of the launch.
         sessionsClient.modelSelection = container.activeModelSelection
+        // #283 (Phase 3 slice 3A): arm the runs-transport switch from the
+        // Developer screen's persisted setting. Read once per turn by
+        // `SessionsHermesClient`'s sync and streaming dispatch (Task 5, this
+        // same branch) to pick between the sessions plane and `/v1/runs`.
+        sessionsClient.useRunsTransportProvider = { settingsStore.settings.useRunsTransport }
         // #156a: Tasks — the cron-jobs surface talks to the same :8642
         // gateway with the same API key as chat; no relay, no new services
         // (#161). Bare test containers skip this (nil store → honest
