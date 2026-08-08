@@ -5056,6 +5056,16 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
+
+**The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
+
+**The fix (spec §4's design, plan Task 12's sketch):** ONE registry-generated sentence appended to the toolless branch — generated via `CapabilityRegistry.armedCapabilityEnumeration(families:)` at the call site, NEVER hand-written (that staleness is #257's root cause) — shaped like: "You can also read the user's health and activity, location, the weather, nearby places, calendar, reminders, alarms, contacts, past conversations, and device status when asked — offer to, rather than saying you can't." Behind an `includeToollessCapabilityIndex: Bool = false` parameter on `instructionsText` (the established clause-flag pattern); production flips it only after the arm clears.
+
+**Why this is a MEASURED arm, not an edit:** toolless-lic2 is measured text (60/60 on device). Bar candidates when a lane opens: (a) the #257 conversational bar — a fresh session's "What can you do?" names every capability family; (b) NO regression on the toolless canaries (composition + math rows clean). Device A/B: toolless-lic2 ± the index sentence.
+
+**Risk to design against:** the added sentence names capabilities on a branch with NO tools armed — it must not resurrect the #196 disclaimer tic or induce tool-syntax hallucination on toolless turns; the canaries are the guard.
+
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
@@ -5987,7 +5997,7 @@ screenshot shape, inverted), measured per the #200-series discipline.
 > - **Consequence per pre-registration:** stages 1–2 ship (registry, #257 armed fix, budget contrast, the probe artifacts); the arming stays full-belt. A superset-tolerant arming design (cover-the-needed-groups rather than exact-set, with the trap-row danger solved) would be NEW work with NEW bars under a new filing — not a reopening of this one. Owen routes.
 > - **Reclaim (pre-registered as reported-not-barred): n/a** — arming did not ship, nothing narrows, so there is no narrowed-vs-full delta to report; the `fullBelt=` line ships and measures the un-narrowed cost per turn.
 
-> **CORRECTION, same day (2026-08-08), on device evidence:** the verdict's meta-row bullet over-reached. The meta rows measured the VECTOR's routing; **production's one-Bool router routes "What can you do?" TOOLLESS** — verified on build 2225, fresh chat: the reply named zero capability families and is the toolless-lic2 self-description (IN=500, a beltless turn). The "Task 12 unnecessary / §4 resolved" inference is **WITHDRAWN**: #257's conversational bar is NOT met on device, and spec §4's toolless capability-index arm (plan Task 12 — a measured mini-arm on the toolless payload) is live again. Owen routes whether it runs in this lane or a follow-up.
+> **CORRECTION, same day (2026-08-08), on device evidence:** the verdict's meta-row bullet over-reached. The meta rows measured the VECTOR's routing; **production's one-Bool router routes "What can you do?" TOOLLESS** — verified on build 2225, fresh chat: the reply named zero capability families and is the toolless-lic2 self-description (IN=500, a beltless turn). The "Task 12 unnecessary / §4 resolved" inference is **WITHDRAWN**: #257's conversational bar is NOT met on device, and spec §4's toolless capability-index arm (plan Task 12 — a measured mini-arm on the toolless payload) is live again. Owen routes whether it runs in this lane or a follow-up. **Routed same day: follow-up = #297; PR #282 merges without it.**
 
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
@@ -7335,7 +7345,7 @@ the lane opens.
 > reply naming every family) still pending Owen's screenshot — that is the
 > remaining evidence, not a done claim. Not closed here; Owen closes.
 
-> Correction, same day: the meta-row inference above is withdrawn — production routes "What can you do?" toolless (build 2225 device check: reply named zero families, IN=500 beltless). The armed-surface fix stands but is unreachable on this question; the conversational bar is NOT met, and the remaining fix is spec §4's toolless capability index (plan Task 12, a measured arm).
+> Correction, same day: the meta-row inference above is withdrawn — production routes "What can you do?" toolless (build 2225 device check: reply named zero families, IN=500 beltless). The armed-surface fix stands but is unreachable on this question; the conversational bar is NOT met, and the remaining fix is spec §4's toolless capability index (plan Task 12, a measured arm). **Filed as #297, 2026-08-08.**
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
