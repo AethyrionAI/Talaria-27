@@ -5527,7 +5527,7 @@ execution order; **(287-C)** launch partition tests green; archived history
 stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 `LaunchInitStep` archive hits are the historical #136-era work, not this.
 
-## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
+## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED → ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
 
 Drain 200 + ACK 500/timeout ⇒ `.delivered`, and the loop's failure counter
 resets as if settlement succeeded. Severity capped at P2 by a property worth
