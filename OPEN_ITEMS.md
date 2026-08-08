@@ -5019,6 +5019,47 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 288. 🧹 Orphan device rows on paired hosts — audit + deactivate, one-time chore, **RE-RUN OWED after #285 is fixed for good** — **FILED 2026-08-07 evening on Owen's routing ("yes to the data chore as well, I bet it needs to be run now, and then put it on the books to be run after its fixed for good"). BASELINE AUDIT RAN THE SAME EVENING — result: NOTHING TO CLEAN. Chore stays open for the post-fix re-run.**
+
+**Where it comes from:** #285's repro 3b showed a re-pair reaching a
+*different* profile's gateway whose response the phone then DISCARDED — so
+the host mints a device row the phone has no record of. Fixing #285 stops
+new ones; it cannot clean ones already minted. Hence a chore, separate from
+the fix.
+
+**✅ BASELINE AUDIT 2026-08-07 ~19:20, Mac Mini (`~/.hermes/talaria/devices.json`)
+— 4 rows, ALL ACCOUNTED FOR, ZERO orphans, no action taken:**
+- 1 ACTIVE: `name=iPhone`, `install_id=913F0656-…`, `last_seen`
+  2026-08-08T00:18Z — the real device.
+- 3 INACTIVE, all properly deactivated: two `install_id=smoke-2a` /
+  `name=curl-smoke` rows (deliberate 2A smoke tests, 2026-08-06) and one
+  2026-08-05 row created-and-deactivated within 1 second (the 2A
+  pair→unpair CLI cycle).
+- **OJAMD was NOT audited because it has no store to audit** — the plugin
+  is not installed there yet (that is slice 2D / #271).
+
+**Why the exposure window has effectively been empty, stated so nobody reads
+the clean result as proof the defect is harmless:** minting an orphan
+requires a profile switch landing mid-drain against a DIFFERENT host. Owen
+has been parked on the Mac Mini profile for days, and the second host has no
+plugin. The clean baseline reflects *usage*, not safety. **Once #271 puts
+the plugin on OJAMD and two paired hosts exist, every profile switch is a
+chance to mint one until #285 lands.**
+
+**The chore when it is next run (both hosts):** read each host's
+`<HERMES_HOME>/talaria/devices.json`; an ORPHAN = `active: true` with an
+`install_id` that does not match a device the phone believes it is paired to
+(cross-check `hermes talaria status`). **#144's shape is binding:
+DEACTIVATE, never delete, and keep a rollback copy of the file first.** Note
+the rows carry `token_sha256`, not tokens — safe to read, but never paste
+the hashes into a report.
+
+**Bars:** **288-A** every active row on every paired host maps to a device
+the phone agrees it is paired to; **288-B** any row deactivated is recorded
+with its `id`/`created`/`install_id` and a restorable backup exists;
+**288-C** the audit is re-run and recorded AFTER #285's fix ships (that
+re-run is the one that actually proves the leak stopped).
+
 ## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material.**
 
 The launch partition's whole purpose is to be machine-checkable; a ghost step
