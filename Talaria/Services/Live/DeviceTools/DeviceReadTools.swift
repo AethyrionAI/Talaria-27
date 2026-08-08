@@ -81,6 +81,14 @@ struct DeviceStatusTool: Tool {
     }
 }
 
+extension DeviceStatusTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "deviceStatus",
+        semanticDescription: "Reads battery level, charging state, storage, thermal state, and Low Power Mode.",
+        source: .device, group: .deviceStatus, riskClass: .read,
+        permissions: [], argumentSummary: "none")
+}
+
 // MARK: - Location (place names, not raw coordinates)
 
 struct LocationTool: Tool {
@@ -151,6 +159,14 @@ struct LocationTool: Tool {
         let address = item.addressRepresentations
         return [item.name, address?.cityName, address?.regionName].compactMap { $0 }
     }
+}
+
+extension LocationTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "currentLocation",
+        semanticDescription: "Reads the user's current location as a place name (no raw coordinates).",
+        source: .device, group: .location, riskClass: .read,
+        permissions: ["Location"], argumentSummary: "none")
 }
 
 // MARK: - Motion (steps today, current activity)
@@ -266,6 +282,14 @@ struct MotionTool: Tool {
         }
         return lines.joined(separator: "\n")
     }
+}
+
+extension MotionTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readMotion",
+        semanticDescription: "Reads current motion activity: walking, running, stationary, step cadence.",
+        source: .device, group: .health, riskClass: .read,
+        permissions: ["Motion & Fitness"], argumentSummary: "none")
 }
 
 // MARK: - Weather (WeatherKit)
@@ -477,6 +501,14 @@ struct WeatherTool: Tool {
     }
 }
 
+extension WeatherTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "currentWeather",
+        semanticDescription: "Reads current conditions and forecast for the user's location.",
+        source: .device, group: .weather, riskClass: .read,
+        permissions: ["Location"], argumentSummary: "optional day offset")
+}
+
 /// #209 PINNED ROLLBACK for the optional-`place` schema: identical to
 /// `WeatherTool` in name, description, @Guide text and engine — the ONLY delta
 /// is that `place` is REQUIRED, which is what production shipped until #209
@@ -587,6 +619,14 @@ struct PlacesTool: Tool {
     }
 }
 
+extension PlacesTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "searchPlaces",
+        semanticDescription: "Searches for nearby places and points of interest around the user.",
+        source: .device, group: .places, riskClass: .read,
+        permissions: ["Location"], argumentSummary: "search term")
+}
+
 // MARK: - Contacts (name → number/email lookup)
 
 struct ContactsTool: Tool {
@@ -688,4 +728,12 @@ struct ContactsTool: Tool {
         }.value }
         return report
     }
+}
+
+extension ContactsTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "lookupContact",
+        semanticDescription: "Looks up a person in the user's contacts: phone numbers and email addresses.",
+        source: .device, group: .contacts, riskClass: .read,
+        permissions: ["Contacts"], argumentSummary: "name")
 }

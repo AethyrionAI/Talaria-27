@@ -131,6 +131,14 @@ struct DeviceHealthTool: Tool {
     }
 }
 
+extension DeviceHealthTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readHealth",
+        semanticDescription: "Reads the user's HealthKit data: steps, sleep, workouts, heart rate.",
+        source: .device, group: .health, riskClass: .read,
+        permissions: ["Health"], argumentSummary: "metric + optional day range")
+}
+
 /// #209 PINNED ROLLBACK for the optional-`metric` schema. Identical to
 /// `DeviceHealthTool` in name, description and engine — the ONLY delta is that
 /// `metric` is REQUIRED, which is what production shipped until #209.

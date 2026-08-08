@@ -2258,6 +2258,13 @@ Logged 2026-07-11.
 > especially, since the phone brain sees HealthKit and location data that
 > must not silently become permanent profile facts.
 
+> **Update 2026-08-08 (#284 close-out):** #284 closed WITHOUT shipping
+> selective arming, so no context is freed — the sequencing constraint's
+> premise (reclaim before #101 spends) did not materialize. The fullBelt
+> contrast line makes the budget measurable per turn, but the belt still
+> costs what it cost. #101's routing is Owen's call with that fact on the
+> table.
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
@@ -5049,6 +5056,16 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
+
+**The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
+
+**The fix (spec §4's design, plan Task 12's sketch):** ONE registry-generated sentence appended to the toolless branch — generated via `CapabilityRegistry.armedCapabilityEnumeration(families:)` at the call site, NEVER hand-written (that staleness is #257's root cause) — shaped like: "You can also read the user's health and activity, location, the weather, nearby places, calendar, reminders, alarms, contacts, past conversations, and device status when asked — offer to, rather than saying you can't." Behind an `includeToollessCapabilityIndex: Bool = false` parameter on `instructionsText` (the established clause-flag pattern); production flips it only after the arm clears.
+
+**Why this is a MEASURED arm, not an edit:** toolless-lic2 is measured text (60/60 on device). Bar candidates when a lane opens: (a) the #257 conversational bar — a fresh session's "What can you do?" names every capability family; (b) NO regression on the toolless canaries (composition + math rows clean). Device A/B: toolless-lic2 ± the index sentence.
+
+**Risk to design against:** the added sentence names capabilities on a branch with NO tools armed — it must not resurrect the #196 disclaimer tic or induce tool-syntax hallucination on toolless turns; the canaries are the guard.
+
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
@@ -5945,6 +5962,42 @@ screenshot shape, inverted), measured per the #200-series discipline.
 > wrong one means the model lacks the tool and says "I can't" — which is
 > #257's symptom, made worse. **Discovery must fail OPEN** (arm a sensible
 > default belt), never closed.
+
+> **#284 BARS PRE-REGISTERED 2026-08-08 — before the vector probe run, per the
+> post-#215 convention. Spec: `planning/superpowers/specs/2026-08-08-284-capability-broker-design.md` §5.**
+> Vehicle: `runVectorRouterProbe(trials: 5)`, Developer screen, on device.
+> - **Gate:** armed/toolless Bool ≥95% across the pinned baseline ten AND the
+>   grid rows (#217B measured 100% with a second field; ten fields is what
+>   this run tests).
+> - **Dangerous ≤2%** of grid trials, scored by `vectorTrialIsDangerous`
+>   against each row's pre-written `expectedTools` annotation. Dangerous =
+>   the narrowed belt lacks a tool full-belt production uses on that prompt;
+>   all-false is safe by construction (fails open to the full belt).
+> - **In-scope groups ≥90%:** on rows with a non-empty expectedGroups, the
+>   exact expected set at ≥90% of trials.
+> - **Meta rows:** measurement only, no bar — they answer spec §4's routing
+>   question for Task 12.
+> - **Reclaim (reported, not barred):** measured narrowed-vs-full belt token
+>   delta via the #284 budget contrast line.
+> **Pre-registered responses:** danger bar missed → selective arming does NOT
+> ship; lane closes at stages 1–2 (registry, #257 armed fix, verdict filed) —
+> #217B's shape. Gate bar missed → the vector schema is abandoned outright
+> (it would be degrading the 200/200 Bool). Owen routes the verdict either way.
+> - **Chain stance (Owen, 2026-08-08):** the danger bar protects the answer path,
+>   not tool-chaining residue — lookupContact on the calendar-create row is
+>   deliberately unprotected (#215's named over-serving).
+
+> **#284 VECTOR PROBE VERDICT FILED 2026-08-08 — the danger bar is MISSED; the pre-registered response applies: selective arming does NOT ship this lane.** Two runs, both OTA Debug builds on device (iOS 27.0 24A5390f):
+> - **Run `21F0C10D` (build 2224) — INVALID BY MALFUNCTION, not scored.** 165/165 trials were router errors: `routeVector` reused production's `toolIntentRouterOptions` 64-token cap, which truncated every 11-field JSON mid-generation. The run measured the error path, not the model — caught ONLY because the META band carries an `errors=` field (added in Task 7's review fix); without it the output would have read as a plausible "arms everything, never sets a group" verdict. Fixed by `vectorRouterOptions` (greedy, 256; commit `636d7b3`), both option values pinned by test.
+> - **Run `0AF5A6D8` (build 2225) — VALID: errors=0 across all 165 trials, zero variance (every row single-valued 5/5, the #215/#217B determinism again).**
+> - **Gate ≥95%: MET at 100%** — 50/50 baseline + 105/105 grid. Eleven Bool fields cost the armed/toolless Bool nothing; #217B's "a second field is free" extends to eleven.
+> - **Dangerous ≤2%: MISSED at 4.76%** (5/105). One deterministic trap row: "How long will it take me to drive to the airport?" armed `deviceStatus+location+places` 5/5 — a confident wrong narrowing on an out-of-vocabulary prompt, firing on 100% of such requests by determinism.
+> - **In-scope exact-set ≥90%: MISSED at 37.5%** (30/80). Direction matters: **every miss was a SUPERSET of the needed groups — zero under-arming, DANGEROUS=0 on all 16 in-scope rows.** The model over-arms (~2.7 groups mean vs 10) but never starved a needed tool in vocabulary; #217B's wrong-domain-commit failure did not recur in-scope. Partial abstention is REAL and new vs #217B: all-false answered correctly on music / bottle-label / haiku / 2+2.
+> - **Meta rows: "What can you do?" routes ARMED with all ten groups true (5/5, errors=0, both phrasings)** — the registry-generated armed blurb answers it, the toolless "no external tools" trap never fires, and **the plan's Task 12 (toolless capability index + measured mini-arm) is unnecessary. Spec §4's open question is closed.**
+> - **Consequence per pre-registration:** stages 1–2 ship (registry, #257 armed fix, budget contrast, the probe artifacts); the arming stays full-belt. A superset-tolerant arming design (cover-the-needed-groups rather than exact-set, with the trap-row danger solved) would be NEW work with NEW bars under a new filing — not a reopening of this one. Owen routes.
+> - **Reclaim (pre-registered as reported-not-barred): n/a** — arming did not ship, nothing narrows, so there is no narrowed-vs-full delta to report; the `fullBelt=` line ships and measures the un-narrowed cost per turn.
+
+> **CORRECTION, same day (2026-08-08), on device evidence:** the verdict's meta-row bullet over-reached. The meta rows measured the VECTOR's routing; **production's one-Bool router routes "What can you do?" TOOLLESS** — verified on build 2225, fresh chat: the reply named zero capability families and is the toolless-lic2 self-description (IN=500, a beltless turn). The "Task 12 unnecessary / §4 resolved" inference is **WITHDRAWN**: #257's conversational bar is NOT met on device, and spec §4's toolless capability-index arm (plan Task 12 — a measured mini-arm on the toolless payload) is live again. Owen routes whether it runs in this lane or a follow-up. **Routed same day: follow-up = #297; PR #282 merges without it.**
 
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
@@ -7282,6 +7335,17 @@ with a Release build check. Alternative considered and disfavored:
 routing capability questions ARMED (≈6K in per turn for a question that
 needs no tool, plus intent-guide churn). Bars pre-register here when
 the lane opens.
+
+> **Update 2026-08-08 (#284 close-out):** the armed-surface root cause is FIXED
+> on the #284 branch — the capability enumeration at the old
+> `LocalChatBackend.swift:1845` site is now registry-generated from the
+> offered belt (commit `8bc0c98`), and run `0AF5A6D8`'s meta rows measured
+> "what can you do?" routing ARMED with all ten groups (5/5, both phrasings),
+> so the answer path is the armed blurb. Device conversational bar (the
+> reply naming every family) still pending Owen's screenshot — that is the
+> remaining evidence, not a done claim. Not closed here; Owen closes.
+
+> Correction, same day: the meta-row inference above is withdrawn — production routes "What can you do?" toolless (build 2225 device check: reply named zero families, IN=500 beltless). The armed-surface fix stands but is unreachable on this question; the conversational bar is NOT met, and the remaining fix is spec §4's toolless capability index (plan Task 12, a measured arm). **Filed as #297, 2026-08-08.**
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
@@ -9287,6 +9351,10 @@ per call.
 > - **Bar 2.3:** on the same prompt, a **toolless retry** produces text where the armed
 >   retry produced an overflow. If met, that is a one-line change to #26's guard with a
 >   measured justification.
+
+> **Update 2026-08-08 (#284 close-out):** the #284 budget line now logs a
+> measured full-belt contrast per turn (`fullBelt=` field, commit `d3f41ad`) —
+> #229's one-off ~18% is now a per-turn number.
 
 ## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **✅ L0-A + L0-C ON-DEVICE HALVES MET 2026-08-03 ~10:44/10:47 PM (corded coda, verbose RELEASE build, sudo log collect archive)**
 

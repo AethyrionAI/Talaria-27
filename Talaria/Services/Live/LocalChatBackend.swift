@@ -978,6 +978,25 @@ final class LocalChatBackend: HermesClientProtocol {
         let pending = pendingSessionBudgets
         pendingSessionBudgets = []
         Task { [model] in
+            // #101's freed-budget number: what the FULL installed belt would
+            // have cost this turn. Measured directly here, ONCE per flush
+            // (the installed belt doesn't change between queued entries) —
+            // NOT by reusing the offered-belt measurement when the counts
+            // match. In DEBUG, `effectiveOfferedTools` can run the offered
+            // set through `shapedBelt`, whose `.armedRemfix`/`.armedFix`/
+            // `.armedNoschema` cells map tools to modified copies: same
+            // count, same names, different description/schema content. A
+            // count- or name-based equality check would silently mislabel
+            // that shaped belt's cost as the full belt's — exactly the cells
+            // built to test description/schema changes (#284 review
+            // finding). Direct measurement has no such blind spot.
+            let fullBelt = await MainActor.run { self.tools }
+            let fullBeltTokens: Int?
+            if fullBelt.isEmpty {
+                fullBeltTokens = 0
+            } else {
+                fullBeltTokens = try? await model.tokenCount(for: fullBelt)
+            }
             for entry in pending {
                 // An empty belt (a routed-toolless turn) costs 0 by
                 // definition — knowable without a tokenizer, never "—".
@@ -992,7 +1011,8 @@ final class LocalChatBackend: HermesClientProtocol {
                     toolCount: entry.toolCount,
                     toolTokens: toolTokens,
                     transcriptTokens: transcriptTokens,
-                    window: await self.activeContextSize()
+                    window: await self.activeContextSize(),
+                    fullBeltTokens: fullBeltTokens
                 )
                 Self.logger.notice("\(line, privacy: .public)")
             }
@@ -1012,7 +1032,8 @@ final class LocalChatBackend: HermesClientProtocol {
         toolCount: Int,
         toolTokens: Int?,
         transcriptTokens: Int?,
-        window: Int
+        window: Int,
+        fullBeltTokens: Int?
     ) -> String {
         let tools = toolTokens.map(String.init) ?? "—"
         let transcript = transcriptTokens.map(String.init) ?? "—"
@@ -1022,7 +1043,12 @@ final class LocalChatBackend: HermesClientProtocol {
         } else {
             free = "free —"
         }
-        return "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) (#228)"
+        // #101: the full-belt contrast — what the whole installed belt would
+        // have cost this turn, so a narrowed (or toolless) turn shows the
+        // freed budget. Unknown stays honest — "—", never a fabricated 0.
+        // The tag stays last — every line in this file ends on "(#228)".
+        let fullBelt = fullBeltTokens.map { "\($0)tok" } ?? "—"
+        return "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) fullBelt=\(fullBelt) (#228)"
     }
 
     /// What a recreated session should contain: instructions (base persona,
@@ -1696,11 +1722,28 @@ final class LocalChatBackend: HermesClientProtocol {
     /// works — a direct request routes ARMED and creates (production 20/20).
     nonisolated static let toollessHonestyClauseV2 = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn. Say in one plain sentence that you can't do it right now, and invite them to ask you for it directly. Never suggest that you or this app lack the ability to do it at all — the limit is this turn, not the app. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
 
+    /// #284: the armed blurb's generated enumeration. Vision is appended
+    /// here (never via the families list) so the persona mentions image
+    /// reading exactly when the session was actually given those tools.
+    nonisolated static func armedEnumeration(
+        families: [CapabilityGroup], hasImageTools: Bool
+    ) -> String {
+        var all = families.filter { $0 != .vision }
+        if hasImageTools { all.append(.vision) }
+        return CapabilityRegistry.armedCapabilityEnumeration(families: all)
+    }
+
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
         hasImageTools: Bool = false,
+        // #284: the armed blurb's capability list, generated from the
+        // registry so it can never go stale again (#257's root cause was a
+        // hand-written copy). Default = the full non-vision catalog; stage 3
+        // passes the turn's armed subset. Vision joins via hasImageTools —
+        // the #176 image gate, not the caller's list.
+        armedCapabilityFamilies: [CapabilityGroup] = CapabilityGroup.allCases.filter { $0 != .vision },
         includeCompositionLicensingSentence: Bool = false,
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
@@ -1844,7 +1887,7 @@ final class LocalChatBackend: HermesClientProtocol {
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
                 + (includeCompositionLicensingSentence ? composition : "")
-                + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+                + "Use the tools for the user's own data — \(Self.armedEnumeration(families: armedCapabilityFamilies, hasImageTools: hasImageTools)) — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
                 + (includeActionDestallClause ? actionDestall : "")
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")

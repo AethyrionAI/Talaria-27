@@ -1821,6 +1821,65 @@ extension LocalChatBackend {
         ("What's 2+2?", false, .other),
     ]
 
+    /// #284: the Bool-vector grid. A NEW list — `intentProbeGrid` (#217B)
+    /// and `routerBaselineProbes` are closed series and never grow (#205).
+    /// Row text for the first 19 rows is copied verbatim from
+    /// `intentProbeGrid` so the two probes remain comparable.
+    /// `expectedTools` is the danger-bar annotation, written BEFORE the run:
+    /// the tools full-belt production behavior uses on that prompt. A trial
+    /// is DANGEROUS iff the model armed a non-empty group set whose tools
+    /// don't cover expectedTools (all-false is safe by construction — O1
+    /// arms the full belt).
+    nonisolated static let vectorProbeGrid: [(text: String, expectedArmed: Bool,
+                                              expectedGroups: Set<CapabilityGroup>,
+                                              expectedTools: Set<String>)] = [
+        ("Remind me to buy milk tomorrow at 9am", true, [.reminders], ["createReminder"]),
+        ("Add pick up dry cleaning to my reminders", true, [.reminders], ["createReminder"]),
+        ("Set an alarm for 6:30", true, [.alarms], ["scheduleAlarm"]),
+        ("Wake me up at 7 tomorrow", true, [.alarms], ["scheduleAlarm"]),
+        // #215 (run F486F103) measured this exact prompt at create 10/10 +
+        // readCalendar 7/10 + lookupContact 7/10. lookupContact is DELIBERATELY
+        // unprotected — #215 names that chain over-serving, and #200W's un-routed
+        // run saw the chain invent a place on 5/8 creates; the bar protects the
+        // answer path, not the spiral (Owen, 2026-08-08).
+        ("Put lunch with Sam on my calendar Friday at noon", true, [.calendar], ["createCalendarEvent", "readCalendar"]),
+        ("Do I have anything on my calendar Friday?", true, [.calendar], ["readCalendar"]),
+        ("What's the weather like right now?", true, [.weather], ["currentWeather"]),
+        ("Is it going to rain this afternoon?", true, [.weather], ["currentWeather"]),
+        ("How many steps have I taken today?", true, [.health], ["readHealth"]),
+        ("How did I sleep last night?", true, [.health], ["readHealth"]),
+        ("When did I last text Sam about the boat?", true, [.conversations], ["searchConversations"]),
+        ("How much battery do I have left?", true, [.deviceStatus], ["deviceStatus"]),
+        ("What's Sam's phone number?", true, [.contacts], ["lookupContact"]),
+        ("Find a coffee shop near me", true, [.places], ["searchPlaces"]),
+        // The out-of-vocabulary traps, kept verbatim (#217B). Correct vector
+        // answer: armed, ALL BOOLS FALSE → full belt. No belt tool serves
+        // them, so expectedTools is empty and only a spurious non-empty
+        // group set can be dangerous here — exactly the failure #217B's
+        // enum could not avoid.
+        ("Play some music", true, [], []),
+        ("How long will it take me to drive to the airport?", true, [], []),
+        ("Read the label on this bottle for me", true, [], []),
+        // Toolless rows, verbatim.
+        ("Write a haiku about sledding", false, [], []),
+        ("What's 2+2?", false, [], []),
+        // #284 NEW: multi-intent rows — the union case the enum could not
+        // express at all.
+        ("What's my day look like tomorrow?", true, [.calendar, .reminders, .weather],
+         ["readCalendar", "readReminders", "currentWeather"]),
+        ("Anything due today, and do I need an umbrella?", true, [.reminders, .weather],
+         ["readReminders", "currentWeather"]),
+    ]
+
+    /// #284: measurement-only rows — no bar, no expectation. Where does a
+    /// capability-meta question ROUTE? (Spec §4's open question: if these
+    /// route toolless, Task 12 adds the toolless capability index as its own
+    /// measured arm.)
+    nonisolated static let vectorMetaRows: [String] = [
+        "What can you do?",
+        "What kinds of things can you help me with?",
+    ]
+
     /// #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned router
     /// instructions never mention images. UNDER OUR INTEGRATION the model
     /// never receives image bytes — we OCR with Vision ourselves and hand it
@@ -2091,6 +2150,94 @@ extension LocalChatBackend {
             }
         }
         Self.batteryEmit("router: INTENT PROBE DONE (#217B)")
+        Self.batteryRecorder.endRun()
+    }
+
+    /// #284: the danger-bar scorer, pure so it is unit-pinned. Dangerous ==
+    /// the narrowed belt would lack a tool production uses on this prompt
+    /// (spec §5.3), scored against the row's pre-written annotation.
+    nonisolated static func vectorTrialIsDangerous(
+        armed: Bool, groups: Set<CapabilityGroup>, expectedArmed: Bool,
+        expectedTools: Set<String>, catalog: [CapabilityDescriptor]
+    ) -> Bool {
+        guard expectedArmed, armed, !groups.isEmpty else { return false }
+        if expectedTools.isEmpty { return true }   // spurious narrowing on a trap row
+        let offered = CapabilityRegistry.toolNames(for: groups, in: catalog)
+        return !expectedTools.isSubset(of: offered)
+    }
+
+    /// #284 Task 7: the vector router probe. Three bands, each its own
+    /// greppable line: `baseline` (the regression gate through the vector
+    /// schema), `grid` (armed/groups/DANGEROUS accuracy against the
+    /// pre-written annotation), and `META` (measurement only, no bar —
+    /// spec §4's open question about capability-meta questions).
+    func runVectorRouterProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let catalog = CapabilityRegistry(belt: tools).descriptors
+        let baseline = Self.routerBaselineProbes
+        let grid = Self.vectorProbeGrid
+        Self.batteryEmit("router: VECTOR PROBE START trials=\(trials) baseline=\(baseline.count) grid=\(grid.count) meta=\(Self.vectorMetaRows.count) (#284)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["vector"], kind: "vector")
+
+        // Band 1 — the regression gate: the pinned ten through the vector
+        // schema. The gate bar (≥95%) reads from these lines.
+        for probe in baseline {
+            var correct = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeVector(prompt: probe.text)
+                if route.needsDeviceTool == probe.expected { correct += 1 }
+            }
+            Self.batteryEmit("router: [vector] baseline \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: probe.text, expected: probe.expected, correct: correct,
+                trials: trials, variant: "vector", band: "baseline",
+                errors: Self.routerFailureTally - failuresBefore, intentTally: [:])
+        }
+
+        // Band 2 — the vector grid: gate accuracy, group accuracy, danger.
+        for row in grid {
+            var boolCorrect = 0, groupsExact = 0, dangerous = 0
+            var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeVector(prompt: row.text)
+                if route.needsDeviceTool == row.expectedArmed { boolCorrect += 1 }
+                if route.groups == row.expectedGroups { groupsExact += 1 }
+                if Self.vectorTrialIsDangerous(
+                    armed: route.needsDeviceTool, groups: route.groups,
+                    expectedArmed: row.expectedArmed,
+                    expectedTools: row.expectedTools, catalog: catalog) { dangerous += 1 }
+                let key = route.groups.map(\.rawValue).sorted().joined(separator: "+")
+                tally[key.isEmpty ? "∅" : key, default: 0] += 1
+            }
+            Self.batteryEmit("router: [vector] grid armed=\(boolCorrect)/\(trials) groups=\(groupsExact)/\(trials) DANGEROUS=\(dangerous)/\(trials) want=\(row.expectedGroups.map(\.rawValue).sorted().joined(separator: "+")) tally=\(tally) probe=\(row.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: row.text, expected: row.expectedArmed, correct: boolCorrect,
+                trials: trials, variant: "vector", band: "grid",
+                errors: Self.routerFailureTally - failuresBefore,
+                expectedIntent: row.expectedGroups.map(\.rawValue).sorted().joined(separator: "+"),
+                intentTally: tally)
+        }
+
+        // Band 3 — meta rows: measurement only, no bar (spec §4).
+        for text in Self.vectorMetaRows {
+            var armedCount = 0
+            var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeVector(prompt: text)
+                if route.needsDeviceTool { armedCount += 1 }
+                let key = route.groups.map(\.rawValue).sorted().joined(separator: "+")
+                tally[key.isEmpty ? "∅" : key, default: 0] += 1
+            }
+            Self.batteryEmit("router: [vector] META armed=\(armedCount)/\(trials) tally=\(tally) errors=\(Self.routerFailureTally - failuresBefore) probe=\(text)")
+        }
+        Self.batteryEmit("router: VECTOR PROBE DONE (#284)")
         Self.batteryRecorder.endRun()
     }
 

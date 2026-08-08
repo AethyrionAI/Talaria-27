@@ -10883,6 +10883,15 @@ reads as a live blocker.
 grid stay as DEBUG-only measured artifacts — the record of a falsified approach,
 which is worth more than a deletion.
 
+> **Supersession note 2026-08-08 (#284 close-out):** the surviving Bool-vector
+> hypothesis was run 2026-08-08 under #284 (valid run `0AF5A6D8`): the gate
+> stayed 100% with ELEVEN fields (the "second field is free" finding extends),
+> partial abstention is REAL on the vector shape (all-false answered correctly
+> on 4 rows incl. all three #217B traps except driving-time), but one
+> deterministic trap commit (driving-time → `deviceStatus+location+places`)
+> missed the ≤2% danger bar at 4.76% — intent-driven belt scoping stays
+> unshipped; full verdict in OPEN_ITEMS #284.
+
 ## 216. ✅ the narrow belt, re-tried where it cannot lose. #214's closure was right about the evidence and wrong about the world.
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Verdict filed 2026-08-01. Intent-router lane ran and was abandoned (#217). **Owed re-read is now lane #216A.**

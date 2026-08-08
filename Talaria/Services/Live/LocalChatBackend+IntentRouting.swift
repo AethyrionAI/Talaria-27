@@ -319,6 +319,49 @@ extension LocalChatBackend {
         }
     }
 
+    /// #284: the vector probe's options. Same greedy determinism as
+    /// production's router options, but the 11-field JSON needs ~90-110
+    /// response tokens — the production cap of 64 truncated EVERY vector
+    /// generation on device (run 21F0C10D: 165/165 errors), so the vector
+    /// carries its own cap. Production's `toolIntentRouterOptions` is a
+    /// measured artifact and stays untouched — this lives inside the same
+    /// `#if DEBUG` region as `routeVector` (its only caller) rather than
+    /// beside `toolIntentRouterOptions` at file scope, so the two options
+    /// values can never be mistaken for interchangeable and travel together
+    /// when Task 9 promotes `routeVector` out of DEBUG.
+    nonisolated static var vectorRouterOptions: GenerationOptions {
+        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 256)
+    }
+
+    /// #284 probe: one generation, the production router's exact session,
+    /// instructions, prompt envelope, and options — modeled on `routeIntent`
+    /// (#217), which proved a second field costs the gate nothing. Fails
+    /// safe the same way production does: error → armed, no groups → full
+    /// belt (O2).
+    func routeVector(prompt: String, context: String = "",
+                     hasImage: Bool = false) async
+        -> (needsDeviceTool: Bool, groups: Set<CapabilityGroup>, raw: ToolIntentRouteVector?) {
+        let session = LanguageModelSession(
+            model: model,
+            instructions: Instructions(Self.routerInstructions(
+                for: Self.productionRouterVariant,
+                includeImageGuide: Self.productionIncludesImageGuide)))
+        do {
+            let route = try await session.respond(
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt,
+                                             variant: Self.productionRouterVariant,
+                                             hasImage: hasImage)),
+                generating: ToolIntentRouteVector.self,
+                options: Self.vectorRouterOptions
+            ).content
+            return (route.needsDeviceTool, route.armedGroups, route)
+        } catch {
+            Self.logger.notice("routeVector: classification failed — failing safe to armed + full belt (\(String(String(describing: error).prefix(80)), privacy: .public)) (#284)")
+            Self.routerFailureTally += 1
+            return (true, [], nil)
+        }
+    }
+
     /// #217B: the 2x2. Two candidate causes for #217's 12.5% dangerous rate —
     /// an incomplete vocabulary and a too-weak `other` guide — measured as
     /// MAIN EFFECTS rather than confounded into one candidate arm.
@@ -371,6 +414,63 @@ struct ToolIntentRoute {
 }
 
 #if DEBUG
+/// #284: the Bool-vector route — #217B's own surviving hypothesis. Ten
+/// INDEPENDENT binaries instead of one multiway intent, because this
+/// model abstains on binaries (200/200 lifetime) and never on a
+/// multiway choice (zero safe misses in 380 classifications). Guides
+/// follow the v2 tactic — a positive test each, certainty framing, no
+/// exclusion lists, and none of the trap domains named (teach-to-the-
+/// test discipline, #217B).
+///
+/// File scope for the same reason as `ToolIntentRoute` above: the
+/// `@Generable` macro expansion needs a non-nested, non-private type — a
+/// copy nested inside `extension LocalChatBackend` compiles but is only
+/// reachable as `LocalChatBackend.ToolIntentRouteVector`, which is not
+/// what callers (or this file's own `routeVector`) write.
+///
+/// DEBUG-only until the #284 probe clears its pre-registered bars; the
+/// promotion commit moves this type out of `#if DEBUG` (#218).
+@Generable
+struct ToolIntentRouteVector {
+    @Guide(description: "true only if replying needs to read from or act on this user's device right now")
+    let needsDeviceTool: Bool
+    @Guide(description: "true only if certain the user is asking about their calendar events or schedule, or to put something on the calendar")
+    let wantsCalendar: Bool
+    @Guide(description: "true only if certain the user is asking about their reminders or to-dos, or to create one")
+    let wantsReminders: Bool
+    @Guide(description: "true only if certain the user is asking to set, change, or ask about an alarm or wake-up time")
+    let wantsAlarms: Bool
+    @Guide(description: "true only if certain the user is asking about their own body or activity data: steps, sleep, workouts, heart rate")
+    let wantsHealth: Bool
+    @Guide(description: "true only if certain the user is asking about current or upcoming weather")
+    let wantsWeather: Bool
+    @Guide(description: "true only if certain the user is asking to find a place, business, or point of interest near them")
+    let wantsPlaces: Bool
+    @Guide(description: "true only if certain the user is asking about a person in their contacts: phone, email, address")
+    let wantsContacts: Bool
+    @Guide(description: "true only if certain the user is asking about something said in their own past conversations here")
+    let wantsConversations: Bool
+    @Guide(description: "true only if certain the user is asking about this device itself: battery, storage, network")
+    let wantsDeviceStatus: Bool
+    @Guide(description: "true only if certain the user is asking where they are right now")
+    let wantsLocation: Bool
+
+    var armedGroups: Set<CapabilityGroup> {
+        var groups: Set<CapabilityGroup> = []
+        if wantsCalendar { groups.insert(.calendar) }
+        if wantsReminders { groups.insert(.reminders) }
+        if wantsAlarms { groups.insert(.alarms) }
+        if wantsHealth { groups.insert(.health) }
+        if wantsWeather { groups.insert(.weather) }
+        if wantsPlaces { groups.insert(.places) }
+        if wantsContacts { groups.insert(.contacts) }
+        if wantsConversations { groups.insert(.conversations) }
+        if wantsDeviceStatus { groups.insert(.deviceStatus) }
+        if wantsLocation { groups.insert(.location) }
+        return groups
+    }
+}
+
 // Everything below is a #217/#217B MEASURED ARTIFACT and is DEBUG-only.
 // Production's router returns the `ToolIntentRoute` Bool above and never reads
 // any of it. `RouterIntent` shipped UNGATED until 2026-08-01 — harmless (every

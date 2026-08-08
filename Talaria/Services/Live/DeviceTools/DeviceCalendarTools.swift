@@ -89,6 +89,14 @@ struct CalendarReadTool: Tool {
     }
 }
 
+extension CalendarReadTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readCalendar",
+        semanticDescription: "Reads the user's calendar events for a day or range.",
+        source: .device, group: .calendar, riskClass: .read,
+        permissions: ["Calendars"], argumentSummary: "day or range")
+}
+
 // MARK: - Reminders (read)
 
 struct ReminderReadTool: Tool {
@@ -178,4 +186,12 @@ struct ReminderReadTool: Tool {
         }
         return result
     }
+}
+
+extension ReminderReadTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readReminders",
+        semanticDescription: "Reads the user's reminders and their due dates.",
+        source: .device, group: .reminders, riskClass: .read,
+        permissions: ["Reminders"], argumentSummary: "optional list filter")
 }

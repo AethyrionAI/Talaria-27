@@ -120,6 +120,14 @@ struct ImageTextTool: Tool, ImageDependentTool {
     }
 }
 
+extension ImageTextTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readImageText",
+        semanticDescription: "Reads printed or handwritten text out of the image attached to the conversation.",
+        source: .device, group: .vision, riskClass: .read,
+        permissions: [], argumentSummary: "none — uses the attached image")
+}
+
 // MARK: - Barcode / QR (Vision)
 
 struct BarcodeReaderTool: Tool, ImageDependentTool {
@@ -158,6 +166,14 @@ struct BarcodeReaderTool: Tool, ImageDependentTool {
         }
         return "Codes found in \"\(fileName)\":\n" + found.joined(separator: "\n")
     }
+}
+
+extension BarcodeReaderTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "readBarcode",
+        semanticDescription: "Reads barcodes and QR codes in the image attached to the conversation.",
+        source: .device, group: .vision, riskClass: .read,
+        permissions: [], argumentSummary: "none — uses the attached image")
 }
 
 // MARK: - Per-tool timeout (#200Y)
@@ -348,4 +364,12 @@ struct ConversationSearchTool: Tool {
         }
         return sections.joined(separator: "\n\n")
     }
+}
+
+extension ConversationSearchTool: CapabilityDescribing {
+    static let capabilityDescriptor = CapabilityDescriptor(
+        id: "searchConversations",
+        semanticDescription: "Searches the user's past Talaria conversations.",
+        source: .device, group: .conversations, riskClass: .read,
+        permissions: [], argumentSummary: "search term")
 }
