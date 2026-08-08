@@ -5019,6 +5019,159 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
+
+**The gap:** the cold-load scrubber that exists for exactly this shape only
+catches `.sending` (`ChatStore.swift:486-491`), so `.delivered` + empty sails
+through and the next line persists it. Tap Stop during the thinking phase —
+before the first `assistant.delta` / `message.delta` — and `MessageBubble`'s
+non-streaming branch finds empty content and no activities and renders a bare
+box with a timestamp. It is written to the conversation cache, reloaded on
+next launch, merged forward on every poll tick, and journaled.
+
+**This is the shape #235 F1 exists to forbid.** `cleanCloseArmsRecovery`
+refuses to paint an empty bubble on a clean close, and `deliverPolledTerminal`
+deliberately REUSES that guard so the two planes cannot drift.
+**`cancelStreaming` is the third producer of terminal assistant rows and
+applies neither** — the guard is two functions away and reusing it is
+approximately one line.
+
+**More reachable since slice 3A:** `hardStopActiveRun` now really kills the
+host run, so stopping early is a rational thing for a user to do rather than
+a mistake.
+
+**Bars: (294-A)** a Stop with no content and no tool activity leaves NO
+assistant row behind (or leaves one that the scrubber removes on cold load);
+**(294-B)** a Stop WITH partial content still keeps that content — the fix
+must not eat a real partial answer; **(294-C)** relaunch after an early Stop
+shows no empty bubble.
+
+## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
+
+**(a) Token-less loop teardowns in `ChatStore` — the house pattern is applied
+everywhere else** (`:2041-2053` reconcile, `:1975-1977` polling). Both clear
+whatever handle the store *currently* holds rather than the one the finishing
+task owns; `self.pollingTask?.isCancelled == false` is true precisely when a
+NEWER task has replaced it. The convention is already established three times
+in this codebase — `ChatBackendRouter.finishRun(_ id:)`,
+`clearActiveRunContext(matchingRunID:)`, `AppContainer`'s
+`bootstrapGeneration`. Auditor's own read: ~90% the shape is wrong, **~35%
+reachable** (the window is one main-actor hop). **Latent shape, not a live
+bug** — fix is three tokens and matches the file's own convention.
+
+**(b) `attemptReconcile` compares a CLIENT clock to HOST timestamps with
+strict `>` and no slack** (`:2062-2066`). `pending.sentAt` is a local
+`Date()`; `$0.timestamp` is `Date(timeIntervalSince1970:)` off the host row.
+**The sibling guard one screen away knows better** — `historyAdoptsQueuedTurn`
+(`:1645`) subtracts 60s and calls it clock-skew slack explicitly. If the
+phone runs ahead of the host by more than a turn's duration, every reply row
+stamps earlier than `sentAt`, the predicate never matches, the reconcile
+burns its full 120s budget — and then (a) above's sibling defect **#291**
+marks the turn failed while the answer sits on the host. Auditor: ~60%
+reachable. **Cheap check before any fix: log `pending.sentAt` beside the
+newest server row timestamp on each failed pass.**
+
+**(c) `selfStoppedRunIDs` can retain an entry for the process's life, and its
+doc says it cannot** (`SessionsHermesClient.swift:100-107` promises it
+"never grows past the handful of runs actually in flight"). **This is
+residue from MY OWN #279 review fix**, which moved the insert to *after* the
+`/stop` POST returns: if the driver exits before that POST's response lands,
+the insert happens after the last drain and nothing removes it. Harmless
+behaviourally (run ids are server-unique, so a stale flag cannot silence a
+different run) — **filed because the comment asserts a bound the code no
+longer enforces**, and this project treats that as a defect in its own right.
+
+**(d) `mergeAttachments`' same-index fallback reads `localAttachments`, not
+`unclaimed`** (`:2438-2444`), so an entry already consumed by an id/name
+match can be handed AGAIN, positionally, to a second remote row — copying one
+bubble's `localStoragePath` onto another. **That is #185's harm reappearing
+through the insurance clause #185's fix deliberately kept.** Auditor: ~85%
+the shape is real, **~15% reachable** — on the Hermes path the refresh source
+carries no attachments so the loop returns early; it needs a source that
+echoes attachments with re-minted ids AND a name mismatch (the relay/mock
+shape). **If it is judged not distinct from #185, drop it there rather than
+carrying a duplicate.**
+
+## 292. 🐛 The runs producer Task is NEVER cancelled — an abandoned turn can poll the host ~60 times over 2 minutes, and the comment claims the opposite — **FILED 2026-08-07 night from the adversarial audit (finding 3). STATIC, auditor ~90% on the mechanism. ESCALATES something #283's own whole-branch review saw and I under-weighted.**
+
+**The mechanism:** `sendStreaming` spawns an **unstructured** `Task`
+(`SessionsHermesClient.swift:322-350`) with **no
+`continuation.onTermination`**. Unstructured tasks inherit actor context,
+priority and task-locals — **not cancellation**. The router one layer up
+DOES wire the hook (`ChatBackendRouter.swift:456-459`), and
+`ResilientHermesClient` passes the stream straight through, so cancelling
+`ChatStore.streamingTask` stops the router's pump and releases the client's
+`AsyncStream` — while the producer runs on with `Task.isCancelled == false`
+for its whole life. **Every `if Task.isCancelled` in `streamTurnViaRuns`
+(`:434`) and `pollRunToTerminal` (`:780`, `:814`) is unreachable from a
+consumer walk-away**, and `RunsTransport.swift:535-536`'s comment states the
+opposite invariant.
+
+**Why this is an ESCALATION, not a re-file.** #283's whole-branch review
+found the same dead-cancellation shape and I deferred it as "parity with the
+sessions plane, not a regression." **That was right about the shape and wrong
+about the consequence.** On the sessions plane an uncancelled producer just
+held a dead SSE read. On the runs plane it now runs a bounded POLL LOOP: up
+to ~60 authenticated `GET /v1/runs/{id}` requests over `runsPollBudget`
+(120s) for a turn the user deliberately walked away from — the exact gesture
+the lane's own walk-away ruling protects. Same code shape, materially
+different cost. **I recorded it as a minor; it earns its own number.**
+
+**Consequence for #283's own accounting:** its recorded "~3 min worst case"
+silence window assumes a WATCHING consumer. For an abandoned turn the work
+continues unwatched, which is worse than the number implies.
+
+**Bars: (292-A)** cancelling the consumer stops the producer — assert the
+poll count stops advancing after the consumer's stream is released (the
+suite's 800ms budget hides this today, so the test must assert the producer,
+not the collector); **(292-B)** `RunsTransport.swift:535-536`'s comment
+describes what the code does; **(292-C)** device arm: walk away from a runs
+turn, kill the network past 60s, and confirm the host log shows NO further
+`GET /v1/runs/{id}` polls.
+
+## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
+
+**Verified chain (read, not inferred):**
+1. `cancelStreaming(hardStopHost:)` finalizes ONLY the assistant placeholder
+   (`ChatStore.swift`, the `if let sid = streamingMessageID` block) — the
+   user's optimistic row is never touched — and nils `streamingMessageID`.
+2. `hasPendingMessages` is exactly `.user && .status == .sending`
+   (`:1896-1898`) → still TRUE after a Stop.
+3. The polling loop armed at send time runs `maxPollAttempts = 30` × 2s.
+4. At ~60s, `:1963`'s three conditions — attempts exhausted,
+   `hasPendingMessages`, `streamingMessageID == nil` — are ALL satisfied by a
+   Stop, so every `.sending` user row flips to **`.failed`**, the cache is
+   saved, and **`onSendFailed?()`** fires the error haptic.
+
+**What the user experiences:** a minute after deliberately pressing Stop, the
+phone buzzes with no visible cause and their message is marked failed with a
+Retry button — **while the partial answer sits directly above it marked
+delivered.** The host received the turn and answered part of it. The app is
+lying about its own delivery status on a first-class control that needs no
+network fault, no race, and no unusual state to reach.
+
+**The other branch is no better:** leave the chat screen first and
+`onDisappear` cancels the loop, so the row simply stays `.sending` forever.
+**There is no path where a stopped turn's user row settles honestly.** Every
+other terminal settles its row — `.interrupted` → `.working`,
+`.unreachable`/`.failed` → their own states. **Stop is the only one that
+does not.**
+
+**Why the suite cannot see it (the #218 shape again):** nothing asserts the
+USER row after a Stop; every stop test asserts the assistant placeholder.
+
+**Bars: (291-A)** after `cancelStreaming`, the user row settles to an honest
+terminal state (`.delivered` is defensible — the host DID receive it; NOT
+`.sending`, NOT `.failed`); **(291-B)** no `onSendFailed` / error haptic ever
+fires as a consequence of a user-initiated Stop; **(291-C)** the row survives
+a relaunch in that state; **(291-D)** device: Stop a turn, keep the chat
+screen up 90s — no buzz, no Retry button, no "failed" (this is also the
+auditor's own disproof test, so running it settles the finding either way).
+
+**Sibling filed from the same call site: #294** (empty assistant bubble).
+Fixing both together is one edit; they are separate items because the fixes
+are different (settle the user row vs. do not persist an empty terminal).
+
 ## 290. 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync path — **FILED 2026-08-07 night from PR #279's independent review (findings 2 and 3). The HONEST-CLAIM halves of both were fixed on the branch; these are the halves that change BEHAVIOR and want a decision, not a patch.**
 
 **(a) History is uncounted against the request-body budget.**
