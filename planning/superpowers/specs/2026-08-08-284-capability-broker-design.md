@@ -1,5 +1,12 @@
 # #284 CapabilityBroker — design spec
 
+> **OUTCOME 2026-08-08:** Stages 1-2 shipped. The §5 probe ran on device (valid run
+> `0AF5A6D8`, build 2225): gate 100% MET, danger 4.76% vs ≤2% MISSED, in-scope exact-set
+> 37.5% MISSED (every miss a superset — zero under-arming). Per §5.3's pre-registered
+> response, §6 selective arming did NOT ship; §4's toolless question resolved
+> (capability-meta routes ARMED, all groups — no toolless index needed). Verdict:
+> OPEN_ITEMS #284, 2026-08-08.
+
 **Date:** 2026-08-08. **Tracker:** OPEN_ITEMS #284. **Approved by:** Owen (scope,
 selection mechanism, and probe-first routing all chosen in the 2026-08-08
 brainstorming session; vision-union rule added on his question).
@@ -150,8 +157,9 @@ nothing).
   discipline — expectations written into the grid, not judged after the
   fact). This is the #217B bar, unchanged, because the harm is unchanged: a
   wrong narrowing IS #257's symptom.
-- **In-scope domain accuracy ≥90%** (the needed domain's Bool true on rows
-  that need it).
+- **In-scope groups exact-set ≥90%** (the exact expected group set on rows
+  with a non-empty expectation — as registered in the OPEN_ITEMS entry; a
+  looser earlier phrasing stood here until 2026-08-08).
 - **Reclaim, measured:** `tokenCount(for:)` of the narrowed belt vs the full
   belt across the grid's armed rows — the number #101's sequencing waits for.
   No pass/fail bar; it is the lane's measured prize, reported alongside the

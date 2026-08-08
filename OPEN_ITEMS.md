@@ -2258,6 +2258,13 @@ Logged 2026-07-11.
 > especially, since the phone brain sees HealthKit and location data that
 > must not silently become permanent profile facts.
 
+> **Update 2026-08-08 (#284 close-out):** #284 closed WITHOUT shipping
+> selective arming, so no context is freed — the sequencing constraint's
+> premise (reclaim before #101 spends) did not materialize. The fullBelt
+> contrast line makes the budget measurable per turn, but the belt still
+> costs what it cost. #101's routing is Owen's call with that fact on the
+> table.
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
@@ -7316,6 +7323,15 @@ routing capability questions ARMED (≈6K in per turn for a question that
 needs no tool, plus intent-guide churn). Bars pre-register here when
 the lane opens.
 
+> **Update 2026-08-08 (#284 close-out):** the armed-surface root cause is FIXED
+> on the #284 branch — the capability enumeration at the old
+> `LocalChatBackend.swift:1845` site is now registry-generated from the
+> offered belt (commit `8bc0c98`), and run `0AF5A6D8`'s meta rows measured
+> "what can you do?" routing ARMED with all ten groups (5/5, both phrasings),
+> so the answer path is the armed blurb. Device conversational bar (the
+> reply naming every family) still pending Owen's screenshot — that is the
+> remaining evidence, not a done claim. Not closed here; Owen closes.
+
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
 **Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
@@ -9320,6 +9336,10 @@ per call.
 > - **Bar 2.3:** on the same prompt, a **toolless retry** produces text where the armed
 >   retry produced an overflow. If met, that is a one-line change to #26's guard with a
 >   measured justification.
+
+> **Update 2026-08-08 (#284 close-out):** the #284 budget line now logs a
+> measured full-belt contrast per turn (`fullBelt=` field, commit `d3f41ad`) —
+> #229's one-off ~18% is now a per-turn number.
 
 ## 228. 🔍 Lane 0 of the local-brain run: NO production tool-call instrument, and the belt's token cost has never been measured — **✅ L0-A + L0-C ON-DEVICE HALVES MET 2026-08-03 ~10:44/10:47 PM (corded coda, verbose RELEASE build, sudo log collect archive)**
 
