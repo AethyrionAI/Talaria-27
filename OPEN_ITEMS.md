@@ -5398,6 +5398,13 @@ the hashes into a report.
 **Bars:** **288-A** every active row on every paired host maps to a device
 the phone agrees it is paired to; **288-B** any row deactivated is recorded
 with its `id`/`created`/`install_id` and a restorable backup exists;
+> **Update 2026-08-08 — #285's fix is BUILT (branch
+> `claude/t27-285-profile-atomicity`, awaiting Owen's merge): superseded
+> link turns now abandon BEFORE the pair POST, so the orphan-mint path this
+> chore guards against is closed at the source. Once the fix merges and
+> real switch traffic has run, 288-C below is actionable on Owen's
+> schedule.**
+
 **288-C** the audit is re-run and recorded AFTER #285's fix ships (that
 re-run is the one that actually proves the leak stopped).
 
@@ -5485,7 +5492,88 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > (`transport.py:232-237`) specifically so the rightful owner can still
 > resolve it.
 
-## 285. 🐛 P1 CONFIRMED — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes verified same day; ✅ RUNTIME-REPRODUCED the same evening — 5 of 5 hypotheses confirmed with deterministic traces, one audit sub-claim refuted. NO FIX ATTEMPTED YET (RED first, by design).**
+## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; merge is Owen's call.**
+
+> **✅ THE FIX, 2026-08-08 — one lane, three parts, exactly the shape the
+> parking note demanded (no partial fix: keys AND activation AND the runs
+> family together).**
+>
+> - **Part 1 — `TalariaPlatformLink` (bars 285-A + 285-B).** Every turn now
+>   resolves an immutable `TurnContext` — scope, trailing-slash-normalized
+>   endpoint, all three Keychain keys, and a turn EPOCH — synchronously at
+>   turn start (two closure reads, no await between them: atomic on the
+>   actor). The live computed key vars and per-request `endpointURL()` are
+>   DELETED, so no future call site can re-resolve mid-turn; the injected
+>   `apiKey` closure is deleted too (the link reads the Keychain itself
+>   under the frozen `apiKeyKey` — byte-what production's closure did,
+>   minus the liveness). `stop()` bumps the epoch; a superseded turn
+>   abandons at side-effect checkpoints (before the drain POST, the pair
+>   POST — which closes #288's orphan-mint source — the self-repair, the
+>   re-pair, the delivery/ack block, and each query answer) and returns a
+>   new honest `DrainOutcome.superseded`. Keychain pair writes and drops
+>   stay WHOLE (no checkpoint inside a pair) — "mixed" in the invariant
+>   means mixed PROFILES, and frozen keys make that impossible.
+> - **Part 2 — serialized activation (bar 285-C).**
+>   `setActiveProfile`'s handler dispatch adopts the #136
+>   generation/cancel/drain-the-corpse idiom: a rapid A→B→C runs ONLY C's
+>   handler (B's dispatch dies on the generation guard before its handler
+>   starts); a MID-FLIGHT B handler is cancelled and C provably waits for
+>   its exit (event-ordered test). `handleActiveProfileChanged` gains
+>   `Task.isCancelled` checkpoints before every shared write — key
+>   boxes/cache, `lastKnownHostOnline`, and critically the final
+>   `talariaPlatformLink?.start()`, so a superseded activation can never
+>   re-arm the loop mid-way through the winner's rebind.
+> - **Part 3 — runs endpoint pin (the #283 adjacency, in scope per the
+>   2026-08-07 whole-branch-review note below).** Both runs turn drivers
+>   resolve a `ResolvedEndpoint` ONCE at turn birth and every request in
+>   the family carries it — history GET, submit, events subscribe, status
+>   polls, the catch-path recovery poll, and the stop POST
+>   (`activeRunContext` now stores the endpoint, so a stop issued after a
+>   switch still reaches the run's real host). New test flips the live
+>   base URL mid-turn (deterministically, via the delayed-events-response
+>   trick) and every request still hits the birth host.
+>
+> **Bar evidence:** 285-A = `ensurePairedCompletesEntirelyOnItsBirthProfileAcrossASwitch`
+> (trace byte-identical to the no-switch control) +
+> `aDrainTurnSpeaksOnlyToItsBirthProfilesGateway`; 285-B =
+> `stopContainsAnInFlightTurnNoCrossProfileReadsNoSideEffects` (no B-keyed
+> op ever, wire empty, nothing delivered) +
+> `aStoppedTurnFinishesItsOwnCredentialDropAndNeverTouchesTheNewProfile`
+> (pair dropped whole under A, B byte-untouched, NO pair POST); 285-C =
+> `rapidSwitchesRunTheHandlerOnlyForTheLastWriter` +
+> `aSupersededMidFlightHandlerIsCancelledAndTheWinnerRunsAfterItExits`
+> (events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> cancelled=false)`); runs pin =
+> `aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests`; 285-D = full
+> gate on the branch head: **GATE: PASS, 1807 Swift Testing + 12 XCUITest,
+> count MOVED 1798→1807 (exactly the 9 new tests), the 2 known
+> Apple-Intelligence hardware skips, Release build green.** Every inverted
+> test was first run against the UNFIXED code and observed to fail for the
+> right reason (cross-profile trace / B-gateway host / B-key read /
+> B-delete + leaked pair POST) before the fix landed — no
+> never-failed-test enters this entry as evidence.
+>
+> **Honesty note on 285-C's full-chain clause** ("hermesAPIKey, key box,
+> scoped stores, link all = C"): the store-level serialization arm is
+> unit-proven (the two tests above); the AppContainer chain arm holds BY
+> CONSTRUCTION — serialized handlers cannot interleave, so C's handler
+> writes every one of those after B's has exited — plus code-reviewed
+> checkpoints; there is no AppContainer unit harness to pin it directly.
+> Recorded so nobody later mistakes "by construction + reviewed" for "has
+> its own test."
+>
+> **The RED tests were INVERTED IN PLACE, not deleted** — same
+> choreography, gates, parks and anti-vacuous guards; opposite assertions.
+> `RED-REPORT.md` (this branch) preserves the pre-fix traces verbatim and
+> now carries a dated inversion addendum. Repro 0's close-out instruction
+> is DONE: the falsified "park the drain before the scope moves" comment in
+> `AppContainer.handleActiveProfileChanged` was rewritten to describe the
+> real mechanism (scope moves first; containment = the link's turn epoch).
+>
+> **What this unlocks:** #288's post-fix re-run (288-C) is now actionable —
+> the orphan-mint path is closed at the source (superseded turns abandon
+> before the pair POST), so a clean re-run after real switch traffic is the
+> proof the leak stopped.
 
 > **✅ REPRODUCED 2026-08-07 evening — branch `claude/t27-285-profile-atomicity`, evidence in that branch's `RED-REPORT.md`. Promoted from CANDIDATE to CONFIRMED.** No production code was touched; this is a pure reproduction lane.
 >
@@ -5525,7 +5613,8 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 >   drain is parked *"before the scope moves"* cannot be true:
 >   `setActiveProfile` moves the scope SYNCHRONOUSLY and defers `stop()`
 >   behind a `Task {}`. Pinned by a provenance test. **Close-out rule: that
->   comment must be corrected by whoever fixes this.**
+>   comment must be corrected by whoever fixes this.** *(DONE 2026-08-08 —
+>   corrected in the fix lane; see the FIX note above.)*
 >
 > **⚖️ ONE AUDIT SUB-CLAIM REFUTED, and how it was caught.** The audit said a
 > stopped turn "runs to completion **including its POSTs**." Not reliably:
@@ -5565,7 +5654,10 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > plugin yet — but that clean result reflects USAGE, not safety, and #288's
 > post-fix re-run is the one that proves the leak stopped).
 >
-> **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** The fix direction
+> **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** *(SUPERSEDED
+> 2026-08-08 — the fix landed on the Fable budget exactly as routed; see
+> the FIX note at the top of this entry. The inversion demanded here
+> happened, in place.)* The fix direction
 > in the bars below (immutable per-turn context + the `AppContainer`
 > bootstrap-generation pattern applied to profile activation) is now backed
 > by evidence rather than static reading. Bars **285-A/B/C are effectively

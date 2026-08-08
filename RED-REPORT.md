@@ -1,5 +1,17 @@
 # #285 — RED report: a backend-profile switch is not an atomic transport boundary
 
+> **⚠️ HISTORICAL EVIDENCE — the defect described below is FIXED as of
+> 2026-08-08** (same branch, the fix commits following the RED ones:
+> `TurnContext` + turn epoch in `TalariaPlatformLink`, serialized
+> cancel-superseding activation dispatch, runs-driver `ResolvedEndpoint`
+> pin). **The repro tests were INVERTED IN PLACE** — same choreography,
+> same gates and parks, opposite assertions — and each inverted test was
+> first observed FAILING against the unfixed code (rebased onto
+> post-#283 `main`, where the RED suite still passed 6/6) before the fix
+> landed. This file is kept verbatim as the record of the pre-fix
+> behavior and its traces; the bar-by-bar close-out lives in
+> `OPEN_ITEMS.md` #285.
+
 **Branch:** `claude/t27-285-profile-atomicity` (worktree, based on `main` @ `c4067a3`)
 **Test file:** `TalariaTests/ProfileSwitchAtomicityTests.swift` (new; no production code touched)
 **Date:** 2026-08-07
