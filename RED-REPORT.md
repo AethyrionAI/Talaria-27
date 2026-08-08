@@ -313,6 +313,19 @@ reasoning. It asserted that the post-`stop()` POST reaches the wire; run 1 agree
 recorded `[]`. That is the refuted sub-claim documented above, and it is the reason repro 3
 now parks one step earlier, on a keychain read that cancellation cannot touch.
 
+### No interference with the existing suite
+
+The new suite carries its own `URLProtocol` stub because `TalariaPlatformLinkTests`' is
+`private` to that file and a shared static handler across two suites would be a race. Run
+together to confirm they do not disturb each other:
+
+```bash
+… -only-testing:TalariaTests/ProfileSwitchAtomicityTests \
+  -only-testing:TalariaTests/TalariaPlatformLinkTests test
+→ Test run with 19 tests in 2 suites passed
+→ ** TEST SUCCEEDED **   (0 test failures)
+```
+
 ---
 
 ## Where the defect lives (for whoever fixes it — no fix attempted here)
