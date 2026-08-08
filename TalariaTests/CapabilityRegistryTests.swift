@@ -68,6 +68,18 @@ struct CapabilityRegistryTests {
         #expect(!armed.contains("their health and activity"))  // never advertise an absent tool
     }
 
+    @Test func visionInTheFamiliesListNeverLeaksWithoutImageTools() {
+        // `armedEnumeration`'s families.filter { $0 != .vision } line is the
+        // mechanism behind the global rule "vision only via hasImageTools,
+        // never via the families list" — even if a caller (a future Stage 3
+        // regression) hands .vision in the families list, hasImageTools:
+        // false must still suppress the vision phrase.
+        let armed = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone.", hasTools: true, hasImageTools: false,
+            armedCapabilityFamilies: CapabilityGroup.allCases)
+        #expect(!armed.contains("attached image"))
+    }
+
     // MARK: - Belt pins (#200 actionToolNames pattern, bidirectional)
 
     @MainActor private static func fullBelt() -> [any Tool] {
