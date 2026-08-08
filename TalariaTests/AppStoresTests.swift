@@ -1830,6 +1830,243 @@ struct AppStoresTests {
         #expect(chatStore2.activeStreamRun == nil, "295: a clean .finished completion must also clear the capture")
     }
 
+    // MARK: - #295 Task 2 — the expiration path arms the real recovery
+
+    /// #295 bar A: the core of the lane. `cancelStreaming(hardStopHost: false)`
+    /// must mirror the `.interrupted` arm's mechanics (:905-951, the reference
+    /// implementation) instead of finalizing the placeholder as a terminal
+    /// `.delivered` bubble the way an explicit Stop does — the host run is
+    /// still generating (we deliberately did NOT tell it to stop), so
+    /// `.delivered` here would be the silent hole this lane exists to close.
+    /// Drives the whole recovery loop end-to-end, including the one thing a
+    /// private `PendingRun.partialReasoning` can't be asserted on directly:
+    /// once the reconcile loop adopts the server's reply, the reasoning
+    /// streamed before the drop must reappear on it — proving it actually
+    /// rode the PendingRun, not just that a PendingRun exists.
+    @Test @MainActor
+    func expirationPathArmsTheRealRecovery() async throws {
+        final class ExpiringReconcileClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            var replyAvailable = false
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                currentConversation = Conversation(
+                    title: "Hermes",
+                    messages: [Message(clientMessageID: clientMessageID, sender: .user, content: message, status: .sent)]
+                )
+                return AsyncStream { continuation in
+                    continuation.yield(.reasoningDelta("thinking about the attachment upload"))
+                    // Never finishes — the run stays live server-side until
+                    // expiration cuts the app off, same shape
+                    // `StoppableStreamingChatClient` models for an explicit Stop.
+                }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+
+            func reconcileFromServer() async -> Conversation? {
+                guard replyAvailable else { return nil }
+                var convo = currentConversation ?? Conversation(title: "Hermes")
+                convo.messages.append(Message(sender: .hermes, content: "Recovered answer", status: .delivered))
+                currentConversation = convo
+                return convo
+            }
+        }
+
+        let suiteName = "chat-store-expiration-arms-recovery-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "arm-recovery-session", primingUsage: nil)
+        let hermesClient = ExpiringReconcileClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+        chatStore.reconcileWallClockBudget = .milliseconds(120)
+        chatStore.reconcilePollInterval = .milliseconds(30)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("expire me with attachments") }
+        let reasoningStreamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && ($0.reasoning?.isEmpty == false) } == true
+        }
+        #expect(reasoningStreamed, "the fixture must reach mid-reasoning before expiration fires")
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        #expect(
+            chatStore.conversation?.messages.contains { $0.sender == .hermes } == false,
+            "295-A: the placeholder is REMOVED, not finalized as a terminal `.delivered` bubble"
+        )
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(userRows.first?.status == .working)
+        #expect(chatStore.pendingRunSessionId == "arm-recovery-session", "295-A: PendingRun minted from the captured session")
+        #expect(chatStore.hasActiveReconcileLoop, "295-A: the reconcile loop must be armed")
+
+        var pumps = 0
+        while chatStore.hasActiveReconcileLoop, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(chatStore.hasActiveReconcileLoop == false, "budget exhausted with no reply yet")
+        #expect(chatStore.pendingRunSessionId == "arm-recovery-session", "budget expiry must not orphan the pending run")
+
+        hermesClient.replyAvailable = true
+        await chatStore.reconcilePendingRuns()
+        #expect(chatStore.pendingRunSessionId == nil, "the single-shot resolves once the reply exists")
+        #expect(chatStore.conversation?.messages.last?.content == "Recovered answer")
+        #expect(
+            chatStore.conversation?.messages.last?.reasoning == "thinking about the attachment upload",
+            "295-A: reasoning captured before the drop must survive on the PendingRun into the recovered reply"
+        )
+    }
+
+    /// #295 bar B pin (Task 2's half): an explicit, user-initiated Stop
+    /// (`hardStopHost: true`, the default) must mint NO `PendingRun` and arm
+    /// no reconcile loop — only the expiration path (`hardStopHost: false`)
+    /// does that. Distinct from `explicitStopStillSettlesTheUserRowDelivered`
+    /// (Task 1's pin, which only checks the user row's status) — this test
+    /// exists because Task 2 is what actually adds code capable of minting a
+    /// PendingRun from `cancelStreaming`, and that code must stay gated on
+    /// `hardStopHost`.
+    @Test @MainActor
+    func explicitStopMintsNoPendingRunAndArmsNoReconcileLoop() async throws {
+        let suiteName = "chat-store-explicit-stop-no-recovery-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "explicit-stop-session", primingUsage: nil)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me for real") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        #expect(chatStore.pendingRunSessionId == nil, "295-B: a user-initiated Stop must mint no PendingRun")
+        #expect(chatStore.hasActiveReconcileLoop == false, "295-B: a user-initiated Stop must arm no reconcile loop")
+    }
+
+    /// #295 carried finding, from Task 1's self-review: `activeStreamRun` is
+    /// written ONLY inside the stream's `for await` loop, and
+    /// `SessionsHermesClient` never yields `.messageSent` — so on an
+    /// attachment turn whose OWN upload outlasts the background budget,
+    /// expiration can fire before a single `StreamingUpdate` is ever
+    /// processed, leaving `activeStreamRun` nil at the exact moment
+    /// `cancelStreaming` needs a sessionId to mint `PendingRun`. This test
+    /// drives exactly that shape — a client that never yields anything at
+    /// all — and pins the resolution: `activeSessionID` (the journal's
+    /// active hop, set by `ensureHopForTurn()` before the turn's POST even
+    /// goes out, and confirmed synchronously correct in this window by Task
+    /// 1's report) is the fallback that still arms recovery.
+    @Test @MainActor
+    func expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed() async throws {
+        final class SilentStreamingChatClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                // Deliberately yields nothing, ever — models expiration firing
+                // before the stream has delivered even one event.
+                AsyncStream { _ in }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+        }
+
+        let suiteName = "chat-store-expiration-zero-events-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "zero-event-session", primingUsage: nil)
+        let hermesClient = SilentStreamingChatClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("upload that outlasts the budget") }
+        let placeholderAppeared = await pollUntil { chatStore.streamingMessageID != nil }
+        #expect(placeholderAppeared)
+        #expect(chatStore.activeStreamRun == nil, "the stream has not yielded a single event yet")
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        #expect(
+            chatStore.pendingRunSessionId == "zero-event-session",
+            "295 carried finding: the activeSessionID fallback must arm recovery when activeStreamRun never got a chance to capture"
+        )
+        #expect(chatStore.hasActiveReconcileLoop, "reconcile loop must be armed")
+        #expect(
+            chatStore.conversation?.messages.contains { $0.sender == .hermes } == false,
+            "placeholder removed, not finalized as a terminal `.delivered` bubble"
+        )
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(userRows.first?.status == .working)
+    }
+
+    /// #295 hazard 2 pin: `abandonActiveRun()` must stay UNCONDITIONAL on the
+    /// expiration path (releasing the router's routing lock, #192) while
+    /// `hardStopActiveRun()` must stay GATED off it (never hard-killing a
+    /// host run the user didn't ask to stop) — and neither call may interfere
+    /// with the SAME `cancelStreaming` call's ability to arm the reconcile
+    /// loop. Investigation (see the task report): `abandonActiveRun` is
+    /// already, by #283's review ruling, lock-release-only and network-free
+    /// — it never touches `SessionsHermesClient.activeRunContext` (only
+    /// `hardStopActiveRun`/the run's own terminal `defer` clear that), and
+    /// `reconcileFromServer()` reads `journal.activeHop`, not
+    /// `activeRunContext` — so the two concerns (releasing the routing lock,
+    /// arming recovery) are already independent. This test fails if a future
+    /// edit gates `abandonActiveRun` behind `hardStopHost` (wedging routing
+    /// until force quit on every expiration) or fires `hardStopActiveRun` on
+    /// the expiration path (hard-killing an unstopped run).
+    @Test @MainActor
+    func expirationCancelReleasesRoutingLockWithoutHardStoppingTheHost() async throws {
+        let suiteName = "chat-store-expiration-abandon-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "abandon-session", primingUsage: nil)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("expire and release the lock") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        #expect(hermesClient.abandonActiveRunCallCount == 1, "the routing lock must still release on the expiration path")
+        #expect(hermesClient.hardStopActiveRunCallCount == 0, "the expiration path must never hard-kill the host run")
+        #expect(chatStore.pendingRunSessionId == "abandon-session", "releasing the lock must not interfere with arming recovery")
+        #expect(chatStore.hasActiveReconcileLoop)
+    }
+
     @Test @MainActor
     func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
         let configuration = URLSessionConfiguration.ephemeral
@@ -3967,6 +4204,14 @@ struct AppStoresTests {
         let script: Script
         var connectionStatus: ConnectionStatus = .connected
         var currentConversation: Conversation?
+        /// #295 hazard 2 pin: distinguishes the walk-away teardown
+        /// (`abandonActiveRun`, must fire unconditionally) from the explicit
+        /// Stop tap's real server-side interrupt (`hardStopActiveRun`, must
+        /// stay gated on `hardStopHost`). Overriding both (instead of relying
+        /// on the protocol's default no-ops) makes the ordering/gating
+        /// observable to a test.
+        private(set) var abandonActiveRunCallCount = 0
+        private(set) var hardStopActiveRunCallCount = 0
 
         init(script: Script) {
             self.script = script
@@ -3974,6 +4219,14 @@ struct AppStoresTests {
 
         func connect() async {}
         func disconnect() async {}
+
+        func abandonActiveRun() {
+            abandonActiveRunCallCount += 1
+        }
+
+        func hardStopActiveRun() {
+            hardStopActiveRunCallCount += 1
+        }
 
         func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "unused", status: .delivered)
