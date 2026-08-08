@@ -5147,6 +5147,8 @@ unaffected (still `.delivered`, still silent, no reconcile armed);
 **(295-C)** no comment anywhere claims a recovery route that the code does
 not walk — the doc half, being fixed now in the #291 lane.
 
+> **OWEN'S RULING 2026-08-08: the recommended shape is APPROVED — settle `.working` + arm the plane-appropriate recovery, expiration path (`hardStopHost: false`) ONLY.** Sessions plane: the reconcile loop `.interrupted` already arms. Runs plane: the status poll (the answer is durably fetchable for ~1h). User-initiated Stop unchanged (`.delivered`, silent, no reconcile — bar 295-B). Bars 295-A/B/C stand as registered. Interaction with #292 noted, not blocking. Lane not yet opened; Owen routes scheduling.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -5396,6 +5398,8 @@ Both are cheap NOW while the runs path is behind an OFF switch and
 **awkward at 3E cutover**, which is the review's own framing and is correct.
 **Bars pre-register here before any code.**
 
+> **OWEN'S RULINGS 2026-08-08.** **(a) Measure deliberately before deciding:** a dedicated pass — runs switch ON (Developer), long-thread + image turns — then read the logged sizes and rule; no trimming or budget change from first principles. The one-shot warning log stands guard meanwhile. **(b) NO whole-`send()` deadline, ruled on the merits:** host model choice varies wildly in think time (Owen's example: Kimi K3 vs DeepSeek flash), so any fixed whole-turn clock would misclassify slow models as failures. Per-op transport timeouts remain the transport-health check; slow models ride the durable status-poll recovery. The 20s 'parity' framing is retired — sessions-plane streaming starts fast because it streams, not because the model is bounded; run completion time is model-dependent by design. The honest-claim halves already shipped in #283; (b) is now CLOSED as ruled, (a) stays open pending the measurement pass.
+
 ## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix.**
 
 **The shape (#276's lesson):** a routine that rebuilds a model value
@@ -5594,6 +5598,8 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > experiment: a wrong-device `query_result` returns `False` WITHOUT popping
 > (`transport.py:232-237`) specifically so the rightful owner can still
 > resolve it.
+
+> **OWEN'S RULING 2026-08-08: NO plugin TTL or attempt cap.** The compounding worst case exists because the app's false `.delivered` resets its own backoff; honest settlement (this item's fix) restores backoff and surfaces failures, and the unbounded outbox reverts to the deliberate fetch-on-connect design it always was. Revisit only if a real backlog is observed post-fix. **The fix lane is routed to open NEXT** (same evening), bars 286-A..F as registered.
 
 ## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; merge is Owen's call.**
 
