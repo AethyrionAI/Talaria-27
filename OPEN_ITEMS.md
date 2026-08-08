@@ -5467,6 +5467,33 @@ with its `id`/`created`/`install_id` and a restorable backup exists;
 **288-C** the audit is re-run and recorded AFTER #285's fix ships (that
 re-run is the one that actually proves the leak stopped).
 
+> **Update 2026-08-08 — #285's fix is BUILT (branch
+> `claude/t27-285-profile-atomicity`, awaiting Owen's merge): superseded link
+> turns now abandon BEFORE the pair POST, so the DETERMINISTIC orphan-mint
+> path this chore guards against is closed at the source.**
+>
+> **⚠️ BUT A RESIDUAL RACE WINDOW REMAINS, and 288-C must not be read as
+> proof of a total seal** (caught by the PR review of the fix, 2026-08-08;
+> the earlier wording here and in #285 said "closed at the source" without
+> this qualifier, which overstated it):
+> **`pair()`'s checkpoint sits between the successful pair RESPONSE and the
+> Keychain store** (`TalariaPlatformLink.swift:~168`). If `stop()` lands
+> while the pair POST is in flight, the gateway has ALREADY minted a device
+> row, the client discards the response — **orphan row on the host** — and
+> the birth profile is left unpaired, so its next activation mints a SECOND
+> row. Reachable by backgrounding mid-pair.
+>
+> **Why the checkpoint is where it is (defensible, recorded so it is not
+> re-litigated blind):** storing anyway would be scope-SAFE — the keys are
+> frozen to the birth profile, so no cross-profile write is possible — and
+> would save the mint in the common case. The trade against storing is
+> clobbering a newer same-profile pair from a fresh loop, or resurrecting
+> keys for a just-deleted profile. Both are rare-squared. **Either
+> placement is defensible; the claim was the problem, not the code.**
+>
+> **Consequence for this chore:** when 288-C runs, an orphan found does NOT
+> mean the fix failed — it may be this window. Record which.
+
 ## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material.**
 
 The launch partition's whole purpose is to be machine-checkable; a ghost step
@@ -5551,7 +5578,223 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > (`transport.py:232-237`) specifically so the rightful owner can still
 > resolve it.
 
-## 285. 🐛 P1 CANDIDATE — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes VERIFIED same day; RUNTIME REPRO NOT YET ATTEMPTED — a RED harness comes before any fix, and a falsification is a good result. NOT STARTED; sequenced after #283 (slice 3A) unless Owen reorders.**
+## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; merge is Owen's call.**
+
+> **✅ THE FIX, 2026-08-08 — one lane, three parts, exactly the shape the
+> parking note demanded (no partial fix: keys AND activation AND the runs
+> family together).**
+>
+> - **Part 1 — `TalariaPlatformLink` (bars 285-A + 285-B).** Every turn now
+>   resolves an immutable `TurnContext` — scope, trailing-slash-normalized
+>   endpoint, all three Keychain keys, and a turn EPOCH — synchronously at
+>   turn start (two closure reads, no await between them: atomic on the
+>   actor). The live computed key vars and per-request `endpointURL()` are
+>   DELETED, so no future call site can re-resolve mid-turn; the injected
+>   `apiKey` closure is deleted too (the link reads the Keychain itself
+>   under the frozen `apiKeyKey` — byte-what production's closure did,
+>   minus the liveness). `stop()` bumps the epoch; a superseded turn
+>   abandons at side-effect checkpoints (before the drain POST, the pair
+>   POST — which closes #288's **deterministic** orphan-mint source, though
+>   **a residual race window remains and is now named in #288**: the
+>   checkpoint sits between the pair RESPONSE and the Keychain store, so a
+>   `stop()` landing while that POST is in flight still leaves a row minted
+>   host-side and the birth profile unpaired. Caught by the PR review
+>   2026-08-08; the earlier "closed at the source" wording here overstated
+>   it, and the claim was the problem rather than the code — the self-repair, the
+>   new honest `DrainOutcome.superseded`. Keychain pair writes and drops
+>   stay WHOLE (no checkpoint inside a pair) — "mixed" in the invariant
+>   means mixed PROFILES, and frozen keys make that impossible.
+> - **Part 2 — serialized activation (bar 285-C).**
+>   `setActiveProfile`'s handler dispatch adopts the #136
+>   generation/cancel/drain-the-corpse idiom: a rapid A→B→C runs ONLY C's
+>   handler (B's dispatch dies on the generation guard before its handler
+>   starts); a MID-FLIGHT B handler is cancelled and C provably waits for
+>   its exit (event-ordered test). `handleActiveProfileChanged` gains
+>   `Task.isCancelled` checkpoints before every shared write — key
+>   boxes/cache, `lastKnownHostOnline`, and critically the final
+>   `talariaPlatformLink?.start()`, so a superseded activation can never
+>   re-arm the loop mid-way through the winner's rebind.
+> - **Part 3 — runs endpoint pin (the #283 adjacency, in scope per the
+>   2026-08-07 whole-branch-review note below).** Both runs turn drivers
+>   resolve a `ResolvedEndpoint` ONCE at turn birth and every request in
+>   the family carries it — history GET, submit, events subscribe, status
+>   polls, the catch-path recovery poll, and the stop POST
+>   (`activeRunContext` now stores the endpoint, so a stop issued after a
+>   switch still reaches the run's real host). New test flips the live
+>   base URL mid-turn (deterministically, via the delayed-events-response
+>   trick) and every request still hits the birth host.
+>
+> **Bar evidence:** 285-A = `ensurePairedCompletesEntirelyOnItsBirthProfileAcrossASwitch`
+> (trace byte-identical to the no-switch control) +
+> `aDrainTurnSpeaksOnlyToItsBirthProfilesGateway`; 285-B =
+> `stopContainsAnInFlightTurnNoCrossProfileReadsNoSideEffects` (no B-keyed
+> op ever, wire empty, nothing delivered) +
+> `aStoppedTurnFinishesItsOwnCredentialDropAndNeverTouchesTheNewProfile`
+> (pair dropped whole under A, B byte-untouched, NO pair POST); 285-C =
+> `rapidSwitchesRunTheHandlerOnlyForTheLastWriter` +
+> `aSupersededMidFlightHandlerIsCancelledAndTheWinnerRunsAfterItExits`
+> (events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> cancelled=false)`) **+, from 2026-08-08, the container-chain arm
+> `aLateResumingSupersededActivationCannotOverwriteTheWinnersState` — see
+> the supersession block below**; runs pin =
+> `aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests`; 285-D = full
+> gate on the branch head: **GATE: PASS at `4a466d3` (the SHIPPING head) —
+> 1808 Swift Testing + 12 XCUITest, count MOVED 1798→1808 (the 9 fix-lane
+> tests plus the 285-C chain arm), the 2 known Apple-Intelligence hardware
+> skips, Release build green.** *(An earlier gate at `519d364` read 1807;
+> that run predated the 285-C harness commit and is superseded. Recorded
+> rather than deleted because the PR review caught the one-commit-stale
+> claim, which is this repo's own #218 discipline applied to a count — a
+> gate number is only true of the commit it ran on.)* Every inverted
+> test was first run against the UNFIXED code and observed to fail for the
+> right reason (cross-profile trace / B-gateway host / B-key read /
+> B-delete + leaked pair POST) before the fix landed — no
+> never-failed-test enters this entry as evidence.
+>
+> **Honesty note on 285-C's full-chain clause** ("hermesAPIKey, key box,
+> scoped stores, link all = C"): the store-level serialization arm is
+> unit-proven (the two tests above); the AppContainer chain arm holds BY
+> CONSTRUCTION — serialized handlers cannot interleave, so C's handler
+> writes every one of those after B's has exited — plus code-reviewed
+> checkpoints; there is no AppContainer unit harness to pin it directly.
+> Recorded so nobody later mistakes "by construction + reviewed" for "has
+> its own test."
+>
+> > **SUPERSEDED 2026-08-08 — the chain arm is now OBSERVED.** The
+> > "no AppContainer unit harness" sentence above is no longer true:
+> > `aLateResumingSupersededActivationCannotOverwriteTheWinnersState()`
+> > (same file, `ProfileSwitchAtomicityTests`) drives the REAL
+> > `AppContainer.handleActiveProfileChanged` off a REAL
+> > `BackendProfilesStore` — production's own wiring — with the
+> > container's secure store replaced by the lane's `GatedSecureStore`.
+> > A→B→C with B PARKED on the handler's only pre-write await (the
+> > gateway-key read, `AppContainer.swift:2209`): C's handler is observed
+> > NOT to start while B is parked; B is observed to resume, see
+> > cancellation and exit having written nothing; the settled state is
+> > observed on C (active profile, `hermesAPIKey == "apikey-C"`,
+> > `PairingStore` on `host-C`, `AppSessionStore` on `session-C`), with
+> > events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> > cancelled=false)`. **Non-vacuity was demonstrated, not asserted:** the
+> > `:2212` checkpoint was temporarily neutered, the test observed to FAIL
+> > on exactly one expectation (`hermesAPIKey` reads `apikey-B` in the
+> > window), and the file restored byte-identically (SHA-256 matched
+> > before/after). Test-only lane; no production code changed. Counts:
+> > 156 → 157 across the four suites, `** TEST SUCCEEDED **`.
+> > **What is still inferred rather than observed, and why:** the chat
+> > key box and the gateway key cache are `fileprivate` and the platform
+> > link is `private(set)`, all assigned only in `makeDefault`, so a bare
+> > test container has none of them and a test file cannot inject one
+> > without widening production access. The harness pins them by
+> > straight-line reachability instead — the three key writes share one
+> > guarded block, and B provably returned at its FIRST checkpoint so it
+> > never reached the link restart. Closing that last gap costs one
+> > production edit (a `// harness-visible` setter, the shape
+> > `skillsStore`/`cronJobsStore`/`insightsStore` already use for #180's
+> > wiring test) — NOT built; it is Owen's call, not a correction.
+> > Full evidence, both outputs verbatim: `285C-HARNESS-REPORT.md`.
+>
+> **The RED tests were INVERTED IN PLACE, not deleted** — same
+> choreography, gates, parks and anti-vacuous guards; opposite assertions.
+> `RED-REPORT.md` (this branch) preserves the pre-fix traces verbatim and
+> now carries a dated inversion addendum. Repro 0's close-out instruction
+> is DONE: the falsified "park the drain before the scope moves" comment in
+> `AppContainer.handleActiveProfileChanged` was rewritten to describe the
+> real mechanism (scope moves first; containment = the link's turn epoch).
+>
+> **What this unlocks:** #288's post-fix re-run (288-C) is now actionable —
+> the orphan-mint path is closed at the source (superseded turns abandon
+> before the pair POST), so a clean re-run after real switch traffic is the
+> proof the leak stopped.
+
+> **✅ REPRODUCED 2026-08-07 evening — branch `claude/t27-285-profile-atomicity`, evidence in that branch's `RED-REPORT.md`. Promoted from CANDIDATE to CONFIRMED.** No production code was touched; this is a pure reproduction lane.
+>
+> **The blocker that had hidden this until now, and it is worth knowing:**
+> every existing `SecureStoreProtocol` conformer (`KeychainSecureStore`,
+> `MockSecureStore`) is SYNCHRONOUS under the hood, so `await
+> secureStore.retrieve(...)` never actually yields to the scheduler. **The
+> interleaving was literally inexpressible in a test** until a
+> `GatedSecureStore` double that genuinely parks on
+> `withCheckedContinuation` was built (idiom copied from
+> `CronJobsStoreTests`' `GatedCronJobService`). That is why static reading
+> found this and no test ever did — worth remembering the next time a
+> concurrency claim "can't be reproduced."
+>
+> **Repro 1 — ONE `ensurePaired()` call split one credential across TWO
+> profiles' Keychain slots.** Keychain trace, verbatim:
+> `["retrieve(A.deviceToken)", "retrieve(B.deviceID)", "retrieve(B.apiKey)", "store(A.deviceToken)", "store(B.deviceID)"]`
+> — the token half landed in **A's** slot and the device-id half in **B's**,
+> for a credential pair minted at **B's** gateway with **B's** API key. A is
+> left holding a token that belongs to B's device row; B is left
+> half-paired. The control arm (same gate, no switch) reads
+> `["retrieve(A.deviceToken)", "retrieve(A.deviceID)", "retrieve(A.apiKey)", "store(A.deviceToken)", "store(A.deviceID)"]`
+> — all-A — so the harness is not manufacturing the defect.
+> - **Repro 2 — profile A's credentials sent to profile B's host:**
+>   `POST gateway-b.local {"device_id":"dev-A","type":"drain","auth":"tok-A",…}`.
+>   This is the cross-host isolation concern in one line.
+> - **Repro 3 — `stop()` neither unwinds nor contains an in-flight turn:** it
+>   returns with `isRunning == false` while the turn sits parked, and the
+>   turn then resumes **under the new scope**
+>   (`…"retrieve(A.deviceToken)", "retrieve(B.deviceID)"`).
+> - **Repro 3b — the worst one: a STOPPED turn belonging to A DELETED
+>   PROFILE B'S device id.** Trace: `…"delete(A.deviceToken)", "delete(B.deviceID)", "retrieve(B.deviceToken)"…` —
+>   a valid credential of an unrelated profile destroyed by a turn that had
+>   already been told to stop. **This is the concrete user harm and it
+>   escalates the item beyond "extra 401s".**
+> - **Repro 0 — falsifies a live comment.** `AppContainer`'s claim that the
+>   drain is parked *"before the scope moves"* cannot be true:
+>   `setActiveProfile` moves the scope SYNCHRONOUSLY and defers `stop()`
+>   behind a `Task {}`. Pinned by a provenance test. **Close-out rule: that
+>   comment must be corrected by whoever fixes this.** *(DONE 2026-08-08 —
+>   corrected in the fix lane; see the FIX note above.)*
+>
+> **⚖️ ONE AUDIT SUB-CLAIM REFUTED, and how it was caught.** The audit said a
+> stopped turn "runs to completion **including its POSTs**." Not reliably:
+> `stop()` cancels `loopTask` and URLSession IS cancellation-aware, so
+> post-`stop()` request dispatch is a genuine RACE, not a certainty. The
+> first draft of the repro asserted it, **passed on run 1 and failed on run
+> 2** — caught by repeated runs, not by reasoning. The repros were re-aimed
+> at the non-cancellable Keychain observables and are now 4/4 green with
+> byte-identical traces across runs. Recorded because a flaky assertion that
+> passes once is exactly how a bogus "verified" enters this tracker.
+>
+> **Residual worth a decision (NOT yet its own number — Owen routes):** repro
+> 3b showed a re-pair reaching B's gateway whose response was then
+> discarded, i.e. **an orphan device row minted on the HOST that the phone
+> has no record of.** Fixing #285 stops new ones; it does not clean existing
+> ones. If Owen wants that actioned it is a one-time data chore in the #144
+> shape (deactivate, never delete, keep a rollback) and needs its own entry.
+>
+> **🅿️ PARKED 2026-08-07 evening BY OWEN, with a routing instruction:**
+> *"Park it, but put it on the priority list when fable credits replenish.
+> This feels of fable complexity."* So: **#285's FIX is queued as the first
+> claim on the next Fable budget** — not deprioritized, deliberately
+> deferred to the right tier. His read matches the evidence: the fix is an
+> immutable per-turn transport context PLUS the bootstrap-generation
+> pattern applied to profile activation, touching `TalariaPlatformLink`,
+> `BackendProfilesStore` and `AppContainer` together. That is architecture,
+> not a patch, and the RED harness is already banked so the next session
+> starts from proof rather than from re-derivation.
+>
+> **Do NOT let a cheaper model "just fix the mixing" in the meantime** — a
+> partial fix that snapshots the keys but leaves activation unserialized
+> would turn 5 reproducible failures into 2 and read as progress. The
+> harness would still be red and the diagnosis would get muddier.
+>
+> **The orphan-row residual is now filed as its own chore, #288** (baseline
+> audit ran the same evening: zero orphans on the Mac, and OJAMD has no
+> plugin yet — but that clean result reflects USAGE, not safety, and #288's
+> post-fix re-run is the one that proves the leak stopped).
+>
+> **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** *(SUPERSEDED
+> 2026-08-08 — the fix landed on the Fable budget exactly as routed; see
+> the FIX note at the top of this entry. The inversion demanded here
+> happened, in place.)* The fix direction
+> in the bars below (immutable per-turn context + the `AppContainer`
+> bootstrap-generation pattern applied to profile activation) is now backed
+> by evidence rather than static reading. Bars **285-A/B/C are effectively
+> demonstrated in the negative** — the RED tests assert today's broken
+> behavior; when the fix lands they must be INVERTED to assert the invariant,
+> not deleted.
 
 **Verified static facts (2026-08-07):** `BackendProfilesStore.swift:141-154`
 — `state = updated` THEN `Task { await onActiveProfileChanged?(target) }`,

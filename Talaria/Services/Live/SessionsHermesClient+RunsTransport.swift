@@ -283,6 +283,12 @@ extension SessionsHermesClient {
         // right host for the recovery poll (M-5: a session's requests resolve
         // from its BIRTH profile, never the active one).
         var capturedProfileID: UUID?
+        // #285: the turn's frozen endpoint. Resolved once right after the hop
+        // exists; every request this turn makes — history GET, submit, events
+        // subscribe, status polls, and the catch path's recovery poll —
+        // carries it, so a mid-turn profile switch cannot redirect any of
+        // them. nil only before resolution, where no request has gone out.
+        var capturedEndpoint: SessionsHermesClient.ResolvedEndpoint?
         var runID: String?
         // The run is COMMITTED the moment the submit returns an id — from
         // there a dropped connection is recoverable, never re-queueable
@@ -313,6 +319,9 @@ extension SessionsHermesClient {
             let hop = try await ensureHopForTurn()
             capturedSessionId = hop.sessionId
             capturedProfileID = hop.profileID
+            // #285: THE one resolution this turn gets.
+            let endpoint = try resolveTurnEndpoint(profileID: hop.profileID)
+            capturedEndpoint = endpoint
             // P1 (#90): the transplant just happened, before this turn hits
             // the wire — surface its cost so the receipts stay honest. The
             // priming turn itself deliberately stays on the SESSIONS plane in
@@ -350,7 +359,7 @@ extension SessionsHermesClient {
             do {
                 history = try await fetchRunsHistory(
                     sessionId: hop.sessionId,
-                    profileID: hop.profileID,
+                    endpoint: endpoint,
                     excludingTrailing: content
                 )
             } catch SessionsClientError.sessionNotFound where hop.wasReused && allowStaleHopRetry {
@@ -376,7 +385,7 @@ extension SessionsHermesClient {
                     history: history,
                     selection: modelSelection
                 ),
-                profileID: hop.profileID
+                endpoint: endpoint
             )
             let acceptedRunID = submit.runID
             runID = acceptedRunID
@@ -386,7 +395,7 @@ extension SessionsHermesClient {
             // committed server-side, not merely accepted for submission,
             // because that is the earliest moment a stop request means
             // anything.
-            setActiveRunContext(runID: acceptedRunID, profileID: hop.profileID)
+            setActiveRunContext(runID: acceptedRunID, profileID: hop.profileID, endpoint: endpoint)
 
             // Subscribe IMMEDIATELY: the handler tolerates a short
             // registration race (`api_server.py:6730`), and every event
@@ -396,7 +405,7 @@ extension SessionsHermesClient {
                 method: "GET",
                 body: nil,
                 accept: "text/event-stream",
-                profileID: hop.profileID
+                endpoint: endpoint
             )
             let (bytes, response) = try await session.bytes(for: eventsRequest)
             guard let httpResponse = response as? HTTPURLResponse,
@@ -413,6 +422,7 @@ extension SessionsHermesClient {
                     runID: acceptedRunID,
                     sessionId: hop.sessionId,
                     profileID: hop.profileID,
+                    endpoint: endpoint,
                     assembledContent: assembledContent,
                     assembledReasoning: assembledReasoning,
                     into: continuation
@@ -513,6 +523,7 @@ extension SessionsHermesClient {
                     runID: acceptedRunID,
                     sessionId: hop.sessionId,
                     profileID: hop.profileID,
+                    endpoint: endpoint,
                     assembledContent: assembledContent,
                     assembledReasoning: assembledReasoning,
                     into: continuation
@@ -534,10 +545,13 @@ extension SessionsHermesClient {
                 // poll it before degrading, because the answer this turn was
                 // waiting for may already exist (3A-B). `Task.isCancelled`
                 // makes the poll a no-op, so a stopped consumer costs nothing.
+                // #285: `capturedEndpoint` is non-nil whenever `runSubmitted`
+                // is — the submit itself rode it.
                 finishedYielded = await deliverPolledTerminal(
                     runID: acceptedRunID,
                     sessionId: capturedSessionId,
                     profileID: capturedProfileID,
+                    endpoint: capturedEndpoint,
                     assembledContent: assembledContent,
                     assembledReasoning: assembledReasoning,
                     into: continuation
@@ -585,6 +599,9 @@ extension SessionsHermesClient {
         message: String,
         attachments: [PendingAttachment]
     ) async throws -> String {
+        // #285: the sync turn's one endpoint resolution, exactly like the
+        // streamed driver's — submit, poll, and stop all ride it.
+        let endpoint = try resolveTurnEndpoint(profileID: hop.profileID)
         // N4: runs WRITE the session transcript but never READ it, so the
         // thread's context rides the submit body here exactly as it does on
         // the streamed path. Including on a session's first-ever turn: this
@@ -592,7 +609,7 @@ extension SessionsHermesClient {
         // at `streamTurnViaRuns`'s own `fetchRunsHistory` call above.
         let history = try await fetchRunsHistory(
             sessionId: hop.sessionId,
-            profileID: hop.profileID,
+            endpoint: endpoint,
             excludingTrailing: message
         )
         let submit: RunSubmitResponse = try await postJSON(
@@ -604,13 +621,13 @@ extension SessionsHermesClient {
                 history: history,
                 selection: modelSelection
             ),
-            profileID: hop.profileID
+            endpoint: endpoint
         )
         // Task 7: same promotion as the streamed path, so a stop issued
         // while a sync `send(...)` is in flight has something to address.
         // Cleared on every exit below via `defer` — the budget timeout, the
         // switch's throws, and its one successful return all go through it.
-        setActiveRunContext(runID: submit.runID, profileID: hop.profileID)
+        setActiveRunContext(runID: submit.runID, profileID: hop.profileID, endpoint: endpoint)
         defer {
             clearActiveRunContext(matchingRunID: submit.runID)
             // The sync path has no continuation to silence (it throws or
@@ -628,6 +645,7 @@ extension SessionsHermesClient {
         guard let snapshot = await pollRunToTerminal(
             runID: submit.runID,
             profileID: hop.profileID,
+            endpoint: endpoint,
             budget: runsSyncBudget
         ) else {
             // Budget, 404 or cancellation. Giving up WATCHING is not the run
@@ -682,10 +700,10 @@ extension SessionsHermesClient {
     /// the user repeating themselves.
     func fetchRunsHistory(
         sessionId: String,
-        profileID: UUID?,
+        endpoint: ResolvedEndpoint,
         excludingTrailing outgoing: String = ""
     ) async throws -> [RunsTurnBody.HistoryEntry] {
-        let (_, conversation) = try await fetchSessionConversation(sessionId, profileID: profileID)
+        let (_, conversation) = try await fetchSessionConversation(sessionId, profileID: nil, endpoint: endpoint)
         return Self.runsHistory(from: conversation.messages, excludingTrailing: outgoing)
     }
 
@@ -770,6 +788,7 @@ extension SessionsHermesClient {
     func pollRunToTerminal(
         runID: String,
         profileID: UUID?,
+        endpoint: ResolvedEndpoint? = nil,
         budget: Duration? = nil
     ) async -> RunStatusSnapshot? {
         let deadline = ContinuousClock.now + (budget ?? runsPollBudget)
@@ -779,7 +798,7 @@ extension SessionsHermesClient {
         while true {
             if Task.isCancelled { return nil }
             reads += 1
-            switch await readRunStatus(runID: runID, profileID: profileID) {
+            switch await readRunStatus(runID: runID, profileID: profileID, endpoint: endpoint) {
             case .terminal(let snapshot):
                 return snapshot
             case .live:
@@ -818,14 +837,15 @@ extension SessionsHermesClient {
 
     /// One `GET /v1/runs/{id}`, classified. Never throws: every failure mode
     /// is a case the loop knows how to weigh.
-    private func readRunStatus(runID: String, profileID: UUID?) async -> RunStatusRead {
+    private func readRunStatus(runID: String, profileID: UUID?, endpoint: ResolvedEndpoint? = nil) async -> RunStatusRead {
         do {
             let request = try makeRequest(
                 path: "\(Self.runsPath)/\(runID)",
                 method: "GET",
                 body: nil,
                 accept: "application/json",
-                profileID: profileID
+                profileID: profileID,
+                endpoint: endpoint
             )
             let (data, response) = try await session.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -863,11 +883,12 @@ extension SessionsHermesClient {
         runID: String,
         sessionId: String,
         profileID: UUID?,
+        endpoint: ResolvedEndpoint?,
         assembledContent: String,
         assembledReasoning: String,
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async -> Bool {
-        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID) else {
+        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID, endpoint: endpoint) else {
             // Task 7 finding 1: the poll never reached a terminal snapshot —
             // budget exhausted, the host 404'd it (`gone`, already reaped),
             // or the unreadable-reads limit tripped. Every caller's fallback
@@ -994,7 +1015,10 @@ extension SessionsHermesClient {
         guard let context = activeRunContext else { return }
         clearActiveRunContext(matchingRunID: context.runID)
         let runID = context.runID
-        let profileID = context.profileID
+        // #285: the stop rides the run's own frozen endpoint — a stop issued
+        // after a mid-turn profile switch must still reach the host the run
+        // actually lives on, not whatever is active by then.
+        let endpoint = context.endpoint
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
@@ -1003,7 +1027,7 @@ extension SessionsHermesClient {
                     method: "POST",
                     body: nil,
                     accept: "application/json",
-                    profileID: profileID
+                    endpoint: endpoint
                 )
                 _ = try await self.session.data(for: request)
                 // The POST reached the host — including a 404, which just

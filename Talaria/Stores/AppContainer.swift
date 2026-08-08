@@ -979,15 +979,10 @@ final class AppContainer {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
-            // The Keychain directly, exactly like `gatewayAPIKey(for:)` — the
-            // in-memory box lags a cold launch and a profile switch, and a
-            // pair attempt with a stale key mints a token against the wrong
-            // host.
-            apiKey: {
-                await secureStore.retrieve(
-                    key: BackendProfileScopedKeys.gatewayAPIKey(profilesStore.activeProfile?.credentialScopeID)
-                )
-            },
+            // #285: no api-key closure — the link reads the Keychain itself
+            // under its turn's frozen scope (the in-memory box lags a cold
+            // launch and a profile switch, and a live closure here was one of
+            // the re-resolution seams the atomicity fix removed).
             installID: { sessionStore.state.installationID.uuidString },
             deviceName: { UIDevice.current.name },
             credentialScopeID: { profilesStore.activeProfile?.credentialScopeID },
@@ -2181,17 +2176,27 @@ final class AppContainer {
         }
     }
 
+    /// #285: this handler runs inside `BackendProfilesStore`'s serialized
+    /// activation chain. A newer switch CANCELS this task and waits for it to
+    /// exit, so `Task.isCancelled` is the supersession signal — every
+    /// checkpoint below stops a superseded activation from writing shared
+    /// state (key boxes, store resets, the link restart) that belongs to the
+    /// winner.
     func handleActiveProfileChanged(to profile: BackendProfile) async {
         containerLog.notice("profile switch: activating '\(profile.name, privacy: .public)'")
         // #136: the launch background bootstrap may still be in flight
         // against the OLD profile's stores — supersede it before rebinding
         // scope, or its late completions would land cross-profile.
         cancelBackgroundBootstrap()
-        // #251-2A: park the drain before the scope moves. Its closures all
-        // re-resolve the ACTIVE profile at call time, so a turn already in
-        // flight would finish against the new host holding the OLD host's
-        // token — the 401 self-repair would clean that up, but only after
-        // spending a round trip and a re-pair on it. Restarted at the end.
+        // #251-2A/#285: supersede the platform link's in-flight turn. The
+        // scope has ALREADY moved (`setActiveProfile` assigns state
+        // synchronously, before this handler ever gets a turn — pinned by
+        // ProfileSwitchAtomicityTests' provenance test), so stop() is not and
+        // cannot be a barrier ahead of the switch. It does not need to be:
+        // stop() bumps the link's turn epoch, and a superseded turn abandons
+        // at its next side-effect checkpoint instead of completing
+        // cross-profile. Restarted at the end iff this activation is still
+        // the current one.
         talariaPlatformLink?.stop()
         // Rebind the credential-scoped stores FIRST — their persistence
         // writes resolve the live scope.
@@ -2202,6 +2207,9 @@ final class AppContainer {
         let scope = profile.credentialScopeID
         if let secureStore {
             let gatewayKey = await secureStore.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(scope)) ?? ""
+            // #285 checkpoint: past the first await — a superseded
+            // activation must not swap the shared credential boxes.
+            guard !Task.isCancelled else { return }
             gatewayKeyCache?.set(gatewayKey, forScope: scope)
             hermesAPIKey = gatewayKey
             chatAPIKeyBox?.value = gatewayKey
@@ -2265,8 +2273,12 @@ final class AppContainer {
 
         if pairingStore.isPaired, await sessionStore.currentAccessToken() != nil {
             await sessionStore.bootstrap()
+            // #285 checkpoint: the bootstrap can be seconds against a dead
+            // host — a superseded activation stops writing here.
+            guard !Task.isCancelled else { return }
             pairingStore.validateRestoredIdentity()
             await hostStore.refresh()
+            guard !Task.isCancelled else { return }
             lastKnownHostOnline = hostStore.isHostOnline
             await inboxStore.loadInbox(force: true)
         }
@@ -2276,6 +2288,11 @@ final class AppContainer {
         }
         await talkStore.refreshReadiness()
         await chatStore.refreshDirectHealth()
+        // #285 checkpoint: a superseded activation must never restart the
+        // link — the winning activation's own handler does that, against ITS
+        // profile. Without this guard a cancelled B-handler could arm the
+        // loop mid-way through C's rebind.
+        guard !Task.isCancelled else { return }
         // #251-2A: back on the loop, now resolving the NEW profile's gateway,
         // key and credential scope — unless the app went to the background
         // while this chain ran. `didEnterBackground` already fired its stop()

@@ -19,6 +19,9 @@ struct TalariaPlatformLinkTests {
     private static let scope = UUID(uuidString: "3A1B7C9D-0E2F-4A5B-8C6D-7E8F9A0B1C2D")!
     private static let tokenKey = BackendProfileScopedKeys.talariaDeviceToken(scope)
     private static let deviceIDKey = tokenKey + ".deviceID"
+    /// #285: the link reads the gateway API key from the secure store itself
+    /// (no injected closure), so the fixture seeds this slot instead.
+    private static let apiKeyKey = BackendProfileScopedKeys.gatewayAPIKey(scope)
 
     /// Records request bodies off the URLSession thread the stub runs on —
     /// a captured `var` would be a data race under strict concurrency.
@@ -53,13 +56,13 @@ struct TalariaPlatformLinkTests {
         responder: PhoneQueryResponding? = nil,
         onItems: @escaping @MainActor ([TalariaPlatformItem]) -> Void = { _ in },
         handler: @escaping @Sendable (URLRequest) -> (Int, Data)
-    ) -> TalariaPlatformLink {
+    ) async -> TalariaPlatformLink {
         StubURLProtocol.handler = handler
+        await secureStore.store(key: Self.apiKeyKey, value: "test-key")
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubURLProtocol.self]
         return TalariaPlatformLink(
             gatewayBaseURL: { "http://stub.local:8642" },
-            apiKey: { "test-key" },
             installID: { "install-abc" },
             deviceName: { "TestPhone" },
             credentialScopeID: { Self.scope },
@@ -75,7 +78,7 @@ struct TalariaPlatformLinkTests {
     @Test func pairStoresTokenInProfileScopedKeychainSlot() async {
         defer { StubURLProtocol.handler = nil }
         let secure = MockSecureStore()
-        let link = makeLink(secureStore: secure) { _ in
+        let link = await makeLink(secureStore: secure) { _ in
             (200, Data(#"{"device_id":"dev12","device_token":"tok-1"}"#.utf8))
         }
         #expect(await link.ensurePaired() == true)
@@ -92,7 +95,7 @@ struct TalariaPlatformLinkTests {
         await secure.store(key: Self.tokenKey, value: "existing")
         await secure.store(key: Self.deviceIDKey, value: "dev-existing")
         let recorder = Recorder()
-        let link = makeLink(secureStore: secure) { request in
+        let link = await makeLink(secureStore: secure) { request in
             recorder.record(StubURLProtocol.bodyString(request))
             return (200, Data(#"{"device_id":"dev99","device_token":"tok-99"}"#.utf8))
         }
@@ -110,7 +113,7 @@ struct TalariaPlatformLinkTests {
         await secure.store(key: Self.deviceIDKey, value: "dev12")
         let recorder = Recorder()
         let received = ItemsBox()
-        let link = makeLink(secureStore: secure, onItems: { received.items = $0 }) { request in
+        let link = await makeLink(secureStore: secure, onItems: { received.items = $0 }) { request in
             let body = StubURLProtocol.bodyString(request)
             recorder.record(body)
             if body.contains("\"drain\"") {
@@ -140,7 +143,7 @@ struct TalariaPlatformLinkTests {
         await secure.store(key: Self.tokenKey, value: "tok-1")
         await secure.store(key: Self.deviceIDKey, value: "dev12")
         let recorder = Recorder()
-        let link = makeLink(secureStore: secure) { request in
+        let link = await makeLink(secureStore: secure) { request in
             recorder.record(StubURLProtocol.bodyString(request))
             return (200, Data(#"{"items":[],"queries":[]}"#.utf8))
         }
@@ -155,7 +158,7 @@ struct TalariaPlatformLinkTests {
         await secure.store(key: Self.tokenKey, value: "stale")
         await secure.store(key: Self.deviceIDKey, value: "dev-stale")
         let recorder = Recorder()
-        let link = makeLink(secureStore: secure) { request in
+        let link = await makeLink(secureStore: secure) { request in
             let body = StubURLProtocol.bodyString(request)
             recorder.record(body)
             if body.contains("\"pair\"") {
@@ -187,7 +190,6 @@ struct TalariaPlatformLinkTests {
         configuration.protocolClasses = [StubURLProtocol.self]
         let link = TalariaPlatformLink(
             gatewayBaseURL: { nil },
-            apiKey: { "test-key" },
             installID: { "install-abc" },
             deviceName: { "TestPhone" },
             credentialScopeID: { Self.scope },
@@ -203,8 +205,8 @@ struct TalariaPlatformLinkTests {
 
     // MARK: - Loop
 
-    @Test func backoffLadderIsBoundedAndDeterministic() {
-        let link = makeLink(secureStore: MockSecureStore()) { _ in (200, Data()) }
+    @Test func backoffLadderIsBoundedAndDeterministic() async {
+        let link = await makeLink(secureStore: MockSecureStore()) { _ in (200, Data()) }
         defer { StubURLProtocol.handler = nil }
         #expect(link.nextDelay(afterFailureCount: 1) == 1)
         #expect(link.nextDelay(afterFailureCount: 2) == 2)
@@ -218,7 +220,7 @@ struct TalariaPlatformLinkTests {
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "tok")
         await secure.store(key: Self.deviceIDKey, value: "dev")
-        let link = makeLink(secureStore: secure) { _ in
+        let link = await makeLink(secureStore: secure) { _ in
             (200, Data(#"{"items":[],"queries":[]}"#.utf8))
         }
         link.start()
@@ -232,7 +234,7 @@ struct TalariaPlatformLinkTests {
         let secure = MockSecureStore()
         await secure.store(key: Self.tokenKey, value: "tok")
         await secure.store(key: Self.deviceIDKey, value: "dev")
-        let link = makeLink(secureStore: secure) { _ in
+        let link = await makeLink(secureStore: secure) { _ in
             (200, Data(#"{"items":[],"queries":[]}"#.utf8))
         }
         link.start()
@@ -275,7 +277,7 @@ struct TalariaPlatformLinkTests {
         await secure.store(key: Self.tokenKey, value: "tok-1")
         await secure.store(key: Self.deviceIDKey, value: "dev12")
         let recorder = Recorder()
-        let link = makeLink(secureStore: secure, responder: responder) { request in
+        let link = await makeLink(secureStore: secure, responder: responder) { request in
             let body = StubURLProtocol.bodyString(request)
             recorder.record(body)
             if body.contains("\"drain\"") {

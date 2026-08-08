@@ -43,10 +43,23 @@ final class BackendProfilesStore {
 
     /// Fires after the active profile changes (new value = the activated
     /// profile). AppContainer wires the rebinding side effects here.
+    ///
+    /// #285: invocations are SERIALIZED and cancel-superseding — see
+    /// `setActiveProfile`. A handler that suspends must checkpoint on
+    /// `Task.isCancelled` after its awaits: cancellation is the signal that
+    /// a newer activation superseded this one and its remaining shared-state
+    /// writes must not land.
     var onActiveProfileChanged: (@MainActor (BackendProfile) async -> Void)?
     /// Fires after a profile is deleted, with the removed record — the
     /// container deletes its Keychain items (delete hygiene, Lane M).
     var onProfileDeleted: (@MainActor (BackendProfile) -> Void)?
+
+    /// #285: the activation-dispatch chain — the `AppContainer`
+    /// bootstrap-generation idiom (#136) applied to profile switches. The
+    /// generation stamps which activation is CURRENT; the task handle is the
+    /// predecessor a newer activation cancels and then waits out.
+    private var activationGeneration = 0
+    private var activationTask: Task<Void, Never>?
 
     private let persistence: any AppPersistenceStoreProtocol
 
@@ -151,7 +164,23 @@ final class BackendProfilesStore {
         updated.activeProfileID = id
         state = updated
         profilesLog.notice("active profile → '\(target.name, privacy: .public)'")
-        Task { await onActiveProfileChanged?(target) }
+        // #285: the scope moved SYNCHRONOUSLY above; the side effects are
+        // dispatched serialized and cancel-superseding (the #136 bootstrap
+        // idiom). A rapid A→B→C must not interleave two handlers' awaits:
+        // the superseded dispatch is cancelled — if its handler never
+        // started, the generation guard below stops it from starting; if it
+        // is mid-flight, its own `Task.isCancelled` checkpoints stop its
+        // remaining writes — and the newer dispatch WAITS OUT the corpse so
+        // nothing stale can land after it. Last writer wins, always.
+        activationGeneration += 1
+        let generation = activationGeneration
+        let predecessor = activationTask
+        predecessor?.cancel()
+        activationTask = Task { [weak self] in
+            await predecessor?.value
+            guard let self, self.activationGeneration == generation, !Task.isCancelled else { return }
+            await self.onActiveProfileChanged?(target)
+        }
         return true
     }
 

@@ -33,6 +33,9 @@ struct RunsPlaneTransportTests {
     private struct RecordedRequest: Sendable {
         let method: String
         let path: String
+        /// #285: the endpoint-pinning test asserts every request in a turn's
+        /// family hit the turn's BIRTH host.
+        let host: String
         let body: String
         /// Task 7: the `hardStopActiveRun` tests pin the `/stop` POST's auth
         /// header, not just that a request landed.
@@ -115,6 +118,7 @@ struct RunsPlaneTransportTests {
             let recordedRequest = RecordedRequest(
                 method: request.httpMethod ?? "GET",
                 path: request.url?.path ?? "",
+                host: request.url?.host ?? "?",
                 body: Self.bodyString(request),
                 authorization: request.value(forHTTPHeaderField: "Authorization")
             )
@@ -297,8 +301,20 @@ struct RunsPlaneTransportTests {
         )
     }
 
+    /// #285: lets the endpoint-pinning test flip the "active profile's" base
+    /// URL mid-turn, the way a real profile switch moves the live providers.
     @MainActor
-    private func makeClient(label: String, persistedHop: String? = nil) -> SessionsHermesClient {
+    private final class MutableBaseURLBox {
+        var value: String
+        init(_ value: String) { self.value = value }
+    }
+
+    @MainActor
+    private func makeClient(
+        label: String,
+        persistedHop: String? = nil,
+        baseURLBox: MutableBaseURLBox? = nil
+    ) -> SessionsHermesClient {
         let suiteName = "runs-plane-\(label)-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -318,7 +334,7 @@ struct RunsPlaneTransportTests {
         }
 
         let client = SessionsHermesClient(
-            baseURLProvider: { "http://hermes.test" },
+            baseURLProvider: { baseURLBox?.value ?? "http://hermes.test" },
             apiKeyProvider: { "test-key" },
             journal: journal,
             transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
@@ -655,6 +671,54 @@ struct RunsPlaneTransportTests {
         #expect(finished.usage?.promptTokens == 7)
         #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
         #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// #285 (the #283 adjacency): a runs turn is MANY requests over wall
+    /// clock — history GET, submit, events subscribe, then status polls.
+    /// Before the fix each request re-resolved the ACTIVE endpoint at build
+    /// time, so a profile switch landing mid-turn redirected the turn's later
+    /// polls to the NEW host. Now the turn resolves a `ResolvedEndpoint` once
+    /// at birth and every request in its family carries it.
+    ///
+    /// Determinism: the events response is DELAYED (`eventsResponseDelay`),
+    /// and the request log is written the instant `startLoading` begins — so
+    /// the flip lands after the subscribe request is recorded and before its
+    /// (404) response starts the poll loop. Every status poll is post-flip.
+    @Test @MainActor
+    func aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: #"{"error":{"message":"Run not found: run-r1","code":"run_not_found"}}"#,
+            statusBodies: [
+                Self.runningStatus,
+                #"{"object":"hermes.run","run_id":"run-r1","status":"completed","output":"pinned","usage":{"input_tokens":3,"output_tokens":2,"total_tokens":5}}"#,
+            ],
+            eventsStatus: 404,
+            eventsResponseDelay: 0.3
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let baseURL = MutableBaseURLBox("http://hermes.test")
+        let client = makeClient(label: "endpoint-pin", baseURLBox: baseURL)
+
+        let collector = Task { @MainActor in await collect(from: client) }
+        // The switch, mid-turn: as soon as the events subscribe is RECORDED,
+        // flip the live base URL — the moved-scope half of a profile switch.
+        while RunsStubURLProtocol.count("/v1/runs/run-r1/events") == 0 {
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        baseURL.value = "http://hermes-b.test"
+        let updates = await collector.value
+
+        // The turn finished with the polled answer…
+        let finished = try #require(finishedPayload(updates))
+        #expect(finished.message.content == "pinned")
+        // …polling really happened, all of it post-flip…
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1") >= 1)
+        // …and EVERY request the turn made hit the birth host. The flipped
+        // host saw nothing.
+        let hosts = Set(RunsStubURLProtocol.requests().map(\.host))
+        #expect(hosts == ["hermes.test"])
     }
 
     /// #235 F1 on the poll path: a run the host calls `completed` while
