@@ -979,15 +979,10 @@ final class AppContainer {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 return raw.isEmpty ? nil : raw
             },
-            // The Keychain directly, exactly like `gatewayAPIKey(for:)` — the
-            // in-memory box lags a cold launch and a profile switch, and a
-            // pair attempt with a stale key mints a token against the wrong
-            // host.
-            apiKey: {
-                await secureStore.retrieve(
-                    key: BackendProfileScopedKeys.gatewayAPIKey(profilesStore.activeProfile?.credentialScopeID)
-                )
-            },
+            // #285: no api-key closure — the link reads the Keychain itself
+            // under its turn's frozen scope (the in-memory box lags a cold
+            // launch and a profile switch, and a live closure here was one of
+            // the re-resolution seams the atomicity fix removed).
             installID: { sessionStore.state.installationID.uuidString },
             deviceName: { UIDevice.current.name },
             credentialScopeID: { profilesStore.activeProfile?.credentialScopeID },

@@ -2,30 +2,32 @@ import Foundation
 import Testing
 @testable import Talaria
 
-/// #285 — is a backend-profile switch an ATOMIC transport boundary?
+/// #285 — a backend-profile switch IS an atomic transport boundary.
 ///
-/// `TalariaPlatformLink` is a `@MainActor final class`, not an actor, and it
-/// is constructed ONCE for the app's lifetime. Every profile-scoped input is
-/// a CLOSURE re-evaluated at call time (`AppContainer.swift` ~:971 —
-/// `gatewayBaseURL`, `apiKey`, `credentialScopeID` all read
-/// `profilesStore.activeProfile` live). That is deliberate: the link must
-/// follow the active profile rather than pin the host it was built on. The
-/// question this suite answers is whether "follow the active profile" is
-/// scoped to a TURN or leaks INSIDE one.
+/// These tests began life as the RED reproduction suite (branch history +
+/// `RED-REPORT.md` preserve the pre-fix traces verbatim: one `ensurePaired()`
+/// straddling two profiles' Keychain slots, profile A's credentials POSTed to
+/// profile B's gateway, a stopped turn deleting the NEW profile's device id).
+/// After the fix they were INVERTED IN PLACE, not deleted — same
+/// choreography, same gates, same parks, opposite assertions. What they pin
+/// now is the invariant: a turn resolves its profile context ONCE
+/// (`TurnContext` — scope, endpoint, all three key slots, epoch) and a turn
+/// superseded by `stop()` abandons at its next side-effect checkpoint instead
+/// of completing cross-profile.
 ///
 /// Because everything here is `@MainActor` there is no true parallelism —
 /// interleaving is possible only at `await` suspension points, which is
-/// exactly what makes these repros deterministic rather than flaky.
+/// exactly what makes these tests deterministic rather than flaky.
 ///
-/// **The blocker these tests had to clear first.** `SecureStoreProtocol`'s
-/// methods are `async`, but BOTH shipping conformers (`KeychainSecureStore`,
-/// `MockSecureStore`) are synchronous underneath — awaiting them never yields
-/// to the scheduler, so with either of them no interleaving can be expressed
-/// at all and every "race" test would pass vacuously. `GatedSecureStore`
-/// below genuinely parks on a `CheckedContinuation` (the `GatedCronJobService`
-/// idiom from `CronJobsStoreTests`) and RECORDS every (operation, key) pair in
-/// call order. That recorded trace is the evidence, not the assertions'
-/// wording.
+/// **The blocker the RED suite had to clear first, still load-bearing.**
+/// `SecureStoreProtocol`'s methods are `async`, but BOTH shipping conformers
+/// (`KeychainSecureStore`, `MockSecureStore`) are synchronous underneath —
+/// awaiting them never yields to the scheduler, so with either of them no
+/// interleaving can be expressed at all and every "race" test would pass
+/// vacuously. `GatedSecureStore` below genuinely parks on a
+/// `CheckedContinuation` (the `GatedCronJobService` idiom from
+/// `CronJobsStoreTests`) and RECORDS every (operation, key) pair in call
+/// order. That recorded trace is the evidence, not the assertions' wording.
 ///
 /// Serialized: the URL stub's handler is a `nonisolated(unsafe) static`.
 @Suite(.serialized)
@@ -185,12 +187,11 @@ struct ProfileSwitchAtomicityTests {
         AtomicityStubURLProtocol.handler = handler
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [AtomicityStubURLProtocol.self]
-        // Closure shapes copied from AppContainer.swift ~:971 — including
-        // `apiKey` reading the Keychain through the SAME secure store, which
-        // is what production does (the in-memory box "lags a profile switch").
+        // Closure shapes copied from AppContainer.swift ~:971. #285 removed
+        // the injected `apiKey` closure — the link reads the key from the
+        // SAME secure store itself, under its turn's frozen scope.
         return TalariaPlatformLink(
             gatewayBaseURL: { box.gatewayBaseURL },
-            apiKey: { await secure.retrieve(key: BackendProfileScopedKeys.gatewayAPIKey(box.scope)) },
             installID: { "install-abc" },
             deviceName: { "TestPhone" },
             credentialScopeID: { box.scope },
@@ -242,18 +243,22 @@ struct ProfileSwitchAtomicityTests {
 
     // MARK: - Provenance: when does the scope actually move?
 
-    /// The premise every repro below rests on, pinned against the REAL store.
+    /// The premise every test below rests on, pinned against the REAL store.
     ///
     /// `BackendProfilesStore.setActiveProfile` assigns `state.activeProfileID`
-    /// SYNCHRONOUSLY and only then fires `Task { await onActiveProfileChanged }`.
-    /// So on a real switch the credential scope has already moved by the time
+    /// SYNCHRONOUSLY and only then dispatches `onActiveProfileChanged`. So on
+    /// a real switch the credential scope has already moved by the time
     /// `AppContainer.handleActiveProfileChanged` — and its
     /// `talariaPlatformLink?.stop()` — gets a turn to run. That ordering is
     /// what makes "flip the box while a turn is parked" a faithful model of a
     /// user tapping a different profile, not a contrivance.
     ///
-    /// It also falsifies the comment above that `stop()` call, which claims it
-    /// "park[s] the drain before the scope moves". The scope moves first.
+    /// It is also WHY the link's containment lives in the turn epoch rather
+    /// than in `stop()`'s timing: `stop()` structurally cannot run before the
+    /// scope moves, so it can never be a barrier ahead of it — it can only
+    /// supersede whatever is already in flight. (The RED-era comment claiming
+    /// stop() "parks the drain before the scope moves" was corrected by this
+    /// lane; this test is the pin that keeps it corrected.)
     @Test func activeProfileMovesSynchronouslyBeforeTheSwitchHandlerRuns() async throws {
         let suiteName = "profile-atomicity-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
@@ -291,29 +296,27 @@ struct ProfileSwitchAtomicityTests {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
-    // MARK: - Repro 1 — one `ensurePaired()` straddling two profiles
+    // MARK: - Inverted repro 1 — one `ensurePaired()` stays on ONE profile
 
-    /// `ensurePaired()` reads:
+    /// RED history: `ensurePaired()` captured `tokenKey` once but re-resolved
+    /// `deviceIDKey` after its first suspension, so a switch landing in that
+    /// window split one pairing check across two profiles and `pair()` wrote
+    /// the two halves of ONE credential into two different profiles' slots
+    /// (trace preserved in `RED-REPORT.md`).
     ///
-    /// ```swift
-    /// let tokenKey = tokenKey                                  // scope resolved once
-    /// if await secureStore.retrieve(key: tokenKey) != nil,     // ← suspends here
-    ///    await secureStore.retrieve(key: deviceIDKey) != nil { // ← scope resolved AGAIN
-    /// ```
-    ///
-    /// `deviceIDKey` is a computed var that calls `credentialScopeID()` fresh.
-    /// It is read AFTER the first retrieve has already suspended, so a switch
-    /// landing in that window splits one logical pairing check across two
-    /// profiles — and the `pair()` that follows writes the two halves of ONE
-    /// credential into two different profiles' slots.
-    @Test func ensurePairedStraddlesTwoProfilesAcrossItsFirstAwait() async {
+    /// Now: the whole turn rides an immutable `TurnContext` resolved before
+    /// the first await, so the mid-turn switch changes NOTHING — the trace is
+    /// byte-identical to the no-switch control's, every write lands in A's
+    /// slots, and the mint happens at A's gateway with A's key.
+    @Test func ensurePairedCompletesEntirelyOnItsBirthProfileAcrossASwitch() async {
         defer { AtomicityStubURLProtocol.handler = nil }
         let box = ActiveProfileBox(scope: Self.scopeA, gatewayBaseURL: Self.gatewayA)
         let secure = GatedSecureStore()
         secure.keyLabels = Self.keyLabels
-        // Profile A is fully, validly paired. Profile B is not paired at all.
+        // Profile A holds a token but no device id (the control's arrangement,
+        // so this turn takes the same `pair()` path the RED repro took instead
+        // of short-circuiting on a complete pair). Profile B is not paired.
         secure.seed(key: Self.tokenKeyA, value: "tok-A")
-        secure.seed(key: Self.deviceIDKeyA, value: "dev-A")
         secure.seed(key: Self.apiKeyKeyA, value: "apikey-A")
         secure.seed(key: Self.apiKeyKeyB, value: "apikey-B")
         // Park the very first read — profile A's device-token slot.
@@ -325,7 +328,7 @@ struct ProfileSwitchAtomicityTests {
                 host: request.url?.host ?? "?",
                 body: AtomicityStubURLProtocol.bodyString(request)
             ))
-            return (200, Data(#"{"device_id":"dev-fromB","device_token":"tok-fromB"}"#.utf8))
+            return (200, Data(#"{"device_id":"dev-fromA","device_token":"tok-fromA"}"#.utf8))
         }
 
         let turn = Task { await link.ensurePaired() }
@@ -341,41 +344,32 @@ struct ProfileSwitchAtomicityTests {
         secure.release()
         let paired = await turn.value
 
-        print("#285 repro1 keychain trace: \(secure.trace)")
-        print("#285 repro1 wire trace: \(wire.trace)")
+        print("#285 inverted repro1 keychain trace: \(secure.trace)")
+        print("#285 inverted repro1 wire trace: \(wire.trace)")
 
-        // ── The recorded interleaving ──────────────────────────────────────
-        // One `ensurePaired()` call, two profiles: it read A's token slot,
-        // then B's device-id slot, minted with B's API key against B's
-        // gateway, and wrote the result into A's token slot and B's
-        // device-id slot.
+        // ── The invariant ──────────────────────────────────────────────────
+        // Same shape as the control: every key resolved under A, both halves
+        // of the minted credential written to A's slots. The switch that
+        // landed mid-turn is invisible to this turn.
         #expect(secure.trace == [
             "retrieve(A.deviceToken)",
-            "retrieve(B.deviceID)",
-            "retrieve(B.apiKey)",
+            "retrieve(A.deviceID)",
+            "retrieve(A.apiKey)",
             "store(A.deviceToken)",
-            "store(B.deviceID)",
+            "store(A.deviceID)",
         ])
         #expect(paired == true)
 
-        // The resulting Keychain state is cross-contaminated in BOTH
-        // directions from this single turn:
-        // • profile A's device token was overwritten by one minted by
-        //   profile B's host, while A keeps its old device id — A now looks
-        //   "paired" to `ensurePaired` but its two halves come from
-        //   different servers.
-        #expect(secure.peek(key: Self.tokenKeyA) == "tok-fromB")
-        #expect(secure.peek(key: Self.deviceIDKeyA) == "dev-A")
-        // • profile B got a device id but no token — half-paired, the exact
-        //   state `ensurePaired`'s doc comment says must never persist
-        //   ("a half-written pair is unusable").
-        #expect(secure.peek(key: Self.deviceIDKeyB) == "dev-fromB")
+        // A holds a complete, same-server pair; B is untouched.
+        #expect(secure.peek(key: Self.tokenKeyA) == "tok-fromA")
+        #expect(secure.peek(key: Self.deviceIDKeyA) == "dev-fromA")
         #expect(secure.peek(key: Self.tokenKeyB) == nil)
+        #expect(secure.peek(key: Self.deviceIDKeyB) == nil)
 
-        // And the pair call itself went to B's gateway with B's API key.
+        // And the pair call went to A's gateway with A's API key.
         #expect(wire.all.count == 1)
-        #expect(wire.all.first?.host == "gateway-b.local")
-        #expect(wire.all.first?.body.contains("apikey-B") == true)
+        #expect(wire.all.first?.host == "gateway-a.local")
+        #expect(wire.all.first?.body.contains("apikey-A") == true)
     }
 
     /// The control for Repro 1: same gate, same park, same release — but no
@@ -420,14 +414,16 @@ struct ProfileSwitchAtomicityTests {
         #expect(wire.all.allSatisfy { $0.host == "gateway-a.local" })
     }
 
-    // MARK: - Repro 2 — profile A's credentials against profile B's endpoint
+    // MARK: - Inverted repro 2 — a drain speaks only to its birth gateway
 
-    /// `post()` calls `endpointURL()`, which calls `gatewayBaseURL()`, on EVERY
-    /// request — while the token and device id it is carrying were read from
-    /// the Keychain earlier in the same turn. Park the last credential read,
-    /// switch, release, and the drain presents profile A's device token to
-    /// profile B's gateway.
-    @Test func profileACredentialsArePostedToProfileBsGateway() async {
+    /// RED history: `post()` re-resolved `gatewayBaseURL()` on EVERY request,
+    /// so a switch parked between the last credential read and the POST sent
+    /// profile A's device token to profile B's gateway (wire trace preserved
+    /// in `RED-REPORT.md`).
+    ///
+    /// Now: the endpoint is frozen in the `TurnContext` alongside the keys —
+    /// the same park + switch releases into a POST at A's OWN gateway.
+    @Test func aDrainTurnSpeaksOnlyToItsBirthProfilesGateway() async {
         defer { AtomicityStubURLProtocol.handler = nil }
         let box = ActiveProfileBox(scope: Self.scopeA, gatewayBaseURL: Self.gatewayA)
         let secure = GatedSecureStore()
@@ -469,31 +465,28 @@ struct ProfileSwitchAtomicityTests {
         secure.release()
         let outcome = await turn.value
 
-        print("#285 repro2 keychain trace: \(secure.trace)")
-        print("#285 repro2 wire trace: \(wire.trace)")
+        print("#285 inverted repro2 keychain trace: \(secure.trace)")
+        print("#285 inverted repro2 wire trace: \(wire.trace)")
 
         let posted = wire.all
         #expect(posted.count == 1)
-        // Profile A's credentials, profile B's host.
-        #expect(posted.first?.host == "gateway-b.local")
+        // Profile A's credentials, profile A's host — the frozen endpoint.
+        #expect(posted.first?.host == "gateway-a.local")
         #expect(posted.first?.body.contains("\"auth\":\"tok-A\"") == true)
         #expect(posted.first?.body.contains("\"device_id\":\"dev-A\"") == true)
         #expect(outcome == .idle)
     }
 
-    // MARK: - Repro 3 — `stop()` does not unwind an in-flight turn
+    // MARK: - Inverted repro 3 — `stop()` CONTAINS an in-flight turn
 
-    /// `stop()` sets `isRunning = false` and cancels `loopTask`, but the loop
-    /// only consults `isRunning` at the TOP of an iteration, and a
-    /// `CheckedContinuation` is not cancellation-aware. So a turn parked in a
-    /// Keychain call when the profile switch fires resumes afterwards and
-    /// keeps going — and everything it re-resolves from then on belongs to the
-    /// NEW profile.
-    ///
-    /// This is the load-bearing repro, because `handleActiveProfileChanged`'s
-    /// `stop()` is the app's ONLY defence against a cross-profile turn ("park
-    /// the drain before the scope moves").
-    @Test func stopDoesNotUnwindOrContainAnInFlightTurn() async {
+    /// Still true, and still worth pinning: `stop()` cannot UNWIND a turn
+    /// parked on a `CheckedContinuation` — the park survives `stop()`
+    /// returning, exactly as in the RED run. What changed is what the resumed
+    /// turn may do: `stop()` bumps the link's epoch, the turn's next key
+    /// resolution rides its FROZEN context (no new-profile keys, ever), and
+    /// the first side-effect checkpoint sees the supersession and abandons —
+    /// no POST, no delivery.
+    @Test func stopContainsAnInFlightTurnNoCrossProfileReadsNoSideEffects() async {
         defer { AtomicityStubURLProtocol.handler = nil }
         let box = ActiveProfileBox(scope: Self.scopeA, gatewayBaseURL: Self.gatewayA)
         let secure = GatedSecureStore()
@@ -548,44 +541,48 @@ struct ProfileSwitchAtomicityTests {
         await waitUntil { secure.trace.count > traceAtStop.count }
         try? await Task.sleep(for: .milliseconds(250))
 
-        print("#285 repro3 trace at stop(): \(traceAtStop)")
-        print("#285 repro3 keychain trace after release: \(secure.trace)")
-        print("#285 repro3 wire trace after release: \(wire.trace)")
-        print("#285 repro3 items delivered after stop(): \(received.items.map(\.id))")
+        print("#285 inverted repro3 trace at stop(): \(traceAtStop)")
+        print("#285 inverted repro3 keychain trace after release: \(secure.trace)")
+        print("#285 inverted repro3 wire trace after release: \(wire.trace)")
+        print("#285 inverted repro3 items delivered after stop(): \(received.items.map(\.id))")
 
         // ── Pinned facts ───────────────────────────────────────────────────
-        // 1. stop() did not unwind the parked turn — asserted above: it was
-        //    still parked, and `isRunning` already false, when stop() returned.
+        // 1. stop() still does not UNWIND the parked turn — asserted above: it
+        //    was still parked, and `isRunning` already false, when stop()
+        //    returned. Containment, not unwinding, is the mechanism.
         #expect(traceAtStop == [
             "retrieve(A.deviceToken)",
             "retrieve(A.deviceID)",
             "retrieve(A.deviceToken)",
         ])
-        // 2. The stopped turn RESUMED and issued a fresh credential read — and
-        //    resolved it under the NEW profile. One `drain` call read profile
-        //    A's device token and profile B's device id, after stop().
+        // 2. The stopped turn resumed and finished its in-flight credential
+        //    read under its FROZEN context — profile A's device id, never the
+        //    new profile's. No B-scoped key is ever touched.
         #expect(secure.trace == [
             "retrieve(A.deviceToken)",
             "retrieve(A.deviceID)",
             "retrieve(A.deviceToken)",
-            "retrieve(B.deviceID)",
+            "retrieve(A.deviceID)",
         ])
-        // 3. Here that mis-scoped read misses (B is unpaired), so the turn
-        //    bails before its POST — which is why this repro is deterministic.
-        //    Repro 2 is the same interleaving one step later, where the read
-        //    HITS and the turn posts A's credentials at B's gateway.
+        // 3. The superseded turn abandoned at the pre-POST checkpoint: nothing
+        //    went out on the wire and nothing was delivered into the app.
         #expect(wire.all.isEmpty)
         #expect(received.items.isEmpty)
     }
 
-    /// Repro 3b — the side effect `stop()`'s task cancellation CANNOT suppress.
+    /// Inverted repro 3b — the Keychain step a stop cannot suppress stays
+    /// SELF-scoped, and the superseded turn mints nothing.
     ///
-    /// Same shape, but the turn is parked AFTER its network round trip has
-    /// already completed with a 401, i.e. inside the self-repair path that
-    /// deletes both halves of the stored pair. `drain` captured `tokenKey`
-    /// under profile A but re-resolves `deviceIDKey` fresh — so after the
-    /// switch, a turn belonging to profile A deletes profile B's device id.
-    @Test func aStoppedTurnStillDeletesTheNewProfilesCredential() async {
+    /// RED history: the 401 self-repair deleted a captured token key and a
+    /// live-resolved device-id key, so a stopped turn belonging to A deleted
+    /// PROFILE B'S device id, then re-paired against B's gateway (minting the
+    /// #288 orphan row). Now: the turn was already inside its delete-pair
+    /// when the stop landed, so it FINISHES that one atomic step — both
+    /// halves, both under its own frozen profile-A keys (a pair is dropped
+    /// whole; a half-dropped pair is the state `ensurePaired`'s doc says must
+    /// never persist) — and then abandons at the pre-re-pair checkpoint:
+    /// no pair POST, no orphan mint, profile B byte-untouched.
+    @Test func aStoppedTurnFinishesItsOwnCredentialDropAndNeverTouchesTheNewProfile() async {
         defer { AtomicityStubURLProtocol.handler = nil }
         let box = ActiveProfileBox(scope: Self.scopeA, gatewayBaseURL: Self.gatewayA)
         let secure = GatedSecureStore()
@@ -634,22 +631,28 @@ struct ProfileSwitchAtomicityTests {
         secure.release()
         // Wait on the TRACE, not on the value: a value-based wait would be
         // satisfied by a transient nil and could look past a later re-write.
-        await waitUntil { secure.trace.contains("delete(B.deviceID)") }
+        await waitUntil { secure.trace.contains("delete(A.deviceID)") }
         try? await Task.sleep(for: .milliseconds(250))
 
-        print("#285 repro3b keychain trace: \(secure.trace)")
-        print("#285 repro3b wire trace: \(wire.trace)")
+        print("#285 inverted repro3b keychain trace: \(secure.trace)")
+        print("#285 inverted repro3b wire trace: \(wire.trace)")
 
-        // A stopped turn belonging to profile A deleted profile B's device id.
+        // The stopped turn finished its own pair-drop — BOTH halves, both A's.
         #expect(secure.trace.contains("delete(A.deviceToken)"))
-        #expect(secure.trace.contains("delete(B.deviceID)"))
-        #expect(secure.trace.contains("delete(A.deviceID)") == false)
-        #expect(secure.peek(key: Self.deviceIDKeyB) == nil)
-        // Profile B is left half-paired: token intact, device id destroyed.
-        #expect(secure.peek(key: Self.tokenKeyB) == "tok-B")
-        // Profile A is left with an orphaned device id and no token.
+        #expect(secure.trace.contains("delete(A.deviceID)"))
+        #expect(secure.trace.contains("delete(B.deviceID)") == false)
+        // Profile A is cleanly unpaired (the next A-activation re-mints).
         #expect(secure.peek(key: Self.tokenKeyA) == nil)
-        #expect(secure.peek(key: Self.deviceIDKeyA) == "dev-A")
+        #expect(secure.peek(key: Self.deviceIDKeyA) == nil)
+        // Profile B's perfectly good pair is byte-untouched.
+        #expect(secure.peek(key: Self.tokenKeyB) == "tok-B")
+        #expect(secure.peek(key: Self.deviceIDKeyB) == "dev-B")
+        // And the superseded turn abandoned before re-pairing: the only wire
+        // call is the original 401'd drain — no pair POST, no orphan device
+        // row minted on ANY host (#288's leak, closed at the source).
+        #expect(wire.all.count == 1)
+        #expect(wire.all.first?.host == "gateway-a.local")
+        #expect(wire.trace.filter { $0.contains("\"pair\"") }.isEmpty)
     }
 }
 
