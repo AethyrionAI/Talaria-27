@@ -5398,15 +5398,35 @@ the hashes into a report.
 **Bars:** **288-A** every active row on every paired host maps to a device
 the phone agrees it is paired to; **288-B** any row deactivated is recorded
 with its `id`/`created`/`install_id` and a restorable backup exists;
-> **Update 2026-08-08 — #285's fix is BUILT (branch
-> `claude/t27-285-profile-atomicity`, awaiting Owen's merge): superseded
-> link turns now abandon BEFORE the pair POST, so the orphan-mint path this
-> chore guards against is closed at the source. Once the fix merges and
-> real switch traffic has run, 288-C below is actionable on Owen's
-> schedule.**
-
 **288-C** the audit is re-run and recorded AFTER #285's fix ships (that
 re-run is the one that actually proves the leak stopped).
+
+> **Update 2026-08-08 — #285's fix is BUILT (branch
+> `claude/t27-285-profile-atomicity`, awaiting Owen's merge): superseded link
+> turns now abandon BEFORE the pair POST, so the DETERMINISTIC orphan-mint
+> path this chore guards against is closed at the source.**
+>
+> **⚠️ BUT A RESIDUAL RACE WINDOW REMAINS, and 288-C must not be read as
+> proof of a total seal** (caught by the PR review of the fix, 2026-08-08;
+> the earlier wording here and in #285 said "closed at the source" without
+> this qualifier, which overstated it):
+> **`pair()`'s checkpoint sits between the successful pair RESPONSE and the
+> Keychain store** (`TalariaPlatformLink.swift:~168`). If `stop()` lands
+> while the pair POST is in flight, the gateway has ALREADY minted a device
+> row, the client discards the response — **orphan row on the host** — and
+> the birth profile is left unpaired, so its next activation mints a SECOND
+> row. Reachable by backgrounding mid-pair.
+>
+> **Why the checkpoint is where it is (defensible, recorded so it is not
+> re-litigated blind):** storing anyway would be scope-SAFE — the keys are
+> frozen to the birth profile, so no cross-profile write is possible — and
+> would save the mint in the common case. The trade against storing is
+> clobbering a newer same-profile pair from a fresh loop, or resurrecting
+> keys for a just-deleted profile. Both are rare-squared. **Either
+> placement is defensible; the claim was the problem, not the code.**
+>
+> **Consequence for this chore:** when 288-C runs, an orphan found does NOT
+> mean the fix failed — it may be this window. Record which.
 
 ## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material.**
 
@@ -5508,8 +5528,13 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 >   under the frozen `apiKeyKey` — byte-what production's closure did,
 >   minus the liveness). `stop()` bumps the epoch; a superseded turn
 >   abandons at side-effect checkpoints (before the drain POST, the pair
->   POST — which closes #288's orphan-mint source — the self-repair, the
->   re-pair, the delivery/ack block, and each query answer) and returns a
+>   POST — which closes #288's **deterministic** orphan-mint source, though
+>   **a residual race window remains and is now named in #288**: the
+>   checkpoint sits between the pair RESPONSE and the Keychain store, so a
+>   `stop()` landing while that POST is in flight still leaves a row minted
+>   host-side and the birth profile unpaired. Caught by the PR review
+>   2026-08-08; the earlier "closed at the source" wording here overstated
+>   it, and the claim was the problem rather than the code — the self-repair, the
 >   new honest `DrainOutcome.superseded`. Keychain pair writes and drops
 >   stay WHOLE (no checkpoint inside a pair) — "mixed" in the invariant
 >   means mixed PROFILES, and frozen keys make that impossible.
@@ -5547,9 +5572,14 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > `aLateResumingSupersededActivationCannotOverwriteTheWinnersState` — see
 > the supersession block below**; runs pin =
 > `aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests`; 285-D = full
-> gate on the branch head: **GATE: PASS, 1807 Swift Testing + 12 XCUITest,
-> count MOVED 1798→1807 (exactly the 9 new tests), the 2 known
-> Apple-Intelligence hardware skips, Release build green.** Every inverted
+> gate on the branch head: **GATE: PASS at `4a466d3` (the SHIPPING head) —
+> 1808 Swift Testing + 12 XCUITest, count MOVED 1798→1808 (the 9 fix-lane
+> tests plus the 285-C chain arm), the 2 known Apple-Intelligence hardware
+> skips, Release build green.** *(An earlier gate at `519d364` read 1807;
+> that run predated the 285-C harness commit and is superseded. Recorded
+> rather than deleted because the PR review caught the one-commit-stale
+> claim, which is this repo's own #218 discipline applied to a count — a
+> gate number is only true of the commit it ran on.)* Every inverted
 > test was first run against the UNFIXED code and observed to fail for the
 > right reason (cross-profile trace / B-gateway host / B-key read /
 > B-delete + leaked pair POST) before the fix landed — no
