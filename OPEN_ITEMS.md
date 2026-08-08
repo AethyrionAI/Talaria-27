@@ -5096,10 +5096,30 @@ assistant row behind (or leaves one that the scrubber removes on cold load);
 must not eat a real partial answer; **(294-C)** relaunch after an early Stop
 shows no empty bubble.
 
+> **🔧 FIXED 2026-08-07 night, same lane as #291. 294-A/B/C all MET; gate
+> PASS (1804 + 12, Release green).** The placeholder is removed only when it
+> has nothing to show, and the prose half **calls
+> `SessionsHermesClient.cleanCloseArmsRecovery` rather than restating it** —
+> the same anti-drift reuse `deliverPolledTerminal` makes, so the three
+> producers of terminal assistant rows cannot diverge on what "empty" means.
+> **294-B's trap was traced against all four content shapes** by the review:
+> partial prose (kept, tested), tool-activity-only (kept, tested), an
+> agent-file chip with no prose (kept — #277's rule that a chip on a stopped
+> reply is as durable as the transcript), and reasoning-only (kept, #4.15).
+>
+> **One hazard recorded rather than left silent:** the emptiness predicate is
+> itself field-by-field — the #276 shape. It deliberately does NOT check
+> `codeDiff`, `usage` or `reasoningSummary`, all provably unreachable on a
+> pre-finish placeholder today. Those exclusions are now named in a doc
+> comment WITH the reason each is unreachable, so the next field added to
+> `Message` fails loudly here instead of silently eating a bubble.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
-**(a) Token-less loop teardowns in `ChatStore` — the house pattern is applied
-everywhere else** (`:2041-2053` reconcile, `:1975-1977` polling). Both clear
+**(a) ✅ FIXED 2026-08-07 night (same lane as #291):** generation tokens now
+guard both teardowns, matching `bootstrapGeneration` / `finishRun(_:)`.
+Original finding: **token-less loop teardowns in `ChatStore` — the house
+pattern was applied everywhere else** (`:2041-2053` reconcile, `:1975-1977` polling). Both clear
 whatever handle the store *currently* holds rather than the one the finishing
 task owns; `self.pollingTask?.isCancelled == false` is true precisely when a
 NEWER task has replaced it. The convention is already established three times
@@ -5109,7 +5129,12 @@ in this codebase — `ChatBackendRouter.finishRun(_ id:)`,
 reachable** (the window is one main-actor hop). **Latent shape, not a live
 bug** — fix is three tokens and matches the file's own convention.
 
-**(b) `attemptReconcile` compares a CLIENT clock to HOST timestamps with
+**(b) INSTRUMENTED 2026-08-07 night, NOT fixed — deliberately.** The strict
+comparison is untouched and no slack was added (a behavior change pending
+measurement); a failed reconcile pass now logs the client/host timestamps
+and their delta so the skew hypothesis can be measured from a device log
+before anyone changes the predicate. Original finding:
+**`attemptReconcile` compares a CLIENT clock to HOST timestamps with
 strict `>` and no slack** (`:2062-2066`). `pending.sentAt` is a local
 `Date()`; `$0.timestamp` is `Date(timeIntervalSince1970:)` off the host row.
 **The sibling guard one screen away knows better** — `historyAdoptsQueuedTurn`
@@ -5121,8 +5146,12 @@ marks the turn failed while the answer sits on the host. Auditor: ~60%
 reachable. **Cheap check before any fix: log `pending.sentAt` beside the
 newest server row timestamp on each failed pass.**
 
-**(c) `selfStoppedRunIDs` can retain an entry for the process's life, and its
-doc says it cannot** (`SessionsHermesClient.swift:100-107` promises it
+**(c) ✅ FIXED 2026-08-07 night (same lane as #291) — the code was made TRUE
+rather than the comment weakened:** `selfStoppedRunIDs` became a bounded
+(8) insertion-ordered list with evict-oldest, so the promised bound is now
+enforced instead of asserted. Original finding, kept for the record:
+`selfStoppedRunIDs` could retain an entry for the process's life, and its
+doc said it could not** (`SessionsHermesClient.swift:100-107` promises it
 "never grows past the handful of runs actually in flight"). **This is
 residue from MY OWN #279 review fix**, which moved the insert to *after* the
 `/stop` POST returns: if the driver exits before that POST's response lands,
@@ -5221,6 +5250,35 @@ auditor's own disproof test, so running it settles the finding either way).
 **Sibling filed from the same call site: #294** (empty assistant bubble).
 Fixing both together is one edit; they are separate items because the fixes
 are different (settle the user row vs. do not persist an empty terminal).
+
+> **🔧 FIXED 2026-08-07 night on `claude/t27-291-stop-settles` (Owen: "take
+> the small ones"), TDD with RED first. Gate PASS: 1804 Swift Testing + 12
+> XCUITest, Release green. AWAITING PR + Owen's read.** Bundled with #294,
+> #293(a) and #293(c).
+> - **291-A MET** — `ChatStore` now tracks `streamingUserMessageID` beside
+>   `streamingMessageID`, and `cancelStreaming` settles THAT row
+>   `.sending → .delivered`. **Targeted, not a blanket sweep of every
+>   `.sending` user row** — a second in-flight send or a draining
+>   compose-outbox turn is not this Stop's business, and the `==
+>   clientMessageID` guard declines to steal a later turn's handle.
+> - **291-B MET** by the predicate assertion (`hasPendingMessages` false),
+>   which is what actually closes the false-failure door. **The reviewer
+>   caught that the accompanying `sendFailures == 0` line CANNOT FAIL** —
+>   polling is never enabled in that test file — so it is kept only as an
+>   annotated canary, explicitly not counted as coverage. Recorded because
+>   an assertion that cannot fail wearing a bar label is exactly how a bogus
+>   "verified" enters this tracker.
+> - **291-C MET** — survives a cold load through the real scrubber.
+> - **291-D still OWED** (device: Stop, hold the screen 90s, expect no buzz
+>   and no Retry). It is also the auditor's own disproof test, so running it
+>   settles the finding either way.
+> - **Verified by review, not assumed:** `.delivered` is honest here — every
+>   consumer was checked and none reads it on a USER row as "the assistant
+>   replied"; it also makes Edit & Resend available immediately instead of
+>   after the 60s false-failure flip.
+> - **Consequence filed separately as #295:** the settle stops the polling
+>   loop on the expiration path — which turned out to matter less than it
+>   looked, because that loop never fetched from the host at all.
 
 ## 290. 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync path — **FILED 2026-08-07 night from PR #279's independent review (findings 2 and 3). The HONEST-CLAIM halves of both were fixed on the branch; these are the halves that change BEHAVIOR and want a decision, not a patch.**
 
