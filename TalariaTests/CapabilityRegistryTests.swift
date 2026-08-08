@@ -151,4 +151,32 @@ struct CapabilityRegistryTests {
         #expect(none.armedGroups.isEmpty)   // all-false = abstention = full belt (O1)
     }
     #endif
+
+    // MARK: - Vector probe grid consistency (#284 Task 6)
+
+    #if DEBUG
+    @Test @MainActor func vectorGridExpectationsAreInternallyConsistent() {
+        let catalog = CapabilityRegistry(belt: Self.fullBelt()).descriptors
+        for row in LocalChatBackend.vectorProbeGrid {
+            // A toolless row expects no groups and no tools.
+            if !row.expectedArmed {
+                #expect(row.expectedGroups.isEmpty && row.expectedTools.isEmpty)
+                continue
+            }
+            // Every expected tool is reachable from the expected groups —
+            // otherwise the danger bar is unsatisfiable by construction.
+            let reachable = CapabilityRegistry.toolNames(for: row.expectedGroups, in: catalog)
+            #expect(row.expectedTools.isSubset(of: reachable),
+                    "row '\(row.text)': expected tools unreachable from expected groups")
+        }
+    }
+
+    @Test func vectorGridKeepsTheTrapRows() {
+        let texts = LocalChatBackend.vectorProbeGrid.map(\.text)
+        // #217B's falsifiability traps survive verbatim (spec §5.2).
+        #expect(texts.contains("Play some music"))
+        #expect(texts.contains("How long will it take me to drive to the airport?"))
+        #expect(texts.contains("Read the label on this bottle for me"))
+    }
+    #endif
 }

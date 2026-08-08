@@ -1821,6 +1821,60 @@ extension LocalChatBackend {
         ("What's 2+2?", false, .other),
     ]
 
+    /// #284: the Bool-vector grid. A NEW list — `intentProbeGrid` (#217B)
+    /// and `routerBaselineProbes` are closed series and never grow (#205).
+    /// Row text for the first 19 rows is copied verbatim from
+    /// `intentProbeGrid` so the two probes remain comparable.
+    /// `expectedTools` is the danger-bar annotation, written BEFORE the run:
+    /// the tools full-belt production behavior uses on that prompt. A trial
+    /// is DANGEROUS iff the model armed a non-empty group set whose tools
+    /// don't cover expectedTools (all-false is safe by construction — O1
+    /// arms the full belt).
+    nonisolated static let vectorProbeGrid: [(text: String, expectedArmed: Bool,
+                                              expectedGroups: Set<CapabilityGroup>,
+                                              expectedTools: Set<String>)] = [
+        ("Remind me to buy milk tomorrow at 9am", true, [.reminders], ["createReminder"]),
+        ("Add pick up dry cleaning to my reminders", true, [.reminders], ["createReminder"]),
+        ("Set an alarm for 6:30", true, [.alarms], ["scheduleAlarm"]),
+        ("Wake me up at 7 tomorrow", true, [.alarms], ["scheduleAlarm"]),
+        ("Put lunch with Sam on my calendar Friday at noon", true, [.calendar], ["createCalendarEvent"]),
+        ("Do I have anything on my calendar Friday?", true, [.calendar], ["readCalendar"]),
+        ("What's the weather like right now?", true, [.weather], ["currentWeather"]),
+        ("Is it going to rain this afternoon?", true, [.weather], ["currentWeather"]),
+        ("How many steps have I taken today?", true, [.health], ["readHealth"]),
+        ("How did I sleep last night?", true, [.health], ["readHealth"]),
+        ("When did I last text Sam about the boat?", true, [.conversations], ["searchConversations"]),
+        ("How much battery do I have left?", true, [.deviceStatus], ["deviceStatus"]),
+        ("What's Sam's phone number?", true, [.contacts], ["lookupContact"]),
+        ("Find a coffee shop near me", true, [.places], ["searchPlaces"]),
+        // The out-of-vocabulary traps, kept verbatim (#217B). Correct vector
+        // answer: armed, ALL BOOLS FALSE → full belt. No belt tool serves
+        // them, so expectedTools is empty and only a spurious non-empty
+        // group set can be dangerous here — exactly the failure #217B's
+        // enum could not avoid.
+        ("Play some music", true, [], []),
+        ("How long will it take me to drive to the airport?", true, [], []),
+        ("Read the label on this bottle for me", true, [], []),
+        // Toolless rows, verbatim.
+        ("Write a haiku about sledding", false, [], []),
+        ("What's 2+2?", false, [], []),
+        // #284 NEW: multi-intent rows — the union case the enum could not
+        // express at all.
+        ("What's my day look like tomorrow?", true, [.calendar, .reminders, .weather],
+         ["readCalendar", "readReminders", "currentWeather"]),
+        ("Anything due today, and do I need an umbrella?", true, [.reminders, .weather],
+         ["readReminders", "currentWeather"]),
+    ]
+
+    /// #284: measurement-only rows — no bar, no expectation. Where does a
+    /// capability-meta question ROUTE? (Spec §4's open question: if these
+    /// route toolless, Task 12 adds the toolless capability index as its own
+    /// measured arm.)
+    nonisolated static let vectorMetaRows: [String] = [
+        "What can you do?",
+        "What kinds of things can you help me with?",
+    ]
+
     /// #205: IMAGE TURNS ARE A #202-FAMILY DISARMAMENT and the pinned router
     /// instructions never mention images. UNDER OUR INTEGRATION the model
     /// never receives image bytes — we OCR with Vision ourselves and hand it
