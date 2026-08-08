@@ -55,7 +55,7 @@ struct TalariaPlatformLinkTests {
         secureStore: MockSecureStore,
         responder: PhoneQueryResponding? = nil,
         onItems: @escaping @MainActor ([TalariaPlatformItem]) -> Void = { _ in },
-        handler: @escaping @Sendable (URLRequest) -> (Int, Data)
+        handler: @escaping @Sendable (URLRequest) -> (Int, Data)?
     ) async -> TalariaPlatformLink {
         StubURLProtocol.handler = handler
         await secureStore.store(key: Self.apiKeyKey, value: "test-key")
@@ -331,12 +331,114 @@ struct TalariaPlatformLinkTests {
         #expect(body?["error"] == nil)
         #expect(body?["denied_gate"] == nil)
     }
+
+    // MARK: - #286: honest settlement classification
+
+    /// Bars 286-A + 286-D's dedupe half: a drain that delivers an item but
+    /// whose ack POST 500s must still hand the item to the app (rows are
+    /// delivered before ack — redelivery on the next drain is deduped
+    /// upstream by `platformID`), but the TURN classifies `.failed` so the
+    /// backoff ladder engages instead of resetting on a false `.delivered`.
+    @Test func ackServerErrorClassifiesTheDrainFailed() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let received = ItemsBox()
+        let link = await makeLink(secureStore: secure, onItems: { received.items = $0 }) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"""
+                {"items":[{"id":"i1","kind":"message","text":"hi","created_at":"2026-08-05T21:00:00+00:00","meta":{"session_id":"s1"}}],"queries":[]}
+                """#.utf8))
+            }
+            return (500, Data())
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .failed)
+        #expect(received.items.count == 1)
+    }
+
+    /// Bar 286-B: the ack request fails at transport — the stub's handler
+    /// signals "no response" (nil) rather than any status, which drives a
+    /// real `didFailWithError` through the URLProtocol client, exercising
+    /// `post`'s `guard let ... else` branch rather than a non-200 status.
+    @Test func ackTransportFailureClassifiesTheDrainFailed() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"""
+                {"items":[{"id":"i1","kind":"message","text":"hi","created_at":"2026-08-05T21:00:00+00:00","meta":{"session_id":"s1"}}],"queries":[]}
+                """#.utf8))
+            }
+            return nil  // transport failure, not a server response
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .failed)
+    }
+
+    /// Bar 286-C: both `query_result` attempts 500 (Task 2 adds a retry —
+    /// answering 500 to every `query_result` POST keeps this valid before
+    /// and after that retry lands).
+    @Test func queryResultServerErrorClassifiesTheDrainFailed() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"{"items":[],"queries":[{"id":"q1","kind":"health","params":{"metric":"steps"}}]}"#.utf8))
+            }
+            return (500, Data())
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .failed)
+    }
+
+    /// Bar 286-D: a fully successful settlement (ack 200, query_result 200)
+    /// still classifies `.delivered` — pins current behavior against
+    /// regression from the new failure-folding logic.
+    @Test func happyPathSettlementStaysDelivered() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let received = ItemsBox()
+        let link = await makeLink(secureStore: secure, onItems: { received.items = $0 }) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"""
+                {"items":[{"id":"i1","kind":"message","text":"hi","created_at":"2026-08-05T21:00:00+00:00","meta":{"session_id":"s1"}}],"queries":[{"id":"q1","kind":"health","params":{"metric":"steps"}}]}
+                """#.utf8))
+            }
+            return (200, Data(#"{"ok":true}"#.utf8))
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .delivered)
+        #expect(received.items.count == 1)
+    }
 }
 
 /// Minimal request/response stub: hands every request to a static handler and
 /// replays its `(status, body)` verbatim.
 private final class StubURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler: (@Sendable (URLRequest) -> (Int, Data))?
+    /// A handler returning `nil` (rather than any status) simulates a
+    /// transport failure — the stub delivers a real `didFailWithError`
+    /// instead of any response, exercising `post`'s transport-nil branch.
+    nonisolated(unsafe) static var handler: (@Sendable (URLRequest) -> (Int, Data)?)?
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -346,7 +448,10 @@ private final class StubURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
         }
-        let (status, data) = handler(request)
+        guard let (status, data) = handler(request) else {
+            client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
+            return
+        }
         guard let response = HTTPURLResponse(
             url: url,
             statusCode: status,

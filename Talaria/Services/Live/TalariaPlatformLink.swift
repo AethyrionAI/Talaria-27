@@ -237,31 +237,54 @@ final class TalariaPlatformLink {
         // keeps that invisible).
         guard isCurrent(context) else { return .superseded }
         var didWork = false
+        var settlementFailed = false
         if !drained.items.isEmpty {
             onItemsReceived(drained.items)
-            await ack(itemIDs: drained.items.map(\.id), context: context, token: token, deviceID: deviceID)
+            if !(await ack(itemIDs: drained.items.map(\.id), context: context, token: token, deviceID: deviceID)) {
+                settlementFailed = true
+            }
             didWork = true
         }
         for query in drained.queries {
             // Per-query checkpoint: each answer is its own POST.
             guard isCurrent(context) else { return .superseded }
-            await answer(query, context: context, token: token, deviceID: deviceID)
+            if !(await answer(query, context: context, token: token, deviceID: deviceID)) {
+                settlementFailed = true
+            }
             didWork = true
         }
+        // #286: a turn whose settlement failed is not a delivered turn —
+        // `.failed` feeds the existing ladder (bars 286-A/B/C), and the next
+        // drain redelivers + re-acks (idempotent upstream). The rows the app
+        // already showed stay shown; `platformID` dedupe keeps redelivery
+        // invisible (bar 286-D).
+        if settlementFailed { return .failed }
         return didWork ? .delivered : .idle
     }
 
-    private func ack(itemIDs: [String], context: TurnContext, token: String, deviceID: String) async {
+    /// #286: settlement success is part of the turn's outcome. True ⇔ HTTP
+    /// 200. A failed ack needs NO in-turn retry — the outbox redelivers
+    /// un-acked items and `mark_delivered` is idempotent (protocol read,
+    /// 2026-08-07); the honest `.failed` classification is what re-arms the
+    /// backoff that the false `.delivered` used to reset.
+    private func ack(itemIDs: [String], context: TurnContext, token: String, deviceID: String) async -> Bool {
         let body: [String: Any] = [
             "type": "ack",
             "auth": token,
             "device_id": deviceID,
             "item_ids": itemIDs,
         ]
-        _ = await post(body, context: context, bearer: token)
+        guard let (status, data) = await post(body, context: context, bearer: token) else {
+            logEnvelopeError(status: nil, data: nil, verb: "ack")
+            return false
+        }
+        if status != 200 { logEnvelopeError(status: status, data: data, verb: "ack") }
+        return status == 200
     }
 
-    private func answer(_ query: TalariaPlatformQuery, context: TurnContext, token: String, deviceID: String) async {
+    /// #286: same honesty as `ack` — the wire result of the POST decides
+    /// success, not "the request was sent."
+    private func answer(_ query: TalariaPlatformQuery, context: TurnContext, token: String, deviceID: String) async -> Bool {
         var body: [String: Any] = [
             "type": "query_result",
             "auth": token,
@@ -292,7 +315,12 @@ final class TalariaPlatformLink {
         } else {
             body["error"] = "responder_unavailable"
         }
-        _ = await post(body, context: context, bearer: token)
+        guard let (status, data) = await post(body, context: context, bearer: token) else {
+            logEnvelopeError(status: nil, data: nil, verb: "query_result")
+            return false
+        }
+        if status != 200 { logEnvelopeError(status: status, data: data, verb: "query_result") }
+        return status == 200
     }
 
     // MARK: - Loop
@@ -392,6 +420,17 @@ final class TalariaPlatformLink {
         } else {
             Self.logger.error("talaria \(verb, privacy: .public) HTTP \(status, privacy: .public)")
         }
+    }
+
+    /// #286: the transport-nil overload — `post` returned no response at
+    /// all (no HTTP status to log), matching `pair`'s existing "no response"
+    /// idiom rather than inventing a sentinel status.
+    private func logEnvelopeError(status: Int?, data: Data?, verb: String) {
+        guard let status, let data else {
+            Self.logger.error("talaria \(verb, privacy: .public) failed — no response")
+            return
+        }
+        logEnvelopeError(status: status, data: data, verb: verb)
     }
 }
 
