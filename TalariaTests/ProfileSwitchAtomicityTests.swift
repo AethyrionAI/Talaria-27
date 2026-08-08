@@ -241,6 +241,62 @@ struct ProfileSwitchAtomicityTests {
         var value = false
     }
 
+    @MainActor
+    private final class InvocationsBox {
+        var names: [String] = []
+    }
+
+    /// Gates an activation HANDLER mid-flight (the `GatedSecureStore` idiom,
+    /// one level up): records enter/exit events in order and parks the first
+    /// "B" activation on a continuation so a second switch can land while the
+    /// first handler is genuinely suspended.
+    @MainActor
+    private final class GatedHandlerBox {
+        var events: [String] = []
+        private var continuation: CheckedContinuation<Void, Never>?
+        var parked: Bool { continuation != nil }
+
+        func park() async {
+            await withCheckedContinuation { continuation = $0 }
+        }
+
+        func release() {
+            let held = continuation
+            continuation = nil
+            held?.resume()
+        }
+    }
+
+    /// The three-profile store fixture for the activation-serialization tests:
+    /// the migrated seed profile plus B and C, with fixed gateways.
+    private func makeProfilesStore(
+        suiteName: String
+    ) throws -> (store: BackendProfilesStore, profileB: BackendProfile, profileC: BackendProfile, defaults: UserDefaults) {
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let store = BackendProfilesStore(
+            persistence: UserDefaultsAppPersistenceStore(defaults: defaults),
+            migrationSeeds: BackendProfilesStore.MigrationSeeds(
+                gatewayBaseURL: Self.gatewayA,
+                relayBaseURL: "http://a.local:8000/v1",
+                shimBaseURL: nil
+            )
+        )
+        let profileB = BackendProfile(
+            name: "B",
+            gatewayBaseURL: Self.gatewayB,
+            relayBaseURL: "http://b.local:8000/v1"
+        )
+        let profileC = BackendProfile(
+            name: "C",
+            gatewayBaseURL: "http://gateway-c.local:8642",
+            relayBaseURL: "http://c.local:8000/v1"
+        )
+        store.upsert(profileB)
+        store.upsert(profileC)
+        return (store, profileB, profileC, defaults)
+    }
+
     // MARK: - Provenance: when does the scope actually move?
 
     /// The premise every test below rests on, pinned against the REAL store.
@@ -653,6 +709,82 @@ struct ProfileSwitchAtomicityTests {
         #expect(wire.all.count == 1)
         #expect(wire.all.first?.host == "gateway-a.local")
         #expect(wire.trace.filter { $0.contains("\"pair\"") }.isEmpty)
+    }
+
+    // MARK: - 285-C — rapid A→B→C activation is serialized, last writer wins
+
+    /// Two switches in one synchronous turn: only the LAST one's handler may
+    /// run. The superseded dispatch is cancelled before its handler is ever
+    /// invoked (`BackendProfilesStore`'s generation guard), so B's side
+    /// effects — key-box swaps, store resets, link restarts — never happen at
+    /// all, rather than happening and being racily overwritten.
+    @Test func rapidSwitchesRunTheHandlerOnlyForTheLastWriter() async throws {
+        let suiteName = "profile-atomicity-\(UUID().uuidString)"
+        let (store, profileB, profileC, defaults) = try makeProfilesStore(suiteName: suiteName)
+
+        let invocations = InvocationsBox()
+        store.onActiveProfileChanged = { profile in
+            invocations.names.append(profile.name)
+        }
+
+        // Same synchronous MainActor turn — no suspension between them, so
+        // B's dispatch task cannot have started when C's supersedes it.
+        store.setActiveProfile(profileB.id)
+        store.setActiveProfile(profileC.id)
+        // The scope itself is last-writer-wins synchronously.
+        #expect(store.activeProfileID == profileC.id)
+
+        await waitUntil { !invocations.names.isEmpty }
+        try? await Task.sleep(for: .milliseconds(150))
+
+        #expect(invocations.names == ["C"])
+        #expect(store.activeProfileID == profileC.id)
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    /// The mid-flight arm: B's handler is genuinely SUSPENDED (parked on a
+    /// continuation) when C's switch lands. The activation chain must (1)
+    /// cancel B's task — `Task.isCancelled` is the signal
+    /// `handleActiveProfileChanged`'s checkpoints key off — and (2) hold C's
+    /// handler until B's has actually exited, so the two can never
+    /// interleave their awaits. Serialized last-writer-wins, proven by the
+    /// event order.
+    @Test func aSupersededMidFlightHandlerIsCancelledAndTheWinnerRunsAfterItExits() async throws {
+        let suiteName = "profile-atomicity-\(UUID().uuidString)"
+        let (store, profileB, profileC, defaults) = try makeProfilesStore(suiteName: suiteName)
+
+        let gate = GatedHandlerBox()
+        store.onActiveProfileChanged = { profile in
+            gate.events.append("enter(\(profile.name))")
+            if profile.name == "B" { await gate.park() }
+            gate.events.append("exit(\(profile.name) cancelled=\(Task.isCancelled))")
+        }
+
+        store.setActiveProfile(profileB.id)
+        await waitUntil { gate.parked }
+        #expect(gate.events == ["enter(B)"])
+
+        // The second switch, landing while B's handler is suspended.
+        store.setActiveProfile(profileC.id)
+        // C's handler must NOT enter while B is parked — settle long enough
+        // that an unserialized dispatch would have interleaved by now.
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(gate.events == ["enter(B)"])
+        #expect(gate.parked)
+
+        gate.release()
+        await waitUntil { gate.events.count == 4 }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        print("#285 activation serialization events: \(gate.events)")
+        #expect(gate.events == [
+            "enter(B)",
+            "exit(B cancelled=true)",
+            "enter(C)",
+            "exit(C cancelled=false)",
+        ])
+        #expect(store.activeProfileID == profileC.id)
+        defaults.removePersistentDomain(forName: suiteName)
     }
 }
 
