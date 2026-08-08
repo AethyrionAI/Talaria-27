@@ -874,6 +874,9 @@ series with pre-registered histories (the #205 lesson, recorded at
 - [ ] **Step 3: Implement the grid** (in `+Battery.swift`, `#if DEBUG`, right after
   `intentProbeGrid`)
 
+(calendar-create row widened 2026-08-08 during execution — #215's measured residue;
+lookupContact deliberately unprotected per Owen's protect-the-answer ruling)
+
 ```swift
     /// #284: the Bool-vector grid. A NEW list — `intentProbeGrid` (#217B)
     /// and `routerBaselineProbes` are closed series and never grow (#205).
@@ -891,7 +894,11 @@ series with pre-registered histories (the #205 lesson, recorded at
         ("Add pick up dry cleaning to my reminders", true, [.reminders], ["createReminder"]),
         ("Set an alarm for 6:30", true, [.alarms], ["scheduleAlarm"]),
         ("Wake me up at 7 tomorrow", true, [.alarms], ["scheduleAlarm"]),
-        ("Put lunch with Sam on my calendar Friday at noon", true, [.calendar], ["createCalendarEvent"]),
+        // #215 measured this exact prompt at create 10/10 + readCalendar 7/10 +
+        // lookupContact 7/10. lookupContact is DELIBERATELY unprotected here —
+        // that chain is #215's named over-serving (invented a place on 5/8
+        // creates); the bar protects the answer path, not the spiral (Owen, 2026-08-08).
+        ("Put lunch with Sam on my calendar Friday at noon", true, [.calendar], ["createCalendarEvent", "readCalendar"]),
         ("Do I have anything on my calendar Friday?", true, [.calendar], ["readCalendar"]),
         ("What's the weather like right now?", true, [.weather], ["currentWeather"]),
         ("Is it going to rain this afternoon?", true, [.weather], ["currentWeather"]),
@@ -1127,6 +1134,9 @@ falsification, not a redefinition.
 > ship; lane closes at stages 1–2 (registry, #257 armed fix, verdict filed) —
 > #217B's shape. Gate bar missed → the vector schema is abandoned outright
 > (it would be degrading the 200/200 Bool). Owen routes the verdict either way.
+> - **Chain stance (Owen, 2026-08-08):** the danger bar protects the answer path,
+>   not tool-chaining residue — lookupContact on the calendar-create row is
+>   deliberately unprotected (#215's named over-serving).
 ```
 
 - [ ] **Step 2: Commit**
