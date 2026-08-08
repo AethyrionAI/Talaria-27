@@ -3,8 +3,7 @@
 > **OUTCOME 2026-08-08:** Stages 1-2 shipped. The §5 probe ran on device (valid run
 > `0AF5A6D8`, build 2225): gate 100% MET, danger 4.76% vs ≤2% MISSED, in-scope exact-set
 > 37.5% MISSED (every miss a superset — zero under-arming). Per §5.3's pre-registered
-> response, §6 selective arming did NOT ship; §4's toolless question resolved
-> (capability-meta routes ARMED, all groups — no toolless index needed). Verdict:
+> response, §6 selective arming did NOT ship; §4's toolless question REOPENED by same-day device evidence: the vector routes capability-meta armed, but PRODUCTION's one-Bool router routes it toolless (build 2225, reply named zero families) — the §4 toolless-index arm is live; see the #284 correction note. Verdict:
 > OPEN_ITEMS #284, 2026-08-08.
 
 **Date:** 2026-08-08. **Tracker:** OPEN_ITEMS #284. **Approved by:** Owen (scope,

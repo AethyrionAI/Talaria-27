@@ -2,8 +2,10 @@
 
 > **OUTCOME 2026-08-08:** Tasks 1-8 executed and shipped; Task 9's probe missed the
 > danger bar (verdict in OPEN_ITEMS #284) — **Tasks 10, 11, and 12 were NOT executed
-> and must not be** (10/11 per the pre-registered response; 12 proven unnecessary —
-> meta rows route armed). Task 13 (close-out) ran instead.
+> and must not be** (10/11 per the pre-registered response; 12 initially misjudged
+> unnecessary from the vector's meta rows; same-day device evidence showed production's
+> router sends the question TOOLLESS — Task 12 is live again, Owen routes). Task 13
+> (close-out) ran instead.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

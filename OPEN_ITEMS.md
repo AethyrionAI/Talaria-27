@@ -5986,6 +5986,8 @@ screenshot shape, inverted), measured per the #200-series discipline.
 > - **Meta rows: "What can you do?" routes ARMED with all ten groups true (5/5, errors=0, both phrasings)** — the registry-generated armed blurb answers it, the toolless "no external tools" trap never fires, and **the plan's Task 12 (toolless capability index + measured mini-arm) is unnecessary. Spec §4's open question is closed.**
 > - **Consequence per pre-registration:** stages 1–2 ship (registry, #257 armed fix, budget contrast, the probe artifacts); the arming stays full-belt. A superset-tolerant arming design (cover-the-needed-groups rather than exact-set, with the trap-row danger solved) would be NEW work with NEW bars under a new filing — not a reopening of this one. Owen routes.
 
+> **CORRECTION, same day (2026-08-08), on device evidence:** the verdict's meta-row bullet over-reached. The meta rows measured the VECTOR's routing; **production's one-Bool router routes "What can you do?" TOOLLESS** — verified on build 2225, fresh chat: the reply named zero capability families and is the toolless-lic2 self-description (IN=500, a beltless turn). The "Task 12 unnecessary / §4 resolved" inference is **WITHDRAWN**: #257's conversational bar is NOT met on device, and spec §4's toolless capability-index arm (plan Task 12 — a measured mini-arm on the toolless payload) is live again. Owen routes whether it runs in this lane or a follow-up.
+
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
 **3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
@@ -7331,6 +7333,8 @@ the lane opens.
 > so the answer path is the armed blurb. Device conversational bar (the
 > reply naming every family) still pending Owen's screenshot — that is the
 > remaining evidence, not a done claim. Not closed here; Owen closes.
+
+> Correction, same day: the meta-row inference above is withdrawn — production routes "What can you do?" toolless (build 2225 device check: reply named zero families, IN=500 beltless). The armed-surface fix stands but is unreachable on this question; the conversational bar is NOT met, and the remaining fix is spec §4's toolless capability index (plan Task 12, a measured arm).
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
