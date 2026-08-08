@@ -2153,6 +2153,93 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
+    /// #284: the danger-bar scorer, pure so it is unit-pinned. Dangerous ==
+    /// the narrowed belt would lack a tool production uses on this prompt
+    /// (spec §5.3), scored against the row's pre-written annotation.
+    nonisolated static func vectorTrialIsDangerous(
+        armed: Bool, groups: Set<CapabilityGroup>, expectedArmed: Bool,
+        expectedTools: Set<String>, catalog: [CapabilityDescriptor]
+    ) -> Bool {
+        guard expectedArmed, armed, !groups.isEmpty else { return false }
+        if expectedTools.isEmpty { return true }   // spurious narrowing on a trap row
+        let offered = CapabilityRegistry.toolNames(for: groups, in: catalog)
+        return !expectedTools.isSubset(of: offered)
+    }
+
+    /// #284 Task 7: the vector router probe. Three bands, each its own
+    /// greppable line: `baseline` (the regression gate through the vector
+    /// schema), `grid` (armed/groups/DANGEROUS accuracy against the
+    /// pre-written annotation), and `META` (measurement only, no bar —
+    /// spec §4's open question about capability-meta questions).
+    func runVectorRouterProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let catalog = CapabilityRegistry(belt: tools).descriptors
+        let baseline = Self.routerBaselineProbes
+        let grid = Self.vectorProbeGrid
+        Self.batteryEmit("router: VECTOR PROBE START trials=\(trials) baseline=\(baseline.count) grid=\(grid.count) meta=\(Self.vectorMetaRows.count) (#284)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: ["vector"], kind: "vector")
+
+        // Band 1 — the regression gate: the pinned ten through the vector
+        // schema. The gate bar (≥95%) reads from these lines.
+        for probe in baseline {
+            var correct = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeVector(prompt: probe.text)
+                if route.needsDeviceTool == probe.expected { correct += 1 }
+            }
+            Self.batteryEmit("router: [vector] baseline \(correct)/\(trials) expected=\(probe.expected) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: probe.text, expected: probe.expected, correct: correct,
+                trials: trials, variant: "vector", band: "baseline",
+                errors: Self.routerFailureTally - failuresBefore, intentTally: [:])
+        }
+
+        // Band 2 — the vector grid: gate accuracy, group accuracy, danger.
+        for row in grid {
+            var boolCorrect = 0, groupsExact = 0, dangerous = 0
+            var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...trials {
+                let route = await routeVector(prompt: row.text)
+                if route.needsDeviceTool == row.expectedArmed { boolCorrect += 1 }
+                if route.groups == row.expectedGroups { groupsExact += 1 }
+                if Self.vectorTrialIsDangerous(
+                    armed: route.needsDeviceTool, groups: route.groups,
+                    expectedArmed: row.expectedArmed,
+                    expectedTools: row.expectedTools, catalog: catalog) { dangerous += 1 }
+                let key = route.groups.map(\.rawValue).sorted().joined(separator: "+")
+                tally[key.isEmpty ? "∅" : key, default: 0] += 1
+            }
+            Self.batteryEmit("router: [vector] grid armed=\(boolCorrect)/\(trials) groups=\(groupsExact)/\(trials) DANGEROUS=\(dangerous)/\(trials) want=\(row.expectedGroups.map(\.rawValue).sorted().joined(separator: "+")) tally=\(tally) probe=\(row.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: row.text, expected: row.expectedArmed, correct: boolCorrect,
+                trials: trials, variant: "vector", band: "grid",
+                errors: Self.routerFailureTally - failuresBefore,
+                expectedIntent: row.expectedGroups.map(\.rawValue).sorted().joined(separator: "+"),
+                intentTally: tally)
+        }
+
+        // Band 3 — meta rows: measurement only, no bar (spec §4).
+        for text in Self.vectorMetaRows {
+            var armedCount = 0
+            var tally: [String: Int] = [:]
+            for _ in 1...trials {
+                let route = await routeVector(prompt: text)
+                if route.needsDeviceTool { armedCount += 1 }
+                let key = route.groups.map(\.rawValue).sorted().joined(separator: "+")
+                tally[key.isEmpty ? "∅" : key, default: 0] += 1
+            }
+            Self.batteryEmit("router: [vector] META armed=\(armedCount)/\(trials) tally=\(tally) probe=\(text)")
+        }
+        Self.batteryEmit("router: VECTOR PROBE DONE (#284)")
+        Self.batteryRecorder.endRun()
+    }
+
     // MARK: - (#202A) context-blind router probe
 
     /// Which band a grid row belongs to. The bars are written per band, so

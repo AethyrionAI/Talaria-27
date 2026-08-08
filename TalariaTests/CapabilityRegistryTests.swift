@@ -179,4 +179,29 @@ struct CapabilityRegistryTests {
         #expect(texts.contains("Read the label on this bottle for me"))
     }
     #endif
+
+    // MARK: - Danger scorer (#284 Task 7)
+
+    #if DEBUG
+    @Test @MainActor func dangerScoringMatchesTheSpecDefinition() {
+        let catalog = CapabilityRegistry(belt: Self.fullBelt()).descriptors
+        // Narrowed to reminders when the prompt needed the calendar read → dangerous.
+        #expect(LocalChatBackend.vectorTrialIsDangerous(
+            armed: true, groups: [.reminders], expectedArmed: true,
+            expectedTools: ["readCalendar"], catalog: catalog))
+        // All-false → full belt → never dangerous (O1).
+        #expect(!LocalChatBackend.vectorTrialIsDangerous(
+            armed: true, groups: [], expectedArmed: true,
+            expectedTools: ["readCalendar"], catalog: catalog))
+        // Right group → covered → safe.
+        #expect(!LocalChatBackend.vectorTrialIsDangerous(
+            armed: true, groups: [.calendar], expectedArmed: true,
+            expectedTools: ["readCalendar"], catalog: catalog))
+        // Spurious arming on a trap row (no expected tools) → dangerous:
+        // the belt narrowed for no reason on a prompt no belt tool serves.
+        #expect(LocalChatBackend.vectorTrialIsDangerous(
+            armed: true, groups: [.reminders], expectedArmed: true,
+            expectedTools: [], catalog: catalog))
+    }
+    #endif
 }

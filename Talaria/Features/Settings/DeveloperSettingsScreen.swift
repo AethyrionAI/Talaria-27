@@ -906,6 +906,28 @@ struct DeveloperSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #284 vector router probe: READ-ONLY, no tools registered, nothing
+    // created or reaped. Three bands — baseline gate, grid (armed/groups/
+    // danger), meta rows (measured, no bar).
+    @ViewBuilder
+    private func vectorRouterProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runVectorRouterProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1740,6 +1762,12 @@ struct DeveloperSettingsScreen: View {
                 // No tools, no artifacts — classifications only.
                 HStack(spacing: Design.Spacing.sm) {
                     intentRouterProbeButton(trials: 5, label: "Intent 2x2 n=5 (520)")
+                }
+                // #284 the Bool-vector route: 10 baseline (gate) + 21 grid
+                // (armed/groups/danger) + 2 meta rows (measured, no bar).
+                // No tools, no artifacts — classifications only.
+                HStack(spacing: Design.Spacing.sm) {
+                    vectorRouterProbeButton(trials: 5, label: "Vector router probe (#284)")
                 }
                 // #211 follow-on: promoted vs promoted-plus-boundary, against
                 // the extra-tool chaining the promotion cost.
