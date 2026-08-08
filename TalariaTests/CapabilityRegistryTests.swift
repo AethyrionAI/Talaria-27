@@ -130,4 +130,25 @@ struct CapabilityRegistryTests {
         let imageDependent = Set(belt.filter { $0 is any ImageDependentTool }.map(\.name))
         #expect(visionIds == imageDependent)  // rule V's precondition (spec §6)
     }
+
+    // MARK: - ToolIntentRouteVector mapping (#284 Task 5)
+
+    #if DEBUG
+    @Test func vectorMapsTrueFieldsToGroups() {
+        let vector = ToolIntentRouteVector(
+            needsDeviceTool: true,
+            wantsCalendar: true, wantsReminders: false, wantsAlarms: false,
+            wantsHealth: true, wantsWeather: false, wantsPlaces: false,
+            wantsContacts: false, wantsConversations: false,
+            wantsDeviceStatus: false, wantsLocation: false)
+        #expect(vector.armedGroups == [.calendar, .health])
+        let none = ToolIntentRouteVector(
+            needsDeviceTool: true,
+            wantsCalendar: false, wantsReminders: false, wantsAlarms: false,
+            wantsHealth: false, wantsWeather: false, wantsPlaces: false,
+            wantsContacts: false, wantsConversations: false,
+            wantsDeviceStatus: false, wantsLocation: false)
+        #expect(none.armedGroups.isEmpty)   // all-false = abstention = full belt (O1)
+    }
+    #endif
 }
