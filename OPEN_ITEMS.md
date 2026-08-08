@@ -5485,7 +5485,72 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > (`transport.py:232-237`) specifically so the rightful owner can still
 > resolve it.
 
-## 285. 🐛 P1 CANDIDATE — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes VERIFIED same day; RUNTIME REPRO NOT YET ATTEMPTED — a RED harness comes before any fix, and a falsification is a good result. NOT STARTED; sequenced after #283 (slice 3A) unless Owen reorders.**
+## 285. 🐛 P1 CONFIRMED — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); static shapes verified same day; ✅ RUNTIME-REPRODUCED the same evening — 5 of 5 hypotheses confirmed with deterministic traces, one audit sub-claim refuted. NO FIX ATTEMPTED YET (RED first, by design).**
+
+> **✅ REPRODUCED 2026-08-07 evening — branch `claude/t27-285-profile-atomicity`, evidence in that branch's `RED-REPORT.md`. Promoted from CANDIDATE to CONFIRMED.** No production code was touched; this is a pure reproduction lane.
+>
+> **The blocker that had hidden this until now, and it is worth knowing:**
+> every existing `SecureStoreProtocol` conformer (`KeychainSecureStore`,
+> `MockSecureStore`) is SYNCHRONOUS under the hood, so `await
+> secureStore.retrieve(...)` never actually yields to the scheduler. **The
+> interleaving was literally inexpressible in a test** until a
+> `GatedSecureStore` double that genuinely parks on
+> `withCheckedContinuation` was built (idiom copied from
+> `CronJobsStoreTests`' `GatedCronJobService`). That is why static reading
+> found this and no test ever did — worth remembering the next time a
+> concurrency claim "can't be reproduced."
+>
+> **Repro 1 — ONE `ensurePaired()` call split one credential across TWO
+> profiles' Keychain slots.** Keychain trace, verbatim:
+> `["retrieve(A.deviceToken)", "retrieve(B.deviceID)", "retrieve(B.apiKey)", "store(A.deviceToken)", "store(B.deviceID)"]`
+> — the token half landed in **A's** slot and the device-id half in **B's**,
+> for a credential pair minted at **B's** gateway with **B's** API key. A is
+> left holding a token that belongs to B's device row; B is left
+> half-paired. The control arm (same gate, no switch) reads
+> `["retrieve(A.deviceToken)", "retrieve(A.deviceID)", "retrieve(A.apiKey)", "store(A.deviceToken)", "store(A.deviceID)"]`
+> — all-A — so the harness is not manufacturing the defect.
+> - **Repro 2 — profile A's credentials sent to profile B's host:**
+>   `POST gateway-b.local {"device_id":"dev-A","type":"drain","auth":"tok-A",…}`.
+>   This is the cross-host isolation concern in one line.
+> - **Repro 3 — `stop()` neither unwinds nor contains an in-flight turn:** it
+>   returns with `isRunning == false` while the turn sits parked, and the
+>   turn then resumes **under the new scope**
+>   (`…"retrieve(A.deviceToken)", "retrieve(B.deviceID)"`).
+> - **Repro 3b — the worst one: a STOPPED turn belonging to A DELETED
+>   PROFILE B'S device id.** Trace: `…"delete(A.deviceToken)", "delete(B.deviceID)", "retrieve(B.deviceToken)"…` —
+>   a valid credential of an unrelated profile destroyed by a turn that had
+>   already been told to stop. **This is the concrete user harm and it
+>   escalates the item beyond "extra 401s".**
+> - **Repro 0 — falsifies a live comment.** `AppContainer`'s claim that the
+>   drain is parked *"before the scope moves"* cannot be true:
+>   `setActiveProfile` moves the scope SYNCHRONOUSLY and defers `stop()`
+>   behind a `Task {}`. Pinned by a provenance test. **Close-out rule: that
+>   comment must be corrected by whoever fixes this.**
+>
+> **⚖️ ONE AUDIT SUB-CLAIM REFUTED, and how it was caught.** The audit said a
+> stopped turn "runs to completion **including its POSTs**." Not reliably:
+> `stop()` cancels `loopTask` and URLSession IS cancellation-aware, so
+> post-`stop()` request dispatch is a genuine RACE, not a certainty. The
+> first draft of the repro asserted it, **passed on run 1 and failed on run
+> 2** — caught by repeated runs, not by reasoning. The repros were re-aimed
+> at the non-cancellable Keychain observables and are now 4/4 green with
+> byte-identical traces across runs. Recorded because a flaky assertion that
+> passes once is exactly how a bogus "verified" enters this tracker.
+>
+> **Residual worth a decision (NOT yet its own number — Owen routes):** repro
+> 3b showed a re-pair reaching B's gateway whose response was then
+> discarded, i.e. **an orphan device row minted on the HOST that the phone
+> has no record of.** Fixing #285 stops new ones; it does not clean existing
+> ones. If Owen wants that actioned it is a one-time data chore in the #144
+> shape (deactivate, never delete, keep a rollback) and needs its own entry.
+>
+> **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** The fix direction
+> in the bars below (immutable per-turn context + the `AppContainer`
+> bootstrap-generation pattern applied to profile activation) is now backed
+> by evidence rather than static reading. Bars **285-A/B/C are effectively
+> demonstrated in the negative** — the RED tests assert today's broken
+> behavior; when the fix lands they must be INVERTED to assert the invariant,
+> not deleted.
 
 **Verified static facts (2026-08-07):** `BackendProfilesStore.swift:141-154`
 — `state = updated` THEN `Task { await onActiveProfileChanged?(target) }`,
