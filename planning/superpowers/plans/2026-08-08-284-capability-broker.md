@@ -780,6 +780,20 @@ are.)
         }
     }
 
+(vectorRouterOptions added 2026-08-08 after device run 21F0C10D — the production
+64-token cap truncated every 11-field generation)
+
+```swift
+    /// #284: the vector probe's options. Same greedy determinism as
+    /// production's router options, but the 11-field JSON needs ~90-110
+    /// response tokens — the production cap of 64 truncated EVERY vector
+    /// generation on device (run 21F0C10D: 165/165 errors), so the vector
+    /// carries its own cap. Production's `toolIntentRouterOptions` is a
+    /// measured artifact and stays untouched.
+    nonisolated static var vectorRouterOptions: GenerationOptions {
+        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 256)
+    }
+
     /// #284 probe: one generation, the production router's exact session,
     /// instructions, prompt envelope, and options — modeled on `routeIntent`
     /// (#217), which proved a second field costs the gate nothing. Fails
@@ -799,7 +813,7 @@ are.)
                                              variant: Self.productionRouterVariant,
                                              hasImage: hasImage)),
                 generating: ToolIntentRouteVector.self,
-                options: Self.toolIntentRouterOptions
+                options: Self.vectorRouterOptions
             ).content
             return (route.needsDeviceTool, route.armedGroups, route)
         } catch {

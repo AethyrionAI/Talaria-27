@@ -204,4 +204,23 @@ struct CapabilityRegistryTests {
             expectedTools: [], catalog: catalog))
     }
     #endif
+
+    // MARK: - Router generation options (#284 fix, device run 21F0C10D)
+
+    #if DEBUG
+    @Test func productionRouterOptionsStayAtTheMeasuredSixtyFourTokenCap() {
+        // Unchanged measured artifact (#196/#217) — pinned so the vector's
+        // wider cap can never silently drift onto this one.
+        #expect(LocalChatBackend.toolIntentRouterOptions
+            == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64))
+    }
+
+    @Test func vectorRouterOptionsCarryTheirOwnWiderTokenCap() {
+        // 165/165 device errors (run 21F0C10D) traced to routeVector
+        // reusing the 64-token production cap for an 11-field response that
+        // needs ~90-110 tokens — every generation was truncated mid-JSON.
+        #expect(LocalChatBackend.vectorRouterOptions
+            == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 256))
+    }
+    #endif
 }
