@@ -988,11 +988,25 @@ final class LocalChatBackend: HermesClientProtocol {
                     toolTokens = try? await model.tokenCount(for: entry.tools)
                 }
                 let transcriptTokens = try? await model.tokenCount(for: entry.transcript)
+                // #101's freed-budget number: what the FULL installed belt
+                // would have cost this turn, alongside what was actually
+                // offered — the contrast a narrowed (or toolless) turn needs
+                // to show what routing saved. Same count as the offered set
+                // means nothing was narrowed, so the offered measurement IS
+                // the full-belt measurement — no second tokenizer round-trip.
+                let fullBelt = await MainActor.run { self.tools }
+                let fullBeltTokens: Int?
+                if entry.tools.count == fullBelt.count {
+                    fullBeltTokens = toolTokens        // nothing narrowed — same set
+                } else {
+                    fullBeltTokens = try? await model.tokenCount(for: fullBelt)
+                }
                 let line = Self.sessionBudgetLogLine(
                     toolCount: entry.toolCount,
                     toolTokens: toolTokens,
                     transcriptTokens: transcriptTokens,
-                    window: await self.activeContextSize()
+                    window: await self.activeContextSize(),
+                    fullBeltTokens: fullBeltTokens
                 )
                 Self.logger.notice("\(line, privacy: .public)")
             }
@@ -1012,7 +1026,8 @@ final class LocalChatBackend: HermesClientProtocol {
         toolCount: Int,
         toolTokens: Int?,
         transcriptTokens: Int?,
-        window: Int
+        window: Int,
+        fullBeltTokens: Int?
     ) -> String {
         let tools = toolTokens.map(String.init) ?? "—"
         let transcript = transcriptTokens.map(String.init) ?? "—"
@@ -1022,7 +1037,11 @@ final class LocalChatBackend: HermesClientProtocol {
         } else {
             free = "free —"
         }
-        return "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) (#228)"
+        let line = "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) (#228)"
+        // #101: the full-belt contrast — what the whole installed belt would
+        // have cost this turn, so a narrowed (or toolless) turn shows the
+        // freed budget. Unknown stays honest — "—", never a fabricated 0.
+        return line + " fullBelt=\(fullBeltTokens.map { "\($0)tok" } ?? "—")"
     }
 
     /// What a recreated session should contain: instructions (base persona,

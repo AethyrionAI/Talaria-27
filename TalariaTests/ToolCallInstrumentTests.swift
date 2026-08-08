@@ -105,22 +105,43 @@ struct ToolCallInstrumentTests {
 
     @Test func sessionBudgetLineReportsAllFourNumbersAndTheHeadroom() {
         let line = LocalChatBackend.sessionBudgetLogLine(
-            toolCount: 13, toolTokens: 2500, transcriptTokens: 900, window: 8192)
-        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~900 tok of window 8192 — ~4792 free (#228)")
+            toolCount: 13, toolTokens: 2500, transcriptTokens: 900, window: 8192,
+            fullBeltTokens: nil)
+        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~900 tok of window 8192 — ~4792 free (#228) fullBelt=—")
     }
 
     /// Real-data-only: where the tokenizer is unavailable (the sim has no
     /// model) the line shows "—" and never invents a number.
     @Test func sessionBudgetLineShowsDashesWhenTheTokenizerIsUnavailable() {
         let line = LocalChatBackend.sessionBudgetLogLine(
-            toolCount: 13, toolTokens: nil, transcriptTokens: nil, window: 8192)
-        #expect(line == "session budget: 13 tool(s) ~— tok + transcript ~— tok of window 8192 — free — (#228)")
+            toolCount: 13, toolTokens: nil, transcriptTokens: nil, window: 8192,
+            fullBeltTokens: nil)
+        #expect(line == "session budget: 13 tool(s) ~— tok + transcript ~— tok of window 8192 — free — (#228) fullBelt=—")
     }
 
     @Test func sessionBudgetLineWithOneMeasurementMissingStillShowsTheOther() {
         let line = LocalChatBackend.sessionBudgetLogLine(
-            toolCount: 13, toolTokens: 2500, transcriptTokens: nil, window: 8192)
-        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — (#228)")
+            toolCount: 13, toolTokens: 2500, transcriptTokens: nil, window: 8192,
+            fullBeltTokens: nil)
+        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — (#228) fullBelt=—")
+    }
+
+    /// #101's freed-budget number: what the FULL installed belt would have
+    /// cost, measured per turn alongside the offered-belt numbers above —
+    /// the contrast that shows a narrowed (or toolless) turn what routing
+    /// saved. Unknown stays honest — "—", never a fabricated 0 (real-data
+    /// rule); the one legitimate 0 is an empty offered belt, already
+    /// covered by the toolCount:0 case elsewhere.
+    @Test func budgetLineCarriesTheFullBeltContrast() {
+        let line = LocalChatBackend.sessionBudgetLogLine(
+            toolCount: 2, toolTokens: 300, transcriptTokens: 1200,
+            window: 8192, fullBeltTokens: 1470)
+        #expect(line.contains("fullBelt=1470tok"))
+        // Unknown stays honest — "—", never a fabricated 0 (real-data rule).
+        let unknown = LocalChatBackend.sessionBudgetLogLine(
+            toolCount: 2, toolTokens: 300, transcriptTokens: 1200,
+            window: 8192, fullBeltTokens: nil)
+        #expect(unknown.contains("fullBelt=—"))
     }
 
     // MARK: - #233 conversation latch
