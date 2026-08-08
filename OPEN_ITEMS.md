@@ -5019,6 +5019,39 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 290. 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync path — **FILED 2026-08-07 night from PR #279's independent review (findings 2 and 3). The HONEST-CLAIM halves of both were fixed on the branch; these are the halves that change BEHAVIOR and want a decision, not a patch.**
+
+**(a) History is uncounted against the request-body budget.**
+`AttachmentInlining.aggregateAttachmentBudget` is 900 KB, sized explicitly
+against "a ~1 MB request body"; `RunsTurnBody.make` budgets the attachment
+parts and then adds `conversation_history` ON TOP, uncounted. **This
+corrects a ruling I made earlier in the lane:** unbounded history was parked
+as "parity with what the sessions plane feeds the agent" — true of what the
+AGENT sees, **false of the WIRE**, because on the sessions plane the
+transcript lives server-side and never rides the request. A long thread plus
+one image can therefore exceed a server limit where the identical turn
+succeeds today. **Shipped in #283:** a one-shot warning log when
+history + attachments exceed that budget, so the device pass can measure the
+real distribution. **The decision owed:** whether to trim oldest-first (which
+changes what the agent sees, and on a plane that does not read server
+history means genuinely forgetting), raise the budget, or leave it measured
+and unbounded. **Do not decide this from first principles — read the logged
+sizes from a real device pass first.**
+
+**(b) The runs sync path has no whole-`send()` deadline.** `runsSyncBudget`
+bounds only the poll loop; a `send(...)` is history GET (20s) + submit POST
+(20s) + poll (20s, overshootable by one 20s read) ≈ **60–80s worst case**,
+against a sessions `/chat` turn's single 20s. **Shipped in #283:** the
+comment now says that truthfully instead of claiming the policy "holds
+end-to-end" (it did not). **The decision owed:** take a deadline at entry
+and pass the remainder down to `pollRunToTerminal`, which would restore true
+20s parity — a behavior change, and it interacts with the Siri/intent
+callers whose own `replyBudget` is 25s.
+
+Both are cheap NOW while the runs path is behind an OFF switch and
+**awkward at 3E cutover**, which is the review's own framing and is correct.
+**Bars pre-register here before any code.**
+
 ## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix.**
 
 **The shape (#276's lesson):** a routine that rebuilds a model value

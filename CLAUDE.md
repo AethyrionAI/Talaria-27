@@ -167,7 +167,19 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   verified on 0.19.1; re-verify by live probe before any NEW route claim on 0.20.0**
   (0.20.0 probes so far: `/api/model/options` 200, `POST /api/sessions/{id}/model` exists,
   `/v1/models` returns the single `hermes-agent` entry, `/api/model/*` variants still 404 —
-  findings §4, 2026-08-03). **The complete `:8642` table, verified 2026-08-02 against a
+  findings §4, 2026-08-03). **The RUNS family is now live-verified on 0.20.0 (2026-08-07,
+  #283 slice 3A), on the Mac end-to-end and route-probed on OJAMD — do not re-probe it:**
+  `POST /v1/runs` (202 + `run_id`) · `GET /v1/runs/{id}/events` (SSE) ·
+  `GET /v1/runs/{id}` (status + `output` + `usage`, 1h TTL) ·
+  `POST /v1/runs/{id}/stop` (a REAL hard interrupt — device-proven, the host logged
+  `exit_code 130` / `interrupted_by_user`). **Three behaviours to know before designing
+  against them:** the events stream's frames are `data: {json}` with the event name INSIDE
+  the JSON — there are **no `event:` lines**, unlike `/chat/stream`; a run carrying an
+  existing `session_id` **WRITES its turns into SessionDB but never READS them** (history
+  must ride the request, and a missing history does NOT error — the agent answers
+  plausibly from long-term memory instead); and a freshly created, never-used session
+  returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
+  **The complete `:8642` table, verified 2026-08-02 against a
   fresh 0.19.1 process:**
   `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY
   `/api/model/*` route — there is no `/info`, `/recommended-default`, `/auxiliary`, or
