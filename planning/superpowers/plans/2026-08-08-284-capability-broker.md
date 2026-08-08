@@ -331,6 +331,9 @@ Standard test command. Expected: `everyBeltToolHasADescriptorWhoseIdIsItsName` F
 
 - [ ] **Step 3: Add one conformance per tool type**
 
+(three semanticDescription values corrected 2026-08-08 during execution — review
+caught the plan's strings misdescribing the tools; tools govern)
+
 Extension goes next to each tool. The 15 descriptors, verbatim (id must equal the
 tool's `let name` exactly; before writing each `permissions` value, open that tool's
 own permission-failure strings in the same file and match the framework it actually
@@ -350,14 +353,14 @@ extension DeviceHealthTool: CapabilityDescribing {
 extension DeviceStatusTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "deviceStatus",
-        semanticDescription: "Reads battery level, charging state, storage, and network reachability.",
+        semanticDescription: "Reads battery level, charging state, storage, thermal state, and Low Power Mode.",
         source: .device, group: .deviceStatus, riskClass: .read,
         permissions: [], argumentSummary: "none")
 }
 extension LocationTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "currentLocation",
-        semanticDescription: "Reads the device's current location as a place name and coordinates.",
+        semanticDescription: "Reads the user's current location as a place name (no raw coordinates).",
         source: .device, group: .location, riskClass: .read,
         permissions: ["Location"], argumentSummary: "none")
 }
@@ -385,7 +388,7 @@ extension PlacesTool: CapabilityDescribing {
 extension ContactsTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "lookupContact",
-        semanticDescription: "Looks up a person in the user's contacts: phone, email, address.",
+        semanticDescription: "Looks up a person in the user's contacts: phone numbers and email addresses.",
         source: .device, group: .contacts, riskClass: .read,
         permissions: ["Contacts"], argumentSummary: "name")
 }

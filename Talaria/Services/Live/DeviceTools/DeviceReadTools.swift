@@ -84,7 +84,7 @@ struct DeviceStatusTool: Tool {
 extension DeviceStatusTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "deviceStatus",
-        semanticDescription: "Reads battery level, charging state, storage, and network reachability.",
+        semanticDescription: "Reads battery level, charging state, storage, thermal state, and Low Power Mode.",
         source: .device, group: .deviceStatus, riskClass: .read,
         permissions: [], argumentSummary: "none")
 }
@@ -164,7 +164,7 @@ struct LocationTool: Tool {
 extension LocationTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "currentLocation",
-        semanticDescription: "Reads the device's current location as a place name and coordinates.",
+        semanticDescription: "Reads the user's current location as a place name (no raw coordinates).",
         source: .device, group: .location, riskClass: .read,
         permissions: ["Location"], argumentSummary: "none")
 }
@@ -733,7 +733,7 @@ struct ContactsTool: Tool {
 extension ContactsTool: CapabilityDescribing {
     static let capabilityDescriptor = CapabilityDescriptor(
         id: "lookupContact",
-        semanticDescription: "Looks up a person in the user's contacts: phone, email, address.",
+        semanticDescription: "Looks up a person in the user's contacts: phone numbers and email addresses.",
         source: .device, group: .contacts, riskClass: .read,
         permissions: ["Contacts"], argumentSummary: "name")
 }
