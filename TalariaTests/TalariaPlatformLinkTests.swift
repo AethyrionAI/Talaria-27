@@ -205,14 +205,34 @@ struct TalariaPlatformLinkTests {
 
     // MARK: - Loop
 
+    /// Bar 286-F, pinned together with the pure ladder math: the ladder
+    /// isn't hypothetical, and a real settlement failure actually feeds it.
+    /// `nextDelay` is the cadence `start()`'s loop consults on any `.failed`
+    /// outcome (see its `switch outcome` above); a drain whose ack 500s
+    /// classifies exactly that `.failed` (Task 1), so the two assertions
+    /// together are "no hot loop by construction" — the loop cannot spin
+    /// freely on a broken settlement because the outcome it gets back is the
+    /// one the ladder is keyed on.
     @Test func backoffLadderIsBoundedAndDeterministic() async {
-        let link = await makeLink(secureStore: MockSecureStore()) { _ in (200, Data()) }
         defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"""
+                {"items":[{"id":"i1","kind":"message","text":"hi","created_at":"2026-08-05T21:00:00+00:00","meta":{"session_id":"s1"}}],"queries":[]}
+                """#.utf8))
+            }
+            return (500, Data())
+        }
         #expect(link.nextDelay(afterFailureCount: 1) == 1)
         #expect(link.nextDelay(afterFailureCount: 2) == 2)
         #expect(link.nextDelay(afterFailureCount: 3) == 4)
         #expect(link.nextDelay(afterFailureCount: 6) == 30)
         #expect(link.nextDelay(afterFailureCount: 99) == 30)
+        #expect(await link.drainOnce(wait: false) == .failed)
     }
 
     @Test func stopCancelsTheLoop() async throws {
