@@ -1,5 +1,7 @@
 # #286 Honest Platform-Link Settlement Implementation Plan
 
+> **OUTCOME 2026-08-08:** all 4 tasks executed, bars 286-A..F met, PR pending.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A failed ACK or `query_result` POST is never reported `.delivered` — settlement
@@ -209,6 +211,21 @@ log non-200, `return status == 200` (transport nil → log + false). In `drain`:
 Verify the arithmetic in the comment against `Self.requestTimeout`'s actual value
 (2s pause + one timeout must sit well under 40s; if `requestTimeout` is 20s the worst
 case is ~22s — state the real number in the comment).
+
+> **⚠️ CORRECTION 2026-08-08 (close-out, Task 4):** this section's own snippet
+> is wrong about the number it tells the implementer to verify. The plan
+> drafted above says the added worst case "stays well inside the 40s
+> window" — but `Self.requestTimeout` is **40s, not 20s**, so the real added
+> worst case (2s pause + one full request timeout) is **~42s, PAST the 40s
+> window**, not comfortably inside it. The shipped code comment
+> (`TalariaPlatformLink.swift`, the query loop in `drain`) states the real
+> number and the reason it's still harmless rather than a defect: the
+> agent tool's `discard_query` pops the query's future at 40s, so a retry
+> POST that lands after the host has given up is a guaranteed no-op, not a
+> late-delivered wrong answer. The retry is aimed at the common failure
+> mode — a fast 500 or connection-refused — not a genuine 40s hang. This
+> plan snippet is left as-drafted above for the historical record; the code
+> and `OPEN_ITEMS.md` #286's bars-met note carry the corrected number.
 
 - [ ] **Step 4: Verify pass.** Also confirm Task 1's
   `queryResultServerErrorClassifiesTheDrainFailed` still passes (its handler 500s every
