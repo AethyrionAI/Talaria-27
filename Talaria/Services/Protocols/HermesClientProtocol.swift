@@ -135,15 +135,21 @@ protocol HermesClientProtocol {
     /// button, and Siri's Cancel via `AskHermesIntent`/
     /// `AskHermesLongRunSupport`) fires it; `false` (the ONE other caller,
     /// the continued-send expiration handler — the system revoking a
-    /// background task's budget with NO user action) skips it, so a lapsed
-    /// background budget degrades to the ordinary recovery poll instead of
-    /// hard-killing a run the user never asked to stop. A real server-side
-    /// interrupt for clients that can issue one (the Hermes runs plane's
-    /// `POST /v1/runs/{id}/stop`); the default is a no-op for clients with
-    /// nothing to interrupt server-side (mock / relay / the on-device
-    /// brain). Distinct from `abandonActiveRun` above: a walk-away must
-    /// never hard-kill a run the user didn't ask to stop, so this is the
-    /// ONLY door that touches the network.
+    /// background task's budget with NO user action) skips it, so the host
+    /// run is left alone rather than hard-killed on a turn the user never
+    /// asked to stop. A real server-side interrupt for clients that can
+    /// issue one (the Hermes runs plane's `POST /v1/runs/{id}/stop`); the
+    /// default is a no-op for clients with nothing to interrupt server-side
+    /// (mock / relay / the on-device brain). Distinct from `abandonActiveRun`
+    /// above: a walk-away must never hard-kill a run the user didn't ask to
+    /// stop, so this is the ONLY door that touches the network.
+    ///
+    /// #291 close-out (tracker #295): skipping this call does NOT "degrade
+    /// to the ordinary recovery poll" — there is no client-side
+    /// host-recovery poll on the expiration path. See
+    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
+    /// account and the open decision (#295) on whether that path should
+    /// instead arm the genuine `pendingRun` / `reconcileFromServer()` route.
     func hardStopActiveRun()
 
     /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)

@@ -75,8 +75,21 @@ final class ChatStore {
     private(set) var directConnectionStatus: ConnectionStatus = .disconnected
     private var isPollingEnabled = false
     private var pollingTask: Task<Void, Never>?
+    /// #293(a): identity for `pollingTask` / `reconcileTask`, bumped when
+    /// each loop is armed. A finishing loop clears its handle only while its
+    /// generation is still current — the house pattern (`finishRun(_:)`,
+    /// `clearActiveRunContext(matchingRunID:)`, `bootstrapGeneration`), which
+    /// these two loops were the only ones in the file not applying.
+    private var pollingGeneration = 0
+    private var reconcileGeneration = 0
     private var streamingTask: Task<Void, Never>?
     private(set) var streamingMessageID: UUID?
+    /// #291: the USER row belonging to the turn `streamingMessageID`'s
+    /// placeholder is answering. Held so a Stop can settle precisely that
+    /// row (see `settleStoppedUserMessage`) instead of sweeping every
+    /// `.sending` user row in the transcript. Set beside the placeholder in
+    /// `sendMessage`, cleared wherever that turn ends.
+    private var streamingUserMessageID: UUID?
 
     var isStreaming: Bool { streamingMessageID != nil }
 
@@ -577,6 +590,9 @@ final class ChatStore {
         )
         conversation?.messages.append(placeholder)
         streamingMessageID = placeholderID
+        // #291: the placeholder and the user row it answers are one turn —
+        // a Stop has to be able to settle both.
+        streamingUserMessageID = clientMessageID
         restartPendingPollingIfNeeded()
 
         // #14: attachment sends are the deliberately-backgroundable long path —
@@ -953,6 +969,11 @@ final class ChatStore {
         }
         await streamingTask?.value
         streamingTask = nil
+        // #291: this turn is over however it ended — a later Stop belongs to
+        // whatever turn is live THEN, never to this one's row.
+        if streamingUserMessageID == clientMessageID {
+            streamingUserMessageID = nil
+        }
 
         // #14: belt-and-braces — a stream that ended without a terminal case
         // must still complete its continued-processing task (idempotent).
@@ -1052,6 +1073,7 @@ final class ChatStore {
         streamingTask?.cancel()
         streamingTask = nil
         streamingMessageID = nil
+        streamingUserMessageID = nil
         // #192: release the router's routing lock with the run — a dropped
         // stream must not leave `runningBrain` set and wedge the brain
         // toggle until force quit.
@@ -1111,10 +1133,26 @@ final class ChatStore {
     /// handler (below, `beginContinuedSend`'s `onExpiration`) ALSO enters
     /// through this same function — the system revoking a background task's
     /// budget with NO user action, not a walk-away that bypasses
-    /// `cancelStreaming` entirely. It passes `hardStopHost: false` so a
-    /// lapsed background budget degrades to the ordinary recovery poll
-    /// instead of hard-killing a run the user never asked to stop. Every
-    /// other effect below — cancelling the local task, releasing the
+    /// `cancelStreaming` entirely. It passes `hardStopHost: false` to
+    /// distinguish that SYSTEM-revoked budget from a user-initiated Stop, so
+    /// the host run is left alone rather than hard-killed on a turn the user
+    /// never asked to stop. That much is load-bearing.
+    ///
+    /// #291 close-out (tracker #295): what is NOT true is the claim this
+    /// comment used to make — that the expiration path "degrades to the
+    /// ordinary recovery poll." There is no client-side host-recovery poll
+    /// on this path. `restartPendingPollingIfNeeded`'s loop re-merges
+    /// `hermesClient.loadConversation()`, and `SessionsHermesClient`'s
+    /// implementation of that call returns the client's own cached
+    /// `currentConversation` with no network request — it cannot retrieve an
+    /// answer the host is still generating. The one genuine recovery route
+    /// (`pendingRun` + `startReconcileLoopIfNeeded()` → `reconcileFromServer()`,
+    /// a real GET) is armed only by `.interrupted`, not by this path.
+    /// Whether the expiration path should instead settle `.working` and arm
+    /// that reconcile loop is the open decision filed as #295 — not
+    /// implemented here.
+    ///
+    /// Every other effect below — cancelling the local task, releasing the
     /// router's routing lock, finalizing the UI, ending the Live Activity —
     /// still happens on BOTH paths; only the network call is gated.
     func cancelStreaming(hardStopHost: Bool = true) {
@@ -1135,14 +1173,38 @@ final class ChatStore {
         if let sid = streamingMessageID,
            var conv = conversation,
            let idx = conv.messages.firstIndex(where: { $0.id == sid }) {
-            conv.messages[idx].isStreaming = false
-            conv.messages[idx].status = .delivered
-            for i in conv.messages[idx].toolActivities.indices {
-                conv.messages[idx].toolActivities[i].isActive = false
+            if Self.stoppedPlaceholderHasNothingToShow(conv.messages[idx]) {
+                // #294: a Stop taken before the first token leaves a
+                // placeholder with no content, no tool activity, no chip and
+                // no reasoning — and the two lines below would make that
+                // TERMINAL (`.delivered`, not streaming), which is precisely
+                // the shape the cold-load scrubber cannot rescue (it only
+                // catches `.sending`). So it persisted, survived relaunch and
+                // rendered as a bare box. Remove it instead: same outcome the
+                // scrubber would have produced, one turn earlier.
+                conv.messages.remove(at: idx)
+            } else {
+                conv.messages[idx].isStreaming = false
+                conv.messages[idx].status = .delivered
+                for i in conv.messages[idx].toolActivities.indices {
+                    conv.messages[idx].toolActivities[i].isActive = false
+                }
             }
             conversation = conv
         }
+        // #291: settle THIS turn's user row. `cancelStreaming` used to
+        // finalize only the assistant placeholder, so the user's optimistic
+        // row stayed `.sending` — which is exactly `hasPendingMessages`, one
+        // of the three conditions the poll loop's exhaustion branch tests.
+        // ~60s after a deliberate Stop it flipped the row to `.failed` and
+        // fired `onSendFailed` (an error haptic) on a turn the host had
+        // received and partly answered. `.delivered` is the honest terminal:
+        // the host DID receive the message on BOTH paths through here — the
+        // explicit Stop and the continued-send expiration alike — and a user
+        // row's status is about delivery, not about how the reply ended.
+        settleStoppedUserMessage()
         streamingMessageID = nil
+        streamingUserMessageID = nil
         pendingMessageSentAt = nil
         lastStreamActivityAt = nil
 
@@ -1154,6 +1216,63 @@ final class ChatStore {
             recordAgentAttachments()
             onConversationChanged?()
         }
+    }
+
+    /// #291: flips the stopped turn's OWN user row from `.sending` to
+    /// `.delivered`. Deliberately targeted rather than a blanket sweep of
+    /// every `.sending` user row: a queued/draining outbox turn or a second
+    /// send in flight is not this Stop's business, and settling somebody
+    /// else's row would be the same class of lie in the other direction.
+    /// `.sending` is required — a row already settled by its own terminal
+    /// (`.working` after an interrupt, `.queued` offline) is left alone.
+    private func settleStoppedUserMessage() {
+        guard let userMessageID = streamingUserMessageID,
+              var conv = conversation,
+              let idx = conv.messages.firstIndex(where: {
+                  $0.sender == .user
+                      && ($0.id == userMessageID || $0.clientMessageID == userMessageID)
+              }),
+              conv.messages[idx].status == .sending
+        else { return }
+        conv.messages[idx].status = .delivered
+        conversation = conv
+    }
+
+    /// #294: whether a stopped streaming placeholder carries nothing worth
+    /// keeping. The prose half REUSES `cleanCloseArmsRecovery` — #235 F1's
+    /// emptiness decision, which `deliverPolledTerminal` also reuses rather
+    /// than restating — so the third producer of terminal assistant rows
+    /// cannot drift from the other two. The rest of the test is additive and
+    /// strictly more conservative than the cold-load scrubber's
+    /// (content + tool activities): a Stop must not eat an agent-file chip
+    /// (#277 keeps those durable through exactly this call) or reasoning the
+    /// `_thinking` channel streamed before the answer began (#4.15 renders
+    /// it on a non-streaming bubble, and the server transcript will never
+    /// give it back).
+    ///
+    /// #291 close-out: deliberately NOT checked here — `codeDiff`, `usage`,
+    /// and `reasoningSummary`. Not an oversight; each is provably
+    /// unreachable on a placeholder this function is ever called on (one
+    /// still mid-stream, caught by `cancelStreaming` before `.finished`):
+    /// - `codeDiff` and `usage` are populated in exactly one place, the
+    ///   `.finished` stream-event case (`resolved.codeDiff = diff`,
+    ///   `if resolved.usage == nil { resolved.usage = usage }`) — that case
+    ///   IS the terminal, so a message this function sees has never reached it.
+    /// - `reasoningSummary` is populated only by `condensePendingReasoning()`,
+    ///   which requires `!$0.isStreaming` on its candidate — a still-streaming
+    ///   placeholder is categorically excluded from that pass.
+    ///
+    /// This is the #276 field-by-field hazard shape: if a future field is
+    /// added to `Message` and populated anywhere OTHER than the `.finished`
+    /// case or a `!isStreaming` gate, this predicate will silently treat a
+    /// placeholder carrying that field as empty and delete it. Re-verify the
+    /// three bullets above (or add the new field to them) before trusting
+    /// this function unchanged.
+    nonisolated static func stoppedPlaceholderHasNothingToShow(_ message: Message) -> Bool {
+        SessionsHermesClient.cleanCloseArmsRecovery(runStarted: true, effectiveContent: message.content)
+            && message.toolActivities.isEmpty
+            && message.attachments.isEmpty
+            && (message.reasoning?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
     }
 
     // MARK: - Fetchable agent files (#21 Tier 2)
@@ -1929,6 +2048,17 @@ final class ChatStore {
 
         guard pollingTask == nil else { return }
 
+        // #293(a): the token. The teardown at the bottom of this task used to
+        // read `self.pollingTask?.isCancelled == false`, which is TRUE
+        // precisely when a newer task has already replaced this one — so a
+        // finishing loop could nil out its successor's handle and leave the
+        // live task unreachable. Same shape, and the same fix, as
+        // `ChatBackendRouter.finishRun(_:)`, `clearActiveRunContext(matchingRunID:)`
+        // and `AppContainer`'s `bootstrapGeneration`: only the task that still
+        // owns the handle may clear it.
+        pollingGeneration &+= 1
+        let generation = pollingGeneration
+
         pollingTask = Task { [weak self] in
             guard let self else { return }
             var attempts = 0
@@ -1972,7 +2102,7 @@ final class ChatStore {
                 self.onSendFailed?()
             }
 
-            if self.pollingTask?.isCancelled == false {
+            if self.pollingGeneration == generation {
                 self.pollingTask = nil
             }
         }
@@ -2038,6 +2168,11 @@ final class ChatStore {
         guard reconcileTask == nil, pendingRun != nil else { return }
         let budget = reconcileWallClockBudget
         let interval = reconcilePollInterval
+        // #293(a): the same token as the poll loop's — this teardown cleared
+        // `reconcileTask` unconditionally, so a loop finishing one main-actor
+        // hop after a newer one was armed would nil the NEW task's handle.
+        reconcileGeneration &+= 1
+        let generation = reconcileGeneration
         reconcileTask = Task { [weak self] in
             guard let self else { return }
             // #145 Part C: elapsed WALL TIME is the budget. See
@@ -2049,7 +2184,9 @@ final class ChatStore {
                 guard !Task.isCancelled, let pending = self.pendingRun else { break }
                 if await self.attemptReconcile(pending) { break }
             }
-            self.reconcileTask = nil
+            if self.reconcileGeneration == generation {
+                self.reconcileTask = nil
+            }
         }
     }
 
@@ -2064,7 +2201,24 @@ final class ChatStore {
                 && $0.timestamp > pending.sentAt
                 && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         })
-        guard let reply else { return false }
+        guard let reply else {
+            // #293(b) — MEASUREMENT ONLY, deliberately not a fix. This
+            // predicate compares a CLIENT clock (`pending.sentAt` is a local
+            // `Date()`) against HOST timestamps with strict `>` and no slack,
+            // while the sibling guard one screen away
+            // (`historyAdoptsQueuedTurn`) subtracts 60s and calls that
+            // clock-skew slack in so many words. If the phone runs ahead of
+            // the host, every reply row stamps earlier than `sentAt` and this
+            // pass can never match. Adding slack here would change BEHAVIOR
+            // on a hypothesis nobody has measured, so log the two clocks and
+            // their delta instead — one line per failed pass, readable from a
+            // device log — and let the numbers decide.
+            let newestHostRow = serverConvo.messages.last(where: { $0.sender == .hermes })?.timestamp
+            chatLog.notice(
+                "reconcile pass found no candidate (#293b): sentAt=\(pending.sentAt.timeIntervalSince1970, privacy: .public) newestHermesRow=\(newestHostRow?.timeIntervalSince1970 ?? -1, privacy: .public) delta=\(newestHostRow.map { $0.timeIntervalSince(pending.sentAt) } ?? .nan, privacy: .public) hermesRows=\(serverConvo.messages.filter { $0.sender == .hermes }.count, privacy: .public)"
+            )
+            return false
+        }
 
         // #235 F3: the prompt text lives in the PRE-adoption conversation
         // (server rows have different ids) — capture it before replacing.

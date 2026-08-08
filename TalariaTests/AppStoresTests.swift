@@ -1532,6 +1532,188 @@ struct AppStoresTests {
         _ = await streamingSend.value
     }
 
+    // MARK: - #291 / #294 — what a Stop leaves behind
+
+    /// #291 bars A and B. `cancelStreaming` finalized ONLY the assistant
+    /// placeholder, leaving the user's own optimistic row at `.sending` —
+    /// which is exactly the predicate the poll loop's exhaustion branch
+    /// tests (`hasPendingMessages`), so ~60s after a deliberate Stop every
+    /// `.sending` user row flipped to `.failed` and `onSendFailed` fired an
+    /// error haptic, on a turn the host received and partly answered.
+    ///
+    /// The whole suite was blind to this: every stop test asserted the
+    /// assistant placeholder and none asserted the user row. This one
+    /// asserts the USER row, and asserts the exact predicate — no user row
+    /// left `.sending` — rather than sleeping out the 60s window.
+    @Test @MainActor
+    func stopSettlesTheUserRowOfTheTurnItStopped() async throws {
+        let suiteName = "chat-store-stop-settles-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+        var sendFailures = 0
+        chatStore.onSendFailed = { sendFailures += 1 }
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed, "the fixture must reach mid-answer before the Stop")
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(userRows.count == 1)
+        #expect(
+            userRows.first?.status == .delivered,
+            "291-A: the host received this turn — `.sending` and `.failed` are both lies"
+        )
+        #expect(
+            chatStore.conversation?.messages.contains { $0.sender == .user && $0.status == .sending } == false,
+            "291-A: no user row may stay `.sending` — that is the poll loop's failure predicate"
+        )
+        // #291 close-out: this is a CANARY, not coverage, for 291-B. `setPollingEnabled`
+        // is never called anywhere in this file, so `restartPendingPollingIfNeeded`
+        // early-returns on `isPollingEnabled == false` and the poll loop's exhaustion
+        // branch (the one that flips a stuck row to `.failed` and fires `onSendFailed`)
+        // never runs here regardless of whether the fix above is present. `sendFailures`
+        // is therefore guaranteed 0 in this test file, buggy code included. The bar this
+        // test actually proves is the "291-A" assertion immediately above — asserting no
+        // user row is left `.sending` is asserting `hasPendingMessages == false`
+        // (`ChatStore.hasPendingMessages` is exactly that predicate), which is what
+        // keeps the exhaustion branch — and therefore the error haptic — from ever
+        // firing when polling IS enabled elsewhere in the app.
+        #expect(sendFailures == 0, "291-B: a user-initiated Stop must never fire the error haptic")
+    }
+
+    /// #291 bar C and #294 bar C in one relaunch: a fresh `ChatStore` over
+    /// the same persistence runs the cold-load scrubber
+    /// (`finalizeStaleSendsFromCache`), which flips a `.sending` user row to
+    /// `.failed`. A stopped turn must survive that pass unchanged — and the
+    /// empty assistant bubble the Stop refused to persist must not be back.
+    @Test @MainActor
+    func stoppedTurnSurvivesRelaunchWithoutTurningFailed() async throws {
+        let suiteName = "chat-store-stop-relaunch-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .silentAfterAccept)
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me early") }
+        let armed = await pollUntil { chatStore.isStreaming }
+        #expect(armed)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        // The relaunch: a brand-new store reading the cache this Stop wrote.
+        let relaunched = ChatStore(
+            hermesClient: StoppableStreamingChatClient(script: .silentAfterAccept),
+            persistence: persistence
+        )
+        await relaunched.loadConversationIfNeeded()
+
+        let restored = relaunched.conversation?.messages ?? []
+        #expect(
+            restored.first(where: { $0.sender == .user })?.status == .delivered,
+            "291-C: the settled row must survive a relaunch — the scrubber only rescues `.sending`"
+        )
+        #expect(
+            restored.contains { $0.sender == .hermes } == false,
+            "294-C: relaunch after an early Stop shows no empty assistant bubble"
+        )
+    }
+
+    /// #294 bar A. `isStreaming = false` / `status = .delivered` were set
+    /// unconditionally, so a Stop taken during the thinking phase — no
+    /// content, no tool activity — persisted a terminal empty assistant row.
+    /// The cold-load scrubber that exists for exactly this shape only
+    /// catches `.sending`, so it sailed through and survived relaunch.
+    @Test @MainActor
+    func stopBeforeTheFirstTokenLeavesNoEmptyAssistantRow() async throws {
+        let suiteName = "chat-store-stop-empty-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .silentAfterAccept)
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me early") }
+        let armed = await pollUntil { chatStore.isStreaming }
+        #expect(armed)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        #expect(
+            chatStore.conversation?.messages.contains { $0.sender == .hermes } == false,
+            "294-A: a Stop with no content and no tool activity leaves no assistant row"
+        )
+        let cached = persistence.loadConversationCache()?.messages ?? []
+        #expect(
+            cached.contains { $0.sender == .hermes } == false,
+            "294-A: and does not write one to the conversation cache either"
+        )
+    }
+
+    /// #294 bar B — the trap. The emptiness guard must not eat a real
+    /// partial answer: a Stop mid-sentence keeps every character that
+    /// streamed, terminal and non-streaming.
+    @Test @MainActor
+    func stopWithPartialContentKeepsThatContent() async throws {
+        let suiteName = "chat-store-stop-partial-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me mid-answer") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let reply = chatStore.conversation?.messages.last { $0.sender == .hermes }
+        #expect(reply?.content == "Half an ans", "294-B: the partial answer must survive the Stop")
+        #expect(reply?.status == .delivered)
+        #expect(reply?.isStreaming == false)
+    }
+
+    /// #294 bar B, the other half: a Stop during a tool call has no prose
+    /// but does have visible activity — the row stays, with its chips
+    /// resolved rather than left spinning.
+    @Test @MainActor
+    func stopDuringAToolCallKeepsTheActivityRow() async throws {
+        let suiteName = "chat-store-stop-tool-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .toolActivityOnly("read_file"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me mid-tool") }
+        let toolStarted = await pollUntil {
+            chatStore.conversation?.messages.contains { !$0.toolActivities.isEmpty } == true
+        }
+        #expect(toolStarted)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.toolActivities.count == 1, "294-B: tool activity with no prose is still something to keep")
+        #expect(reply.toolActivities.allSatisfy { $0.isActive == false })
+        #expect(reply.status == .delivered)
+    }
+
     @Test @MainActor
     func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
         let configuration = URLSessionConfiguration.ephemeral
@@ -3648,6 +3830,61 @@ struct AppStoresTests {
         func reconcileFromServer() async -> Conversation? {
             reconcileFromServerCallCount += 1
             return nil
+        }
+    }
+
+    /// #291/#294: accepts the turn, streams exactly what its script says,
+    /// and then stays live forever — the state a Stop tap lands in. Because
+    /// the stream never finishes, `sendMessage` only returns once the store
+    /// tears it down, which makes the Stop the test's own event rather than
+    /// a race against a terminal frame.
+    private final class StoppableStreamingChatClient: HermesClientProtocol {
+        enum Script: Sendable {
+            /// Stop during the thinking phase: accepted, not one token.
+            case silentAfterAccept
+            /// Stop mid-answer: a real partial the fix must not eat.
+            case partialProse(String)
+            /// Stop during a tool call: no prose, but visible activity.
+            case toolActivityOnly(String)
+        }
+
+        let script: Script
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+
+        init(script: Script) {
+            self.script = script
+        }
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            let script = script
+            return AsyncStream { continuation in
+                continuation.yield(.messageSent(jobID: UUID()))
+                switch script {
+                case .silentAfterAccept:
+                    break
+                case .partialProse(let text):
+                    continuation.yield(.textDelta(text))
+                case .toolActivityOnly(let name):
+                    continuation.yield(.toolActivity(ToolCallEvent(name: name)))
+                }
+                // Never finishes — the run stays live until the Stop.
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
         }
     }
 

@@ -2228,6 +2228,36 @@ Logged 2026-07-11.
 > facts. The journal REMAINS canonical; durable memory stays derived. Study
 > the repo for retrieval/provenance architecture; do not import a runtime.
 
+> **⚠️ RE-SCOPE 2026-08-08 (Owen asked "is 101 even still applicable?" — the
+> answer is yes, but NOT for the reason it was filed).** Two things changed
+> under this item since July:
+> 1. **Hermes already does cross-chat memory.** Proven empirically by the
+>    3A-0 probe: a run supplied NO history answered `BANANA` — a marker from
+>    a steering probe two days earlier — and the agent's own reasoning shows
+>    it consulting memory summaries. So for a Hermes-backed user the server
+>    is already doing what this item proposes, and a client-side duplicate
+>    would be redundant at best and conflicting at worst.
+> 2. **The launch pivot** ([[talaria-launch-pivot]]) makes the local brain
+>    the DEFAULT tier. The local brain has no cross-chat memory at all.
+>
+> **So the surviving scope is LOCAL-BRAIN ONLY**, and the framing is no
+> longer "competitors personalize across conversations" but "the tier we
+> ship by default forgets you between chats."
+>
+> **⛔ SEQUENCING CONSTRAINT — do not open this lane before #284.** Both
+> items spend the SAME scarce resource: the 8,192-token local window. #229
+> measured the belt at ~18% of it and belt-plus-transcript at ~41% before the
+> user types. **#284 exists to RECLAIM that space; this item would SPEND
+> it.** Built independently you can land a broker that frees 15% and a
+> memory layer that immediately eats 20% — net worse, two lanes' effort
+> gone. Design this against the budget #284 actually frees, **measured**
+> (`tokenCount(for:)` makes that possible — see #284's note), not assumed.
+>
+> Still formally gated on #93's device checklist. The layered/provenance/
+> privacy shape in the note above stands — the privacy classification
+> especially, since the phone brain sees HealthKit and location data that
+> must not silently become permanent profile facts.
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
@@ -5019,6 +5049,37 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
+
+**Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
+`sleep 30; echo STOPTEST` and tapped Stop after a few seconds. The stopped
+reply renders as **`✓ TERMINAL`** plus a timestamp — and because the turn was
+stopped before any prose, **that chip is the entire message.** A checkmark is
+the whole content of the bubble, claiming a command completed that the user
+killed.
+
+**Mechanism:** `cancelStreaming` sets `toolActivities[i].isActive = false` on
+every activity, and the rail has only two states — the streaming test is
+`message.isStreaming && group.contains(where: \.isActive)`
+(`MessageBubble.swift:566`). Not-streaming-and-not-active renders as done.
+**There is no interrupted state.**
+
+**We already have the truth and throw it away.** The 3A-C device pass
+captured the host saying exactly what happened —
+`{"output": "[Command interrupted]", "exit_code": 130}` and
+`Turn ended: reason=interrupted_by_user`. On the runs plane the client
+receives `tool.completed` carrying an `error` field and **parses it, then
+discards it** (`case .toolCompleted(let name, _)` — the adversarial audit
+flagged the same dead field independently).
+
+**Fix shape:** give `ToolCallEvent` an interrupted state distinct from
+completed; have `cancelStreaming` mark in-flight activities interrupted
+rather than done; surface `tool.completed`'s `error` into
+`ToolCallEvent.detail`. **Bars: (296-A)** a tool in flight when Stop is
+tapped does NOT render a ✓; **(296-B)** a genuinely completed tool still
+does; **(296-C)** a host-reported tool error reaches the chip instead of
+being dropped.
+
 ## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there.**
 
 **The discovery, which is larger than the fix that surfaced it.** Three sites
@@ -5269,9 +5330,14 @@ are different (settle the user row vs. do not persist an empty terminal).
 >   an assertion that cannot fail wearing a bar label is exactly how a bogus
 >   "verified" enters this tracker.
 > - **291-C MET** — survives a cold load through the real scrubber.
-> - **291-D still OWED** (device: Stop, hold the screen 90s, expect no buzz
->   and no Retry). It is also the auditor's own disproof test, so running it
->   settles the finding either way.
+> - **291-D ✅ MET ON DEVICE 2026-08-07 23:59 (OTA 2191, Hermes brain).** Owen
+>   sent `sleep 30; echo STOPTEST`, tapped Stop, and **held the chat screen
+>   for two full minutes** — twice the bar's 90s. *"I didn't get a retry or
+>   failed or anything after I stopped it."* No haptic, no `.failed`, no
+>   Retry button. **This was also the auditor's own disproof test, so the
+>   finding is now settled from both directions:** the defect was verified by
+>   code trace, and the fix verified by the exact observation that would have
+>   refuted it.
 > - **Verified by review, not assumed:** `.delivered` is honest here — every
 >   consumer was checked and none reads it on a USER row as "the assistant
 >   replied"; it also makes Edit & Resend available immediately instead of
@@ -5827,6 +5893,58 @@ riskClass / permissions / privacyClass / availability / argumentSummary).
 **Bars pre-register HERE before any code.** First bar candidate when a lane
 opens: a fresh session's "what can you do?" names the full belt (the #257
 screenshot shape, inverted), measured per the #200-series discipline.
+
+> **✅ THE LOAD-BEARING API QUESTION IS ANSWERED 2026-08-08 — read from the
+> beta4 swiftinterface, not from recall (post-cutoff SDK; this is the
+> [[ios27-beta4-fm-sdk-surfaces]] rule).** Interface:
+> `…/iPhoneOS.sdk/System/Library/Frameworks/FoundationModels.framework/Modules/FoundationModels.swiftmodule/arm64e-apple-ios.swiftinterface`.
+>
+> **Tools are fixed at session construction — every `init` takes `tools:` and
+> there is NO post-init mutation** (the only `tools` functions in the whole
+> interface are `tokenCount(for tools:)` and an instructions builder). So a
+> live session genuinely cannot be re-armed.
+>
+> **But re-arming is CHEAP anyway, and this is the finding that makes #284 a
+> clean layer instead of a session-lifecycle problem:**
+> **`convenience public init(model:tools:transcript:)` exists** (interface
+> line 41) and **`session.transcript` is a public accessor**. So the
+> discovery→arm cycle is: model calls the discovery tool → construct a NEW
+> session with `transcript: old.transcript` and only the matching tools →
+> continue. **The conversation carries forward; there is no re-prime.** The
+> "rebuild costs you the context" worry — which the momentum report glides
+> past with "rebuild/continue session" — does not apply.
+>
+> **Bonus that lands directly on this design: `tokenCount(for tools:)`
+> exists**, alongside overloads for prompts, instructions, schemas and
+> transcript entries. The broker's budget arithmetic can be **measured, not
+> estimated** — ask what a candidate belt actually costs before arming it.
+> That turns #229's one-off "the belt is ~18%" into a per-turn evaluable
+> number.
+>
+> **⚠️ HAZARD carried from a previous run-in with this API:
+> `tokenCount()` called CONCURRENTLY with a live streaming turn KILLS the
+> turn on device** (ModelManagerError 1001, surfacing as "error -1"). Budget
+> measurement must happen BETWEEN turns, never during one. That is a real
+> constraint on where the broker does its arithmetic.
+>
+> **Two scoping corrections to the report's framing, recorded so the lane
+> starts honest:**
+> 1. **The belt cost is an ARMED-TURN cost, not an every-turn cost.**
+>    `effectiveOfferedTools` already returns `[]` on a router-toolless turn
+>    (#196/#229's structural cure), so the biggest single win is already
+>    collected. The broker refines the armed case.
+> 2. **Today's saving is real but not "nullified":** ~13 tools ≈ 1,470 tok
+>    becomes a discovery tool (~110) plus a compact capability index
+>    (~150–250 prose, far cheaper than JSON schemas) ≈ 300–400 tok. **Where
+>    it genuinely nullifies the problem is #150/MCP** — 50+ capabilities
+>    would exceed the entire 8k window, and the broker decouples capability
+>    COUNT from context COST. That is the argument to lead with, not the
+>    current 18%.
+>
+> **Design risk to build against:** a broker adds a routing decision, and a
+> wrong one means the model lacks the tool and says "I can't" — which is
+> #257's symptom, made worse. **Discovery must fail OPEN** (arm a sensible
+> default belt), never closed.
 
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
