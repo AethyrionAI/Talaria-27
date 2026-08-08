@@ -248,9 +248,33 @@ final class TalariaPlatformLink {
         for query in drained.queries {
             // Per-query checkpoint: each answer is its own POST.
             guard isCurrent(context) else { return .superseded }
-            if !(await answer(query, context: context, token: token, deviceID: deviceID)) {
-                settlementFailed = true
+            // #286: queries are consumed-once host-side and the agent tool
+            // gives up at 40s (`_QUERY_TIMEOUT = 40.0`, the plugin's
+            // tools.py) — this in-turn retry is the ONLY second chance an
+            // answer gets. One retry, a 2s pause, epoch-checked between
+            // attempts so a `stop()` landing in the gap abandons the retry
+            // instead of firing it against a superseded turn.
+            //
+            // The arithmetic, checked against the ACTUAL value rather than
+            // assumed: `Self.requestTimeout` (above) is 40s, not the 20s an
+            // earlier draft of this comment assumed, so the retry's own
+            // worst-case ADDED cost — 2s pause + one more full request
+            // timeout — is ~42s. That does NOT sit comfortably inside the
+            // host's 40s window; a second attempt that genuinely hangs for
+            // the full 40s can finish only after the host has already given
+            // up and popped the query's future, at which point the POST
+            // lands as a harmless no-op (protocol read, #286 filing) rather
+            // than a real recovery. This retry is aimed at the common
+            // failure mode instead — a fast 500 or connection-refused, not
+            // a hang — where the added cost is ~2s plus one round trip.
+            // Bounded by construction either way: one retry, never a loop.
+            var answered = await answer(query, context: context, token: token, deviceID: deviceID)
+            if !answered {
+                try? await Task.sleep(for: .seconds(2))
+                guard isCurrent(context) else { return .superseded }
+                answered = await answer(query, context: context, token: token, deviceID: deviceID)
             }
+            if !answered { settlementFailed = true }
             didWork = true
         }
         // #286: a turn whose settlement failed is not a delivered turn —

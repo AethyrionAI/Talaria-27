@@ -406,6 +406,89 @@ struct TalariaPlatformLinkTests {
         #expect(outcome == .failed)
     }
 
+    // MARK: - #286 Task 2: one bounded in-turn retry for query answers
+
+    /// A `@Sendable`-safe box so the network stub (which runs off the
+    /// MainActor — see `WireRecorder` in `ProfileSwitchAtomicityTests`) can
+    /// reach back into the link to drive a mid-drain `stop()`. That file's
+    /// idiom parks on a gated secure store and calls `stop()` from the test
+    /// body between the park and the release; the retry's own gate is a
+    /// plain `Task.sleep(for: .seconds(2))`, which has no park to hook, so
+    /// this box instead lets the handler that answers the FIRST failed
+    /// `query_result` POST schedule the `stop()` itself — landing well
+    /// inside the 2s pause that follows.
+    private final class LinkBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _link: TalariaPlatformLink?
+        var link: TalariaPlatformLink? {
+            get { lock.lock(); defer { lock.unlock() }; return _link }
+            set { lock.lock(); defer { lock.unlock() }; _link = newValue }
+        }
+    }
+
+    /// Bar 286-C follow-up: the first `query_result` 500s, the retry 200s.
+    /// Recomputation is fine — the server is exactly-once by `query_id`
+    /// (protocol read, #286 filing) — so the two bodies need not match.
+    @Test func queryAnswerRetriesOnceAndRecovers() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"{"items":[],"queries":[{"id":"q1","kind":"health","params":{"metric":"steps"}}]}"#.utf8))
+            }
+            if body.contains("\"query_result\"") {
+                recorder.record(body)
+                return recorder.count(containing: "\"query_result\"") == 1
+                    ? (500, Data())
+                    : (200, Data(#"{"ok":true}"#.utf8))
+            }
+            return (200, Data())
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .delivered)
+        #expect(recorder.count(containing: "\"query_result\"") == 2)
+    }
+
+    /// A `stop()` landing in the 2s gap between the failed first attempt and
+    /// the retry must abandon the retry: `.superseded`, exactly one
+    /// `query_result` request on the wire (the retry never goes out).
+    @Test func queryAnswerRetryIsEpochChecked() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let box = LinkBox()
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"{"items":[],"queries":[{"id":"q1","kind":"health","params":{"metric":"steps"}}]}"#.utf8))
+            }
+            if body.contains("\"query_result\"") {
+                recorder.record(body)
+                // Drives the mid-turn stop() from the handler itself — see
+                // `LinkBox`'s doc comment above for why this test can't
+                // reuse ProfileSwitchAtomicityTests' gated-secure-store
+                // park/release idiom directly.
+                Task { @MainActor in box.link?.stop() }
+                return (500, Data())
+            }
+            return (200, Data())
+        }
+        box.link = link
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .superseded)
+        #expect(recorder.count(containing: "\"query_result\"") == 1)
+    }
+
     /// Bar 286-D: a fully successful settlement (ack 200, query_result 200)
     /// still classifies `.delivered` — pins current behavior against
     /// regression from the new failure-folding logic.
