@@ -5019,6 +5019,53 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix.**
+
+**The shape (#276's lesson):** a routine that rebuilds a model value
+field-by-field silently drops any property it does not name, and the type
+system CANNOT catch it when the property is an `Optional var` with no
+explicit assignment.
+
+**The site:** `Talaria/Models/Message.swift:371-383`,
+`MessageAttachment.staged(atLocalPath:)` — used when a Tier-2 (fetchable)
+agent file finishes downloading and becomes a staged local file. It carries
+9 of the struct's 10 properties and omits **`anchorOffset`**.
+
+**Why it is not biting today — verified, not assumed.** Every site that ever
+assigns a non-nil `anchorOffset` was traced (`ChatStore.swift:690`, `:762`,
+`:2439`): all of them are on the Tier-1 (`.artifactProduced`, inline
+content) path. A Tier-2 chip's `anchorOffset` is always `nil` when
+`staged()` runs, so dropping it changes nothing. **The correctness of this
+function therefore depends on an invariant that is (a) non-obvious, (b)
+undocumented at the call site, and (c) not asserted by its own test** —
+`AgentFileFetchTests.stagedCopyKeepsIdentityAndFetchPointer` (`:49-60`)
+checks every other field and skips this one, which is precisely how the gap
+stayed invisible.
+
+**Why it is worth filing rather than shrugging at:** the sibling function
+`ChatStore.mergeAttachments` (`:2404-2442`) had this EXACT omission, on this
+EXACT field, and it shipped as a user-visible regression — the fix comment
+is still at `ChatStore.swift:2394-2400`. If Tier-2 chips ever gain inline
+anchoring (a plausible slice-3D-adjacent change, since 3D restores artifact
+content over the plugin channel), this silently un-anchors a chip the moment
+its download completes.
+
+**Fix:** thread `anchorOffset: anchorOffset` through the rebuild, and add the
+assertion to the existing test. **Bars: (289-A)** `staged(atLocalPath:)`
+preserves every property of its input including `anchorOffset`;
+**(289-B)** its test asserts the full property set, so the next field added
+to `MessageAttachment` fails loudly here instead of silently defaulting.
+
+**Also found by the same sweep, deliberately NOT filed as a defect:** the
+`Conversation(...)` rebuild inside `mergeConversationMetadata`
+(`ChatStore.swift:2325-2332`) is field-by-field but carries all 6 properties
+today — **FRAGILE-BUT-COMPLETE**. It is the next instance of this shape to
+bite if `Conversation` grows a 7th property, and it is recorded here so the
+next reader of #276 has both sites in one place. Every other
+`Message(`/`Conversation(`/`MessageAttachment(` site in `Talaria/` was
+checked and is either a fresh construction, a mutate-a-copy, or a
+decode-from-wire — none carry the shape.
+
 ## 288. 🧹 Orphan device rows on paired hosts — audit + deactivate, one-time chore, **RE-RUN OWED after #285 is fixed for good** — **FILED 2026-08-07 evening on Owen's routing ("yes to the data chore as well, I bet it needs to be run now, and then put it on the books to be run after its fixed for good"). BASELINE AUDIT RAN THE SAME EVENING — result: NOTHING TO CLEAN. Chore stays open for the post-fix re-run.**
 
 **Where it comes from:** #285's repro 3b showed a re-pair reaching a
