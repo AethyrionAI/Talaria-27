@@ -513,6 +513,41 @@ struct TalariaPlatformLinkTests {
         #expect(outcome == .delivered)
         #expect(received.items.count == 1)
     }
+
+    /// Bar 286-E: a 401 on the ACK POST (not the drain POST) folds into the
+    /// same `false`/`.failed` path as any other non-200 — the drain-owned
+    /// 401-repair machinery (the re-pair-once-then-give-up dance in `drain`,
+    /// pinned by `unauthorizedDrainRepairsExactlyOnce` above) belongs to the
+    /// DRAIN request alone and must never fire off a settlement 401. A
+    /// settlement 401 on a token that just drained 200 is transient skew; a
+    /// truly stale pair fails the NEXT drain, which owns the repair.
+    @Test func settlementUnauthorizedClassifiesFailedWithoutTouchingThePair() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let received = ItemsBox()
+        let link = await makeLink(secureStore: secure, onItems: { received.items = $0 }) { request in
+            let body = StubURLProtocol.bodyString(request)
+            recorder.record(body)
+            if body.contains("\"drain\"") {
+                return (200, Data(#"""
+                {"items":[{"id":"i1","kind":"message","text":"hi","created_at":"2026-08-05T21:00:00+00:00","meta":{"session_id":"s1"}}],"queries":[]}
+                """#.utf8))
+            }
+            return (401, Data(#"{"error":"bad token","code":"invalid_talaria_auth"}"#.utf8))
+        }
+
+        let outcome = await link.drainOnce(wait: false)
+
+        #expect(outcome == .failed)
+        #expect(received.items.count == 1)
+        // The pair is untouched — no drop, no re-mint.
+        #expect(await secure.retrieve(key: Self.tokenKey) == "tok-1")
+        #expect(await secure.retrieve(key: Self.deviceIDKey) == "dev12")
+        #expect(recorder.count(containing: "\"pair\"") == 0)
+    }
 }
 
 /// Minimal request/response stub: hands every request to a static handler and

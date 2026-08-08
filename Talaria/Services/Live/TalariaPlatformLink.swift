@@ -291,6 +291,17 @@ final class TalariaPlatformLink {
     /// un-acked items and `mark_delivered` is idempotent (protocol read,
     /// 2026-08-07); the honest `.failed` classification is what re-arms the
     /// backoff that the false `.delivered` used to reset.
+    ///
+    /// **Bar 286-E, stated explicitly (not accidental):** a 401 here is just
+    /// another non-200 — it folds into the same `false` return as a 500 or a
+    /// transport failure and classifies the turn `.failed`, same as any
+    /// other settlement error. It does NOT trigger `drain`'s re-pair dance
+    /// (drop-both-keys, mint a new pair, retry once) — that machinery is
+    /// owned entirely by the DRAIN request's own 401 handling and must never
+    /// be reached from here. A settlement 401 on a token that just drained
+    /// 200 moments earlier is transient skew, not proof the pair is stale;
+    /// a truly stale pair will fail the NEXT drain, which is the request
+    /// that owns the repair.
     private func ack(itemIDs: [String], context: TurnContext, token: String, deviceID: String) async -> Bool {
         let body: [String: Any] = [
             "type": "ack",
@@ -307,7 +318,11 @@ final class TalariaPlatformLink {
     }
 
     /// #286: same honesty as `ack` — the wire result of the POST decides
-    /// success, not "the request was sent."
+    /// success, not "the request was sent." **Bar 286-E applies here
+    /// identically:** a 401 on a `query_result` POST is just another
+    /// non-200 — `false`, `.failed` on the turn, and no reach into `drain`'s
+    /// re-pair machinery, which belongs to the drain request alone (see
+    /// `ack`'s doc comment above for the full reasoning).
     private func answer(_ query: TalariaPlatformQuery, context: TurnContext, token: String, deviceID: String) async -> Bool {
         var body: [String: Any] = [
             "type": "query_result",
