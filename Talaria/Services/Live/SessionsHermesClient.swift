@@ -95,7 +95,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// flight, or finds nothing and no-ops. `private(set)`: only
     /// `setActiveRunContext`/`clearActiveRunContext` below may write it;
     /// everyone else (the router, `hardStopActiveRun`'s own callers) reads.
-    private(set) var activeRunContext: (runID: String, profileID: UUID?)?
+    /// #285: carries the turn's frozen `endpoint` too, so a stop issued
+    /// after a mid-turn profile switch still addresses the host the run
+    /// actually lives on.
+    private(set) var activeRunContext: (runID: String, profileID: UUID?, endpoint: ResolvedEndpoint)?
 
     /// #283 Task 7: run ids WE told the host to stop. A late `run.cancelled`
     /// frame or a polled `cancelled` status for one of these is the
@@ -112,8 +115,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     // `SessionsHermesClient+RunsTransport.swift` — a different file — so
     // these narrow methods are the seam that lets the driver write them
     // while keeping the properties themselves `private(set)`.
-    func setActiveRunContext(runID: String, profileID: UUID?) {
-        activeRunContext = (runID, profileID)
+    func setActiveRunContext(runID: String, profileID: UUID?, endpoint: ResolvedEndpoint) {
+        activeRunContext = (runID, profileID, endpoint)
     }
 
     /// No-ops if `activeRunContext` no longer names `matchingRunID` — either
@@ -926,9 +929,11 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// (which adopts it) and `reconcileFromServer` (which must not).
     // runs-path-visible (#283): the runs history pre-fetch reads server truth
     // through this same GET (N4 — runs WRITE the transcript but never read it).
-    func fetchSessionConversation(_ id: String, profileID: UUID?) async throws -> (sessionId: String, conversation: Conversation) {
+    // #285: the runs pre-fetch passes the turn's frozen `endpoint`;
+    // sessions-plane callers omit it and resolve live per request, as before.
+    func fetchSessionConversation(_ id: String, profileID: UUID?, endpoint: ResolvedEndpoint? = nil) async throws -> (sessionId: String, conversation: Conversation) {
         let path = "\(Self.sessionsPath)/\(id)/messages"
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID, endpoint: endpoint)
         let (data, httpResponse) = try await session.data(for: request)
         try ensureSuccess(response: httpResponse, data: data, path: path)
         let response: SessionMessagesResponse
@@ -1179,8 +1184,25 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - HTTP plumbing
 
-    private func getJSON<T: Decodable>(path: String, profileID: UUID? = nil) async throws -> T {
-        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID)
+    /// #285 (the #283 adjacency): one turn's endpoint, resolved ONCE at turn
+    /// start. A runs turn is many requests over up to minutes of wall clock,
+    /// each of which used to re-resolve the live providers — so a mid-turn
+    /// profile switch could redirect a turn's later polls to the new host.
+    /// The turn drivers resolve one of these at birth and every request in
+    /// the turn's family carries it.
+    struct ResolvedEndpoint: Sendable, Equatable {  // runs-path-visible (#283/#285)
+        let baseURL: String
+        let apiKey: String
+    }
+
+    // runs-path-visible (#283/#285): the turn drivers' one resolution point.
+    func resolveTurnEndpoint(profileID: UUID?) throws -> ResolvedEndpoint {
+        let resolved = try resolveEndpoint(profileID: requestProfileID(profileID))
+        return ResolvedEndpoint(baseURL: resolved.baseURL, apiKey: resolved.apiKey)
+    }
+
+    private func getJSON<T: Decodable>(path: String, profileID: UUID? = nil, endpoint: ResolvedEndpoint? = nil) async throws -> T {
+        let request = try makeRequest(path: path, method: "GET", body: nil, accept: "application/json", profileID: profileID, endpoint: endpoint)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
@@ -1188,9 +1210,9 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // runs-path-visible (#283): the runs submit (`POST /v1/runs`) is an
     // ordinary JSON post — same encode/status/decode discipline.
-    func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil) async throws -> T {
+    func postJSON<Body: Encodable, T: Decodable>(path: String, body: Body, profileID: UUID? = nil, endpoint: ResolvedEndpoint? = nil) async throws -> T {
         let encodedBody = try encoder.encode(body)
-        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID)
+        let request = try makeRequest(path: path, method: "POST", body: encodedBody, accept: "application/json", profileID: profileID, endpoint: endpoint)
         let (data, response) = try await session.data(for: request)
         try ensureSuccess(response: response, data: data, path: path)
         return try decoder.decode(T.self, from: data)
@@ -1198,14 +1220,17 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // runs-path-visible (#283): every runs-plane request is built here too, so
     // auth, base-URL normalization and the #145 timeout split stay one policy.
-    func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil) throws -> URLRequest {
-        let endpoint = try resolveEndpoint(profileID: requestProfileID(profileID))
-        guard let url = URL(string: normalizedBaseURL(endpoint.baseURL) + path) else {
+    // #285: a non-nil `endpoint` (the turn's frozen resolution) wins over the
+    // live `profileID` path — sessions-plane callers, whose turns are a single
+    // request, keep passing `profileID` and resolve at build time as before.
+    func makeRequest(path: String, method: String, body: Data?, accept: String, profileID: UUID? = nil, endpoint: ResolvedEndpoint? = nil) throws -> URLRequest {
+        let resolved = try endpoint ?? resolveTurnEndpoint(profileID: profileID)
+        guard let url = URL(string: normalizedBaseURL(resolved.baseURL) + path) else {
             throw SessionsClientError.notConfigured("Hermes API base URL is not set.")
         }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(endpoint.apiKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(resolved.apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(accept, forHTTPHeaderField: "Accept")
         request.httpBody = body
