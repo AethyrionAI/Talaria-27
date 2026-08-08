@@ -894,10 +894,11 @@ lookupContact deliberately unprotected per Owen's protect-the-answer ruling)
         ("Add pick up dry cleaning to my reminders", true, [.reminders], ["createReminder"]),
         ("Set an alarm for 6:30", true, [.alarms], ["scheduleAlarm"]),
         ("Wake me up at 7 tomorrow", true, [.alarms], ["scheduleAlarm"]),
-        // #215 measured this exact prompt at create 10/10 + readCalendar 7/10 +
-        // lookupContact 7/10. lookupContact is DELIBERATELY unprotected here —
-        // that chain is #215's named over-serving (invented a place on 5/8
-        // creates); the bar protects the answer path, not the spiral (Owen, 2026-08-08).
+        // #215 (run F486F103) measured this exact prompt at create 10/10 +
+        // readCalendar 7/10 + lookupContact 7/10. lookupContact is DELIBERATELY
+        // unprotected — #215 names that chain over-serving, and #200W's un-routed
+        // run saw the chain invent a place on 5/8 creates; the bar protects the
+        // answer path, not the spiral (Owen, 2026-08-08).
         ("Put lunch with Sam on my calendar Friday at noon", true, [.calendar], ["createCalendarEvent", "readCalendar"]),
         ("Do I have anything on my calendar Friday?", true, [.calendar], ["readCalendar"]),
         ("What's the weather like right now?", true, [.weather], ["currentWeather"]),
