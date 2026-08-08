@@ -1123,6 +1123,10 @@ final class ChatStore {
         streamingTask = nil
         streamingMessageID = nil
         streamingUserMessageID = nil
+        // #295: this cancellation doesn't route through `cancelStreaming`,
+        // so it has to clear the capture itself — "releases everything the
+        // departing run holds" above is the promise this line keeps honest.
+        activeStreamRun = nil
         // #192: release the router's routing lock with the run — a dropped
         // stream must not leave `runningBrain` set and wedge the brain
         // toggle until force quit.
