@@ -91,6 +91,23 @@ final class ChatStore {
     /// `sendMessage`, cleared wherever that turn ends.
     private var streamingUserMessageID: UUID?
 
+    /// #295: the identifiers of the turn currently streaming, captured so a
+    /// later `cancelStreaming` can recover them (the expiration path arms
+    /// real recovery from this pair — Task 2). `sessionId` comes from the
+    /// shared journal's active hop (`activeSessionID`) — `SessionsHermesClient
+    /// .ensureHopForTurn()` records that hop before ANY stream event is
+    /// yielded, so it is already correct by the time `sendMessage`'s loop
+    /// processes its first update; refreshed every iteration below because a
+    /// stale-hop 404 retry can swap the hop mid-turn with no event of its
+    /// own. `runId` has no earlier channel than the `.interrupted` case
+    /// itself, so it stays nil until that fires (or forever, on a turn that
+    /// finishes cleanly — reconcile can still resolve on `sessionId` alone).
+    /// Cleared on every terminal path — normal finish, every error arm, and
+    /// `cancelStreaming` — so a stale pair can never survive into a later
+    /// turn.
+    // harness-visible
+    var activeStreamRun: (sessionId: String, runId: String?)?
+
     var isStreaming: Bool { streamingMessageID != nil }
 
     /// #278: **the** "is a run in flight" question, for the bubble menu and
@@ -593,6 +610,11 @@ final class ChatStore {
         // #291: the placeholder and the user row it answers are one turn —
         // a Stop has to be able to settle both.
         streamingUserMessageID = clientMessageID
+        // #295: this turn hasn't learned its identifiers yet — an explicit
+        // reset here (rather than trusting the previous turn's terminal to
+        // have cleared it) documents "captured at stream start" at the one
+        // place a new stream actually starts.
+        activeStreamRun = nil
         restartPendingPollingIfNeeded()
 
         // #14: attachment sends are the deliberately-backgroundable long path —
@@ -621,6 +643,16 @@ final class ChatStore {
             guard let self else { return }
             for await update in stream {
                 if Task.isCancelled { break }
+                // #295: refresh the captured session id on every event —
+                // cheap, and the one thing that can change it mid-turn (a
+                // stale-hop 404 retry re-hops inside the client with no
+                // event of its own) needs the next iteration to see the
+                // swap. `runId` isn't knowable this way; carried forward
+                // untouched so a refresh can't blank out what `.interrupted`
+                // below already gave it.
+                if let sid = self.activeSessionID {
+                    self.activeStreamRun = (sessionId: sid, runId: self.activeStreamRun?.runId)
+                }
                 switch update {
                 case .messageSent(let jobID):
                     acceptedJobID = jobID
@@ -856,6 +888,9 @@ final class ChatStore {
                     }
                     self.detectModelSwitch(from: finalMessage.content)
                     self.streamingMessageID = nil
+                    // #295: the turn is fully settled — no later cancelStreaming
+                    // could still need these identifiers.
+                    self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
                     // #110: the finished content lets the service retract the
@@ -876,6 +911,9 @@ final class ChatStore {
                             self.conversation?.messages.remove(at: idx)
                         }
                         self.streamingMessageID = nil
+                        // #295: a late duplicate is still a terminal outcome
+                        // for THIS stream — nothing left to capture for.
+                        self.activeStreamRun = nil
                         self.chatLiveActivity.endActivity()
                         self.speechOutput?.cancelStream(messageID: placeholderID)
                         continuedSend?.finish(success: true)
@@ -893,6 +931,10 @@ final class ChatStore {
                         self.conversation?.messages[idx].status = .working
                     }
                     self.streamingMessageID = nil
+                    // #295: the identifiers just moved into `pendingRun`
+                    // below — this stream's own capture has nothing left to
+                    // recover from it.
+                    self.activeStreamRun = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     self.pendingRun = PendingRun(
@@ -934,6 +976,9 @@ final class ChatStore {
                         )
                     }
                     self.streamingMessageID = nil
+                    // #295: the turn never reached the host at all — nothing
+                    // for a later cancelStreaming to recover.
+                    self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
@@ -952,6 +997,10 @@ final class ChatStore {
                         }
                     }
                     self.streamingMessageID = nil
+                    // #295: whether this settles `.failed` or falls through to
+                    // the polling fallback below, THIS stream is over —
+                    // nothing left for a later cancelStreaming to recover.
+                    self.activeStreamRun = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
@@ -1192,18 +1241,26 @@ final class ChatStore {
             }
             conversation = conv
         }
-        // #291: settle THIS turn's user row. `cancelStreaming` used to
+        // #291/#295: settle THIS turn's user row. `cancelStreaming` used to
         // finalize only the assistant placeholder, so the user's optimistic
         // row stayed `.sending` — which is exactly `hasPendingMessages`, one
         // of the three conditions the poll loop's exhaustion branch tests.
         // ~60s after a deliberate Stop it flipped the row to `.failed` and
         // fired `onSendFailed` (an error haptic) on a turn the host had
-        // received and partly answered. `.delivered` is the honest terminal:
-        // the host DID receive the message on BOTH paths through here — the
-        // explicit Stop and the continued-send expiration alike — and a user
-        // row's status is about delivery, not about how the reply ended.
-        settleStoppedUserMessage()
+        // received and partly answered. The host DID receive the message on
+        // BOTH paths through here, so `.sending`/`.failed` are never honest —
+        // but the two paths diverge on what "settled" means. A user-initiated
+        // Stop (`hardStopHost: true`) is over, full stop: `.delivered`. The
+        // continued-send expiration (`hardStopHost: false`) is the SYSTEM
+        // cutting the app off mid-turn while the host keeps generating:
+        // `.delivered` there would be the same lie in the other direction,
+        // claiming a reply that hasn't arrived — so that row settles
+        // `.working` instead.
+        settleStoppedUserMessage(as: hardStopHost ? .delivered : .working)
         streamingMessageID = nil
+        // #295: whatever this stream's captured identifiers were, this
+        // function is itself a terminal path for it.
+        activeStreamRun = nil
         streamingUserMessageID = nil
         pendingMessageSentAt = nil
         lastStreamActivityAt = nil
@@ -1218,14 +1275,17 @@ final class ChatStore {
         }
     }
 
-    /// #291: flips the stopped turn's OWN user row from `.sending` to
-    /// `.delivered`. Deliberately targeted rather than a blanket sweep of
-    /// every `.sending` user row: a queued/draining outbox turn or a second
-    /// send in flight is not this Stop's business, and settling somebody
-    /// else's row would be the same class of lie in the other direction.
-    /// `.sending` is required — a row already settled by its own terminal
-    /// (`.working` after an interrupt, `.queued` offline) is left alone.
-    private func settleStoppedUserMessage() {
+    /// #291/#295: flips the stopped turn's OWN user row from `.sending` to
+    /// the caller's chosen terminal — `.delivered` for a user-initiated Stop,
+    /// `.working` for the continued-send expiration path (see the call site
+    /// in `cancelStreaming`). Deliberately targeted rather than a blanket
+    /// sweep of every `.sending` user row: a queued/draining outbox turn or a
+    /// second send in flight is not this Stop's business, and settling
+    /// somebody else's row would be the same class of lie in the other
+    /// direction. `.sending` is required — a row already settled by its own
+    /// terminal (`.working` after an interrupt, `.queued` offline) is left
+    /// alone.
+    private func settleStoppedUserMessage(as status: MessageStatus) {
         guard let userMessageID = streamingUserMessageID,
               var conv = conversation,
               let idx = conv.messages.firstIndex(where: {
@@ -1234,7 +1294,7 @@ final class ChatStore {
               }),
               conv.messages[idx].status == .sending
         else { return }
-        conv.messages[idx].status = .delivered
+        conv.messages[idx].status = status
         conversation = conv
     }
 

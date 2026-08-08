@@ -1714,6 +1714,122 @@ struct AppStoresTests {
         #expect(reply.status == .delivered)
     }
 
+    // MARK: - #295 — the expiration path's own settle + identifier capture
+
+    /// #295 bar A (partial — this task only parameterizes the settle value;
+    /// the recovery route itself arms in Task 2). The continued-send
+    /// expiration handler calls `cancelStreaming(hardStopHost: false)` — the
+    /// SYSTEM revoking the background budget, not the user tapping Stop —
+    /// and the turn's user row must read `.working`, not `.delivered`: the
+    /// host may still be generating a reply, so `.delivered` would claim an
+    /// answer that hasn't arrived.
+    @Test @MainActor
+    func expirationPathSettlesTheUserRowWorking() async throws {
+        let suiteName = "chat-store-expiration-settles-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("expire me") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed, "the fixture must reach mid-answer before expiration fires")
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(userRows.count == 1)
+        #expect(
+            userRows.first?.status == .working,
+            "295-A: the SYSTEM cut the app off mid-turn — the host may still answer, so `.delivered` would be a lie"
+        )
+    }
+
+    /// #295 bar B pin. Distinct from the pre-existing
+    /// `stopSettlesTheUserRowOfTheTurnItStopped` (which pins the haptic
+    /// suppression under the OLD unparameterized call) — this one exercises
+    /// the new `as:` parameter's default explicitly, so the expiration
+    /// path's `.working` addition above cannot silently flip the
+    /// user-initiated Stop's own terminal.
+    @Test @MainActor
+    func explicitStopStillSettlesTheUserRowDelivered() async throws {
+        let suiteName = "chat-store-explicit-stop-delivered-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("stop me for real") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(userRows.count == 1)
+        #expect(userRows.first?.status == .delivered, "295-B: a user-initiated Stop is unaffected — still `.delivered`")
+    }
+
+    /// #295: `activeStreamRun` is the identifier pair a later `cancelStreaming`
+    /// needs to arm real recovery (Task 2's `PendingRun`) — captured as soon
+    /// as the send path learns the session id and cleared on every terminal
+    /// path. The session id source is the shared journal's active hop
+    /// (`activeSessionID`), the same value `SessionsHermesClient
+    /// .ensureHopForTurn()` records before ANY stream event is yielded in
+    /// production — so wiring a real `ConversationJournalStore` with a hop
+    /// already begun models that ordering faithfully rather than inventing a
+    /// test-only channel. Two phases, two different terminal paths: the
+    /// expiration path's own terminal (`cancelStreaming`), then a clean
+    /// `.finished` completion — both must leave `activeStreamRun` nil.
+    @Test @MainActor
+    func activeStreamRunIsCapturedDuringAStreamAndClearedOnTerminalPaths() async throws {
+        // Phase 1: mid-stream capture, cleared by cancelStreaming(hardStopHost: false).
+        let suiteName1 = "chat-store-active-stream-run-cancel-\(UUID().uuidString)"
+        let defaults1 = UserDefaults(suiteName: suiteName1)!
+        defaults1.removePersistentDomain(forName: suiteName1)
+        let persistence1 = UserDefaultsAppPersistenceStore(defaults: defaults1)
+        let journal1 = ConversationJournalStore(persistence: persistence1)
+        journal1.beginHop(apiSessionId: "capture-session", primingUsage: nil)
+        let hermesClient1 = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
+        let chatStore1 = ChatStore(hermesClient: hermesClient1, persistence: persistence1, journal: journal1)
+
+        #expect(chatStore1.activeStreamRun == nil, "nothing has streamed yet")
+        let sendTask1 = Task { @MainActor in await chatStore1.sendMessage("capture me") }
+        let streamed = await pollUntil {
+            chatStore1.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+        #expect(
+            chatStore1.activeStreamRun?.sessionId == "capture-session",
+            "295: the send path captured the active hop's session id mid-stream"
+        )
+
+        chatStore1.cancelStreaming(hardStopHost: false)
+        _ = await sendTask1.value
+        #expect(chatStore1.activeStreamRun == nil, "295: cancelStreaming is a terminal path — must clear the capture")
+
+        // Phase 2: a normal .finished completion is also a terminal path.
+        let suiteName2 = "chat-store-active-stream-run-finish-\(UUID().uuidString)"
+        let defaults2 = UserDefaults(suiteName: suiteName2)!
+        defaults2.removePersistentDomain(forName: suiteName2)
+        let persistence2 = UserDefaultsAppPersistenceStore(defaults: defaults2)
+        let journal2 = ConversationJournalStore(persistence: persistence2)
+        journal2.beginHop(apiSessionId: "capture-session-2", primingUsage: nil)
+        let hermesClient2 = RecordingHermesClient()
+        let chatStore2 = ChatStore(hermesClient: hermesClient2, persistence: persistence2, journal: journal2)
+
+        await chatStore2.sendMessage("finish me")
+        #expect(chatStore2.activeStreamRun == nil, "295: a clean .finished completion must also clear the capture")
+    }
+
     @Test @MainActor
     func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
         let configuration = URLSessionConfiguration.ephemeral
