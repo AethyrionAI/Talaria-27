@@ -5019,6 +5019,56 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there.**
+
+**The discovery, which is larger than the fix that surfaced it.** Three sites
+claim that `cancelStreaming(hardStopHost: false)` — the continued-send
+expiration path, i.e. iOS revoking a background budget with NO user action —
+"degrades to the ordinary recovery poll":
+`ChatStore.swift:~1136`, `HermesClientProtocol.swift:~138`, and
+`RunsPlaneTransportTests.swift:~1333` ("an answer the recovery poll would
+otherwise have retrieved"). **That poll does not fetch from the host.**
+`SessionsHermesClient.loadConversation()` (`~:720-725`) returns the client's
+CACHED `currentConversation` with no network call; `currentConversation` is
+only ever replaced by an explicit fetch elsewhere. So the loop was
+re-merging the app's own cache — **~60s of re-reading what it already knew.**
+
+**Consequence: the expiration path has never had a host-recovery route.** The
+route that would work is the one `.interrupted` already uses — `pendingRun` +
+`startReconcileLoopIfNeeded()` → `reconcileFromServer()`, a genuine GET
+against the hop's birth host — and it is armed only by `.interrupted`, never
+here.
+
+**What #291's fix changed, and what it did not.** Settling the user row to
+`.delivered` makes `hasPendingMessages` false, which stops that poll loop —
+so the lane removes a loop that was doing nothing useful, not a recovery.
+**But the user-visible result on this path is now a silent hole:** the prompt
+renders as delivered, #294 removed the empty placeholder, and there is no
+reply, no spinner, and no retry affordance. That trades a FALSE `.failed` +
+Retry (actively misleading) for SILENCE (passively unhelpful). Not strictly
+worse; not honest either.
+
+**The recommended shape (reviewer's, and I agree) — Owen's to approve:** on
+`hardStopHost: false` ONLY, settle the user row to **`.working`** and arm the
+reconcile loop, exactly as the `.interrupted` path does. `.working` is the
+state that path already means; it is not `.sending`, so no false-failure
+timer fires; it is not `isSettled`, so the transcript stops claiming a turn
+that has no answer; and the reconcile loop is the one route that actually
+asks the host. **User-initiated Stop keeps `.delivered`** — there the user
+does not want the answer and silence is correct.
+
+**Why it is a decision and not a patch:** it changes what a backgrounded
+attachment turn does after the system takes its time away, it interacts with
+#292 (the producer keeps running on that path regardless), and on the runs
+plane the answer is durably fetchable for an hour by status poll — which may
+be a better recovery than the sessions-plane reconcile it would inherit.
+
+**Bars: (295-A)** an expiration-path turn ends in a state that is neither a
+false failure nor a silent hole; **(295-B)** a user-initiated Stop is
+unaffected (still `.delivered`, still silent, no reconcile armed);
+**(295-C)** no comment anywhere claims a recovery route that the code does
+not walk — the doc half, being fixed now in the #291 lane.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
