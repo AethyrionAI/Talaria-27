@@ -39,6 +39,35 @@ struct CapabilityRegistryTests {
         }
     }
 
+    // MARK: - Armed instructions enumeration (#284 Task 3, #257 fix)
+
+    @Test func armedEnumerationCoversEveryNonVisionFamilyByDefault() {
+        let armed = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone.", hasTools: true)
+        // The #257 fix: families the hand-written sentence missed.
+        #expect(armed.contains("device status"))
+        #expect(armed.contains("their health and activity"))
+        // The frame sentence survives verbatim around the generated list.
+        #expect(armed.contains("Use the tools for the user's own data"))
+        #expect(armed.contains("instead of guessing at it"))
+        // No image in context → no vision phrase (#176 invariant).
+        #expect(!armed.contains("attached image"))
+    }
+
+    @Test func armedEnumerationAddsVisionOnlyWithImageTools() {
+        let armed = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone.", hasTools: true, hasImageTools: true)
+        #expect(armed.contains("text and barcodes in the attached image"))
+    }
+
+    @Test func armedEnumerationHonorsANarrowedFamilyList() {
+        let armed = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone.", hasTools: true,
+            armedCapabilityFamilies: [.reminders])
+        #expect(armed.contains("reminders"))
+        #expect(!armed.contains("their health and activity"))  // never advertise an absent tool
+    }
+
     // MARK: - Belt pins (#200 actionToolNames pattern, bidirectional)
 
     @MainActor private static func fullBelt() -> [any Tool] {

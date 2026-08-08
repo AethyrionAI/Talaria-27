@@ -1696,11 +1696,28 @@ final class LocalChatBackend: HermesClientProtocol {
     /// works — a direct request routes ARMED and creates (production 20/20).
     nonisolated static let toollessHonestyClauseV2 = " If the user asks you to create, set, add, schedule, or change something on their device — including agreeing to an offer you made earlier — you cannot do it on this turn. Say in one plain sentence that you can't do it right now, and invite them to ask you for it directly. Never suggest that you or this app lack the ability to do it at all — the limit is this turn, not the app. Never say or imply that you have created, set, added, or scheduled anything, and never write out a tool call."
 
+    /// #284: the armed blurb's generated enumeration. Vision is appended
+    /// here (never via the families list) so the persona mentions image
+    /// reading exactly when the session was actually given those tools.
+    nonisolated static func armedEnumeration(
+        families: [CapabilityGroup], hasImageTools: Bool
+    ) -> String {
+        var all = families.filter { $0 != .vision }
+        if hasImageTools { all.append(.vision) }
+        return CapabilityRegistry.armedCapabilityEnumeration(families: all)
+    }
+
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
         hasTools: Bool = false,
         hasImageTools: Bool = false,
+        // #284: the armed blurb's capability list, generated from the
+        // registry so it can never go stale again (#257's root cause was a
+        // hand-written copy). Default = the full non-vision catalog; stage 3
+        // passes the turn's armed subset. Vision joins via hasImageTools —
+        // the #176 image gate, not the caller's list.
+        armedCapabilityFamilies: [CapabilityGroup] = CapabilityGroup.allCases.filter { $0 != .vision },
         includeCompositionLicensingSentence: Bool = false,
         includeToollessLicensingClause: Bool = false,
         includeToollessLic2Clause: Bool = false,
@@ -1844,7 +1861,7 @@ final class LocalChatBackend: HermesClientProtocol {
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
                 + (includeCompositionLicensingSentence ? composition : "")
-                + "Use the tools for the user's own data — their health, location, schedule, reminders, contacts, and past conversations — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+                + "Use the tools for the user's own data — \(Self.armedEnumeration(families: armedCapabilityFamilies, hasImageTools: hasImageTools)) — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
                 + (includeActionDestallClause ? actionDestall : "")
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")
