@@ -5543,7 +5543,9 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > `rapidSwitchesRunTheHandlerOnlyForTheLastWriter` +
 > `aSupersededMidFlightHandlerIsCancelledAndTheWinnerRunsAfterItExits`
 > (events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
-> cancelled=false)`); runs pin =
+> cancelled=false)`) **+, from 2026-08-08, the container-chain arm
+> `aLateResumingSupersededActivationCannotOverwriteTheWinnersState` — see
+> the supersession block below**; runs pin =
 > `aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests`; 285-D = full
 > gate on the branch head: **GATE: PASS, 1807 Swift Testing + 12 XCUITest,
 > count MOVED 1798→1807 (exactly the 9 new tests), the 2 known
@@ -5561,6 +5563,39 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > checkpoints; there is no AppContainer unit harness to pin it directly.
 > Recorded so nobody later mistakes "by construction + reviewed" for "has
 > its own test."
+>
+> > **SUPERSEDED 2026-08-08 — the chain arm is now OBSERVED.** The
+> > "no AppContainer unit harness" sentence above is no longer true:
+> > `aLateResumingSupersededActivationCannotOverwriteTheWinnersState()`
+> > (same file, `ProfileSwitchAtomicityTests`) drives the REAL
+> > `AppContainer.handleActiveProfileChanged` off a REAL
+> > `BackendProfilesStore` — production's own wiring — with the
+> > container's secure store replaced by the lane's `GatedSecureStore`.
+> > A→B→C with B PARKED on the handler's only pre-write await (the
+> > gateway-key read, `AppContainer.swift:2209`): C's handler is observed
+> > NOT to start while B is parked; B is observed to resume, see
+> > cancellation and exit having written nothing; the settled state is
+> > observed on C (active profile, `hermesAPIKey == "apikey-C"`,
+> > `PairingStore` on `host-C`, `AppSessionStore` on `session-C`), with
+> > events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> > cancelled=false)`. **Non-vacuity was demonstrated, not asserted:** the
+> > `:2212` checkpoint was temporarily neutered, the test observed to FAIL
+> > on exactly one expectation (`hermesAPIKey` reads `apikey-B` in the
+> > window), and the file restored byte-identically (SHA-256 matched
+> > before/after). Test-only lane; no production code changed. Counts:
+> > 156 → 157 across the four suites, `** TEST SUCCEEDED **`.
+> > **What is still inferred rather than observed, and why:** the chat
+> > key box and the gateway key cache are `fileprivate` and the platform
+> > link is `private(set)`, all assigned only in `makeDefault`, so a bare
+> > test container has none of them and a test file cannot inject one
+> > without widening production access. The harness pins them by
+> > straight-line reachability instead — the three key writes share one
+> > guarded block, and B provably returned at its FIRST checkpoint so it
+> > never reached the link restart. Closing that last gap costs one
+> > production edit (a `// harness-visible` setter, the shape
+> > `skillsStore`/`cronJobsStore`/`insightsStore` already use for #180's
+> > wiring test) — NOT built; it is Owen's call, not a correction.
+> > Full evidence, both outputs verbatim: `285C-HARNESS-REPORT.md`.
 >
 > **The RED tests were INVERTED IN PLACE, not deleted** — same
 > choreography, gates, parks and anti-vacuous guards; opposite assertions.

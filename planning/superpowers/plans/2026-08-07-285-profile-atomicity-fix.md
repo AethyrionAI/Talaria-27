@@ -475,6 +475,12 @@ untouched):
     established by the serialization proof + code-reviewed checkpoints — the store-level
     arm is unit-tested, the AppContainer chain arm holds by construction (serialized
     handlers cannot interleave), no AppContainer unit harness exists.
+    - **Superseded 2026-08-08:** that last clause stopped being true the next day —
+      `aLateResumingSupersededActivationCannotOverwriteTheWinnersState()` (test-only
+      follow-up lane) drives the real `handleActiveProfileChanged` off the real
+      `BackendProfilesStore` with B parked mid-handler, and the `:2212` checkpoint was
+      neutered to observe the test fail before it was restored byte-identically. See
+      `285C-HARNESS-REPORT.md` and the supersession block under #285's honesty note.
   - #288 entry: add dated note — #285's fix shipped (superseded turns abandon before the
     pair POST; the orphan-mint path is closed), the post-fix re-run (288-C) is now
     actionable on Owen's schedule.

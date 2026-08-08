@@ -786,6 +786,299 @@ struct ProfileSwitchAtomicityTests {
         #expect(store.activeProfileID == profileC.id)
         defaults.removePersistentDomain(forName: suiteName)
     }
+
+    // MARK: - 285-C full chain — a late-resuming B cannot overwrite C's state
+
+    /// The credential slot a profile's gateway key lives in — nil scope for
+    /// the migrated seed profile (legacy keys), the profile id for the rest.
+    private static func apiKeySlot(_ profile: BackendProfile) -> String {
+        BackendProfileScopedKeys.gatewayAPIKey(profile.credentialScopeID)
+    }
+
+    /// Everything the container-chain arm observes, kept together so the test
+    /// body reads as choreography instead of wiring.
+    @MainActor
+    private struct ChainHarness {
+        let container: AppContainer
+        let profiles: BackendProfilesStore
+        let sessionStore: AppSessionStore
+        let pairingStore: PairingStore
+        let secure: GatedSecureStore
+        let events: InvocationsBox
+        let profileA: BackendProfile
+        let profileB: BackendProfile
+        let profileC: BackendProfile
+        let defaults: UserDefaults
+        let suiteName: String
+
+        func teardown() { defaults.removePersistentDomain(forName: suiteName) }
+    }
+
+    /// A REAL `BackendProfilesStore` wired to a REAL
+    /// `AppContainer.handleActiveProfileChanged` — the same edge `makeDefault`
+    /// builds (`AppContainer.swift` ~:852) — with two substitutions and no
+    /// other deviation:
+    ///
+    /// 1. the container's secure store is the `GatedSecureStore`, so the
+    ///    handler's ONLY pre-write await (the profile's gateway-key read,
+    ///    `AppContainer.swift` :2209) can be parked on demand. Both shipping
+    ///    conformers are synchronous underneath, so with either of them this
+    ///    interleaving cannot be expressed at all;
+    /// 2. the handler invocation is wrapped to record enter/exit + the
+    ///    cancellation state at exit.
+    ///
+    /// The credential-scoped stores get production's own provider closures
+    /// (`activeProfile?.credentialScopeID` / `resolvedProfile(id:)`), so
+    /// "which profile did the stores rebind to" is a live read of the same
+    /// truth production reads. Every gateway URL is a refused loopback port —
+    /// the #247 verdict probe the handler fires is detached and must not
+    /// become a timing dependency.
+    private func makeChainHarness(suiteName: String) throws -> ChainHarness {
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+
+        let profiles = BackendProfilesStore(
+            persistence: persistence,
+            migrationSeeds: BackendProfilesStore.MigrationSeeds(
+                gatewayBaseURL: "http://127.0.0.1:9",
+                relayBaseURL: "http://127.0.0.1:9/v1",
+                shimBaseURL: nil
+            )
+        )
+        let profileA = try #require(profiles.activeProfile)
+        let profileB = BackendProfile(
+            name: "B",
+            gatewayBaseURL: "http://127.0.0.2:9",
+            relayBaseURL: "http://127.0.0.2:9/v1"
+        )
+        let profileC = BackendProfile(
+            name: "C",
+            gatewayBaseURL: "http://127.0.0.3:9",
+            relayBaseURL: "http://127.0.0.3:9/v1"
+        )
+        profiles.upsert(profileB)
+        profiles.upsert(profileC)
+
+        // Distinct per-profile credentials and per-profile persisted state, so
+        // every "ended on C" assertion below names WHICH host it ended on.
+        let secure = GatedSecureStore()
+        secure.seed(key: Self.apiKeySlot(profileA), value: "apikey-A")
+        secure.seed(key: Self.apiKeySlot(profileB), value: "apikey-B")
+        secure.seed(key: Self.apiKeySlot(profileC), value: "apikey-C")
+        secure.keyLabels = [
+            Self.apiKeySlot(profileA): "A.apiKey",
+            Self.apiKeySlot(profileB): "B.apiKey",
+            Self.apiKeySlot(profileC): "C.apiKey",
+        ]
+        for (profile, label) in [(profileA, "A"), (profileB, "B"), (profileC, "C")] {
+            persistence.savePairedRelayConfiguration(
+                PairedRelayConfiguration(
+                    baseURLString: profile.relayBaseURL,
+                    hostDisplayName: "host-\(label)",
+                    pairedAt: .now,
+                    relayUserID: UUID()
+                ),
+                profileScope: profile.credentialScopeID
+            )
+            persistence.saveSessionState(
+                AppSessionState(displayName: "session-\(label)"),
+                profileScope: profile.credentialScopeID
+            )
+        }
+
+        // The session store keeps its OWN (empty) secure store: its token
+        // reads must not land in the gate's trace, and an absent access token
+        // keeps the handler's relay-bootstrap block skipped.
+        let sessionStore = AppSessionStore(
+            bootstrapService: MockSessionBootstrapService(),
+            syncCoordinator: MockSyncCoordinator(),
+            secureStore: MockSecureStore(),
+            persistence: persistence,
+            environmentProvider: { .production },
+            credentialScopeProvider: { profiles.activeProfile?.credentialScopeID }
+        )
+        let pairingStore = PairingStore(
+            pairingService: MockPairingService(),
+            sessionStore: sessionStore,
+            persistence: persistence,
+            environmentProvider: { .production },
+            relayBaseURLProvider: { profiles.activeProfile?.relayBaseURL },
+            profileResolver: { profiles.resolvedProfile(id: $0) }
+        )
+        let container = AppContainer(
+            sessionStore: sessionStore,
+            pairingStore: pairingStore,
+            hostStore: HermesHostStore(
+                hostService: MockHermesHostService(),
+                accessTokenProvider: { await sessionStore.currentAccessToken() }
+            ),
+            chatStore: ChatStore(hermesClient: MockHermesClient(), persistence: persistence),
+            inboxStore: InboxStore(
+                inboxService: MockInboxService(),
+                persistence: persistence,
+                sessionStore: sessionStore
+            ),
+            permissionsStore: PermissionsStore(
+                locationService: MockLocationService(),
+                healthService: MockHealthService(),
+                mediaService: MockMediaService()
+            ),
+            settingsStore: SettingsStore(persistence: persistence),
+            talkStore: TalkStore(voiceService: MockVoiceSessionService()),
+            secureStore: secure
+        )
+
+        let events = InvocationsBox()
+        profiles.onActiveProfileChanged = { [weak container] profile in
+            events.names.append("enter(\(profile.name))")
+            await container?.handleActiveProfileChanged(to: profile)
+            events.names.append("exit(\(profile.name) cancelled=\(Task.isCancelled))")
+        }
+
+        return ChainHarness(
+            container: container,
+            profiles: profiles,
+            sessionStore: sessionStore,
+            pairingStore: pairingStore,
+            secure: secure,
+            events: events,
+            profileA: profileA,
+            profileB: profileB,
+            profileC: profileC,
+            defaults: defaults,
+            suiteName: suiteName
+        )
+    }
+
+    /// 285-C's full-chain arm, OBSERVED rather than argued.
+    ///
+    /// The lane's close-out recorded an honesty note: the store-level
+    /// serialization was unit-proven, but the AppContainer chain ("active
+    /// profile, `hermesAPIKey`, the chat key box, the scoped stores and the
+    /// platform link all end on C, and a late-resuming B cannot overwrite C")
+    /// held BY CONSTRUCTION — serialized handlers cannot interleave — plus
+    /// reviewed checkpoints. This test replaces that argument with a trace.
+    ///
+    /// The choreography, all of it deterministic (no sleeps in the load path,
+    /// every step gated on an observed condition):
+    ///
+    /// 1. switch to B. B's handler enters and PARKS on the gateway-key read —
+    ///    the handler's first await and the last statement before it writes
+    ///    any shared credential state;
+    /// 2. switch to C while B is parked. The scope moves synchronously; C's
+    ///    dispatch cancels B's task and waits it out;
+    /// 3. release. B resumes INSIDE the handler, sees `Task.isCancelled`, and
+    ///    returns before its writes. C's handler then runs and parks at its
+    ///    own key read — which is what makes the window between them
+    ///    observable at all;
+    /// 4. release. C completes.
+    ///
+    /// The load-bearing observation is step 3's `hermesAPIKey`: at that
+    /// moment B has provably resumed and exited, C has provably not yet
+    /// written, and the box must still be EMPTY. Neuter the checkpoint at
+    /// `AppContainer.swift` :2212 and that single expectation flips to
+    /// "apikey-B" — measured, not assumed (285C-HARNESS-REPORT.md).
+    @Test func aLateResumingSupersededActivationCannotOverwriteTheWinnersState() async throws {
+        let suiteName = "profile-atomicity-chain-\(UUID().uuidString)"
+        let harness = try makeChainHarness(suiteName: suiteName)
+        defer { harness.teardown() }
+        let secure = harness.secure
+        let container = harness.container
+        let events = harness.events
+
+        // Park BOTH activations at their own gateway-key read. B's park is the
+        // interleaving; C's park is the observation window.
+        let keyB = Self.apiKeySlot(harness.profileB)
+        let keyC = Self.apiKeySlot(harness.profileC)
+        secure.shouldPark = { call in
+            call.operation == .retrieve && call.occurrence == 1 && (call.key == keyB || call.key == keyC)
+        }
+
+        // ── 1. Switch to B; its handler parks mid-flight ────────────────────
+        harness.profiles.setActiveProfile(harness.profileB.id)
+        await waitForPark(secure)
+        // Anti-vacuous guard: B's handler genuinely reached its suspension
+        // point. Everything below is worthless without this.
+        #expect(secure.pendingCount == 1)
+        #expect(secure.trace == ["retrieve(B.apiKey)"])
+        #expect(events.names == ["enter(B)"])
+        // Nothing shared has been written yet — the park is BEFORE the writes.
+        #expect(container.hermesAPIKey.isEmpty)
+        // …but the scoped stores have already rebound to B (they rebind
+        // synchronously, ahead of the first await). So "ends on C" below is a
+        // real move, not a store that never left A.
+        #expect(harness.pairingStore.pairedRelayConfiguration?.hostDisplayName == "host-B")
+        #expect(harness.sessionStore.state.displayName == "session-B")
+
+        // ── 2. Switch to C while B is suspended ────────────────────────────
+        harness.profiles.setActiveProfile(harness.profileC.id)
+        #expect(harness.profiles.activeProfileID == harness.profileC.id)
+        // C's handler must not start while B's is parked. Settle long enough
+        // that an unserialized dispatch would have interleaved by now.
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(events.names == ["enter(B)"])
+        #expect(secure.trace == ["retrieve(B.apiKey)"])
+        #expect(secure.pendingCount == 1)
+
+        // ── 3. Release B: it resumes, sees the supersession, writes nothing ─
+        secure.release()
+        // Wait on C's OWN park — the next trace entry can only be C's key read.
+        await waitUntil { secure.trace.count >= 2 }
+        try? await Task.sleep(for: .milliseconds(100))
+
+        print("#285 chain events after B's release: \(events.names)")
+        print("#285 chain keychain trace after B's release: \(secure.trace)")
+        print("#285 chain hermesAPIKey in the window: '\(container.hermesAPIKey)'")
+
+        // B genuinely RESUMED (its exit event exists) and exited cancelled;
+        // C entered only afterwards. Ordering, from the code's own events.
+        #expect(events.names == ["enter(B)", "exit(B cancelled=true)", "enter(C)"])
+        // THE assertion. B ran again after the switch and wrote nothing: the
+        // key box is still empty, with C parked one statement short of its own
+        // write. A superseded handler cannot overwrite the winner's state
+        // because it never writes at all.
+        #expect(container.hermesAPIKey.isEmpty,
+                "a superseded B handler wrote its own key after resuming: '\(container.hermesAPIKey)'")
+        // And it resolved no further credentials: the only slot read after the
+        // switch is C's.
+        #expect(secure.trace == ["retrieve(B.apiKey)", "retrieve(C.apiKey)"])
+        #expect(secure.pendingCount == 1)
+
+        // ── 4. Release C: the winner completes the whole chain ──────────────
+        secure.release()
+        await waitUntil { events.names.count == 4 }
+
+        print("#285 chain events at settle: \(events.names)")
+        print("#285 chain keychain trace at settle: \(secure.trace)")
+
+        #expect(events.names == [
+            "enter(B)",
+            "exit(B cancelled=true)",
+            "enter(C)",
+            "exit(C cancelled=false)",
+        ])
+        // ── The bar, end to end ────────────────────────────────────────────
+        // Active profile: C.
+        #expect(harness.profiles.activeProfileID == harness.profileC.id)
+        #expect(harness.profiles.activeProfile?.gatewayBaseURL == harness.profileC.gatewayBaseURL)
+        // The container's live gateway key: C's, never B's.
+        #expect(container.hermesAPIKey == "apikey-C")
+        // The credential-scoped stores: rebound from B onto C.
+        #expect(harness.pairingStore.pairedRelayConfiguration?.hostDisplayName == "host-C")
+        #expect(harness.sessionStore.state.displayName == "session-C")
+        // The whole switch touched exactly two credential slots, once each,
+        // and wrote none of them — B's key is byte-untouched.
+        #expect(secure.trace == ["retrieve(B.apiKey)", "retrieve(C.apiKey)"])
+        #expect(secure.peek(key: keyB) == "apikey-B")
+        #expect(secure.peek(key: keyC) == "apikey-C")
+        // C's handler ran to its own exit, so it evaluated every remaining
+        // shared write — including the `talariaPlatformLink?.start()` line —
+        // under C's profile, while B provably returned before reaching any of
+        // them. (The link itself is `private(set)` and has no injection seam
+        // on a bare container; see 285C-HARNESS-REPORT.md.)
+        #expect(events.names.last == "exit(C cancelled=false)")
+    }
 }
 
 /// This suite's own stub — `TalariaPlatformLinkTests`' is `private` to that
