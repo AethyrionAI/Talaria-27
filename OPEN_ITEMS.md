@@ -5544,6 +5544,27 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > ones. If Owen wants that actioned it is a one-time data chore in the #144
 > shape (deactivate, never delete, keep a rollback) and needs its own entry.
 >
+> **🅿️ PARKED 2026-08-07 evening BY OWEN, with a routing instruction:**
+> *"Park it, but put it on the priority list when fable credits replenish.
+> This feels of fable complexity."* So: **#285's FIX is queued as the first
+> claim on the next Fable budget** — not deprioritized, deliberately
+> deferred to the right tier. His read matches the evidence: the fix is an
+> immutable per-turn transport context PLUS the bootstrap-generation
+> pattern applied to profile activation, touching `TalariaPlatformLink`,
+> `BackendProfilesStore` and `AppContainer` together. That is architecture,
+> not a patch, and the RED harness is already banked so the next session
+> starts from proof rather than from re-derivation.
+>
+> **Do NOT let a cheaper model "just fix the mixing" in the meantime** — a
+> partial fix that snapshots the keys but leaves activation unserialized
+> would turn 5 reproducible failures into 2 and read as progress. The
+> harness would still be red and the diagnosis would get muddier.
+>
+> **The orphan-row residual is now filed as its own chore, #288** (baseline
+> audit ran the same evening: zero orphans on the Mac, and OJAMD has no
+> plugin yet — but that clean result reflects USAGE, not safety, and #288's
+> post-fix re-run is the one that proves the leak stopped).
+>
 > **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** The fix direction
 > in the bars below (immutable per-turn context + the `AppContainer`
 > bootstrap-generation pattern applied to profile activation) is now backed
