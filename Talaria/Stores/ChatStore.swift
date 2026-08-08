@@ -1133,10 +1133,26 @@ final class ChatStore {
     /// handler (below, `beginContinuedSend`'s `onExpiration`) ALSO enters
     /// through this same function — the system revoking a background task's
     /// budget with NO user action, not a walk-away that bypasses
-    /// `cancelStreaming` entirely. It passes `hardStopHost: false` so a
-    /// lapsed background budget degrades to the ordinary recovery poll
-    /// instead of hard-killing a run the user never asked to stop. Every
-    /// other effect below — cancelling the local task, releasing the
+    /// `cancelStreaming` entirely. It passes `hardStopHost: false` to
+    /// distinguish that SYSTEM-revoked budget from a user-initiated Stop, so
+    /// the host run is left alone rather than hard-killed on a turn the user
+    /// never asked to stop. That much is load-bearing.
+    ///
+    /// #291 close-out (tracker #295): what is NOT true is the claim this
+    /// comment used to make — that the expiration path "degrades to the
+    /// ordinary recovery poll." There is no client-side host-recovery poll
+    /// on this path. `restartPendingPollingIfNeeded`'s loop re-merges
+    /// `hermesClient.loadConversation()`, and `SessionsHermesClient`'s
+    /// implementation of that call returns the client's own cached
+    /// `currentConversation` with no network request — it cannot retrieve an
+    /// answer the host is still generating. The one genuine recovery route
+    /// (`pendingRun` + `startReconcileLoopIfNeeded()` → `reconcileFromServer()`,
+    /// a real GET) is armed only by `.interrupted`, not by this path.
+    /// Whether the expiration path should instead settle `.working` and arm
+    /// that reconcile loop is the open decision filed as #295 — not
+    /// implemented here.
+    ///
+    /// Every other effect below — cancelling the local task, releasing the
     /// router's routing lock, finalizing the UI, ending the Live Activity —
     /// still happens on BOTH paths; only the network call is gated.
     func cancelStreaming(hardStopHost: Bool = true) {
@@ -1233,6 +1249,25 @@ final class ChatStore {
     /// `_thinking` channel streamed before the answer began (#4.15 renders
     /// it on a non-streaming bubble, and the server transcript will never
     /// give it back).
+    ///
+    /// #291 close-out: deliberately NOT checked here — `codeDiff`, `usage`,
+    /// and `reasoningSummary`. Not an oversight; each is provably
+    /// unreachable on a placeholder this function is ever called on (one
+    /// still mid-stream, caught by `cancelStreaming` before `.finished`):
+    /// - `codeDiff` and `usage` are populated in exactly one place, the
+    ///   `.finished` stream-event case (`resolved.codeDiff = diff`,
+    ///   `if resolved.usage == nil { resolved.usage = usage }`) — that case
+    ///   IS the terminal, so a message this function sees has never reached it.
+    /// - `reasoningSummary` is populated only by `condensePendingReasoning()`,
+    ///   which requires `!$0.isStreaming` on its candidate — a still-streaming
+    ///   placeholder is categorically excluded from that pass.
+    ///
+    /// This is the #276 field-by-field hazard shape: if a future field is
+    /// added to `Message` and populated anywhere OTHER than the `.finished`
+    /// case or a `!isStreaming` gate, this predicate will silently treat a
+    /// placeholder carrying that field as empty and delete it. Re-verify the
+    /// three bullets above (or add the new field to them) before trusting
+    /// this function unchanged.
     nonisolated static func stoppedPlaceholderHasNothingToShow(_ message: Message) -> Bool {
         SessionsHermesClient.cleanCloseArmsRecovery(runStarted: true, effectiveContent: message.content)
             && message.toolActivities.isEmpty

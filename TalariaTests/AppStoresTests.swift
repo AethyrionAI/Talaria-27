@@ -1575,6 +1575,17 @@ struct AppStoresTests {
             chatStore.conversation?.messages.contains { $0.sender == .user && $0.status == .sending } == false,
             "291-A: no user row may stay `.sending` — that is the poll loop's failure predicate"
         )
+        // #291 close-out: this is a CANARY, not coverage, for 291-B. `setPollingEnabled`
+        // is never called anywhere in this file, so `restartPendingPollingIfNeeded`
+        // early-returns on `isPollingEnabled == false` and the poll loop's exhaustion
+        // branch (the one that flips a stuck row to `.failed` and fires `onSendFailed`)
+        // never runs here regardless of whether the fix above is present. `sendFailures`
+        // is therefore guaranteed 0 in this test file, buggy code included. The bar this
+        // test actually proves is the "291-A" assertion immediately above — asserting no
+        // user row is left `.sending` is asserting `hasPendingMessages == false`
+        // (`ChatStore.hasPendingMessages` is exactly that predicate), which is what
+        // keeps the exhaustion branch — and therefore the error haptic — from ever
+        // firing when polling IS enabled elsewhere in the app.
         #expect(sendFailures == 0, "291-B: a user-initiated Stop must never fire the error haptic")
     }
 

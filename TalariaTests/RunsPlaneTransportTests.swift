@@ -1326,15 +1326,26 @@ struct RunsPlaneTransportTests {
 
     /// #283 review re-review — the residual the whole-branch pass caught:
     /// `ChatStore.cancelStreaming()` had exactly ONE caller that is not the
-    /// explicit Stop tap — the continued-send expiration handler
-    /// (`ChatStore.swift:588`), fired when the SYSTEM revokes a background
-    /// task's budget with NO user action. Because `cancelStreaming`
-    /// unconditionally called `hardStopActiveRun()`, a lapsed background
-    /// budget on an attachment turn silently hard-killed the host run,
-    /// destroying an answer the recovery poll would otherwise have
-    /// retrieved. Fix: `cancelStreaming(hardStopHost:)`, defaulting to
-    /// `true` (every explicit-stop caller unchanged), with the expiration
-    /// handler alone passing `false`.
+    /// explicit Stop tap — the continued-send expiration handler set up in
+    /// `ChatStore.sendMessage(_:attachments:)` (`continuedSend?.onExpiration`),
+    /// fired when the SYSTEM revokes a background task's budget with NO user
+    /// action. Because `cancelStreaming` unconditionally called
+    /// `hardStopActiveRun()`, a lapsed background budget on an attachment
+    /// turn silently hard-killed the host run. Fix: `cancelStreaming(hardStopHost:)`,
+    /// defaulting to `true` (every explicit-stop caller unchanged), with the
+    /// expiration handler alone passing `false`.
+    ///
+    /// #291 close-out (tracker #295): the fix above stands, but drop the
+    /// claim this comment used to make — that skipping `hardStopActiveRun()`
+    /// preserves an answer "the recovery poll would otherwise have
+    /// retrieved." There is no client-side host-recovery poll on this path:
+    /// `restartPendingPollingIfNeeded`'s loop re-merges
+    /// `hermesClient.loadConversation()`, which returns the client's own
+    /// cached conversation with no network call. The genuine recovery route
+    /// (`pendingRun` + `reconcileFromServer()`, a real GET) is armed only by
+    /// `.interrupted`, not by this expiration path. See
+    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
+    /// account.
     ///
     /// This pair of tests exercises a REAL `ChatStore` wired to a REAL
     /// `SessionsHermesClient` against this file's HTTP stub — not a
@@ -1349,9 +1360,9 @@ struct RunsPlaneTransportTests {
     /// states this), so no test can make the system hand a handle a real
     /// task or simulate the system revoking one. What IS pinned here: the
     /// `hardStopHost` parameter's gating logic on `cancelStreaming` itself.
-    /// What is NOT pinned: that `ChatStore.swift:588`'s closure actually
-    /// calls `cancelStreaming(hardStopHost: false)` — that one line is
-    /// read-verified only, not exercised by a test.
+    /// What is NOT pinned: that `ChatStore.sendMessage`'s expiration closure
+    /// actually calls `cancelStreaming(hardStopHost: false)` — that one line
+    /// is read-verified only, not exercised by a test.
     @Test @MainActor
     func cancelStreamingHardStopHostFalseNeverPostsStop() async throws {
         RunsStubURLProtocol.reset()
