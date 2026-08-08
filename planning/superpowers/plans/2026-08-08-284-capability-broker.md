@@ -629,25 +629,41 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 - [ ] **Step 3: Implement**
 
-Add `fullBeltTokens: Int?` to `sessionBudgetLogLine` and append
-`" fullBelt=\(fullBeltTokens.map { "\($0)tok" } ?? "—")"` to the line, following the
-existing format for the other fields (read the current implementation and match its
-exact style). In `flushSessionBudgetMeasurements`, measure the contrast inside the
-existing task, after the offered measurement:
+**(count-equality reuse removed 2026-08-08 during execution — review proved DEBUG
+shaped cells make it lie; measure the full belt directly)** The shape below replaces
+the original count-equality-reuse snippet, which is WRONG: `effectiveOfferedTools`
+runs the offered set through `shapedBelt` in DEBUG, and the `.armedRemfix`/
+`.armedFix`/`.armedNoschema` cells map tools to modified copies with the SAME count
+and SAME names but different description/schema content — a count- or name-based
+equality check silently mislabels that shaped belt's cost as the full belt's,
+corrupting the contrast for exactly the cells built to test description/schema
+changes.
+
+Add `fullBeltTokens: Int?` to `sessionBudgetLogLine` and insert
+`" fullBelt=\(fullBeltTokens.map { "\($0)tok" } ?? "—")"` into the line BEFORE the
+trailing `" (#228)"` tag — every line in this file ends on the tag, tag-last is the
+file's convention (read the current implementation and match its exact style). In
+`flushSessionBudgetMeasurements`, measure the full belt directly, ONCE per flush,
+hoisted above the `for entry in pending` loop (the installed belt doesn't change
+between queued entries):
 
 ```swift
-                let fullBelt = await MainActor.run { self.tools }
-                let fullBeltTokens: Int?
-                if entry.tools.count == fullBelt.count {
-                    fullBeltTokens = toolTokens        // nothing narrowed — same set
-                } else {
-                    fullBeltTokens = try? await model.tokenCount(for: fullBelt)
-                }
+            let fullBelt = await MainActor.run { self.tools }
+            let fullBeltTokens: Int?
+            if fullBelt.isEmpty {
+                fullBeltTokens = 0
+            } else {
+                fullBeltTokens = try? await model.tokenCount(for: fullBelt)
+            }
+            for entry in pending {
+                ...
 ```
 
-and pass it through to the log line. (`self.tools` is the backend's full installed
-belt; if the property is named differently, it is the one `effectiveOfferedTools`
-filters at `LocalChatBackend.swift:1224` — use that exact name.)
+and pass the same `fullBeltTokens` through to every entry's log line. Keep the
+honesty rule: unknown (`nil`) renders "—", never a fabricated 0. (`self.tools` is
+the backend's full installed belt; if the property is named differently, it is the
+one `effectiveOfferedTools` filters at `LocalChatBackend.swift:1224` — use that
+exact name.)
 
 - [ ] **Step 4: Run tests to verify pass.** Expected: PASS, count moved.
 

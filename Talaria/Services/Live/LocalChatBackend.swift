@@ -978,6 +978,25 @@ final class LocalChatBackend: HermesClientProtocol {
         let pending = pendingSessionBudgets
         pendingSessionBudgets = []
         Task { [model] in
+            // #101's freed-budget number: what the FULL installed belt would
+            // have cost this turn. Measured directly here, ONCE per flush
+            // (the installed belt doesn't change between queued entries) —
+            // NOT by reusing the offered-belt measurement when the counts
+            // match. In DEBUG, `effectiveOfferedTools` can run the offered
+            // set through `shapedBelt`, whose `.armedRemfix`/`.armedFix`/
+            // `.armedNoschema` cells map tools to modified copies: same
+            // count, same names, different description/schema content. A
+            // count- or name-based equality check would silently mislabel
+            // that shaped belt's cost as the full belt's — exactly the cells
+            // built to test description/schema changes (#284 review
+            // finding). Direct measurement has no such blind spot.
+            let fullBelt = await MainActor.run { self.tools }
+            let fullBeltTokens: Int?
+            if fullBelt.isEmpty {
+                fullBeltTokens = 0
+            } else {
+                fullBeltTokens = try? await model.tokenCount(for: fullBelt)
+            }
             for entry in pending {
                 // An empty belt (a routed-toolless turn) costs 0 by
                 // definition — knowable without a tokenizer, never "—".
@@ -988,19 +1007,6 @@ final class LocalChatBackend: HermesClientProtocol {
                     toolTokens = try? await model.tokenCount(for: entry.tools)
                 }
                 let transcriptTokens = try? await model.tokenCount(for: entry.transcript)
-                // #101's freed-budget number: what the FULL installed belt
-                // would have cost this turn, alongside what was actually
-                // offered — the contrast a narrowed (or toolless) turn needs
-                // to show what routing saved. Same count as the offered set
-                // means nothing was narrowed, so the offered measurement IS
-                // the full-belt measurement — no second tokenizer round-trip.
-                let fullBelt = await MainActor.run { self.tools }
-                let fullBeltTokens: Int?
-                if entry.tools.count == fullBelt.count {
-                    fullBeltTokens = toolTokens        // nothing narrowed — same set
-                } else {
-                    fullBeltTokens = try? await model.tokenCount(for: fullBelt)
-                }
                 let line = Self.sessionBudgetLogLine(
                     toolCount: entry.toolCount,
                     toolTokens: toolTokens,
@@ -1037,11 +1043,12 @@ final class LocalChatBackend: HermesClientProtocol {
         } else {
             free = "free —"
         }
-        let line = "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) (#228)"
         // #101: the full-belt contrast — what the whole installed belt would
         // have cost this turn, so a narrowed (or toolless) turn shows the
         // freed budget. Unknown stays honest — "—", never a fabricated 0.
-        return line + " fullBelt=\(fullBeltTokens.map { "\($0)tok" } ?? "—")"
+        // The tag stays last — every line in this file ends on "(#228)".
+        let fullBelt = fullBeltTokens.map { "\($0)tok" } ?? "—"
+        return "session budget: \(toolCount) tool(s) ~\(tools) tok + transcript ~\(transcript) tok of window \(window) — \(free) fullBelt=\(fullBelt) (#228)"
     }
 
     /// What a recreated session should contain: instructions (base persona,

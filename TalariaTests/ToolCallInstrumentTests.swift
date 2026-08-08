@@ -107,7 +107,7 @@ struct ToolCallInstrumentTests {
         let line = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 13, toolTokens: 2500, transcriptTokens: 900, window: 8192,
             fullBeltTokens: nil)
-        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~900 tok of window 8192 — ~4792 free (#228) fullBelt=—")
+        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~900 tok of window 8192 — ~4792 free fullBelt=— (#228)")
     }
 
     /// Real-data-only: where the tokenizer is unavailable (the sim has no
@@ -116,14 +116,14 @@ struct ToolCallInstrumentTests {
         let line = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 13, toolTokens: nil, transcriptTokens: nil, window: 8192,
             fullBeltTokens: nil)
-        #expect(line == "session budget: 13 tool(s) ~— tok + transcript ~— tok of window 8192 — free — (#228) fullBelt=—")
+        #expect(line == "session budget: 13 tool(s) ~— tok + transcript ~— tok of window 8192 — free — fullBelt=— (#228)")
     }
 
     @Test func sessionBudgetLineWithOneMeasurementMissingStillShowsTheOther() {
         let line = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 13, toolTokens: 2500, transcriptTokens: nil, window: 8192,
             fullBeltTokens: nil)
-        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — (#228) fullBelt=—")
+        #expect(line == "session budget: 13 tool(s) ~2500 tok + transcript ~— tok of window 8192 — free — fullBelt=— (#228)")
     }
 
     /// #101's freed-budget number: what the FULL installed belt would have
@@ -131,17 +131,19 @@ struct ToolCallInstrumentTests {
     /// the contrast that shows a narrowed (or toolless) turn what routing
     /// saved. Unknown stays honest — "—", never a fabricated 0 (real-data
     /// rule); the one legitimate 0 is an empty offered belt, already
-    /// covered by the toolCount:0 case elsewhere.
+    /// covered by the toolCount:0 case elsewhere. Exact-match (not
+    /// `.contains`) so the tag-last convention — every line in this file
+    /// ends on "(#228)" — is pinned, not just the substring's presence.
     @Test func budgetLineCarriesTheFullBeltContrast() {
         let line = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 2, toolTokens: 300, transcriptTokens: 1200,
             window: 8192, fullBeltTokens: 1470)
-        #expect(line.contains("fullBelt=1470tok"))
+        #expect(line == "session budget: 2 tool(s) ~300 tok + transcript ~1200 tok of window 8192 — ~6692 free fullBelt=1470tok (#228)")
         // Unknown stays honest — "—", never a fabricated 0 (real-data rule).
         let unknown = LocalChatBackend.sessionBudgetLogLine(
             toolCount: 2, toolTokens: 300, transcriptTokens: 1200,
             window: 8192, fullBeltTokens: nil)
-        #expect(unknown.contains("fullBelt=—"))
+        #expect(unknown == "session budget: 2 tool(s) ~300 tok + transcript ~1200 tok of window 8192 — ~6692 free fullBelt=— (#228)")
     }
 
     // MARK: - #233 conversation latch
