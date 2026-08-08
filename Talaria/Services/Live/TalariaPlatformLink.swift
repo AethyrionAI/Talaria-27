@@ -237,31 +237,93 @@ final class TalariaPlatformLink {
         // keeps that invisible).
         guard isCurrent(context) else { return .superseded }
         var didWork = false
+        var settlementFailed = false
         if !drained.items.isEmpty {
             onItemsReceived(drained.items)
-            await ack(itemIDs: drained.items.map(\.id), context: context, token: token, deviceID: deviceID)
+            if !(await ack(itemIDs: drained.items.map(\.id), context: context, token: token, deviceID: deviceID)) {
+                settlementFailed = true
+            }
             didWork = true
         }
         for query in drained.queries {
             // Per-query checkpoint: each answer is its own POST.
             guard isCurrent(context) else { return .superseded }
-            await answer(query, context: context, token: token, deviceID: deviceID)
+            // #286: queries are consumed-once host-side and the agent tool
+            // gives up at 40s (`_QUERY_TIMEOUT = 40.0`, the plugin's
+            // tools.py) — this in-turn retry is the ONLY second chance an
+            // answer gets. One retry, a 2s pause, epoch-checked between
+            // attempts so a `stop()` landing in the gap abandons the retry
+            // instead of firing it against a superseded turn.
+            //
+            // The arithmetic, checked against the ACTUAL value rather than
+            // assumed: `Self.requestTimeout` (above) is 40s, not the 20s an
+            // earlier draft of this comment assumed, so the retry's own
+            // worst-case ADDED cost — 2s pause + one more full request
+            // timeout — is ~42s. That does NOT sit comfortably inside the
+            // host's 40s window; a second attempt that genuinely hangs for
+            // the full 40s can finish only after the host has already given
+            // up and popped the query's future, at which point the POST
+            // lands as a harmless no-op (protocol read, #286 filing) rather
+            // than a real recovery. This retry is aimed at the common
+            // failure mode instead — a fast 500 or connection-refused, not
+            // a hang — where the added cost is ~2s plus one round trip.
+            // Bounded by construction either way: one retry, never a loop.
+            var answered = await answer(query, context: context, token: token, deviceID: deviceID)
+            if !answered {
+                try? await Task.sleep(for: .seconds(2))
+                guard isCurrent(context) else { return .superseded }
+                answered = await answer(query, context: context, token: token, deviceID: deviceID)
+            }
+            if !answered { settlementFailed = true }
             didWork = true
         }
+        // #286: a turn whose settlement failed is not a delivered turn —
+        // `.failed` feeds the existing ladder (bars 286-A/B/C), and the next
+        // drain redelivers + re-acks (idempotent upstream). The rows the app
+        // already showed stay shown; `platformID` dedupe keeps redelivery
+        // invisible (bar 286-D).
+        if settlementFailed { return .failed }
         return didWork ? .delivered : .idle
     }
 
-    private func ack(itemIDs: [String], context: TurnContext, token: String, deviceID: String) async {
+    /// #286: settlement success is part of the turn's outcome. True ⇔ HTTP
+    /// 200. A failed ack needs NO in-turn retry — the outbox redelivers
+    /// un-acked items and `mark_delivered` is idempotent (protocol read,
+    /// 2026-08-07); the honest `.failed` classification is what re-arms the
+    /// backoff that the false `.delivered` used to reset.
+    ///
+    /// **Bar 286-E, stated explicitly (not accidental):** a 401 here is just
+    /// another non-200 — it folds into the same `false` return as a 500 or a
+    /// transport failure and classifies the turn `.failed`, same as any
+    /// other settlement error. It does NOT trigger `drain`'s re-pair dance
+    /// (drop-both-keys, mint a new pair, retry once) — that machinery is
+    /// owned entirely by the DRAIN request's own 401 handling and must never
+    /// be reached from here. A settlement 401 on a token that just drained
+    /// 200 moments earlier is transient skew, not proof the pair is stale;
+    /// a truly stale pair will fail the NEXT drain, which is the request
+    /// that owns the repair.
+    private func ack(itemIDs: [String], context: TurnContext, token: String, deviceID: String) async -> Bool {
         let body: [String: Any] = [
             "type": "ack",
             "auth": token,
             "device_id": deviceID,
             "item_ids": itemIDs,
         ]
-        _ = await post(body, context: context, bearer: token)
+        guard let (status, data) = await post(body, context: context, bearer: token) else {
+            logEnvelopeError(status: nil, data: nil, verb: "ack")
+            return false
+        }
+        if status != 200 { logEnvelopeError(status: status, data: data, verb: "ack") }
+        return status == 200
     }
 
-    private func answer(_ query: TalariaPlatformQuery, context: TurnContext, token: String, deviceID: String) async {
+    /// #286: same honesty as `ack` — the wire result of the POST decides
+    /// success, not "the request was sent." **Bar 286-E applies here
+    /// identically:** a 401 on a `query_result` POST is just another
+    /// non-200 — `false`, `.failed` on the turn, and no reach into `drain`'s
+    /// re-pair machinery, which belongs to the drain request alone (see
+    /// `ack`'s doc comment above for the full reasoning).
+    private func answer(_ query: TalariaPlatformQuery, context: TurnContext, token: String, deviceID: String) async -> Bool {
         var body: [String: Any] = [
             "type": "query_result",
             "auth": token,
@@ -292,7 +354,12 @@ final class TalariaPlatformLink {
         } else {
             body["error"] = "responder_unavailable"
         }
-        _ = await post(body, context: context, bearer: token)
+        guard let (status, data) = await post(body, context: context, bearer: token) else {
+            logEnvelopeError(status: nil, data: nil, verb: "query_result")
+            return false
+        }
+        if status != 200 { logEnvelopeError(status: status, data: data, verb: "query_result") }
+        return status == 200
     }
 
     // MARK: - Loop
@@ -392,6 +459,17 @@ final class TalariaPlatformLink {
         } else {
             Self.logger.error("talaria \(verb, privacy: .public) HTTP \(status, privacy: .public)")
         }
+    }
+
+    /// #286: the transport-nil overload — `post` returned no response at
+    /// all (no HTTP status to log), matching `pair`'s existing "no response"
+    /// idiom rather than inventing a sentinel status.
+    private func logEnvelopeError(status: Int?, data: Data?, verb: String) {
+        guard let status, let data else {
+            Self.logger.error("talaria \(verb, privacy: .public) failed — no response")
+            return
+        }
+        logEnvelopeError(status: status, data: data, verb: verb)
     }
 }
 

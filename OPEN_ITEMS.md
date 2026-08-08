@@ -5147,6 +5147,8 @@ unaffected (still `.delivered`, still silent, no reconcile armed);
 **(295-C)** no comment anywhere claims a recovery route that the code does
 not walk — the doc half, being fixed now in the #291 lane.
 
+> **OWEN'S RULING 2026-08-08: the recommended shape is APPROVED — settle `.working` + arm the plane-appropriate recovery, expiration path (`hardStopHost: false`) ONLY.** Sessions plane: the reconcile loop `.interrupted` already arms. Runs plane: the status poll (the answer is durably fetchable for ~1h). User-initiated Stop unchanged (`.delivered`, silent, no reconcile — bar 295-B). Bars 295-A/B/C stand as registered. Interaction with #292 noted, not blocking. Lane not yet opened; Owen routes scheduling.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -5396,6 +5398,8 @@ Both are cheap NOW while the runs path is behind an OFF switch and
 **awkward at 3E cutover**, which is the review's own framing and is correct.
 **Bars pre-register here before any code.**
 
+> **OWEN'S RULINGS 2026-08-08.** **(a) Measure deliberately before deciding:** a dedicated pass — runs switch ON (Developer), long-thread + image turns — then read the logged sizes and rule; no trimming or budget change from first principles. The one-shot warning log stands guard meanwhile. **(b) NO whole-`send()` deadline, ruled on the merits:** host model choice varies wildly in think time (Owen's example: Kimi K3 vs DeepSeek flash), so any fixed whole-turn clock would misclassify slow models as failures. Per-op transport timeouts remain the transport-health check; slow models ride the durable status-poll recovery. The 20s 'parity' framing is retired — sessions-plane streaming starts fast because it streams, not because the model is bounded; run completion time is model-dependent by design. The honest-claim halves already shipped in #283; (b) is now CLOSED as ruled, (a) stays open pending the measurement pass.
+
 ## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix.**
 
 **The shape (#276's lesson):** a routine that rebuilds a model value
@@ -5523,7 +5527,7 @@ execution order; **(287-C)** launch partition tests green; archived history
 stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 `LaunchInitStep` archive hits are the historical #136-era work, not this.
 
-## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED.**
+## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED → ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
 
 Drain 200 + ACK 500/timeout ⇒ `.delivered`, and the loop's failure counter
 resets as if settlement succeeded. Severity capped at P2 by a property worth
@@ -5594,6 +5598,60 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > experiment: a wrong-device `query_result` returns `False` WITHOUT popping
 > (`transport.py:232-237`) specifically so the rightful owner can still
 > resolve it.
+
+> **OWEN'S RULING 2026-08-08: NO plugin TTL or attempt cap.** The compounding worst case exists because the app's false `.delivered` resets its own backoff; honest settlement (this item's fix) restores backoff and surfaces failures, and the unbounded outbox reverts to the deliberate fetch-on-connect design it always was. Revisit only if a real backlog is observed post-fix. **The fix lane is routed to open NEXT** (same evening), bars 286-A..F as registered.
+
+> **✅ FIX LANDED 2026-08-08 — all 4 tasks executed in one lane
+> (`planning/superpowers/plans/2026-08-08-286-honest-settlement.md`), every
+> bar MET and pinned by a named test in
+> `TalariaTests/TalariaPlatformLinkTests.swift`:**
+>
+> - **(286-A)** ACK 500 ≠ `.delivered` → `ackServerErrorClassifiesTheDrainFailed`
+>   (also pins 286-D's dedupe half: the item still reaches the app before the
+>   ack POST, so redelivery on the next drain stays invisible upstream).
+> - **(286-B)** ACK transport failure ≠ `.delivered` →
+>   `ackTransportFailureClassifiesTheDrainFailed`.
+> - **(286-C)** query-result 500 ≠ `.delivered`, and the bounded in-turn
+>   retry works → `queryResultServerErrorClassifiesTheDrainFailed` (both
+>   attempts 500, still `.failed`), `queryAnswerRetriesOnceAndRecovers`
+>   (500 then 200 → `.delivered`, exactly 2 requests), and
+>   `queryAnswerRetryIsEpochChecked` (a `stop()` landing in the 2s retry gap
+>   abandons the retry → `.superseded`, exactly 1 request).
+> - **(286-D)** happy path stays `.delivered` → `happyPathSettlementStaysDelivered`.
+> - **(286-E)** 401 on settlement is explicitly defined and tested →
+>   `settlementUnauthorizedClassifiesFailedWithoutTouchingThePair`: ack 401
+>   classifies `.failed`, the stored token/deviceID are untouched, and zero
+>   `pair` POSTs fire — the drain-owned 401-repair machinery never triggers
+>   from a settlement 401. `ack`/`answer` also gained doc comments stating
+>   this explicitly (`TalariaPlatformLink.swift`).
+> - **(286-F)** no hot loop → `backoffLadderIsBoundedAndDeterministic`,
+>   extended (not duplicated) to pin the pure `nextDelay(1,2,3) → (1,2,4)`
+>   ladder math together with a REAL settlement failure (ack 500)
+>   actually classifying `.failed` in the same test — the loop cannot spin
+>   freely on a broken settlement because the outcome it gets back is the
+>   one the ladder is keyed on.
+>
+> **Task-2 finding recorded here too, since it bears on 286-C's retry
+> design:** `Self.requestTimeout` is **40s**, not the 20s an earlier draft
+> assumed, so the query-answer retry's own worst case (2s pause + one more
+> full request timeout) is **~42s — past the host's 40s window**, not "well
+> inside" it. This is harmless rather than a defect: the agent tool's
+> `discard_query` pops the query's future at 40s, so a retry POST landing
+> after that is a guaranteed no-op, not a wrong answer delivered late. The
+> retry is aimed at the common failure mode (a fast 500 or
+> connection-refused) rather than a genuine 40s hang. Stated in the code
+> comment at the retry site (`TalariaPlatformLink.swift`, the query loop in
+> `drain`), which is the load-bearing copy — this note is a pointer to it,
+> not a duplicate.
+>
+> Suite counts: `TalariaPlatformLinkTests` moved 19→20→20 (Task 3 added one
+> test; Task 4 extended `backoffLadderIsBoundedAndDeterministic` rather than
+> duplicating it, per the task brief, so the count held). Both runs 20/20.
+> `ProfileSwitchAtomicityTests` 9/9, confirming #285's turn discipline
+> stayed intact through this lane. **`scripts/mac/lane-gate.sh` PASS**
+> (Debug suite: 1839 Swift Testing + 12 XCUITest, exit=0; the 2 SKIPPED
+> `CondenserFidelityTests` are the pre-existing #93/#183 on-device-only
+> gate, unrelated to this lane; Release build green — the #218 check).
 
 ## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; merge is Owen's call.**
 
