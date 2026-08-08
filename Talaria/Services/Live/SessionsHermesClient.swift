@@ -102,9 +102,26 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// self-initiated stop completing, not someone else's cancel, and must
     /// end the turn SILENTLY (no `.interrupted`). Populated by
     /// `hardStopActiveRun()`, drained (checked-and-removed) by the runs
-    /// driver's terminal handling for that same id — never grows past the
-    /// handful of runs actually in flight.
-    private(set) var selfStoppedRunIDs: Set<String> = []
+    /// driver's terminal handling for that same id.
+    ///
+    /// **#293(c): the drain is not guaranteed, so the BOUND is enforced by
+    /// the code rather than asserted in prose.** This doc used to promise
+    /// the set "never grows past the handful of runs actually in flight" —
+    /// true while the insert happened at the stop request, but the #279
+    /// review fix moved it to AFTER the `/stop` POST returns (so a POST that
+    /// never reached the host cannot silence a run). An insert can therefore
+    /// land after the driver's last drain with nothing left to remove it.
+    /// Run ids are server-unique, so a stale flag can never silence a
+    /// different run — what was actually broken was a comment asserting an
+    /// invariant the code no longer held. A bounded insertion-ordered list
+    /// makes it hold again: oldest evicted first, so the live runs are
+    /// always the survivors.
+    private(set) var selfStoppedRunIDs: [String] = []
+
+    /// #293(c): "a handful", stated as a number. Comfortably more than the
+    /// runs that can be in flight at once (this client drives one turn at a
+    /// time) and small enough that an undrained entry costs nothing.
+    static let selfStoppedRunIDLimit = 8
 
     // runs-path-visible (#283): the only mutators for the two properties
     // above. Both are declared here because Swift extensions cannot add
@@ -126,13 +143,22 @@ final class SessionsHermesClient: HermesClientProtocol {
     }
 
     func markSelfStopped(runID: String) {
-        selfStoppedRunIDs.insert(runID)
+        guard !selfStoppedRunIDs.contains(runID) else { return }
+        selfStoppedRunIDs.append(runID)
+        // #293(c): evict oldest-first. An entry only survives here because
+        // its own driver never drained it, so the oldest is by construction
+        // the one least likely to still be owed a terminal.
+        if selfStoppedRunIDs.count > Self.selfStoppedRunIDLimit {
+            selfStoppedRunIDs.removeFirst(selfStoppedRunIDs.count - Self.selfStoppedRunIDLimit)
+        }
     }
 
     /// Checks membership AND removes in one step — the terminal frame/poll
     /// arm that calls this consumes the flag exactly once.
     func consumeSelfStopped(runID: String) -> Bool {
-        selfStoppedRunIDs.remove(runID) != nil
+        guard let index = selfStoppedRunIDs.firstIndex(of: runID) else { return false }
+        selfStoppedRunIDs.remove(at: index)
+        return true
     }
 
     /// The durable journal (shared with ChatStore via AppContainer). Owns the

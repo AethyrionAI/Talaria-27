@@ -1288,19 +1288,64 @@ struct RunsPlaneTransportTests {
         #expect(updates.contains { if case .interrupted = $0 { return true } else { return false } })
     }
 
+    /// #293(c): `selfStoppedRunIDs`' doc promised a bound that its own code
+    /// stopped enforcing when the #279 review fix moved the insert to AFTER
+    /// the `/stop` POST returns — an insert landing past the driver's last
+    /// drain has nothing left to remove it, and would sit there for the
+    /// process's life. The bound is now the code's, not the comment's.
+    /// Behaviour that must NOT change: an id still in the list is still
+    /// consumed exactly once, and consuming an unknown id is still false.
+    @Test @MainActor
+    func selfStoppedRunIDsStayBoundedWhenNothingEverDrainsThem() async throws {
+        let client = makeClient(label: "self-stopped-bound")
+
+        for index in 0 ..< (SessionsHermesClient.selfStoppedRunIDLimit * 3) {
+            client.markSelfStopped(runID: "run-\(index)")
+        }
+        #expect(
+            client.selfStoppedRunIDs.count == SessionsHermesClient.selfStoppedRunIDLimit,
+            "an undrained mark must never grow the list past its stated handful"
+        )
+        #expect(
+            client.selfStoppedRunIDs.contains("run-0") == false,
+            "eviction is oldest-first — the newest stops are the ones still owed a terminal"
+        )
+
+        let newest = "run-\(SessionsHermesClient.selfStoppedRunIDLimit * 3 - 1)"
+        #expect(client.consumeSelfStopped(runID: newest), "a live id is still consumed")
+        #expect(client.consumeSelfStopped(runID: newest) == false, "and consumed exactly once")
+        #expect(client.consumeSelfStopped(runID: "never-stopped") == false)
+
+        // Re-marking the same run must not double-count against the bound.
+        client.markSelfStopped(runID: "run-repeat")
+        client.markSelfStopped(runID: "run-repeat")
+        #expect(client.selfStoppedRunIDs.filter { $0 == "run-repeat" }.count == 1)
+    }
+
     // MARK: - Task 7 residual: ChatStore.cancelStreaming's hardStopHost gate
 
     /// #283 review re-review — the residual the whole-branch pass caught:
     /// `ChatStore.cancelStreaming()` had exactly ONE caller that is not the
-    /// explicit Stop tap — the continued-send expiration handler
-    /// (`ChatStore.swift:588`), fired when the SYSTEM revokes a background
-    /// task's budget with NO user action. Because `cancelStreaming`
-    /// unconditionally called `hardStopActiveRun()`, a lapsed background
-    /// budget on an attachment turn silently hard-killed the host run,
-    /// destroying an answer the recovery poll would otherwise have
-    /// retrieved. Fix: `cancelStreaming(hardStopHost:)`, defaulting to
-    /// `true` (every explicit-stop caller unchanged), with the expiration
-    /// handler alone passing `false`.
+    /// explicit Stop tap — the continued-send expiration handler set up in
+    /// `ChatStore.sendMessage(_:attachments:)` (`continuedSend?.onExpiration`),
+    /// fired when the SYSTEM revokes a background task's budget with NO user
+    /// action. Because `cancelStreaming` unconditionally called
+    /// `hardStopActiveRun()`, a lapsed background budget on an attachment
+    /// turn silently hard-killed the host run. Fix: `cancelStreaming(hardStopHost:)`,
+    /// defaulting to `true` (every explicit-stop caller unchanged), with the
+    /// expiration handler alone passing `false`.
+    ///
+    /// #291 close-out (tracker #295): the fix above stands, but drop the
+    /// claim this comment used to make — that skipping `hardStopActiveRun()`
+    /// preserves an answer "the recovery poll would otherwise have
+    /// retrieved." There is no client-side host-recovery poll on this path:
+    /// `restartPendingPollingIfNeeded`'s loop re-merges
+    /// `hermesClient.loadConversation()`, which returns the client's own
+    /// cached conversation with no network call. The genuine recovery route
+    /// (`pendingRun` + `reconcileFromServer()`, a real GET) is armed only by
+    /// `.interrupted`, not by this expiration path. See
+    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
+    /// account.
     ///
     /// This pair of tests exercises a REAL `ChatStore` wired to a REAL
     /// `SessionsHermesClient` against this file's HTTP stub — not a
@@ -1315,9 +1360,9 @@ struct RunsPlaneTransportTests {
     /// states this), so no test can make the system hand a handle a real
     /// task or simulate the system revoking one. What IS pinned here: the
     /// `hardStopHost` parameter's gating logic on `cancelStreaming` itself.
-    /// What is NOT pinned: that `ChatStore.swift:588`'s closure actually
-    /// calls `cancelStreaming(hardStopHost: false)` — that one line is
-    /// read-verified only, not exercised by a test.
+    /// What is NOT pinned: that `ChatStore.sendMessage`'s expiration closure
+    /// actually calls `cancelStreaming(hardStopHost: false)` — that one line
+    /// is read-verified only, not exercised by a test.
     @Test @MainActor
     func cancelStreamingHardStopHostFalseNeverPostsStop() async throws {
         RunsStubURLProtocol.reset()
