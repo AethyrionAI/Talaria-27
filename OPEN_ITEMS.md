@@ -5946,6 +5946,30 @@ screenshot shape, inverted), measured per the #200-series discipline.
 > #257's symptom, made worse. **Discovery must fail OPEN** (arm a sensible
 > default belt), never closed.
 
+> **#284 BARS PRE-REGISTERED 2026-08-08 — before the vector probe run, per the
+> post-#215 convention. Spec: `planning/superpowers/specs/2026-08-08-284-capability-broker-design.md` §5.**
+> Vehicle: `runVectorRouterProbe(trials: 5)`, Developer screen, on device.
+> - **Gate:** armed/toolless Bool ≥95% across the pinned baseline ten AND the
+>   grid rows (#217B measured 100% with a second field; ten fields is what
+>   this run tests).
+> - **Dangerous ≤2%** of grid trials, scored by `vectorTrialIsDangerous`
+>   against each row's pre-written `expectedTools` annotation. Dangerous =
+>   the narrowed belt lacks a tool full-belt production uses on that prompt;
+>   all-false is safe by construction (fails open to the full belt).
+> - **In-scope groups ≥90%:** on rows with a non-empty expectedGroups, the
+>   exact expected set at ≥90% of trials.
+> - **Meta rows:** measurement only, no bar — they answer spec §4's routing
+>   question for Task 12.
+> - **Reclaim (reported, not barred):** measured narrowed-vs-full belt token
+>   delta via the #284 budget contrast line.
+> **Pre-registered responses:** danger bar missed → selective arming does NOT
+> ship; lane closes at stages 1–2 (registry, #257 armed fix, verdict filed) —
+> #217B's shape. Gate bar missed → the vector schema is abandoned outright
+> (it would be degrading the 200/200 Bool). Owen routes the verdict either way.
+> - **Chain stance (Owen, 2026-08-08):** the danger bar protects the answer path,
+>   not tool-chaining residue — lookupContact on the calendar-create row is
+>   deliberately unprotected (#215's named over-serving).
+
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
 **3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
