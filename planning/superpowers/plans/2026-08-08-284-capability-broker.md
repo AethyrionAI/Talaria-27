@@ -1067,16 +1067,19 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
         }
 
         // Band 3 — meta rows: measurement only, no bar (spec §4).
+        // (META failure tracking added 2026-08-08 during execution — review
+        // caught fail-safe noise polluting the measurement band.)
         for text in Self.vectorMetaRows {
             var armedCount = 0
             var tally: [String: Int] = [:]
+            let failuresBefore = Self.routerFailureTally
             for _ in 1...trials {
                 let route = await routeVector(prompt: text)
                 if route.needsDeviceTool { armedCount += 1 }
                 let key = route.groups.map(\.rawValue).sorted().joined(separator: "+")
                 tally[key.isEmpty ? "∅" : key, default: 0] += 1
             }
-            Self.batteryEmit("router: [vector] META armed=\(armedCount)/\(trials) tally=\(tally) probe=\(text)")
+            Self.batteryEmit("router: [vector] META armed=\(armedCount)/\(trials) tally=\(tally) errors=\(Self.routerFailureTally - failuresBefore) probe=\(text)")
         }
         Self.batteryEmit("router: VECTOR PROBE DONE (#284)")
         Self.batteryRecorder.endRun()
