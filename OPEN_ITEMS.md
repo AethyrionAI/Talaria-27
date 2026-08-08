@@ -5562,6 +5562,44 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > **Bar status after this pass: 3A-A/B/D/E/G/H/C/F all MET.** The remaining
 > gate on making runs the default is Owen's call, not evidence.
 
+> **🔍 INDEPENDENT REVIEW OF PR #279 — 2026-08-07 night, Owen commissioned it
+> after the lane's own reviews. FOUR OF FIVE FINDINGS LANDED on code that had
+> already had eight per-task reviews AND a whole-branch pass, which is the
+> argument for outside review in one sentence.** Fixed on the branch at
+> `c6cc57f`; gate re-run on that head: **PASS, 1798 Swift Testing + 12
+> XCUITest, Release green** (count moved by the new test).
+> - **Finding 1 REFUTED by live probe.** The reviewer feared a fresh
+>   install's FIRST turn would fail, because the history pre-fetch GETs
+>   `/messages` on a never-used session and `ensureSuccess` maps a 404 there
+>   to `sessionNotFound`. Probed: `POST /api/sessions` → 201, then
+>   `GET /api/sessions/{id}/messages` → **200 `{"data":[]}`**, not 404. No
+>   first-turn failure exists. **But the reviewer was right about the
+>   EVIDENCE** — this morning's probe did capture it and the report reduced
+>   it to a terse `→ []` that a careful reader looking for exactly this
+>   could not find. Now recorded explicitly in the probe doc and as a
+>   comment at the call site. A conclusion that is true but unfindable
+>   invites the next lane to re-probe it.
+> - **Finding 3 was a direct hit on a claim I approved.** The comment said
+>   `runsSyncBudget` "is set to this same 20s so the policy holds
+>   end-to-end." It bounds the poll loop ONLY; a runs `send()` is ~60–80s
+>   across three legs. Corrected. Behavioral half → **#290(b)**.
+> - **Finding 4 was the sharpest.** `markSelfStopped` fired BEFORE the
+>   fire-and-forget `/stop` POST, so a POST that never landed left the host
+>   generating while the self-stop flag ended the turn SILENTLY — the user
+>   sees a stop that worked. On a slice whose headline is "a real Stop,"
+>   that is the wrong failure mode. Now marked only after the POST reaches
+>   the host (404 counts as reached); transport failure logs and does NOT
+>   silence the run. New test pins it.
+> - **Finding 2 corrected my own earlier ruling** — see **#290(a)**. I
+>   parked unbounded history as sessions-plane parity; that is true of what
+>   the AGENT sees and false of the WIRE. Instrumentation shipped.
+> - **Finding 5:** two comments this branch itself falsified ("nothing reads
+>   this provider yet — Task 5 wires dispatch", after Task 5 wired it).
+>   Corrected — the close-out rule applied to a lane's own leftovers.
+> - Minor, adopted: the runs family is now promoted into **CLAUDE.md**'s
+>   `:8642` section as live-verified on 0.20.0, with the three
+>   design-relevant behaviours, so the next lane does not re-probe it.
+
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
 **Why this has a number.** #281 closed the same day with every bar met and
