@@ -494,6 +494,20 @@ final class ChatBackendRouter: HermesClientProtocol {
         refreshActiveBrain()
     }
 
+    /// #295 (Owen's ruling, review follow-up): whether the run CURRENTLY
+    /// holding the routing lock, if any, is recoverable via
+    /// `reconcileFromServer()`. Only `.hermes` is — `.onDevice` and
+    /// `.privateCloud` both route to `local` (`backend(for:)` above, #30:
+    /// PCC is a mode of the local backend, never a third client), which
+    /// finishes or dies IN-PROCESS the moment the app stops watching. There
+    /// is no host still generating for either to reconcile against.
+    /// `ChatStore.cancelStreaming` MUST read this BEFORE calling
+    /// `abandonActiveRun()` above, which clears `runningBrain` — the signal
+    /// this is built from.
+    var currentRunIsServerRecoverable: Bool {
+        runningBrain == .hermes
+    }
+
     /// #283 Task 7 (S23), review ruling: the explicit Stop tap's real
     /// server-side interrupt — `ChatStore.cancelStreaming()`'s ONE call site
     /// for this method. Forwards to the brain that IS running (currently

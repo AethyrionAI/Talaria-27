@@ -100,4 +100,15 @@ final class ResilientHermesClient: HermesClientProtocol {
     func reconcileFromServer() async -> Conversation? {
         await primary.reconcileFromServer()
     }
+
+    /// #295: forwards to `primary`, matching `reconcileFromServer` and
+    /// `hardStopActiveRun` above — `sendStreaming` only ever rides `primary`,
+    /// so whether the active run is recoverable is only ever `primary`'s
+    /// question to answer; `fallback` never has a run of its own in flight.
+    /// Not load-bearing through `ChatBackendRouter` today (its own override
+    /// answers from `runningBrain` without delegating here), but correct on
+    /// its own terms if this client is ever wired directly.
+    var currentRunIsServerRecoverable: Bool {
+        primary.currentRunIsServerRecoverable
+    }
 }

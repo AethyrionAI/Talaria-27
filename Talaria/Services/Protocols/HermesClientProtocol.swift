@@ -85,6 +85,30 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
 protocol HermesClientProtocol {
     var connectionStatus: ConnectionStatus { get }
     var currentConversation: Conversation? { get }
+
+    /// #295 (Owen's ruling, review follow-up): whether the run CURRENTLY
+    /// active on this client, if any, is on a plane whose host keeps
+    /// generating after the client's own stream drops — i.e. whether
+    /// `reconcileFromServer()` could ever resolve it. `ChatStore.cancelStreaming`
+    /// reads this to decide whether the continued-send expiration path
+    /// (`hardStopHost: false`) may arm a `PendingRun` + reconcile loop at
+    /// all, and it MUST be read before `abandonActiveRun()` — which, on
+    /// `ChatBackendRouter`, clears the exact signal this is built from.
+    ///
+    /// The default is `false`: a plain client with no concept of "brain"
+    /// (mock, relay, the on-device backend) has nothing still running once
+    /// the app stops watching, so arming recovery would only ever be a false
+    /// promise — worse, on a client sharing a journal hop with an unrelated
+    /// EARLIER Hermes turn, it would arm a `PendingRun` that can never
+    /// resolve against ITS OWN turn but could wrongly adopt a LATER Hermes
+    /// reply on that same hop (`reconcileFromServer()` resolves against
+    /// `journal.activeHop`, not `pending.sessionId`) — cross-hop corruption,
+    /// not just a silent hole. `ChatBackendRouter` overrides this to check
+    /// which brain currently holds the routing lock, and `SessionsHermesClient`
+    /// overrides it to unconditional `true` (it IS the Hermes plane by
+    /// construction) so a raw client wired directly — bypassing the router,
+    /// as some tests do — still reads correctly.
+    var currentRunIsServerRecoverable: Bool { get }
     func connect() async
     func disconnect() async
     func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message
@@ -144,12 +168,15 @@ protocol HermesClientProtocol {
     /// above: a walk-away must never hard-kill a run the user didn't ask to
     /// stop, so this is the ONLY door that touches the network.
     ///
-    /// #291 close-out (tracker #295): skipping this call does NOT "degrade
-    /// to the ordinary recovery poll" — there is no client-side
-    /// host-recovery poll on the expiration path. See
-    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
-    /// account and the open decision (#295) on whether that path should
-    /// instead arm the genuine `pendingRun` / `reconcileFromServer()` route.
+    /// #295 close-out (SHIPPED): skipping this call does NOT "degrade to
+    /// the ordinary recovery poll" — there is no client-side host-recovery
+    /// poll on the expiration path. What it degrades to instead is the real
+    /// route: on a server-recoverable turn, `ChatStore.cancelStreaming`
+    /// arms `pendingRun` / `reconcileFromServer()`, the same mechanics the
+    /// `.interrupted` arm uses; on a local-brain turn (nothing server-side
+    /// to reconcile against) it finalizes the placeholder instead, same as
+    /// an explicit Stop. See `ChatStore.cancelStreaming(hardStopHost:)`'s
+    /// doc for the full account.
     func hardStopActiveRun()
 
     /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)
@@ -178,6 +205,10 @@ extension HermesClientProtocol {
     func listSessions() async throws -> [HermesSessionInfo] { [] }
     func openSession(_ id: String) async throws -> Conversation { await loadConversation() }
     func reconcileFromServer() async -> Conversation? { nil }
+    // #295: `false` — see the requirement's doc above. A client with a real
+    // server-recoverable plane (`ChatBackendRouter`, `SessionsHermesClient`)
+    // overrides this explicitly rather than relying on the default.
+    var currentRunIsServerRecoverable: Bool { false }
     func abandonActiveRun() {}
     func hardStopActiveRun() {}
     func adoptTruncatedConversation(_ conversation: Conversation) {}

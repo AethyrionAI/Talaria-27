@@ -1399,17 +1399,26 @@ struct RunsPlaneTransportTests {
     /// defaulting to `true` (every explicit-stop caller unchanged), with the
     /// expiration handler alone passing `false`.
     ///
-    /// #291 close-out (tracker #295): the fix above stands, but drop the
-    /// claim this comment used to make — that skipping `hardStopActiveRun()`
-    /// preserves an answer "the recovery poll would otherwise have
-    /// retrieved." There is no client-side host-recovery poll on this path:
-    /// `restartPendingPollingIfNeeded`'s loop re-merges
-    /// `hermesClient.loadConversation()`, which returns the client's own
-    /// cached conversation with no network call. The genuine recovery route
-    /// (`pendingRun` + `reconcileFromServer()`, a real GET) is armed only by
-    /// `.interrupted`, not by this expiration path. See
-    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
-    /// account.
+    /// #295 close-out (SHIPPED): the fix above stands, and skipping
+    /// `hardStopActiveRun()` now preserves an answer for real — not via
+    /// `restartPendingPollingIfNeeded` (that loop only ever re-merges
+    /// `hermesClient.loadConversation()`'s CACHED conversation, no network
+    /// call), but via the genuine recovery route: `cancelStreaming`
+    /// (`hardStopHost: false`) now arms `pendingRun` + `reconcileFromServer()`
+    /// on this expiration path too, gated on `currentRunIsServerRecoverable`.
+    /// The real `SessionsHermesClient` these two tests wire up always answers
+    /// `true` for that gate — but `makeChatStore` constructs its `ChatStore`
+    /// with NO `journal:`, a separate `ConversationJournalStore` from the one
+    /// `makeClient` gave the `SessionsHermesClient`, so `activeSessionID`
+    /// (`journal?.activeHop?.apiSessionId`) and therefore `activeStreamRun`
+    /// never resolve on THIS `ChatStore` — the arm's session-id guard fails
+    /// regardless of the recoverability flag, and both turns land in the
+    /// residual defensive tail (`.delivered`, no `pendingRun`) same as
+    /// before. That's why this pair asserts only on the `/stop` POST, not on
+    /// `pendingRun`/reconcile state — the arm doesn't fire in this fixture
+    /// either way, so it's orthogonal to what's pinned below. See
+    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the full account
+    /// of the arm itself.
     ///
     /// This pair of tests exercises a REAL `ChatStore` wired to a REAL
     /// `SessionsHermesClient` against this file's HTTP stub — not a

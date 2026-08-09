@@ -91,6 +91,34 @@ final class ChatStore {
     /// `sendMessage`, cleared wherever that turn ends.
     private var streamingUserMessageID: UUID?
 
+    /// #295: the session id of the turn currently streaming, captured so a
+    /// later `cancelStreaming` can recover it (the expiration path arms real
+    /// recovery from it — Task 2). Comes from the shared journal's active
+    /// hop (`activeSessionID`) — `SessionsHermesClient.ensureHopForTurn()`
+    /// records that hop before ANY stream event is yielded, so it is already
+    /// correct by the time `sendMessage`'s loop processes its first update;
+    /// refreshed every iteration below because a stale-hop 404 retry can
+    /// swap the hop mid-turn with no event of its own. Cleared on every
+    /// terminal path — normal finish, every error arm, and `cancelStreaming`
+    /// — so a stale value can never survive into a later turn.
+    ///
+    /// #295 review follow-up: this used to be a `(sessionId:runId:)` tuple,
+    /// but `runId` was dead weight — it is written ONLY by the per-iteration
+    /// refresh below, which always carries forward whatever it already was
+    /// (`self.activeStreamRun?.runId`), and nothing ever sets it to a real
+    /// value: `runId` has no channel earlier than the `.interrupted` case
+    /// itself (confirmed by reading `SessionsHermesClient.streamTurn`:
+    /// `run.started`'s parsed `run_id` is a local var, never surfaced on any
+    /// other `StreamingUpdate` case), and `.interrupted` uses its OWN
+    /// case-bound `runId`, never this property, before nil-ing it out as a
+    /// terminal path. So it was provably always nil here — dropped rather
+    /// than carried as a field that looked meaningful but never was. The
+    /// `.interrupted` arm's `armPendingRunRecovery` call still passes its
+    /// real, case-bound `runId`; `cancelStreaming`'s call passes `nil`
+    /// explicitly, honestly, for the same reason this field is gone.
+    // harness-visible
+    var activeStreamRun: String?
+
     var isStreaming: Bool { streamingMessageID != nil }
 
     /// #278: **the** "is a run in flight" question, for the bubble menu and
@@ -593,6 +621,11 @@ final class ChatStore {
         // #291: the placeholder and the user row it answers are one turn —
         // a Stop has to be able to settle both.
         streamingUserMessageID = clientMessageID
+        // #295: this turn hasn't learned its identifiers yet — an explicit
+        // reset here (rather than trusting the previous turn's terminal to
+        // have cleared it) documents "captured at stream start" at the one
+        // place a new stream actually starts.
+        activeStreamRun = nil
         restartPendingPollingIfNeeded()
 
         // #14: attachment sends are the deliberately-backgroundable long path —
@@ -621,6 +654,14 @@ final class ChatStore {
             guard let self else { return }
             for await update in stream {
                 if Task.isCancelled { break }
+                // #295: refresh the captured session id on every event —
+                // cheap, and the one thing that can change it mid-turn (a
+                // stale-hop 404 retry re-hops inside the client with no
+                // event of its own) needs the next iteration to see the
+                // swap.
+                if let sid = self.activeSessionID {
+                    self.activeStreamRun = sid
+                }
                 switch update {
                 case .messageSent(let jobID):
                     acceptedJobID = jobID
@@ -856,6 +897,9 @@ final class ChatStore {
                     }
                     self.detectModelSwitch(from: finalMessage.content)
                     self.streamingMessageID = nil
+                    // #295: the turn is fully settled — no later cancelStreaming
+                    // could still need these identifiers.
+                    self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
                     // #110: the finished content lets the service retract the
@@ -876,6 +920,9 @@ final class ChatStore {
                             self.conversation?.messages.remove(at: idx)
                         }
                         self.streamingMessageID = nil
+                        // #295: a late duplicate is still a terminal outcome
+                        // for THIS stream — nothing left to capture for.
+                        self.activeStreamRun = nil
                         self.chatLiveActivity.endActivity()
                         self.speechOutput?.cancelStream(messageID: placeholderID)
                         continuedSend?.finish(success: true)
@@ -884,25 +931,26 @@ final class ChatStore {
                     // Run committed server-side but the stream dropped (lock /
                     // background). Not a failure: mark the turn working and let the
                     // reconcile loop pick up the reply when it lands.
-                    var partialReasoning: String?
-                    if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
-                        partialReasoning = self.conversation?.messages[idx].reasoning
-                        self.conversation?.messages.remove(at: idx)
-                    }
+                    // #295 Task 2: placeholder-removal + PendingRun mint +
+                    // reconcile-arm now live in `armPendingRunRecovery` — the SAME
+                    // helper `cancelStreaming(hardStopHost: false)` calls, so the
+                    // two arms cannot drift apart.
+                    self.armPendingRunRecovery(
+                        placeholderID: placeholderID,
+                        sessionId: sessionId,
+                        runId: runId,
+                        userMessageID: clientMessageID
+                    )
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
                         self.conversation?.messages[idx].status = .working
                     }
                     self.streamingMessageID = nil
+                    // #295: the identifiers just moved into `pendingRun`
+                    // above — this stream's own capture has nothing left to
+                    // recover from it.
+                    self.activeStreamRun = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
-                    self.pendingRun = PendingRun(
-                        sessionId: sessionId,
-                        runId: runId,
-                        userMessageID: clientMessageID,
-                        sentAt: self.pendingMessageSentAt ?? .now,
-                        partialReasoning: partialReasoning
-                    )
-                    self.startReconcileLoopIfNeeded()
                     // #14: the continued task's job — keeping the stream alive —
                     // is over; the reconcile loop owns recovery from here. Not a
                     // failure in the system progress UI.
@@ -934,6 +982,9 @@ final class ChatStore {
                         )
                     }
                     self.streamingMessageID = nil
+                    // #295: the turn never reached the host at all — nothing
+                    // for a later cancelStreaming to recover.
+                    self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
@@ -952,6 +1003,10 @@ final class ChatStore {
                         }
                     }
                     self.streamingMessageID = nil
+                    // #295: whether this settles `.failed` or falls through to
+                    // the polling fallback below, THIS stream is over —
+                    // nothing left for a later cancelStreaming to recover.
+                    self.activeStreamRun = nil
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
@@ -1044,6 +1099,40 @@ final class ChatStore {
         }
     }
 
+    /// #295 Task 2: shared recovery-arming mechanics between the `.interrupted`
+    /// stream-terminal case above (the reference implementation) and the
+    /// expiration path in `cancelStreaming(hardStopHost: false)`. Both mirror
+    /// the SAME shape — a run that committed server-side but whose stream the
+    /// client lost (a network drop, or the OS revoking a background budget)
+    /// is not a failure: remove the placeholder preserving whatever reasoning
+    /// streamed before the drop, mint a `PendingRun` from the run's
+    /// identifiers, and arm the reconcile loop so `reconcileFromServer()`
+    /// picks up the reply once it lands. Each call site still owns its OWN
+    /// surrounding specifics (how it settles the user row, which local vs.
+    /// stored identifiers it has in scope) — only this identical middle is
+    /// factored out, so a future edit to one arm's recovery mechanics can't
+    /// silently drift from the other's.
+    private func armPendingRunRecovery(
+        placeholderID: UUID,
+        sessionId: String,
+        runId: String?,
+        userMessageID: UUID
+    ) {
+        var partialReasoning: String?
+        if let idx = conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
+            partialReasoning = conversation?.messages[idx].reasoning
+            conversation?.messages.remove(at: idx)
+        }
+        pendingRun = PendingRun(
+            sessionId: sessionId,
+            runId: runId,
+            userMessageID: userMessageID,
+            sentAt: pendingMessageSentAt ?? .now,
+            partialReasoning: partialReasoning
+        )
+        startReconcileLoopIfNeeded()
+    }
+
     /// #184: THE teardown primitive for switching conversation context —
     /// every path that walks away from the current thread (clear, session
     /// switch, pairing-lifecycle reset) calls this instead of hand-rolling
@@ -1074,6 +1163,10 @@ final class ChatStore {
         streamingTask = nil
         streamingMessageID = nil
         streamingUserMessageID = nil
+        // #295: this cancellation doesn't route through `cancelStreaming`,
+        // so it has to clear the capture itself — "releases everything the
+        // departing run holds" above is the promise this line keeps honest.
+        activeStreamRun = nil
         // #192: release the router's routing lock with the run — a dropped
         // stream must not leave `runningBrain` set and wedge the brain
         // toggle until force quit.
@@ -1138,24 +1231,48 @@ final class ChatStore {
     /// the host run is left alone rather than hard-killed on a turn the user
     /// never asked to stop. That much is load-bearing.
     ///
-    /// #291 close-out (tracker #295): what is NOT true is the claim this
-    /// comment used to make — that the expiration path "degrades to the
-    /// ordinary recovery poll." There is no client-side host-recovery poll
-    /// on this path. `restartPendingPollingIfNeeded`'s loop re-merges
-    /// `hermesClient.loadConversation()`, and `SessionsHermesClient`'s
-    /// implementation of that call returns the client's own cached
-    /// `currentConversation` with no network request — it cannot retrieve an
-    /// answer the host is still generating. The one genuine recovery route
+    /// #295 close-out (Owen's ruling, 2026-08-08 — SHIPPED, not a plan): the
+    /// expiration path does NOT "degrade to the ordinary recovery poll" —
+    /// `restartPendingPollingIfNeeded`'s loop only ever re-merges
+    /// `hermesClient.loadConversation()`'s CACHED conversation (no network
+    /// call on the sessions plane), so it was never capable of retrieving an
+    /// answer the host is still generating. The genuine recovery route
     /// (`pendingRun` + `startReconcileLoopIfNeeded()` → `reconcileFromServer()`,
-    /// a real GET) is armed only by `.interrupted`, not by this path.
-    /// Whether the expiration path should instead settle `.working` and arm
-    /// that reconcile loop is the open decision filed as #295 — not
-    /// implemented here.
+    /// a real GET) now arms on THIS path too, mirroring the `.interrupted`
+    /// arm's mechanics (`armPendingRunRecovery`, above) — but ONLY when
+    /// `hermesClient.currentRunIsServerRecoverable` says the run is on a
+    /// plane whose host keeps generating after this client's stream drops
+    /// (the real Hermes plane, sessions or runs — `reconcileFromServer()` is
+    /// routed by `ChatBackendRouter`, so the one arming site here recovers
+    /// correctly whichever plane owns the turn). A LOCAL-brain turn (on-device
+    /// / PCC, #30) reads `false` from that gate — nothing is ever committed
+    /// server-side for it, so nothing would ever satisfy the reconcile filter,
+    /// and worse, `reconcileFromServer()` resolves against `journal.activeHop`
+    /// rather than the pending run's own session id, so an unrelated LATER
+    /// Hermes turn on that hop could wrongly adopt a dead local turn's
+    /// reasoning (see the gate's own doc,
+    /// `HermesClientProtocol.currentRunIsServerRecoverable`, for the full
+    /// cross-hop-corruption chain). A local-brain expiration therefore keeps
+    /// the pre-#295 behavior: finalize the placeholder as a terminal
+    /// `.delivered` bubble, same as an explicit Stop — no recovery is coming,
+    /// so silence over that turn is the honest outcome, not a hole.
+    /// User-initiated Stop (`hardStopHost: true`) is byte-unchanged by any of
+    /// this: `.delivered`, silent, no `PendingRun`, no reconcile armed (bar
+    /// 295-B) — the user does not want the answer.
     ///
     /// Every other effect below — cancelling the local task, releasing the
     /// router's routing lock, finalizing the UI, ending the Live Activity —
-    /// still happens on BOTH paths; only the network call is gated.
+    /// still happens on every path; only the network call and the recovery
+    /// arm are gated.
     func cancelStreaming(hardStopHost: Bool = true) {
+        // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
+        // before cancelling the consuming task (which the router treats as a
+        // walk-away and may itself release the routing lock from, per
+        // `consumerWalkAwayAloneReleasesTheRoutingLock`) and before
+        // `abandonActiveRun()` below explicitly releases it. Either one can
+        // clear the very signal this reads (`ChatBackendRouter.runningBrain`),
+        // so it has to be captured before both, not just before the second.
+        let turnIsServerRecoverable = hermesClient.currentRunIsServerRecoverable
         streamingTask?.cancel()
         streamingTask = nil
         if hardStopHost {
@@ -1169,10 +1286,67 @@ final class ChatStore {
         // User asked for silence along with the stop — cut read-aloud too.
         speechOutput?.stop()
 
-        // Finalize current streaming message with content received so far
-        if let sid = streamingMessageID,
+        // #295 Task 2 + review follow-up: the expiration path
+        // (`hardStopHost: false`) diverges here from an explicit Stop, but
+        // ONLY when the turn is on a plane that can actually be recovered.
+        // Finalizing the placeholder as a terminal `.delivered` bubble (the
+        // `else` branch below) would be the silent hole bar 295-A exists to
+        // close IF the host is still generating — but arming a `PendingRun`
+        // for a turn that ISN'T server-recoverable (the on-device/PCC brain,
+        // #30) is worse than that hole: nothing is ever committed for it to
+        // reconcile against, so the loop re-arms itself indefinitely
+        // (`performReconcilePendingRuns` on every foreground/appear), AND —
+        // because `reconcileFromServer()` resolves against `journal.activeHop`
+        // rather than `pending.sessionId` — a LATER, unrelated Hermes turn on
+        // that same hop can satisfy this pending run's `sender == .hermes &&
+        // timestamp > pending.sentAt` filter and get wrongly stamped with
+        // THIS dead turn's reasoning/duration and re-paired with THIS turn's
+        // prompt. `armPendingRunRecovery` (removes the placeholder preserving
+        // partial reasoning, mints a `PendingRun`, starts the reconcile loop)
+        // only runs when `turnIsServerRecoverable` says yes.
+        var armedRecovery = false
+        if !hardStopHost,
+           turnIsServerRecoverable,
+           let placeholderID = streamingMessageID,
+           let userMessageID = streamingUserMessageID,
+           let sessionId = activeStreamRun ?? activeSessionID {
+            // #295 carried finding (Task 1 self-review): `activeStreamRun` is
+            // written ONLY inside the stream's `for await` loop (below,
+            // `sendMessage`), and `SessionsHermesClient` never yields
+            // `.messageSent` — the first update it can yield at all is
+            // whatever the turn actually produces. On an attachment turn
+            // (the ONLY turns that reach this path — `continuedSend` is nil
+            // for text-only sends) whose OWN upload outlasts the background
+            // budget, expiration can fire before the loop has processed a
+            // single `StreamingUpdate`, leaving `activeStreamRun` nil right
+            // when a sessionId is needed. `activeSessionID` (the shared
+            // journal's active hop) is the fallback, not a parallel capture
+            // path: `SessionsHermesClient.ensureHopForTurn()` records that
+            // hop before the turn's POST even goes out — well before the
+            // upload that can outlast the budget — so it is already correct
+            // in this exact window (confirmed in Task 1's report, and pinned
+            // here by `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed`).
+            // `runId` has no channel here at all (see `activeStreamRun`'s own
+            // doc) — `nil` is honest, not a placeholder for something missing.
+            armPendingRunRecovery(
+                placeholderID: placeholderID,
+                sessionId: sessionId,
+                runId: nil,
+                userMessageID: userMessageID
+            )
+            armedRecovery = true
+        } else if let sid = streamingMessageID,
            var conv = conversation,
            let idx = conv.messages.firstIndex(where: { $0.id == sid }) {
+            // An explicit Stop (`hardStopHost: true`); a turn on a
+            // non-recoverable plane (`turnIsServerRecoverable == false` —
+            // the gate this review follow-up added); or the residual
+            // defensive tail for an expiration that has no session
+            // identifier at all to recover with. All three share ONE
+            // honest answer: nothing is going to arrive later that this
+            // client is still watching for, so finalize now instead of
+            // promising a recovery that either isn't coming or would
+            // resolve onto the wrong turn.
             if Self.stoppedPlaceholderHasNothingToShow(conv.messages[idx]) {
                 // #294: a Stop taken before the first token leaves a
                 // placeholder with no content, no tool activity, no chip and
@@ -1192,18 +1366,33 @@ final class ChatStore {
             }
             conversation = conv
         }
-        // #291: settle THIS turn's user row. `cancelStreaming` used to
+        // #291/#295: settle THIS turn's user row. `cancelStreaming` used to
         // finalize only the assistant placeholder, so the user's optimistic
         // row stayed `.sending` — which is exactly `hasPendingMessages`, one
         // of the three conditions the poll loop's exhaustion branch tests.
         // ~60s after a deliberate Stop it flipped the row to `.failed` and
         // fired `onSendFailed` (an error haptic) on a turn the host had
-        // received and partly answered. `.delivered` is the honest terminal:
-        // the host DID receive the message on BOTH paths through here — the
-        // explicit Stop and the continued-send expiration alike — and a user
-        // row's status is about delivery, not about how the reply ended.
-        settleStoppedUserMessage()
+        // received and partly answered. The host DID receive the message on
+        // BOTH paths through here, so `.sending`/`.failed` are never honest —
+        // but "settled" means different things depending on whether real
+        // recovery is actually armed. A user-initiated Stop (`hardStopHost:
+        // true`) is over, full stop: `.delivered`. The continued-send
+        // expiration (`hardStopHost: false`) settles `.working` ONLY when
+        // `armedRecovery` is true — the reconcile loop is genuinely watching
+        // for the reply, so `.delivered` there would be the lie in the other
+        // direction, claiming an answer that hasn't arrived. But when
+        // `armedRecovery` is false (the gate said not recoverable, or no
+        // session id resolved at all), NOTHING is watching — `.working`
+        // there would be a lie of its own, a row stuck forever with no
+        // reconcile loop and no poll-exhaustion scrub (`hasPendingMessages`
+        // only counts `.sending`, never `.working`) to ever correct it. That
+        // case settles `.delivered`, same as an explicit Stop, because as far
+        // as this client can ever know, no recovery is coming.
+        settleStoppedUserMessage(as: (hardStopHost || !armedRecovery) ? .delivered : .working)
         streamingMessageID = nil
+        // #295: whatever this stream's captured identifiers were, this
+        // function is itself a terminal path for it.
+        activeStreamRun = nil
         streamingUserMessageID = nil
         pendingMessageSentAt = nil
         lastStreamActivityAt = nil
@@ -1218,14 +1407,17 @@ final class ChatStore {
         }
     }
 
-    /// #291: flips the stopped turn's OWN user row from `.sending` to
-    /// `.delivered`. Deliberately targeted rather than a blanket sweep of
-    /// every `.sending` user row: a queued/draining outbox turn or a second
-    /// send in flight is not this Stop's business, and settling somebody
-    /// else's row would be the same class of lie in the other direction.
-    /// `.sending` is required — a row already settled by its own terminal
-    /// (`.working` after an interrupt, `.queued` offline) is left alone.
-    private func settleStoppedUserMessage() {
+    /// #291/#295: flips the stopped turn's OWN user row from `.sending` to
+    /// the caller's chosen terminal — `.delivered` for a user-initiated Stop,
+    /// `.working` for the continued-send expiration path (see the call site
+    /// in `cancelStreaming`). Deliberately targeted rather than a blanket
+    /// sweep of every `.sending` user row: a queued/draining outbox turn or a
+    /// second send in flight is not this Stop's business, and settling
+    /// somebody else's row would be the same class of lie in the other
+    /// direction. `.sending` is required — a row already settled by its own
+    /// terminal (`.working` after an interrupt, `.queued` offline) is left
+    /// alone.
+    private func settleStoppedUserMessage(as status: MessageStatus) {
         guard let userMessageID = streamingUserMessageID,
               var conv = conversation,
               let idx = conv.messages.firstIndex(where: {
@@ -1234,7 +1426,7 @@ final class ChatStore {
               }),
               conv.messages[idx].status == .sending
         else { return }
-        conv.messages[idx].status = .delivered
+        conv.messages[idx].status = status
         conversation = conv
     }
 
