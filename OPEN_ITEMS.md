@@ -7072,6 +7072,28 @@ not walk — the doc half, being fixed now in the #291 lane.
 >   (117 pre-lane + this lane's ordering pin), RunsPlaneTransportTests
 >   32/32, both foreground.
 
+> **✅ 2026-08-09 — the "Interaction with #292 noted, not blocking" line in
+> Owen's ruling above is RESOLVED: the recovery is independent of the
+> producer, and #292's fix does not disturb it.** #292's cancellation hook
+> landed (`t27-292-producer-cancellation`) and the proof is structural, not
+> asserted: the arm's inputs are all store-side (`streamingMessageID`,
+> `streamingUserMessageID`, `activeStreamRun ?? activeSessionID`; `runId`
+> passed nil), and the recovery fetch is a separate client call
+> (`reconcileFromServer()` off `reconcileTask`), not work inside the
+> producer #292 now cancels. All seven of this entry's pins —
+> `expirationPathArmsTheRealRecovery`, `expirationPathSettlesTheUserRowWorking`,
+> `explicitStopStillSettlesTheUserRowDelivered`,
+> `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop`,
+> `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`,
+> `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`,
+> `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed` — ran green
+> WITHOUT edits after the fix. (The ruling's "Runs plane: the status poll"
+> misnaming of the shipped mechanism is already corrected in the 2026-08-09
+> supersession note above — the sessions-messages GET shipped on both
+> planes; not duplicated here.) One #292-side consequence recorded there,
+> Owen-overturnable: an abandoned runs turn's usage is never recorded, so
+> its session's CTX gauge goes stale rather than current.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -7236,6 +7258,89 @@ today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
 `RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
 hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
+
+> **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
+> numeric RED evidence — MERGED same day, PR #288 (`c2cc540`). Bars 292-A
+> and 292-B MET; ✅ 292-C QUEUED as `DEVICE-PASS-RUNNING-LIST.md` **§R8**
+> (the bar that closes this item); ✅ GATE: PASS 2026-08-09 (controller-run,
+> sim CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
+> RED by restoring the bug leaves an orphaned producer polling for up to the
+> test's 30s budget AFTER the test returns — later tests in the serialized
+> suite will see its requests as noise in the shared stub log. Expected
+> collateral of the un-fixed state, not a second regression.
+>
+> **⚠️ The entry's as-filed citations were stale — corrected here (close-out
+> rule), verified at the fix branch's HEAD:** the producer is
+> `sendStreaming` at `SessionsHermesClient.swift:346-393` (not `:322-350`,
+> which is the `postSyncTurn`/`discardStaleHop`/`postSyncChat` region); the
+> comment file is `SessionsHermesClient+RunsTransport.swift` (no bare
+> `RunsTransport.swift` exists) and there were THREE comment sites, not one
+> (post-fix: `:562-567`, `:795-806`'s "or on cancellation", and `:804-806`'s
+> "exits silently"); the cancellation checks are `streamTurnViaRuns`'s
+> events-loop break at `:444` and `pollRunToTerminal`'s single top-of-loop
+> check at `:824` plus the cancellation-shaped sleep catch at `:858`
+> (`:780` was a doc line, not a check). Note the 2026-08-09 refinement
+> note's own `:546-547`/`:777`/`:780-781` citations had already drifted by
+> the time it was committed (#296-C2's comment block landed above them);
+> the sites are the same three, found by the phrases, not the numbers.
+>
+> - **292-A MET, RED first with the numbers the bar demanded.** New test
+>   `consumerWalkAwayCancelsTheProducerAndStopsThePolling`
+>   (`RunsPlaneTransportTests.swift`), built exactly per the refinement
+>   note: stub-side counting, per-test `runsPollBudget = 30s` /
+>   `runsPollInterval = 40ms` override (the bar's teeth — stated as a
+>   comment in the test), inline collector, count proven ≥2 before the
+>   cancel, `==` with no tolerance. **RED on `f23a6fb`: `atWalkAway = 2,
+>   final = 13`** — eleven more authenticated `GET /v1/runs/run-r1` polls in
+>   a 500ms window after the consumer's stream was released — AND
+>   `activeRunContext` still non-nil (the second assertion, the
+>   defer-runs-on-cancel hazard, also failed on HEAD). **GREEN after the
+>   fix:** count frozen, context nil. The fix is the router's #192 shape
+>   verbatim: producer Task bound to a `let`,
+>   `continuation.onTermination = { _ in producer.cancel() }`
+>   (`SessionsHermesClient.swift:390-392`), strong capture of the Task
+>   handle. `RunsPlaneTransportTests` 33/33 (count MOVED 32 → 33, fresh
+>   DerivedData); the two tests the dispatch flagged as most likely to move
+>   — `streamCompletionSuppressesThePollPath` and
+>   `killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce` — both stayed
+>   green untouched.
+> - **292-B MET.** All three comments now name the mechanism that makes
+>   them true (`sendStreaming`'s `onTermination` hook, #292) and the hook
+>   carries the reciprocal note naming its three customer checks. Repo-wide
+>   grep for "costs nothing" / "exits silently" / "makes the poll a no-op":
+>   the only Swift hits touching cancellation are the two rewritten sites
+>   (`+RunsTransport.swift:563`, `:804`), both now describing shipped
+>   behavior; every other hit (`ChatScreen.swift:114`,
+>   `SessionsHermesClient.swift:126`, `+RunsTransport.swift:487` (296-C2's
+>   field), `LocalChatBackend.swift:2194`, `AppStoresTests.swift:5004`,
+>   `scripts/e1-doubleinstall-probe.swift:11`) is an unrelated claim the
+>   code walks.
+> - **Ruling 1 held (the #295 interaction):** all seven #295 pins plus
+>   `ChatBackendRouterTests`' two guards ran green WITHOUT edits
+>   (AppStoresTests + ChatBackendRouterTests, 144/144). **One real cost,
+>   deliberate and Owen-overturnable:** an abandoned runs turn's usage is
+>   never recorded (`deliverPolledTerminal`'s `usageIndex` write no longer
+>   runs for it), so that session's CTX gauge shows the previous run's
+>   occupancy — stale, never zero, never hidden. The alternative was ~60
+>   authenticated requests to keep a gauge current on a turn the user left.
+> - **Ruling 2 held:** the producer's cancellation path is network-free —
+>   no `/stop` wired (that flip stays Owen's, per #283's ruling), no
+>   reordering in `cancelStreaming`.
+> - **292-C, procedure for the device row** (NOT yet queued — the
+>   controller adds it to `DEVICE-PASS-RUNNING-LIST.md` at close-out): walk
+>   away from a runs turn, kill the network past 60s, host log shows no
+>   further `GET /v1/runs/{id}` and no `/stop` at all; record the
+>   pre-walk-away poll count so a producer that never reached the poll loop
+>   reads inconclusive, not passing.
+> - **Open for Owen (Ruling 3, filed not built):** whether the runs plane
+>   should get the literal status-poll recovery his #295 ruling named
+>   (needs a durable `run_id` surfaced out of the producer — MORE necessary
+>   post-fix, since the producer is now guaranteed not to be around to
+>   poll), and whether the usage-gap trade above stands or a single final
+>   status read on cancellation is worth it.
+> - **CLAUDE.md: nothing owed** — no standing rule is falsified by this
+>   fix (stated explicitly per the dispatch's close-out).
 
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
@@ -8386,6 +8491,18 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > server-side context the sessions plane feeds the agent; revisit at 3E,
 > where it compounds with attachment dataURLs toward a request-size cliff).
 >
+> **2026-08-09 (#292 close-out) — two of the numbers above moved, dated
+> note not a rewrite:** `sendStreaming` now cancels the producer on consumer
+> walk-away (`onTermination`, #292), so (1) the single-slot
+> `activeRunContext` clears AT walk-away — the producer's `defer` runs on
+> cancellation — instead of at poll-budget expiry, shrinking the
+> wrong-run-stop window from ≤120s to ~0 on abandoned turns (a Stop tapped
+> in that window now correctly finds no stale run to address); and (2) the
+> "~3 min worst case" silence window applies only to a WATCHING consumer —
+> an abandoned turn stops its polling at walk-away rather than running the
+> budget unwatched (which #292's filing noted was worse than the number
+> implied).
+>
 > **Falsified upstream in the same lane (close-out rule):** #145 Part A's
 > "everything that is not a stream gets 20s" was made false by the first
 > sync implementation and is now true again via a dedicated `runsSyncBudget`
@@ -9157,7 +9274,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. THE FIX IS OWED and is the only thing left on this item.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — 272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.**
 
 **Owen, 2026-07-25** (quoted verbatim in
 `handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
@@ -9337,8 +9454,10 @@ written before any code:
   each is flagged `PINS THE BUG` in-file. That is deliberate: this lane's
   scope was reproduce/record/stop, so pinning keeps the reproduction
   executable and the gate green. **The fix lane MUST invert every one of
-  them**; a fix that leaves them passing has not fixed anything.
-- **STILL OPEN: the fix.** Per the pre-registered response above it is not
+  them**; a fix that leaves them passing has not fixed anything. *(✅ Done
+  2026-08-09 — all four inverted in the fix commit; see the fix-lane block.)*
+- ~~**STILL OPEN: the fix.**~~ *(✅ Landed 2026-08-09, fix-lane block below.)*
+  Per the pre-registered response above it is not
   this lane's work. The shape to decide: should `didFailAuthentication`
   survive a foreground within the same lock episode until success or an
   explicit tap, or should `autoAuthenticateIfNeeded` track "already attempted
@@ -9460,6 +9579,98 @@ boundary that is something other than "any foreground."
 >   ladder shows `FIRED`. **This bar is also where Owen's reservation gets
 >   its honest exit: if the behaviour feels wrong in hand, the ruling is
 >   re-opened, not defended.**
+
+**✅ RESULT, 2026-08-09 — THE FIX LANE. 272-E MET (RED-FIRST), 272-F MET.
+Branch `t27-272-applock-fix` off `2a664f0`; no PR opened (the controller
+reads the diff and runs the gate). ✅ 272-G MET 2026-08-09 — GATE: PASS
+(controller-run, CC-272-iPhone-Air): TEST SUCCEEDED, 1932 Swift Testing +
+12 XCUITest, Release build clean. 272-H is Owen's hand on the phone. #272 STAYS OPEN until 272-H — and its device row is NOT YET
+QUEUED: the controller adds it to `dispatch/DEVICE-PASS-RUNNING-LIST.md` at
+session close-out (the lane was told not to touch that file).** Recorded
+against the bars above:
+
+- **272-E — MET.** `bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip`
+  added to the EXISTING `TalariaTests/AppLockControllerRaceTests.swift` (no
+  new file — no xcodegen, no scheme churn), driving `scenePhaseChanged(to:)`
+  only, gated authenticator parked and asserted anti-vacuous. **Run RED
+  against HEAD (`2a664f0`) before any fix code, on sim `CC-272-iPhone-Air`;
+  the failure, verbatim:**
+
+  ```
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:374:9: Expectation failed: auth.callCount == 1
+  ↳ 272-E: no second authenticate call may fire without a user tap
+  ↳ auth.callCount == 1 → false
+  ↳   auth.callCount → 2
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:375:9: Expectation failed: auth.pendingCount == 0
+  ↳ the sheet stays down — nothing may be parked
+  ↳ auth.pendingCount == 0 → false
+  ↳   auth.pendingCount → 1
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() failed after 0.033 seconds with 2 issues.
+  ✘ Test run with 9 tests in 1 suite failed after 0.226 seconds with 2 issues.
+  ```
+
+  The test compiled and failed on the loop's behaviour, per the bar (not a
+  compile error); the 8 pre-existing cases — including every `PINS THE BUG`
+  reproduction — still passed on HEAD in the same run. The RED run's sim
+  log also caught 272-C's exact device signature live: the paired
+  `didFailAuthentication true->false on .active` +
+  `autoAuth FIRED (no tap)` lines.
+- **272-F — MET, the dispatch's fix shape as specced plus one forced
+  amendment.** In `AppLockController.swift`: (1) `episodeAttempt` resets on
+  the transition INTO `.locked` (in `refreshCover()`, only when the cover
+  actually changes — not on every call; logged only when it clears a real
+  count); (2) `autoAuthenticateIfNeeded()` gains a FIFTH sequential guard,
+  `episodeAttempt == 0`, in 272-B's split-guard logging style
+  (`autoAuth BLOCKED guard=episodeAttempt(N)` — the line 272-H greps for);
+  (3) **the `:110` clear is untouched**, and it is load-bearing for the
+  positive pins — it un-sticks a stale `didFailAuthentication` at the start
+  of a NEW episode; (4) the UNLOCK tap path is guard-free, unchanged.
+  - **The forced amendment — the retry surface (found by this lane; the
+    dispatch's fix-shape list omitted it):** `AppLockOverlayView` showed the
+    UNLOCK button on `didFailAuthentication` alone, and the kept `:110`
+    clear wipes that flag on the sheet-dismissal blip that follows every
+    cancel (every rung of the 272-C ladder). With the new guard holding the
+    prompt down, the unamended overlay would strand a cancelled episode
+    with NO prompt AND NO button — worse than the loop, and unrecoverable
+    until an app kill (backgrounding cannot start a new episode while the
+    cover never leaves `.locked`). That violates the ruling's
+    plain-behaviour contract clause 2 ("the in-app UNLOCK button is the
+    only path, and it must work") and 272-H's "reachable and works," so the
+    overlay now keys on `controller.showsRetryUnlockButton`
+    (`didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)`;
+    `episodeAttempt` made observable) — behaviour identical to today
+    everywhere except the trap window. The tap's action is untouched.
+  - **Positive pins, all green:** fresh-stretch auto-prompts exactly once
+    in BOTH shapes (cold launch; grace-expiry after a successful unlock —
+    the pin that proves the guard cannot silence a new episode); the tap
+    path always gets an attempt after a cancel + blip and its success
+    unlocks; the stale-counter leak (capability-neutralized episode →
+    re-armed lock) is caught by the transition reset; and the retry surface
+    survives the flag wipe. **All four `PINS THE BUG` assertions inverted**
+    (A-ii, A-iii, interrupted, A-iv — A-iv is now "one cancel, five blips,
+    ONE prompt, button stands throughout"), per the 272-A block's own
+    demand.
+  - **Targeted suite: 39/39 green in 5 suites** (`AppLockControllerRaceTests`
+    14, `AppLockStateMachineTests` 15, `AppLockGracePeriodTests` 1,
+    `AppLockControllerTests` 7, `AppLockSettingsCodingTests` 2) on
+    `CC-272-iPhone-Air`, `** TEST SUCCEEDED **`. **Count MOVED from the
+    lane's own measured baseline (33 at `2a664f0`) — not a stale
+    `.xctest`.** 272-D input: `TalariaTests/AppLockTests.swift` has **ZERO
+    DIFF** (`git diff` empty), `lockSurvivesRepeatedForegrounding` and
+    `retryAfterFailureUsesNewEvaluation` unedited and green.
+- **272-G — PENDING.** The controller runs `scripts/mac/lane-gate.sh`
+  serially at merge time; a literal `GATE: PASS` plus the zero-diff above
+  completes the bar. (This lane deliberately did not run the gate.)
+- **272-H — PENDING, Owen's hand on the phone (the reservation's exit).**
+  Note for the trial: with the fix, the pulled log's blip signature is
+  `didFailAuthentication true->false on .active` followed by
+  `autoAuth BLOCKED guard=episodeAttempt(1)` — the flag-wipe line still
+  appears (the `:110` clear stays) and the NEW guard's line replaces
+  `autoAuth FIRED`.
+- **Carry into the PR body (per the dispatch, for whoever opens it):** #302
+  composes with this — 302-B's "locked interval held open" fixture gets
+  harder after this merges, so #302's bars need a re-read then. #302 itself
+  was not touched here.
 
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
@@ -10791,8 +11002,11 @@ full battery.
 >   RECALL (`capabilityQuestionProbes` — 257-1-A), DANGER (baseline +
 >   `capabilityControlProbes` — 257-1-B), HONESTY (the composed appended
 >   payload through the shipped 297-C scorers, claim and syntax halves
->   emitted SEPARATELY — 257-1-D). Every band emits `scored=<n>/<trials>`
->   AND `errors=<n>`. **The control list was written FIRST**, with the
+>   emitted SEPARATELY — 257-1-D). The GATE/RECALL/DANGER bands emit
+>   `scored=<n>/<trials>` AND `errors=<n>`; the HONESTY band carries the
+>   same real denominators under its own tokens
+>   (`appended=`/`claimHits=`/`syntaxHits=`) — noted so "every band" is not
+>   read as a literal token claim. **The control list was written FIRST**, with the
 >   boundary pinned verbatim in the code: TRUE iff the message's subject is
 >   the assistant's own abilities/access/features in general; FALSE for any
 >   request to perform or answer a specific thing, phone-ecosystem how-tos,
@@ -10836,12 +11050,40 @@ full battery.
 >   iteration.** The device `tokenCount` pre-flight runs BEFORE the probe.
 > - **257-3a-C: pending Owen** (his read of the surface; pass/fail his,
 >   stated in advance).
-> - **257-1-E: pending the controller** (lane gate not run by the phase-2
->   implementer, per the dispatch).
+> - **257-1-E: ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air): TEST SUCCEEDED, 1944 Swift Testing + 13 XCUITest,
+>   Release build clean.
 > Phase-2 targeted suites: 272/272 across 6 suites on CC-257-iPhone-Air
 > (iOS 27.0) — CapabilityRegistryTests **24 → 32**, CapabilitySurfaceTests
 > **3 (new)**, DeviceToolBelt 180, LocalChatBackend 42, RoutedTrialShape 5,
 > RouterIntent 10.
+>
+> **Three review corrections, 2026-08-09 (independent whole-lane review;
+> each traced in code, not taken from the implementer's report):**
+> 1. **VOICE: the block is appended but NEVER SPOKEN** — the phase-2
+>    report's "voice turns will read the appended block aloud" concern is
+>    wrong in the reassuring direction. Voice rides
+>    `sendStreaming → streamTurn`, so the block lands in the transcript
+>    item, but TTS is fed only by `.textDelta` and the voice pipeline's
+>    `finishStream(messageID:)` flushes only the streamed-delta tail — the
+>    block never rides a delta. **Consequence: a voice capability question
+>    still under-sells ALOUD while the screen shows the complete block —
+>    #257's original complaint shape, surviving on the voice surface.**
+>    Product question for Owen (rides 3a-C): is screen-only completeness
+>    acceptable on voice turns, or does voice need its own answer? The
+>    device probe row is briefed to listen for the block's ABSENCE in
+>    audio, not its presence.
+> 2. **Probe-comparison confound, stated plainly:** the retained
+>    `routeNeedsDeviceTool(variant:)` wrappers now generate the TWO-FIELD
+>    schema at the 128 cap, so every pre-#257 DEBUG probe measures the new
+>    production shape on future runs — correct per #202D (probes measure
+>    production), but any comparison against historical router numbers now
+>    carries a schema+cap confound. The #217B intent cells are unaffected
+>    (they call the one-field options directly).
+> 3. **1-D's device numbers add nothing over the unit test by
+>    construction** (the probe scores the block alone; no real model prefix
+>    exists in a classification-only probe) — read them as the denominator
+>    check they are, not as new honesty evidence.
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 

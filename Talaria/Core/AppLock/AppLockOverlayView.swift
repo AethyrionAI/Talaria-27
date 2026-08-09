@@ -59,9 +59,10 @@ final class AppLockWindowPresenter {
 
 /// Both cover faces: `.obscured` renders the splash-alike privacy shield
 /// (this is what the app-switcher snapshot captures); `.locked` adds the
-/// LOCKED badge and — after a failed/cancelled attempt — the retry button.
-/// There is deliberately no other control: the only ways past this view are
-/// biometry or the system sheet's passcode fallback.
+/// LOCKED badge and — once the episode's auto-prompt has been consumed
+/// (cancelled, failed, or interrupted; `showsRetryUnlockButton`, #272) —
+/// the UNLOCK button. There is deliberately no other control: the only ways
+/// past this view are biometry or the system sheet's passcode fallback.
 struct AppLockOverlayView: View {
     @Bindable var controller: AppLockController
 
@@ -82,7 +83,13 @@ struct AppLockOverlayView: View {
                 if controller.cover == .locked {
                     MonoLabel("LOCKED", tracking: Design.Tracking.monoWide)
 
-                    if controller.didFailAuthentication {
+                    // #272 fix: keyed on `showsRetryUnlockButton`, not
+                    // `didFailAuthentication` — the `.active` reset wipes the
+                    // flag on the sheet-dismissal blip, and with the re-prompt
+                    // loop fixed the button must survive that wipe or a
+                    // cancelled episode would strand the user with no prompt
+                    // and no button. The tap's path is deliberately guard-free.
+                    if controller.showsRetryUnlockButton {
                         GlowButton(title: "UNLOCK") {
                             Task { await controller.requestUnlock() }
                         }
