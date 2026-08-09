@@ -2624,3 +2624,27 @@ nothing (instrument the error path).
 **Known cost to observe, not a failure:** the abandoned turn's token usage is
 never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
 shows the previous run's occupancy.
+
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+
+**Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
+repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
+arms) on the FIXED build; §R4 itself is DO-NOT-RE-RUN only in the sense that
+the repro on the broken build is settled.
+
+**PASS =** the plain-behaviour contract, felt on the phone: (1) fresh lock
+auto-prompts once; (2) cancel → the sheet stays down and the in-app UNLOCK
+button is present and works — including after backgrounding and returning;
+(3) a successful unlock re-arms the next locked stretch's auto-prompt;
+(4) within a cancelled stretch, returning never auto-prompts (one extra UNLOCK
+tap is the deliberate, accepted cost).
+
+**Log read (hand-launched build):** `sudo /usr/bin/log collect --device-udid
+00008150-000E794C3C47801C` (hardware UDID, Owen pastes), grep `AppLock`. The
+broken signature was the paired lines `didFailAuthentication true->false on
+.active` + `autoAuth FIRED (no tap)` sharing a timestamp; **the fixed build
+must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
+
+**⚠️ This bar is Owen's RESERVATION EXIT (he accepted Option B "feels very
+'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
+REOPENS — that is the bar working, not a failure of the lane.
