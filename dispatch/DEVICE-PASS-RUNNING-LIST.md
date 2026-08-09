@@ -2677,3 +2677,43 @@ behavior, promoted to CLAUDE.md by this lane). **Also OBSERVE AND RECORD what a
 DENIED tool call renders as on the runs event stream** — the dispatch's open
 unknown (#296's family): does `tool.completed` arrive with an error field, or
 nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
+
+### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · **[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]**
+
+**Prerequisite:** a build at or past PR #290 (`c8759b9`).
+
+1. **The tokenCount pre-flight (BEFORE the probe — the `21F0C10D` gate):**
+   Developer screen, BETWEEN turns (never during a streaming turn —
+   `tokenCount()` mid-turn kills the turn), measure the two-field router
+   schema's real cost. The shipped `twoFieldRouterOptions` cap is 128 with the
+   one-Bool 64 pin untouched; the measurement confirms headroom or forces a
+   revisit BEFORE the probe is trusted.
+2. **The detection probe:** "Capability detection (#257) (350)" button — GATE
+   ×2 (baseline ten, arm + control), RECALL, DANGER, HONESTY bands. Bars:
+   **257-1-GATE ≥95%** (pre-registered response on a miss: the second field is
+   ABANDONED outright — a revert, no iteration), **1-A ≥90%**, **1-B ≤2%**
+   (miss → Lever 1 does not ship; 3a stands alone), **1-D zero** (halves
+   separate). Read `scored=`/`errors=` on every band; 1-D's device numbers are
+   a denominator check only (the unit test is the evidence).
+3. **3a-C — Owen's read (pass/fail his, stated in advance):** open
+   `/capabilities` (or the fresh-chat chip) and judge whether the sheet
+   answers "what can you do" better than the model does.
+4. **Voice check (from the lane's review):** ask a capability question BY
+   VOICE — **listen for the block's ABSENCE**: the spoken reply still
+   compresses to ~4 families while the screen shows the complete block.
+   That asymmetry is a recorded product question (NEEDS-OWEN §3.1), not a
+   defect; confirm the observation matches.
+
+### R13 · #101 — bar 101-A1: the cross-chat recall routing run · **[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]**
+
+**Prerequisite:** a build at or past PR #291 (`1ecaa86`).
+
+Developer screen → "Cross-chat recall routing A-1 (n=20)". Before reading any
+number, re-read the RUN PROTOCOL in #101's entry (pre-registered 2026-08-09):
+the rate is **armed/scored** (never armed/trials); `scored < 20` = INCOMPLETE,
+top up — never a verdict; a result within ±2 of the 90% bar triggers ONE n=50
+run with the bar unmoved; a MISS carries the ten-phrasings ambiguity statement;
+the emitted `router: CROSSCHAT` lines are the authoritative artifact (the
+results screen has no error indicator). **The verdict decides Shape A:** ≥90%
+armed → the corpus-widening lane opens; a miss → Shape A is dead before any
+corpus work, and that is a RESULT.
