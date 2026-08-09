@@ -9391,7 +9391,13 @@ is now met. The slice name comes from `handoffs/HANDOFF-2026-08-06-T27-EVENING.m
 face), **D (OJAMD rollout)**."*
 
 **Scope (drafted here, not routed):** install + enable `talaria` in
-`~/.hermes/plugins/` on OJAMD; pair the phone against OJAMD's `:8642`; re-run
+~~`~/.hermes/plugins/`~~ **`<HERMES_HOME>\plugins\talaria` =
+`C:\Users\Owen\AppData\Local\hermes\plugins\talaria` — CORRECTED 2026-08-09:
+the `~/.hermes` form is the Mac's path, not OJAMD's. Live-probed on the box:
+`C:\Users\Owen\AppData\Local\hermes\plugins` exists and is empty;
+`C:\Users\Owen\.hermes\plugins` does not exist. (The plugin repo's own README
+install snippet has the same Mac-only-correct path.)** on OJAMD; pair the
+phone against OJAMD's `:8642`; re-run
 the 2A bar set (A pair / B live query / C exactly-once inbox / D honest
 unreachable / F privacy round-trip) against the PRODUCTION host rather than the
 Mac; then retire the OJAMD venv CLIs the plugin's `register_cli_command`
@@ -9428,6 +9434,57 @@ rather than copied by reference (a bar that lives in two places drifts).
 2A-B's bar must be re-specified before reuse: the original measured
 whole-turn latency and was falsified at 32s vs ≤5s; the correct bar measures
 the transport leg alone (see #263, which absorbed that instrumentation).
+
+**2026-08-09 — DISPATCH WRITTEN AND BARS FILED; execution is OWEN + PowerShell
+at its own sitting, behind the 🔐🔐🔐 per-lane go** —
+`dispatch/FABLE-T27-271-ojamd-rollout.md` carries the paste-ready phases
+(Phase 0 recon free; Phase 1+ gated), the verified live state (both gateways
+0.20.0; `plugins:` block is exactly `enabled: []`; no `platform_hints` block
+anywhere in OJAMD's config — the "still unpasted" note above re-confirmed
+live; `gh` absent, `git 2.50.1` present, so private-repo auth needs a PAT or
+SSH key — probe with `git ls-remote` before cloning), and the three-layer
+rollback. **Lead answer recorded: #269 and #270 do NOT block this lane** —
+they are installation UX for end users; this is Owen by hand, the same shape
+Phase 1/2A already proved on the Mac. #285's fix is a nice-to-have, not a
+blocker (Owen's call whether it merges first). No `hermes update` inside this
+lane — one blast radius at a time.
+
+**BARS — pre-registered 2026-08-09 (the OJAMD-worded copies; a missed bar is
+a falsification):**
+- **271-A** (= 2A-A): phone, OJAMD profile active, foregrounds → PLUGIN LINK
+  reads PAIRED with zero manual steps beyond activating the profile;
+  `hermes talaria status` on OJAMD shows the device.
+- **271-B** (= 2A-B restated per the transport-leg correction): forced
+  `talaria_phone_query(kind:"location")` resolves with **`enqueue_to_drain`
+  under 1s** in OJAMD's `agent.log` — NOT the falsified whole-turn ≤5s bar.
+- **271-C** (= 2A-C): `hermes talaria send` while the app is closed →
+  gateway restart → app open → item in Inbox **exactly once**, pip clears.
+- **271-D** (= 2A-D): app closed >60s → forced tool call returns the
+  designed honest-unreachable prose, no throw, no #232 counter movement.
+- **271-E / 271-G** (= 2A-E / gate): NOT re-run — build-side,
+  host-independent, already MET (carried for completeness).
+- **271-F** (= 2A-F): health toggle OFF → "declined: privacy settings";
+  ON → real data. Both legs.
+- **271-H** (install correctness, NEW): clone lands exactly at
+  `C:\Users\Owen\AppData\Local\hermes\plugins\talaria`; `hermes plugins
+  list` shows `talaria` enabled, **source: git**; `plugins.enabled` gains
+  `talaria` with nothing else disturbed (line-count delta vs the pre-edit
+  backup is exactly +2).
+- **271-I** (listener survives the restart, NEW — #264): after the
+  plugin-loading restart, `Get-NetTCPConnection -State Listen -LocalPort
+  8642` shows a LISTENER — checked TWICE, immediately and again 2 minutes
+  later (the "came up without the chat plane" shape looks fine at PID
+  level). On a NOT-LISTENING first check: wait the full 2 minutes, then one
+  more kill/relaunch cycle — do not panic-restart (it compounds).
+- **271-J** (rollback PROVEN, NEW — the exit ticket): the config-level
+  rollback is exercised once, live, before the lane closes — deactivate
+  from `plugins.enabled`, restart, confirm pre-lane behavior returns.
+**271-A/B/C/D/F are Owen's device pass; 271-H/I close before it starts;
+271-J closes the lane. Phase 5 (venv-CLI / `mcp_servers.hermes_mobile` /
+relay retirement) is explicitly OUT — it is a chunk of #223 Phase 4 and
+stays behind that gate. This lane is what creates the two-paired-host
+condition #288-C has been waiting on — flag #288's owner when Phase 4 (the
+device pass) completes.**
 
 ## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
 
@@ -9472,6 +9529,96 @@ independent feature. **v0 grows paired-devices + outbox columns there.**
   #251's Phase 2 design note).
 
 **Bars pre-register HERE before any code.**
+
+**2026-08-09 — INVESTIGATED, NOT BLOCKED, but BIGGER than banked; Owen
+deferred the build to the host sitting** (`dispatch/FABLE-T27-270-desktop-face-v0.md`,
+read-only probes of the live Mac install; this filing is the orchestrator's
+T0 — code waits, and Task 6 needs the 🔐 live-install gate). Corrections to
+the text above, in place per the close-out rule:
+
+1. **"Two of everything" is THREE of everything.** The install's own SDK doc
+   (`desktop-plugin-sdk.md:23-33`) names three plugin systems that share no
+   code, APIs, or delivery: (A) agent plugin, `~/.hermes/plugins/<name>/`;
+   (A2) the **web-dashboard half of an agent plugin**,
+   `~/.hermes/plugins/<name>/dashboard/` (`manifest.json` → `dist/index.js`
+   + `plugin_api.py`, served by `web_server.py` on `:9119`); (B) desktop
+   plugin, `~/.hermes/desktop-plugins/<id>/plugin.js` (Electron renderer,
+   plain ESM). **The talaria face is TWO directories in TWO systems** — the
+   pane in B, its backend in A2 (which lives inside the system-A plugin
+   directory). A lane thinking there are two systems puts both halves in one
+   directory and gets a 404. (Also corrected in the
+   `hermes-two-web-apps` standing memory note.)
+2. **The mechanism sentence above is correct in every clause and omits the
+   left-hand side's PATH**: `plugin.js` lives at
+   `~/.hermes/desktop-plugins/talaria/plugin.js`, NOT in
+   `plugins/talaria/`. (`runtime-loader.ts:182` is explicit; there is no
+   `plugins/<n>/dashboard/plugin.js` path anywhere in the codebase.)
+3. **The cron-ticker hazard is NOT introduced by this slice** — the desktop
+   app spawns `hermes serve --port 0` whenever it runs, pane or no pane
+   (`main.ts:8167`), so the second ticker exists the moment Hermes.app
+   opens. 2C inherits an ambient condition; the correct carry is "v0 must
+   not write cron-adjacent state" (it is read-only, so it doesn't), and the
+   ticker is a separate finding never scored against this lane's bars.
+4. **The asymmetry that decides the build order:** `plugin.js` hot-reloads
+   on save (per the installed skill — unproven, bar 270-A tests it); the
+   `dashboard/plugin_api.py` backend loads at IMPORT and needs a backend
+   restart (`web_server.py:17535`). **Write the pane first** — the
+   not-installed card works with no backend at all.
+5. **Verified live:** `/api/plugins/*` is **404 on `:8642`** (probed) — the
+   pane's backend is on the dashboard/`serve` plane; the phone can never
+   reach it, and #269's probe must not be specced against it. The
+   `plugins.enabled` mount gate is a documented SECURITY boundary
+   (GHSA-mcfc-hp25-cjv7), and talaria is already enabled, so no
+   `config.yaml` change is needed for the whole lane. Nothing in the
+   original recon was falsified — it held line-for-line.
+
+**BARS — pre-registered 2026-08-09 (filed now; the build waits for Owen's
+host-sitting go — Tasks 6+ are a 🔐 live-install modification: writing
+`~/.hermes/desktop-plugins/talaria/` and `~/.hermes/plugins/talaria/dashboard/`
+and restarting the desktop backend to load experimental code):**
+- **270-A (the pane exists, and hot-reload is real):** with `plugin.js`
+  written, a Talaria pane appears WITHOUT restarting Hermes Desktop, and a
+  save re-renders it; no failed-to-load toast. If a ⌘K reload is required
+  the bar is MISSED and recorded — the skill's self-contradiction resolved
+  by observation, not restatement. [live host]
+- **270-B (the not-installed card is the DEFAULT, not a fallback):** with no
+  `dashboard/` present the pane renders the "not installed yet — ask Hermes
+  to set it up" card **from a `ctx.rest` 404**, not a hardcoded default —
+  the same unedited `plugin.js` must show LIVE once the backend exists.
+  [live host]
+- **270-C (three states, each machine-derived — the bar the lane is FOR):**
+  *not installed* / *installed-not-live* / *live*, each verdict tracing to a
+  distinct observable (404 · 200-without-adapter · 200-with-adapter+device);
+  no state inferred from the absence of another; evidence is the
+  state→status+payload table. [live host]
+- **270-D (the backend restart requirement DEMONSTRATED, not assumed):**
+  adding `plugin_api.py` under a running backend leaves `ctx.rest` 404ing;
+  after the backend restarts, the same pane shows LIVE with no `plugin.js`
+  edit. [live host, 🔐 gate]
+- **270-E (no secrets on the wire, no theme crimes):** responses carry no
+  device tokens and no API key (id/name/active/last-seen only — the store
+  hashes tokens and the pane must not undo that); zero hardcoded colors in
+  `plugin.js` (theme vars only; the grep is the evidence). [body live host;
+  grep offline]
+- **270-F (the plugin repo's suite stays green, and the APP's gate is NOT
+  claimed):** the talaria-plugin pytest suite passes with `dashboard/`
+  present (60/60 was the #263 worktree count — state the new count, moved
+  if tests were added); **no Talaria-27 Swift file changes in this lane, so
+  `lane-gate.sh` is not required and must not be cited as evidence** (the
+  false-green family). [offline]
+**Deliberately NOT bars:** the outbox column, any mutating control, the
+`:9119` web-dashboard tab, OJAMD (that is #271).
+
+**Blocking ASSUMEDs — Task 1, read-only, before anything else:** whether
+`/Applications/Hermes.app` matches the source tree the SDK claims come from
+(`~/.hermes/desktop-build-stamp.json`), and whether `web_server.auth_middleware`
+covers `/api/plugins/*` under headless desktop-spawned `serve`. **If the
+shipped app predates the SDK surface, STOP and report.** Manifest-name
+discipline (the #263(a) shape, reachable by manifest-name divergence):
+`dashboard/manifest.json`'s `name`, `plugin.yaml`'s `name`, the directory
+name, and the desktop `plugin.id` must ALL read `talaria`. **Shared state
+vocabulary with #269 settles at the host sitting before either lane's copy
+is written.**
 
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
@@ -9528,6 +9675,103 @@ behaviour, do not assume the instruction landed.
 > a new endpoint invented for it. Source + validation:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`, #284 note.
 
+**2026-08-09 — INVESTIGATED AND SPLIT; the lane is PARTIALLY BLOCKED and the
+split is the finding** (`dispatch/FABLE-T27-269-conversational-installer.md`;
+read-only probes of the live Mac install; Owen deferred the BUILD to the host
+sitting — this filing is the orchestrator's T0, code waits):
+
+**Two blockers, both verified, neither fixable inside this lane:**
+1. **The plugin repo is PRIVATE** and `hermes plugins install` is git-only,
+   non-interactive (`plugins_cmd.py:485-492`) — no user's Hermes can clone it.
+   **Filed as #308; Owen routes.** Publishing unblocks only half (see #308).
+2. **There is no reload.** `discover_and_load` early-returns on a
+   process-global singleton; `force=True` has one unrelated non-test call
+   site; the agent runs IN-PROCESS — so an install's last step is restarting
+   the process the agent lives in. An agent cannot narrate its own success
+   across that boundary. (This same limitation DODGES the #263(a) reload
+   trap — an install cannot trigger a discovery pass at all.)
+
+**The split:** **269-A (the honest verification half — UNBLOCKED, app-side
+only, no live-install change on path (i))**: the machine-verifiable
+install-state probe, the honest state model, PLUGIN LINK stops believing the
+keychain, the stale SETUP card retired. **269-B (the conversational install
+itself — BLOCKED)** on #308 plus a decided restart story. **The architecture
+both halves must respect: the agent narrates WHY, the app verifies WHETHER,
+and the app never upgrades the agent's narration into a verdict** — from the
+app's side "never installed", "on disk but not enabled", and "enabled but not
+restarted" are INDISTINGUISHABLE (all 503); only the agent can tell them
+apart.
+
+**Verified seams for 269-A (probed live, read-only):** unauthenticated
+`POST /api/platforms/{p}/events` returns **401 when the adapter is registered
+vs 503 `platform_unavailable` when absent** — a deterministic, already-shipping
+installation-state signal needing zero plugin change. The richer option is a
+`describe` verb in the envelope's dispatch table (~six lines, authenticated by
+the API key the app already holds) — that catches STALE installs, which
+401/503 cannot see, but requires the 🔐 live-install gate to deploy. A
+capability probe MUST be an envelope verb — a plugin cannot add a `:8642`
+route (platform-adapter contract: two hooks behind the single events route);
+the momentum-report sketch of `GET /talaria/capabilities` is corrected by this
+(its §4 carries the supersession note).
+
+**Corrections filed 2026-08-09 (dispatch §3, upstream homes):**
+- The app's SETUP card teaches RETIRED commands —
+  `ConnectHermesHostScreen.swift:110-112` ships `hermes-mobile setup` /
+  `pair-phone` / `service install`, the venv CLI family #251 Phase 1 records
+  as deleted (replaced by `hermes talaria …`). The tracker says they are
+  gone; the app still tells users to run them. 269-A-D owns the fix.
+- `hermes plugins enable` prints *"Takes effect on next session."* — FALSE
+  for the gateway (process-global singleton; the agent runs in-process). An
+  agent that believes its own tooling will report success that has not
+  happened — a hard reason 269-A (machine verification) must exist before
+  269-B, and an upstream-report candidate (queued with #264's, subject to the
+  no-external-submission rule).
+- The parent brief's "#113 supervision gap" pointer is stale — #113 closed
+  2026-07-25; the surviving half is #188, DECLINED under the no-hardening
+  rule. Neither bears on this lane.
+- #263(a) does not block this lane (see blocker 2's note).
+
+**BARS — pre-registered 2026-08-09 (filed-and-blocked is a result, not an
+omission; a missed bar is a falsification):**
+- **269-A-A (probe distinguishes live from absent, real host):** the app's
+  probe resolves live vs not-live, each verdict tracing to the observed HTTP
+  status (401 vs 503), never a stored token. Negative arm from a
+  profile/host without the plugin — no live-install change. [live host, no
+  device required]
+- **269-A-B (PLUGIN LINK stops believing the keychain):** a phone holding a
+  valid device token, pointed at a host with no adapter, renders NOT LIVE —
+  not PAIRED. `TalariaLinkState.resolve`'s token-only signal no longer
+  decides alone. The #264 "one banner and one truth" repayment. [unit +
+  screenshot]
+- **269-A-C (the app never claims to know WHY):** not-live copy states what
+  was observed and never asserts a cause it cannot distinguish; every string
+  maps to the observation licensing it. [offline]
+- **269-A-D (the stale SETUP card is gone):** `rg -n 'hermes-mobile'
+  Talaria/` returns no user-visible string. [offline]
+- **269-A-E (gate):** `lane-gate.sh` PASS, unit count moved. [Mac]
+- **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
+  install verified by the 269-A probe, not prose; injected partial states
+  detected and named; wording measured N≥10 with the error path instrumented;
+  honest degradation where the agent has no hands; consent is not the app's
+  to give — the app asks before sending, Hermes asks before executing, and on
+  an `approvals.mode: off` host the in-app ask still happens). **ALL BLOCKED
+  on #308 + the restart story; every one needs the 🔐 live-install gate,
+  per-experiment.**
+
+**Task A1 (read-only, free, highest-value unknown):** trace whether a
+desktop-app-only user's gateway is managed by the desktop backend
+(`web_server.py` `start_gateway`/`restart_gateway`; `main.ts:8167` spawns
+`serve --port 0`) — if the desktop app can bounce its own gateway, blocker 2
+softens to "ask the user to click restart" and 269-B's viability materially
+improves. Owed before any 269-B design. Also flagged, NOT designed against:
+`POST /api/gateway/restart` (`web_server.py:4038-4052`) appears to lack a
+`_require_token` call — trace the middleware before reporting upstream; do
+not use the endpoint either way.
+
+**Shared vocabulary with #270 (settle once, at the host sitting):** proposed
+NOT INSTALLED · INSTALLED, NOT LIVE · LIVE — noting the app alone can only
+distinguish LIVE from the other two.
+
 ## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-06 late night (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
 
 **The fear was half-right, and the half that was right is worth naming.** The
@@ -9560,7 +9804,7 @@ mode, and this entry exists to fix it.
 | **1** | *"Tools + admin plugin — `register_tool` (incl. #242's phone-query) + `hermes talaria pair\|status\|unpair`. Small, risks nothing, deletes the venv CLIs."* | **✅ SHIPPED 2026-08-05 evening.** Repo `AethyrionAI/talaria-plugin`, install at `~/.hermes/plugins/talaria`, CLI cycle smoked green. | TRACKED — #251 |
 | **2** | *"Webhook adapter — pairing handshake + durable outbox/directives over `POST /api/platforms/talaria/events` on the existing :8642 listener."* | **PARTIAL — slice A only.** | see below |
 | **2A** transport spine | #251: *"🔧 SLICE 2A LANE OPENED 2026-08-05 late (Owen routed: A-first…)"* | **✅ BUILT + MERGED** (PR #272, `3f3bdee`, 12 tasks, 6 fix rounds); bars 2A-A/C/D/E/F/G **MET**; **2A-B falsified as written** (32s vs ≤5s — *"the bar was MIS-SPECIFIED BY ME"*), its owed instrumentation absorbed by **#263**. | TRACKED — #251 |
-| **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | NOT STARTED | **WAS UNFILED → now #269** |
+| **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | **SPLIT 2026-08-09: 269-A (verification half) unblocked, buildable; 269-B (install half) BLOCKED on #308 (private repo — a user's Hermes cannot clone it) + the undecided restart story (no reload; the agent runs in-process)** | **WAS UNFILED → now #269** |
 | **2C** desktop face v0 | recon banked 2026-08-05, *"FOLDED INTO PHASE 2 as the desktop face's v0"* | NOT STARTED | **WAS UNFILED → now #270** |
 | **2D** OJAMD rollout | *"OJAMD install deliberately deferred to Phase 2"* | NOT STARTED | **WAS UNFILED → now #271** |
 | **3** | *"Runs-transport migration — remote turns move `chat/stream` → `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and recovery gets SIMPLER (runs pollable by id…)."* | **NEXT UP — awaiting Owen's sit-down.** Well-lit: approvals e2e-green on `/v1/runs` (2026-08-05); **steering PROVEN twice** (tui `session.steer`; runs plane `BANANA`→`PLUM` via `_active_run_agents`); the steer constraint recorded (consumed at the next tool-result boundary, **silently dropped mid-prose with a false-positive `queued` ACK**). | TRACKED — #251 (which also says *"bars pre-register here"*). **Detail plan: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.** Research: `planning/superpowers/research/251-phase3-gap/` A–H. Adjacent: `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` (#224). |
@@ -11416,6 +11660,17 @@ reads unavailable until Phase 2 heartbeats flip check_fn). **OJAMD
 install deliberately deferred to Phase 2** — Phase 1 adds no user value
 there and the venv CLIs it retires are only worth touching when pairing
 becomes consumable.
+
+> **Two corrections, 2026-08-09 (the #269/#270 investigations):**
+> (1) "deletes the venv CLIs" is true of the PLUGIN and false of the APP —
+> `ConnectHermesHostScreen.swift:110-112` still ships a SETUP card teaching
+> `hermes-mobile setup|pair-phone|service install`, the exact commands this
+> phase retired. A user following the app today runs commands the venture
+> deleted; 269-A-D owns the fix. (2) "the running gateway sees the plugin at
+> its next restart" understates the restart story ONE process short: a
+> `dashboard/` half added later (#270) loads at the DESKTOP BACKEND's import
+> — the desktop-spawned `hermes serve --port 0`, a different process from
+> the gateway. **Two restart surfaces, not one.**
 
 **Phase 2 design note (doc-confirmed 2026-08-05,
 hermes-agent.nousresearch.com/docs):** official docs give platform-channel
