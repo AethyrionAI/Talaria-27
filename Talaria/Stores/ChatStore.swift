@@ -2493,12 +2493,26 @@ final class ChatStore {
     /// teardown primitive every walk-away path calls). The departing
     /// thread's hold is not discarded and not fired: it surfaces, because
     /// the turn it was waiting on will never report a terminal now.
+    ///
+    /// **Review round 2: `.released` held-origin entries surface here too.**
+    /// A row-5 demote leaves the hold `.released` behind its `.unreachable`
+    /// predecessor; if the thread is then departed non-destructively, the
+    /// predecessor dies with the clear (#90) but the released hold survives
+    /// — and `.released` bypasses the chip entirely, so on return it would
+    /// AUTO-SEND via the drain, without the message it followed, with no
+    /// confirmation: the exact silent post the matrix's SURFACE rows exist
+    /// to prevent. Demoting it back to `.surfaced` at the DEPARTURE BOUNDARY
+    /// makes return show the chip (Send now / Edit / Discard) instead.
+    /// In-thread behavior is untouched: a demote that never leaves its
+    /// thread still drains oldest-first, and `.unreachable`-origin parks
+    /// keep #90's auto-resend semantics — those were confirmed sends.
     private func parkHeldTurnsOnWalkAway() {
         var changed = false
-        for idx in composeOutbox.pendingTurns.indices
-        where composeOutbox.pendingTurns[idx].reason == .heldDuringTurn
-            && composeOutbox.pendingTurns[idx].phase == .held
-            && composeTurnBelongsToCurrentThread(composeOutbox.pendingTurns[idx]) {
+        for idx in composeOutbox.pendingTurns.indices {
+            let turn = composeOutbox.pendingTurns[idx]
+            guard turn.reason == .heldDuringTurn,
+                  turn.phase != .surfaced,
+                  composeTurnBelongsToCurrentThread(turn) else { continue }
             composeOutbox.pendingTurns[idx].phase = .surfaced
             changed = true
         }

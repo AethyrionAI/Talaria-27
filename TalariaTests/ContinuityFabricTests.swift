@@ -849,6 +849,58 @@ struct ContinuityFabricTests {
         #expect(restored.phase == .surfaced)
     }
 
+    @Test @MainActor
+    func demotedHeldTurnSurfacesAtDepartureInsteadOfAutoSendingOnReturn() async throws {
+        // #306 review round 2: a row-5 demote leaves the hold `.released`
+        // behind its `.unreachable` predecessor. On a non-destructive
+        // departure the predecessor dies with the clear (#90) but the
+        // released hold survives — and `.released` bypasses the chip, so on
+        // return it would AUTO-SEND via the drain: a silent post the user
+        // never re-confirmed. The departure boundary must demote it back to
+        // `.surfaced`; return shows the chip and nothing fires by itself.
+        // (The in-thread demote→drain path is pinned unchanged by
+        // `unreachableDemotesHeldTurnIntoTheSameOutboxBehindTheParkedTurn`.)
+        let persistence = Self.makePersistence()
+        let client = HoldableStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.openSession("A")
+        let parentTurn = Task { @MainActor in await store.sendMessage("parent turn") }
+        let live = await pollUntil { client.continuations.count == 1 }
+        #expect(live)
+        #expect(store.holdComposedTurn("demoted follow"))
+        client.continuations[0].yield(.unreachable("down"))
+        client.continuations[0].finish()
+        _ = await parentTurn.value
+
+        // The row-5 demote: parked parent first, released hold behind it.
+        #expect(persistence.loadComposeOutboxState().pendingTurns.map(\.text)
+            == ["parent turn", "demoted follow"])
+
+        try await store.clearConversation()
+
+        // The predecessor died with the departing thread (#90); the hold
+        // survives — SURFACED, not released.
+        let survivors = persistence.loadComposeOutboxState().pendingTurns
+        #expect(survivors.map(\.text) == ["demoted follow"])
+        #expect(survivors.first?.phase == .surfaced)
+
+        // Return to A: the chip is there, and a reachability drain posts
+        // NOTHING — the user decides via Send now / Edit / Discard.
+        await store.openSession("A")
+        let restored = try #require(store.currentThreadHeldTurn)
+        #expect(restored.text == "demoted follow")
+        #expect(restored.phase == .surfaced)
+
+        client.autoFinishSends = true
+        await store.drainComposeOutboxIfPossible()
+        #expect(
+            !client.sentMessages.contains("demoted follow"),
+            "round 2: a surfaced hold must never auto-send on return"
+        )
+        #expect(store.currentThreadHeldTurn?.text == "demoted follow")
+    }
+
     // MARK: - ChatStore: journal wiring
 
     @Test @MainActor

@@ -6352,9 +6352,14 @@ the reshape ships with a decode-compatibility test.
 >   (`reset()`, the pairing lifecycle) still nukes the store. New test:
 >   `heldTurnSurvivesNewChatAndReturnsWithItsThread` (ContinuityFabricTests)
 >   — hold → New Chat → reopen from the drawer → present, surfaced, nothing
->   fired into the fresh thread. **O8's tail is Owen's:** he may prefer
->   kill-on-new-chat — surfaced in NEEDS-OWEN; the code follows the filed
->   matrix until he re-rules.
+>   fired into the fresh thread. **`clearConversation` has TWO user-facing
+>   surfaces and this behavior change applies to BOTH:** the chat screen's
+>   New Chat (`ChatScreen.swift:1625`) and Settings → Sessions → "Clear
+>   Conversation" (`SessionsSettingsScreen.swift:86/:402` — an
+>   alert-confirmed, DESTRUCTIVE-framed action that now nonetheless
+>   preserves the hold; the least-expected arm). **O8's tail is Owen's:** he
+>   may prefer kill-on-new-chat — for either surface or both — surfaced in
+>   NEEDS-OWEN; the code follows the filed matrix until he re-rules.
 > - **I-2 (the #307 health-report trade, fixed):** `refreshDirectHealth`'s
 >   guard REVERTED to its original `!isStreaming` — tightening it skipped
 >   the probe and asserted `.connected` unprobed for the whole reconcile
@@ -6365,6 +6370,27 @@ the reshape ships with a decode-compatibility test.
 > - Parked by the controller for later triage (no action this round): M-1
 >   `.released` limbo, M-2 trap-6 branch untested, M-3 Send-now silent
 >   no-op, M-4 comment attribution, M-5 red-log filenames.
+
+> **Update 2026-08-09, review round 2 (final) — one edge the lane's own
+> SURFACE discipline shouldn't ship, fixed:** a row-5 demote leaves the hold
+> `.released` behind its `.unreachable` predecessor; after a non-destructive
+> departure the predecessor dies with the clear (#90, correct) but the
+> released hold survived — and `.released` bypasses the chip entirely, so on
+> return it AUTO-SENT via the drain: without the message it followed, no
+> chip, no confirmation — the exact silent post the matrix's SURFACE rows
+> exist to prevent (bounded and single-thread, but real). **Fix: the
+> departure boundary (`parkHeldTurnsOnWalkAway`, inside `abandonPendingRun`)
+> now demotes surviving `.released` `.heldDuringTurn` entries for the
+> departing thread back to `.surfaced`** — return shows the chip (Send now /
+> Edit / Discard) instead of auto-sending. This also covers the pre-existing
+> thread-switch instance of the same class. In-thread behavior unchanged: a
+> row-5 demote that never leaves its thread still drains oldest-first
+> (pinned unedited by `unreachableDemotesHeldTurnIntoTheSameOutboxBehind…`),
+> and `.unreachable`-origin parks keep #90's auto-resend — those were
+> confirmed sends. New test:
+> `demotedHeldTurnSurfacesAtDepartureInsteadOfAutoSendingOnReturn`
+> (ContinuityFabricTests): hold → row-5 demote → New Chat → return → chip
+> surfaced with the held text, a reachability drain posts NOTHING.
 
 ## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
 
