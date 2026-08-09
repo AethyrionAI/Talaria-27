@@ -2410,6 +2410,11 @@ Logged 2026-07-11.
 >    than discovered later:** the probe scores `routeTurn`'s RETURN VALUE,
 >    not the `router: turn routed …` log line the bar named. Same Bool,
 >    strictly less lossy; noted so the run record matches the instrument.
+>
+> **✅ Lane gate 2026-08-09 (controller-run, CC-272-iPhone-Air, on the
+> branch merged with main): GATE: PASS — TEST SUCCEEDED, 1954 Swift
+> Testing + 13 XCUITest, Release build clean.** (Not a bar — the standing
+> pre-PR rule; A-1's own bars remain the device run.)
 
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
