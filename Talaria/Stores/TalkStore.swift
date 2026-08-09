@@ -12,7 +12,12 @@ struct CompletedVoiceSession: Sendable {
     /// Which engine ran the session (#18). Native-engine turns already rode
     /// the chat backend, so the post-to-Hermes context turn is skipped for
     /// them — only the local transcript rendering applies.
-    let engine: VoiceEngine
+    ///
+    /// #180 lane 180-L: optional, because the store's `voiceEngine` now is.
+    /// The one consumer (`ContentView`) already tests `== .realtime`, so an
+    /// unknown engine falls to the conservative side — no duplicate context
+    /// turn posted for a session whose engine nobody published.
+    let engine: VoiceEngine?
 }
 
 @MainActor
@@ -32,7 +37,11 @@ final class TalkStore {
     var readiness = TalkReadinessInfo()
     /// The engine driving (or last driving) the voice session (#18) — feeds
     /// the overlay's LOCAL VOICE badge and the Voice settings engine row.
-    var voiceEngine: VoiceEngine = .realtime
+    ///
+    /// #180 lane 180-L: **nil until a snapshot publishes one.** It defaulted to
+    /// `.realtime`, which meant every surface reading it named an engine before
+    /// anything had selected one (bar 180-C).
+    var voiceEngine: VoiceEngine?
     /// #84: flatline-tripwire hint — connected but no mic signal evidence.
     var micHealthHint: String?
     /// #84: current audio route summary while a session is (or was) live.
@@ -200,7 +209,9 @@ final class TalkStore {
         latencyMetrics = TalkLatencyMetrics()
         voiceSessionID = nil
         readiness = TalkReadinessInfo()
-        voiceEngine = .realtime
+        // #180 lane 180-L: reset returns this to UNKNOWN, not to the
+        // historical engine — a reset store has not selected anything.
+        voiceEngine = nil
         micHealthHint = nil
         audioRouteSummary = nil
         lastCompletedSession = nil

@@ -73,9 +73,21 @@ enum SettingsCardValues {
     // voluntary/forced distinction: ON-DEVICE = the brain choice implies
     // local voice; LOCAL = the user picked the native engine; LOCAL ONLY =
     // linked to Hermes but realtime isn't available — the forced fallback.
-    static func voice(brainIsLocal: Bool, engine: VoiceEngine, talkState: TalkConnectionState) -> String {
+    /// #180 lane 180-L: `engine` is optional — nil means no engine has been
+    /// selected yet, and the card must not answer REALTIME for one. Unknown
+    /// gets its own branch (rule 5) rather than falling to the affirmative
+    /// side. The idle/blocked/failed answers are unchanged, because those were
+    /// never engine-dependent; the transitional states reuse the EXISTING "…"
+    /// placeholder rather than introducing copy.
+    static func voice(brainIsLocal: Bool, engine: VoiceEngine?, talkState: TalkConnectionState) -> String {
         if brainIsLocal { return "ON-DEVICE" }
         if engine == .native { return "LOCAL" }
+        if engine == nil {
+            return switch talkState {
+            case .idle, .blocked, .failed: "LOCAL ONLY"
+            default: "…"
+            }
+        }
         return switch talkState {
         case .connected: "REALTIME · LIVE"
         case .ready, .connecting: "REALTIME"

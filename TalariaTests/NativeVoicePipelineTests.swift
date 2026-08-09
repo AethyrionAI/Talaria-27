@@ -226,11 +226,25 @@ struct NativeVoicePipelineTests {
         /// Applied when refreshReadiness runs, simulating the probe outcome.
         var stateAfterRefresh: TalkConnectionState = .ready
 
+        /// #180 lane 180-L (bar 180-C): when false the snapshot omits `engine:`
+        /// entirely — which is exactly what the REALTIME service does in
+        /// production. `NativeVoicePipelineService.swift:71` is the ONLY
+        /// producer that has ever stamped it, so a realtime-path snapshot
+        /// carries whatever the struct's default is. Models "no engine has
+        /// been selected yet."
+        var stampsEngine = true
+
         init(engine: VoiceEngine) {
             self.engine = engine
         }
 
         var snapshot: TalkSessionSnapshot {
+            var built = unstampedSnapshot
+            if stampsEngine { built.engine = engine }
+            return built
+        }
+
+        private var unstampedSnapshot: TalkSessionSnapshot {
             TalkSessionSnapshot(
                 voiceState: voiceState,
                 connectionState: connectionState,
@@ -242,8 +256,7 @@ struct NativeVoicePipelineTests {
                 canStartSession: canStartSession,
                 latencyMetrics: latencyMetrics,
                 voiceSessionID: nil,
-                readiness: readiness,
-                engine: engine
+                readiness: readiness
             )
         }
 
@@ -266,6 +279,120 @@ struct NativeVoicePipelineTests {
         func manuallyInterruptAssistantOutput() {}
         @discardableResult
         func sendImage(_ imageData: Data, mimeType: String, triggerResponse: Bool) -> Bool { false }
+    }
+
+    // MARK: - #180 lane 180-L / L2: the overlay must not name an unselected engine
+    //
+    // Bars 180-C (RED on the defect) and 180-D (the green-today regression
+    // PIN). The form being removed is `HostFedListPresentation`'s rule 5
+    // "optimistic default": a stored property whose declared default is the
+    // affirmative value, corrected only if some producer bothers to stamp it.
+    //
+    // This settles the residual #139 explicitly left unasserted — and settles
+    // it WITHOUT the tethered device sitting that entry said it needed,
+    // because the defect turns out to be a default in a struct rather than a
+    // runtime routing question. That is the finding: #139 filed this as
+    // needing a quoted log line; it needed a unit test.
+
+    /// **180-C, first RED — the label.** With no engine selected, the header
+    /// must name none. Before L2 the derivation read `voiceEngine == .native`,
+    /// `voiceEngine` defaulted to `.realtime`, and `.idle` fell through to
+    /// **"VOICE LINK · CONNECTING"** — an engine name produced by a struct
+    /// default, in a state where nothing had chosen an engine at all.
+    @Test func overlayHeaderNamesNoEngineBeforeOneIsSelected() {
+        let label = VoiceOverlayScreen.sessionHeaderLabel(
+            engine: nil, connectionState: .idle, duration: 0)
+
+        #expect(!label.contains("VOICE LINK"),
+                "no engine has been selected — the header must not claim the Realtime link")
+        #expect(!label.contains("LOCAL VOICE"),
+                "…and it must not claim the on-device pipeline either")
+    }
+
+    /// The same neutrality across every pre-connect state the router can sit
+    /// in, including the up-to-12s realtime start budget that ends in a
+    /// fallback to native (`VoiceEngineRouter.realtimeStartTimeout`).
+    @Test func overlayHeaderStaysNeutralAcrossEveryPreSelectionState() {
+        for state in [TalkConnectionState.idle, .checking, .ready, .connecting, .blocked, .failed] {
+            let label = VoiceOverlayScreen.sessionHeaderLabel(
+                engine: nil, connectionState: state, duration: 0)
+            #expect(!label.contains("VOICE LINK"), "\(state.rawValue) named the Realtime link")
+            #expect(!label.contains("LOCAL VOICE"), "\(state.rawValue) named the on-device pipeline")
+        }
+    }
+
+    /// **180-C, second RED — the mechanism itself.** A snapshot built with no
+    /// `engine:` argument must not report `.realtime`. This is the optimistic
+    /// default caught directly at `VoiceState.swift`, one layer below the
+    /// label: no re-wording of the HUD copy can satisfy it.
+    @Test func anUnstampedSnapshotDoesNotClaimTheRealtimeEngine() {
+        let snapshot = TalkSessionSnapshot(
+            voiceState: .idle,
+            connectionState: .idle,
+            transcriptItems: [],
+            sessionDuration: 0,
+            isMuted: false,
+            blockedReason: nil,
+            statusMessage: nil,
+            canStartSession: true,
+            latencyMetrics: TalkLatencyMetrics(),
+            voiceSessionID: nil
+        )
+
+        #expect(snapshot.engine != .realtime,
+                "an unstamped snapshot must not silently claim the historical engine")
+    }
+
+    /// **180-C, third RED — end to end through the store.** The realtime
+    /// service never stamps its snapshots, so a `TalkStore` built on one
+    /// starts with no engine known, and the header derived from it must stay
+    /// neutral.
+    @MainActor
+    @Test func aStoreFedByAnUnstampingServiceKnowsOfNoEngine() {
+        let service = StubVoiceService(engine: .realtime)
+        service.stampsEngine = false     // exactly what LiveVoiceSessionService does
+        let store = TalkStore(voiceService: service)
+
+        #expect(store.voiceEngine != .realtime,
+                "the store must not adopt an engine nobody published")
+
+        let label = VoiceOverlayScreen.sessionHeaderLabel(
+            engine: store.voiceEngine,
+            connectionState: store.connectionState,
+            duration: store.sessionDuration)
+        #expect(!label.contains("VOICE LINK"))
+        #expect(!label.contains("LOCAL VOICE"))
+    }
+
+    /// **180-D — the regression PIN. GREEN TODAY BY CONSTRUCTION**, recorded
+    /// as a pin rather than implied to be a proof. #18's rule is that local
+    /// voice is never silently substituted for the Realtime experience, so an
+    /// unknown state must not erase the distinction it exists to draw.
+    @Test func aSelectedEngineIsStillNamed() {
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .native, connectionState: .idle, duration: 0) == "LOCAL VOICE · STARTING")
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .realtime, connectionState: .connecting, duration: 0) == "VOICE LINK · CONNECTING")
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .native, connectionState: .connected, duration: 65) == "LOCAL VOICE · 01:05")
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .realtime, connectionState: .connected, duration: 65) == "VOICE SESSION · 01:05")
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .realtime, connectionState: .failed, duration: 0) == "VOICE LINK · FAILED")
+        #expect(VoiceOverlayScreen.sessionHeaderLabel(
+            engine: .native, connectionState: .blocked, duration: 0) == "LOCAL VOICE · UNAVAILABLE")
+    }
+
+    /// **180-D, second half — a stamped snapshot still reaches the store**, so
+    /// the `LOCAL VOICE · ON-DEVICE PIPELINE` badge (`VoiceOverlayScreen`
+    /// `:138`) keeps its input. Green today; pinned so the unknown state
+    /// cannot swallow a real selection.
+    @MainActor
+    @Test func aStampedSnapshotStillNamesItsEngineInTheStore() async {
+        let service = StubVoiceService(engine: .native)
+        let store = TalkStore(voiceService: service)
+
+        #expect(store.voiceEngine == .native)
     }
 
     @MainActor
@@ -622,7 +749,20 @@ struct NativeVoicePipelineTests {
 
     // MARK: - Snapshot / hand-off tagging
 
-    @Test func snapshotEngineDefaultsToRealtime() {
+    /// **INVERTED IN PLACE 2026-08-09 (#180 lane 180-L, bar 180-C).**
+    ///
+    /// This test used to read `snapshotEngineDefaultsToRealtime` and assert
+    /// `snapshot.engine == .realtime`. **It was a pin on the defect** — it
+    /// certified the optimistic default that made every unstamped snapshot
+    /// claim the Realtime engine, which is what put "VOICE LINK · CONNECTING"
+    /// on the overlay in states where nothing had selected an engine. Kept
+    /// here, inverted, rather than deleted: the assertion that changed sign is
+    /// the clearest record of what the lane actually changed.
+    ///
+    /// The live assertion lives at
+    /// `anUnstampedSnapshotDoesNotClaimTheRealtimeEngine`; this one pins the
+    /// stronger property — the default is *absent*, not merely different.
+    @Test func snapshotEngineIsUnknownUntilAProducerStampsIt() {
         let snapshot = TalkSessionSnapshot(
             voiceState: .idle,
             connectionState: .idle,
@@ -635,6 +775,6 @@ struct NativeVoicePipelineTests {
             latencyMetrics: TalkLatencyMetrics(),
             voiceSessionID: nil
         )
-        #expect(snapshot.engine == .realtime)
+        #expect(snapshot.engine == nil)
     }
 }

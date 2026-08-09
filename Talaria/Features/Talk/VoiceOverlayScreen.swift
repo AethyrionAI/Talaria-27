@@ -148,27 +148,58 @@ struct VoiceOverlayScreen: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var sessionHeaderLabel: String {
+        Self.sessionHeaderLabel(
+            engine: talkStore.voiceEngine,
+            connectionState: talkStore.connectionState,
+            duration: talkStore.sessionDuration
+        )
+    }
+
     /// #119b: bound to the live connection state machine — the label must
     /// never claim CONNECTING once the session is past the connect phase
     /// (the old shape fell back to CONNECTING for EVERY inactive state, so a
     /// mid-conversation `.failed` blip read as a stuck connect). Connected
     /// shows the ticking duration; blocked/failed show the state's own label.
-    private var sessionHeaderLabel: String {
-        let isNative = talkStore.voiceEngine == .native
-        switch talkStore.connectionState {
+    ///
+    /// #180 lane 180-L (bar 180-C): extracted from a private computed property
+    /// on the View so the derivation is unit-testable — the house pattern
+    /// (`ChatScreen.sessionSummary`, `ChatStore.voiceTranscriptMessages`).
+    ///
+    /// **`engine == nil` means no engine has been selected, and the label must
+    /// name none.** The neutral tag is deliberately "VOICE" and nothing more:
+    /// #18's rule is that local voice is never silently substituted for the
+    /// Realtime experience, so the unknown state must not read as a THIRD
+    /// engine. It is the absence of a claim, not a new claim.
+    /// (Copy owed Owen's approval — dispatch §8.5.)
+    nonisolated static func sessionHeaderLabel(
+        engine: VoiceEngine?,
+        connectionState: TalkConnectionState,
+        duration: TimeInterval
+    ) -> String {
+        // Rule 5: unknown gets its own branch, not the `else` branch.
+        let tag: String
+        switch engine {
+        case .native:
+            tag = "LOCAL VOICE"
+        case .realtime:
+            tag = connectionState == .connected ? "VOICE SESSION" : "VOICE LINK"
+        case nil:
+            tag = "VOICE"
+        }
+        switch connectionState {
         case .connected:
-            return "\(isNative ? "LOCAL VOICE" : "VOICE SESSION") · \(formattedDuration)"
+            return "\(tag) · \(formattedDuration(duration))"
         case .idle, .checking, .ready, .connecting:
-            return isNative ? "LOCAL VOICE · STARTING" : "VOICE LINK · CONNECTING"
+            return engine == .native ? "\(tag) · STARTING" : "\(tag) · CONNECTING"
         case .blocked, .failed:
-            let tag = isNative ? "LOCAL VOICE" : "VOICE LINK"
-            return "\(tag) · \(talkStore.connectionState.displayLabel.uppercased())"
+            return "\(tag) · \(connectionState.displayLabel.uppercased())"
         }
     }
 
-    private var formattedDuration: String {
-        let minutes = Int(talkStore.sessionDuration) / 60
-        let seconds = Int(talkStore.sessionDuration) % 60
+    nonisolated static func formattedDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
 

@@ -124,9 +124,44 @@ struct SharedInboxStore: Sendable {
     /// counts as an abandoned extension write and is cleaned up.
     let staleIncompleteGrace: TimeInterval
 
-    static let defaultMaxEnvelopeBytes = 20 * 1024 * 1024
+    /// #180 lane 180-L (bar 180-E) — **base-10, deliberately, so the number
+    /// the refusal states is the number the guard enforces.**
+    ///
+    /// ~~`20 * 1024 * 1024`~~ (20 MiB = 20,971,520) was base-2 while every
+    /// label the extension renders is `ByteCountFormatter(.file)`, which is
+    /// base-10 — the same arithmetic Files and Photos show the user. The
+    /// refusal therefore announced *"limit 21 MB"*, a limit **28,480 bytes
+    /// larger than the one actually enforced**, and a 20,999,999-byte file the
+    /// guard refuses ALSO rendered "21 MB": *"21 MB is too large — limit
+    /// 21 MB."*
+    ///
+    /// **This is Owen's decision (dispatch §8.4) and it is one constant wide.**
+    /// The alternative was keeping the base-2 cap and rendering the limit with
+    /// a base-2 formatter ("20 MiB") — more precise, uglier, and not what the
+    /// user's file browser shows. Bar 180-E is identical either way, so
+    /// reversing this is a one-line change plus a re-run.
+    ///
+    /// **Residual, stated rather than hidden:** any rounded label keeps a
+    /// boundary band (cap+1 … ~cap+499,999) that still renders as "20 MB".
+    /// This removes the systematic overstatement, not rounding itself.
+    static let defaultMaxEnvelopeBytes = 20_000_000
     static let envelopeFileName = "envelope.json"
     private static let blobsDirName = "blobs"
+
+    /// #180 lane 180-L (bar 180-E) — **the refusal's arithmetic lives next to
+    /// the guard it explains.** This was `ShareSheetModel.LoadedItem.byteLabel`
+    /// in `ShareViewController.swift`, which is compiled ONLY into the
+    /// TalariaShare target and is therefore unreachable from the suite; this
+    /// file is compiled into both, so the number the user is shown and the
+    /// number the guard enforces can be asserted against each other.
+    /// Pure code motion at this commit.
+    static func byteLabel(_ count: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file)
+    }
+
+    /// The limit as the refusal states it. Same formatter as any file size the
+    /// extension shows, so the two are comparable by construction.
+    static var sizeLimitLabel: String { byteLabel(defaultMaxEnvelopeBytes) }
 
     private static let log = Logger(subsystem: "org.aethyrion.talaria", category: "SharedInbox")
 

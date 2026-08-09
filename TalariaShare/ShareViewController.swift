@@ -97,8 +97,12 @@ final class ShareSheetModel {
             }
         }
 
+        /// #180 lane 180-L: the arithmetic moved to `SharedInboxStore`, which
+        /// is compiled into both targets and so is reachable from the suite —
+        /// the size the sheet shows and the cap the guard enforces have to be
+        /// assertable against each other (bar 180-E).
         static func byteLabel(_ count: Int) -> String {
-            ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file)
+            SharedInboxStore.byteLabel(count)
         }
     }
 
@@ -214,7 +218,7 @@ final class ShareSheetModel {
         guard data.count <= remainingBytes else {
             return LoadedItem(payload: .refused(
                 name: fileName,
-                reason: "Too large to hand off (limit \(LoadedItem.byteLabel(SharedInboxStore.defaultMaxEnvelopeBytes)))"))
+                reason: "Too large to hand off (limit \(SharedInboxStore.sizeLimitLabel))"))
         }
         return LoadedItem(payload: .fileBlob(fileName: fileName, data: data))
     }

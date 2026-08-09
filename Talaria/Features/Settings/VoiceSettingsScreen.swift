@@ -96,10 +96,13 @@ struct VoiceSettingsScreen: View {
         )
     }
 
+    /// #180 lane 180-L: nil = no engine selected yet. "—" per the real-data
+    /// rule; naming one here was the same claim the overlay header made.
     private var engineDescriptor: String {
         switch talkStore.voiceEngine {
         case .realtime: "REALTIME · SPEECH-TO-SPEECH"
         case .native: "LOCAL · ON-DEVICE PIPELINE"
+        case nil: "—"
         }
     }
 
@@ -121,7 +124,8 @@ struct VoiceSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             groupLabel("// Status")
             VStack(spacing: 0) {
-                statusRow("Engine", (talkStore.voiceEngine.monoLabel,
+                // #180 lane 180-L: "—" until an engine has been published.
+                statusRow("Engine", (talkStore.voiceEngine?.monoLabel ?? "—",
                                      talkStore.voiceEngine == .native ? Design.Brand.forge : Design.Brand.accent))
                 rowDivider
                 statusRow("Host", boolStatus(readiness.hostOnline, yes: "ONLINE", no: "OFFLINE",
@@ -402,9 +406,15 @@ struct VoiceSettingsScreen: View {
 
     private var footer: some View {
         MonoLabel(
-            talkStore.voiceEngine == .native
-                ? "TALK ENGINE · ON-DEVICE · SPEECHANALYZER + TTS"
-                : "TALK ENGINE · RELAY-BOOTSTRAPPED · WEBRTC",
+            // #180 lane 180-L: three branches, not two — the footer named an
+            // engine's transport before one had been selected.
+            {
+                switch talkStore.voiceEngine {
+                case .native: "TALK ENGINE · ON-DEVICE · SPEECHANALYZER + TTS"
+                case .realtime: "TALK ENGINE · RELAY-BOOTSTRAPPED · WEBRTC"
+                case nil: "TALK ENGINE · NOT YET SELECTED"
+                }
+            }(),
             size: 9, weight: .regular,
             tracking: Design.Tracking.monoWide, color: Design.Colors.dimForeground)
             .frame(maxWidth: .infinity, alignment: .center)

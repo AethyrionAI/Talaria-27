@@ -181,6 +181,80 @@ struct ShareInboxCoreTests {
         #expect(!FileManager.default.fileExists(atPath: envDir.path))
     }
 
+    // MARK: #180 lane 180-L / L3 — the number in the refusal must explain it
+    //
+    // Bar 180-E. `HostFedListPresentation`'s rule 5 is about UNKNOWN getting
+    // its own branch; this is its arithmetic cousin — a number the app shows
+    // that cannot account for the decision the app made is the same class of
+    // dishonesty, and the user has no way to tell.
+    //
+    // The defect: the cap was base-2 (20 MiB = 20,971,520) while every label
+    // the extension renders is `ByteCountFormatter(.file)`, which is base-10.
+    // So the refusal announced "limit 21 MB" — a limit 28,480 bytes LARGER
+    // than the one enforced — and a 20,999,999-byte file, which the guard
+    // refuses, also rendered "21 MB". The message read
+    // "21 MB is too large — limit 21 MB."
+
+    /// The numeric magnitude the label states, independent of unit and
+    /// grouping separators — the bar is about arithmetic, not copy, so it must
+    /// not be satisfiable (or broken) by punctuation.
+    private func statedMagnitude(_ label: String) -> Double {
+        let digits = label
+            .filter { $0.isNumber || $0 == "." }
+        return Double(digits) ?? -1
+    }
+
+    /// **180-E (i) — the stated limit must not round UP past the enforced
+    /// cap.** A limit the app overstates is a limit that cannot explain a
+    /// refusal at the boundary.
+    @Test func statedLimitNeverOverstatesTheEnforcedCap() {
+        let cap = SharedInboxStore.defaultMaxEnvelopeBytes
+        let stated = statedMagnitude(SharedInboxStore.sizeLimitLabel)
+
+        #expect(stated > 0, "the limit label must state a number at all")
+        #expect(stated * 1_000_000 <= Double(cap),
+                "the refusal announces a larger limit than the guard enforces — \(SharedInboxStore.sizeLimitLabel) vs \(cap) bytes")
+    }
+
+    /// **180-E (ii) — the largest byte count the guard ACCEPTS renders at or
+    /// under the stated limit.** The regression half: the fix must not make
+    /// an accepted file look oversized.
+    @Test func theLargestAcceptedSizeRendersAtOrUnderTheStatedLimit() {
+        let cap = SharedInboxStore.defaultMaxEnvelopeBytes
+        #expect(statedMagnitude(SharedInboxStore.byteLabel(cap))
+                <= statedMagnitude(SharedInboxStore.sizeLimitLabel))
+        #expect(SharedInboxStore.byteLabel(cap) == SharedInboxStore.sizeLimitLabel,
+                "the same byte count must render identically wherever it appears")
+    }
+
+    /// **180-E (iii) — a refused file the user's own browser shows as larger
+    /// than the limit must RENDER as larger than the limit.** 20,999,999 is
+    /// the dispatch's worked case; the guard is `totalBytes <= cap`, so this
+    /// count is refused by construction.
+    @Test func aRefusedSizeRendersLargerThanTheStatedLimit() {
+        let refused = 20_999_999
+        #expect(refused > SharedInboxStore.defaultMaxEnvelopeBytes,
+                "precondition: this byte count is one the guard refuses")
+
+        #expect(statedMagnitude(SharedInboxStore.byteLabel(refused))
+                > statedMagnitude(SharedInboxStore.sizeLimitLabel),
+                "refused at \(SharedInboxStore.byteLabel(refused)) against a stated limit of \(SharedInboxStore.sizeLimitLabel) — the number cannot explain the decision")
+    }
+
+    /// The guard the labels are explaining, exercised at its own boundary so
+    /// the arithmetic above is anchored to real behaviour rather than to a
+    /// constant. Uses a small cap so no 20MB buffer is allocated.
+    @Test func theGuardRefusesExactlyAboveItsCap() {
+        let store = makeStore(maxEnvelopeBytes: 1_000)
+        let env = envelope(items: [.file(blobFileName: "b.bin", fileName: "b.bin")])
+
+        #expect(throws: Never.self) { try store.write(env, blobs: ["b.bin": Data(count: 1_000)]) }
+        store.remove(envelopeID: env.id)
+        #expect(throws: SharedInboxError.self) {
+            try store.write(env, blobs: ["b.bin": Data(count: 1_001)])
+        }
+    }
+
     // MARK: Removal
 
     @Test func removeDeletesEnvelopeDir() throws {
