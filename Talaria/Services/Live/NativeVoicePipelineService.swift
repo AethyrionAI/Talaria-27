@@ -511,6 +511,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         }
         let stream = backend.sendStreaming(message: text, attachments: [], clientMessageID: UUID())
         var streamedText = ""
+        // #304 review-1 fix: the run whose approval THIS turn raised on the
+        // shared card store — the post-loop teardown is scoped to it, so a
+        // barge-in successor's card is never torn down by this turn's exit.
+        var raisedApprovalRunID: String?
         for await update in stream {
             if Task.isCancelled { break }
             switch update {
@@ -552,15 +556,34 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
                 }
-            case .approvalRequested:
-                // #304: voice has no approval surface — say so honestly
-                // rather than sitting silent while the host's window burns.
-                // The chat transcript (ChatStore + HostApprovalCard) is the
-                // place to answer; this pipeline only reports the state.
+            case .approvalRequested(let request):
+                // #304 review-1 fix: voice has no approval surface of its
+                // own, and this frame landed in THIS consumer — the chat's
+                // consumer will never see it (no replay). So raise the SAME
+                // shared card the chat screen renders; that is what makes
+                // "open the chat" TRUE rather than the #180 lie the review
+                // caught. Rides the existing consumer — no new Task (#292).
+                raisedApprovalRunID = request.runID
+                if request.question == nil {
+                    hostApprovals?.raiseDegraded(
+                        runID: request.runID,
+                        profileID: request.profileID,
+                        endpoint: request.endpoint
+                    )
+                } else {
+                    hostApprovals?.raise(request)
+                }
                 voiceState = .thinking
-                statusMessage = "Hermes is waiting on a host approval that voice can't show. Open the chat to answer it."
-            case .approvalResolved:
-                break
+                statusMessage = hostApprovals == nil
+                    // No shared store wired (bare constructions): the honest
+                    // downgrade — no instruction to open a chat that will
+                    // show nothing.
+                    ? "Hermes is waiting on a host approval this voice surface can't show. If it isn't answered, the host denies it when its window expires."
+                    : "Hermes is waiting for your approval — open the chat to answer it before the host's window expires."
+            case .approvalResolved(let runID, let choice):
+                // Idempotent teardown, same as the chat consumer (bar 304-E).
+                hostApprovals?.markResolved(runID: runID, choice: choice)
+                if raisedApprovalRunID == runID { raisedApprovalRunID = nil }
             case .failed(let reason), .unreachable(let reason):
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn(reason)
@@ -569,6 +592,17 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn("Connection dropped — the reply may finish on the host.")
             }
+        }
+        // #304 review-1 fix, bar 304-E on the VOICE consumer: this turn is
+        // over — however it ended (finished, failed, interrupted, or a
+        // barge-in cancellation breaking the loop) — so a card THIS turn
+        // raised comes down with it. SCOPED to the run this turn raised: a
+        // successor turn's card (barge-in raced a new approval up) is never
+        // torn down by a predecessor's exit. Runs before the superseded-run
+        // guard below on purpose — a cancelled predecessor still owns its
+        // own card's teardown.
+        if let approvalRunID = raisedApprovalRunID {
+            hostApprovals?.clearForTurnEnd(runID: approvalRunID)
         }
         // A superseded run (barge-in started a newer turn) ends here — the
         // newer turn owns the task handle and the state machine.

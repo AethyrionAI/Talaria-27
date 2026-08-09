@@ -698,6 +698,12 @@ final class AppContainer {
             settingsStore.settings.readAloudRate
         }
         let voiceService: any VoiceSessionServiceProtocol
+        // #304 review-1 fix: held outside the branch so the post-container
+        // wiring below can hand the native pipeline the SAME
+        // HostApprovalStore the chat screen renders — a voice turn's
+        // approval frame lands in the VOICE consumer, and "open the chat"
+        // is only true if that consumer raises the shared card.
+        var nativeVoicePipeline: NativeVoicePipelineService?
         if usesMockPairingService {
             voiceService = MockVoiceSessionService()
         } else {
@@ -708,6 +714,7 @@ final class AppContainer {
                 backendProvider: { chatBackendRouter },
                 speechOutput: nativeSpeechOutput
             )
+            nativeVoicePipeline = nativeVoice
             voiceService = VoiceEngineRouter(
                 realtime: LiveVoiceSessionService(
                     apiClient: apiClient,
@@ -765,6 +772,10 @@ final class AppContainer {
             )
         }
         container.chatStore.hostApprovals = container.hostApprovalStore
+        // #304 review-1 fix: the voice pipeline consumes its own stream, so
+        // an approval frame on a voice turn must raise this SAME store or
+        // the pipeline's "open the chat" line points at an empty transcript.
+        nativeVoicePipeline?.hostApprovals = container.hostApprovalStore
 
         // #113: repeated drain retry-exhaustion (the dead-connector shape)
         // surfaces as ONE deduped local inbox alert; the next successful
