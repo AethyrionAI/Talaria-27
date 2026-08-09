@@ -6118,6 +6118,132 @@ paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
 `:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
 head). C2 (3B has no entry) is discharged by this filing.
 
+> **UPDATE 2026-08-09 (lane executed — branch `t27-304-3b-host-approvals`,
+> based on #292's tip `b2265cd` + `main` merged for the filings): 304-A..F
+> BUILT AND MET at the unit level, TDD with observed REDs throughout; 304-G
+> PENDING (controller runs the gate); 304-H/I QUEUED behind the 🔐
+> live-install go (O2 still owed — nothing on any live install was touched).**
+>
+> **Pre-lane baseline, measured on the lane's own base (`e87de11`): 1927
+> tests / 145 suites** (full `TalariaTests`, gate sim 47F68496). **Post-lane
+> full-unit run: 1953 tests / 148 suites passed** — the count MOVED by
+> exactly the lane's 26 new tests / 3 new suites (fresh `test`, not
+> `test-without-building`; the stale-`.xctest` tell checked).
+>
+> **Per-bar evidence (every RED observed on the gate sim before its GREEN;
+> RED log preserved in the lane report):**
+> - **304-A MET.** RED `bf6d08b`: 4 failed / 17 — `approval.request` still
+>   decoded to `.ignored("approval.request")`, the exact discard
+>   `RunsFrameParserTests:37` pinned. GREEN `a4295f7`: 17/17. Three producer
+>   fixtures (four-choice, `smart_denied` `["once","deny"]`, MCP elicitation
+>   with `pattern_key:"mcp_elicitation"` and command-as-MESSAGE) decode with
+>   `choices` verbatim; a no-choices frame stays `.ignored` (honest absence
+>   over invented buttons); the inverted test narrowed IN PLACE to
+>   `subagentFramesAreIgnoredNotDropped`. Buttons build from
+>   `request.question.choices` — nothing hardcodes four.
+> - **304-B MET.** RED `1895b88`: `answerApproval` resolved to the protocol
+>   default (`.unsupported`), zero POSTs recorded. GREEN `606ce16`:
+>   `onceAnswerPostsExactlyOneChoiceBodyToTheRunsPath` pins body ==
+>   `{"choice":"once"}`, one POST, Bearer auth;
+>   `answerRidesTheGivenEndpointNotTheLiveProviders` flips the live base URL
+>   before answering and the POST still hits the birth host (the endpoint
+>   rides the `RunApprovalRequest` VALUE — never `activeRunContext`, whose
+>   doc now says so);
+>   `HostApprovalStoreTests.atMostOnePostPerCardRegardlessOfTapCount` pins
+>   the tap-count half with a gated sender (in-flight double-tap no-ops;
+>   resolved card never posts again; `.unreachable` is the sole re-entry).
+> - **304-C MET.** RED: all arms classified `.unsupported`. GREEN: 409
+>   `approval_not_pending` → `.windowClosed` ("window closed — the host
+>   already denied this"), 409 `approval_not_active` → `.notActive`
+>   (distinct, no expiry claim), 404 → `.runGone`, 400 → `.rejected` with
+>   the host's words, transport failure → `.unreachable` (card stays LIVE,
+>   #264's rule) — and the store renders the three terminal arms as three
+>   DISTINCT notices with `resolvedChoice` nil
+>   (`theFourXXArmsRenderDistinctlyAndNeverAsSuccess`).
+> - **304-D MET, all three arms.** (i) `statusAloneRaisesOnly…`: events 404
+>   + status `waiting_for_approval` → exactly one degraded
+>   `.approvalRequested` with `question == nil`, and the store's degraded
+>   Deny SENDS (`degradedDenySendsAndARealQuestionIsNeverDowngraded`) — the
+>   stream-independent channel. (ii) same fixture: poll-budget expiry on the
+>   parked run yields one `.interrupted`, zero `.failed`. (iii) RED: the
+>   sync path threw the generic "did not answer in time" after 13 polls;
+>   GREEN: `pollRunToTerminal(haltOnApprovalPark:)` returns on the FIRST
+>   parked read (poll count == 1) and `syncTurnViaRuns` throws the honest
+>   refusal naming the parked approval (O5).
+> - **304-E MET.** Exactly one `.finished` with an approval frame in the
+>   turn; duplicate `approval.responded` frames idempotent at the store
+>   (`markResolvedIsIdempotentAndScopedToTheRun`); card torn down on EVERY
+>   driver exit — `.finished`/`.failed`/`.unreachable`/`.interrupted` (both
+>   arms), `cancelStreaming` (Stop AND revoked-budget), `abandonPendingRun`
+>   (thread switch/clear/reset) — proven end-to-end through a real
+>   `ChatStore` (`chatStoreRaisesTheCardMidTurnAndTearsItDownAtTurnEnd`).
+> - **304-F MET.** A question is only ever minted from a stream frame; the
+>   degraded raise carries `question: nil` by construction, pinned by the
+>   D(i) fixture's `request.question == nil` assertion, and
+>   `RunStatusSnapshot.liveStatuses`' doc now carries the C5 warning.
+> - **304-G PENDING** — the controller runs `lane-gate.sh` (lane-local
+>   evidence: the five affected suites 68/68 post-change, 3A's
+>   `RunsPlaneTransportTests` 33/33 unregressed; full-unit count at the foot).
+> - **304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
+>   per-experiment go still owed; Owen's O3 routes them to the Mac. The
+>   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
+>   the §2.3 unknown: what a DENIED tool call emits on the runs stream —
+>   observe, don't guess (#296's family).
+>
+> **Owen's rulings applied as recorded:** O1 — all four choices render as
+> offered; `once`/`deny` one tap; `always`/`session` (and, fail-safe, any
+> unknown choice) behind a second confirm naming the consequence
+> ("Permanently allowlists this pattern on <host>…" / "Applies to this one
+> run only — not this conversation"); the `session` button reads **THIS
+> RUN**, pinned by `sessionChoiceRendersAsThisRunNeverAsSession`. O5 — the
+> sync path's honest refusal (above). O6 — `useRunsTransport` default
+> untouched (OFF); nothing is reachable outside Developer.
+>
+> **The card (`Talaria/Features/Chat/HostApprovalCard.swift`):** a SIBLING of
+> `ToolConfirmationCard`, rendered beside it in `ChatScreen` (both can be on
+> screen at once); distinguishable at a glance — "HOST APPROVAL" + antenna
+> glyph + the actor named (birth profile's name, else the frozen endpoint's
+> host) vs. the device card's "Confirm" + hand glyph; `command` rendered
+> VERBATIM (monospaced for commands, prose for the MCP-elicitation consent
+> MESSAGE — never presented as something the host would "run"), never
+> truncated, never a file-reconstruction surface (3A-D); degraded shape =
+> Deny + "this connection can't show you what it is"; terminal 4xx notices
+> render in the card's place; every color a `Design` token (forge header
+> family), so all four themes incl. Paper Tape resolve from the palette;
+> VoiceOver labels state the CONSEQUENCE (224-1D). `ToolConfirmationCenter`
+> untouched (dispatch §5's rejected-reuse ruling).
+>
+> **T9 (XCUITest): NOT SHIPPED, deliberately.** The UITest suite has no
+> fixture host for the chat plane (mock PAIRING exists; UITest chat runs on
+> the local brain), so the card is not genuinely reachable behind the
+> Developer switch in that harness — reaching it would mean an app-side mock
+> emitter, i.e. exactly the "test that exercises a mock and reads as
+> coverage" the dispatch's T9 forbids. The card's logic is store-level
+> unit-tested; its real reachability is 304-H's device bar.
+>
+> **Corrections LANDED (commit `be2d6cd` before any code, per §10):** C1 in
+> both design docs (dated head-notes), #224, #283, and the Swift doc
+> comments themselves (six stale `api_server.py:NNNN` re-resolved to
+> `3dcbe9001` values from the dispatch's measured table, plus the two
+> falsified "(and a future `/approval`)" comments — the approval does NOT
+> ride `activeRunContext`, and both docs now say so); C3 plan §3 (M→L,
+> dated); C4 plan §2.2 + #224's update; C5 plan §2.2 + #283 + the
+> `liveStatuses` doc; C6 plan §2.5 + CLAUDE.md `:8642`; C7 CLAUDE.md `:8642`
+> (choices ride the frame / command not always a command / status never
+> carries the question); C8 #224 head pointer. C2 discharged by the filing.
+>
+> **Deliberately NOT built (dispatch §5):** the deny REASON (no wire slot),
+> `resolve_all` (no UI story), the `smart_denied` arm's verification
+> (handled by construction, unprobed, no bar claims it), any
+> `ToolConfirmationCenter` reuse, and #305 (outlives-the-screen — filed, not
+> built; its user cost is real: with the app away, the host denies by
+> timeout).
+>
+> **Q7/Q6 coupling (dispatch §8):** 3B ships NO transcript receipt for an
+> answered approval and NO persisted preference — deliberate, recorded here
+> so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
+> that answer.
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
