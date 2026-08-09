@@ -132,6 +132,12 @@ final class LocalChatBackend: HermesClientProtocol {
     /// 60/60 content AND clean on canary/haiku/norway, router probe
     /// 200/200 both directions, armed control diseased in the same run.
     private var turnRoutedToolless = false
+    /// #257 lever 1b: true when THIS turn's settled reply gets the
+    /// deterministic capability block appended — captured at ROUTE time
+    /// (routed toolless AND `isCapabilityQuestion`), so a mid-turn #229/#232
+    /// disarm can never retroactively arm the append. Consulted once, at the
+    /// reply's settle point in `send` / `streamTurn`.
+    private var turnAppendsCapabilityAnswer = false
     /// The memory block synthesized by the last condensation, kept for
     /// diagnostics. Session-lifetime only: rebuilds re-derive it from the full
     /// message history, which the Conversation always retains.
@@ -382,14 +388,19 @@ final class LocalChatBackend: HermesClientProtocol {
                 // looped reply still returns as a normal success — collapse
                 // it before it becomes replayable history, mirroring the
                 // streaming trip.
-                let content = Self.collapsingDegenerateTail(response.content)
-                if content != response.content {
+                let collapsed = Self.collapsingDegenerateTail(response.content)
+                if collapsed != response.content {
                     // The live session's internal transcript holds the full
                     // loop — rebuild the next turn from our (collapsed)
                     // history instead of trusting it.
                     session = nil
                     Self.logger.notice("send: degenerate tail collapsed in sync reply — session invalidated (#102)")
                 }
+                // #257 lever 1b: the deterministic capability block lands
+                // here — once, on the settled reply, after the collapse
+                // check (so an append can never read as a degenerate tail).
+                let content = Self.settledReplyContent(
+                    collapsed, appendingCapabilityAnswer: turnAppendsCapabilityAnswer)
                 let reply = Message(sender: .hermes, content: content, status: .delivered)
                 appendAssistantMessage(reply, usage: usage)
                 return reply
@@ -592,10 +603,19 @@ final class LocalChatBackend: HermesClientProtocol {
                     }
                 }
                 connectionStatus = .connected
+                // #257 lever 1b: the deterministic capability block lands
+                // HERE — exactly once, after the model's text has fully
+                // settled (post-loop, post-breaker), never mid-stream. No
+                // `.textDelta` carries it; the `.finished` consumer replaces
+                // the streamed placeholder content with this message's
+                // content (ChatStore's resolved-slot swap), so the block
+                // appears once in the bubble and once in stored history.
+                let settled = Self.settledReplyContent(
+                    latestFull, appendingCapabilityAnswer: turnAppendsCapabilityAnswer)
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
-                var reply = Message(sender: .hermes, content: latestFull, status: .delivered)
+                var reply = Message(sender: .hermes, content: settled, status: .delivered)
                 if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
@@ -864,11 +884,19 @@ final class LocalChatBackend: HermesClientProtocol {
                 from: currentConversation?.messages ?? [],
                 excludingClientMessageID: excludingClientMessageID
             ).last { $0.role == .assistant }?.text ?? ""
-            turnRoutedToolless = !(await routeNeedsDeviceTool(
-                prompt: nextPrompt, context: priorAssistantTurn, hasImage: hasImage))
-            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) ctx=\(priorAssistantTurn.isEmpty ? "none" : "prior-turn", privacy: .public) img=\(hasImage, privacy: .public) (#207)")
+            // #257: ONE generation carries both fields — the gate Bool and
+            // the capability-question Bool. The append decision is frozen
+            // here, at route time (see `turnAppendsCapabilityAnswer`).
+            let route = await routeTurn(
+                prompt: nextPrompt, context: priorAssistantTurn, hasImage: hasImage)
+            turnRoutedToolless = !route.needsDeviceTool
+            turnAppendsCapabilityAnswer = Self.turnAppendsCapabilityAnswer(
+                routedToolless: turnRoutedToolless,
+                isCapabilityQuestion: route.isCapabilityQuestion)
+            Self.logger.notice("router: turn routed \(self.turnRoutedToolless ? "toolless" : "armed", privacy: .public) cap=\(route.isCapabilityQuestion, privacy: .public) ctx=\(priorAssistantTurn.isEmpty ? "none" : "prior-turn", privacy: .public) img=\(hasImage, privacy: .public) (#207)")
         } else {
             turnRoutedToolless = false
+            turnAppendsCapabilityAnswer = false
         }
         if let session {
             let offered = effectiveOfferedTools(hasImageInContext: hasImage)
@@ -1301,6 +1329,40 @@ final class LocalChatBackend: HermesClientProtocol {
             hasImageTools: hasImage
         )
         #endif
+    }
+
+    // MARK: - #257 lever 1b: the deterministic capability answer
+
+    /// The append decision, pure and pinned: ONLY a turn the router routed
+    /// TOOLLESS and flagged as a capability question appends the block. An
+    /// armed capability question appends nothing (the armed persona already
+    /// carries the registry enumeration, #284), and a toolless
+    /// non-capability turn appends nothing (that unsolicited block is
+    /// exactly the over-serving bar 257-1-B exists to catch).
+    nonisolated static func turnAppendsCapabilityAnswer(
+        routedToolless: Bool, isCapabilityQuestion: Bool
+    ) -> Bool {
+        routedToolless && isCapabilityQuestion
+    }
+
+    /// The ONE settle-point composition (#202D): `send` and `streamTurn`
+    /// both produce their final reply text through this function, and the
+    /// capability-detection probe scores the same composition — so the text
+    /// a measured arm speaks can never drift from the text production
+    /// speaks. The block comes from `CapabilityRegistry.capabilityAnswerBlock`
+    /// — the only source of that text — and is APPENDED (the 1b shape): the
+    /// model's own reply survives verbatim as the prefix, so a
+    /// false-positive detection costs an unsolicited true block, never a
+    /// destroyed answer. Zero generation; the arity of a `for` loop cannot
+    /// compress (#297's run `A04154D7` is why the model never recites this).
+    nonisolated static func settledReplyContent(
+        _ modelText: String, appendingCapabilityAnswer: Bool
+    ) -> String {
+        guard appendingCapabilityAnswer else { return modelText }
+        let block = CapabilityRegistry.capabilityAnswerBlock()
+        guard !block.isEmpty else { return modelText }
+        guard !modelText.isEmpty else { return block }
+        return modelText + "\n\n" + block
     }
 
     // MARK: - Conversation bookkeeping

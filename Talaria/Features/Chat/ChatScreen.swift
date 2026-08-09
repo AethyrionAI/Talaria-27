@@ -99,6 +99,10 @@ struct ChatScreen: View {
     // model, same selection seam as the drawer's magnifying-glass button.
     @State private var showConversationSearch = false
 
+    // #257 lever 3a: the registry-derived capability sheet — opened by the
+    // fresh-chat empty-state chip and the /capabilities slash command.
+    @State private var showCapabilities = false
+
     private let thinkingIndicatorID = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
     // #46: stable scroll anchor for the status card (it renders after the
     // last message, so scrolling to the last message can leave it off-screen).
@@ -223,6 +227,12 @@ struct ChatScreen: View {
                 // opening a hit routes through the drawer model's existing
                 // selection seam (wired in configureChatSeams).
                 ConversationSearchScreen(drawerModel: sessionsModel)
+            }
+            .sheet(isPresented: $showCapabilities) {
+                // #257 3a: descriptors are built at OPEN, from the live belt
+                // through the registry — never a stored copy (bar 257-3a-A).
+                CapabilitiesSheet(descriptors: CapabilityRegistry(
+                    belt: container.localChatBackend?.tools ?? []).descriptors)
             }
     }
 
@@ -1039,6 +1049,12 @@ struct ChatScreen: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: Design.Spacing.md) {
+                    // #257 3a: fresh-chat empty state carries one chip to
+                    // the capability surface — the sheet itself is
+                    // registry-derived (CapabilitiesSheet).
+                    if chatStore.conversation?.messages.isEmpty ?? true {
+                        capabilitiesChip
+                    }
                     if let messages = chatStore.conversation?.messages {
                         ForEach(messages) { message in
                             MessageBubble(
@@ -1138,6 +1154,27 @@ struct ChatScreen: View {
                 }
             }
         }
+    }
+
+    // MARK: - #257 3a: capabilities chip (fresh-chat empty state)
+
+    private var capabilitiesChip: some View {
+        Button { showCapabilities = true } label: {
+            HStack(spacing: Design.Spacing.xs) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Design.Brand.accent)
+                MonoLabel("WHAT CAN TALARIA DO?", size: 10,
+                          tracking: Design.Tracking.monoWide,
+                          color: Design.Colors.foregroundBright)
+            }
+            .padding(.horizontal, Design.Spacing.md)
+            .padding(.vertical, Design.Spacing.sm)
+            .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("chat.capabilitiesChip")
+        .padding(.top, Design.Spacing.xl)
     }
 
     // MARK: - Standalone availability (#31)
@@ -1514,6 +1551,10 @@ struct ChatScreen: View {
                 let previewLine = chatStore.conversation?.generatedPreview.map { "\nPreview: \($0)" } ?? ""
                 appendSystemMessage("Session ID: \(id)…\nTitle: \(current)\(previewLine)\nUsage: /title <your session title>")
             }
+
+        case "capabilities":
+            // #257 3a: the registry-derived capability surface.
+            showCapabilities = true
 
         case "alarm":
             // #16: parse → stage → confirm gate. Scheduling happens only in

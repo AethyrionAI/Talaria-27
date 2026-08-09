@@ -84,6 +84,8 @@ extension SlashCommand {
         SlashCommand(name: "history", description: "Show conversation history", category: "Session", acceptsArgument: false, isDestructive: false, isLocal: true),
         // #16: AlarmKit executor — confirmed in-app before anything schedules.
         SlashCommand(name: "alarm", description: "Set an alarm or timer on this iPhone", category: "Device", acceptsArgument: true, isDestructive: false, isLocal: true),
+        // #257 lever 3a: the registry-derived capability surface.
+        SlashCommand(name: "capabilities", description: "See everything Talaria can do on this iPhone", category: "Device", acceptsArgument: false, isDestructive: false, isLocal: true),
     ]
 
     // Commands passed through to the Hermes agent — matches the gateway-available

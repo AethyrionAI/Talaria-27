@@ -121,6 +121,55 @@ final class TalariaUITests: XCTestCase {
                       "the synthetic on-device reply should render")
     }
 
+    /// #257 lever 3a (bar 257-3a-B): the capability surface is reachable in
+    /// ≤2 taps from a fresh chat — the empty-state chip is ONE tap — and
+    /// typing /capabilities in the composer opens it. The sheet's rows are
+    /// registry-derived, so a real per-tool row is asserted, not a title.
+    @MainActor
+    func testCapabilitiesSurfaceReachableByChipAndSlashCommand() throws {
+        let context = UITestLaunchContext()
+        let app = makeApp(context: context)
+        app.launch()
+
+        guard waitForComposer(in: app, timeout: 15) != nil else {
+            XCTFail("chat composer should be the first-launch landing state")
+            return
+        }
+
+        let chip = app.buttons["chat.capabilitiesChip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5),
+                      "the fresh-chat empty state should carry the capabilities chip (257-3a-B)")
+        chip.tap()
+
+        let header = app.staticTexts["CAPABILITIES"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5),
+                      "one tap on the chip should open the capability sheet (257-3a-B)")
+        XCTAssertTrue(app.staticTexts["readHealth"].waitForExistence(timeout: 3),
+                      "the sheet should render per-tool registry rows (257-3a-A)")
+
+        let close = app.buttons["capabilities.close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 3))
+        close.tap()
+        if !chip.waitForExistence(timeout: 3), close.exists {
+            // Dismiss-tap hedge: a same-tick sheet tap can drop — one re-tap.
+            close.tap()
+        }
+        XCTAssertTrue(chip.waitForExistence(timeout: 5),
+                      "closing the sheet should land back on the fresh chat")
+
+        guard let composer = waitForComposer(in: app, timeout: 5) else {
+            XCTFail("composer should be reachable after the sheet closes")
+            return
+        }
+        composer.tap()
+        composer.typeText("/capabilities")
+        let send = app.buttons["Send message"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+        XCTAssertTrue(header.waitForExistence(timeout: 5),
+                      "typing /capabilities should open the sheet (257-3a-B)")
+    }
+
     /// 238-A (#238): a fresh install must NEVER present the iOS notification
     /// permission dialog — the notification surface is gone, so there is
     /// nothing left to ask for. Walks the exact trigger points the retired

@@ -10704,7 +10704,7 @@ other work in flight.
 > held when checked 2026-08-07; a live guard for them would be a different script,
 > and is **not** filed as owed work.
 
-## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
+## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that") → ROUTED 2026-08-09 (Owen: Lever 1b APPEND + 3a) → PHASES 1+2 BUILT same day on `t27-257-capability-lever`: 1-C MET (unit), 3a-A MET (unit), 3a-B MET (XCUITest), detection + append + probe shipped; 1-GATE/1-A/1-B/1-D QUEUED-DEVICE behind the tokenCount pre-flight; 3a-C Owen, 1-E controller**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
 "do I have any new emails?" → *"I can't directly check your emails. Let
@@ -10861,6 +10861,147 @@ neighborhood — v1 ships slash-command + empty-state chip, which the bars
 cover without fixing the home). **Device needs (queued):** the pre-flight
 tokenCount measure and the detection probe run — one small probe grid, no
 full battery.
+
+> **▶ PHASE 1 BUILT + 257-1-C MET, 2026-08-09 (commit `93a42e6`, branch
+> `t27-257-capability-lever`).** `CapabilityRegistry.capabilityAnswerBlock(families:)`
+> renders the deterministic answer — opener + one derived bullet per
+> non-vision family + closer; the copy lives on `CapabilityGroup` as two
+> exhaustive switches, so a new case cannot COMPILE without an answer line.
+> **257-1-C MET as the unit bar it was written to be:** the rendered block
+> scores **10 of 10 non-vision families** under the SHIPPED
+> `toollessIndexFamiliesNamed(in:)` — the real scorer called, not
+> reimplemented — with the expected set derived from
+> `CapabilityGroup.allCases` minus `.vision`. Registry and keyword table
+> agree; no table widening was needed or done (#297's named trap).
+> Determinism (byte-identical renders), arity, vision suppression, and the
+> 297-C halves (counted SEPARATELY) are pinned beside it.
+> CapabilityRegistryTests moved 17 → 24, all green.
+>
+> **✅ OWEN APPROVED THE RENDERED BLOCK TEXT AS-IS, 2026-08-09** (the §7
+> cheap experiment's artifact — the suite prints the exact string). The
+> block ships unreworded, and it stays unchanged in phase 2: the
+> considered "More: tap Capabilities" footer line was NOT added, because
+> the approval was of the block as rendered.
+>
+> **▶ PHASE 2 BUILT 2026-08-09, same branch — detection, the 1b APPEND
+> wiring, the probe, and the 3a surface:**
+> - **Detection.** `isCapabilityQuestion: Bool` on the PRODUCTION
+>   `ToolIntentRoute` (`LocalChatBackend+IntentRouting.swift`), positive-test
+>   @Guide in the #217B v2 tactic, shipped verbatim as: *"true only if the
+>   user is asking what YOU can do, what you have access to, or what your
+>   features are"*. ONE generation carries both fields — no second router
+>   pass. On any throw the route falls back exactly as today:
+>   `needsDeviceTool` fails safe ARMED, `isCapabilityQuestion` fails safe
+>   FALSE — **discovery fails OPEN**; the model never has less than now.
+>   The two-field route generates under its OWN pinned constant
+>   `twoFieldRouterOptions` (greedy, cap **128**, pinned by test, comment
+>   naming `21F0C10D`); `toolIntentRouterOptions`' 64 pin is UNTOUCHED and
+>   now serves the pinned one-field control (`ToolIntentRouteSingleField`,
+>   DEBUG) and the #217 probe cells. **The mandatory device `tokenCount`
+>   pre-flight is QUEUED** — the test host throws Code=5000 on every
+>   generation (availability ≠ generability), so only a device can price
+>   the schema; noted in the code beside the constant.
+> - **Wiring (the 1b APPEND).** The append decision is FROZEN AT ROUTE
+>   TIME (`turnAppendsCapabilityAnswer` = routed toolless AND capability),
+>   so a mid-turn #229/#232 disarm can never retroactively arm it. `send`
+>   and `streamTurn` both settle their reply through ONE composition —
+>   `settledReplyContent(_:appendingCapabilityAnswer:)`, whose only text
+>   source is `capabilityAnswerBlock` (#202D) — and in `streamTurn` it
+>   lands after the snapshot loop and the repetition breaker, never
+>   mid-stream; ChatStore's `.finished` slot-swap paints it exactly once.
+>   Unit-pinned: appended once, model reply preserved verbatim as prefix
+>   (never replaced), armed turns never append, toolless non-capability
+>   turns never append, empty-reply edge delivers the block.
+> - **The probe.** `runCapabilityDetectionProbe(trials:)` in
+>   `LocalChatBackend+Battery.swift` (runVectorRouterProbe's mutex /
+>   batteryEmit / recorder plumbing): **arm = the 2-field production route,
+>   control = the pinned 1-field shape, SAME run.** Bands: GATE ×2 (the
+>   closed baseline ten, read in place, never extended — 257-1-GATE),
+>   RECALL (`capabilityQuestionProbes` — 257-1-A), DANGER (baseline +
+>   `capabilityControlProbes` — 257-1-B), HONESTY (the composed appended
+>   payload through the shipped 297-C scorers, claim and syntax halves
+>   emitted SEPARATELY — 257-1-D). The GATE/RECALL/DANGER bands emit
+>   `scored=<n>/<trials>` AND `errors=<n>`; the HONESTY band carries the
+>   same real denominators under its own tokens
+>   (`appended=`/`claimHits=`/`syntaxHits=`) — noted so "every band" is not
+>   read as a literal token claim. **The control list was written FIRST**, with the
+>   boundary pinned verbatim in the code: TRUE iff the message's subject is
+>   the assistant's own abilities/access/features in general; FALSE for any
+>   request to perform or answer a specific thing, phone-ecosystem how-tos,
+>   and rhetorical "can you". The #205 closed series gained NO rows
+>   (unit-pinned: 10/19/21 counts unchanged). Developer-screen button:
+>   "Capability detection (#257) (350)" — GATE 2×10×10 + RECALL 10×5 +
+>   DANGER 20×5.
+> - **The 3a surface.** `/capabilities` ships in
+>   `SlashCommand.localCommands`, handled in ChatScreen's local switch (the
+>   /alarm precedent), opening `CapabilitiesSheet`
+>   (`Talaria/Features/Chat/CapabilitiesSheet.swift`) — sections and rows
+>   DERIVED from `CapabilityRegistry(belt:)`'s `CapabilityDescriptor`s:
+>   per-tool `semanticDescription`, permissions, and riskClass rendering
+>   (`.write` reads "ASKS FIRST" — the confirm gate's own semantics), with
+>   the vision section carrying an attach-a-photo caveat (#176). Plus a
+>   fresh-chat empty-state chip ("WHAT CAN TALARIA DO?"). ChatScreen edits
+>   kept to four minimal isolated hunks (state var, sheet, switch case,
+>   chip) for the concurrent ChatScreen lane's rebase. New files went
+>   through `xcodegen generate`; the known Talaria.xcscheme BuildableName
+>   churn was reverted by hand ("Talaria 27.app" stands).
+>
+> **BAR STATUS after phase 2 (evidence beside each):**
+> - **257-1-C: MET** (unit, phase 1 — above).
+> - **257-3a-A: MET** (unit): `CapabilitySurfaceTests` pins the sheet's
+>   derivation against the REAL belt — every tool exactly once, groups in
+>   declaration order, id-sorted rows, empty registry renders the honest
+>   empty state; `/capabilities` pinned local and argument-free. 3/3 green.
+> - **257-3a-B: MET** (XCUITest, run on CC-257-iPhone-Air iOS 27.0,
+>   2026-08-09): the fresh-chat empty-state chip opens the sheet in ONE tap
+>   (≤2 bar), a real per-tool registry row (`readHealth`) is asserted in
+>   the render, and typing `/capabilities` in the composer opens the same
+>   sheet. 1 test, 0 failures, `** TEST SUCCEEDED **`. (First run caught a
+>   real render defect — MonoLabel force-uppercased the tool id into
+>   "READHEALTH"; ids now render case-preserved, which is also the honest
+>   display: the id IS the belt name.)
+> - **257-1-GATE / 1-A / 1-B / 1-D: QUEUED-DEVICE.** The two-field router
+>   SHIPS AHEAD of its device probe — safe by construction (detection
+>   fails open; a wrong TRUE costs an appended true block, the 1b
+>   asymmetry) — and **1-GATE's pre-registered response stands unchanged:
+>   missed → the second field is abandoned outright, a revert, no
+>   iteration.** The device `tokenCount` pre-flight runs BEFORE the probe.
+> - **257-3a-C: pending Owen** (his read of the surface; pass/fail his,
+>   stated in advance).
+> - **257-1-E: ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air): TEST SUCCEEDED, 1944 Swift Testing + 13 XCUITest,
+>   Release build clean.
+> Phase-2 targeted suites: 272/272 across 6 suites on CC-257-iPhone-Air
+> (iOS 27.0) — CapabilityRegistryTests **24 → 32**, CapabilitySurfaceTests
+> **3 (new)**, DeviceToolBelt 180, LocalChatBackend 42, RoutedTrialShape 5,
+> RouterIntent 10.
+>
+> **Three review corrections, 2026-08-09 (independent whole-lane review;
+> each traced in code, not taken from the implementer's report):**
+> 1. **VOICE: the block is appended but NEVER SPOKEN** — the phase-2
+>    report's "voice turns will read the appended block aloud" concern is
+>    wrong in the reassuring direction. Voice rides
+>    `sendStreaming → streamTurn`, so the block lands in the transcript
+>    item, but TTS is fed only by `.textDelta` and the voice pipeline's
+>    `finishStream(messageID:)` flushes only the streamed-delta tail — the
+>    block never rides a delta. **Consequence: a voice capability question
+>    still under-sells ALOUD while the screen shows the complete block —
+>    #257's original complaint shape, surviving on the voice surface.**
+>    Product question for Owen (rides 3a-C): is screen-only completeness
+>    acceptable on voice turns, or does voice need its own answer? The
+>    device probe row is briefed to listen for the block's ABSENCE in
+>    audio, not its presence.
+> 2. **Probe-comparison confound, stated plainly:** the retained
+>    `routeNeedsDeviceTool(variant:)` wrappers now generate the TWO-FIELD
+>    schema at the 128 cap, so every pre-#257 DEBUG probe measures the new
+>    production shape on future runs — correct per #202D (probes measure
+>    production), but any comparison against historical router numbers now
+>    carries a schema+cap confound. The #217B intent cells are unaffected
+>    (they call the one-field options directly).
+> 3. **1-D's device numbers add nothing over the unit test by
+>    construction** (the probe scores the block alone; no real model prefix
+>    exists in a classification-only probe) — read them as the denominator
+>    check they are, not as new honesty evidence.
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 

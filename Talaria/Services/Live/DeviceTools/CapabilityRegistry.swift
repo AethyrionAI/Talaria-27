@@ -38,6 +38,50 @@ enum CapabilityGroup: String, CaseIterable, Sendable {
         case .vision: return "text and barcodes in the attached image"
         }
     }
+
+    /// #257 lever 1: the user-facing heading for this family's line in the
+    /// deterministic capability answer. Separate from `displayPhrase`, which
+    /// is third-person copy written for the ARMED instructions ("their health
+    /// and activity") and reads wrong when spoken to the user.
+    ///
+    /// An exhaustive switch by design — a new `CapabilityGroup` case cannot
+    /// compile until it has an answer line, which is the structural guard
+    /// #257's root cause (a hand-written list that drifted) actually needs.
+    var capabilityAnswerTitle: String {
+        switch self {
+        case .health: return "Health and activity"
+        case .location: return "Location"
+        case .weather: return "Weather"
+        case .places: return "Nearby places"
+        case .calendar: return "Calendar"
+        case .reminders: return "Reminders"
+        case .alarms: return "Alarms"
+        case .contacts: return "Contacts"
+        case .conversations: return "Past conversations"
+        case .deviceStatus: return "Device status"
+        case .vision: return "Images you attach"
+        }
+    }
+
+    /// #257 lever 1: the short concrete detail after the heading. Every clause
+    /// is grounded in a shipped tool's `semanticDescription` — nothing here
+    /// promises a capability the belt does not carry, because 297-C's honesty
+    /// bar scores this text when it rides a reply.
+    var capabilityAnswerDetail: String {
+        switch self {
+        case .health: return "steps, sleep, workouts, heart rate, and whether you're moving right now"
+        case .location: return "where you are, as a place name"
+        case .weather: return "current conditions and the forecast where you are"
+        case .places: return "restaurants, shops, and other spots around you"
+        case .calendar: return "read your schedule, and create events"
+        case .reminders: return "read what's on your lists, and add new ones"
+        case .alarms: return "set an alarm for a time you name"
+        case .contacts: return "look up someone's phone number or email address"
+        case .conversations: return "search what we've talked about before"
+        case .deviceStatus: return "battery, charging, storage, and Low Power Mode"
+        case .vision: return "read the text and barcodes in a photo you send"
+        }
+    }
 }
 
 enum CapabilitySource: String, Sendable {
@@ -99,5 +143,49 @@ struct CapabilityRegistry {
         default:
             return phrases.dropLast().joined(separator: ", ") + ", and " + phrases.last!
         }
+    }
+
+    // MARK: - #257 lever 1: the deterministic capability answer
+
+    /// The block's first line. A `let`, not an inline literal, so the probe
+    /// and any future caller can pin the exact string they measure (#202D:
+    /// one builder, one source of the text).
+    nonisolated static let capabilityAnswerOpener =
+        "Here is everything I can reach on this iPhone:"
+
+    /// The block's last line.
+    nonisolated static let capabilityAnswerCloser = "Just ask for any of these."
+
+    /// #257 LEVER 1 — the capability answer the APP renders, with **zero
+    /// generation**. The model never recites this list.
+    ///
+    /// Why it is built rather than prompted: run `A04154D7` (#297) measured
+    /// what happens when the ten-family list is put in the toolless
+    /// instructions and the model is asked to say it — it COMPRESSES to a
+    /// natural-sounding four-family sample, 7/20 against a ≥18/20 bar. That
+    /// is normal behaviour for a response planner and it is not fixable by
+    /// rewording. **The arity of a `for` loop cannot compress**, so the
+    /// enumeration moves out of the model and into the registry. Bar 257-1-C
+    /// scores this string with the shipped `toollessIndexFamiliesNamed(in:)`.
+    ///
+    /// `.vision` is excluded **by design**: the image tools are armed only by
+    /// the #176 image gate, so advertising them on a turn with no attachment
+    /// would promise a tool the belt is not carrying — the same rule
+    /// `armedEnumeration` enforces via `hasImageTools`. Passing `.vision` in
+    /// `families` does not defeat it.
+    ///
+    /// Order is `CapabilityGroup` declaration order, so the render is
+    /// byte-identical every call regardless of the caller's ordering.
+    nonisolated static func capabilityAnswerBlock(
+        families: [CapabilityGroup] = CapabilityGroup.allCases
+    ) -> String {
+        let ordered = CapabilityGroup.allCases.filter {
+            $0 != .vision && families.contains($0)
+        }
+        guard !ordered.isEmpty else { return "" }
+        var lines = [capabilityAnswerOpener]
+        lines += ordered.map { "• \($0.capabilityAnswerTitle) — \($0.capabilityAnswerDetail)" }
+        lines.append(capabilityAnswerCloser)
+        return lines.joined(separator: "\n")
     }
 }

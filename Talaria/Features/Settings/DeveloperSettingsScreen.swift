@@ -952,6 +952,32 @@ struct DeveloperSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #257 capability-detection probe: READ-ONLY, classifications only — no
+    // tools registered, nothing created or reaped. Arm (2-field production
+    // route) vs control (pinned 1-field) in the SAME run; bands GATE x2
+    // (10 rows x n each), RECALL (10 x n/2), DANGER (20 x n/2), HONESTY
+    // (the deterministic appended payload through the shipped 297-C halves,
+    // counted separately). Bars 257-1-GATE/A/B/D pre-registered in
+    // OPEN_ITEMS #257; run the device tokenCount pre-flight first.
+    @ViewBuilder
+    private func capabilityDetectionProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCapabilityDetectionProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1944,6 +1970,13 @@ struct DeveloperSettingsScreen: View {
                 // arms — nothing created, nothing to reap.
                 HStack(spacing: Design.Spacing.sm) {
                     toollessIndexBatteryButton(trials: 20, label: "Toolless index A/B n=20 (120)")
+                }
+                // #257: capability-question detection — the second production
+                // Bool (arm) vs the pinned 1-field control, same run. GATE
+                // 2x10x10 + RECALL 10x5 + DANGER 20x5 = 350 classifications;
+                // no tools, nothing created.
+                HStack(spacing: Design.Spacing.sm) {
+                    capabilityDetectionProbeButton(trials: 10, label: "Capability detection (#257) (350)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
