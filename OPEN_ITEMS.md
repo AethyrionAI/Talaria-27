@@ -175,6 +175,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** ⚰️ Notifications never authorized on a fresh install + a false-green panel — **MOOT BY DELETION: #238 removed the subsystem; §F3 has nothing to run** (corrected 2026-08-09) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen. Observed in passing by #254's lane, not caused by its diff, **not investigated.** Either the known trap is wider than recorded or this is a second defect — both worth knowing, and a sim repro is far cheaper than a device one
+- **#300** 🐛 `lane-gate.sh`'s failure advice misdiagnoses a Swift Testing failure WITH assertion text as an XCUITest flake WITHOUT one, and cites **#164, which is CLOSED** — following it literally reopens a closed item under a wrong diagnosis and re-rolls a real failure as noise. The discriminator it needs (presence of assertion text) is already in its own text
 - **#298** 🧹 #238 teardown residue in `updateWidgetData`'s comments — **VERDICT: DEAD.** The push-wake path really did order `loadInbox(force:)` before it and #238 T4 really did delete that, but it was 1 of only 3 orderers among 9 callers, `stampBriefing` guard-returns rather than wiping, and #126's briefing is producerless — so **#126's dependence is REFUTED** and no ordering fix is owed. Comments corrected; no bars (no run) …
 - **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — NOT STARTED, scope is Owen's call …
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — bars pre-register before any code …
@@ -5619,6 +5621,63 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — **FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**
+
+**Observed** by #254's lane while executing bar 254-F, on `CC-272-iPhone-Air`
+(iOS 27.0, Xcode-beta4, Debug). After granting microphone + speech
+permissions, the app died with:
+
+```
+BUG IN CLIENT OF LIBDISPATCH: Assertion failed: Block was expected to
+execute on queue [com.apple.main-thread]
+```
+
+**Why it is worth a number rather than a shrug.** This is the shape of the
+**device-only isolation trap** — a MainActor-formed completion closure run on
+a framework's private queue — but that trap is recorded as **device-only, NOT
+reproducible on the simulator.** Seeing it on a sim either widens the known
+trap's blast radius or is a second, distinct defect. Either answer is worth
+having, and the sim reproduction would be far cheaper than the device one.
+
+**Explicitly NOT attributed to #254's change.** That lane's diff cannot cause
+it — `onDisappear` never ran in the failing trial, and the crash preceded any
+of its production edits. Recorded as an independent observation.
+
+**Owed before anything is built:** a reproduction attempt (grant mic + speech
+on a fresh sim, enter the native voice path), and identification of which
+framework completion is being formed on the MainActor and dispatched
+elsewhere. **Do not fix by sprinkling `@Sendable`** until the site is named —
+the known trap's remedy is specific to a framework completion, and a blind
+annotation sweep would hide rather than settle it.
+
+---
+
+## 300. 🐛 `lane-gate.sh`'s failure-advice text misdiagnoses Swift Testing failures and routes them to a CLOSED item — **FILED 2026-08-09 by #254's lane. NOT STARTED; bars pre-register here before any code.**
+
+**The defect.** The gate's advice text classified a **Swift Testing** unit
+failure that carried real assertion text as *"an XCUITest harness flake (NO
+assertion text)"* and pointed the reader at **#164** — which is **CLOSED**
+(`OPEN_ITEMS-ARCHIVE.md`) and about a different test entirely.
+
+**Why this is more than a cosmetic string.** Following the advice literally
+**reopens a closed item under a wrong diagnosis**, and it tells the reader to
+treat a real assertion failure as a flake worth re-rolling. That is the
+opposite of what the gate exists to enforce — the script's own header is a
+monument to "absence of a failure marker is not success", and this is the same
+error running in the other direction: **a genuine failure dressed as noise.**
+
+**The discriminator the advice already has and does not use:** #164's own tell
+is the **ABSENCE** of assertion text. A failure that carries assertion text is
+by definition not that flake. The classifier needs to read the presence of
+assertion text before naming a cause, and it must not cite an item without
+checking it is live.
+
+**Bars are owed before any edit** — this is a change to the one script every
+lane's verdict depends on, so a wrong "fix" here silently degrades every
+future gate reading.
+
+---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
 
