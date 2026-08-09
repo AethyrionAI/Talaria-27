@@ -165,21 +165,39 @@ struct ContinuityFabricTests {
     // MARK: - Compose outbox state
 
     @Test
-    func composeOutboxEnqueueDedupesById() {
+    func composeOutboxEnqueueDedupesByTranscriptRow() {
         var state = ComposeOutboxState()
-        let id = UUID()
-        state.enqueue(id: id, text: "offline turn")
-        state.enqueue(id: id, text: "offline turn")
+        let rowID = UUID()
+        let entryID = state.enqueueUnreachable(transcriptRowID: rowID, text: "offline turn")
+        let second = state.enqueueUnreachable(transcriptRowID: rowID, text: "offline turn")
         #expect(state.pendingTurns.count == 1)
-        state.remove(id: id)
+        // The dedupe hands back the EXISTING entry's id, so a re-park can
+        // still address the entry by identity (#306 T1).
+        #expect(second == entryID)
+        state.remove(entryID: entryID)
         #expect(state.isEmpty)
+    }
+
+    @Test
+    func composeOutboxEntryIDIsNotTheTranscriptRowID() {
+        // #306 T1 — the broken fusion: the entry's durable id and the
+        // transcript row's clientMessageID are two identities with two jobs.
+        var state = ComposeOutboxState()
+        let rowID = UUID()
+        let entryID = state.enqueueUnreachable(transcriptRowID: rowID, text: "parked")
+        let turn = state.pendingTurns[0]
+        #expect(entryID != rowID)
+        #expect(turn.id == entryID)
+        #expect(turn.transcriptRowID == rowID)
+        #expect(turn.reason == .unreachable)
+        #expect(turn.phase == .released)
     }
 
     @Test @MainActor
     func composeOutboxPersistsAndClearsWhenEmpty() {
         let persistence = Self.makePersistence()
         var state = ComposeOutboxState()
-        state.enqueue(id: UUID(), text: "park me")
+        state.enqueueUnreachable(transcriptRowID: UUID(), text: "park me")
         persistence.saveComposeOutboxState(state)
         #expect(persistence.loadComposeOutboxState().pendingTurns.first?.text == "park me")
 
@@ -187,6 +205,71 @@ struct ContinuityFabricTests {
         // hygiene pattern).
         persistence.saveComposeOutboxState(ComposeOutboxState())
         #expect(persistence.loadComposeOutboxState().isEmpty)
+    }
+
+    @Test @MainActor
+    func legacyOutboxPayloadDecodesWithoutEmptyingTheOutbox() throws {
+        // #306 T1 decode-compat bar: a pre-#306 payload carries only the
+        // fused {id, text, composedAt} shape. `UserDefaultsAppPersistenceStore`
+        // returns a DEFAULT on decode failure, so a schema break here would
+        // silently empty a real user's parked turns — this pins the legacy
+        // payload surviving the reshape with its old semantics intact.
+        struct LegacyTurn: Codable {
+            let id: UUID
+            let text: String
+            let composedAt: Date
+        }
+        struct LegacyState: Codable {
+            var pendingTurns: [LegacyTurn]
+        }
+        let suiteName = "continuity-fabric-legacy-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+
+        let fusedID = UUID()
+        let composedAt = Date(timeIntervalSince1970: 1_750_000_000)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let legacy = LegacyState(pendingTurns: [
+            LegacyTurn(id: fusedID, text: "parked before the reshape", composedAt: composedAt),
+        ])
+        defaults.set(try encoder.encode(legacy), forKey: "hermes.composeOutboxState")
+
+        let loaded = persistence.loadComposeOutboxState()
+        #expect(loaded.pendingTurns.count == 1)
+        let turn = try #require(loaded.pendingTurns.first)
+        #expect(turn.text == "parked before the reshape")
+        // The fused id keeps BOTH jobs it already had.
+        #expect(turn.id == fusedID)
+        #expect(turn.transcriptRowID == fusedID)
+        #expect(turn.reason == .unreachable)
+        #expect(turn.phase == .released)
+        #expect(turn.threadKey == nil)
+    }
+
+    @Test @MainActor
+    func reshapedOutboxStateRoundTrips() throws {
+        let persistence = Self.makePersistence()
+        // Whole-second dates: the store's ISO8601 coding drops sub-second
+        // precision, and this test asserts value equality across the trip.
+        let composedAt = Date(timeIntervalSince1970: 1_750_000_100)
+        var state = ComposeOutboxState()
+        state.enqueueUnreachable(
+            transcriptRowID: UUID(), text: "parked", threadKey: "api_1", composedAt: composedAt
+        )
+        var held = state.hold(text: "held mid-turn", threadKey: "api_1", composedAt: composedAt)
+        held.phase = .surfaced
+        state.update(held)
+
+        persistence.saveComposeOutboxState(state)
+        let loaded = persistence.loadComposeOutboxState()
+        #expect(loaded == state)
+        let reloadedHeld = try #require(loaded.pendingTurns.first(where: { $0.reason == .heldDuringTurn }))
+        #expect(reloadedHeld.id == held.id)
+        #expect(reloadedHeld.phase == .surfaced)
+        #expect(reloadedHeld.transcriptRowID == nil)
+        #expect(reloadedHeld.threadKey == "api_1")
     }
 
     // MARK: - ChatStore integration fakes
@@ -480,7 +563,10 @@ struct ContinuityFabricTests {
     @Test
     func adoptionPredicateMatchesTrimmedTextWithinClockSkewWindow() {
         let composedAt = Date(timeIntervalSince1970: 1_000_000)
-        let turn = ComposeOutboxState.PendingTurn(id: UUID(), text: "  hello there \n", composedAt: composedAt)
+        let turn = ComposeOutboxState.PendingTurn(
+            reason: .unreachable, transcriptRowID: UUID(),
+            text: "  hello there \n", composedAt: composedAt, phase: .released
+        )
 
         let match = Message(sender: .user, content: "hello there", timestamp: composedAt.addingTimeInterval(-59), status: .delivered)
         #expect(ChatStore.historyAdoptsQueuedTurn(turn, serverMessages: [match]))
@@ -492,7 +578,10 @@ struct ContinuityFabricTests {
     @Test
     func adoptionPredicateIgnoresNonUserAndDifferentText() {
         let composedAt = Date.now
-        let turn = ComposeOutboxState.PendingTurn(id: UUID(), text: "hello", composedAt: composedAt)
+        let turn = ComposeOutboxState.PendingTurn(
+            reason: .unreachable, transcriptRowID: UUID(),
+            text: "hello", composedAt: composedAt, phase: .released
+        )
 
         let hermesEcho = Message(sender: .hermes, content: "hello", timestamp: composedAt, status: .delivered)
         let different = Message(sender: .user, content: "hello?", timestamp: composedAt, status: .delivered)
@@ -552,7 +641,7 @@ struct ContinuityFabricTests {
         ))
         persistence.saveConversationCache(convo)
         var outbox = ComposeOutboxState()
-        outbox.enqueue(id: turnID, text: "waiting out the outage")
+        outbox.enqueueUnreachable(transcriptRowID: turnID, text: "waiting out the outage")
         persistence.saveComposeOutboxState(outbox)
 
         let client = ScriptedClient()
