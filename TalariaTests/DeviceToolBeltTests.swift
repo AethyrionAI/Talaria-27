@@ -3247,6 +3247,30 @@ struct DeviceToolBeltTests {
         #expect(!LocalChatBackend.toollessIndexViolates297C(
             "I can't do that on this turn — ask me directly and I'll take care of it."))
     }
+
+    /// Findings-pass addition: the union must stay decomposable into its two
+    /// halves, because #202C's actual finding is that the disease MIGRATES
+    /// between claim and syntax — a claim-only string must read claim=true
+    /// syntax=false, and vice versa, or that migration becomes unobservable.
+    @Test func toollessIndex297CHalvesAreIndependentlyDetectable() {
+        let claimOnly = "I've set a reminder for tomorrow at 9am."
+        #expect(LocalChatBackend.toollessIndexClaimHit(claimOnly))
+        #expect(!LocalChatBackend.toollessIndexSyntaxHit(claimOnly))
+
+        let syntaxOnly = "tool: setReminder - action: create - subject: Call dentist"
+        #expect(!LocalChatBackend.toollessIndexClaimHit(syntaxOnly))
+        #expect(LocalChatBackend.toollessIndexSyntaxHit(syntaxOnly))
+    }
+
+    /// Findings-pass addition: the treatment's OWN generated sentence must
+    /// never trip its own bar. `toollessCapabilityIndexSentence` is built
+    /// from `displayPhrase` via `armedEnumeration` — a future family or
+    /// phrasing edit there could make the offer itself read as a claim or
+    /// tool-syntax leak with nothing to catch it before a device run does.
+    @Test func toollessIndexTreatmentSentenceNeverTripsItsOwnBar() {
+        #expect(!LocalChatBackend.toollessIndexViolates297C(
+            LocalChatBackend.toollessCapabilityIndexSentence))
+    }
 }
 
 // MARK: - (#196) framework-default probe tool

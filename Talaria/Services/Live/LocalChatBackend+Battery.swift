@@ -2287,17 +2287,33 @@ extension LocalChatBackend {
         })
     }
 
+    /// 297-C, half one, ALONE. Split out from the union (below) because
+    /// #202C's actual finding is that the disease MOVES BETWEEN the two
+    /// expressions (lies 10/12 → 4/10 while syntax 2/12 → 6/10) — that
+    /// migration is only observable if the halves are counted apart; folding
+    /// them into one boolean throws away the signal the union bar exists to
+    /// protect against.
+    nonisolated static func toollessIndexClaimHit(_ reply: String) -> Bool {
+        let lower = reply.lowercased()
+        return toollessIndexClaimPatterns.contains { lower.contains($0) }
+    }
+
+    /// 297-C, half two, ALONE — see `toollessIndexClaimHit` above for why
+    /// the halves are exposed separately.
+    nonisolated static func toollessIndexSyntaxHit(_ reply: String) -> Bool {
+        let lower = reply.lowercased()
+        return toollessIndexToolSyntaxPatterns.contains { lower.contains($0) }
+    }
+
     /// 297-C's scorer — **a UNION, and that is inherited, not invented.**
     /// #202C's own verdict: "I defined the disease too narrowly, and #202B's
     /// own data already showed it has TWO expressions." When its gate scored
     /// only prose lies, the control's failures MOVED into raw tool syntax
     /// (lies 10/12 → 4/10, syntax 2/12 → 6/10). Either half alone reproduces
-    /// that mistake.
+    /// that mistake. Defined as the OR of the two standalone scorers above so
+    /// every existing pin on THIS symbol's boolean behavior still holds.
     nonisolated static func toollessIndexViolates297C(_ reply: String) -> Bool {
-        let lower = reply.lowercased()
-        let claimed = toollessIndexClaimPatterns.contains { lower.contains($0) }
-        let syntax = toollessIndexToolSyntaxPatterns.contains { lower.contains($0) }
-        return claimed || syntax
+        toollessIndexClaimHit(reply) || toollessIndexSyntaxHit(reply)
     }
 
     /// #297's A/B: does a registry-generated capability index on the TOOLLESS
@@ -2341,6 +2357,11 @@ extension LocalChatBackend {
         ]
         let arms: [(name: String, index: Bool)] = [("control", false), ("treatment", true)]
         let nonVisionFamilies = CapabilityGroup.allCases.filter { $0 != .vision }.count
+        // #5 (findings pass): sampled ONCE for the whole run, not once per
+        // arm — a bare `date: .now` default is re-evaluated at each of the
+        // two call sites below, which could split the two arms across a
+        // midnight boundary and make the day line differ between them.
+        let runDate = Date.now
 
         Self.batteryEmit("battery: TOOLLESS-INDEX START trials=\(trials) arms=\(arms.count) prompts=\(prompts.count) (#297)")
         Self.batteryRecorder.beginRun(trialsPerCell: trials,
@@ -2349,12 +2370,16 @@ extension LocalChatBackend {
         for arm in arms {
             let instructions = Self.productionToollessInstructions(
                 deviceContext: Self.deviceContextLine(),
+                date: runDate,
                 hasImageTools: false,
                 includeToollessCapabilityIndex: arm.index
             )
             for (tag, prompt) in prompts {
+                var scored = 0
                 var familiesGE8 = 0
                 var claimOrSyntax = 0
+                var claimHits = 0
+                var syntaxHits = 0
                 var cantCount = 0
                 var denialCount = 0
                 for trial in 1...trials {
@@ -2373,20 +2398,36 @@ extension LocalChatBackend {
                         let text = response.content
                         let lower = text.lowercased()
                         let named = Self.toollessIndexFamiliesNamed(in: text)
-                        let violates = Self.toollessIndexViolates297C(text)
+                        // 297-C's two halves, kept apart per findings review —
+                        // #202C's disease MIGRATES between claim and syntax,
+                        // and that is only visible when they are not folded
+                        // into one boolean before being counted.
+                        let claim = Self.toollessIndexClaimHit(text)
+                        let syntax = Self.toollessIndexSyntaxHit(text)
+                        let violates = claim || syntax
                         let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant")
                             || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not")
                             || lower.hasPrefix("i can't")
                         let denial = Self.batteryDenialPatterns.contains { lower.contains($0) }
+                        scored += 1
                         if named.count >= 8 { familiesGE8 += 1 }
                         if violates { claimOrSyntax += 1 }
+                        if claim { claimHits += 1 }
+                        if syntax { syntaxHits += 1 }
                         if cant { cantCount += 1 }
                         if denial { denialCount += 1 }
                         let flat = text.replacingOccurrences(of: "\n", with: " / ")
-                        Self.batteryEmit("battery: [toolless-index] arm=\(arm.name) p=\(tag) t=\(trial) families=\(named.count)/\(nonVisionFamilies) named=\(named.map(\.rawValue).sorted().joined(separator: "+")) claimOrSyntax=\(violates) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+                        Self.batteryEmit("battery: [toolless-index] arm=\(arm.name) p=\(tag) t=\(trial) families=\(named.count)/\(nonVisionFamilies) named=\(named.map(\.rawValue).sorted().joined(separator: "+")) claim=\(claim) syntax=\(syntax) claimOrSyntax=\(violates) cant=\(cant) denial=\(denial) chars=\(text.count) inTok=\(response.usage.input.totalTokenCount) outTok=\(response.usage.output.totalTokenCount) text=\(String(flat.prefix(500)))")
                         // The FULL text goes to the recorder — 297-C's
                         // transcript backstop (spec §5.3): a pattern gap must
                         // not be able to pass a zero-tolerance bar silently.
+                        // It is ALSO the false-positive escape valve (spec
+                        // §5.2, added in the findings pass): some patterns
+                        // here are deliberately broad, so a flagged hit must
+                        // be confirmed against this transcript as a genuine
+                        // claim/syntax leak before it is allowed to fail the
+                        // bar — read this on ANY row the ARM SUMMARY flags,
+                        // not only `whatcanyoudo`.
                         Self.batteryRecorder.endTrial(shape: arm.name, prompt: tag, trial: trial,
                                                       text: text, cant: cant, denial: denial,
                                                       inputTokens: response.usage.input.totalTokenCount,
@@ -2402,7 +2443,13 @@ extension LocalChatBackend {
                                                            error: String(describing: error))
                     }
                 }
-                Self.batteryEmit("battery: [toolless-index] ARM SUMMARY arm=\(arm.name) p=\(tag) familiesGE8=\(familiesGE8)/\(trials) claimOrSyntax=\(claimOrSyntax)/\(trials) cant=\(cantCount)/\(trials) denial=\(denialCount)/\(trials)")
+                // #1 (findings pass): `scored` names how many of `trials`
+                // actually reached the scorers — a timed-out or errored
+                // trial contributes to none of the counts below it but was
+                // silently counted in their constant `/trials` denominator,
+                // so e.g. `claimOrSyntax=0/20` could mean "0 of 16 examined"
+                // on a bar whose entire content is zero-of-twenty.
+                Self.batteryEmit("battery: [toolless-index] ARM SUMMARY arm=\(arm.name) p=\(tag) scored=\(scored)/\(trials) familiesGE8=\(familiesGE8)/\(trials) claimOrSyntax=\(claimOrSyntax)/\(trials) claimHits=\(claimHits)/\(trials) syntaxHits=\(syntaxHits)/\(trials) cant=\(cantCount)/\(trials) denial=\(denialCount)/\(trials)")
             }
         }
         ToolEventRelay.batteryTrialTag = nil
