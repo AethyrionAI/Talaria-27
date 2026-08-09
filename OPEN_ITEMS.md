@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
 - **#254** 👁 Control Center voice session survives dismissal — **WATCH (downgraded 2026-08-05, header corrected 2026-08-09); mechanism now identified — connect-window race, STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
-- **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; STAYS OPEN only for the Voice-card accent residual, fix in flight**
+- **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; STAYS OPEN only for the Voice-card accent residual (bar 252R-A, pre-registered 2026-08-09, NOT STARTED — Owen routes)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
 - **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
@@ -253,7 +253,8 @@ one command and kill the rest.**
 >
 > **Three deliberately NOT closed, and the reason matters:** **#250** and
 > **#252** are shipped but each owes one residual (250-D's island watch; the
-> Voice-card accent, fix in flight), and **#254** is a WATCH with a newly
+> Voice-card accent, bar 252R-A pre-registered but NOT STARTED), and **#254**
+> is a WATCH with a newly
 > identified mechanism. **An item does not close while a residual is
 > outstanding, even when the headline work shipped** — that is the same rule
 > that keeps #257 and #297 live on a failed bar.
@@ -7920,7 +7921,8 @@ the lane opens.
 > **Sibling residual, tracked in #252 not here:** `cardIsAccented(.voice)`
 > still keys off `readAloudAutoPlay` while 256-H moved the card's *value* to
 > the engine route, so the card can read `REALTIME · LIVE` and not glow. A fix
-> is in flight; **#252 stays open until it lands.**
+> is specified as bar **252R-A** in `dispatch/OPUS-T27-252-settings-channels.md`
+> but is **NOT STARTED** — Owen routes it. **#252 stays open until it lands.**
 
 **Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
 Host · Model** — status pip + link state (LINKED · DIRECT / ON-DEVICE) +
@@ -8164,7 +8166,35 @@ routed-production discipline. Nothing owed.
 > registry if that files into a lane. Source:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`.
 
-## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — **ROUTED 2026-08-05 (all four decisions), spec in progress**
+## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). STAYS OPEN for ONE residual: bar 252R-A below. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
+
+> **🎯 BAR 252R-A — PRE-REGISTERED 2026-08-09, NOT STARTED.** Written here
+> before any code, per the standing convention. **Owen routes when to run it.**
+>
+> **The residual:** `SettingsChannelsScreen.swift:417` —
+> `cardIsAccented(.voice)` still returns
+> `settingsStore.settings.readAloudAutoPlay`, but **256-H (commit `c8b27fb`)
+> moved the Voice card's displayed VALUE to the engine route.** The glow and
+> the text now disagree: the card can read `REALTIME · LIVE` and not glow, or
+> read `ON-DEVICE` and glow.
+>
+> **Why it survived review:** this is the only site reading `readAloudAutoPlay`
+> outside the Voice screen's own toggle, and **`cardIsAccented` has zero test
+> coverage** — all 13 existing tests in that area are formatter-level. Nothing
+> could have caught the divergence.
+>
+> **252R-A:** the Voice card's accent and its value derive from the SAME
+> source, so they cannot disagree. Evidence: unit pins on `cardIsAccented` for
+> the voice case in both states, plus the pin verified **RED against the
+> current predicate before the fix** — a test written after a defect is
+> usually pinned to text the fix never touched, and this one must be proven
+> otherwise. **No device time.** ~10 lines plus pins.
+>
+> **Adjacent, deliberately NOT bundled:** #252's real-data-only rule holds at
+> HEAD — all nine card *values* are store-derived, unknown host renders `"—"`,
+> an unloaded session count renders `"…"` rather than a false `0`. 252R-A
+> extends that honesty from card **text** to card **accent**, which is the
+> same #180 principle one layer out.
 
 **Source:** Claude Design handoff bundle (Owen, 2026-08-05):
 `Settings Redesign.dc.html` (three-directions survey: 1a Command Deck /
