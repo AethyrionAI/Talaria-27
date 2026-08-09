@@ -1771,6 +1771,76 @@ struct RunsPlaneTransportTests {
         #expect(paths.contains { $0 == "/v1/runs" })
         #expect(!paths.contains { $0.contains("/chat/stream") })
     }
+
+    // MARK: - #292: consumer walk-away cancels the producer
+
+    /// 292-A: cancelling the consumer's iteration must cancel the producer
+    /// Task — which is what stops an abandoned turn's status poll. Observed
+    /// through the STUB's request log, never the collector: the collector
+    /// going quiet only proves the collector was cancelled.
+    @Test @MainActor
+    func consumerWalkAwayCancelsTheProducerAndStopsThePolling() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([
+                #"{"event":"message.delta","run_id":"run-r1","timestamp":1.0,"delta":"Still"}"#,
+            ]),
+            // Stuck on `running` forever, so the poll loop can never
+            // self-terminate on a terminal status — only cancellation or the
+            // budget can end it.
+            statusBodies: [Self.runningStatus],
+            failEventsAfterBody: .networkConnectionLost
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "walk-away-stops-polling")
+        // This override is the bar's teeth — without it the 800ms suite
+        // default ends the poll on its own and the test passes on the defect.
+        client.runsPollBudget = .seconds(30)
+        client.runsPollInterval = .milliseconds(40)
+
+        // Inline collector, NOT `collect(from:)` — that helper awaits the
+        // collector to completion under its own 10s belt, and this test must
+        // cancel mid-flight and keep observing the producer afterward.
+        let collector = Task { @MainActor in
+            for await _ in client.sendStreaming(
+                message: "hi",
+                attachments: [],
+                clientMessageID: UUID()
+            ) {}
+        }
+
+        // Wait until the poll LOOP is proven live — two reads, not one
+        // opportunistic read — bounded by iterations, not wall clock.
+        var spins = 0
+        while RunsStubURLProtocol.count("/v1/runs/run-r1") < 2 {
+            spins += 1
+            guard spins <= 500 else {
+                Issue.record("the status poll never went live (\(RunsStubURLProtocol.count("/v1/runs/run-r1")) reads) — fixture failure, not a #292 verdict")
+                collector.cancel()
+                _ = await collector.value
+                return
+            }
+            await Task.yield()
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        // The walk-away.
+        collector.cancel()
+        _ = await collector.value
+
+        let atWalkAway = RunsStubURLProtocol.count("/v1/runs/run-r1")
+        // At least 10 poll intervals: a still-live producer lands ~12 more
+        // reads in this window, and 500ms is far short of the 30s budget.
+        try await Task.sleep(for: .milliseconds(500))
+        let final = RunsStubURLProtocol.count("/v1/runs/run-r1")
+        #expect(final == atWalkAway,
+                "the producer kept polling after the consumer walked away — #292 (atWalkAway = \(atWalkAway), final = \(final))")
+
+        // Cancellation must still unwind through `streamTurnViaRuns`' defer —
+        // otherwise `activeRunContext` leaks a run nobody owns.
+        #expect(client.activeRunContext == nil)
+    }
 }
 
 // MARK: - History mapping (the pre-fetch's pure half)

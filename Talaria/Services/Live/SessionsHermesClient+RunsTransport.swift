@@ -560,7 +560,12 @@ extension SessionsHermesClient {
                 // a re-send. The stream is gone but the status object is not:
                 // poll it before degrading, because the answer this turn was
                 // waiting for may already exist (3A-B). `Task.isCancelled`
-                // makes the poll a no-op, so a stopped consumer costs nothing.
+                // makes the poll a no-op, so a stopped consumer costs nothing
+                // — true because `sendStreaming`'s `onTermination` hook
+                // (#292) cancels this producer when the consumer's stream is
+                // released. Delete that hook and this check is unreachable
+                // from a walk-away, and the poll runs its full budget for
+                // nobody (~60 authenticated GETs — the #292 defect).
                 // #285: `capturedEndpoint` is non-nil whenever `runSubmitted`
                 // is — the submit itself rode it.
                 finishedYielded = await deliverPolledTerminal(
@@ -790,11 +795,15 @@ extension SessionsHermesClient {
     /// Returns nil — the caller then arms `.interrupted`, the same hand-off a
     /// dropped sessions stream makes — when the run is still going at
     /// `runsPollBudget`, when the host 404s the id, when reads keep failing,
-    /// or on cancellation. **Every one of those exits is bounded**: the loop
-    /// cannot outlive the budget by more than one interval plus one read.
+    /// or on cancellation — which a consumer walk-away actually delivers:
+    /// `sendStreaming`'s `onTermination` hook (#292) cancels the producer
+    /// this loop runs inside. **Every one of those exits is bounded**: the
+    /// loop cannot outlive the budget by more than one interval plus one
+    /// read.
     ///
-    /// `Task.isCancelled` exits silently: the consumer stopped, so there is
-    /// nothing left to deliver an answer to.
+    /// `Task.isCancelled` exits silently: the consumer stopped — the #292
+    /// hook is how that reaches this task — so there is nothing left to
+    /// deliver an answer to.
     ///
     /// `budget` defaults to `runsPollBudget` — the STREAMED path's allowance,
     /// which is long because it degrades to `.interrupted` rather than making
