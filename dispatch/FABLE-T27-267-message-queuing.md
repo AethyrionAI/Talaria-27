@@ -1,5 +1,23 @@
 # FABLE — T27 #267: message QUEUING while a turn streams
 
+> ## 🔢 NUMBER REASSIGNMENT 2026-08-09 — READ BEFORE FILING ANYTHING
+>
+> This dispatch proposes filing as **#300** (the queuing lane) and **#301** (the
+> pre-existing defect where the compose outbox can drain mid-reconcile).
+> **Both numbers were consumed during the Opus marathon and now belong to
+> unrelated items:** #300 is `lane-gate.sh`'s misleading failure advice; #301 is
+> a libdispatch main-queue assertion in the native voice path.
+>
+> **Use #306 for the lane and #307 for the outbox defect.** Confirmed
+> 2026-08-09 that the outbox-mid-reconcile defect is **still unfiled anywhere**,
+> so #307 is a genuine first filing, not a duplicate. Highest filed is **#303** —
+> re-check before filing:
+> ```bash
+> grep -oE '^## [0-9]+' OPEN_ITEMS.md OPEN_ITEMS-ARCHIVE.md | grep -oE '[0-9]+$' | sort -n | tail -1
+> ```
+> **Numbers are never reused and never renumbered (#261).**
+
+
 ## 1. Header
 
 **Label:** `FABLE` (streaming state machine × transcript identity — the two areas with this

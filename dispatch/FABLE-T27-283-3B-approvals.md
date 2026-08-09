@@ -1,5 +1,25 @@
 # FABLE-T27-283-3B — Host approvals on our plane: answer `approval.request` from the phone
 
+> ## 🔢 NUMBER REASSIGNMENT 2026-08-09 — READ BEFORE FILING ANYTHING
+>
+> This dispatch proposes filing as **#298** (the lane) and **#299** (approvals
+> that outlive the screen). **Both numbers were consumed during the Opus
+> marathon and now belong to unrelated items:** #298 is the `#238` teardown
+> residue in `updateWidgetData`'s comments; #299 is the adoption merge
+> duplicating assistant rows born in-app.
+>
+> **Use #304 for the lane and #305 for the outlives-the-screen follow-up.**
+> Highest filed at the time of writing is **#303** — re-check before filing,
+> because the marathon minted six numbers in a night and another run may have
+> moved it again:
+> ```bash
+> grep -oE '^## [0-9]+' OPEN_ITEMS.md OPEN_ITEMS-ARCHIVE.md | grep -oE '[0-9]+$' | sort -n | tail -1
+> ```
+> **Numbers are never reused and never renumbered (#261).** Filing into an
+> occupied number is not a cosmetic error — it corrupts the one guarantee the
+> two-file split rests on.
+
+
 **Tier that executes:** FABLE ·
 **Item:** OPEN_ITEMS **#283** is slice 3A and is CLOSED-with-bars-met; **slice 3B needs its own
 number — recommend #298** (§5, §6) · **Parent arc:** #251 · **Plan of record:**
