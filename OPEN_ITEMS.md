@@ -6272,9 +6272,11 @@ head). C2 (3B has no entry) is discharged by this filing.
 >   degraded raise carries `question: nil` by construction, pinned by the
 >   D(i) fixture's `request.question == nil` assertion, and
 >   `RunStatusSnapshot.liveStatuses`' doc now carries the C5 warning.
-> - **304-G PENDING** — the controller runs `lane-gate.sh` (lane-local
->   evidence: the five affected suites 68/68 post-change, 3A's
->   `RunsPlaneTransportTests` 33/33 unregressed; full-unit count at the foot).
+> - **304-G ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air, on the branch merged with main @ `21d2b94`): TEST
+>   SUCCEEDED, **1981 Swift Testing + 13 XCUITest**, Release build clean.
+>   (Lane-local evidence beneath it: the five affected suites 68/68
+>   post-change, 3A's `RunsPlaneTransportTests` 33/33 unregressed.)
 > - **304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
 >   per-experiment go still owed; Owen's O3 routes them to the Mac. The
 >   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
