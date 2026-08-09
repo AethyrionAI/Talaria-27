@@ -128,8 +128,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#75** 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#78** 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07 evening: 78-F2 MET on the local brain (OTA 2171); awaiting the archive sweep**
-- **#80** 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
-- **#81** 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
+- **#80** ✅ Inbox wired + agent-initiated producer tools — **CLOSED 2026-08-09 (SUPERSEDED): relay foundation deleted by #251 2A; feature lives on TalariaPlatformInboxService**
+- **#81** ✅ Lock-screen reply to Hermes — **CLOSED 2026-08-09 (DEAD): deliberately removed by #238 as named collateral; zero trace in tree**
 - **#82** 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) …
 - **#93** 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
 - **#99** 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verified 2026-07-20; WKContentRuleList …
@@ -144,19 +144,19 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#124** ✨ Face ID app lock (free tier)
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
-- **#130** 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err …
+- **#130** ✅ In-session TTS fidelity — **CLOSED 2026-07-31 by Owen ("drop this, it's fine as is"); header/index corrected 2026-08-09**
 - **#132** 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config …
 - **#137** 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE …
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
 - **#140** 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 - **#148** 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation …
-- **#149** ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly …
+- **#149** ✅ Claude↔Hermes MCP bridge — **CLOSED 2026-08-09: ALREADY SATISFIED, used this session to probe OJAMD live**
 - **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
 - **#155** 📌 Capture the real UPSTREAM_TESTED_SHA value
 - **#156** 🧭 Agent introspection surface — Tasks, Skills, Memory, Insights, Projects, mid-run steering
 - **#159** ⚠️ CORRECTION to #158 — Projects DO exist in hermes-agent; 156e reclassified, 156f parked
 - **#160** 🎨 hermex UI/UX design reference — Tasks, Skills, Projects (K3 analysis 2026-07-22)
-- **#161** ❌ 156e Projects — NOT VIABLE. **Re-checked against LIVE Hermes 0.19.0 on 2026-08-01 — the verdict HOLDS.** …
+- **#161** ✅❌ 156e Projects — NOT VIABLE — **CLOSE ACTIONED 2026-08-09 (Owen). Terminal cut; the no-new-services constraint on the #156 arc survives**
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
 - **#163** 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at …
 - **#165** 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at …
@@ -170,7 +170,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#184** 🐛 ChatStore has three teardown paths and each clears a different subset
 - **#185** 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 - **#186** 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ …
-- **#187** 🐛 Gateway ignores `min_messages` — empty sessions reach the app on every fetch
+- **#187** ✅ Gateway ignores `min_messages` — **CLOSED 2026-08-09: not ignored, ABSENT from the handler; upstream one-kwarg fix, nothing of ours remains**
 - **#188** 🔧 Connector watchdog cannot distinguish relay-down from connector-down
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
@@ -190,15 +190,15 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
 - **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt …
-- **#256** 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 …
+- **#256** ✅ SETTINGS GRID STATUS STRIP — **CLOSED 2026-08-09: shipped 2026-08-05, bars met on 2042/2047; 256-E's text superseded by 256-G, its device half rides #249's 249F-D**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
-- **#254** 🐛 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its …
+- **#254** 👁 Control Center voice session survives dismissal — **WATCH (downgraded 2026-08-05, header corrected 2026-08-09); mechanism now identified — connect-window race, STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
-- **#252** 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ …
+- **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; STAYS OPEN only for the Voice-card accent residual, fix in flight**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
-- **#250** ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear …
+- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
-- **#242** 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query …
+- **#242** ✅ LOCAL-ANSWER BRIDGE — **CLOSED 2026-08-09: DELIVERED as #251 Slice 2A (talaria_phone_query + PhoneQueryResponder), device-proven 2026-08-06**
 - **#241** 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and …
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
@@ -221,10 +221,48 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#210** #26's condense-and-retry guard did not fire on the REAL context-overflow error. FIXED 2026-07-31.
 - **#208** (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
-*107 items on this board (#262/#263/#264 added, #258 and #260 newly
+~~*107 items on this board (#262/#263/#264 added, #258 and #260 newly
 closed-in-place 2026-08-06; closed items move to the archive at cleanup
 passes, not instantly); 163 closed/terminal items are in
-`OPEN_ITEMS-ARCHIVE.md`.*
+`OPEN_ITEMS-ARCHIVE.md`.*~~
+
+**MEASURED 2026-08-09 — the "107" above was stale and every other figure in
+circulation disagreed with it.** Run the count, never quote it:
+
+```bash
+grep -oE '^## [0-9]+[A-Z]?\.' OPEN_ITEMS.md | sort -u | wc -l          # this file
+grep -oE '^## [0-9]+[A-Z]?\.' OPEN_ITEMS-ARCHIVE.md | sort -u | wc -l  # the archive
+```
+
+At the time of writing: **live 124 · archive 179 · union 303, files disjoint.**
+Four different live counts were in circulation simultaneously (107 here, 118 in
+two handoffs, "~100" in #266, against a measured 124) — the 118 figure had
+dropped the six letter-suffixed items (`#198A/#198B/#199A/#205E/#210A/#211A`),
+which the canonical form explicitly includes. **#266 is chartered to make this
+one command and kill the rest.**
+
+> **FREE-WINS SWEEP, 2026-08-09 (Owen: *"if those are done and haven't been
+> closed, those are indeed free wins. Lets get those closed."*).** Eight items
+> **closed in place**: **#80** (superseded by #251 2A), **#81** (removed by
+> #238), **#130** (Owen closed it 2026-07-31 — the header lagged nine days),
+> **#149** (already satisfied; used this session), **#161** (a "recommend
+> closing" that sat unactioned since 2026-08-01), **#187** (absent from the
+> handler, upstream), **#242** (delivered as #251 2A), **#256** (shipped
+> 2026-08-05). They stay in this file until the archive pass moves them
+> verbatim — closed items migrate at cleanup passes, not instantly.
+>
+> **Three deliberately NOT closed, and the reason matters:** **#250** and
+> **#252** are shipped but each owes one residual (250-D's island watch; the
+> Voice-card accent, fix in flight), and **#254** is a WATCH with a newly
+> identified mechanism. **An item does not close while a residual is
+> outstanding, even when the headline work shipped** — that is the same rule
+> that keeps #257 and #297 live on a failed bar.
+>
+> **Why eight items could be closed in one sitting with no code:** the board
+> over-reports open work. Six of these were queued as *fresh lanes* by the
+> 2026-08-09 sweep on the strength of their headers alone. The documented
+> failure mode in this file is headers that look CLOSED while work remains;
+> **this is the reverse, and it wastes lanes just as efficiently.**
 
 ---
 
@@ -1843,7 +1881,24 @@ Regenerate/Edit while another run streams.
 
 ---
 
-## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45)
+## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45) — **✅ CLOSED 2026-08-09 (SUPERSEDED): the relay-based foundation this item describes was DELETED by #251 Slice 2A and replaced. The feature lives; the mechanism does not.**
+
+> **✅ CLOSE-OUT 2026-08-09 — superseded, not abandoned.** The inbox still
+> works; it is served by **`TalariaPlatformInboxService`** (`Talaria/Stores/InboxStore.swift`)
+> over the plugin transport. What this entry describes — `LiveInboxService`
+> and `RelayInboxItem`, the relay-backed pair — was removed by #251 Slice 2A
+> on 2026-08-06. **`RelayInboxItem` has zero references in the tree; the only
+> surviving mention of `LiveInboxService` is its own tombstone comment** at
+> `Talaria/Stores/AppContainer.swift:499` (*"`LiveInboxService` and its
+> 401-recovery ladder went with the relay"*).
+>
+> This entry's device-pass row describes the same removed mechanism and is
+> moot with it. **Any residual want for agent-initiated producer tools is a
+> NEW item against the plugin transport, not a continuation of this one** —
+> per #268, that gets its own number the day it is named.
+>
+> *Found by the 2026-08-09 board sweep (`dispatch/OPUS-T27-wave-leftovers-triage.md`),
+> which was commissioned to spec this as fresh work.*
 
 > **Audit 2026-07-13:** The 2026-07-10 note's claims 'gh#58 app-side hardening BUILT, not compiled' and 'xcodegen regen owed' are stale — Lane C (PR #59, `claude/lane-c-dispatch-5bbw9k`) has since merged to main (commit `80b534a` and docs commit `3607bdd` both present in `git log origin/main`; `TalariaTests/InboxDecodingTests.swift` confirmed in the working tree). The decoder hardening is compiled and on main, not merely cloud-written. Still correctly 🔧/merged-unverified, not ✅: the original #45 device checklist (silent-push wake, verdict readback, alert push) remains unchecked, the gh#58 client fix's own device re-check is unconfirmed, and GitHub #58's server-side `kind`-validation half is still OPEN (ISSUE_INDEX).
 
@@ -1924,7 +1979,22 @@ Console names the skipped one.
 
 ---
 
-## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47)
+## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47) — **✅ CLOSED 2026-08-09 (DEAD): built, then deliberately DELETED 2026-08-03 by #238 as named, accepted collateral of the notification-surface removal.**
+
+> **✅ CLOSE-OUT 2026-08-09.** `UNTextInputNotificationAction` has **zero
+> occurrences** anywhere in `Talaria/` or `TalariaWidgets/`. The feature was
+> removed on purpose — #238 named it as accepted collateral when the whole
+> notification surface came out — so this is a **completed cut, not
+> abandoned work.**
+>
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` already annotated its check MOOT on
+> 2026-08-06. **Only this entry's header was still describing it as pending**,
+> which is the close-out rule's exact failure mode: the correction was made
+> downstream and never brought home.
+>
+> *Found by the 2026-08-09 board sweep. Reviving lock-screen reply would be a
+> new item against whatever notification surface replaces #238's, not a
+> reopening of this one.*
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F4**, written as a
@@ -2844,7 +2914,24 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ---
 
-## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood
+## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood — **✅ CLOSED 2026-07-31 by Owen; header corrected 2026-08-09 (it read open for nine days after his call).**
+
+> **✅ HEADER CORRECTED 2026-08-09.** The close is not new — **Owen closed
+> this on 2026-07-31**: *"drop this, it's fine as is. We can readdress it down
+> the road if it surfaces again organically."* Status quo (option b) accepted;
+> the probe branch was deleted with its SHA recorded in the body for
+> restoration.
+>
+> **What was stale was this header and the INDEX line**, both of which still
+> read as live work for nine days — long enough that the 2026-08-09 sweep
+> commissioned a voice lane on the premise of "three live voice defects,"
+> which was wrong on two of the three (this and #254). Corrected at both homes
+> per THE CLOSE-OUT RULE.
+>
+> **Consequence worth keeping:** #220's engine-ambiguity audit classifies this
+> item's evidence AMBIGUOUS — moot while closed, but if it ever resurfaces
+> organically, **re-measure with the engine pinned** before trusting the old
+> reading. Airplane mode pins the native engine for free.
 
 > **PROBE BUILT 2026-07-20 (PR #128, `probe/t27-130-halfduplex`, DO-NOT-MERGE + probe labels).**
 > Option (a) as dispatched, all inside `NativeVoicePipelineService.swift`: session mode
@@ -3354,7 +3441,23 @@ Logged 2026-07-20.
 
 ---
 
-## 149. ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly (parked idea)
+## 149. ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly (parked idea) — **✅ CLOSED 2026-08-09: ALREADY SATISFIED. It exists, it is connected, and it was used this session to run live read-only diagnostics on OJAMD.**
+
+> **✅ CLOSE-OUT 2026-08-09 — satisfied, and demonstrated rather than argued.**
+> Two MCP servers are live in-session, `hermes-mac` and `hermes-ojamd`, each
+> exposing exactly the surface this entry asked for: create a session, chat,
+> read messages, list sessions, gateway health. Both gateways answered
+> `status: ok`, version 0.20.0.
+>
+> **The proof is a result this item made possible:** the 2026-08-09 sweep used
+> `hermes-ojamd` to probe the production host read-only and caught two live
+> facts nothing in the repo knew — that `TalariaModelsShim` is **stopped but
+> not disabled** (`StartType: Automatic`, so a reboot restarts it; CLAUDE.md
+> corrected), and that **`C:\Users\Owen\.hermes\plugins` does not exist** on
+> OJAMD, so #271's stated target path was the Mac's, not the production host's.
+>
+> **The only residue is a nice-to-have**, and it is not work: a line recording
+> the first in-anger use. This is it.
 
 **Owen, 2026-07-20: “we should make you an MCP to talk to Hermes. Lets do that sometime.”**
 Shape TBD — plausibly an MCP server exposing the Hermes Sessions API (and/or hermes_mobile
@@ -3582,7 +3685,23 @@ Dispatched to K3 on OJAMD (session `api_1784723772_f27fa635`, clone at `O:\Herme
 
 Logged 2026-07-22.
 
-## 161. ❌ 156e Projects — NOT VIABLE. **Re-checked against LIVE Hermes 0.19.0 on 2026-08-01 — the verdict HOLDS.** And a no-new-services constraint for the whole #156 arc.
+## 161. ❌ 156e Projects — NOT VIABLE. **Re-checked against LIVE Hermes 0.19.0 on 2026-08-01 — the verdict HOLDS.** And a no-new-services constraint for the whole #156 arc. — **✅ CLOSE ACTIONED 2026-08-09 (Owen's go). Terminal ❌, a completed cut.**
+
+> **✅ CLOSE-OUT 2026-08-09.** This entry has said *"NOT VIABLE, recommend
+> closing"* since 2026-08-01 and the close was **never actioned** — the
+> counting rules at the top of this file even call it out by name: *"#161 says
+> 'NOT VIABLE, recommend closing' and the close was never actioned — Owen's
+> call."* He made it on 2026-08-09 as part of the free-wins sweep.
+>
+> **A ❌ cut is terminal, not open work** — it counts with #125 and #126, not
+> against the backlog. The verdict itself is unchanged and stays verbatim:
+> hermes-agent has no `project_id`, grouping is derived from `cwd`, and
+> "move to project" would mean re-anchoring a working directory — a
+> deliberate act, never a side effect.
+>
+> **The no-new-services constraint on the whole #156 arc survives this close**
+> and is the part worth not losing: it governs #162/#163/#165 and anything
+> else that lands in that arc later.
 
 > ## RE-CHECK 2026-08-01 — verdict unchanged, and the question was the right one to ask
 >
@@ -4550,7 +4669,23 @@ regardless, closing the crash path if anyone reaches for that API later.
 
 Logged 2026-07-25.
 
-## 187. 🐛 Gateway ignores `min_messages` — empty sessions reach the app on every fetch
+## 187. 🐛 Gateway ignores `min_messages` — empty sessions reach the app on every fetch — **✅ CLOSED 2026-08-09: NOT OURS AND NOTHING OF OURS REMAINS. Code-verified against the real handler, not probed.**
+
+> **✅ CLOSE-OUT 2026-08-09 — code-verified, and the finding is sharper than
+> the filing.** `_handle_list_sessions` in `gateway/platforms/api_server.py`
+> reads exactly four parameters: `limit`, `offset`, `source`,
+> `include_children`. **`min_messages` is not ignored — it is not in the
+> handler at all.** Neither is `order`, which nothing had noticed.
+>
+> **Upstream's fix is one kwarg**, because the DB layer beneath it already
+> accepts `min_message_count`. That is a Hermes change, not a Talaria one, and
+> it falls under the standing no-upstream-PRs posture (see #241's park).
+>
+> **Nothing of ours remains** — there is no client-side workaround worth
+> building for a few empty session rows, and the watch this entry asked for is
+> now a four-line code read anyone can repeat. Closed as **upstream, not our
+> work**; reopen only if empty sessions start causing a user-visible problem
+> rather than an aesthetic one.
 
 `SessionsHermesClient.fetchSessionList` requests
 `/api/sessions?limit=50&order=recent&min_messages=1`. **The gateway does not honor the
@@ -7762,7 +7897,30 @@ the lane opens.
 > **ruled-out mechanism**, not an untried one — any next attempt needs a
 > different approach than instruction-clause enumeration.
 
-## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
+## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
+
+> **✅ CLOSE-OUT 2026-08-09.** Merged in two commits (`2c17f86`, `c8b27fb`,
+> PR #271) plus the closure note `ad32446`. Device-met in Owen's own words on
+> builds 2042 and 2047.
+>
+> **Two things this close must NOT bury:**
+>
+> 1. **256-E's bar text was superseded by 256-G and can never be met
+>    literally.** The strip dropped `DIRECT`, so the bar as originally written
+>    describes a string that no longer ships. That was a legitimate later
+>    routing decision, **not a missed bar** — recorded here at the bar's own
+>    home so a future reader does not score it as a falsification. This is the
+>    #218 promoted-clause discipline applied to a bar's own wording.
+> 2. **256-E's second half — the reminder-phrasing device observation — is
+>    NOT lost.** It is strictly weaker than **#249's 249F-D**, which covers
+>    the same phrasing on a different bounce path and remains open. The
+>    observation rides 249F-D; #256 does not stay open to hold a duplicate of
+>    a stronger bar.
+>
+> **Sibling residual, tracked in #252 not here:** `cardIsAccented(.voice)`
+> still keys off `readAloudAutoPlay` while 256-H moved the card's *value* to
+> the engine route, so the card can read `REALTIME · LIVE` and not glow. A fix
+> is in flight; **#252 stays open until it lands.**
 
 **Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
 Host · Model** — status pip + link state (LINKED · DIRECT / ON-DEVICE) +
@@ -7922,7 +8080,36 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > still works under its old name. Item stays open only for (b)/(c)
 > verdicts; everything else in the inventory was KEEP or rides #251.
 
-## 254. 🐛 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; lifecycle bug, lane not yet opened**
+## 254. 👁 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; ⬇️ DOWNGRADED TO WATCH 2026-08-05 (not reproducible on 2034) — header corrected 2026-08-09, it was still present-tense; STAYS OPEN as a watch with a mechanism now identified**
+
+> **⚠️ HEADER CORRECTED 2026-08-09, and this item is NOT closed.** The
+> downgrade to WATCH was recorded in the body on 2026-08-05 but the header
+> kept describing a live ghost, which is why the 2026-08-09 sweep commissioned
+> a lane against it. **The item stays open** — a watch with a named mechanism
+> is worth more than a closed item with none.
+>
+> **The mechanism, found 2026-08-09 and it explains the non-reproduction.**
+> Teardown has exactly two owners: `VoiceOverlayScreen.onDisappear`
+> (`VoiceOverlayScreen.swift:91-110`, deliberately unguarded per #139) and the
+> #118 background observer (`AppContainer.swift:1148-1161`) — which **still
+> carries the `isSessionActive` guard that #139 removed from the other path**
+> (`TalkSessionRules.swift:32-34`). `isSessionActive` is **false for the entire
+> connect window** (`TalkStore.swift:80-99`), so backgrounding mid-connect
+> revokes nothing, the connect lands live in the background under
+> `UIBackgroundModes: audio`, and `overrideOutputAudioPort(.speaker)` "for
+> maximum volume" (`LiveVoiceSessionService.swift:757-762`) is literally
+> Owen's *"full volume."*
+>
+> **Cold launch from Control Center is the slowest connect** — which is
+> exactly why that path found it, and why re-testing a warm app "worked every
+> time." **A race is what this looks like.** Do not read the 2034
+> non-reproduction as a refutation.
+>
+> **First task when a lane opens is 254-F**, a one-minute check of the single
+> ASSUMED step: does `onDisappear` fire when a `fullScreenCover` is
+> backgrounded? It either kills the mechanism outright or promotes this from
+> ghost to known race. Bars and the full trace:
+> `dispatch/OPUS-T27-voice-130-138-254.md`.
 
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
 hermes buttons in the control center started working? The chat one takes
@@ -9147,7 +9334,29 @@ with a METHOD path under a Swift Testing struct silently runs 0 tests
 under `TEST SUCCEEDED` — suite-level selectors only; caught by the
 executed-count check both times it appeared today.
 
-## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — **FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**
+## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — ~~**FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**~~ → **✅ CLOSED 2026-08-09: SUBSTANTIALLY DELIVERED as #251 Slice 2A and device-proven 2026-08-06. The header read "no design yet" for three days after it shipped.**
+
+> **✅ CLOSE-OUT 2026-08-09 — this idea was built, and nobody told the entry.**
+> The core shipped as **#251 Slice 2A**: `talaria_phone_query` (a 7-kind
+> catalog with a `check_fn` on transport liveness and honest-failure prose)
+> in `~/.hermes/plugins/talaria/tools.py`, answered app-side by
+> `Talaria/Services/Live/PhoneQueryResponder.swift`, which calls the same belt
+> statics behind the existing privacy gates. **Device-proven 2026-08-06.**
+>
+> **Its relationship to the decommission arc, which is the part worth
+> keeping:** #242 is neither a prerequisite for nor an alternative to #223 —
+> it is the **delivered enabler**. #223 named exactly one thing that would be
+> lost by ditching the sensor plane (the remote agent's view of phone health);
+> #242 was the avenue to dissolve that loss; it merged as Plan C Phase 2.
+>
+> **The residual loss is precisely what this entry predicted:** host-side
+> *asynchronous* history analysis, which a query-time bridge structurally
+> cannot provide. That is a real limitation, recorded rather than papered over.
+>
+> **What actually gates #223 Phase 4 is therefore NOT sensors** — it is voice
+> bootstrap (`talk/session`, `talk/readiness`) and #21 file delivery, neither
+> of which appears in any decommission plan. See
+> `dispatch/FABLE-T27-223-251-reconciliation.md`.
 
 **Owen, same night as the sensors-leaning (see #223), verbatim:** *"I keep hoping
 we'll find a different avenue to take for the health stuff, but I think we can
