@@ -38,6 +38,24 @@ treatment builder is `productionToollessInstructions(includeToollessCapabilityIn
 one-builder rule). Building that cell is part of this run's lane, not #297's
 build lane.
 
+> **✅ THE CELL IS SPEC'D 2026-08-08 —
+> `planning/superpowers/specs/2026-08-08-297-toolless-index-ab-design.md`
+> (Owen approved the design; scoring approach, detection approach, n=20 all
+> confirmed).** `runToollessIndexBattery(trials:)`, 2 arms × 3 prompts × n=20.
+> Three things from it that change how this row runs:
+> - **Sequencing: the harness lane cannot start until PR #285 merges** (or must
+>   branch from `t27-297-toolless-index`) — `includeToollessCapabilityIndex`
+>   does not exist on `main` yet, and starting from `main` fails as a
+>   missing-argument error that looks like a typo.
+> - **297-C is a UNION measure — claim OR tool syntax — inherited from #202C**,
+>   whose gate FAILED by measuring only prose lies while the control's failures
+>   moved into raw tool syntax (lies 10/12→4/10, syntax 2/12→6/10). Either
+>   pattern set alone reproduces that mistake.
+> - **Two halves of this run are transcript READS, not automated:** 297-C's
+>   backstop (the 20 treatment `whatcanyoudo` replies) and 297-B's
+>   correct-arithmetic / is-it-a-haiku judgments, which no flag can score. The
+>   emit line carries the text, so it is reading — not re-running.
+
 - **What to do:** device A/B. Control = the shipped toolless payload
   (`toolless-lic2` + clause v2). Treatment = same + the index sentence.
 - **Rows:** "What can you do?" at n=20 per arm; plus the two toolless canaries at
