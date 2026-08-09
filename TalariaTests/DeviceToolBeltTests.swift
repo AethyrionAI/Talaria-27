@@ -504,6 +504,123 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.HonestyCell.honestyFixV2.usesV2Clause)
     }
 
+    // MARK: - #297 toolless capability index (default-OFF flag)
+
+    /// #297: the toolless capability index ships behind a default-OFF flag.
+    /// This is the "shipping OFF" pin — the most important test in this
+    /// lane. Neither omitting the flag nor passing it explicitly `false`
+    /// may change production's shipped toolless text by so much as a byte,
+    /// and the index sentence must be entirely absent.
+    @Test func toollessCapabilityIndexFlagDefaultsOffAndProductionTextIsUnchanged() {
+        let production = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false
+        )
+        // Still exactly the lic2 payload plus clause v2 and nothing else —
+        // the same shape `promotedRoutedToollessTurnSpeaksTheLic2TextPlusTheHonestyClause`
+        // pins above, restated here as the flag-specific regression pin.
+        let lic2Cell = LocalChatBackend.instructionsText(
+            for: .toollessLic2, deviceContext: "Device: test.", date: Self.shapeDate
+        )
+        #expect(production == lic2Cell + LocalChatBackend.toollessHonestyClauseV2)
+
+        let flagOmitted = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true
+        )
+        let flagExplicitlyOff = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true,
+            includeToollessCapabilityIndex: false
+        )
+        #expect(flagOmitted == production)
+        #expect(flagExplicitlyOff == production)
+        #expect(!production.contains("You can also read"))
+    }
+
+    /// #297 bar 297-A's text-level precondition: the flag-ON sentence names
+    /// every one of the ten non-vision families, asserted against
+    /// `CapabilityGroup.allCases` — not a hard-coded list — so a future
+    /// capability group appears in this test automatically instead of the
+    /// suite going stale the way #257's hand-written sentence did.
+    @Test func toollessCapabilityIndexFlagOnNamesEveryNonVisionFamily() {
+        let treatment = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true,
+            includeToollessCapabilityIndex: true
+        )
+        let nonVisionFamilies = CapabilityGroup.allCases.filter { $0 != .vision }
+        #expect(!nonVisionFamilies.isEmpty)
+        for family in nonVisionFamilies {
+            #expect(treatment.contains(family.displayPhrase),
+                    "missing \(family.rawValue)'s phrase: \(family.displayPhrase)")
+        }
+        // Vision is image-gated and never relevant on a toolless turn (no
+        // belt is ever registered there) — it must not appear.
+        #expect(!treatment.contains(CapabilityGroup.vision.displayPhrase))
+        // Genuinely GENERATED, not a copy: it must equal the registry's own
+        // enumeration over that exact family set.
+        #expect(treatment.contains(
+            CapabilityRegistry.armedCapabilityEnumeration(families: nonVisionFamilies)))
+    }
+
+    /// #297 bar 297-C's structural precondition: the honesty clause
+    /// survives flag-ON verbatim, and the index sentence comes strictly
+    /// AFTER it — displacing the honesty clause is exactly the #196 tic
+    /// risk this branch exists to prevent.
+    @Test func toollessCapabilityIndexComesAfterTheHonestyClauseNotBeforeIt() {
+        let treatment = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true,
+            includeToollessCapabilityIndex: true
+        )
+        #expect(treatment.contains(LocalChatBackend.toollessHonestyClauseV2))
+        guard let honestyRange = treatment.range(of: LocalChatBackend.toollessHonestyClauseV2),
+              let indexRange = treatment.range(of: "You can also read the user's") else {
+            Issue.record("expected both the honesty clause and the index sentence present")
+            return
+        }
+        #expect(honestyRange.upperBound <= indexRange.lowerBound)
+        // And flag-ON is additive over the flag-OFF text — a strict append,
+        // not a rewrite — so nothing else in the payload moved.
+        let flagOff = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false
+        )
+        #expect(treatment.hasPrefix(flagOff))
+        #expect(treatment.count > flagOff.count)
+    }
+
+    /// #202D's rule applied to the new flag: `productionToollessInstructions`
+    /// is the ONE builder for both the live path and the measured arm, so
+    /// its own pass-through parameter — not a copy — is how a future DEBUG
+    /// cell would build the treatment text. Defaulted `false`, so every
+    /// EXISTING call site (which never names this parameter) is unaffected.
+    @Test func productionToollessInstructionsCanBuildTheTreatmentThroughTheSameBuilder() {
+        let byDefault = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false
+        )
+        let explicitlyOff = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false,
+            includeToollessCapabilityIndex: false
+        )
+        let on = LocalChatBackend.productionToollessInstructions(
+            deviceContext: "Device: test.", date: Self.shapeDate, hasImageTools: false,
+            includeToollessCapabilityIndex: true
+        )
+        #expect(byDefault == explicitlyOff)
+        let viaInstructionsText = LocalChatBackend.instructionsText(
+            deviceContext: "Device: test.", date: Self.shapeDate,
+            hasTools: false, hasImageTools: false,
+            includeToollessLic2Clause: true, includeToollessHonestyClauseV2: true,
+            includeToollessCapabilityIndex: true
+        )
+        #expect(on == viaInstructionsText)
+        #expect(on != byDefault)
+    }
+
     @Test func routerConstantsPinTheMeasuredWinningShape() {
         // The few-shot framing is the ONLY one that cleared the Mac-host
         // probe grid (200/200 at n=20): both polarities exampled, the
