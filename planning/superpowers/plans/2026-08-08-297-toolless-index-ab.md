@@ -1,5 +1,13 @@
 # #297 Toolless-Index A/B Harness Implementation Plan
 
+> **OUTCOME 2026-08-08:** all 3 tasks executed — pre-registered scorers
+> (`2d9b94b`), the runner (`257c000` + count-fix `6947370`), the
+> Developer-screen button and close-out docs (this task) — all on
+> `t27-297-ab-harness`; gate PASS. **This built the INSTRUMENT only — bars
+> 297-A/B/C are UNMET.** No device trial has run; #257's conversational bar
+> stays open until the device pass (§Z1) executes. PR not yet opened — the
+> controller opens it after final review.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build `runToollessIndexBattery(trials:)` — the DEBUG A/B instrument that

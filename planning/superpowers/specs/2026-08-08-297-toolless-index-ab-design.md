@@ -8,7 +8,8 @@
 records the blocker in as many words — *"there is no DEBUG A/B cell yet"* — and
 this spec is that cell. It measures; it ships nothing.
 
-**What already exists (PR #285, gate PASS, awaiting merge):** the
+**What already exists (PR #285, gate PASS, awaiting merge — merged same day,
+2026-08-08, as `5521260`):** the
 `includeToollessCapabilityIndex: Bool = false` flag, the registry-generated
 sentence, and `productionToollessInstructions`'s defaulted parameter so a
 measured arm builds through the same builder. **Production is unchanged and
@@ -34,6 +35,13 @@ not ship, #257's conversational bar stays open. **297-B or 297-C missed → does
 not ship regardless of 297-A.**
 
 ## 1b. Dependency — this lane cannot start until PR #285 merges
+
+> **HISTORICAL, 2026-08-08 (Task 3 close-out of the harness lane):** PR #285
+> merged the same day as `5521260`. The harness lane (`t27-297-ab-harness`)
+> branched from `main` after that merge and did not need
+> `t27-297-toolless-index` directly. The dependency this section describes
+> was real at spec time and is recorded here unchanged — annotated, not
+> deleted, per the project's never-erase convention.
 
 The treatment arm calls
 `productionToollessInstructions(…, includeToollessCapabilityIndex: true)`.

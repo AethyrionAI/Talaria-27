@@ -14,14 +14,17 @@ verdicts.
 **Context:** a single session ran #284 (capability broker) spec→plan→SDD→device
 probe→close-out, then #286 (honest settlement), then #295 (expiration recovery),
 then #297 (toolless capability index). Three merged (GitHub PRs #282/#283/#284);
-#297 is PR #285 awaiting merge. **Everything below is device debt this session
-CREATED or moved.** Nothing here is a re-statement of §A–§G — those stand
-unchanged.
+#297 is PR #285 awaiting merge. **(PR #285 merged same day as `5521260` —
+see Z1's discharge note below.)** **Everything below is device debt this
+session CREATED or moved.** Nothing here is a re-statement of §A–§G — those
+stand unchanged.
 
 **⚑ PREREQUISITE FOR THE WHOLE BATCH: install OTA 2250** (staged 2026-08-08 from
 merged `main` `29fa34a`, Debug config so `#if DEBUG` surfaces exist). The phone's
 prior build (2225) predates #286 and #295 entirely. If PR #285 (#297) merges
-first, re-stage — Z1 needs code that is not in 2250.
+first, re-stage — Z1 needs code that is not in 2250. **It did merge, and Z1's
+harness lane landed more code after that — see Z1's discharge note: a fresh
+re-stage past OTA 2250 is needed before Z1 runs.**
 
 ### Z1 · #297 — toolless capability index A/B · **BARS PRE-REGISTERED, NOT MET**
 
@@ -32,11 +35,22 @@ PR #285, gate PASS (1852 tests + XCUITest + Release), flag
 to today's and pinned by test. Building was not shipping; this run is what decides
 shipping.
 
-**⛔ MUST BE BUILT BEFORE THIS CAN RUN:** there is **no DEBUG A/B cell yet.** The
+~~**⛔ MUST BE BUILT BEFORE THIS CAN RUN:** there is **no DEBUG A/B cell yet.** The
 treatment builder is `productionToollessInstructions(includeToollessCapabilityIndex: true)`
 — a Developer-screen cell must wire to THAT (never a copied string; #202D's
 one-builder rule). Building that cell is part of this run's lane, not #297's
-build lane.
+build lane.~~
+
+> **✅ BLOCKER DISCHARGED, 2026-08-08 (Task 3 of the A/B-harness lane, branch
+> `t27-297-ab-harness`).** The cell exists: `runToollessIndexBattery(trials:)`
+> (`LocalChatBackend+Battery.swift`, commits `2d9b94b`/`257c000`/`6947370`)
+> wired to the Developer-screen button `toollessIndexBatteryButton` (commit
+> `d513505`), sitting beside the other probe buttons. **Its exact label, for
+> whoever runs the phone: "Toolless index A/B n=20 (120)".** Gate PASS on
+> this branch. **The remaining prerequisite is only the OTA stage** — this
+> code postdates OTA 2250 (staged before PR #285's build-phase merge), so
+> the phone needs a fresh re-stage before this row can run; nothing else
+> blocks it.
 
 > **✅ THE CELL IS SPEC'D 2026-08-08 —
 > `planning/superpowers/specs/2026-08-08-297-toolless-index-ab-design.md`
@@ -46,7 +60,9 @@ build lane.
 > - **Sequencing: the harness lane cannot start until PR #285 merges** (or must
 >   branch from `t27-297-toolless-index`) — `includeToollessCapabilityIndex`
 >   does not exist on `main` yet, and starting from `main` fails as a
->   missing-argument error that looks like a typo.
+>   missing-argument error that looks like a typo. **(Historical, 2026-08-08:
+>   PR #285 merged as `5521260` and the harness lane — `t27-297-ab-harness` —
+>   started from `main` after that merge, per plan.)**
 > - **297-C is a UNION measure — claim OR tool syntax — inherited from #202C**,
 >   whose gate FAILED by measuring only prose lies while the control's failures
 >   moved into raw tool syntax (lies 10/12→4/10, syntax 2/12→6/10). Either
