@@ -7535,6 +7535,96 @@ owed and no longer pre-empted.)*
 > 282-D/E) with a STOP-and-report instruction: the lane surfaces it to Owen
 > rather than widening its own scope. It does not get quietly folded in.
 
+### BARS — pre-registered 2026-08-09, BEFORE ANY CODE
+
+Lane `claude/t27-282-claim-demand-scope`, branched off `main` at `5835c52`
+(i.e. **after tracker #279 merged**, so the baseline measures against a mirror
+that no longer resurrects). Written first, per CLAUDE.md *"Where the BARS
+live"*. **Tracker #282 is NOT GitHub PR #282.**
+
+**Two of these — 282-D and 282-E — are PREDICTED RED under the ruled change,
+and that is deliberate.** A bar written to be failed by the ruling is how this
+lane produces a decision instead of a regression. **A missed bar is a
+falsification, never a redefinition**, and if either lands RED the lane
+records the verbatim text here, opens nothing, and stops. Neither companion
+fix named in the dispatch's §7 gets built without a per-change go from Owen.
+
+- **282-A — unit, must go RED → GREEN. The ruling's target, case (a).**
+  `local = [Failed(id: F, clientMessageID: F, .user, "X", status: .failed),
+  Success(id: S, clientMessageID: S, .user, "X", status: .sending)]`;
+  `refreshed = [Server(id: R, .user, "X", clientMessageID: nil)]`, `R ∉ {F,S}`.
+  Assert `ChatStore.unconfirmedLocalMessages(local:refreshed:)` returns
+  **`[Failed]`** — the failed row survives the merge and the in-flight
+  successor is the one confirmed. Today it returns `[Success]`. Evidence:
+  `unconfirmed.map(\.id)`, quoted verbatim from both sides. No device.
+
+- **282-B — unit, CHARACTERIZATION. Written and GREEN *before* the fix, and
+  re-run after. This is the baseline every other bar is read against.** A
+  store-level reconcile merge on the `.hermesFetchCache` shape
+  (`ChatStorePersistenceTests.makeMirroredStore(history:shape:)`): a two-turn
+  history born IN-APP (client-minted ids, `clientMessageID` set, `.delivered`)
+  reconciled against the host's own view of the same thread — stable
+  `SessionsHermesClient.stableMessageID` ids for every row, **no**
+  `clientMessageID` anywhere, and the HOST's clock, which is not the phone's.
+  Assert TODAY's `store.conversation?.messages.map(\.content)` verbatim.
+  **If the pre-change baseline already contains duplicates, the lane STOPS and
+  files that as A2** — assistant rows re-appending, which have no claim tier at
+  all (`ChatStore.swift`'s tier 3 is restricted to `.user`) — as a NEW defect
+  with its own number. It is not absorbed here. No device.
+
+- **282-C — unit, REGRESSION, must stay GREEN and is non-negotiable.** The
+  five existing pins — `AppStoresTests.swift` 248-A/B/C/D and 281-A — pass
+  **byte-unmodified**. If the change forces an edit to any of them, the change
+  is wrong: stop and report (281-D's condition, re-applied). Evidence: the diff
+  on `AppStoresTests.swift`'s #248/#281 region is purely additive. No device.
+
+- **282-D — unit, PREDICTED RED under the ruling. The settled-historical
+  hole.** Local: a thread whose first turn SETTLED in-app and never met the
+  server (`U1 .delivered`, `R1 .delivered`) and whose second turn is
+  mid-recovery (`U2 .working`, carrying its `clientMessageID`). Refreshed: the
+  host's view of all three rows, stable ids, **no `clientMessageID` anywhere**,
+  host-clock timestamps. Assert **no user row's content appears twice** in the
+  merged transcript. Today tier 3 confirms `U1` by content; under the guard
+  `U1` is settled, survives, and is appended at the tail — a second "Q1"
+  bubble below the reply, which is **#248's exact reported symptom restored
+  for a population its four pins do not cover** (all four are
+  `.working`/`.sending`). Evidence: the merged `map(\.content)`. No device.
+
+- **282-E — unit, PREDICTED RED under the ruling. Case (b), and it is written
+  whatever the outcome.** Refreshed rows built the way `mapStoredMessage`
+  builds an id-less, timestamp-less stored row — a fresh `UUID()` and a fresh
+  `.now`, `status: .delivered` — merged **twice in succession**, the second
+  fetch against a local transcript that already adopted the first. Assert the
+  **user-row count does not grow** between fetch 1 and fetch 2. Today the claim
+  tier holds it flat; under the guard the previously-adopted twin is
+  `.delivered` (settled) and nothing does, and `dedupingAdoptedEchoes`
+  (`Conversation.swift:50-60`) cannot collapse rows whose timestamps differ.
+  Evidence: the two counts. No device.
+
+- **282-F — unit, PLACEMENT, and the lane states the answer rather than
+  discovering it.** `ChatStore.swift`'s merge **appends** survivors at the
+  tail, so a `.failed` row the ruling saves comes back at the BOTTOM of the
+  transcript, not above the successful retry. **The answer this lane pins:
+  tail placement is ACCEPTED and DOCUMENTED for this change** — reinserting a
+  survivor in place is a second production edit that the ruling does not
+  authorise and that no bar has measured. Assert the merged `map(\.content)`
+  puts the surviving failed row LAST. No device.
+
+- **282-G — device, Owen. ONLY IF 282-D and 282-E come back GREEN.** Send a
+  prompt, let it fail, retry the same text, let it succeed, leave the thread
+  and return: the failed bubble is still there with its retry affordance, and
+  the successful turn appears exactly once. **If 282-D/E are RED this run is
+  NOT requested** — no device pass is spent on a build whose own units predict
+  a duplicate.
+
+**Falsification, stated in advance.** If 282-A goes green and 282-D/282-E go
+RED, the ruling is correct for case (a) and insufficient as a whole change:
+the tier's demand side cannot be scoped by a status predicate alone — STOP,
+report, do not widen. If 282-D/E come back GREEN, the dispatch's §6 code
+reading is wrong and the ruling ships as written, which is worth knowing
+precisely because it was predicted otherwise. If 282-B's baseline already
+shows duplicates, A2 is real and gets filed before anything else happens.
+
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
 `ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
