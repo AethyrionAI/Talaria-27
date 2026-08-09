@@ -896,6 +896,8 @@ batch-3). Batch this with Group 6 above — both need host-side access
 merged 2026-07-10 (`PR #61`) and has NEVER had a device pass of any kind —
 not "unverified since a fix," genuinely never run once. Quoted verbatim
 from OPEN_ITEMS #93's own "Device checklist," items (a)–(f).**
+*(2026-08-09: #93 CLOSED-split — this group is now successor **#312** and
+item (c) is rewritten as (c′) below; #93's entry lives in the archive.)*
 Est. ~25–30 min, including the gateway restart's downtime.
 - [ ] (a) Kill and relaunch the app mid-conversation. (PASS: the next turn
   resumes the SAME server session — no priming notice.)
@@ -904,8 +906,15 @@ Est. ~25–30 min, including the gateway restart's downtime.
   StatusCard.) (PREREQUISITE: needs the ability to stop/restart the
   gateway process on whichever host is active — see CLAUDE.md's OJAMD
   services section for how the gateway is/isn't a service there.)
-- [ ] (c) Switch models mid-conversation. (PASS: the next turn hops with
-  the notice, and the new model answers WITH context.)
+- [ ] (c′) Change the model pick mid-conversation, then send. (PASS: the
+  SAME hop is reused — **NO priming notice appears** — and the reply is
+  attributed to the newly picked model. **A priming notice here is a
+  REGRESSION, not a pass.**) *(REWRITTEN 2026-08-09 — the original (c)
+  "next turn hops with the notice" tested `switchModel`-ends-the-hop, a
+  mechanism REMOVED at HEAD: the model pick rides per-turn in the request
+  body as the #223 Lane 5 lock, and `endHop()` is called only on
+  stale-hop-404 and `clearConversation`. See #93's close-out note. A
+  runner scoring the original (c) would file a false regression.)*
 - [ ] (d) Send local-brain (on-device) turns, then switch back to Hermes.
   (PASS: the transplant carries the local exchange into the next Hermes
   turn.)
@@ -925,6 +934,8 @@ Separately, and NOT part of tonight's phone session: `CondenserFidelityTests`
 has been reported SKIPPED rather than run since at least 2026-07-13 — "a
 skip is not a pass." That's a test-run concern for whoever next runs the
 full suite on Apple Intelligence hardware, not a device-pass checkbox.
+*(2026-08-09: now filed as **#313** — a DEVICE bar, not a Mac bar; the sim
+has no model, which is exactly why it never ran.)*
 
 **Group 8 — Voice, Control Center, and Siri: the leaving-the-app phase
 (§F6 + new §F9/§F10). Run this block LAST among the runnable groups —

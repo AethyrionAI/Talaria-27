@@ -2175,99 +2175,6 @@ as “permission denied” (needs a third state: permissions OK but no mic input
 
 ---
 
-## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
-
-> **Sim run 2026-07-13 (eve): fidelity gate still owed.** Full suite green on the iOS 27 sim, but `CondenserFidelityTests` (the fidelity acceptance) SKIPPED — 'Requires the on-device Apple Intelligence model'. A skip is not a pass; the gate still needs whoGoesThere.
-
-> **Audit 2026-07-13:** PR #61 merged (commit 5ab3477) with xcodegen regen (828ecf4) and a post-merge iOS compile fix (818d1be) — the 'NOT compiled' claim and the 'Next Mac session' merge/xcodegen checklist above are stale; that work is done (Lane C #59 -> Lane B #60 -> Lane A #61, exact order specified). No device-verified note exists anywhere in this file for Lane A/continuity fabric, and no note confirms CondenserFidelityTests actually RAN (vs. skipped) on Apple Intelligence hardware — 🔧/merged-unverified is correct, only the compiled-status wording needs fixing.
-
-**Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
-branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
-probe; the condenser-fidelity acceptance suite below is the probe's residual-risk guardrail.
-
-**What landed:**
-- **Journal = durable primary** (`Models/ConversationJournal.swift` + `Stores/ConversationJournalStore.swift`):
-  conversation identity is a local UUID owned by the journal; entries re-derive from the settled
-  transcript at every ChatStore persistence point (streamed finish, reconcile, polling, #44
-  truncation, voice) via `LocalChatBackend.transcriptTurns` — one mapping, no drift. Persisted at
-  `hermes.conversationJournal`.
-- **`apiSessionId` decoupled:** `SessionsHermesClient`'s single session var is GONE. The server
-  session id is a per-hop handle (`ConversationJournal.ServerHop`) with a `seenEntryCount`
-  waterline; `ensureSession()` → `ensureHopForTurn()`. Hop persists across relaunch (a live server
-  session resumes without re-priming); a 404 on a REUSED hop swaps the handle and retries ONCE on a
-  fresh transplanted hop (`SessionsClientError.sessionNotFound`). `switchModel` ends the hop so the
-  user's next message hops under the new model WITH context — a model switch is a brain hop now.
-- **Transplant at every hop** (`Services/Support/ContextTransplanter.swift` + 
-  `LocalIntelligenceService.condensedContextBrief`): fresh session → priming turn 0 composed from
-  the journal (guided-generation facts brief, corrections-at-latest + prune-distractors
-  instructions, temp 0.2); deterministic verbatim-tail fallback (newest turns, per-entry cap,
-  honest omission marker) when the model is unavailable — never fabricated condensation. Budget
-  1,500 tokens enforced by measurement (binary-search tail fit; non-additive-token ratchet).
-  Priming posts over SSE so `run.completed` usage is captured (real numbers or none).
-- **Local turns mark the hop stale on purpose:** journal entries from on-device/PCC/voice turns
-  don't bump the waterline, so the next Hermes turn re-hops with the full (condensed) context —
-  the brain-hop continuity story.
-- **Offline compose outbox** (`Models/ComposeOutboxState.swift`, `hermes.composeOutboxState`):
-  transport-level failures now stream `.unreachable` (vs `.failed`); text-only turns park as
-  `.queued` transcript rows + persisted outbox (SensorUpload pattern), drain FIFO on reachability
-  (the chat screen's ~10s health probe + cold load), one live send at a time, re-queue stops the
-  drain. Attachment turns still fail honestly (no durable wire form, v1). Siri intent reports a
-  queued turn honestly (new `.queued` outcome).
-- **Priming cost in receipts:** `.contextPrimed(TokenUsage?)` → system notice row in the
-  transcript ("[Context transplanted into a fresh session — N tokens]", `Message.isContextPriming`
-  + usage + servingModel), PRIMING line in StatusCard session totals
-  (`SessionUsageTotals.primingTokens/primingHops`), and priming included in the session cost
-  estimate (`ModelPricingCatalog.estimatedSessionCost`).
-- **Identity-churn fix:** `ChatStore.mergeConversationMetadata` now preserves the LOCAL
-  conversation UUID — refresh/reconcile used to mint a new `Conversation.id` every fetch, which
-  would have reset the journal (dropping the hop) and already orphaned #27 brain pins.
-
-**Tests (Swift Testing):** `CondenserFidelityTests.swift` — the REQUIRED acceptance suite: messy
-transcript (2 corrections + 2 distractors) → asserts latest-corrected-values, distractor pruning,
-and token budget on the REAL on-device condenser. Model-gated via an async `.enabled` trait: runs
-on Apple Intelligence hardware, skips honestly elsewhere — **a skip is NOT a pass; the Mac run is
-the acceptance gate.** Fallback + wire-format halves run everywhere. `ContinuityFabricTests.swift`
-— deterministic: journal identity/waterline/adopt/truncate-clamp/persistence, outbox
-dedupe/persist/clear, ChatStore priming-notice + totals + queue/drain/orphan-hygiene + the
-identity-stability regression.
-
-**Next Mac session:**
-1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
-   **4 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
-   ContextTransplanter) **+ 2 new test files** (CondenserFidelityTests,
-   ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
-   regen commit SEPARATE.
-2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
-   Intelligence on.** If the condenser fails fidelity/pruning, that's the #89 residual risk
-   firing: tune `condensedContextBrief` instructions before shipping, do not weaken the tests.
-3. Device checklist: (a) kill/relaunch mid-conversation → next turn resumes the SAME server
-   session (no priming notice); (b) stop the gateway, relaunch, restart gateway → next turn shows
-   the transplant notice + priming tokens in StatusCard; (c) model switch mid-conversation → next
-   turn hops with notice, new model answers WITH context; (d) local-brain turns then back to
-   Hermes → transplant carries the local exchange; (e) airplane mode → send parks `.queued`,
-   reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
-4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
-   validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
-
-**Update (same session) — adversarial review pass, six findings fixed:** (1) `switchModel` no
-longer routes through `ensureHopForTurn` — a stale hop at switch time would have paid for a
-transplant that `endHop()` immediately discarded (double priming per switch); command turns now
-reuse the current hop or a bare throwaway session. (2) The sync-send path (voice context POST)
-surfaced no priming receipt — `appendVoiceTranscript` now detects the hop change after the send
-and appends the transplant notice, so that spend hits the transcript + totals too. (3)
-`isUnreachableError` narrowed: `.timedOut`/`.networkConnectionLost` can fire AFTER the body
-reached the server (the run may have committed), and queued turns auto-resend — those stay
-`.failed` so a human decides about the retry. **Device-checklist consequence: a dead host behind
-Tailscale can surface as `.timedOut` → honest `.failed` + retry, NOT `.queued`; checklist item
-(e) uses airplane mode (`.notConnectedToInternet`), which queues.** (4) `sendMessage` now returns
-whether it dispatched and resets the drain flag before its guards — the drain could previously
-destroy a queued turn whose re-send tripped the duplicate guard (row + outbox entry both already
-removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, not last-by-text.
-(6) A priming hop whose run reported no usage now still counts in
-`SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
-
-Logged 2026-07-10.
-
 ## 99. 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verified 2026-07-20; WKContentRuleList pre-launch decision OWED
 
 **Device pass 2026-07-20 (Session C launch sweep): surface PASS.** Preview renders, sheet +
@@ -2320,14 +2227,20 @@ Logged 2026-07-11.
 > longer "competitors personalize across conversations" but "the tier we
 > ship by default forgets you between chats."
 >
-> **⛔ SEQUENCING CONSTRAINT — do not open this lane before #284.** Both
-> items spend the SAME scarce resource: the 8,192-token local window. #229
-> measured the belt at ~18% of it and belt-plus-transcript at ~41% before the
-> user types. **#284 exists to RECLAIM that space; this item would SPEND
-> it.** Built independently you can land a broker that frees 15% and a
-> memory layer that immediately eats 20% — net worse, two lanes' effort
-> gone. Design this against the budget #284 actually frees, **measured**
-> (`tokenCount(for:)` makes that possible — see #284's note), not assumed.
+> ~~**⛔ SEQUENCING CONSTRAINT — do not open this lane before #284.**~~
+> **STRUCK IN PLACE 2026-08-09 — the premise is dead and the note two blocks
+> down already recorded why: #284 closed WITHOUT shipping selective arming,
+> so nothing was freed and there is nothing to wait for.** A reader who
+> stopped at this ⛔ (visually the loudest thing in the entry) got an
+> instruction whose premise died 2026-08-08. What SURVIVES is the
+> arithmetic it was protecting: on an armed turn roughly ~4,863 tok of the
+> 8,192 window is free (#228's L0-C figures — order of magnitude, not a
+> current reading) and a memory block spends from it — so the gate becomes a
+> BUDGET, and the budget is measured (`fullBelt=` contrast line +
+> `tokenCount(for:)` between turns, both shipped by #284), never assumed.
+> Original text, kept for the record: *both items spend the same scarce
+> resource; #284 exists to reclaim that space; this item would spend it;
+> design against the budget #284 actually frees, measured.*
 >
 > Still formally gated on #93's device checklist. The layered/provenance/
 > privacy shape in the note above stands — the privacy classification
@@ -2340,6 +2253,81 @@ Logged 2026-07-11.
 > contrast line makes the budget measurable per turn, but the belt still
 > costs what it cost. #101's routing is Owen's call with that fact on the
 > table.
+
+> **ROUTED 2026-08-09 (Owen, backlog-run planning): Shape A's falsifier runs
+> FIRST.** Full audit and shape designs:
+> `dispatch/FABLE-T27-93-101-continuity-memory.md` §4–§6. Verdict there:
+> **VIABLE — local-brain only, and on-device is the only place worth
+> building** (for Hermes-backed chats the server already does this, per the
+> re-scope above). Three corrections to this entry's own text, upstream per
+> the close-out rule:
+> 1. **"Extending the condenser/journal" is architecturally STALE.** The
+>    journal is single-conversation BY CONSTRUCTION —
+>    `ConversationJournalStore.sync` resets the entire journal the moment
+>    `conversation.id` differs. It is not, and never was, a history store.
+>    The multi-conversation corpus is `SwiftDataLocalSessionStore` (#190:
+>    full transcripts, durable, keyed), which did not exist when this was
+>    filed. **#101 is substantially an integration lane now, not a
+>    construction lane.**
+> 2. **"The local brain has no cross-chat memory at all" is too strong** —
+>    `ConversationSearchTool` is already armed and already searches past
+>    sessions, but only their TITLES AND PREVIEWS (the Spotlight donation
+>    cache), and only with `spotlightIndexingEnabled` on. The accurate
+>    claim: no cross-chat memory of conversation CONTENT, and what exists
+>    is opt-in and thin.
+> 3. The old "still formally gated on #93's device checklist" now reads as
+>    gated on **#312** (#93 closed by split 2026-08-09). **A-1 itself is
+>    exempt** — it is a router measurement that builds no memory on
+>    unverified foundations.
+>
+> **The shapes, as routed:** **Shape A** (widen the corpus behind the
+> already-armed `ConversationSearchTool`; standing cost 0 tok — the tool is
+> already on the belt and inside the ~1,470) is gated entirely on the
+> router, hence A-1 first. **Shape B** (L3 stable preferences, injected,
+> hard-capped ≤120 tok) is **HELD pending A-1's verdict**; its own falsifier
+> needs no store, no extractor, no privacy classifier — renderer + flag + 8
+> hand-seeded lines through the #297-shaped A/B harness. **Shape C**
+> (transplant durable facts into Hermes at hop time) is **DECLINED — do not
+> build**: Hermes already carries server-side memory, and two memories with
+> no arbitration is the conflict case the re-scope named; if ever revived,
+> its first bar is "do the two memories ever disagree, and who wins?".
+> **The privacy default is decided BEFORE any extractor is built** — the
+> corpus contains HealthKit/location/contacts tool output (Owen's call,
+> surfaced in NEEDS-OWEN).
+>
+> **BARS — pre-registered 2026-08-09, before the run (a missed bar is a
+> falsification, not a redefinition):**
+> - **101-A1 (ROUTING — the gate, and it runs FIRST).** On a NEW pinned
+>   closed list `crossChatRecallProbes` (~10 rows of cross-chat-recall
+>   phrasings: "what did we decide about the boat?", "what did I say my
+>   usual dose was?", "remind me what we called that project", …),
+>   production's one-Bool router arms **≥90% of trials**, n=20, scored off
+>   the router's own log line, every band emitting `scored=<n>/<trials>`
+>   AND `errors=<n>` (a band with no error counter reports fail-safe noise
+>   as data — the `21F0C10D` lesson). **If the router routes cross-chat
+>   recall TOOLLESS, the tool never fires and Shape A is dead before any
+>   corpus work begins** — that is the point of running it first, and a
+>   dead Shape A is a RESULT. The #205 closed series is untouched: this is
+>   a NEW list; `routerBaselineProbes` / `intentProbeGrid` /
+>   `vectorProbeGrid` / the toolless-index prompt list gain no rows.
+> - **101-A2 (RECALL — only after A1 passes and the corpus is widened).**
+>   A fact planted in an older STORED session, fresh conversation → the
+>   answer contains the planted value in **≥90%** of trials, n=20, **zero
+>   fabricated values tolerated** (a wrong remembered fact is worse than
+>   none — 297-C's zero-tolerance shape).
+> - **101-A3 (COST — reported + capped).** The recall report builder is
+>   pinned **≤300 tok** by unit test (`measuredTokenCount`, the existing
+>   ratchet pattern); the device half is measurement, not a threshold.
+>
+> **A-1 is a DEVICE run** (a generation question — the test host reports
+> `isAvailable == true` then fails `Code=5000`; availability ≠
+> generability). The probe rows + battery ship app-side in this session's
+> #101 lane; the run itself is queued in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md`. **Adjacency, recorded so it is
+> not re-derived:** A-1's harness and scoring are directly reusable for
+> #242's "flag phone-only intents before the send" detection question, and
+> #253's route chip is the natural explanation surface for a memory answer
+> — shared instruments, separate lanes; do not merge.
 
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
@@ -5999,6 +5987,360 @@ pre-register here if it is ever routed.**
 3. What is the compatibility signal — a version floor the plugin asserts at
    load, a probe, or a tested-against tag?
 
+## 304. 🔧 Phase 3 slice 3B — answer host `approval.request` from the phone (`POST /v1/runs/{run_id}/approval`) — **FILED 2026-08-09 (lane T0). The dispatch proposed #298; that number was consumed during the marathon — this is the reassigned home (`22ee09e`). Owen routed it into the 2026-08-09 backlog run and ruled the blocking questions the same day. Size L (the plan's "M" is falsified — dispatch §4 C3). Executes from `dispatch/FABLE-T27-283-3B-approvals.md`.**
+
+**Goal:** when the Hermes host gates a dangerous action mid-turn, the phone shows
+the host's own question with the host's own choice set and resolves it over
+`POST /v1/runs/{run_id}/approval` — and in every state where the question cannot
+be shown, says so honestly instead of inventing one (#180 applied to a surface
+that has never existed).
+
+**Scope ruling (dispatch §5):** ONE lane ships (this one); ONE more is
+filed-not-built (**#305**); and mode SELECTION is **NOT a slice** —
+`approvals.mode` is dashboard-plane (`:9119`) config, `:8642` has no
+`/api/config` (re-verified 2026-08-09 at Mac head `3dcbe9001`), and the app never
+displays, mirrors, or claims to know the host's mode. Deferred *within* the lane,
+each for a stated reason: the deny REASON (no wire slot — `_handle_run_approval`
+never forwards it; upstream ask ruled out); `resolve_all` (no UI story, no
+observed case of two pending in one run); the `smart_denied` two-choice arm
+(handled by construction — choices render from the frame — but unprobed, so no
+bar claims it); reusing `ToolConfirmationCenter` (rejected — different actor,
+different lifetime, single-slot auto-decline would drop a host approval; build a
+sibling). Everything rides the `useRunsTransport` Developer switch.
+
+**OWEN'S RULINGS, 2026-08-09 (pre-lane):**
+- **O1 (the card):** render **all four** choices exactly as the host offers them;
+  `once`/`deny` are one tap; **`always` and `session` get a second confirm naming
+  the consequence** ("permanently allowlists this pattern on <host>" /
+  "applies to this one run" — `session` scopes to `approval_session_key`, which
+  IS the run id, so the button must not imply conversation scope).
+- **O3 (device-bar host):** the **Mac** (observable — `agent.log`, launchd; 3A's
+  device-pass host). OJAMD untouched by this lane.
+- **O5 (sync/Siri path):** honest refusal — the sync turn names the parked
+  approval it cannot show; the host times out on its own 300s window. Matches
+  bar 304-D(iii).
+- **O6 (default):** `useRunsTransport` default stays **OFF** — 3B ships
+  unreachable to anyone who never opens Developer; cutover remains 3E's decision.
+- **O2 (the live-install go)** is still owed **per-experiment at device-bar
+  time**: 304-H/I need `approvals.mode: manual` on the Mac plus a gateway
+  bounce. **Do not set it — ask, name the experiment, wait for the word.**
+
+**BARS — pre-registered 2026-08-09, before any code (renumbered from the
+dispatch's 298-\*; a missed bar is a falsification, not a redefinition):**
+
+- **304-A** `approval.request` decodes to a typed value carrying `run_id`,
+  `command`, `description`, `pattern_key`, and **the `choices` array exactly as
+  received**. Three fixtures: four-choice; `smart_denied` `["once","deny"]`; the
+  MCP-elicitation shape (`pattern_key:"mcp_elicitation"`, no `allow_permanent` —
+  where `command` is a MESSAGE, not a command). **A hardcoded four-button card is
+  a bar FAILURE.** [unit]
+- **304-B** `once` and `deny` each POST `/v1/runs/{id}/approval` with exactly
+  `{"choice": …}`, to the run's **frozen** endpoint, **at most once per card**
+  regardless of tap count. [unit]
+- **304-C** Every 4xx renders distinctly and **none renders as success**:
+  409 `approval_not_pending` → "the window closed, the host denied it";
+  409 `approval_not_active` → distinct; 404 `run_not_found` → distinct.
+  [unit, three arms]
+- **304-D** The three unanswerable states, each honest, each inventing nothing:
+  **(i)** stream lost + status `waiting_for_approval` + no question → the app
+  offers Deny, says it cannot show what it would deny, **and the Deny POST is
+  still issued and lands** (the stream-independent answer channel);
+  **(ii)** `runsPollBudget` expires while the run is legitimately parked →
+  `.interrupted`, **never** a failure claim; **(iii)** `syncTurnViaRuns` meets
+  `waiting_for_approval` → a message naming the parked approval, **never** "did
+  not answer in time." [unit, three arms]
+- **304-E** Answering does not disturb terminal discipline: `.finished` still
+  yields **exactly once** (#237 shape pinned absent); a card outstanding when the
+  driver exits is torn down, not left tappable against a cleared
+  `activeRunContext`; a duplicate `approval.responded` is idempotent. [unit]
+- **304-F** **Status is not an oracle.** After a simulated timeout the status
+  object still reads `waiting_for_approval`; the app must NOT raise a card from
+  status alone — only a stream frame raises a question. [unit]
+- **304-G** `scripts/mac/lane-gate.sh` → literal **`GATE: PASS`** — units AND
+  XCUITest AND a green Release build, unit count MOVED from the baseline the lane
+  measures on its own base commit. [Mac]
+- **304-H** Device + live host: a real remote turn hits a gated command; the run
+  parks; the phone shows the card **with the host's own choice set**; `once`
+  resumes it and the command executes. **Evidence is the host's `agent.log`, not
+  the screen.** [device + 🔐 LIVE-INSTALL GATE]
+- **304-I** Device + live host, the deny arm and the escape hatch: `deny`
+  produces the host's BLOCKED text and the agent does **not** retry or rephrase;
+  separately, tapping **Stop** on a parked run resolves it as a deny
+  (`tools/approval.py:3695-3703`) rather than hanging for the window. Also
+  **observe what a DENIED tool call renders as on the runs event stream and
+  record it** (the dispatch §2.3 open unknown — #296's family; do not guess).
+  [device + 🔐 LIVE-INSTALL GATE]
+
+**304-A…G need no live host and no device — build and land them first. 304-H/I
+are device debt in the 3A pattern, queued in
+`dispatch/DEVICE-PASS-RUNNING-LIST.md`.**
+
+**#224 triage (dispatch §8):** NONE of #224's eight questions blocks 3B —
+different actors (they govern OUR on-device gate; this governs the HOST's). Q7
+(receipts for auto-approved actions) and Q6 (Privacy-screen home) are
+coupled-not-blocking: 3B ships no persisted preference and deliberately leaves no
+receipt unless Q7 decides otherwise — recorded so the drift is deliberate rather
+than accidental.
+
+**Corrections this lane owes at close (dispatch §10, upstream per THE CLOSE-OUT
+RULE):** C1 (file:line drift across the Phase-3 corpus — both design docs, #283,
+#224, and `SessionsHermesClient+RunsTransport.swift`'s own doc comments), C3
+(plan §3's size row M→L), C4 (N6 understated — the answer channel survives a
+dropped stream), C5 (status keeps reading `waiting_for_approval` after a
+timeout), C6 (`/stop` on a parked run = deny; plan §2.5 + CLAUDE.md's `:8642`
+paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
+`:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
+head). C2 (3B has no entry) is discharged by this filing.
+
+## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
+
+An approval arriving while the app is backgrounded or closed is currently
+answerable only by reopening the app inside the host's ~300s window; otherwise
+the host denies by timeout. **That is a real user cost and it deserves a filing
+rather than a shrug** — but it is genuinely separate from #304: it depends on the
+platform link, on #238's notification cuts, and on a product decision about
+whether a dangerous host command should be approvable from a lock screen at all.
+`InboxItemType.approval` exists with no producer
+(`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
+one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
+silently drop it.**
+
+## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
+
+**Routing (plan §5 Q7, ANSWERED 2026-08-09):** standalone, now — under three
+binding constraints that neutralize the plan's designing-the-composer-twice
+risk. **If the lane cannot hold all three, the plan's recommendation wins and
+this waits for 3C:**
+- **C1** — the composer names the door from day one: a `ComposerDoor` enum ships
+  with `.queued` implemented and `.steered` / `.interrupted` present as cases
+  every switch must handle. The word **"sent" never appears** for a message that
+  has not been posted.
+- **C2** — the readiness gate is **`isTranscriptBusy`, never `isStreaming`**
+  (#278's exact lesson: during the reconcile window `isStreaming` reads false
+  while the run is very much alive).
+- **C3** — a queued message **mints no transcript row until it actually sends**
+  (chip on the composer, not a bubble — the identity ruling below).
+
+**OWEN'S RULINGS, 2026-08-09:** **O2 (the defining behavior): after Stop, the
+held message NEVER auto-fires — it is held, and the text RESTORES to the
+composer**; one extra tap is the deliberate price ("Stop means stop"). O1
+standalone (above). O3–O8 adopted as dispatched: failed/exhausted/expired
+terminals HOLD + SURFACE (never auto-retry into a broken session); depth 1 ("a
+next message, not a mailbox"); v1 text-only (attachments inherit
+`ComposeOutboxState`'s ruling); the queued message renders as a composer-attached
+CHIP, not a transcript bubble (Owen sees it before ship — 306-L); #307 filed and
+fixed inside this lane; a held message travels with its thread.
+
+**IDENTITY RULING (dispatch §6):** `clientMessageID` is minted at SEND time,
+inside `sendMessage`, exactly as today. The queue entry carries its **own,
+separate durable id**; `ComposeOutboxState.PendingTurn`'s id-fusion (entry id ==
+transcript row id) is broken in the same commit — the existing `id` becomes an
+optional `transcriptRowID`, populated only for `.unreachable`-parked turns.
+Compose-time row minting fails four ways at HEAD: the poll-exhaustion sweep eats
+it; cold load fails it; `hasPendingDuplicateMessage` swallows the queue's own
+fire; `attemptReconcile` mis-times it. And with no row there is nothing for
+#282's claim tier to eat. **One store, one order** — the mid-turn queue and the
+offline outbox are the SAME `ComposeOutboxState`, gaining a `reason`
+discriminator (`.unreachable` / `.heldDuringTurn`), oldest-first.
+
+**THE TERMINAL MATRIX (dispatch §5 — the feature's contract; HOLD = stays
+queued/visible/editable/cancellable, nothing posts; FIRE = `sendMessage` runs,
+row + id minted then; SURFACE = the chip says the turn it waited on produced no
+answer, offers Send now / Edit / Discard):**
+
+| # | terminal | action |
+|---|---|---|
+| 1 | Completed (`.finished`) | **FIRE**, once, as soon as `!isTranscriptBusy` — the feature |
+| 2 | User pressed Stop | **HOLD + SURFACE, never auto-fire; text restores to the composer** (O2) |
+| 3 | Stream dropped, run committed (real `.interrupted`) | **HOLD** until `pendingRun == nil`; on reconcile-budget expiry with no adoption → SURFACE, never silently fire (firing mid-reconcile is #307's corruption) |
+| 4 | Late-duplicate interrupt | no-op (the `isTranscriptBusy` gate handles it with no special case) |
+| 5 | Unreachable | **DEMOTE into the same outbox behind the failed turn, order preserved**; never fire, never vanish; attachment turns take the honest `.failed` dead-end and the queued message SURFACEs |
+| 6 | Failed outright (`acceptedJobID == nil`) | HOLD + SURFACE |
+| 7 | Failed after accept | HOLD — the turn is not over (poll loop owns it; resolves to row 1 or 8) |
+| 8 | Poll exhaustion | HOLD + SURFACE (also why the queue mints no early `.sending` row — the sweep is not targeted) |
+| 9 | Background budget expired, recoverable | HOLD — identical to row 3 (#295's ruling) |
+| 10 | Background budget expired, NOT recoverable (local brain) | HOLD + SURFACE — `.delivered` here means "settled", not "answered" |
+| 11 | Walk-away (thread switch / new chat / reset) | queue travels with the departing thread, never fires into the arriving one (`abandonPendingRun` is the seam) |
+| 12 | Process death mid-turn | survives relaunch, SURFACEs, never auto-fires on launch |
+
+**The one-line rule the matrix encodes: the queue auto-fires on exactly ONE
+terminal — a turn that actually completed. Everything else holds and says why.**
+The sharpest trap: rows 1, 2, and 10 all leave the user row `.delivered` — the
+fire condition branches on the OBSERVED TERMINAL, never on the row's final
+status.
+
+**BARS — pre-registered 2026-08-09, before any code (renumbered from the
+dispatch's 300-\*; every unit bar must be demonstrated RED by restoring the
+pre-fix behavior named in its RED condition, and the lane records which line was
+reverted for each; a missed bar is a falsification):**
+
+- **306-A** The composer accepts a commit gesture while a turn streams and the
+  text is held, not posted — `sendMessage` not called, `sendStreaming` call
+  count unchanged. RED: on `main` today there is no send control while
+  `isStreaming` (`ChatInputBar.swift:452`), so the gesture does not exist. [unit]
+- **306-B** **FIRE-ONCE on completion**: exactly one post, one new user row, one
+  `clientMessageID` after `.finished`; assert the SEND COUNT, not the
+  transcript's final appearance. RED both arms: no fire wiring → count 0
+  forever; remove the `!isTranscriptBusy` guard and drive `.finished` twice →
+  count 2 (the #237 shape — the arm that will actually regress). [unit]
+- **306-C** **STOP DOES NOT FIRE**: after `cancelStreaming(hardStopHost: true)`
+  the message is still held, `sendStreaming` never re-invoked, text restored to
+  the composer. RED: wire the fire to "any terminal" → the Stop arm posts. The
+  feature's single most important negative. [unit]
+- **306-D** **The three `.delivered` terminals are distinguished** — completion,
+  Stop, non-recoverable expiration all leave `.delivered`; only the first fires;
+  assert on the observed terminal, never on `status`. RED: implement the fire as
+  `status == .delivered` → arms 2 and 3 both post. [unit, three arms]
+- **306-E** **A live `pendingRun` blocks the fire** (the #278 window:
+  `streamingMessageID` nil, `pendingRun` non-nil): no post until
+  `attemptReconcile` clears it, and the reply the reconcile adopts is the
+  DROPPED run's, never the queued turn's. RED: gate on `!isStreaming` instead of
+  `!isTranscriptBusy` → posts mid-reconcile, adoption assertion fails. **This
+  same test covers #307.** [unit]
+- **306-F** **No transcript row exists before the send** — through hold, edit,
+  cancel, relaunch: zero rows for the queued text; exactly one appears at fire,
+  its `clientMessageID` minted by `sendMessage`; a poll-exhaustion sweep and a
+  cold-load scrub running while a message is held touch nothing. RED: mint the
+  row at compose time → both sweeps flip it `.failed` and `onSendFailed()`
+  fires. [unit]
+- **306-G** **Unreachable demotes, preserving order** — a mid-turn-held message
+  whose turn ends `.unreachable` lands in the SAME outbox behind the parked
+  turn; the drain posts oldest-first; neither lost. RED: keep a separate
+  mid-turn store → the drain strands or reorders it. [unit]
+- **306-H** **Thread-scoped** — held in thread A: not posted, not visible, not
+  fired when `abandonPendingRun` runs and thread B opens; returning to A
+  restores it. RED: store the queue on the store rather than keyed to the
+  thread → it appears and fires in B. [unit]
+- **306-I** **Survives relaunch without auto-firing** — held → process death →
+  cold load: present, chip SURFACEs, nothing posted during launch. RED: drive
+  the fire off cold-load reconciliation → a post at launch. [unit]
+- **306-J** **The composer names the door and never says "sent"** —
+  `ComposerDoor` switch exhaustive over `.queued`/`.steered`/`.interrupted`; the
+  rendered string for a held message contains no form of "sent"; a held message
+  renders a cancel affordance that removes it with nothing posted. RED: enum →
+  Bool (exhaustiveness cannot compile); hardcode "Message sent" (string
+  assertion fails). C1 made testable. [unit + XCUITest]
+- **306-K** **THE GATE** — `scripts/mac/lane-gate.sh` → literal `GATE: PASS`
+  (Debug units + XCUITest + Release), unit count MOVED from a baseline measured
+  on this lane's own base commit (never inherited from the tracker). [Mac]
+- **306-L** **DEVICE, Owen** — one real remote conversation: (i) compose
+  mid-turn, watch it fire after the answer lands; (ii) compose mid-turn, Stop,
+  confirm nothing posts and the text is back in the composer; (iii) compose
+  mid-turn, background past the stall guard so recovery arms, confirm the
+  message waits for the reconcile. Evidence for (ii)/(iii) is the host's
+  `agent.log` (no POST for the held message), not the phone's screen. [device]
+
+**Traps carried from the dispatch (§10, read before building):** #292's producer
+overlap (the queue does not worsen it; do not fix it here), the
+`hasPendingDuplicateMessage` swallow (copy the drain's remove-row-first order —
+and a swallowed fire is a 306-B failure, not a no-op), the composer-text
+divergence on Stop-restore (decide and test; last-writer must not win),
+`retryMessage`'s outbox removal colliding with a held entry (audit in the
+id-fusion commit), and the decode-compatibility hazard — a
+`ComposeOutboxState` schema break silently EMPTIES a real user's outbox
+(`UserDefaultsAppPersistenceStore.swift:355` returns a default on failure), so
+the reshape ships with a decode-compatibility test.
+
+## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
+
+**The mechanism, traced at HEAD:** `drainComposeOutboxIfPossible()` guards on
+`!isStreaming` (`ChatStore.swift:1967`) and its trigger `refreshDirectHealth()`
+likewise (`:1926`) — neither uses `isTranscriptBusy`. During the reconcile
+window (`streamingMessageID == nil`, `pendingRun != nil` — precisely the state
+`:127-135` documents) the offline outbox can drain into a live run.
+`attemptReconcile` (`:2389`) then selects the last Hermes message with
+`timestamp > pending.sentAt` — which is the DRAINED turn's reply — re-attaches
+the dropped run's `partialReasoning` to it, stamps a `turnDuration` measured
+from the OLD turn's `sentAt`, and re-pairs it with the OLD prompt. Reachable
+sequence: turn 1 unreachable → turn 2 committed but its stream drops → health
+probe reports connected → drain fires turn 1 → **turn 1's answer is adopted as
+turn 2's.** Nothing errors; the transcript is plausible and wrong — the #278
+shape in the one place #278 did not sweep. **Fix: tighten both guards to
+`!isTranscriptBusy`** (one line each), inside #306's T4, cited against this
+number in the commit.
+
+## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
+
+The checklist is `dispatch/DEVICE-PASS-RUNNING-LIST.md` **Group 7**: items
+(a) kill/relaunch resumes the SAME hop with no priming notice; (b) gateway
+stop → app relaunch → gateway restart shows the transplant notice + priming
+tokens; **(c′) as rewritten 2026-08-09** (model pick mid-conversation → SAME
+hop reused, NO priming notice, reply attributed to the new model — a priming
+notice is a REGRESSION; the original (c) tested the removed
+`switchModel`-ends-the-hop mechanism); (d) local-brain turns then Hermes →
+the transplant carries the local exchange; (e) airplane mode parks `.queued`,
+reconnect auto-sends (**airplane mode specifically** — a dead host over
+Tailscale surfaces `.timedOut` → honest `.failed`, by design); (f) session
+totals show the PRIMING row + cost. **Batch with Group 6** (both need
+host-side gateway stop/restart); ~25–30 min corded.
+
+## 313. 🔬 `CondenserFidelityTests` has NEVER RUN — the #93 fidelity acceptance is a DEVICE bar, not a Mac bar — **FILED 2026-08-09 (successor B of #93's split).**
+
+The suite self-gates on a genuinely model-condensed trial composition
+(`CondenserFidelityTests.swift:52-59` — deliberately honest, since
+`isModelAvailable` is optimistic), the SIMULATOR has no model, and every
+`lane-gate.sh` run is a simulator run — so calling it "the Mac run" kept it
+un-runnable for four weeks. The test host reports `isAvailable == true` and
+then fails generation with `UnifiedAssetFramework Code=5000`: availability ≠
+generability. **Run the full suite on `whoGoesThere` corded; the suite must
+RUN, not skip.** If the condenser fails fidelity/pruning, that is #89's
+residual risk firing: tune `condensedContextBrief`'s instructions — do not
+weaken the tests.
+
+## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
+
+An `.unreachable` turn carrying attachments takes the honest `.failed`
+dead-end rather than parking (`ComposeOutboxState.swift:8-9`: "attachments
+have no durable wire-ready form to park here"). Worth re-examining against
+#283's `RunsTurnInput` reshape if Owen ever wants images queueable — noting
+that #306's mid-turn queue kept v1 text-only for the same reason, so both
+queue producers inherit whatever this decides.
+
+## 309. 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **FILED 2026-08-09 (Owen routed the filing; found by `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3/NEW-1 — "the largest unfiled gap found"). GATES #251 Phase 4 / #223's relay decommission alongside #271 and #310.**
+
+The counted inventory (live app, read at HEAD): **pairing + auth** (9 paths —
+`device/register`, `device/provisioning`, `auth/refresh`, `auth/revoke`,
+`session`, `phone-pairing/redeem`, `hosts/current`, `hosts/current/revoke`,
+`hosts/enrollment-codes`); **sensors** (3 — `device/sensor/health`,
+`device/sensor/location`, `device/app-state`); **voice bootstrap** (2 —
+`talk/session`, `talk/readiness` — named in NO tenant list and NO decommission
+plan; **a `POST /api/platforms/talaria/events` plugin does not currently carry
+voice**); **conversation/command feed** (4 — `conversations/current`,
+`conversations/current/clear`, `messages`, `commands`); push — gone. **Phase 4
+cannot be scoped until each of the eighteen has a named destination** (plugin /
+gateway / deleted / accepted-loss). The sharp product questions inside this are
+Owen's, deferred to the host sitting: does relay-hosted VOICE survive (decides
+whether Phase 4 is "decommission" or "shrink"), and do the sensors stay at all
+(his recorded leaning: *"I'm ok with ditching the sensors… not hard locked"* —
+three of the eighteen dissolve if ditched). ⛔ The no-hardening rule stands
+throughout: this item is an inventory-and-disposition exercise, never an
+argument for making the relay more robust.
+
+## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
+
+`Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
+while `shimBaseURL` is already `String?` (the pattern to follow). Until this
+changes, a new user must type a relay URL to exist as a profile, which
+contradicts the #251 goal ("install Hermes, paste one key") and the #269
+installer story. Scope when routed: make it optional, capability-detect +
+honest #180 degradation for relay-less profiles (#15/#94 recovery ladders scoped
+to relay-bearing profiles only), migration-safe decode of existing persisted
+profiles (the §1.5 persisted-state discipline — existing users' stored profiles
+must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
+
+## 311. 📝 #21's HOME — agent-generated file delivery is currently HOMELESS — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-6). #223's old "file-fetch migration" sequencing step is superseded; nothing owns the question.**
+
+There is no file API on `:8642` (re-verified — the `/api/files` family is
+dashboard-only), #21 Tier 1 (client-side reconstruction from `tool.started`
+`args.content`) remains the shipped story for text, and the Phase-3 plan calls
+the rest an open question: webhook responses are fine for small files, ugly for
+large; agent A's media pipeline is "the likely answer." The runs stream carries
+NO tool `args` (re-verified at Mac head `3dcbe9001`), so the runs plane is
+currently WORSE than the sessions plane for #21 — 3A's honest-absence bar
+stands, and no approval card or preview may become a place someone reconstructs
+a written file. Decide the destination (plugin mirror / media pipeline /
+accepted limitation) when the host sitting scopes Phase 3's later slices.
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -6786,6 +7128,32 @@ not the collector); **(292-B)** `RunsTransport.swift:535-536`'s comment
 describes what the code does; **(292-C)** device arm: walk away from a runs
 turn, kill the network past 60s, and confirm the host log shows NO further
 `GET /v1/runs/{id}` polls.
+
+**2026-08-09 — 292-A's observation mechanism REFINED, filed before any code
+(pre-registration per #215; full derivation in
+`dispatch/FABLE-T27-292-producer-cancellation.md` §6):** the bar's teeth are
+the per-test knob override. `makeClient` sets `runsPollBudget` to 800ms
+suite-wide, so a test inheriting it passes ON the defect (the budget ends the
+poll on its own). The test therefore: (1) observes the producer through
+`RunsStubURLProtocol`'s request log (`count("/v1/runs/run-r1")`), never the
+collector; (2) overrides `runsPollBudget = 30s` / `runsPollInterval = 40ms`
+on the test's own client; (3) runs the collector INLINE (not `collect(from:)`,
+which awaits completion under its own belt); (4) waits bounded until the count
+reaches ≥2 (loop proven live, not one opportunistic read); (5) cancels the
+collector, records `atWalkAway`; (6) sleeps ≥10 poll intervals; (7) asserts
+the count did not advance. Second assertion in the same test:
+`activeRunContext == nil` after the walk-away settles (the defer-runs-on-cancel
+hazard). **RED evidence is mandatory and numeric** — run on HEAD pre-fix and
+record the actual counts (`atWalkAway = N, final = M`), not "it failed"; a
+green-on-first-write test here is a FAILED bar (the override did not take).
+No off-by-one tolerance up front — `== atWalkAway` until a real flake is
+observed and recorded. **292-B covers THREE comment sites, not one** — at
+today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
+`:777`, and `:780-781` (the entry's `:535-536` citation is stale; the file is
+`SessionsHermesClient+RunsTransport.swift`, there is no bare
+`RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
+hook) rather than deleted, plus a reciprocal note at the hook naming its three
+customer comments.
 
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
@@ -9023,7 +9391,13 @@ is now met. The slice name comes from `handoffs/HANDOFF-2026-08-06-T27-EVENING.m
 face), **D (OJAMD rollout)**."*
 
 **Scope (drafted here, not routed):** install + enable `talaria` in
-`~/.hermes/plugins/` on OJAMD; pair the phone against OJAMD's `:8642`; re-run
+~~`~/.hermes/plugins/`~~ **`<HERMES_HOME>\plugins\talaria` =
+`C:\Users\Owen\AppData\Local\hermes\plugins\talaria` — CORRECTED 2026-08-09:
+the `~/.hermes` form is the Mac's path, not OJAMD's. Live-probed on the box:
+`C:\Users\Owen\AppData\Local\hermes\plugins` exists and is empty;
+`C:\Users\Owen\.hermes\plugins` does not exist. (The plugin repo's own README
+install snippet has the same Mac-only-correct path.)** on OJAMD; pair the
+phone against OJAMD's `:8642`; re-run
 the 2A bar set (A pair / B live query / C exactly-once inbox / D honest
 unreachable / F privacy round-trip) against the PRODUCTION host rather than the
 Mac; then retire the OJAMD venv CLIs the plugin's `register_cli_command`
@@ -9060,6 +9434,57 @@ rather than copied by reference (a bar that lives in two places drifts).
 2A-B's bar must be re-specified before reuse: the original measured
 whole-turn latency and was falsified at 32s vs ≤5s; the correct bar measures
 the transport leg alone (see #263, which absorbed that instrumentation).
+
+**2026-08-09 — DISPATCH WRITTEN AND BARS FILED; execution is OWEN + PowerShell
+at its own sitting, behind the 🔐🔐🔐 per-lane go** —
+`dispatch/FABLE-T27-271-ojamd-rollout.md` carries the paste-ready phases
+(Phase 0 recon free; Phase 1+ gated), the verified live state (both gateways
+0.20.0; `plugins:` block is exactly `enabled: []`; no `platform_hints` block
+anywhere in OJAMD's config — the "still unpasted" note above re-confirmed
+live; `gh` absent, `git 2.50.1` present, so private-repo auth needs a PAT or
+SSH key — probe with `git ls-remote` before cloning), and the three-layer
+rollback. **Lead answer recorded: #269 and #270 do NOT block this lane** —
+they are installation UX for end users; this is Owen by hand, the same shape
+Phase 1/2A already proved on the Mac. #285's fix is a nice-to-have, not a
+blocker (Owen's call whether it merges first). No `hermes update` inside this
+lane — one blast radius at a time.
+
+**BARS — pre-registered 2026-08-09 (the OJAMD-worded copies; a missed bar is
+a falsification):**
+- **271-A** (= 2A-A): phone, OJAMD profile active, foregrounds → PLUGIN LINK
+  reads PAIRED with zero manual steps beyond activating the profile;
+  `hermes talaria status` on OJAMD shows the device.
+- **271-B** (= 2A-B restated per the transport-leg correction): forced
+  `talaria_phone_query(kind:"location")` resolves with **`enqueue_to_drain`
+  under 1s** in OJAMD's `agent.log` — NOT the falsified whole-turn ≤5s bar.
+- **271-C** (= 2A-C): `hermes talaria send` while the app is closed →
+  gateway restart → app open → item in Inbox **exactly once**, pip clears.
+- **271-D** (= 2A-D): app closed >60s → forced tool call returns the
+  designed honest-unreachable prose, no throw, no #232 counter movement.
+- **271-E / 271-G** (= 2A-E / gate): NOT re-run — build-side,
+  host-independent, already MET (carried for completeness).
+- **271-F** (= 2A-F): health toggle OFF → "declined: privacy settings";
+  ON → real data. Both legs.
+- **271-H** (install correctness, NEW): clone lands exactly at
+  `C:\Users\Owen\AppData\Local\hermes\plugins\talaria`; `hermes plugins
+  list` shows `talaria` enabled, **source: git**; `plugins.enabled` gains
+  `talaria` with nothing else disturbed (line-count delta vs the pre-edit
+  backup is exactly +2).
+- **271-I** (listener survives the restart, NEW — #264): after the
+  plugin-loading restart, `Get-NetTCPConnection -State Listen -LocalPort
+  8642` shows a LISTENER — checked TWICE, immediately and again 2 minutes
+  later (the "came up without the chat plane" shape looks fine at PID
+  level). On a NOT-LISTENING first check: wait the full 2 minutes, then one
+  more kill/relaunch cycle — do not panic-restart (it compounds).
+- **271-J** (rollback PROVEN, NEW — the exit ticket): the config-level
+  rollback is exercised once, live, before the lane closes — deactivate
+  from `plugins.enabled`, restart, confirm pre-lane behavior returns.
+**271-A/B/C/D/F are Owen's device pass; 271-H/I close before it starts;
+271-J closes the lane. Phase 5 (venv-CLI / `mcp_servers.hermes_mobile` /
+relay retirement) is explicitly OUT — it is a chunk of #223 Phase 4 and
+stays behind that gate. This lane is what creates the two-paired-host
+condition #288-C has been waiting on — flag #288's owner when Phase 4 (the
+device pass) completes.**
 
 ## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
 
@@ -9104,6 +9529,96 @@ independent feature. **v0 grows paired-devices + outbox columns there.**
   #251's Phase 2 design note).
 
 **Bars pre-register HERE before any code.**
+
+**2026-08-09 — INVESTIGATED, NOT BLOCKED, but BIGGER than banked; Owen
+deferred the build to the host sitting** (`dispatch/FABLE-T27-270-desktop-face-v0.md`,
+read-only probes of the live Mac install; this filing is the orchestrator's
+T0 — code waits, and Task 6 needs the 🔐 live-install gate). Corrections to
+the text above, in place per the close-out rule:
+
+1. **"Two of everything" is THREE of everything.** The install's own SDK doc
+   (`desktop-plugin-sdk.md:23-33`) names three plugin systems that share no
+   code, APIs, or delivery: (A) agent plugin, `~/.hermes/plugins/<name>/`;
+   (A2) the **web-dashboard half of an agent plugin**,
+   `~/.hermes/plugins/<name>/dashboard/` (`manifest.json` → `dist/index.js`
+   + `plugin_api.py`, served by `web_server.py` on `:9119`); (B) desktop
+   plugin, `~/.hermes/desktop-plugins/<id>/plugin.js` (Electron renderer,
+   plain ESM). **The talaria face is TWO directories in TWO systems** — the
+   pane in B, its backend in A2 (which lives inside the system-A plugin
+   directory). A lane thinking there are two systems puts both halves in one
+   directory and gets a 404. (Also corrected in the
+   `hermes-two-web-apps` standing memory note.)
+2. **The mechanism sentence above is correct in every clause and omits the
+   left-hand side's PATH**: `plugin.js` lives at
+   `~/.hermes/desktop-plugins/talaria/plugin.js`, NOT in
+   `plugins/talaria/`. (`runtime-loader.ts:182` is explicit; there is no
+   `plugins/<n>/dashboard/plugin.js` path anywhere in the codebase.)
+3. **The cron-ticker hazard is NOT introduced by this slice** — the desktop
+   app spawns `hermes serve --port 0` whenever it runs, pane or no pane
+   (`main.ts:8167`), so the second ticker exists the moment Hermes.app
+   opens. 2C inherits an ambient condition; the correct carry is "v0 must
+   not write cron-adjacent state" (it is read-only, so it doesn't), and the
+   ticker is a separate finding never scored against this lane's bars.
+4. **The asymmetry that decides the build order:** `plugin.js` hot-reloads
+   on save (per the installed skill — unproven, bar 270-A tests it); the
+   `dashboard/plugin_api.py` backend loads at IMPORT and needs a backend
+   restart (`web_server.py:17535`). **Write the pane first** — the
+   not-installed card works with no backend at all.
+5. **Verified live:** `/api/plugins/*` is **404 on `:8642`** (probed) — the
+   pane's backend is on the dashboard/`serve` plane; the phone can never
+   reach it, and #269's probe must not be specced against it. The
+   `plugins.enabled` mount gate is a documented SECURITY boundary
+   (GHSA-mcfc-hp25-cjv7), and talaria is already enabled, so no
+   `config.yaml` change is needed for the whole lane. Nothing in the
+   original recon was falsified — it held line-for-line.
+
+**BARS — pre-registered 2026-08-09 (filed now; the build waits for Owen's
+host-sitting go — Tasks 6+ are a 🔐 live-install modification: writing
+`~/.hermes/desktop-plugins/talaria/` and `~/.hermes/plugins/talaria/dashboard/`
+and restarting the desktop backend to load experimental code):**
+- **270-A (the pane exists, and hot-reload is real):** with `plugin.js`
+  written, a Talaria pane appears WITHOUT restarting Hermes Desktop, and a
+  save re-renders it; no failed-to-load toast. If a ⌘K reload is required
+  the bar is MISSED and recorded — the skill's self-contradiction resolved
+  by observation, not restatement. [live host]
+- **270-B (the not-installed card is the DEFAULT, not a fallback):** with no
+  `dashboard/` present the pane renders the "not installed yet — ask Hermes
+  to set it up" card **from a `ctx.rest` 404**, not a hardcoded default —
+  the same unedited `plugin.js` must show LIVE once the backend exists.
+  [live host]
+- **270-C (three states, each machine-derived — the bar the lane is FOR):**
+  *not installed* / *installed-not-live* / *live*, each verdict tracing to a
+  distinct observable (404 · 200-without-adapter · 200-with-adapter+device);
+  no state inferred from the absence of another; evidence is the
+  state→status+payload table. [live host]
+- **270-D (the backend restart requirement DEMONSTRATED, not assumed):**
+  adding `plugin_api.py` under a running backend leaves `ctx.rest` 404ing;
+  after the backend restarts, the same pane shows LIVE with no `plugin.js`
+  edit. [live host, 🔐 gate]
+- **270-E (no secrets on the wire, no theme crimes):** responses carry no
+  device tokens and no API key (id/name/active/last-seen only — the store
+  hashes tokens and the pane must not undo that); zero hardcoded colors in
+  `plugin.js` (theme vars only; the grep is the evidence). [body live host;
+  grep offline]
+- **270-F (the plugin repo's suite stays green, and the APP's gate is NOT
+  claimed):** the talaria-plugin pytest suite passes with `dashboard/`
+  present (60/60 was the #263 worktree count — state the new count, moved
+  if tests were added); **no Talaria-27 Swift file changes in this lane, so
+  `lane-gate.sh` is not required and must not be cited as evidence** (the
+  false-green family). [offline]
+**Deliberately NOT bars:** the outbox column, any mutating control, the
+`:9119` web-dashboard tab, OJAMD (that is #271).
+
+**Blocking ASSUMEDs — Task 1, read-only, before anything else:** whether
+`/Applications/Hermes.app` matches the source tree the SDK claims come from
+(`~/.hermes/desktop-build-stamp.json`), and whether `web_server.auth_middleware`
+covers `/api/plugins/*` under headless desktop-spawned `serve`. **If the
+shipped app predates the SDK surface, STOP and report.** Manifest-name
+discipline (the #263(a) shape, reachable by manifest-name divergence):
+`dashboard/manifest.json`'s `name`, `plugin.yaml`'s `name`, the directory
+name, and the desktop `plugin.id` must ALL read `talaria`. **Shared state
+vocabulary with #269 settles at the host sitting before either lane's copy
+is written.**
 
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
@@ -9160,6 +9675,103 @@ behaviour, do not assume the instruction landed.
 > a new endpoint invented for it. Source + validation:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`, #284 note.
 
+**2026-08-09 — INVESTIGATED AND SPLIT; the lane is PARTIALLY BLOCKED and the
+split is the finding** (`dispatch/FABLE-T27-269-conversational-installer.md`;
+read-only probes of the live Mac install; Owen deferred the BUILD to the host
+sitting — this filing is the orchestrator's T0, code waits):
+
+**Two blockers, both verified, neither fixable inside this lane:**
+1. **The plugin repo is PRIVATE** and `hermes plugins install` is git-only,
+   non-interactive (`plugins_cmd.py:485-492`) — no user's Hermes can clone it.
+   **Filed as #308; Owen routes.** Publishing unblocks only half (see #308).
+2. **There is no reload.** `discover_and_load` early-returns on a
+   process-global singleton; `force=True` has one unrelated non-test call
+   site; the agent runs IN-PROCESS — so an install's last step is restarting
+   the process the agent lives in. An agent cannot narrate its own success
+   across that boundary. (This same limitation DODGES the #263(a) reload
+   trap — an install cannot trigger a discovery pass at all.)
+
+**The split:** **269-A (the honest verification half — UNBLOCKED, app-side
+only, no live-install change on path (i))**: the machine-verifiable
+install-state probe, the honest state model, PLUGIN LINK stops believing the
+keychain, the stale SETUP card retired. **269-B (the conversational install
+itself — BLOCKED)** on #308 plus a decided restart story. **The architecture
+both halves must respect: the agent narrates WHY, the app verifies WHETHER,
+and the app never upgrades the agent's narration into a verdict** — from the
+app's side "never installed", "on disk but not enabled", and "enabled but not
+restarted" are INDISTINGUISHABLE (all 503); only the agent can tell them
+apart.
+
+**Verified seams for 269-A (probed live, read-only):** unauthenticated
+`POST /api/platforms/{p}/events` returns **401 when the adapter is registered
+vs 503 `platform_unavailable` when absent** — a deterministic, already-shipping
+installation-state signal needing zero plugin change. The richer option is a
+`describe` verb in the envelope's dispatch table (~six lines, authenticated by
+the API key the app already holds) — that catches STALE installs, which
+401/503 cannot see, but requires the 🔐 live-install gate to deploy. A
+capability probe MUST be an envelope verb — a plugin cannot add a `:8642`
+route (platform-adapter contract: two hooks behind the single events route);
+the momentum-report sketch of `GET /talaria/capabilities` is corrected by this
+(its §4 carries the supersession note).
+
+**Corrections filed 2026-08-09 (dispatch §3, upstream homes):**
+- The app's SETUP card teaches RETIRED commands —
+  `ConnectHermesHostScreen.swift:110-112` ships `hermes-mobile setup` /
+  `pair-phone` / `service install`, the venv CLI family #251 Phase 1 records
+  as deleted (replaced by `hermes talaria …`). The tracker says they are
+  gone; the app still tells users to run them. 269-A-D owns the fix.
+- `hermes plugins enable` prints *"Takes effect on next session."* — FALSE
+  for the gateway (process-global singleton; the agent runs in-process). An
+  agent that believes its own tooling will report success that has not
+  happened — a hard reason 269-A (machine verification) must exist before
+  269-B, and an upstream-report candidate (queued with #264's, subject to the
+  no-external-submission rule).
+- The parent brief's "#113 supervision gap" pointer is stale — #113 closed
+  2026-07-25; the surviving half is #188, DECLINED under the no-hardening
+  rule. Neither bears on this lane.
+- #263(a) does not block this lane (see blocker 2's note).
+
+**BARS — pre-registered 2026-08-09 (filed-and-blocked is a result, not an
+omission; a missed bar is a falsification):**
+- **269-A-A (probe distinguishes live from absent, real host):** the app's
+  probe resolves live vs not-live, each verdict tracing to the observed HTTP
+  status (401 vs 503), never a stored token. Negative arm from a
+  profile/host without the plugin — no live-install change. [live host, no
+  device required]
+- **269-A-B (PLUGIN LINK stops believing the keychain):** a phone holding a
+  valid device token, pointed at a host with no adapter, renders NOT LIVE —
+  not PAIRED. `TalariaLinkState.resolve`'s token-only signal no longer
+  decides alone. The #264 "one banner and one truth" repayment. [unit +
+  screenshot]
+- **269-A-C (the app never claims to know WHY):** not-live copy states what
+  was observed and never asserts a cause it cannot distinguish; every string
+  maps to the observation licensing it. [offline]
+- **269-A-D (the stale SETUP card is gone):** `rg -n 'hermes-mobile'
+  Talaria/` returns no user-visible string. [offline]
+- **269-A-E (gate):** `lane-gate.sh` PASS, unit count moved. [Mac]
+- **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
+  install verified by the 269-A probe, not prose; injected partial states
+  detected and named; wording measured N≥10 with the error path instrumented;
+  honest degradation where the agent has no hands; consent is not the app's
+  to give — the app asks before sending, Hermes asks before executing, and on
+  an `approvals.mode: off` host the in-app ask still happens). **ALL BLOCKED
+  on #308 + the restart story; every one needs the 🔐 live-install gate,
+  per-experiment.**
+
+**Task A1 (read-only, free, highest-value unknown):** trace whether a
+desktop-app-only user's gateway is managed by the desktop backend
+(`web_server.py` `start_gateway`/`restart_gateway`; `main.ts:8167` spawns
+`serve --port 0`) — if the desktop app can bounce its own gateway, blocker 2
+softens to "ask the user to click restart" and 269-B's viability materially
+improves. Owed before any 269-B design. Also flagged, NOT designed against:
+`POST /api/gateway/restart` (`web_server.py:4038-4052`) appears to lack a
+`_require_token` call — trace the middleware before reporting upstream; do
+not use the endpoint either way.
+
+**Shared vocabulary with #270 (settle once, at the host sitting):** proposed
+NOT INSTALLED · INSTALLED, NOT LIVE · LIVE — noting the app alone can only
+distinguish LIVE from the other two.
+
 ## 268. 🗺️ ROADMAP MAP — the four phased plans in this project, what phase each is on, and where its detail lives — **FILED 2026-08-06 late night (Owen: "we had done phase 0, 1, and 2 I believe and 3 was next up. We need to dredge that plan back up because I fear we may have lost the rest of it, if it wasn't filed"). A MAP, not a copy: one line per piece, each pointing at the doc that owns it.**
 
 **The fear was half-right, and the half that was right is worth naming.** The
@@ -9192,7 +9804,7 @@ mode, and this entry exists to fix it.
 | **1** | *"Tools + admin plugin — `register_tool` (incl. #242's phone-query) + `hermes talaria pair\|status\|unpair`. Small, risks nothing, deletes the venv CLIs."* | **✅ SHIPPED 2026-08-05 evening.** Repo `AethyrionAI/talaria-plugin`, install at `~/.hermes/plugins/talaria`, CLI cycle smoked green. | TRACKED — #251 |
 | **2** | *"Webhook adapter — pairing handshake + durable outbox/directives over `POST /api/platforms/talaria/events` on the existing :8642 listener."* | **PARTIAL — slice A only.** | see below |
 | **2A** transport spine | #251: *"🔧 SLICE 2A LANE OPENED 2026-08-05 late (Owen routed: A-first…)"* | **✅ BUILT + MERGED** (PR #272, `3f3bdee`, 12 tasks, 6 fix rounds); bars 2A-A/C/D/E/F/G **MET**; **2A-B falsified as written** (32s vs ≤5s — *"the bar was MIS-SPECIFIED BY ME"*), its owed instrumentation absorbed by **#263**. | TRACKED — #251 |
-| **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | NOT STARTED | **WAS UNFILED → now #269** |
+| **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | **SPLIT 2026-08-09: 269-A (verification half) unblocked, buildable; 269-B (install half) BLOCKED on #308 (private repo — a user's Hermes cannot clone it) + the undecided restart story (no reload; the agent runs in-process)** | **WAS UNFILED → now #269** |
 | **2C** desktop face v0 | recon banked 2026-08-05, *"FOLDED INTO PHASE 2 as the desktop face's v0"* | NOT STARTED | **WAS UNFILED → now #270** |
 | **2D** OJAMD rollout | *"OJAMD install deliberately deferred to Phase 2"* | NOT STARTED | **WAS UNFILED → now #271** |
 | **3** | *"Runs-transport migration — remote turns move `chat/stream` → `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and recovery gets SIMPLER (runs pollable by id…)."* | **NEXT UP — awaiting Owen's sit-down.** Well-lit: approvals e2e-green on `/v1/runs` (2026-08-05); **steering PROVEN twice** (tui `session.steer`; runs plane `BANANA`→`PLUM` via `_active_run_agents`); the steer constraint recorded (consumed at the next tool-result boundary, **silently dropped mid-prose with a false-positive `queued` ACK**). | TRACKED — #251 (which also says *"bars pre-register here"*). **Detail plan: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.** Research: `planning/superpowers/research/251-phase3-gap/` A–H. Adjacent: `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` (#224). |
@@ -9336,6 +9948,31 @@ Size: S-M. Bars pre-register here before any code.
 > plan builds them together as **slice 3C** rather than shipping the queue first —
 > shipping it alone means designing the composer twice and unlearning the wording.
 > Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.5 + §2.6.
+
+**SUPERSESSION + ROUTING, 2026-08-09 — the lane is #306; read that entry, not
+this sketch.** Three corrections to the text above (full derivation:
+`dispatch/FABLE-T27-267-message-queuing.md` §4):
+1. **The terminal set this entry assumed is STALE.** "Post it when
+   `run.completed` lands" describes a one-terminal feature; since filing,
+   #291 (Stop settles the user row `.delivered`), #294 (pre-token Stop removes
+   the placeholder), and #295 (expiration arms real recovery, but only when
+   `currentRunIsServerRecoverable`) rewrote the terminal landscape. The
+   12-row terminal matrix in **#306** supersedes this entry's parenthetical
+   edge-case list.
+2. **"An app-held queue" understates the scope by one axis** — the queue is
+   held against the THREAD, not the app: a message queued in thread A must
+   not fire into thread B (`abandonPendingRun` is the teardown seam).
+   Thread-scoped and durable, not merely app-held.
+3. **The blockquote's "slice 3C rather than shipping the queue first" was a
+   recommendation on an OPEN question (plan §5 Q7), and Owen answered it
+   2026-08-09: STANDALONE**, under binding constraints C1 (the composer names
+   the door from day one — `ComposerDoor` enum with `.steered`/`.interrupted`
+   present, never the word "sent"), C2 (readiness gate is `isTranscriptBusy`,
+   never `isStreaming`), C3 (a queued message mints no transcript row until it
+   sends). On the shipping default (`useRunsTransport` OFF) the steer door
+   does not exist, so the queue door is the only door — shipping it first
+   ships the door that is always taken. 3C still owns the steer and
+   interrupt-and-resend doors.
 
 ## 266. 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so OPEN_ITEMS reads as "what we need to work on" — **FILED 2026-08-06 late night (Owen: "we should probably separate the doc notes and other things from open items, so that its truly only 'open' items. Then, we'll know what we need to work on"); the successor to #261's archive split**
 
@@ -9922,6 +10559,98 @@ the lane opens.
 > **ruled-out mechanism**, not an untried one — any next attempt needs a
 > different approach than instruction-clause enumeration.
 
+**ROUTED 2026-08-09 (Owen): LEVER 1 in the 1b APPEND shape, with LEVER 3a as
+ride-along** — from `dispatch/FABLE-T27-257-next-lever.md` (§4–§5), which this
+entry now executes. The mechanism split: **detection** is one extra Bool on the
+production router (`isCapabilityQuestion` on `ToolIntentRoute`, positive-test
+`@Guide`, fails safe to false = today's behavior — discovery fails OPEN, never
+less than now); **rendering** is the app appending a deterministic
+registry-built Markdown block AFTER the model's natural reply on detected
+toolless capability turns — `capabilityAnswerBlock(...)`, ONE builder called by
+`send` AND `streamTurn` AND the probe (#202D). **There is no generation step
+that could compress** — the arity is a `for` loop over `CapabilityGroup`
+cases; `A04154D7` measured what happens when a model recites ten items, and
+this lever stops asking. 1b's failure asymmetry is the ruling's core: a false
+positive appends a true block to a real answer, never a destroyed one. Owen's
+pick of Lever 1 also answers the dispatch's Q2 (1b over 1a) and Q3 (a second
+field MAY go on the production `ToolIntentRoute`, guarded by 1-GATE). The
+**DOA rule stands**: any proposal ending in the model producing the ten-item
+list as free prose — reworded sentence, stronger imperative, bulleted
+instructions, raised cap — is dead on arrival.
+
+**⚠️ MANDATORY PRE-FLIGHT (the `21F0C10D` gate, not a footnote):** the router's
+catch arm FAILS SAFE TO ARMED, so if the two-Bool schema overflows
+`maximumResponseTokens: 64`, guided generation throws, every capability
+question routes armed, and the block never renders — reading as "detection
+doesn't work" when the instrument is dead. BEFORE any measurement run: (1)
+measure the two-field schema's real cost with `tokenCount` ON DEVICE, outside
+a live turn (`tokenCount()` during a streaming turn kills the turn); (2) if
+headroom is not comfortable, the two-field route gets its OWN named options
+constant with a raised cap, pinned by test — never raise
+`toolIntentRouterOptions` itself (production's one-Bool 64 pin is
+load-bearing); (3) instrument the error path regardless — the probe emits a
+router-throw tally and `scored=<n>/<trials>` beside every ratio.
+
+**Sequencing (both steps free, both BEFORE router code):** (i) render the
+block in a unit test and put the exact string in front of Owen — if a canned
+paragraph in a chat bubble reads wrong to him, the lever dies before a line of
+router code, and the render is 3a's payload either way; (ii) write
+`capabilityControlProbes` — the near-miss NEGATIVE list — BEFORE the positive
+list (a positive list written first quietly defines the boundary to suit
+itself). **A boundary that cannot be written down kills the lever for the cost
+of a text file.**
+
+**BARS — pre-registered 2026-08-09, before any run (vehicle: a new DEBUG probe
+`runCapabilityDetectionProbe(trials:)` modeled on `runVectorRouterProbe`, arm =
+2-field route, control = today's 1-field, SAME run; every band emits
+`scored=<n>/<trials>` and `errors=<n>`):**
+- **257-1-GATE (regression — the one that matters most).** The routing Bool's
+  accuracy on `routerBaselineProbes` EXACTLY as it stands (the closed pinned
+  ten — copied, never extended), n=10, **≥95%** against its 200/200 lifetime;
+  arm AND control. **Pre-registered response: missed → the second field is
+  abandoned outright, no iteration** — it would be degrading the single most
+  load-bearing classification in the app to buy a self-description.
+- **257-1-A (recall).** On a NEW closed list `capabilityQuestionProbes` (≥10
+  capability-meta phrasings), the new Bool answers TRUE on **≥90%** of trials,
+  n=5 (justified by #217B's zero-variance determinism finding). Full per-row
+  distribution reported, not a ratio.
+- **257-1-B (precision — THE DANGER BAR).** On `routerBaselineProbes`
+  (unchanged) plus a NEW `capabilityControlProbes` list of deliberate
+  near-misses ("what's the weather?", "what's on my calendar?", "what did we
+  talk about yesterday?", "what can I make with eggs?", "what's my battery
+  at?"), the new Bool answers TRUE on **≤2%** of trials. **Pre-registered
+  response: missed → Lever 1 does not ship; fall back to Lever 3a alone**,
+  which needs no router change.
+- **257-1-C (the conversational bar — UNIT, not device).** The rendered block
+  scores **10 of 10 non-vision families** under the shipped
+  `toollessIndexFamiliesNamed(in:)` (zero false positives across 120 device
+  replies), and the test is REGISTRY-DERIVED so adding a `CapabilityGroup`
+  case fails the suite loudly. **The bar #297 failed, made structural.**
+- **257-1-D (honesty — rides 1-A/1-B's run).** Across every trial where the
+  block is appended: **zero** violations under the shipped union
+  `toollessIndexViolates297C`, with the claim half and the syntax half counted
+  and emitted SEPARATELY (never collapsed — #297's own review catch).
+- **257-1-E (gate).** `scripts/mac/lane-gate.sh` PASS — units AND Release —
+  with the unit count MOVED.
+- **257-3a-A (unit).** The `/capabilities` surface enumerates the registry,
+  DERIVED — adding a `CapabilityGroup` case or a belt tool fails the suite; no
+  hand-written list anywhere in the view (#257's root cause, denied re-entry
+  through the UI door).
+- **257-3a-B (XCUITest).** Reachable in ≤2 taps from a fresh chat, and
+  `/capabilities` typed in the composer opens it.
+- **257-3a-C (device, Owen).** He reads it and judges whether it answers "what
+  can you do" better than the model does — pass/fail his, stated in advance.
+
+**Open sub-questions routed to NEEDS-OWEN (not blocking the build):** vision
+(should the block/surface name image reading with a "when you attach a photo"
+caveat? The ten-family list excludes `.vision` by design, but the original
+complaint counted readImageText/readBarcode among the missing fifteen), and
+the 3a surface's permanent home (Settings vs chat sheet vs Skills
+neighborhood — v1 ships slash-command + empty-state chip, which the bars
+cover without fixing the home). **Device needs (queued):** the pre-flight
+tokenCount measure and the detection probe run — one small probe grid, no
+full battery.
+
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 
 > **✅ CLOSE-OUT 2026-08-09.** Merged in two commits (`2c17f86`, `c8b27fb`,
@@ -10105,6 +10834,75 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > old name until someone runs the refresh block — harmless, the skill
 > still works under its old name. Item stays open only for (b)/(c)
 > verdicts; everything else in the inventory was KEEP or rides #251.
+
+**2026-08-09 — FULL COUNTED INVENTORY DONE and the FREE bucket ROUTED (Owen:
+execute now, deletions DEFERRED)** — `dispatch/FABLE-T27-255-debranding-inventory.md`
+(17 pattern rows, real `rg` counts, blast-radius ruling per row). What it adds
+beyond the 2026-08-05 pass: **real counts** (333 occurrences of
+`hermes[_-]mobile` across 68 files, 145 `HermesMobile*` across 39, all confined
+to the EOL sidecars + docs, confirming the SATISFIED-BY-#251 verdict), a
+**PERSISTED-state finding the prior pass missed** (below — the single
+highest-risk item in the inventory), and **two stale doc breaks the (a) rename
+left behind**:
+- **⚠️ AMENDMENT to the (a) note above:** the skills rename was NOT fully
+  docs-clean — `relay/docs/DEPLOY_MAC.md:94` and
+  `design/T6_MAC_BACKEND_SPEC.md:75` still instruct copying
+  `../skills/hermes-ios`, a path that has not existed since 2026-08-05.
+  Broken instructions, not untidiness; Task 1 of the free bucket fixes both.
+- **🔴 THE PERSISTED-KEY LANDMINE (for whenever (b)/(c) is decided — NOT this
+  lane's scope):** `UserDefaultsAppPersistenceStore.swift:6-20` defines 12
+  literal `hermes.*` UserDefaults keys for every piece of durable app state,
+  and `BackendProfile.swift:167,179,181` derives three more for
+  **Keychain**-backed secrets (`hermes.apiServerKey` — the chat bearer token —
+  `hermes.pairedRelayConfiguration`, `hermes.sessionState`), plus the
+  App-Group-shared `"hermes.widget.data"` defined in TWO files that must
+  agree. These name the AGENT, not dylan — (b)/(c) bucket — but a blind
+  `Hermes*` sweep would silently destroy every existing user's conversation
+  history, pairing, and stored API key on first launch (exact-string lookups,
+  no migration). Same class: `MessageSender` rawValues `"hermes"`/
+  `"voice_hermes"` are persisted inside every stored Message. **Any future
+  (b)/(c) lane needs a migration, never a rename.**
+- Also ruled by the dispatch, recorded so nobody re-proposes: `hermes_delegate`
+  is OpenAI's tool-call contract (not ours to rename, hard LEAVE);
+  `"object":"hermes.run"` is the gateway's own wire format pinned in test
+  fixtures (LEAVE); git history/authorship is LEGAL/IMMUTABLE (never touch);
+  bundle IDs/App Group/entitlements are already clean (nothing to do); the
+  Fly.io leftovers (`relay/fly.toml` + docs + the dead `APNS_BUNDLE_ID`) are
+  DELETE-not-rename candidates — **Owen deferred all deletions 2026-08-09**,
+  they ride the relay decommission.
+
+**THE FREE BUCKET (Tasks 1–4, one small PR, executes this session):**
+Task 1 fix the two stale `hermes-ios` doc paths → `skills/talaria`; Task 2
+`.gitignore:57` `hermes-mobile-plans/` → `talaria-mobile-plans/` (checking
+nothing uses the old convention first); Task 3
+`LiveCameraOverlay.swift:202` DispatchQueue label `hermes.camera.capture` →
+`talaria.camera.capture`; Task 4 `AppTemplateUITests.swift:12,21`
+`/tmp/hermesmobile-uitest-config.json` → `/tmp/talariamobile-uitest-config.json`
+(confirming nothing external references the old path). No files added → no
+xcodegen.
+
+**BARS — pre-registered 2026-08-09, before the run:**
+- **255-A (the free renames land clean):** after Tasks 1–4,
+  `rg -i 'hermes[_-]mobile|hermes-ios'` returns zero hits in the
+  renamed/fixed locations, and `git diff --stat` shows **no file outside the
+  five touched paths changed** — proving the pass didn't drift into the EOL
+  sidecars or the persisted-key namespace.
+- **255-B (no persisted user state orphaned):** expected trivially MET
+  because Tasks 1–4 never touch the §1.5 keys — its purpose is to prove that
+  in writing. Evidence: the diff shows zero changes to
+  `UserDefaultsAppPersistenceStore.swift`, `BackendProfile.swift`,
+  `MessageSender.swift`, or either widget-data definition. (The
+  install-over-real-state device form runs only if a wider rename ever
+  happens.)
+- **255-C (the wire still speaks):** the sidecars weren't touched — zero
+  diff under `relay/` (beyond the Task-1 doc fix) and `connector/`; the
+  `hermes_mobile` MCP namespace, console scripts, and NSSM service name
+  appear nowhere in the diff. (The on-OJAMD verbatim form is unnecessary
+  when the diff proves non-contact.)
+- **255-D (gate):** `scripts/mac/lane-gate.sh` literal `GATE: PASS` (Debug
+  suite + XCUITest + Release). The load-bearing check for THIS lane is
+  255-A's file-list discipline, not the suite — but the gate runs anyway
+  per standing practice.
 
 ## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
@@ -10457,6 +11255,14 @@ routed-production discipline. Nothing owed.
 > routing server-side; Talaria never grows a gateway. Would consult #284's
 > registry if that files into a lane. Source:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`.
+
+> **Adjacency note 2026-08-09 (#101 routed):** #101's 101-A1 cross-chat-recall
+> routing probe uses the same per-message classifier this maybe would consult
+> — its harness and scoring are directly reusable here, and the route chip
+> above is the natural explanation surface for a memory-layer answer
+> ("answered from a remembered preference"). Shared instruments, separate
+> lanes; recorded in both entries so it is not re-derived (#101 has the twin
+> note).
 
 ## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). ~~STAYS OPEN for ONE residual: bar 252R-A below.~~ → RESIDUAL CLOSED 2026-08-09: 252R-A/B/C ALL MET (verdicts below). NO DEFECT REMAINS — the item stays open only for Owen's §7.3 routing call. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
 
@@ -10923,6 +11729,17 @@ reads unavailable until Phase 2 heartbeats flip check_fn). **OJAMD
 install deliberately deferred to Phase 2** — Phase 1 adds no user value
 there and the venv CLIs it retires are only worth touching when pairing
 becomes consumable.
+
+> **Two corrections, 2026-08-09 (the #269/#270 investigations):**
+> (1) "deletes the venv CLIs" is true of the PLUGIN and false of the APP —
+> `ConnectHermesHostScreen.swift:110-112` still ships a SETUP card teaching
+> `hermes-mobile setup|pair-phone|service install`, the exact commands this
+> phase retired. A user following the app today runs commands the venture
+> deleted; 269-A-D owns the fix. (2) "the running gateway sees the plugin at
+> its next restart" understates the restart story ONE process short: a
+> `dashboard/` half added later (#270) loads at the DESKTOP BACKEND's import
+> — the desktop-spawned `hermes serve --port 0`, a different process from
+> the gateway. **Two restart surfaces, not one.**
 
 **Phase 2 design note (doc-confirmed 2026-08-05,
 hermes-agent.nousresearch.com/docs):** official docs give platform-channel
@@ -13259,17 +14076,40 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
 > you intend to use, individually, before designing on it.**
 
 **What still needs the relay, named so "end the relay dependency" stays honest:**
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C3,
+> `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3) — this three-tenant
+> list is WRONG in both directions.** Push is GONE (#238 removed the entire
+> notification surface; zero app-side hits). And the live app calls
+> **EIGHTEEN distinct relay paths across SEVEN services**, including two
+> families this list never named and no decommission plan carries:
+> **voice bootstrap** (`talk/session`, `talk/readiness` —
+> `LiveVoiceSessionService`) and the **conversation/command feed**
+> (`conversations/current`, `conversations/current/clear`, `messages`,
+> `commands`). Full counted inventory: pairing+auth (9 paths), sensors (3),
+> voice bootstrap (2), conversation/command feed (4). **Phase 4 cannot be
+> scoped until every one of the eighteen has a named destination — that gap
+> is filed as #309.** Original list kept below for the record:
 - **#38 run-completion push watch** — the relay owns the APNs credentials and the poll
   loop; core Hermes sends no push. Would need a new home or an upstream feature.
+  *(dead — #238 removed the receiving half; nothing arms a watch)*
 - **Sensor ingestion** — relay + connector + `hermes_mobile` MCP; core has no sensor
   path at all. The dylan-buck shell exists for this.
 - **Pairing / device-bearer auth plane** — the app's relay-minted tokens and #15/#94
   recovery ladders live against the relay.
 - (#113's connector supervision gap rides wherever the connector lands.)
+  *(#113 closed 2026-07-25; the surviving half is #188, DECLINED under the
+  no-hardening rule)*
 
 **End state:** the phone speaks gateway (`:8642`, one key) for chat + models + files;
 the relay shrinks to sensors + push. Windows box then runs the gateway process, the
 relay (smaller), and the connector — no shim.
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C4): that is now the INTERIM,
+> not the end state.** #251's end state is **gateway only** — the plugin
+> carries the transport, the relay and connector are decommissioned (#251
+> Phase 4, tracked here, gated on #271). The paragraph above describes Plan
+> D's finish line, which is Plan C's midpoint.
 
 > **GOVERNING PRINCIPLE, added 2026-08-02 (Owen, standing — see `CLAUDE.md`): DO NOT
 > HARDEN THE RELAY OR CONNECTOR while this migration is pending.** *"Every time we
@@ -13287,6 +14127,14 @@ the Mac gateway after its next restart — its running process is mid-version); 
 shim-retirement lane (picker onto `/api/model/*`); (3) the file-fetch migration lane
 (#21); (4) then the relay is what remains, and its remaining tenants are a separate
 conversation. Owen routes each lane.
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C5):** (1) and (2) are **DONE**
+> (routes re-verified 2026-08-09 per CLAUDE.md's table; Lane 5 merged
+> 2026-08-04, L5-E device-met). (3) is **superseded** — there is no file API
+> on `:8642` (Falsification 1 above) and #21's home is now the Phase-3
+> plugin mirror / media pipeline, filed as **#311**. What remains of this
+> list IS Phase 4, gated on #271 and on #309 (the eighteen-tenant
+> re-homing) and #310 (`relayBaseURL` optional).
 
 > **REFRAMED 2026-08-02, same day — the target hardened from "fewer processes" to
 > ZERO-SETUP** (Owen: eliminating additional setup "really takes the scary part out of it
@@ -13462,6 +14310,22 @@ conversation. Owen routes each lane.
 >
 > ### THE PHASED PLAN (Owen routes each; blockers named)
 >
+> **⚰️ SUPERSEDED IN FULL 2026-08-09 (reconciliation C2 — #268 flagged this
+> paragraph 2026-08-06 and it stayed unfixed).** The retirement blockquote at
+> the top of this entry does not reach down here, and a reader who scrolls
+> past it finds a live-looking Phase 2. So, phase by phase: **Phase 0** —
+> both repairs long since done. **Phase 1** — DONE (Lane 5, merged
+> 2026-08-04). **Phase 2 (the push sender)** — DEAD, killed by #238's
+> notification-surface removal on 2026-08-03, a day before #251 existed; the
+> hook was built and smoke-proven, then disarmed; branch
+> `claude/t27-223-talaria-push` @ `dd25e2d` is the archive — do not merge
+> it. **Phase 3 (upstream)** — DEAD by policy (no-upstream-PR ruling) and
+> unnecessary (Escape B proved plugin code reaches the live agent with zero
+> core edits). **Phase 4 (sensors deposit)** — SUPERSEDED by #242's
+> query-time `talaria_phone_query`, shipped and device-verified. **Phase 5
+> (relay retirement)** — the one survivor, now #251 Phase 4, tracked here,
+> gated on #271 + #309 + #310. The text below is the record, not the plan:
+>
 > - **Phase 0 — repairs, not this migration:** (i) the Mac gateway is running 0.19.0
 >   with the 0.19.1 tree updated underneath it — every agent creation now dies on an
 >   import mismatch (`CHECK_FN_CACHE_BYPASS`), so Mac chat is DOWN until
@@ -13516,6 +14380,15 @@ conversation. Owen routes each lane.
 > the developer `.p8`) is parked as an explicit gate. Lane 3's bar TEMPLATES live in
 > the plan and get copied INTO this entry, dated, before the first measured run. Not
 > started — Owen routes each lane.
+>
+> **⚰️ 2026-08-09: that plan document is an ARCHIVE, not a roadmap** — it now
+> carries a SUPERSEDED header (do not route any lane from it); every one of
+> its nine lanes is DEAD or DONE (`dispatch/FABLE-T27-223-251-reconciliation.md`
+> has the lane-by-lane verdict). **And the parked App-Store push-tier gate is
+> DECIDED, not parked** (reconciliation Q5): #251 decision 1 answered it —
+> durable outbox + fetch-on-connect + Live Activities; no vendor sender, no
+> BGTask-only tier, push stays dead. Recorded here so the question stops
+> being re-opened.
 
 > **Update 2026-08-06 late night (reconciliation audit):** the **"Lane 6
 > (upstream re-attach PR) is UNAFFECTED"** line above (from the 2026-08-03
