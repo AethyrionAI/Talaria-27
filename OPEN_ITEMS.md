@@ -7182,6 +7182,27 @@ like `/retry` and `/undo` now are.
 >   says it covers source SELECTION only and never saw the removal. Its
 >   assertions are byte-unmodified.
 >
+> **GATE: PASS** (`scripts/mac/lane-gate.sh`, run 3). Swift Testing
+> **1859 → 1864** (+5, the bars above — verified by `@Test` count 30 → 35 in
+> `ChatStorePersistenceTests`, not by arithmetic alone), XCUITest 12, Release
+> build green. **Runs 1 and 2 are recorded rather than hidden**, per the gate
+> script's own instruction on a flake: run 1 failed on three *fresh-simulator
+> prerequisites* (EventKit TCC not pre-granted — the probe's own doc says to
+> grant it with `simctl privacy`; a cold-start WKWebView control arm; and the
+> #195/#236 keyboard-focus typing race), all three green on the warmed sim;
+> run 2 failed on `testPairedRelaunchSkipsPairingEntry()` with **no assertion
+> text**, which the gate itself classifies as a harness flake — it had passed
+> in run 1 on identical code, under load average 15.7/31.6/61 with three
+> concurrent gates.
+>
+> **Sim note for the next lane:** this ran on a dedicated `CC-279-iPhone-Air`
+> created on the **iOS 27.0** runtime. **The stock `iPhone Air` on this Mac
+> exists only on iOS 26.5** and cannot host the 27.0 deployment target, so
+> naming it in `TALARIA_SIM_NAME` fails preflight-then-destination; and
+> `lane-gate.sh` resolves the name with `head -1`, which picks the 26.5 entry
+> because `simctl` lists that runtime first. A freshly created sim also has
+> **no TCC grants**, which is what cost run 1.
+>
 > **STILL OWED: 279-F, device, Owen.** Everything above is simulator-side.
 
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
