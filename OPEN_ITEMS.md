@@ -6128,7 +6128,11 @@ head). C2 (3B has no entry) is discharged by this filing.
 > tests / 145 suites** (full `TalariaTests`, gate sim 47F68496). **Post-lane
 > full-unit run: 1953 tests / 148 suites passed** — the count MOVED by
 > exactly the lane's 26 new tests / 3 new suites (fresh `test`, not
-> `test-without-building`; the stale-`.xctest` tell checked).
+> `test-without-building`; the stale-`.xctest` tell checked). **#292
+> (PR #288) and #272 (PR #289) merged to `main` while this lane ran; `main`
+> was re-merged into the branch at `235e369` (auto-merge, no conflicts,
+> `oi-split-verify.py` PASS) and the full suite re-run on the merged head:
+> 1959 tests / 148 suites passed** (1953 + #272's 6).
 >
 > **Per-bar evidence (every RED observed on the gate sim before its GREEN;
 > RED log preserved in the lane report):**
