@@ -10757,8 +10757,9 @@ full battery.
 >   iteration.** The device `tokenCount` pre-flight runs BEFORE the probe.
 > - **257-3a-C: pending Owen** (his read of the surface; pass/fail his,
 >   stated in advance).
-> - **257-1-E: pending the controller** (lane gate not run by the phase-2
->   implementer, per the dispatch).
+> - **257-1-E: ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air): TEST SUCCEEDED, 1944 Swift Testing + 13 XCUITest,
+>   Release build clean.
 > Phase-2 targeted suites: 272/272 across 6 suites on CC-257-iPhone-Air
 > (iOS 27.0) — CapabilityRegistryTests **24 → 32**, CapabilitySurfaceTests
 > **3 (new)**, DeviceToolBelt 180, LocalChatBackend 42, RoutedTrialShape 5,
