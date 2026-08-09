@@ -2316,13 +2316,15 @@ extension LocalChatBackend {
     /// **Deliberate deviation from the spec's §4 (flagged in the plan's
     /// self-review, not hidden):** the spec said reuse `executeBatteryTrial`.
     /// That helper emits a fixed line shape (`battery: shape=… p=… t=…
-    /// cant=… denial=… chars=… inTok=… outTok=… text=…`) two OTHER batteries
-    /// depend on byte-identically, and it has no way to carry 297-A's family
+    /// cant=… denial=… chars=… inTok=… outTok=… text=…`) FOUR other
+    /// instruments depend on byte-identically across 8 call sites —
+    /// `runShapeBattery`, `runActionBattery`, `runTwoTurnBattery`, and
+    /// `runHonestyBattery` — and it has no way to carry 297-A's family
     /// count or 297-C's claim/syntax verdict without either changing that
     /// shared line or bolting on optional parameters that would still need
     /// a different prefix (`[toolless-index]`) and a different field order
     /// than every existing caller. Inlining an equivalent trial loop here
-    /// keeps the shared helper — and its two dependents — untouched.
+    /// keeps the shared helper — and its four dependents — untouched.
     func runToollessIndexBattery(trials: Int) async {
         guard Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")

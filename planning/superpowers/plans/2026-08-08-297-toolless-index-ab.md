@@ -396,10 +396,14 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
   `executeBatteryTrial`. This plan inlines an equivalent trial loop instead, because
   that helper emits its own fixed line shape (`battery: shape=… p=… t=…`) and does not
   compute or carry the 297-A/297-C fields; wrapping it would either lose those fields or
-  require changing a helper shared with two other batteries. Inlining keeps the shared
-  helper untouched (#205's spirit) at the cost of ~15 duplicated lines. **If the
-  implementer sees a clean way to extend `executeBatteryTrial` without changing its
-  existing emitted line, that is preferable — report which was done.**
+  require changing a helper shared with four other battery instruments
+  (`runShapeBattery`, `runActionBattery`, `runTwoTurnBattery`, `runHonestyBattery`).
+  Inlining keeps the shared helper untouched (#205's spirit) at the cost of ~15
+  duplicated lines. **If the implementer sees a clean way to extend
+  `executeBatteryTrial` without changing its existing emitted line, that is
+  preferable — report which was done.**
+  (count corrected 2026-08-08 during execution — review recounted the call sites;
+  four instruments, not two. The conclusion is unchanged and strengthened.)
 - **Placeholder scan:** clean — every code step carries real code; the keyword and
   pattern sets are concrete and complete.
 - **Type consistency:** `toollessIndexFamilyKeywords` / `toollessIndexClaimPatterns` /
