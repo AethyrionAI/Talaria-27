@@ -5948,6 +5948,57 @@ THE CLOSE-OUT RULE wants the upstream correction filed at the stale claim's own 
 
 **#238** (the teardown that left this residue), **#126** (the dropped briefing whose comment this is, and whose dependence on the ordering is refuted above), **#287** (the sibling finding from the same sweep — the *stronger* form of this shape), **#226** (the push-watch surface, already retired MOOT by #238; "push watch arming" was the same dead surface surviving in prose).
 
+
+## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.**
+
+**What it unblocks, precisely.** #269-B (the conversational installer's install
+half) is blocked on **two** things and publishing fixes only the first:
+1. **`AethyrionAI/talaria-plugin` is private**, and `hermes plugins install` is
+   git-only and non-interactive (`plugins_cmd.py:485-492`) — **no user's Hermes
+   can clone it.** Publishing closes this.
+2. **There is no reload.** `discover_and_load` early-returns on a process-global
+   singleton, and the agent runs *in-process*, so the install's last step is
+   killing the process the agent lives in. **Publishing does not touch this, and
+   it is the harder half.** Do not read "made public" as "#269-B unblocked".
+
+**On the git-pull idea — the pull is the easy part.** ✅ **Verified 2026-08-09:
+the plugin already survives `hermes update`** — it lives at `~/.hermes/plugins`,
+*outside* `~/.hermes/hermes-agent`, which is the tree `curl install.sh | bash`
+replaces. **So deletion is not the fragility. DRIFT is.** Upstream moves ~1,341
+commits/week (measured); a preserved plugin against a newer agent does not get
+deleted, it silently stops matching the API it was written for. **A bare pull
+delivers fresh bytes with no signal about whether they still fit** — and it
+inherits the reload problem above, so you would also get fresh bytes served by a
+stale process. **The missing piece is a compatibility signal, not a fetch.**
+
+**⚠️ A SCRUB IS OWED BEFORE ANY PUBLISH, and it is not optional.** Going public
+changes the bar on content that is currently private-by-default:
+- **Secrets and host specifics** — tokens, keys, `O:\Hermes\`, `C:\Users\Owen\`,
+  tailnet IPs (`100.110.102.59`, `100.79.222.100`), `HERMES_HOME` paths.
+- **#261's standing rule** — no attack mechanics, crafted strings, or
+  copy-pasteable probes in anything that goes to GitHub. That rule exists
+  because it was violated once already.
+- **Naming (#255)** — a public repo carrying `hermes-mobile` is a different bar
+  than a private one, and #255's inventory found that name is **WIRE**, not
+  cosmetic: it is the MCP tool namespace a live agent config depends on.
+- **Attribution** — Talaria is forked from `dylan-buck/Hermes-iOS`, and
+  `THIRD_PARTY_LICENSES.md`'s attribution is flagged never-touch. Confirm what
+  lineage the plugin carries before it is published under a new name.
+
+**This is Owen's decision, not a lane.** Publishing a repo is outward-facing and
+irreversible in practice (it can be un-published, but not un-seen). **Bars
+pre-register here if it is ever routed.**
+
+**Open questions worth answering before deciding:**
+1. Does the plugin need to be public at all, or would a documented
+   `git clone`-from-a-release-tarball path serve the same users?
+2. If public, does it become a thing we **support** — issues, PRs from
+   strangers, a compatibility matrix against a 1,341-commit/week upstream?
+   Upstream's own posture is instructive: 857 authors/30d but a **16.6% merge
+   rate** and ~20k open PRs.
+3. What is the compatibility signal — a version floor the plugin asserts at
+   load, a probe, or a tested-against tag?
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
