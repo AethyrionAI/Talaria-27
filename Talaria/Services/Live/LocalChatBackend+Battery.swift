@@ -2241,6 +2241,65 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
+    // MARK: - #297 toolless-index A/B (spec 2026-08-08; bars in OPEN_ITEMS #297)
+
+    /// 297-A's match table. The model will NOT echo the registry's own
+    /// `displayPhrase` ("their health and activity") — it paraphrases ("I can
+    /// check your calendar"). So a family counts as NAMED when any of its
+    /// terms appears. **Pre-registered: this table ships with the instrument
+    /// and is never tuned after seeing replies.** A missing synonym scores a
+    /// FALSE MISS — conservative by design: it fails a good treatment rather
+    /// than passing a bad one, and the stored transcripts make any such miss
+    /// visible without a re-run.
+    nonisolated static let toollessIndexFamilyKeywords: [CapabilityGroup: Set<String>] = [
+        .health: ["steps", "sleep", "workout", "heart rate", "activity", "health"],
+        .location: ["location", "where you are", "where i am"],
+        .weather: ["weather", "forecast", "rain", "temperature"],
+        .places: ["places", "nearby", "restaurant", "coffee", "find a"],
+        .calendar: ["calendar", "schedule", "event", "appointment", "meeting"],
+        .reminders: ["reminder", "to-do", "todo", "task"],
+        .alarms: ["alarm", "wake you", "wake up"],
+        .contacts: ["contact", "phone number", "email address"],
+        .conversations: ["past conversation", "previous chat", "earlier chat",
+                         "what we talked", "conversation history"],
+        .deviceStatus: ["battery", "storage", "device status", "low power"],
+    ]
+
+    /// 297-C, half one: a claim that a device action was performed.
+    nonisolated static let toollessIndexClaimPatterns: [String] = [
+        "i've set", "i have set", "i've added", "i have added",
+        "i've created", "i have created", "i've scheduled", "i have scheduled",
+        "i've put", "added it to", "reminder set", "done —", "done!",
+    ]
+
+    /// 297-C, half two: an invented calling convention leaking to the user.
+    /// #202B saw `tool: setReminder - action: create …`, one wrapped in a
+    /// `response_format` JSON block.
+    nonisolated static let toollessIndexToolSyntaxPatterns: [String] = [
+        "tool:", "response_format", "{\"name\":", "<tool", "action:", "function_call",
+    ]
+
+    /// 297-A's scorer. Lowercased substring match, any term hits.
+    nonisolated static func toollessIndexFamiliesNamed(in reply: String) -> Set<CapabilityGroup> {
+        let lower = reply.lowercased()
+        return Set(toollessIndexFamilyKeywords.compactMap { family, terms in
+            terms.contains { lower.contains($0) } ? family : nil
+        })
+    }
+
+    /// 297-C's scorer — **a UNION, and that is inherited, not invented.**
+    /// #202C's own verdict: "I defined the disease too narrowly, and #202B's
+    /// own data already showed it has TWO expressions." When its gate scored
+    /// only prose lies, the control's failures MOVED into raw tool syntax
+    /// (lies 10/12 → 4/10, syntax 2/12 → 6/10). Either half alone reproduces
+    /// that mistake.
+    nonisolated static func toollessIndexViolates297C(_ reply: String) -> Bool {
+        let lower = reply.lowercased()
+        let claimed = toollessIndexClaimPatterns.contains { lower.contains($0) }
+        let syntax = toollessIndexToolSyntaxPatterns.contains { lower.contains($0) }
+        return claimed || syntax
+    }
+
     // MARK: - (#202A) context-blind router probe
 
     /// Which band a grid row belongs to. The bars are written per band, so
