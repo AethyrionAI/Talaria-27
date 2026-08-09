@@ -6248,6 +6248,33 @@ head). C2 (3B has no entry) is discharged by this filing.
 > so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
 > that answer.
 
+> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED:
+> the VOICE consumer was a state where the feature lied.** A voice turn
+> rides the same runs transport, so an `approval.request` frame lands in
+> `NativeVoicePipelineService`'s OWN stream consumer — which rendered "open
+> the chat to answer it" while raising nothing: no replay, the degraded
+> raise also lands in the voice stream, and the chat showed NO card (the
+> #180 shape, reviewer-caught). **Fix = the cross-store raise (option a):**
+> the voice consumer raises the SAME `HostApprovalStore` the chat screen
+> renders (full question from the frame; degraded for the question-less
+> park), `approval.responded` forwards to the idempotent teardown, and the
+> voice turn's every exit — including the barge-in cancellation — tears its
+> card down SCOPED via new `clearForTurnEnd(runID:)`, so a predecessor
+> turn's exit can never tear down a successor's card (bar 304-E, narrower
+> door). An honest-copy downgrade remains for store-less constructions (no
+> instruction to open a chat that would show nothing). Constraints held: no
+> new Task/loop (#292 — rides the existing consumer); the at-most-once POST
+> guard is store state shared across both surfaces by construction. RED
+> first (`3563adb`: the scripted voice backend held its stream open and
+> `store.current` stayed nil; the scoped clear no-oped), GREEN in the fix
+> commit (`71a6b46`) — 68/68 across the five affected suites incl. the new
+> `VoiceHostApprovalTests` and the amended service's own
+> `NativeVoicePipelineTests`; **full `TalariaTests` after the fix: 1961
+> tests / 149 suites passed** (the pre-fix merged head's 1959/148 + the
+> fix's 2 tests / 1 suite). Reviewer Minor #1 (a POST completing after
+> teardown renders its 4xx nowhere — deliberate never-false-success)
+> PARKED by the controller, no action.
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
