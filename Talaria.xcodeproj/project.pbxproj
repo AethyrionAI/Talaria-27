@@ -224,6 +224,7 @@
 		6634B2A7AA41FB7495BD0034 /* FilePreviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C108E8F8682E3051C07464DA /* FilePreviewSheet.swift */; };
 		6656EF52FE3364A696ABE89C /* InboxServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72A317D6B5A8EE12A0B49489 /* InboxServiceProtocol.swift */; };
 		66E032F97623A61AFC0329F0 /* InsightsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FAF22435856B1441762344F /* InsightsScreen.swift */; };
+		67B0DA8EAAA7857933AE5FEF /* HostApprovalCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B56213CB5BB4DF91686BCE /* HostApprovalCard.swift */; };
 		68429B87C63BAD618E5E7CEA /* GlassCircleButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B5F8B2C079548A21E610E1 /* GlassCircleButton.swift */; };
 		68AFC49144A8DD89C59CB86F /* SessionStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6DABD8EE1467EE669FF3FD2 /* SessionStats.swift */; };
 		69F3448685D89DCF09247A46 /* MessageIdentityUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992ACC9FF55104E22717D5ED /* MessageIdentityUITests.swift */; };
@@ -956,6 +957,7 @@
 		B42BE7E738FC5E156E3130DE /* ConversationListStateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationListStateStore.swift; sourceTree = "<group>"; };
 		B47A5F74DB08719B659A47C6 /* HermesWidgetData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesWidgetData.swift; sourceTree = "<group>"; };
 		B51D21BD13D5D766B95E61CC /* ChatScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatScreen.swift; sourceTree = "<group>"; };
+		B5B56213CB5BB4DF91686BCE /* HostApprovalCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApprovalCard.swift; sourceTree = "<group>"; };
 		B5FF2ADC2E27467CB66FDA43 /* IconPreview-LuchaLibre.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-LuchaLibre.png"; sourceTree = "<group>"; };
 		B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-DeepField.png"; sourceTree = "<group>"; };
 		B76E7696B16B5568AE4666F1 /* PrivacySettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacySettingsScreen.swift; sourceTree = "<group>"; };
@@ -1922,6 +1924,7 @@
 				2A750F66E6CC7CE70AFEE190 /* CodeBlockView.swift */,
 				C108E8F8682E3051C07464DA /* FilePreviewSheet.swift */,
 				ECE60067CC3898F2148D9C58 /* HermesAvatar.swift */,
+				B5B56213CB5BB4DF91686BCE /* HostApprovalCard.swift */,
 				B3A2F2CE4651CA705DE47FAF /* HTMLPreviewView.swift */,
 				2A693F3DFF7524CECB31F9C5 /* InlineDiffView.swift */,
 				8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */,
@@ -2392,6 +2395,7 @@
 				5F3B60009D9E03118985EF9E /* HermesHostStatus.swift in Sources */,
 				21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */,
 				D7F95D4B5AC3C7A2F1F8DA9E /* HermesWidgetData.swift in Sources */,
+				67B0DA8EAAA7857933AE5FEF /* HostApprovalCard.swift in Sources */,
 				F4C65399424290F068B8AA0E /* HostApprovalStore.swift in Sources */,
 				815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */,
 				EE8BA255BD3A6B50221B7E51 /* HostFedListPresentation.swift in Sources */,
