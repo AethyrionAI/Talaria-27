@@ -199,7 +199,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#242** ✅ LOCAL-ANSWER BRIDGE — **CLOSED 2026-08-09: DELIVERED as #251 Slice 2A (talaria_phone_query + PhoneQueryResponder), device-proven 2026-08-06**
-- **#241** ✅ HERMES CORE — **CLOSED 2026-08-09 (RECLASSIFIED): the self-name IS a documented virtual model (by design); the 200-on-prose-failure half is OURS and moved to #180. Park dissolved, nothing to submit.**
+- **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
 - **#235** 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips …
@@ -9534,7 +9534,47 @@ inline and skip Hermes for that turn; (3) the setting's name and default;
 does not come back with this and should be said out loud when deciding #223's
 sensor question.
 
-## 241. ✅ ~~🐛 HERMES CORE (upstream)~~: gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.** *(historical: ⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.)*
+## 241. 🔭 ~~✅ CLOSED~~ **REOPENED 2026-08-09 as TRACK-UPSTREAM** — 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.** *(historical: ⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.)*
+
+> **🔴 REOPENED SAME DAY — MY "BY DESIGN" CALL ON HALF ONE WAS WRONG, AND
+> OWEN RULED ON IT. Upstream calls it a bug, four people filed it, and a
+> maintainer-reviewed fix is open.** This block supersedes the close-out below
+> for half one only.
+>
+> **The distinction I collapsed:** *advertising* `hermes-agent` on `/v1/models`
+> as a virtual alias meaning "use the default" **is** by design — that part of
+> my reading was right, and upstream's docstring says so. **Persisting that
+> alias as the session's real model is a separate act, and it is the defect.**
+> I reasoned "the sentinel is intentional, therefore storing it is intentional."
+> It does not follow, and upstream does not think so either.
+>
+> **The prior art, none of which we had seen:**
+> - **Issue [#79101](https://github.com/NousResearch/hermes-agent/issues/79101)**
+>   — *"[Bug]: API server session stores virtual model alias as real model,
+>   breaking gateway default."* Filed as a **Bug**. Names the same blame commit.
+> - **PR [#72739](https://github.com/NousResearch/hermes-agent/pull/72739)** —
+>   *"stop persisting the virtual model alias as a session's model."* **Open,
+>   maintainer-reviewed, teknium1 confirmed the defect is present on main.** It
+>   quotes `model = body.get("model") or self._model_name` — the exact line
+>   read here tonight. **This is the designated fix.** Idle ~10 days.
+> - **PRs #79102 and #76077** — two further independent discoverers, both
+>   self-closed in favour of #72739. **Four people found this separately.**
+> - **PR [#79824](https://github.com/NousResearch/hermes-agent/pull/79824)** —
+>   *a second poison channel we never identified*: `_last_resolved_model`, a
+>   recovery net that can itself re-introduce the advertised alias.
+>
+> **Disposition: TRACK, not closed and not ours to fix.** Watch #72739. There is
+> **still nothing to submit** — it is filed four times over — so the park's
+> dissolution stands and is if anything better supported.
+>
+> **The ops rule gets STRONGER, not weaker:** leave "API server model name"
+> EMPTY. Until #72739 merges, the persist is live, and changing that field is
+> the one action that turns a dormant defect into a broken chat plane on every
+> existing session.
+>
+> **Half two is unaffected** — the 200-on-prose-failure half remains ours and
+> stays in #180's register, where it was moved. Nearest upstream prior art
+> (#78485) argues our exact point but for `/v1/responses`, not our lane.
 
 > **✅ CLOSE-OUT 2026-08-09 — RECLASSIFIED, not fixed and not abandoned. Owen's
 > ruling on the direct question "does 241 need to be removed as by design / not
