@@ -10270,6 +10270,98 @@ the lane opens.
 > **ruled-out mechanism**, not an untried one — any next attempt needs a
 > different approach than instruction-clause enumeration.
 
+**ROUTED 2026-08-09 (Owen): LEVER 1 in the 1b APPEND shape, with LEVER 3a as
+ride-along** — from `dispatch/FABLE-T27-257-next-lever.md` (§4–§5), which this
+entry now executes. The mechanism split: **detection** is one extra Bool on the
+production router (`isCapabilityQuestion` on `ToolIntentRoute`, positive-test
+`@Guide`, fails safe to false = today's behavior — discovery fails OPEN, never
+less than now); **rendering** is the app appending a deterministic
+registry-built Markdown block AFTER the model's natural reply on detected
+toolless capability turns — `capabilityAnswerBlock(...)`, ONE builder called by
+`send` AND `streamTurn` AND the probe (#202D). **There is no generation step
+that could compress** — the arity is a `for` loop over `CapabilityGroup`
+cases; `A04154D7` measured what happens when a model recites ten items, and
+this lever stops asking. 1b's failure asymmetry is the ruling's core: a false
+positive appends a true block to a real answer, never a destroyed one. Owen's
+pick of Lever 1 also answers the dispatch's Q2 (1b over 1a) and Q3 (a second
+field MAY go on the production `ToolIntentRoute`, guarded by 1-GATE). The
+**DOA rule stands**: any proposal ending in the model producing the ten-item
+list as free prose — reworded sentence, stronger imperative, bulleted
+instructions, raised cap — is dead on arrival.
+
+**⚠️ MANDATORY PRE-FLIGHT (the `21F0C10D` gate, not a footnote):** the router's
+catch arm FAILS SAFE TO ARMED, so if the two-Bool schema overflows
+`maximumResponseTokens: 64`, guided generation throws, every capability
+question routes armed, and the block never renders — reading as "detection
+doesn't work" when the instrument is dead. BEFORE any measurement run: (1)
+measure the two-field schema's real cost with `tokenCount` ON DEVICE, outside
+a live turn (`tokenCount()` during a streaming turn kills the turn); (2) if
+headroom is not comfortable, the two-field route gets its OWN named options
+constant with a raised cap, pinned by test — never raise
+`toolIntentRouterOptions` itself (production's one-Bool 64 pin is
+load-bearing); (3) instrument the error path regardless — the probe emits a
+router-throw tally and `scored=<n>/<trials>` beside every ratio.
+
+**Sequencing (both steps free, both BEFORE router code):** (i) render the
+block in a unit test and put the exact string in front of Owen — if a canned
+paragraph in a chat bubble reads wrong to him, the lever dies before a line of
+router code, and the render is 3a's payload either way; (ii) write
+`capabilityControlProbes` — the near-miss NEGATIVE list — BEFORE the positive
+list (a positive list written first quietly defines the boundary to suit
+itself). **A boundary that cannot be written down kills the lever for the cost
+of a text file.**
+
+**BARS — pre-registered 2026-08-09, before any run (vehicle: a new DEBUG probe
+`runCapabilityDetectionProbe(trials:)` modeled on `runVectorRouterProbe`, arm =
+2-field route, control = today's 1-field, SAME run; every band emits
+`scored=<n>/<trials>` and `errors=<n>`):**
+- **257-1-GATE (regression — the one that matters most).** The routing Bool's
+  accuracy on `routerBaselineProbes` EXACTLY as it stands (the closed pinned
+  ten — copied, never extended), n=10, **≥95%** against its 200/200 lifetime;
+  arm AND control. **Pre-registered response: missed → the second field is
+  abandoned outright, no iteration** — it would be degrading the single most
+  load-bearing classification in the app to buy a self-description.
+- **257-1-A (recall).** On a NEW closed list `capabilityQuestionProbes` (≥10
+  capability-meta phrasings), the new Bool answers TRUE on **≥90%** of trials,
+  n=5 (justified by #217B's zero-variance determinism finding). Full per-row
+  distribution reported, not a ratio.
+- **257-1-B (precision — THE DANGER BAR).** On `routerBaselineProbes`
+  (unchanged) plus a NEW `capabilityControlProbes` list of deliberate
+  near-misses ("what's the weather?", "what's on my calendar?", "what did we
+  talk about yesterday?", "what can I make with eggs?", "what's my battery
+  at?"), the new Bool answers TRUE on **≤2%** of trials. **Pre-registered
+  response: missed → Lever 1 does not ship; fall back to Lever 3a alone**,
+  which needs no router change.
+- **257-1-C (the conversational bar — UNIT, not device).** The rendered block
+  scores **10 of 10 non-vision families** under the shipped
+  `toollessIndexFamiliesNamed(in:)` (zero false positives across 120 device
+  replies), and the test is REGISTRY-DERIVED so adding a `CapabilityGroup`
+  case fails the suite loudly. **The bar #297 failed, made structural.**
+- **257-1-D (honesty — rides 1-A/1-B's run).** Across every trial where the
+  block is appended: **zero** violations under the shipped union
+  `toollessIndexViolates297C`, with the claim half and the syntax half counted
+  and emitted SEPARATELY (never collapsed — #297's own review catch).
+- **257-1-E (gate).** `scripts/mac/lane-gate.sh` PASS — units AND Release —
+  with the unit count MOVED.
+- **257-3a-A (unit).** The `/capabilities` surface enumerates the registry,
+  DERIVED — adding a `CapabilityGroup` case or a belt tool fails the suite; no
+  hand-written list anywhere in the view (#257's root cause, denied re-entry
+  through the UI door).
+- **257-3a-B (XCUITest).** Reachable in ≤2 taps from a fresh chat, and
+  `/capabilities` typed in the composer opens it.
+- **257-3a-C (device, Owen).** He reads it and judges whether it answers "what
+  can you do" better than the model does — pass/fail his, stated in advance.
+
+**Open sub-questions routed to NEEDS-OWEN (not blocking the build):** vision
+(should the block/surface name image reading with a "when you attach a photo"
+caveat? The ten-family list excludes `.vision` by design, but the original
+complaint counted readImageText/readBarcode among the missing fifteen), and
+the 3a surface's permanent home (Settings vs chat sheet vs Skills
+neighborhood — v1 ships slash-command + empty-state chip, which the bars
+cover without fixing the home). **Device needs (queued):** the pre-flight
+tokenCount measure and the detection probe run — one small probe grid, no
+full battery.
+
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 
 > **✅ CLOSE-OUT 2026-08-09.** Merged in two commits (`2c17f86`, `c8b27fb`,
