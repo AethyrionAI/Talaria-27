@@ -4300,6 +4300,36 @@ it cannot verify.
 > RUNNING process is older and has these routes, so 0.19.1 certainly does) before any
 > app lane reads it.
 
+> **⚠️ CORRECTED 2026-08-09 (lane 180-L, close-out rule) — "capability surfacing
+> is ONE FIELD away" is TRUE about Hermes's internals and FALSE as a statement
+> about what THIS APP can read. Option (a) needs TWO changes, and it is now
+> double-blocked.**
+>
+> **The app-side gap, verified at HEAD:** `GatewayModelCatalog`
+> (`Talaria/Services/Live/GatewayModelCatalog.swift`) decodes exactly seven
+> keys — `provider`, `model`, `providers`, and per entry `slug` / `name` /
+> `authenticated` / `warning` / `models` / `featured_models` / `pricing`. There
+> is **no `capabilities` key of any kind**: not the `{fast, reasoning}` map the
+> 2026-08-02 probe saw on the wire, and certainly not a `vision` key that has
+> never existed. A repo-wide grep of `Talaria/` + `Shared/` for
+> `supports_vision` / `supportsVision` / `visionCapab` returns **zero hits**.
+> `TurnRuntime` names which model *served* a turn but carries no modality.
+>
+> **So option (a) is: the upstream `supports_vision` forward AND an app-side
+> decode that does not exist.** Two fields, not one. And the amendment's
+> fallback leg is gone — the shim it named was retired from the model path by
+> **#223 Lane 5**, so "an upstream fix reaches shim and gateway alike" no longer
+> describes a path we have.
+>
+> **This does not change the recommendation, it prices it:** ship the
+> **never-claim floor** (the wording this entry already specifies — "not known
+> to support images", never a hard block) and demote the capability half to a
+> **WATCH on the gateway payload**. That costs one string and closes the
+> user-visible harm; the capability half arrives free if Hermes ever forwards
+> the flag. **Still Owen's decision** — #173 is the one item remaining on
+> #180's still-open list, and no bar is written for it because a bar written
+> before the approach is chosen pre-empts the choice.
+
 Logged 2026-07-23.
 
 ## 177. 🎨 Connected-mode session cards show title and preview as the same line — Hermes-side titling
@@ -5126,9 +5156,33 @@ Logged 2026-07-25.
 
 ---
 
-## 189. 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152); fresh-install device verification owed *(was filed as SHIP BLOCKER)*
+## 189. 🔧 Notifications never authorized on a fresh install + a false-green panel — ⚰️ MOOT BY DELETION (#238 removed the surface); ~~fresh-install device verification owed~~ *(was filed as SHIP BLOCKER)*
 
-> **RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** Priming fires on every dispatched send (`e1aa70a`) and the panel reads real `UNAuthorizationStatus` (`4fb4abe`, `02d1b51`) — all on main. What remains is the fresh-install device check, queued as device-list §F3. It is the last blocker-SHAPED verification, which is not the same thing as a blocker.
+> **⚠️ SUPERSEDED 2026-08-09 (lane 180-L, close-out rule) — THIS ITEM IS ASKING
+> FOR A CHECK OF A SURFACE THAT NO LONGER EXISTS.**
+>
+> **#238 deleted the notification subsystem.** Verified at HEAD by grep over
+> `Talaria/`, `Shared/`, `TalariaShare/` and `TalariaWidget/`: **zero
+> `import UserNotifications`, zero `UNUserNotificationCenter`, zero
+> `UNAuthorizationStatus`.** There is no priming path left to fire and no panel
+> left to be falsely green.
+>
+> Consequently: **device-list §F3 has nothing left to run**, and the
+> *"last blocker-SHAPED verification"* line below is **void** — it describes a
+> queue entry that was annotated dead three days ago.
+>
+> **This is THE CLOSE-OUT RULE's exact failure mode, and it is worth naming.**
+> The correction WAS made — `dispatch/DEVICE-PASS-RUNNING-LIST.md` marked §F3's
+> #189 row *"Dropped from tomorrow — confirmed dead"* and annotated it **⚰️
+> MOOT** in place with the grep evidence, on 2026-08-06. It went DOWNSTREAM, to
+> the runnable queue, and never came back UPSTREAM to the item that owns the
+> claim. Anyone reading the board rather than the queue has been reading a
+> request for a fresh-install matrix that cannot be run.
+>
+> Nothing else in this entry is wrong; it is simply about a subsystem that was
+> removed. Left in place for the history, headed for the archive.
+
+> ~~**RE-FRAMED 2026-08-01 (Hermes audit Part 1B).** Priming fires on every dispatched send (`e1aa70a`) and the panel reads real `UNAuthorizationStatus` (`4fb4abe`, `02d1b51`) — all on main. What remains is the fresh-install device check, queued as device-list §F3. It is the last blocker-SHAPED verification, which is not the same thing as a blocker.~~ *(Struck 2026-08-09: true when written, void since #238.)*
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F3**, written as a
