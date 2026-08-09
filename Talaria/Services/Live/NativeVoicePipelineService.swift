@@ -83,6 +83,14 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
     private let speechOutput: SpeechOutputService
     private let capture = NativeVoiceCaptureController()
     private let eventHub = TalkSessionEventHub()
+    /// #304 review-1 fix: the SAME `HostApprovalStore` the chat screen
+    /// renders — a voice turn rides the same runs transport as a chat turn,
+    /// so an `approval.request` frame can land in THIS consumer, and telling
+    /// the user to "open the chat" is only honest if the shared card is
+    /// actually raised there. Wired by AppContainer beside
+    /// `chatStore.hostApprovals`; nil in constructions that predate it
+    /// (tests, previews), where the status line alone reports the park.
+    var hostApprovals: HostApprovalStore?
 
     /// Locally minted per session so the end-of-session transcript hand-off
     /// (`CompletedVoiceSession`) works without a relay voice-session id.
@@ -466,7 +474,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         }
     }
 
-    private func commitUserUtterance(_ text: String) {
+    // harness-visible (#304 review-1 fix): private in spirit — the voice
+    // turn's one entry, widened only so the shared-approval-card test can
+    // drive a real turn through `runTurn` without the audio stack.
+    func commitUserUtterance(_ text: String) {
         // A final landing while a reply is still in flight (barge-in that
         // skipped the volatile phase) supersedes that reply.
         if turnTask != nil {

@@ -197,6 +197,12 @@ final class HostApprovalStore {
         if resolvedChoice == nil { resolvedChoice = choice }
     }
 
+    /// #304 review-1 fix (RED shell): the SCOPED teardown for a consumer that
+    /// can be superseded mid-turn (voice barge-in) — clears only while the
+    /// card still belongs to the given run, so a predecessor turn's exit can
+    /// never tear down a successor's card.
+    func clearForTurnEnd(runID: String) {}
+
     /// Bar 304-E: the turn is over, however it ended — an outstanding card is
     /// torn down, never left tappable against a run whose driver has exited.
     /// (An in-flight POST's completion still classifies via `post`'s

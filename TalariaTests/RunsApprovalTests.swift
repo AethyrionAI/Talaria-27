@@ -840,4 +840,111 @@ struct HostApprovalStoreTests {
         store.markResolved(runID: "run-s1", choice: "deny")
         #expect(store.resolvedChoice == "once", "a duplicate resolution changes nothing")
     }
+
+    /// #304 review-1 fix: the SCOPED teardown a superseded consumer (voice
+    /// barge-in) uses — clears its OWN run's card, never a successor's.
+    @Test func scopedClearOnlyTearsDownItsOwnRun() {
+        let store = HostApprovalStore()
+        store.raise(Self.request(runID: "run-s1"))
+
+        store.clearForTurnEnd(runID: "run-other")
+        #expect(store.current != nil, "another run's exit must not tear this card down")
+
+        store.clearForTurnEnd(runID: "run-s1")
+        #expect(store.current == nil, "the owning run's exit tears it down (bar 304-E)")
+    }
+}
+
+// MARK: - #304 review-1 fix: the voice consumer raises the SHARED card
+
+/// Review round 1 finding: a voice turn on the runs transport consumes the
+/// `approval.request` frame in the VOICE pipeline's own stream, and the copy
+/// said "open the chat" while nothing raised the chat's card — a state where
+/// the feature lies (#180). The fix is the cross-store raise: the voice
+/// consumer raises the SAME `HostApprovalStore` the chat screen renders, so
+/// the instruction is true; the voice turn's exit tears it down SCOPED, so a
+/// barge-in successor's card survives a predecessor's teardown.
+@MainActor
+struct VoiceHostApprovalTests {
+
+    /// A minimal scripted backend: yields the pre-hold updates immediately,
+    /// then holds the stream OPEN until `release()` — the deterministic
+    /// mid-turn observation window (no sleep races, no network).
+    @MainActor
+    private final class ScriptedVoiceBackend: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        private let beforeHold: [StreamingUpdate]
+        private let afterHold: [StreamingUpdate]
+        private var held: AsyncStream<StreamingUpdate>.Continuation?
+
+        init(beforeHold: [StreamingUpdate], afterHold: [StreamingUpdate]) {
+            self.beforeHold = beforeHold
+            self.afterHold = afterHold
+        }
+
+        func release() {
+            guard let continuation = held else { return }
+            for update in afterHold { continuation.yield(update) }
+            continuation.finish()
+            held = nil
+        }
+
+        func connect() async {}
+        func disconnect() async {}
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "", status: .delivered)
+        }
+        func sendStreaming(message: String, attachments: [PendingAttachment], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            AsyncStream { continuation in
+                for update in beforeHold { continuation.yield(update) }
+                held = continuation
+            }
+        }
+        func loadConversation() async -> Conversation { Conversation(title: "voice-test") }
+        func clearConversation() async throws -> Conversation { Conversation(title: "voice-test") }
+    }
+
+    @Test func aVoiceTurnsApprovalRaisesTheSharedChatCardAndTearsItDownAtTurnEnd() async {
+        let request = RunApprovalRequest(
+            runID: "run-v1",
+            profileID: nil,
+            endpoint: SessionsHermesClient.ResolvedEndpoint(baseURL: "http://hermes.test", apiKey: "k"),
+            question: RunApprovalRequest.Question(
+                command: "rm -rf /tmp/x",
+                description: "destructive recursive delete",
+                patternKey: "rm_rf",
+                choices: ["once", "deny"]
+            )
+        )
+        let backend = ScriptedVoiceBackend(
+            beforeHold: [.approvalRequested(request)],
+            afterHold: [.finished(Message(sender: .hermes, content: "done", status: .delivered), nil, nil)]
+        )
+        let speech = SpeechOutputService()
+        speech.managesAudioSession = false
+        let voice = NativeVoicePipelineService(backendProvider: { backend }, speechOutput: speech)
+        let store = HostApprovalStore()
+        voice.hostApprovals = store
+
+        voice.commitUserUtterance("clean the scratch build")
+
+        var pumps = 0
+        while store.current == nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(store.current?.runID == "run-v1",
+                "the voice consumer must raise the SAME shared card the chat screen renders — 'open the chat' is a lie otherwise (#180)")
+        #expect(store.current?.question?.choices == ["once", "deny"])
+
+        backend.release()
+        pumps = 0
+        while store.current != nil, pumps < 200 {
+            pumps += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(store.current == nil,
+                "the VOICE turn's terminal must tear its card down (bar 304-E, scoped)")
+    }
 }
