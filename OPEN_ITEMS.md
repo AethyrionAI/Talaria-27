@@ -6836,8 +6836,14 @@ hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
 
 > **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
-> numeric RED evidence. Bars 292-A and 292-B MET; 292-C queued (device);
-> gate pending (controller runs it serially at merge time).**
+> numeric RED evidence. Bars 292-A and 292-B MET; 292-C NOT YET QUEUED
+> (device — the controller adds the row to `DEVICE-PASS-RUNNING-LIST.md` at
+> session close-out); gate pending (controller runs it serially at merge
+> time).** One RED-verification caveat for the record: re-verifying 292-A's
+> RED by restoring the bug leaves an orphaned producer polling for up to the
+> test's 30s budget AFTER the test returns — later tests in the serialized
+> suite will see its requests as noise in the shared stub log. Expected
+> collateral of the un-fixed state, not a second regression.
 >
 > **⚠️ The entry's as-filed citations were stale — corrected here (close-out
 > rule), verified at the fix branch's HEAD:** the producer is
@@ -6896,11 +6902,12 @@ customer comments.
 > - **Ruling 2 held:** the producer's cancellation path is network-free —
 >   no `/stop` wired (that flip stays Owen's, per #283's ruling), no
 >   reordering in `cancelStreaming`.
-> - **292-C queued** for the device list (controller queues it): walk away
->   from a runs turn, kill the network past 60s, host log shows no further
->   `GET /v1/runs/{id}` and no `/stop` at all; record the pre-walk-away
->   poll count so a producer that never reached the poll loop reads
->   inconclusive, not passing.
+> - **292-C, procedure for the device row** (NOT yet queued — the
+>   controller adds it to `DEVICE-PASS-RUNNING-LIST.md` at close-out): walk
+>   away from a runs turn, kill the network past 60s, host log shows no
+>   further `GET /v1/runs/{id}` and no `/stop` at all; record the
+>   pre-walk-away poll count so a producer that never reached the poll loop
+>   reads inconclusive, not passing.
 > - **Open for Owen (Ruling 3, filed not built):** whether the runs plane
 >   should get the literal status-poll recovery his #295 ruling named
 >   (needs a durable `run_id` surfaced out of the producer — MORE necessary
