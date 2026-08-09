@@ -723,6 +723,21 @@ final class ChatStore {
                                 $0.isActive && $0.label == event.name
                             }) {
                                 conv.messages[idx].toolActivities[last].isActive = false
+                                // #296 (296-C1): on a `.completed` event
+                                // `detail` is the host's FAILURE text, not an
+                                // input summary — see `ToolCallEvent.detail`.
+                                // It goes to `failure`; the started event's
+                                // `detail` (what the call touched) is left
+                                // exactly as it was, because overwriting it
+                                // would trade the more useful of the two away.
+                                // Empty is treated as absent: a host that
+                                // sends `"error": ""` on a SUCCESS is saying
+                                // nothing went wrong, and writing "" would
+                                // flip a completed call to interrupted — the
+                                // #296 defect in reverse, which is 296-B.
+                                if let failure = event.detail, !failure.isEmpty {
+                                    conv.messages[idx].toolActivities[last].failure = failure
+                                }
                             }
                         }
                         self.conversation = conv
@@ -1360,6 +1375,49 @@ final class ChatStore {
             } else {
                 conv.messages[idx].isStreaming = false
                 conv.messages[idx].status = .delivered
+                // #296: this loop used to be the single
+                // `isActive = false` sweep below, and that sweep is where
+                // `✓ TERMINAL` came from. The rail reads
+                // not-streaming-and-not-active as DONE, so collapsing "was
+                // running when the turn was cut short" into the same flag
+                // that means "finished normally" made the app assert a
+                // command completed that the user had just killed — and on a
+                // turn stopped before any prose, that chip is the entire
+                // message.
+                //
+                // **Two passes, and the order is load-bearing.** The marker
+                // is written to the activities that are STILL ACTIVE, read
+                // BEFORE anything clears the flag; only then does the second
+                // pass clear. Fusing them into one loop that clears and then
+                // tests would mark nothing at all, silently — the same
+                // read-before-clear shape #295 pinned on this very function
+                // with a dedicated test, and it is pinned here the same way —
+                // `stopDuringAToolCallKeepsTheActivityRow` fails on a nil
+                // `failure`, which is exactly what a fused loop produces.
+                // Activities already inactive were resolved normally earlier
+                // in this turn (prose arrived, a successor started, or a
+                // named `tool.completed` landed) — they are genuinely
+                // finished and are left untouched. That is bar 296-B.
+                //
+                // WHICH marker: `hardStopHost` distinguishes the two ways
+                // this branch is reached. `true` is the user's own Stop.
+                // `false` is the continued-send expiration that did NOT arm
+                // recovery — the #295 review follow-up's gate, a turn on a
+                // plane that cannot be resumed, where nothing is coming back
+                // for it either. Both are honest reasons a call did not
+                // finish; they are not the same reason, and "Stopped" on a
+                // turn the user never stopped would be a small lie of its
+                // own. (The RECOVERABLE expiration never reaches here at all
+                // — it takes the `armPendingRunRecovery` branch above, which
+                // removes the placeholder. Marking a turn that is about to
+                // resolve successfully would be the worst of the three.)
+                let marker = hardStopHost
+                    ? ToolActivity.stoppedByUser
+                    : ToolActivity.interruptedBySystem
+                for i in conv.messages[idx].toolActivities.indices
+                where conv.messages[idx].toolActivities[i].isActive {
+                    conv.messages[idx].toolActivities[i].failure = marker
+                }
                 for i in conv.messages[idx].toolActivities.indices {
                     conv.messages[idx].toolActivities[i].isActive = false
                 }

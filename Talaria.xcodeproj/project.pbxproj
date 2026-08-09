@@ -169,6 +169,7 @@
 		472716FCCACCEAA6F8B289A5 /* InboxItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58A8D3AC5A4CD172DB9B3B98 /* InboxItemRow.swift */; };
 		47529498EE239A6304A10651 /* TalkSessionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = E23630C7B139D9D86F34A8D9 /* TalkSessionRules.swift */; };
 		47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */; };
+		47CFEAEB6A737963ECFC811B /* ToolActivityStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5013854AA5BEDDBACE8A0E /* ToolActivityStateTests.swift */; };
 		4805439DA2901ABBA5815ED8 /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
 		4AEF1AF1F96F850BFAE6ADFC /* SelectedIconHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABF6ED023952DF5A80472D3 /* SelectedIconHandoff.swift */; };
 		4BB52E0CCE60FA2B2FC1062F /* HermesControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */; };
@@ -598,6 +599,7 @@
 		0A2B8983CE86355818012300 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticEngine.swift; sourceTree = "<group>"; };
 		0AD2308C9C97CEA542271B0C /* UserDefaultsAppPersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsAppPersistenceStore.swift; sourceTree = "<group>"; };
 		0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSwitchAtomicityTests.swift; sourceTree = "<group>"; };
+		0C5013854AA5BEDDBACE8A0E /* ToolActivityStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivityStateTests.swift; sourceTree = "<group>"; };
 		0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolActivity.swift; sourceTree = "<group>"; };
 		0D5BE08A71CB56A6DD58C1BB /* InboxScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxScreen.swift; sourceTree = "<group>"; };
 		0D7400AD50E67CCB189E8028 /* HermesControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesControls.swift; sourceTree = "<group>"; };
@@ -1309,6 +1311,7 @@
 				55A40BBCFF31EA70CC924E54 /* TaskScheduleDraftTests.swift */,
 				F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */,
 				1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */,
+				0C5013854AA5BEDDBACE8A0E /* ToolActivityStateTests.swift */,
 				6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */,
 				B08258B28CCCCD6837DDA488 /* ToolCallInstrumentTests.swift */,
 				8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */,
@@ -2682,6 +2685,7 @@
 				8B3A2B61F4D2C285004C06BF /* TaskScheduleDraftTests.swift in Sources */,
 				8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */,
 				85DCD6F8A6E00520C5246486 /* ThemeCatalogTests.swift in Sources */,
+				47CFEAEB6A737963ECFC811B /* ToolActivityStateTests.swift in Sources */,
 				E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */,
 				AC54D663F0192299A6088A95 /* ToolCallInstrumentTests.swift in Sources */,
 				57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */,

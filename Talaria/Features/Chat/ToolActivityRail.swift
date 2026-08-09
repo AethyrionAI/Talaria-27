@@ -4,7 +4,13 @@ import SwiftUI
 ///
 /// **Streaming**: shows a "TOOL ACTIVITY" HUD panel with a per-step timeline.
 /// **Finished**: shows a collapsed chip naming the call(s) that expands to the
-/// full timeline — tool name, key inputs, completion status — on tap (#11).
+/// full timeline — tool name, key inputs, and how the call ENDED — on tap (#11).
+///
+/// **#296 corrects this comment.** It used to say the finished timeline showed
+/// "completion status", and it never did: the rail was two-valued
+/// (running / not-running) and *everything* not-running drew the same ✓ — a
+/// tool the user killed mid-flight included. `StepState` below is the third
+/// state that comment was describing before it existed.
 struct ToolActivityRail: View {
     let activities: [ToolActivity]
     let isStreaming: Bool
@@ -52,7 +58,7 @@ struct ToolActivityRail: View {
             // Step rows
             VStack(alignment: .leading, spacing: Design.Spacing.sm - 1) {
                 ForEach(activities) { activity in
-                    activityRow(activity, running: activity.isActive)
+                    activityRow(activity, state: Self.state(of: activity))
                 }
             }
             .padding(.horizontal, Design.Spacing.sm + 1)
@@ -84,9 +90,13 @@ struct ToolActivityRail: View {
                 }
             } label: {
                 HStack(spacing: Design.Spacing.xs) {
-                    Image(systemName: "checkmark")
+                    // #296: the ✓ is no longer unconditional. A chip whose
+                    // steps include one the user stopped (or one the host
+                    // reported an error for) must not open with the glyph that
+                    // means "this finished".
+                    Image(systemName: summaryState == .interrupted ? "xmark" : "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(summaryState == .interrupted ? Design.Brand.forge : Design.Brand.accent)
 
                     MonoLabel(
                         collapsedLabel,
@@ -116,15 +126,30 @@ struct ToolActivityRail: View {
         }
         .animation(Design.Motion.quickResponse, value: isExpanded)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Tools: \(activities.map(\.label).joined(separator: ", "))")
+        // #296: VoiceOver read the same string for a completed run and a
+        // stopped one. The glyph is the only thing that carried the
+        // difference, so a non-visual reader got the ✓ version of the lie.
+        .accessibilityLabel(
+            summaryState == .interrupted
+                ? "Tools, stopped before finishing: \(activities.map(\.label).joined(separator: ", "))"
+                : "Tools: \(activities.map(\.label).joined(separator: ", "))"
+        )
     }
+
+    /// #296: the collapsed chip's state.
+    private var summaryState: StepState { Self.summaryState(of: activities) }
 
     // MARK: - Expanded Timeline
 
     private var expandedTimeline: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm - 2) {
             ForEach(activities) { activity in
-                activityRow(activity, running: false)
+                // Deliberately never `.running` here — this timeline only ever
+                // renders under the FINISHED chip, and a "running" spinner on a
+                // turn that is over would be its own small lie. That rule is
+                // pre-#296 (`running: false` was passed unconditionally); #296
+                // only adds the interrupted case it could not express.
+                activityRow(activity, state: Self.state(of: activity) == .interrupted ? .interrupted : .completed)
             }
         }
         .padding(.horizontal, Design.Spacing.sm)
@@ -138,14 +163,23 @@ struct ToolActivityRail: View {
 
     // MARK: - Shared step row
 
-    private func activityRow(_ activity: ToolActivity, running: Bool) -> some View {
+    private func activityRow(_ activity: ToolActivity, state: StepState) -> some View {
         HStack(alignment: .top, spacing: Design.Spacing.xs + 2) {
-            if running {
+            switch state {
+            case .running:
                 Image(systemName: "circle.dotted")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Design.Brand.forge)
                     .hudPulse(Design.Motion.blink, from: 1, to: 0.35)
-            } else {
+            case .interrupted:
+                // #296: the warning slot, NOT `Design.Colors.danger`. The
+                // usual cause is the user's own Stop — that is a thing they
+                // asked for, not a fault to flag in red.
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Design.Brand.forge)
+                    .frame(width: 11, height: 11)
+            case .completed:
                 Image(systemName: "circle.fill")
                     .font(.system(size: 8))
                     .foregroundStyle(Design.Brand.accent)
@@ -167,11 +201,23 @@ struct ToolActivityRail: View {
                         .lineLimit(2)
                         .truncationMode(.middle)
                 }
+
+                // #296: WHY it did not finish — the user's Stop, or the host's
+                // own error text (296-C1). Rendered BESIDE `detail`, never
+                // over it: `detail` is what the call touched, and that stays
+                // the more useful of the two.
+                if let failure = activity.failure, !failure.isEmpty {
+                    Text(failure)
+                        .font(Design.Typography.monoSmall)
+                        .foregroundStyle(Design.Brand.forge)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                }
             }
 
             Spacer(minLength: Design.Spacing.xs)
 
-            if running {
+            if state == .running {
                 Text("running")
                     .font(Design.Typography.monoSmall)
                     .foregroundStyle(Design.Brand.accent)
@@ -181,5 +227,48 @@ struct ToolActivityRail: View {
                     .foregroundStyle(Design.Colors.dimForeground)
             }
         }
+    }
+}
+
+// MARK: - #296: the rail's glyph decision, as a pure function
+
+extension ToolActivityRail {
+    /// #296: three states, not two. `interrupted` is what the rail was
+    /// missing — a call the user stopped, or one the host reported an error
+    /// for, is neither running nor done, and collapsing it into "done" is how
+    /// a killed `sleep 30; echo STOPTEST` came to render as `✓ TERMINAL`.
+    ///
+    /// Lives out here, `nonisolated` and total, so the decision is testable
+    /// without a view host — the two-valued version it replaces was an inline
+    /// boolean inside `body` and could only ever be checked by eye.
+    enum StepState: Equatable, Sendable {
+        case running
+        case completed
+        case interrupted
+    }
+
+    /// One step's state.
+    ///
+    /// `failure` is tested FIRST and wins outright. A marked activity is
+    /// interrupted whatever `isActive` says: `ChatStore.cancelStreaming`
+    /// writes the marker and clears `isActive` as two separate passes, so
+    /// there is a real window where both are set, and the interrupted answer
+    /// is the correct one throughout it.
+    nonisolated static func state(of activity: ToolActivity) -> StepState {
+        if activity.failure != nil { return .interrupted }
+        return activity.isActive ? .running : .completed
+    }
+
+    /// The collapsed chip's glyph: interrupted if ANY step is.
+    ///
+    /// Deliberately two-valued — it never returns `.running`. The collapsed
+    /// chip only renders on a turn that is over, and a finished turn holding
+    /// an activity nobody ever resolved (a `tool.started` with no completion
+    /// and no prose after it) would otherwise start claiming it is still
+    /// running, forever. That is a different bug from #296's and this is not
+    /// the lane that invents a rendering for it; `.completed` here preserves
+    /// exactly what shipped, and 296-B is the bar that says it must.
+    nonisolated static func summaryState(of activities: [ToolActivity]) -> StepState {
+        activities.contains { state(of: $0) == .interrupted } ? .interrupted : .completed
     }
 }

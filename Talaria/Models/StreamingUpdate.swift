@@ -12,7 +12,15 @@ struct ToolCallEvent: Sendable {
 
     let name: String
     let phase: Phase
-    /// Compact key-input summary (server `preview`, else condensed args).
+    /// Phase-dependent, and #296 is what made it so — read the phase first.
+    ///
+    /// - `.started`: the compact key-INPUT summary (server `preview`, else a
+    ///   condensed args line) — what the call touched.
+    /// - `.completed`: the host's error text when the frame carries one
+    ///   (runs plane only), i.e. why the call did not finish. `ChatStore`
+    ///   writes it to `ToolActivity.failure`, never over `ToolActivity.detail`
+    ///   — the started event's input summary is the more useful of the two and
+    ///   must survive.
     let detail: String?
 
     init(name: String, phase: Phase = .started, detail: String? = nil) {

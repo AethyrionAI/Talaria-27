@@ -1492,4 +1492,104 @@ struct ChatStorePersistenceTests {
             now: stamp.addingTimeInterval(ChatStore.stallHintAfter + 1)))
     }
 
+    // MARK: - #296 bar E — the marker must not cost anyone their history
+
+    /// #296 bar E. `ToolActivity` gained a `failure` field, and `ToolActivity`
+    /// has **no hand-written `init(from:)`** — Swift's synthesized one does
+    /// NOT apply property defaults, so a non-optional field would make every
+    /// blob written before this change throw `keyNotFound`. That throw
+    /// propagates all the way out (`Message.init(from:)` uses
+    /// `decodeIfPresent` for the ARRAY, which only tolerates a missing key —
+    /// a present-but-undecodable element still throws), and
+    /// `UserDefaultsAppPersistenceStore.load` catches it and returns nil.
+    /// The user's whole transcript would vanish: the #42 silent-wipe shape.
+    ///
+    /// So the fixture below is **hand-written on purpose** rather than
+    /// round-tripped through the encoder. A round-trip would prove nothing:
+    /// with `failure` nil, `JSONEncoder` omits the key anyway, so the bytes
+    /// would be identical whether the field were optional or not, and the
+    /// test would pass against the very declaration it exists to reject.
+    /// This blob is the CURRENT (pre-#296) schema, byte-for-byte, and it must
+    /// still round-trip to a full conversation.
+    ///
+    /// **Watched RED before it was trusted:** with `var failure: String = ""`
+    /// declared non-optional, this test fails on
+    /// `keyNotFound(CodingKeys(stringValue: "failure"...))`.
+    @Test @MainActor
+    func legacyToolActivityJSONStillDecodes() throws {
+        let suiteName = "chat-store-legacy-toolactivity-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defaults.removePersistentDomain(forName: suiteName)
+
+        // `UserDefaultsAppPersistenceStore.Keys.conversationCache`, spelled out
+        // because it is private — a divergence here presents as an empty
+        // conversation, so the assertions below would catch it as a failure
+        // rather than a false green.
+        let cacheKey = "hermes.conversationCache"
+        // Pre-#296 bytes: every key the schema had, and NOT ONE MORE. No
+        // `failure` anywhere.
+        let legacyJSON = """
+        {
+          "id": "5F8B4A21-0C3E-4D9A-9F17-2B6E8C1D4A70",
+          "title": "Hermes",
+          "lastActivity": "2026-08-08T23:59:00Z",
+          "messages": [
+            {
+              "id": "A1C2E3F4-5678-49AB-8CDE-0123456789AB",
+              "sender": "user",
+              "content": "sleep 30; echo STOPTEST",
+              "timestamp": "2026-08-08T23:58:58Z",
+              "status": "delivered"
+            },
+            {
+              "id": "B2D3F4A5-6789-4ABC-9DEF-123456789ABC",
+              "sender": "hermes",
+              "content": "",
+              "timestamp": "2026-08-08T23:59:00Z",
+              "status": "delivered",
+              "toolActivities": [
+                {
+                  "id": "C3E4A5B6-789A-4BCD-8EF0-23456789ABCD",
+                  "label": "terminal",
+                  "startedAt": "2026-08-08T23:59:00Z",
+                  "isActive": false,
+                  "detail": "sleep 30; echo STOPTEST",
+                  "anchorOffset": 0
+                }
+              ]
+            }
+          ]
+        }
+        """
+        // Decode the same bytes DIRECTLY first. The store's loader catches its
+        // decode error and returns nil, so the store path can only ever report
+        // "the conversation is gone" — this line is what reports WHY, verbatim,
+        // to whoever next breaks it.
+        let rawDecoder = JSONDecoder()
+        rawDecoder.dateDecodingStrategy = .iso8601
+        _ = try rawDecoder.decode(Conversation.self, from: Data(legacyJSON.utf8))
+
+        defaults.set(Data(legacyJSON.utf8), forKey: cacheKey)
+
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let restored = try #require(
+            persistence.loadConversationCache(),
+            "296-E: a conversation cached before the failure field must still decode — a nil here IS the #42 silent wipe"
+        )
+
+        #expect(restored.title == "Hermes")
+        #expect(restored.messages.count == 2, "296-E: both messages survive, not just the container")
+        #expect(restored.messages.first?.content == "sleep 30; echo STOPTEST")
+
+        let reply = try #require(restored.messages.last)
+        #expect(reply.sender == .hermes)
+        #expect(reply.toolActivities.count == 1, "296-E: the activity itself decodes, not just the message around it")
+        let activity = try #require(reply.toolActivities.first)
+        #expect(activity.label == "terminal")
+        #expect(activity.detail == "sleep 30; echo STOPTEST", "296-E: detail is the INPUT summary and is untouched by #296")
+        // The absent key reads as "no failure recorded" — which is the honest
+        // answer for a row written before the app could record one.
+        #expect(activity.failure == nil)
+    }
+
 }
