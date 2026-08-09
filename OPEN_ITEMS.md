@@ -5941,27 +5941,106 @@ stopped before any prose, **that chip is the entire message.** A checkmark is
 the whole content of the bubble, claiming a command completed that the user
 killed.
 
-**Mechanism:** `cancelStreaming` sets `toolActivities[i].isActive = false` on
-every activity, and the rail has only two states — the streaming test is
+**Mechanism (the PRE-FIX state, true at filing 2026-08-08; the fix lane below
+adds the third state 2026-08-09):** `cancelStreaming` sets
+`toolActivities[i].isActive = false` on every activity, and the rail has only
+two states — the streaming test is
 `message.isStreaming && group.contains(where: \.isActive)`
 (`MessageBubble.swift:566`). Not-streaming-and-not-active renders as done.
 **There is no interrupted state.**
 
-**We already have the truth and throw it away.** The 3A-C device pass
-captured the host saying exactly what happened —
-`{"output": "[Command interrupted]", "exit_code": 130}` and
-`Turn ended: reason=interrupted_by_user`. On the runs plane the client
-receives `tool.completed` carrying an `error` field and **parses it, then
-discards it** (`case .toolCompleted(let name, _)` — the adversarial audit
-flagged the same dead field independently).
+**~~We already have the truth and throw it away.~~ ⚠️ CORRECTED 2026-08-09
+(Task 0 of the fix lane, from a HEAD code read) — that sentence welded two
+different claims together, and only one of them was verified.** Split:
 
-**Fix shape:** give `ToolCallEvent` an interrupted state distinct from
-completed; have `cancelStreaming` mark in-flight activities interrupted
-rather than done; surface `tool.completed`'s `error` into
-`ToolCallEvent.detail`. **Bars: (296-A)** a tool in flight when Stop is
-tapped does NOT render a ✓; **(296-B)** a genuinely completed tool still
-does; **(296-C)** a host-reported tool error reaches the chip instead of
-being dropped.
+- **The discard is REAL and independently verified, client-side.**
+  `SessionsHermesClient+RunsTransport.swift` declares
+  `case toolCompleted(name: String, error: String?)`, parses it
+  (`return .toolCompleted(name: toolName, error: payload["error"] as? String)`),
+  and then drops it — `case .toolCompleted(let name, _):` yields a
+  `ToolCallEvent` with `detail: nil`. The adversarial audit's dead-field
+  finding reproduces exactly. This stands on its own and needs no host.
+- **The `exit_code 130` capture is a HOST LOG LINE, not a wire frame.** The 3A-C
+  evidence came from `~/.hermes/logs/agent.log` watched live
+  (`dispatch/DEVICE-PASS-RUNNING-LIST.md`, 3A row) and #283's device note reads
+  *"the **host logged** …"*. **Nobody has observed those bytes arriving at the
+  client.** Whether the host ever populates `tool.completed`'s `error` on an
+  interrupt — or on an ordinary tool failure — is **UNVERIFIED**.
+
+Why the split matters: it is the difference between *"the fix is plumbing"* and
+*"the fix needs a device turn to prove anything."* **296-A needs neither** — the
+client knows it stopped, so the primary defect is entirely client-side.
+
+**Which PLANE 296-C lives on — it is RUNS-PLANE ONLY, and the entry did not say
+so.** `useRunsTransport` defaults to **false** (`UserSettings.swift`), i.e. the
+sessions plane is the transport the app actually ships with, and on it there is
+no `error` key to surface at all: `parseToolCallEvent` reads only
+`tool_name`/`args`/`preview`, and the `tool.started`/`tool.completed` arm records
+that `tool.completed` carries no result payload — *"verified against the live
+host"*. So 296-A ships value to every user on day one; 296-C only to a
+Developer-flag user. See bar 296-D.
+
+**Fix shape:** give a tool call an interrupted state distinct from completed;
+have `cancelStreaming` mark in-flight activities interrupted rather than done;
+surface `tool.completed`'s `error` onto the chip.
+
+### Bars — WRITTEN FIRST, before any code (2026-08-09, Task 0)
+
+296-A/B/C are the filing's own wording and are sound; what follows carries them
+verbatim in substance and adds the refinements the fix lane's HEAD code read
+forced, plus two bars the filing did not have.
+
+- **296-A — a tool in flight when Stop is tapped does NOT render a ✓.**
+  *Refinement:* stated against the DERIVED rail state rather than pixels, so it
+  is unit-testable — after `cancelStreaming()`, the surviving activity carries a
+  non-nil interrupted marker, **and** the pure state function that drives the
+  rail's glyph returns the interrupted case for it.
+  *Evidence:* extend `AppStoresTests.stopDuringAToolCallKeepsTheActivityRow`
+  in place (that fixture already gets a chip on screen and taps Stop), plus a
+  pure-function test on the new rail-state derivation. **Device: no.**
+  *Falsification:* if the marker cannot be set without changing what #294 kept
+  (`toolActivities.count == 1`, `status == .delivered`), the shape is wrong.
+- **296-B — a genuinely completed tool still renders a ✓. TWO ROWS, not one.**
+  (i) a tool resolved by a **named `tool.completed`**, and (ii) a tool resolved
+  **implicitly by prose arriving** (the `.textDelta` arm). Both mean *completed*,
+  both must keep the ✓, and they take different code paths — a fix that only
+  handles one is a half-fix. **This is the regression bar**: it is what stops the
+  lane from "fixing" the ✓ by removing it. **Device: no.**
+- **296-C1 (code, no device) — a runs-plane `tool.completed` carrying a
+  non-empty `error` gets that text onto the `ToolActivity`** instead of bound to
+  `_`. *Evidence:* a `parseRunsFrame` test in `RunsFrameParserTests.swift`
+  (the parser already extracts it — the test pins it against a future
+  "clean-up" that drops the field again) plus a transport-loop test that the
+  value survives to the yielded `ToolCallEvent`, plus a `ChatStore` test that it
+  lands on the resolving activity's NEW field and leaves `detail` untouched.
+- **296-C2 (wire reality, DEVICE) — whether the host ever SENDS a non-empty
+  `error` on `tool.completed`.** UNVERIFIED. *Evidence:* one runs-plane device
+  turn with the Developer flag ON, a deliberately failing tool call, and the
+  frames read. **Device: yes. C1 MUST NOT BE REPORTED AS C2** — plumbing a field
+  is not evidence the field arrives. If C2 comes back empty, C1 is still correct
+  and still ships: it costs nothing and it is the honest home for the value if it
+  ever appears.
+- **296-D (new) — the sessions plane is explicitly OUT OF SCOPE and this entry
+  says so in writing.** With `useRunsTransport` off (the default) a stopped tool
+  still satisfies 296-A — because 296-A is client-side — but **no host error text
+  is available at all**, for the reasons in the plane paragraph above.
+  *Bar: recorded here* so a future reader does not read a green 296-C as a claim
+  about the transport the app actually ships with. **Device: no.**
+- **296-E (new) — the marker must not cost anyone their history.** Adding a field
+  to `ToolActivity` must not break decoding of an existing cached conversation.
+  *Bar: a decode test against a JSON blob written by the CURRENT schema (no new
+  key) round-trips to a full conversation with its messages and activities
+  intact.* **Device: no.**
+  *Why it is a bar and not a note:* `ToolActivity` is `Codable`, has NO
+  hand-written `init(from:)`, and rides the conversation cache through
+  `UserDefaultsAppPersistenceStore`, whose loader catches and returns nil.
+  Swift does **not** apply property defaults in a synthesized `init(from:)`, so a
+  non-optional new field makes every previously-written blob throw `keyNotFound`
+  and the whole conversation decodes to nil — the **#42 silent-wipe** shape,
+  named in that file's own comments. The field must be optional (or carry a
+  hand-written `decodeIfPresent`), and this bar exists to make that **proven, not
+  assumed**: a mandatory RED step declares the field non-optional, runs this one
+  test, and watches it fail on a decode error.
 
 ## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there. → ✅ FIX LANDED 2026-08-08 — bars 295-A/B/C MET, gate PASS.**
 
