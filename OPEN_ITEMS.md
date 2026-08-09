@@ -5097,7 +5097,7 @@ tapped does NOT render a ✓; **(296-B)** a genuinely completed tool still
 does; **(296-C)** a host-reported tool error reaches the chip instead of
 being dropped.
 
-## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there.**
+## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there. → ✅ FIX LANDED 2026-08-08 — bars 295-A/B/C MET, gate PASS.**
 
 **The discovery, which is larger than the fix that surfaced it.** Three sites
 claim that `cancelStreaming(hardStopHost: false)` — the continued-send
@@ -5148,6 +5148,77 @@ unaffected (still `.delivered`, still silent, no reconcile armed);
 not walk — the doc half, being fixed now in the #291 lane.
 
 > **OWEN'S RULING 2026-08-08: the recommended shape is APPROVED — settle `.working` + arm the plane-appropriate recovery, expiration path (`hardStopHost: false`) ONLY.** Sessions plane: the reconcile loop `.interrupted` already arms. Runs plane: the status poll (the answer is durably fetchable for ~1h). User-initiated Stop unchanged (`.delivered`, silent, no reconcile — bar 295-B). Bars 295-A/B/C stand as registered. Interaction with #292 noted, not blocking. Lane not yet opened; Owen routes scheduling.
+
+> **🔧 FIX LANDED 2026-08-08 on `t27-295-expiration-recovery`, TDD with RED
+> evidence at every step. Gate PASS. Bars 295-A/B/C all MET.** Three
+> commits: `3dbc583`/`3da36a8` (settle parameterization + `activeStreamRun`
+> capture), `cfbbd8a` (the arm itself), `951823b` (Owen's gate ruling —
+> below), plus this close-out lane's ordering pin.
+> - **295-A MET** — `cancelStreaming(hardStopHost: false)` on a
+>   server-recoverable turn now mirrors the `.interrupted` arm exactly:
+>   removes the placeholder (preserving `partialReasoning`), settles the
+>   user row `.working`, mints a `PendingRun` from the captured session id,
+>   and starts the reconcile loop — pinned end-to-end by
+>   `expirationPathArmsTheRealRecovery` (drives a real reconcile pass and
+>   asserts the streamed reasoning survives onto the recovered reply, not
+>   just that a `PendingRun` exists) and the settle half by
+>   `expirationPathSettlesTheUserRowWorking`.
+> - **295-B MET** — a user-initiated Stop (`hardStopHost: true`, the
+>   default) is byte-unchanged: `explicitStopStillSettlesTheUserRowDelivered`
+>   and `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop` pin `.delivered`,
+>   no `PendingRun`, no reconcile loop.
+> - **295-C MET** — the doc block above `cancelStreaming`
+>   (`ChatStore.swift`), `HermesClientProtocol.hardStopActiveRun`'s doc, and
+>   the `#291 close-out` comment in `RunsPlaneTransportTests.swift` (the
+>   three sites this entry named) were all rewritten to describe the SHIPPED
+>   arm-on-recoverable / finalize-on-local-brain behavior. A repo-wide grep
+>   for `"degrades to the ordinary recovery poll"`, `"not implemented here"`,
+>   and `"open decision (#295)"` returns nothing. (The *other* "recovery
+>   poll" hits the grep also turned up — `SessionsHermesClient.swift:47`,
+>   `+RunsTransport.swift:283/288/784/876`, `RunsPlaneTransportTests.swift:346/1135`
+>   — are a DIFFERENT, real mechanism: the runs-plane's own host status poll
+>   after a stall/`/stop`, unrelated to the sessions-plane claim this bar is
+>   about. Left untouched deliberately, not missed.)
+> - **Owen's ruling shipped as the gate, not just approved:** a LOCAL-brain
+>   turn (on-device/PCC, #30) reads `currentRunIsServerRecoverable == false`
+>   and arms NO recovery — instead it finalizes the placeholder exactly like
+>   an explicit Stop, preserving the partial. This closes a corruption
+>   sequence the naive "always arm" shape would have opened: (1) nothing is
+>   ever committed server-side for a local turn, so
+>   `performReconcilePendingRuns` (fired every foreground/appear) would
+>   re-arm a fresh budget window FOREVER — an unbounded re-arm, not a
+>   one-shot failure; (2) worse, `reconcileFromServer()` resolves against
+>   `journal.activeHop`, NOT `pending.sessionId` — so once the conversation's
+>   next REAL Hermes turn lands on that same hop, `attemptReconcile`'s filter
+>   (`sender == .hermes && timestamp > pending.sentAt`) matches that unrelated
+>   reply and wrongly stamps it with the dead local turn's
+>   `partialReasoning`/duration, re-pairing it with the dead turn's prompt —
+>   cross-hop corruption, sequential, no concurrency needed; (3) the
+>   placeholder-removal mechanics the recovery arm uses would have destroyed
+>   the local turn's own real partial answer for a recovery that was never
+>   coming. Pinned by `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`
+>   (wires an EARLIER real Hermes hop on the journal, the exact shape the
+>   cross-hop corruption needs, and asserts no `PendingRun`, no loop, and the
+>   partial preserved).
+> - **The ordering pin (carried from the fix re-review, closed in this
+>   lane):** `cancelStreaming` reads `currentRunIsServerRecoverable` as its
+>   FIRST statement — before `streamingTask?.cancel()`, `hardStopActiveRun()`
+>   and `abandonActiveRun()` — because `abandonActiveRun()` releases the
+>   router's routing lock, which is the very signal `ChatBackendRouter`
+>   builds this gate from. Every double in this file used to answer the flag
+>   with a constant, so nothing pinned the ORDER of that read — a refactor
+>   moving it below the clears would have shipped silently, every production
+>   Hermes expiration falling to the non-recoverable branch with a fully
+>   green suite. `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`
+>   closes that hole: a double that flips `true → false` the instant either
+>   teardown call fires. **Verified RED first** — moving the read line to
+>   just after `abandonActiveRun()` failed the test (`pendingRunSessionId`
+>   nil, `hasActiveReconcileLoop` false), then the line was restored and the
+>   test re-verified GREEN.
+> - **Gate: PASS** (Debug suite — units + XCUITest — and a Release build,
+>   both required by `scripts/mac/lane-gate.sh`). AppStoresTests 118/118
+>   (117 pre-lane + this lane's ordering pin), RunsPlaneTransportTests
+>   32/32, both foreground.
 
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 

@@ -168,12 +168,15 @@ protocol HermesClientProtocol {
     /// above: a walk-away must never hard-kill a run the user didn't ask to
     /// stop, so this is the ONLY door that touches the network.
     ///
-    /// #291 close-out (tracker #295): skipping this call does NOT "degrade
-    /// to the ordinary recovery poll" — there is no client-side
-    /// host-recovery poll on the expiration path. See
-    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the corrected
-    /// account and the open decision (#295) on whether that path should
-    /// instead arm the genuine `pendingRun` / `reconcileFromServer()` route.
+    /// #295 close-out (SHIPPED): skipping this call does NOT "degrade to
+    /// the ordinary recovery poll" — there is no client-side host-recovery
+    /// poll on the expiration path. What it degrades to instead is the real
+    /// route: on a server-recoverable turn, `ChatStore.cancelStreaming`
+    /// arms `pendingRun` / `reconcileFromServer()`, the same mechanics the
+    /// `.interrupted` arm uses; on a local-brain turn (nothing server-side
+    /// to reconcile against) it finalizes the placeholder instead, same as
+    /// an explicit Stop. See `ChatStore.cancelStreaming(hardStopHost:)`'s
+    /// doc for the full account.
     func hardStopActiveRun()
 
     /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)

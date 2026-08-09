@@ -1231,23 +1231,39 @@ final class ChatStore {
     /// the host run is left alone rather than hard-killed on a turn the user
     /// never asked to stop. That much is load-bearing.
     ///
-    /// #291 close-out (tracker #295): what is NOT true is the claim this
-    /// comment used to make — that the expiration path "degrades to the
-    /// ordinary recovery poll." There is no client-side host-recovery poll
-    /// on this path. `restartPendingPollingIfNeeded`'s loop re-merges
-    /// `hermesClient.loadConversation()`, and `SessionsHermesClient`'s
-    /// implementation of that call returns the client's own cached
-    /// `currentConversation` with no network request — it cannot retrieve an
-    /// answer the host is still generating. The one genuine recovery route
+    /// #295 close-out (Owen's ruling, 2026-08-08 — SHIPPED, not a plan): the
+    /// expiration path does NOT "degrade to the ordinary recovery poll" —
+    /// `restartPendingPollingIfNeeded`'s loop only ever re-merges
+    /// `hermesClient.loadConversation()`'s CACHED conversation (no network
+    /// call on the sessions plane), so it was never capable of retrieving an
+    /// answer the host is still generating. The genuine recovery route
     /// (`pendingRun` + `startReconcileLoopIfNeeded()` → `reconcileFromServer()`,
-    /// a real GET) is armed only by `.interrupted`, not by this path.
-    /// Whether the expiration path should instead settle `.working` and arm
-    /// that reconcile loop is the open decision filed as #295 — not
-    /// implemented here.
+    /// a real GET) now arms on THIS path too, mirroring the `.interrupted`
+    /// arm's mechanics (`armPendingRunRecovery`, above) — but ONLY when
+    /// `hermesClient.currentRunIsServerRecoverable` says the run is on a
+    /// plane whose host keeps generating after this client's stream drops
+    /// (the real Hermes plane, sessions or runs — `reconcileFromServer()` is
+    /// routed by `ChatBackendRouter`, so the one arming site here recovers
+    /// correctly whichever plane owns the turn). A LOCAL-brain turn (on-device
+    /// / PCC, #30) reads `false` from that gate — nothing is ever committed
+    /// server-side for it, so nothing would ever satisfy the reconcile filter,
+    /// and worse, `reconcileFromServer()` resolves against `journal.activeHop`
+    /// rather than the pending run's own session id, so an unrelated LATER
+    /// Hermes turn on that hop could wrongly adopt a dead local turn's
+    /// reasoning (see the gate's own doc,
+    /// `HermesClientProtocol.currentRunIsServerRecoverable`, for the full
+    /// cross-hop-corruption chain). A local-brain expiration therefore keeps
+    /// the pre-#295 behavior: finalize the placeholder as a terminal
+    /// `.delivered` bubble, same as an explicit Stop — no recovery is coming,
+    /// so silence over that turn is the honest outcome, not a hole.
+    /// User-initiated Stop (`hardStopHost: true`) is byte-unchanged by any of
+    /// this: `.delivered`, silent, no `PendingRun`, no reconcile armed (bar
+    /// 295-B) — the user does not want the answer.
     ///
     /// Every other effect below — cancelling the local task, releasing the
     /// router's routing lock, finalizing the UI, ending the Live Activity —
-    /// still happens on BOTH paths; only the network call is gated.
+    /// still happens on every path; only the network call and the recovery
+    /// arm are gated.
     func cancelStreaming(hardStopHost: Bool = true) {
         // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
         // before cancelling the consuming task (which the router treats as a

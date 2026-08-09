@@ -1,5 +1,7 @@
 # #295 Expiration-Path Recovery Implementation Plan
 
+> **OUTCOME 2026-08-08:** all 3 tasks executed, bars 295-A/B/C met, gate PASS. PR pending.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** When iOS revokes a backgrounded turn's budget (`cancelStreaming(hardStopHost:
