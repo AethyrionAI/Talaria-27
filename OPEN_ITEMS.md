@@ -175,6 +175,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** ⚰️ Notifications never authorized on a fresh install + a false-green panel — **MOOT BY DELETION: #238 removed the subsystem; §F3 has nothing to run** (corrected 2026-08-09) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272**, which leaves the locked interval unbounded. Observed in passing by #254's device run, **not investigated**
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen. Observed in passing by #254's lane, not caused by its diff, **not investigated.** Either the known trap is wider than recorded or this is a second defect — both worth knowing, and a sim repro is far cheaper than a device one
 - **#300** 🐛 `lane-gate.sh`'s failure advice misdiagnoses a Swift Testing failure WITH assertion text as an XCUITest flake WITHOUT one, and cites **#164, which is CLOSED** — following it literally reopens a closed item under a wrong diagnosis and re-rolls a real failure as noise. The discriminator it needs (presence of assertion text) is already in its own text
 - **#298** 🧹 #238 teardown residue in `updateWidgetData`'s comments — **VERDICT: DEAD.** The push-wake path really did order `loadInbox(force:)` before it and #238 T4 really did delete that, but it was 1 of only 3 orderers among 9 callers, `stampBriefing` guard-returns rather than wiping, and #126's briefing is producerless — so **#126's dependence is REFUTED** and no ordering fix is owed. Comments corrected; no bars (no run) …
@@ -195,7 +196,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt …
 - **#256** ✅ SETTINGS GRID STATUS STRIP — **CLOSED 2026-08-09: shipped 2026-08-05, bars met on 2042/2047; 256-E's text superseded by 256-G, its device half rides #249's 249F-D**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
-- **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C, device bars 254-D/E OWED — STAYS OPEN**
+- **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
@@ -5622,6 +5623,72 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING, NOT INVESTIGATED. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is the whole question. NOT STARTED; bars pre-register here before any code.**
+
+**Observed** on build 2330 (`main` @ `6b71872`, Release OTA), `whoGoesThere`,
+iOS 27.0, while running #254's native arm. App Lock was enabled with grace
+`Immediately`; the launch came from Control Center → "Talk to Hermes" on a
+force-quit app. Both trials show the same ordering:
+
+```
+13:20:52.983  [controls] OpenHermesVoiceIntent.perform fired in the APP process — routing hermes://voice
+13:20:53.006  [VoiceEngineRouter] voice session starting on engine native (relayPaired=true)
+13:20:53.109  [NativeVoicePipeline] audio deactivated by app — not an interruption (#198)
+13:20:53.659  [AppLock] scenePhase background -> active | pre: cover=locked locked=true
+13:20:54.165  [AppLock] requestUnlock EXIT attempt=1 result=SUCCESS
+```
+
+**The voice session's start is logged ~653 ms BEFORE the lock controller sees
+`.active` at all, and ~1.16 s before the unlock succeeds.** The second trial
+(PID 15143, 13:32:24.984 vs 13:32:26.203) reproduces the same ordering with the
+same sign, so it is not a one-off scheduling artifact.
+
+**What is NOT established, and this is the entire reason the item exists as a
+question rather than a finding.** The `audio deactivated by app` line 103 ms
+after the start suggests the capture chain does **not** stay up behind the lock
+cover — that reading is *consistent* with the logs and is **not proven by
+them**. Nothing here distinguishes:
+- **(a)** the session starting, immediately deactivating audio, and waiting for
+  the unlock — benign, and what the deactivate line hints at; from
+- **(b)** a microphone that is briefly live while the app is locked — a real
+  privacy defect, and exactly the class of thing App Lock exists to prevent;
+  from
+- **(c)** an ordering that is benign today only because the unlock happened to
+  succeed in ~500 ms. **A CANCELLED unlock is the untested case** — and per
+  **#272**, a cancelled unlock currently loops indefinitely, so the "locked"
+  interval is unbounded in practice. **#272 and this item compose**, and neither
+  entry's evidence was taken with the other in mind.
+
+**Do not read the `#198` deactivate line as an answer.** It is emitted by BOTH
+pipelines on every audio-session teardown and appears throughout these logs in
+contexts that have nothing to do with the lock; treating it as proof the mic was
+never hot would be reading a general-purpose line as a specific guarantee.
+
+**Bars, pre-registered before any code:**
+- **302-A — the mic state during the locked interval is MEASURED, not
+  inferred.** An instrument that reports whether the capture chain is running
+  between `voice session starting` and the unlock resolving. Evidence must
+  distinguish (a) from (b) above; a log line that merely repeats "audio
+  deactivated" does not.
+- **302-B — the CANCELLED-unlock case is run explicitly**, with the locked
+  interval held open (trivially arranged while #272 is unfixed). If the mic is
+  cold in 302-A but hot here, the defect is real and this is where it shows.
+- **302-C — the intended contract is WRITTEN DOWN before any fix.** Should a
+  Control Center voice launch on a locked app (i) be refused, (ii) be deferred
+  until unlock, or (iii) proceed as it does now? This is a product decision and
+  it is **Owen's**, not a lane's — a fix chosen before the contract is stated
+  would be guessing at which of three defensible behaviours is wanted.
+
+**Pre-registered response:** if 302-A and 302-B both show the capture chain
+cold, this closes as **NOT A DEFECT** with the ordering documented — the
+observation was still worth filing, and a closed item with a measurement beats
+an unfiled hunch. If either shows it hot, this becomes a privacy defect and
+outranks the remaining #254 device bars.
+
+**Related:** #124 (App Lock, whose seven original checks would not catch this —
+the same blind spot that hid #272 for 12 days), #272 (unbounded locked interval),
+#254 (the run that surfaced it), #118 (background revoke).
+
 ## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — **FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**
 
 **Observed** by #254's lane while executing bar 254-F, on `CC-272-iPhone-Air`
@@ -9809,7 +9876,7 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > still works under its old name. Item stays open only for (b)/(c)
 > verdicts; everything else in the inventory was KEEP or rides #251.
 
-## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — device bars 254-D/E OWED**
+## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
 > **⚠️ HEADER CORRECTED TWICE, and this item is NOT closed.** The downgrade to
 > WATCH was recorded in the body on 2026-08-05 but the header kept describing a
@@ -10005,6 +10072,73 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > recorded here instead and needs its own number — Owen's call**, since
 > allocating one touches the numbering sequence and the INDEX and is outside
 > this lane's scope.
+
+> **📱 DEVICE RUN 2026-08-09 — build 2330, corded, airplane mode, Owen
+> driving. 254-E is UNRUNNABLE AS WRITTEN. The native `LIVE` arm was verified
+> in its place, and that substitution is LABELLED, not folded into the bar.**
+>
+> **254-E — UNRUNNABLE AS WRITTEN, and the reason is measured, not argued.**
+> The bar pins native via airplane mode — but the same airplane mode collapses
+> the connect window the STARTING arm requires:
+> ```
+> 13:20:52.983  OpenHermesVoiceIntent.perform fired in the APP process — routing hermes://voice
+> 13:20:53.006  voice session starting on engine native (relayPaired=true)
+> ```
+> **23 milliseconds.** Owen: *"there is no establishing link, its so fast to
+> failover to local that it appears by the time I press talk to hermes, its
+> already listening."* There is no interval to background into, so no trial on
+> this route can reach `isStartingSession == true && isSessionActive == false`.
+> **Per the running list's own standing rule — a check that cannot be performed
+> as written is a defect in the DOCUMENT, not a result — 254-E is not scored in
+> either direction.**
+> - The engine line reads `relayPaired=true`. The bar's own warning held:
+>   pairing did not choose the engine, the failed readiness probe did.
+> - **This does NOT mean the native STARTING window is unreachable in
+>   principle.** The correction block above names two uncovered windows — the
+>   #82 mic preflight and the realtime→native fallback — and the fallback one
+>   *requires the network to be present*. Airplane mode cannot open it **by
+>   construction**, which is the specific thing now known. A native pin that
+>   keeps the network (the on-device brain, per #221) is the untried candidate
+>   route.
+>
+> **✅ NATIVE `LIVE` ARM — PASS. Recorded under its own name; this is NOT a
+> 254-E pass and must never be cited as one.**
+> ```
+> 13:32:40.840  scenePhase inactive -> background
+> 13:32:41.042  #118/#254: app backgrounded with a voice session (LIVE) — revoking it
+> 13:32:42.060  audio deactivated by app — not an interruption (#198)    ×3 pairs, through .722
+> 13:32:42.207  #254 254-F: VoiceOverlayScreen.onDisappear fired (appState=background)
+> ```
+> Revoke **202 ms** after background; audio down ~1 s later. Owen: *"silence,
+> mic went dark."* Engine quoted per #220:
+> `voice session starting on engine native (relayPaired=true)`.
+> **What this establishes:** the native audio path (`SpeechOutputService`, whose
+> native-pipeline instance has `managesAudioSession == false`) is genuinely torn
+> down by the #118 observer — precisely the half of the two-engine argument a
+> 254-D pass could never supply. **What it does NOT establish:** anything at all
+> about the STARTING arm on native.
+>
+> **A false contradiction, headed off before it enters the record.** That
+> `onDisappear` line fires at `appState=background`, which reads like a
+> refutation of 254-F's simulator finding that it does *not* fire on
+> backgrounding. **It is not one.** The revoke handler sets
+> `container.router.isVoiceOverlayPresented = false` immediately after
+> `abandonSession()`, so this `onDisappear` is downstream of the **revoke**, not
+> of the backgrounding — visible in the 1.2 s gap between them. On 254-F's sim
+> trials no revoke fired (idle store), so nothing dismissed the cover. The two
+> results are consistent, and only because the revoke ran first.
+>
+> **One earlier trial was VOID and is recorded rather than dropped.** The first
+> attempt dismissed the overlay *before* backgrounding, so teardown went through
+> `VoiceOverlayScreen.onDisappear (appState=active)` and the background observer
+> had nothing left to revoke — **no `#118/#254` line at all, neither arm.** The
+> instruction was at fault, not the app; a runner told to "background it" will
+> reach for the overlay's own dismiss unless told not to.
+>
+> **254-D remains OWED and is unaffected** — realtime over a real network has a
+> genuine connect window. **Free capture from the same logs, routed out:** the
+> voice session start precedes App Lock's cover evaluation by ~650 ms on a cold
+> Control Center launch → filed as **#302**.
 
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
 hermes buttons in the control center started working? The chat one takes

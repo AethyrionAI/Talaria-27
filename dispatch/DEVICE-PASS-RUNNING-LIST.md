@@ -163,7 +163,23 @@ registered** and bars 295-A/B/C are unit-pinned instead.
   is the only way to see the recovery arm work without waiting for iOS to revoke
   a budget.
 
-### Z5 · #284 — the `fullBelt=` budget contrast · **opportunistic, no bar**
+### Z5 · #284 — the `fullBelt=` budget contrast · ~~opportunistic, no bar~~ **✅ CAPTURED 2026-08-09 — `fullBelt=1648tok`. Nothing further owed.**
+
+> **✅ 2026-08-09, build 2330 — captured for FREE while running R7, no setup, no
+> dedicated turn.** Two toolless on-device turns, ~11 minutes apart, both
+> reporting the same figure:
+> ```
+> 13:21:04  session budget: 0 tool(s) ~0 tok + transcript ~527 tok of window 8192 — ~7665 free fullBelt=1648tok (#228)
+> 13:32:39  session budget: 0 tool(s) ~0 tok + transcript ~565 tok of window 8192 — ~7627 free fullBelt=1648tok (#228)
+> ```
+> **The un-narrowed belt costs 1,648 tokens — the real number #229/#101 have
+> never had.** Note the shape these two rows happen to capture: both turns were
+> routed **toolless**, so `0 tool(s) ~0 tok` is the *armed* cost and `fullBelt`
+> is what arming WOULD have cost. Against an 8,192 window that is **20.1%**.
+> An armed-turn reading is still worth taking opportunistically for the
+> contrast, but this row's stated signal is met.
+
+*(original row text follows, kept for the record)*
 
 Not owed (arming didn't ship, so nothing narrows — the #284 verdict records
 "reclaim: n/a"). But the line now measures the **un-narrowed** belt cost per turn,
@@ -813,12 +829,26 @@ second person to actually call the phone.
   not use airplane mode as the fixture. (PASS: each arm reads the engine
   the setting says it should, and it stays that way across all four
   stickiness checks.)
-- [ ] §F6's #58/#179 — From the Lock Screen or Home Screen (cold, not from
+- [~] §F6's #58/#179 — From the Lock Screen or Home Screen (cold, not from
   inside the app), tap "Ask Hermes" in Control Center. (PASS: Talaria opens
   on the Chat tab and the `.notice` perform log line appears under
-  subsystem `org.aethyrion.talaria27` — the APP process ran it, not the
+  subsystem ~~`org.aethyrion.talaria27`~~ **`org.aethyrion.talaria`,
+  category `controls`** — the APP process ran it, not the
   widget extension; a second tap also routes correctly.) Then tap "Talk to
   Hermes." (PASS: the voice overlay opens.)
+  - **⚠️ THIS ROW'S STATED LOG LOCATION WAS WRONG — corrected 2026-08-09 in
+    place.** The line emits under subsystem **`org.aethyrion.talaria`**, not
+    `…talaria27`. A runner grepping the documented subsystem finds nothing and
+    records a **false FAIL** on a working feature. (The app mixes both
+    subsystems: `AppLock` really does log under `org.aethyrion.talaria27`,
+    which is presumably how the wrong one got written here.)
+  - **✅ "Talk to Hermes" HALF DONE 2026-08-09** (free, while running R7, build
+    2330): `[org.aethyrion.talaria:controls] OpenHermesVoiceIntent.perform
+    fired in the APP process — routing hermes://voice`, twice on two separate
+    cold launches, voice overlay opened both times. **APP process confirmed —
+    that is the clause this bar exists for.**
+  - **STILL OWED: the "Ask Hermes" half** (opens on the Chat tab) and the
+    second-tap-also-routes clause. Both are cheap; neither has been run.
 - [ ] §F10 (new) — #77: type `hermes://session/{a real id}` into Safari's
   address bar. (PASS: the app opens that exact session.) Then, via
   Shortcuts, run "Open URL" with `hermes://ask?q=hello`. (PASS: composer is
@@ -2281,7 +2311,42 @@ rule — a verdict that cannot name its own engine tested nothing). Read at
 If the `(LIVE)` arm fires instead, the connect window closed first and **the trial did
 not exercise the race** — retry, do not record it as a pass.
 
-### R7 · #254-E — voice ghost, NATIVE pin (airplane mode, free)
+### R7 · #254-E — voice ghost, NATIVE pin (airplane mode, free) · ~~queued~~ **⛔ RAN 2026-08-09 — UNRUNNABLE AS WRITTEN. This row's own fixture defeats its own bar. DO NOT RE-RUN IT AS WRITTEN.**
+
+> **⛔ VERDICT, 2026-08-09 — build 2330, corded, Owen driving. NOT a fail, NOT
+> a pass: the check cannot be performed as written, which this document says
+> is a defect in the DOCUMENT.**
+>
+> **Airplane mode pins native by failing the realtime probe — and the same
+> failover collapses the connect window the STARTING arm needs to exist.**
+> Measured, not argued: `OpenHermesVoiceIntent.perform` at `13:20:52.983` →
+> `voice session starting on engine native` at `13:20:53.006`. **23 ms.**
+> Owen: *"there is no establishing link, its so fast to failover to local that
+> it appears by the time I press talk to hermes, its already listening."*
+>
+> **What DID run, and it is filed under its own name rather than as this bar:**
+> the native **`LIVE`** arm passed — `#118/#254: app backgrounded with a voice
+> session (LIVE) — revoking it` 202 ms after background, audio down ~1 s later,
+> Owen: *"silence, mic went dark."* That proves the native audio path tears down
+> under the #118 guard, which is real value; it says **nothing** about STARTING.
+>
+> **If someone wants to re-open the native STARTING arm, airplane mode is
+> permanently the wrong fixture** — the realtime→native fallback window
+> (`OPEN_ITEMS.md` #254's correction block) *requires the network*, so airplane
+> mode closes it by construction. The untried candidate is a native pin that
+> KEEPS the network: select the **on-device brain** (#221's brain-governs-voice
+> route). Nobody has run that.
+>
+> **Two things came free from the same logs and are already banked:** Z5's
+> `fullBelt=1648tok` (below), and the "Talk to Hermes" half of §F6's #58/#179 —
+> **whose documented log location is WRONG, see the §F6 note.**
+>
+> **New item filed from this run: #302** — the voice session starts ~650 ms
+> before App Lock evaluates its cover, so a Control Center launch begins on a
+> locked app. Mic state during that interval is UNDETERMINED. Full detail and
+> bars: OPEN_ITEMS #254 (device-run block) and #302.
+
+*(original row text follows, kept for the record)*
 
 Same procedure with **airplane mode ON**, which fails the realtime readiness probe and
 forces native at zero cost.
