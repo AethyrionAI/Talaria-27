@@ -742,6 +742,15 @@ final class SessionsHermesClient: HermesClientProtocol {
         return convo
     }
 
+    /// #295: this client IS the Hermes plane by construction — any run it
+    /// has active is always server-recoverable via `reconcileFromServer()`
+    /// above. `ChatBackendRouter` overrides the same requirement to check
+    /// which brain currently holds its routing lock; this override is what
+    /// makes a raw `SessionsHermesClient` wired directly (bypassing the
+    /// router — some tests do this) still answer correctly rather than
+    /// falling through to the protocol's conservative `false` default.
+    var currentRunIsServerRecoverable: Bool { true }
+
     /// #78: adopt a consumer-side truncation. `currentConversation` here is a
     /// FETCH CACHE — the last thing this client read from the host — and
     /// ChatStore treats it as an authoritative refresh source, so a stale

@@ -1723,14 +1723,24 @@ struct AppStoresTests {
     /// and the turn's user row must read `.working`, not `.delivered`: the
     /// host may still be generating a reply, so `.delivered` would claim an
     /// answer that hasn't arrived.
+    ///
+    /// #295 review follow-up: `.working` is now honest ONLY when recovery
+    /// actually armed (a gate this test didn't originally exercise — it had
+    /// no `journal`, so `activeSessionID` was always nil and no session id
+    /// could ever resolve). Wired a journal with a real hop so this test
+    /// keeps testing what its own name promises: a genuinely-recoverable
+    /// turn settling `.working`. The gate's negative case (`.delivered` when
+    /// nothing is watching) is `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`.
     @Test @MainActor
     func expirationPathSettlesTheUserRowWorking() async throws {
         let suiteName = "chat-store-expiration-settles-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "expiration-settle-session", primingUsage: nil)
         let hermesClient = StoppableStreamingChatClient(script: .partialProse("Half an ans"))
-        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
 
         let sendTask = Task { @MainActor in await chatStore.sendMessage("expire me") }
         let streamed = await pollUntil {
@@ -1778,10 +1788,13 @@ struct AppStoresTests {
         #expect(userRows.first?.status == .delivered, "295-B: a user-initiated Stop is unaffected — still `.delivered`")
     }
 
-    /// #295: `activeStreamRun` is the identifier pair a later `cancelStreaming`
+    /// #295: `activeStreamRun` is the session id a later `cancelStreaming`
     /// needs to arm real recovery (Task 2's `PendingRun`) — captured as soon
     /// as the send path learns the session id and cleared on every terminal
-    /// path. The session id source is the shared journal's active hop
+    /// path. (Review follow-up: this used to be a `(sessionId:runId:)` tuple;
+    /// `runId` was dropped as provably-always-nil dead weight — see the
+    /// property's own doc.) The session id source is the shared journal's
+    /// active hop
     /// (`activeSessionID`), the same value `SessionsHermesClient
     /// .ensureHopForTurn()` records before ANY stream event is yielded in
     /// production — so wiring a real `ConversationJournalStore` with a hop
@@ -1808,7 +1821,7 @@ struct AppStoresTests {
         }
         #expect(streamed)
         #expect(
-            chatStore1.activeStreamRun?.sessionId == "capture-session",
+            chatStore1.activeStreamRun == "capture-session",
             "295: the send path captured the active hop's session id mid-stream"
         )
 
@@ -1843,12 +1856,21 @@ struct AppStoresTests {
     /// once the reconcile loop adopts the server's reply, the reasoning
     /// streamed before the drop must reappear on it — proving it actually
     /// rode the PendingRun, not just that a PendingRun exists.
+    ///
+    /// #295 review follow-up: `ExpiringReconcileClient` explicitly opts into
+    /// `currentRunIsServerRecoverable == true` — this test's whole point is
+    /// the GATE saying yes (a real Hermes-plane turn), the mirror image of
+    /// `localBrainExpirationArmsNoRecoveryAndPreservesThePartial` below,
+    /// which pins the gate saying no. Bar 295-A stays intact under the gate.
     @Test @MainActor
     func expirationPathArmsTheRealRecovery() async throws {
         final class ExpiringReconcileClient: HermesClientProtocol {
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
             var replyAvailable = false
+            // #295 review follow-up: this client models a real Hermes-plane
+            // turn — the gate must see that and arm recovery.
+            let currentRunIsServerRecoverable = true
 
             func connect() async {}
             func disconnect() async {}
@@ -1978,6 +2000,10 @@ struct AppStoresTests {
         final class SilentStreamingChatClient: HermesClientProtocol {
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
+            // #295 review follow-up: this models a Hermes-plane attachment
+            // upload (the one shape that can hit zero processed events before
+            // expiration) — the gate must see that and still arm recovery.
+            let currentRunIsServerRecoverable = true
 
             func connect() async {}
             func disconnect() async {}
@@ -2065,6 +2091,94 @@ struct AppStoresTests {
         #expect(hermesClient.hardStopActiveRunCallCount == 0, "the expiration path must never hard-kill the host run")
         #expect(chatStore.pendingRunSessionId == "abandon-session", "releasing the lock must not interfere with arming recovery")
         #expect(chatStore.hasActiveReconcileLoop)
+    }
+
+    // MARK: - #295 review follow-up (Owen's ruling) — gate the arm to server-recoverable turns
+
+    /// #295 gate pin (Owen's ruling): a LOCAL-brain turn (on-device / PCC,
+    /// #30) can NEVER be recovered server-side — nothing is committed to any
+    /// host, so arming a `PendingRun` for it would be worse than the silent
+    /// hole this lane closes for Hermes turns. Two failure modes, both real:
+    /// (1) `reconcileFromServer()` would never find a matching reply for
+    /// THIS turn, so `performReconcilePendingRuns` (fired on every
+    /// foreground/appear) re-arms a fresh budget window indefinitely; (2)
+    /// worse, `reconcileFromServer()` resolves against `journal.activeHop`,
+    /// NOT `pending.sessionId` — so once the conversation's NEXT Hermes turn
+    /// lands on a fresh hop, `attemptReconcile`'s filter (`sender == .hermes
+    /// && timestamp > pending.sentAt`) matches THAT reply and wrongly stamps
+    /// it with THIS dead local turn's `partialReasoning`/`turnDuration`,
+    /// re-paired via `placingRecoveredReply` with THIS turn's prompt —
+    /// cross-hop corruption, sequential, no concurrency needed. This test
+    /// wires exactly the shape the corruption needs (an EARLIER Hermes hop
+    /// already on the journal) and pins that the gate — `currentRunIsServerRecoverable`,
+    /// read before `abandonActiveRun()` clears the signal it's built from —
+    /// stops it: no `PendingRun`, no loop, AND the partial is preserved
+    /// (finalized like an explicit Stop) rather than destroyed the way the
+    /// recovery arm's placeholder removal would have.
+    @Test @MainActor
+    func localBrainExpirationArmsNoRecoveryAndPreservesThePartial() async throws {
+        /// Models `LocalChatBackend`: never overrides `currentRunIsServerRecoverable`
+        /// (protocol default `false`) or `reconcileFromServer()` (default `nil`)
+        /// — exactly like the real on-device/PCC client, which has no server
+        /// to reconcile against. Streams a partial, then goes silent —
+        /// held-open-until-Stop, mirroring `StoppableStreamingChatClient`'s
+        /// shape for the Hermes plane.
+        final class LocalBrainStreamingChatClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { continuation in
+                    continuation.yield(.textDelta("Half a local ans"))
+                    // Never finishes — the app is suspended mid on-device
+                    // generation; there is no host still producing anything.
+                }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+        }
+
+        let suiteName = "chat-store-expiration-local-brain-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        // The exact shape the corruption sequence needs: an EARLIER Hermes
+        // turn already left a real, non-nil hop on the journal, even though
+        // THIS turn never touches Hermes at all.
+        journal.beginHop(apiSessionId: "earlier-hermes-hop", primingUsage: nil)
+        let hermesClient = LocalBrainStreamingChatClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("local turn that expires") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed)
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        #expect(chatStore.pendingRunSessionId == nil, "a local-brain turn must arm NO recovery — nothing is committed server-side")
+        #expect(chatStore.hasActiveReconcileLoop == false)
+        let reply = chatStore.conversation?.messages.last { $0.sender == .hermes }
+        #expect(
+            reply?.content == "Half a local ans",
+            "the partial must be PRESERVED, not destroyed the way the recovery arm's placeholder removal would have"
+        )
+        let userRows = chatStore.conversation?.messages.filter { $0.sender == .user } ?? []
+        #expect(
+            userRows.first?.status == .delivered,
+            "295 gate fix: no recovery is coming, so `.working` would be a lie nothing ever scrubs — settle `.delivered` like an explicit Stop"
+        )
     }
 
     @Test @MainActor
@@ -4212,6 +4326,13 @@ struct AppStoresTests {
         /// observable to a test.
         private(set) var abandonActiveRunCallCount = 0
         private(set) var hardStopActiveRunCallCount = 0
+        /// #295 review follow-up: this double models a live Hermes-plane
+        /// turn (partial prose / tool activity accepted server-side, held
+        /// open until a Stop) — every existing use of it predates the gate
+        /// and expects the pre-gate `hardStopHost: false` behavior where one
+        /// is exercised, so it opts in rather than falling to the protocol's
+        /// conservative `false` default.
+        let currentRunIsServerRecoverable = true
 
         init(script: Script) {
             self.script = script
