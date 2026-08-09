@@ -190,7 +190,15 @@ enum SettingsCardAccent {
     /// the #180 family (a signal that does not say what it appears to say).
     /// The read-aloud toggle keeps its own home on `VoiceSettingsScreen`, and
     /// the auto-read pipeline keeps its own reader in `AppContainer`.
-    static func voice(brainIsLocal: Bool, engine: VoiceEngine,
+    ///
+    /// `engine` is OPTIONAL, and nil is load-bearing: #180-L (L2) made the
+    /// snapshot's engine optional precisely so that "no engine has been
+    /// selected yet" stops being reported as `.realtime`. An unselected
+    /// engine is not a live route, so it must not glow — putting UNKNOWN on
+    /// the negative branch here rather than letting `?? .realtime` smuggle
+    /// the optimistic default back in. Corrected 2026-08-09: this parameter
+    /// shipped non-optional and, merged with #180-L, did not compile.
+    static func voice(brainIsLocal: Bool, engine: VoiceEngine?,
                       talkState: TalkConnectionState) -> Bool {
         guard !brainIsLocal, engine == .realtime else { return false }
         return talkState == .connected
