@@ -125,7 +125,14 @@ build lane.~~
   deadline: host model think-time varies wildly (his example: Kimi K3 vs DeepSeek
   flash), so a fixed whole-turn clock would misclassify slow models as failures.
 
-### Z3 · #286 — honest-settlement smoke check · **cheap, fold into any sitting**
+### Z3 · #286 — honest-settlement smoke check · ~~cheap, fold into any sitting~~ **✅ OBSERVED HEALTHY 2026-08-09 — this sitting's reading is done**
+
+> **✅ 2026-08-09:** no `outbox.json` at `~/.hermes/plugins/talaria/` — the
+> healthy state, matching the 2026-08-08 baseline — **after a stress sample
+> better than ordinary use:** three gateway restarts (one 137 s drain, one
+> headless-respawn repair) and all-day sensor drain traffic, every drain line
+> in the day's logs reading `→ delivered`. No backlog, no stuck backoff ladder.
+> A smoke check earns one dated reading per sitting; this one is recorded.
 
 Merged tonight (PR #283). A failed ACK / `query_result` now classifies the drain
 `.failed` instead of lying `.delivered`. The unit bars are met; what a device adds
@@ -199,7 +206,19 @@ zero slack are untouched pending measurement.
   and their delta. That delta is what decides whether the sibling guard's 60s
   clock-skew slack (`historyAdoptsQueuedTurn`) belongs here too.
 
-### Z7 · 288-C — orphan device rows re-run · **PRECONDITION NOW MET**
+### Z7 · 288-C — orphan device rows re-run · **PRECONDITION NOW MET** · **✅ MAC HALF DONE 2026-08-09 (no orphans); OJAMD HALF STILL OWED**
+
+> **✅ Mac half, 2026-08-09, after real profile-switch traffic** (the day's
+> sitting switched OJAMD → Mac Mini and re-paired): `~/.hermes/talaria/devices.json`
+> holds exactly ONE `active:true` row — the iPhone, `last_seen` minutes before
+> the read. Two stale `curl-smoke` rows and one null row, all `active:false`.
+> **No orphan minted.** Per this row's own caution, this is recorded as
+> "no orphan in THIS window," not as a total seal — the `pair()` race window
+> survives by design.
+>
+> **OJAMD half:** still owed. Its `devices.json` is on the Windows box; do NOT
+> take that read through the `hermes-ojamd` MCP without canary discipline
+> (CLAUDE.md) — it is a two-line check next time someone is at that box.
 
 The #285 profile-atomicity fix **merged 2026-08-08** (PR #281), which was 288-C's
 stated precondition (*"the re-run that actually proves the leak stopped"*).
@@ -2444,8 +2463,10 @@ client-side counterpart at all.
 > realtime. **Masked on this host** (`configured:false` routes native anyway),
 > so its cost is unmeasured — bars 303-A/B/C are in the tracker.
 >
-> **Fourth clean native `LIVE` revoke** captured in passing (179 ms after
-> background, Hermes brain selected this time).
+> **Third clean native `LIVE` revoke** captured in passing (179 ms after
+> background, Hermes brain selected this time; the earlier two were 13:32 and
+> 13:49 — the 13:21 trial produced no revoke at all, which is what made it
+> void).
 
 *(original row text follows, kept for the record)*
 
