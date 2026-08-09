@@ -2652,6 +2652,143 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
+    // MARK: - #101 Shape A cross-chat recall routing probe (bar 101-A1)
+
+    /// #101 Shape A's FALSIFIER, and the entirety of bar 101-A1.
+    ///
+    /// **A NEW CLOSED SERIES, closed at ten rows FROM BIRTH** (#205's rule).
+    /// The existing closed lists — `routerBaselineProbes`, `intentProbeGrid`,
+    /// `vectorProbeGrid`, the toolless-index prompt list, and #257's
+    /// `capabilityQuestionProbes`/`capabilityControlProbes` — gain no rows
+    /// here and are read nowhere in this probe. This list does not grow
+    /// either: appending to it after the run silently re-points the series
+    /// and moves a pre-registered bar.
+    ///
+    /// Every row is a phrasing whose answer lives in a **past conversation**
+    /// and nowhere else — not in the current turn, not on a sensor, not in
+    /// world knowledge. That is the population Shape A serves, and it is the
+    /// only population this probe claims anything about.
+    ///
+    /// **Why this list is the cheapest experiment in #101.**
+    /// `ConversationSearchTool` is ALREADY on the belt (standing cost 0), so
+    /// Shape A's whole thesis is "widen the corpus behind a tool we already
+    /// pay for." But a tool on a belt that is never ARMED never fires, and no
+    /// amount of corpus, extractor or privacy-classifier work can rescue it.
+    /// **If these rows route TOOLLESS, Shape A is dead before any corpus work
+    /// begins — and a dead Shape A is a RESULT, not a failed lane.**
+    nonisolated static let crossChatRecallProbes: [String] = [
+        "What did we decide about the boat?",
+        "What did I say my usual dose was?",
+        "Remind me what we called that project.",
+        "What did I tell you my landlord's name was?",
+        "Which paint color did we settle on?",
+        "What was the workout plan we made?",
+        "Didn't I mention a deadline last time? What was it?",
+        "What did we talk about on Tuesday?",
+        "Bring up what we said about the trip budget.",
+        "What was the name of that restaurant I liked?",
+    ]
+
+    /// The per-row line, built HERE and nowhere else so the test pins the
+    /// string the probe actually emits rather than a copy of it
+    /// (`reapTrialLine`'s shape). `scored` is derived as `trials - errors` in
+    /// this one place: a trial whose route THREW is counted in `errors` and
+    /// is not scored, because `routeTurn` fails safe to ARMED and counting
+    /// that as an armed classification would launder the failure path into
+    /// this probe's headline number — `21F0C10D`'s rule, and the exact bar
+    /// 101-A1 was written with.
+    nonisolated static func crossChatRecallProbeLine(probe: String, armed: Int, toolless: Int,
+                                                     trials: Int, errors: Int) -> String {
+        "router: [crosschat] ROW armed=\(armed)/\(trials) toolless=\(toolless)/\(trials) scored=\(trials - errors)/\(trials) errors=\(errors) probe=\(probe) (#101)"
+    }
+
+    /// The summary band. `trials` here is the run's TOTAL classification
+    /// count (rows × per-row trials = n), so the emitted denominator is the
+    /// bar's n and never an assumption about it.
+    nonisolated static func crossChatRecallSummaryLine(rows: Int, armed: Int, toolless: Int,
+                                                       trials: Int, errors: Int) -> String {
+        "router: [crosschat] SUMMARY rows=\(rows) armed=\(armed)/\(trials) toolless=\(toolless)/\(trials) scored=\(trials - errors)/\(trials) errors=\(errors) (#101)"
+    }
+
+    /// Bar 101-A1's instrument: classify every `crossChatRecallProbes` row
+    /// through **production's own route**, tally armed vs toolless per row,
+    /// and emit the per-row distribution plus a summary band.
+    ///
+    /// **The bar, pre-registered in OPEN_ITEMS #101 before this ran:**
+    /// production's router arms **≥90% of trials**, n=20. Default `trials`
+    /// is 2, which over the ten pinned rows is exactly that n.
+    ///
+    /// **How this consumes production.** It calls
+    /// `routeTurn(prompt:)` — the same two-field production route
+    /// `LocalChatBackend.swift:890` calls, at
+    /// `productionRouterVariant`/`productionIncludesImageGuide`, with the
+    /// default `context: ""` and `hasImage: false`. Those defaults are not a
+    /// simplification: the turn this probe models is the FIRST turn of a
+    /// FRESH conversation ("I opened a new chat and asked about the boat"),
+    /// where production's `priorAssistantTurn` is `""` by construction and no
+    /// attachment exists. Anything else would measure a configuration the
+    /// scenario never enters — #215's lesson, applied before the run instead
+    /// of after it.
+    ///
+    /// Only `needsDeviceTool` is scored. `isCapabilityQuestion` rides the
+    /// same generation and is #257's field; it is deliberately not read here,
+    /// so this probe cannot quietly become a second capability measurement.
+    ///
+    /// READ-ONLY: classifications only. No belt, no tools registered, nothing
+    /// created and nothing to reap.
+    func runCrossChatRecallProbe(trials: Int = 2) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let rows = Self.crossChatRecallProbes
+        let total = rows.count * trials
+        Self.batteryEmit("router: CROSSCHAT PROBE START trials=\(trials) rows=\(rows.count) n=\(total) (#101)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: ["crosschat"],
+                                      kind: "crosschat-recall")
+
+        var totalArmed = 0
+        var totalToolless = 0
+        var totalErrors = 0
+        for text in rows {
+            var armed = 0
+            var toolless = 0
+            var errors = 0
+            for _ in 1...trials {
+                // Sampled PER TRIAL, not per row: `routeTurn` fails safe to
+                // armed, so a row-level delta would still fold every thrown
+                // generation into `armed`. The trial that threw is counted
+                // and dropped.
+                let failuresBefore = Self.routerFailureTally
+                let route = await routeTurn(prompt: text)
+                if Self.routerFailureTally > failuresBefore {
+                    errors += 1
+                    continue
+                }
+                if route.needsDeviceTool { armed += 1 } else { toolless += 1 }
+            }
+            totalArmed += armed
+            totalToolless += toolless
+            totalErrors += errors
+            Self.batteryEmit(Self.crossChatRecallProbeLine(
+                probe: text, armed: armed, toolless: toolless,
+                trials: trials, errors: errors))
+            // `expected: true` — the bar's hypothesis is that cross-chat
+            // recall ARMS. A row that comes back toolless is the falsifying
+            // observation, recorded as such.
+            Self.batteryRecorder.recordProbe(
+                probe: text, expected: true, correct: armed,
+                trials: trials, variant: "crosschat", band: "routing", errors: errors)
+        }
+        Self.batteryEmit(Self.crossChatRecallSummaryLine(
+            rows: rows.count, armed: totalArmed, toolless: totalToolless,
+            trials: total, errors: totalErrors))
+        Self.batteryEmit("router: CROSSCHAT PROBE DONE (#101)")
+        Self.batteryRecorder.endRun()
+    }
+
     // MARK: - (#202A) context-blind router probe
 
     /// Which band a grid row belongs to. The bars are written per band, so

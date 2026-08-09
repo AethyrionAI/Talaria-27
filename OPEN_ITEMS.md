@@ -2329,6 +2329,93 @@ Logged 2026-07-11.
 > #253's route chip is the natural explanation surface for a memory answer
 > — shared instruments, separate lanes; do not merge.
 
+> **2026-08-09 — 101-A1's INSTRUMENT SHIPPED; the RUN is queued, and the
+> verdict is not in.** Branch `t27-101-crosschat-probe`, based on
+> `t27-257-capability-lever-p2` (both lanes extend the same two files;
+> #257 merges first). Commit **`6124ebf`** — `feat(#101):
+> crossChatRecallProbes + runCrossChatRecallProbe — the A-1 instrument
+> (device run queued)`.
+> **Nothing here is a result** — an instrument is not a measurement, and
+> A-1's bar (≥90% armed, n=20) is still exactly as pre-registered above.
+>
+> **What shipped, all DEBUG-side** (a harness, not a promoted clause —
+> #218's rule cuts the other way here):
+> - **`crossChatRecallProbes`** (`LocalChatBackend+Battery.swift`) — the
+>   NEW pinned list, **ten rows, closed from birth**, each a phrasing whose
+>   answer lives in a PAST conversation and nowhere else (not the current
+>   turn, not a sensor, not world knowledge). **The #205 closed series
+>   gained nothing** — `routerBaselineProbes` (10), `intentProbeGrid` (19),
+>   `vectorProbeGrid` (21) and #257's two lists (10/10) are untouched and
+>   pinned by test at those counts; a disjointness test proves no row is
+>   shared, so no two bars can read the same classification.
+> - **`runCrossChatRecallProbe(trials:)`** — classifies each row through
+>   **production's own route**, `routeTurn(prompt:)`, the same two-field
+>   call `LocalChatBackend.swift:890` makes, at `productionRouterVariant`
+>   with the default `context: ""` / `hasImage: false`. Those defaults are
+>   the point, not a shortcut: the modelled turn is the FIRST turn of a
+>   FRESH chat, where production's `priorAssistantTurn` is `""` by
+>   construction — #215's lesson applied before the run rather than after
+>   it. Only `needsDeviceTool` is scored; #257's `isCapabilityQuestion`
+>   rides the same generation and is deliberately not read.
+> - **Error discipline, per trial rather than per row.** `routeTurn` fails
+>   safe to ARMED, and "armed" is this probe's headline number — so a
+>   row-level failure delta would fold every thrown generation straight
+>   into the result. `routerFailureTally` is sampled around EACH
+>   classification; a thrown trial counts in `errors` and is **not
+>   scored**. Both bands emit `scored=<n>/<trials>` AND `errors=<n>`,
+>   through one-place line builders (`crossChatRecallProbeLine` /
+>   `crossChatRecallSummaryLine`) that the unit test pins byte-for-byte —
+>   `reapTrialLine`'s shape, so the test cannot drift from the string the
+>   probe actually emits.
+> - **Developer screen:** "Cross-chat recall routing A-1 (n=20)" —
+>   10 rows × 2 trials = the pre-registered n exactly. Read-only: no belt,
+>   no tools registered, nothing created and nothing to reap.
+>
+> **QUEUED — DEVICE.** A-1 is a generation question, so the test host
+> cannot answer it (`isAvailable == true`, then `Code=5000` no-assets:
+> availability ≠ generability). The device row goes in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` by the controller — **one queue**,
+> and this entry does not restate the check.
+>
+> **101-A2 and 101-A3 are UNCHANGED and UNSTARTED — post-verdict by
+> design.** No corpus widening, no store, no extractor, no privacy
+> classifier and no report builder exists or should be built until A-1
+> reports. That ordering is the whole reason A-1 ran first: if the router
+> sends cross-chat recall toolless, the already-armed
+> `ConversationSearchTool` never fires and Shape A is dead **before** any
+> of that work is spent — and a dead Shape A is a RESULT.
+>
+> **RUN PROTOCOL — pre-registered 2026-08-09, BEFORE any run (from the
+> instrument's independent review; deciding these after a number is in
+> hand is the redefinition the bar convention forbids):**
+> 1. **The rate is `armed/scored`, never `armed/trials`.** A run with
+>    `scored < 20` is **INCOMPLETE** — top it up to 20 scored trials (or
+>    re-run); it is never scored as a verdict. Worst case named in
+>    advance: a total-error run (assets unavailable) emits
+>    `armed=0/20 … errors=20`, and reading the headline fraction there
+>    would conclude "routes toolless ⇒ Shape A dead" — the exact wrong
+>    answer this instrument exists to prevent.
+> 2. **Near-miss protocol:** a result within ±2 trials of the 90% bar at
+>    n=20 triggers ONE further run at n=50 (5 trials/row); the bar itself
+>    does not move.
+> 3. **The ambiguity statement rides any MISS:** the ten rows are a
+>    phrasing hypothesis, pinned closed. A failing A-1 establishes "the
+>    router does not arm THESE TEN cross-chat phrasings," not "the model
+>    cannot route cross-chat recall" — report it with that attached.
+> 4. **The authoritative artifact is the emitted `router: CROSSCHAT` lines**
+>    (Console/file sink). `BatteryResultsScreen`'s row renders
+>    `correct/trials` with no error indicator and cannot be read for this
+>    bar.
+> 5. **One literal deviation from the bar's wording, recorded now rather
+>    than discovered later:** the probe scores `routeTurn`'s RETURN VALUE,
+>    not the `router: turn routed …` log line the bar named. Same Bool,
+>    strictly less lossy; noted so the run record matches the instrument.
+>
+> **✅ Lane gate 2026-08-09 (controller-run, CC-272-iPhone-Air, on the
+> branch merged with main): GATE: PASS — TEST SUCCEEDED, 1954 Swift
+> Testing + 13 XCUITest, Release build clean.** (Not a bar — the standing
+> pre-PR rule; A-1's own bars remain the device run.)
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
