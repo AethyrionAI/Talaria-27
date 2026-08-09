@@ -2384,6 +2384,32 @@ Logged 2026-07-11.
 > sends cross-chat recall toolless, the already-armed
 > `ConversationSearchTool` never fires and Shape A is dead **before** any
 > of that work is spent — and a dead Shape A is a RESULT.
+>
+> **RUN PROTOCOL — pre-registered 2026-08-09, BEFORE any run (from the
+> instrument's independent review; deciding these after a number is in
+> hand is the redefinition the bar convention forbids):**
+> 1. **The rate is `armed/scored`, never `armed/trials`.** A run with
+>    `scored < 20` is **INCOMPLETE** — top it up to 20 scored trials (or
+>    re-run); it is never scored as a verdict. Worst case named in
+>    advance: a total-error run (assets unavailable) emits
+>    `armed=0/20 … errors=20`, and reading the headline fraction there
+>    would conclude "routes toolless ⇒ Shape A dead" — the exact wrong
+>    answer this instrument exists to prevent.
+> 2. **Near-miss protocol:** a result within ±2 trials of the 90% bar at
+>    n=20 triggers ONE further run at n=50 (5 trials/row); the bar itself
+>    does not move.
+> 3. **The ambiguity statement rides any MISS:** the ten rows are a
+>    phrasing hypothesis, pinned closed. A failing A-1 establishes "the
+>    router does not arm THESE TEN cross-chat phrasings," not "the model
+>    cannot route cross-chat recall" — report it with that attached.
+> 4. **The authoritative artifact is the emitted `router: CROSSCHAT` lines**
+>    (Console/file sink). `BatteryResultsScreen`'s row renders
+>    `correct/trials` with no error indicator and cannot be read for this
+>    bar.
+> 5. **One literal deviation from the bar's wording, recorded now rather
+>    than discovered later:** the probe scores `routeTurn`'s RETURN VALUE,
+>    not the `router: turn routed …` log line the bar named. Same Bool,
+>    strictly less lossy; noted so the run record matches the instrument.
 
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
