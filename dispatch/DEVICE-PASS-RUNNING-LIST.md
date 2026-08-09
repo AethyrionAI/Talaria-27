@@ -156,6 +156,12 @@ registered** and bars 295-A/B/C are unit-pinned instead.
 - **Gate ruling worth knowing:** a **local-brain** turn deliberately does NOT arm
   recovery (it keeps finalize-and-`.delivered`) — arming one would have adopted a
   later Hermes reply onto a dead local turn and destroyed its partial.
+- **➡️ If you want to exercise the recovery machinery on purpose, run §Z8
+  instead** *(added 2026-08-09)*. A gateway restart mid-turn is deliberately
+  triggerable and drives the same `PendingRun` → reconcile → adopt path from a
+  different entry point. **It does not score 295-A** — different trigger — but it
+  is the only way to see the recovery arm work without waiting for iOS to revoke
+  a budget.
 
 ### Z5 · #284 — the `fullBelt=` budget contrast · **opportunistic, no bar**
 
@@ -192,6 +198,64 @@ stated precondition (*"the re-run that actually proves the leak stopped"*).
   not be reported as one.
 
 ---
+
+### Z8 · #295 / #235 recovery — **GATEWAY RESTART MID-TURN. Cheap, deliberately triggerable, and it tests machinery Z4 cannot reach** *(added 2026-08-09)*
+
+**Why this exists.** Z4 above is opportunistic *because you cannot ask iOS to
+revoke a background budget*. **This one you can trigger on purpose**, and it
+exercises the same downstream recovery machinery (`PendingRun` → reconcile →
+adopt) from a different entry point. It also verifies genuinely NEW upstream
+behaviour: `51fa7db46` + `d9ddfb23d` (both already on the Mac install) now
+**cooperatively interrupt in-flight turns on gateway shutdown, covering both
+session-chat routes**, and `_persist_session` is not gated behind a
+not-interrupted check — **so a restart now writes a closing assistant row where
+it previously wrote none.** Before those commits the turn was amputated with
+nothing persisted.
+
+**No live-install gate needed.** Restarting the Mac gateway is routine —
+launchd-supervised, `kill` = clean respawn. This loads no experimental code, so
+it does not ride the per-experiment authorization.
+
+**Setup:** phone on the **Mac Mini** profile, Hermes brain, chat screen open.
+
+1. Send a turn that will run for a while (e.g. `sleep 25; echo RESTARTTEST`, or
+   any prompt that takes >15s).
+2. **While it is still streaming**, on the Mac: `kill` the `:8642` listener.
+   launchd respawns it; the gateway answers again ~15–20s later.
+3. Watch the phone **without touching it** for ~90s, then foreground/background
+   once.
+
+**Pass:**
+- **(a)** the user's row does **not** flip to `.failed`, and **no error haptic**
+  fires (this is #291's guarantee under a new stressor).
+- **(b)** a reply **arrives** — via the reconcile loop, not a re-send. It may
+  legitimately be the literal **`"Operation interrupted."`**, which is the host's
+  honest placeholder and counts as a PASS, not a failure.
+- **(c)** the transcript shows **one** assistant row for that turn, not two
+  (#237's double-adopt guard holding under a real restart).
+
+**What this does NOT prove, stated so a green run is not over-read:**
+- It does **not** exercise #295's own trigger. #295 fires on
+  `cancelStreaming(hardStopHost: false)` when **iOS** revokes a background
+  budget; a gateway restart kills the *stream*, which arms the pre-existing
+  `.interrupted` path. **Shared downstream machinery, different entry point** —
+  a pass here raises confidence in the recovery arm, it does not score 295-A.
+- **The known residual applies:** the host appends its closing placeholder only
+  when the tail is a `tool` message. **Kill the gateway during the FIRST model
+  call — before any tool runs — and nothing is persisted, so nothing is
+  recoverable.** If step 1 uses a prompt with no tool call, expect (b) to fail
+  and that is CORRECT behaviour, not a defect. Use a tool-calling prompt.
+
+**Bonus reading, free while you are here:** `GET /api/sessions/{id}/messages`
+after the restart shows whether the closing row landed server-side —
+distinguishing "the host never wrote it" from "the app never fetched it".
+
+**Related, and worth contrasting in the same sitting:** the runs plane behaves
+*worse* here. `_run_statuses` is in-memory with a 3600s TTL, so a gateway restart
+drops it and `GET /v1/runs/{id}` returns 404 — the sessions plane is on disk and
+survives. If the runs switch is ON, the same test should NOT recover, and that
+asymmetry is itself the finding.
+
 
 ## Consolidated run 2026-08-07
 
