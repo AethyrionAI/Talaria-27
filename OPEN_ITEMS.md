@@ -6686,6 +6686,22 @@ stands, and no approval card or preview may become a place someone reconstructs
 a written file. Decide the destination (plugin mirror / media pipeline /
 accepted limitation) when the host sitting scopes Phase 3's later slices.
 
+## 315. 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun` — **FILED 2026-08-09 by #306's whole-lane review (pre-existing on `main`, observed not introduced). #306 closed the QUEUE door on this class and #307 closed the DRAIN door; this is the one remaining door. NOT STARTED; bars pre-register here before any code.**
+
+During the reconcile window (`streamingMessageID == nil`, `pendingRun` live —
+the #278 state, which can last minutes), the composer's queue door renders only
+on `isStreaming` — so it offers **plain Send**. A manual send there posts into
+the live `pendingRun`, and `attemptReconcile`'s
+`timestamp > pending.sentAt` adoption can pair the dropped run's recovery with
+the MANUAL turn's reply — the #307 mechanism exactly, user-driven instead of
+drain-driven: someone else's reasoning re-attached, a fabricated duration, the
+old prompt re-paired, nothing erroring. **Candidate fix shape when routed:**
+render the queue door on `isTranscriptBusy` (C2 applied to the DOOR, not only
+the fire gate) so a mid-reconcile commit becomes a HOLD — one predicate swap in
+the composer's door condition, plus the matrix's row-3 semantics already
+shipped by #306. Evidence chain: #306's independent whole-lane review
+(2026-08-09), which traced the door predicate while verifying C2.
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
