@@ -6296,6 +6296,51 @@ have no durable wire-ready form to park here"). Worth re-examining against
 that #306's mid-turn queue kept v1 text-only for the same reason, so both
 queue producers inherit whatever this decides.
 
+## 309. 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **FILED 2026-08-09 (Owen routed the filing; found by `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3/NEW-1 — "the largest unfiled gap found"). GATES #251 Phase 4 / #223's relay decommission alongside #271 and #310.**
+
+The counted inventory (live app, read at HEAD): **pairing + auth** (9 paths —
+`device/register`, `device/provisioning`, `auth/refresh`, `auth/revoke`,
+`session`, `phone-pairing/redeem`, `hosts/current`, `hosts/current/revoke`,
+`hosts/enrollment-codes`); **sensors** (3 — `device/sensor/health`,
+`device/sensor/location`, `device/app-state`); **voice bootstrap** (2 —
+`talk/session`, `talk/readiness` — named in NO tenant list and NO decommission
+plan; **a `POST /api/platforms/talaria/events` plugin does not currently carry
+voice**); **conversation/command feed** (4 — `conversations/current`,
+`conversations/current/clear`, `messages`, `commands`); push — gone. **Phase 4
+cannot be scoped until each of the eighteen has a named destination** (plugin /
+gateway / deleted / accepted-loss). The sharp product questions inside this are
+Owen's, deferred to the host sitting: does relay-hosted VOICE survive (decides
+whether Phase 4 is "decommission" or "shrink"), and do the sensors stay at all
+(his recorded leaning: *"I'm ok with ditching the sensors… not hard locked"* —
+three of the eighteen dissolve if ditched). ⛔ The no-hardening rule stands
+throughout: this item is an inventory-and-disposition exercise, never an
+argument for making the relay more robust.
+
+## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
+
+`Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
+while `shimBaseURL` is already `String?` (the pattern to follow). Until this
+changes, a new user must type a relay URL to exist as a profile, which
+contradicts the #251 goal ("install Hermes, paste one key") and the #269
+installer story. Scope when routed: make it optional, capability-detect +
+honest #180 degradation for relay-less profiles (#15/#94 recovery ladders scoped
+to relay-bearing profiles only), migration-safe decode of existing persisted
+profiles (the §1.5 persisted-state discipline — existing users' stored profiles
+must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
+
+## 311. 📝 #21's HOME — agent-generated file delivery is currently HOMELESS — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-6). #223's old "file-fetch migration" sequencing step is superseded; nothing owns the question.**
+
+There is no file API on `:8642` (re-verified — the `/api/files` family is
+dashboard-only), #21 Tier 1 (client-side reconstruction from `tool.started`
+`args.content`) remains the shipped story for text, and the Phase-3 plan calls
+the rest an open question: webhook responses are fine for small files, ugly for
+large; agent A's media pipeline is "the likely answer." The runs stream carries
+NO tool `args` (re-verified at Mac head `3dcbe9001`), so the runs plane is
+currently WORSE than the sessions plane for #21 — 3A's honest-absence bar
+stands, and no approval card or preview may become a place someone reconstructs
+a written file. Decide the destination (plugin mirror / media pipeline /
+accepted limitation) when the host sitting scopes Phase 3's later slices.
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -13707,17 +13752,40 @@ verified LIVE on the Mac gateway, HTTP 200, chat-plane Bearer auth):**
 > you intend to use, individually, before designing on it.**
 
 **What still needs the relay, named so "end the relay dependency" stays honest:**
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C3,
+> `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3) — this three-tenant
+> list is WRONG in both directions.** Push is GONE (#238 removed the entire
+> notification surface; zero app-side hits). And the live app calls
+> **EIGHTEEN distinct relay paths across SEVEN services**, including two
+> families this list never named and no decommission plan carries:
+> **voice bootstrap** (`talk/session`, `talk/readiness` —
+> `LiveVoiceSessionService`) and the **conversation/command feed**
+> (`conversations/current`, `conversations/current/clear`, `messages`,
+> `commands`). Full counted inventory: pairing+auth (9 paths), sensors (3),
+> voice bootstrap (2), conversation/command feed (4). **Phase 4 cannot be
+> scoped until every one of the eighteen has a named destination — that gap
+> is filed as #309.** Original list kept below for the record:
 - **#38 run-completion push watch** — the relay owns the APNs credentials and the poll
   loop; core Hermes sends no push. Would need a new home or an upstream feature.
+  *(dead — #238 removed the receiving half; nothing arms a watch)*
 - **Sensor ingestion** — relay + connector + `hermes_mobile` MCP; core has no sensor
   path at all. The dylan-buck shell exists for this.
 - **Pairing / device-bearer auth plane** — the app's relay-minted tokens and #15/#94
   recovery ladders live against the relay.
 - (#113's connector supervision gap rides wherever the connector lands.)
+  *(#113 closed 2026-07-25; the surviving half is #188, DECLINED under the
+  no-hardening rule)*
 
 **End state:** the phone speaks gateway (`:8642`, one key) for chat + models + files;
 the relay shrinks to sensors + push. Windows box then runs the gateway process, the
 relay (smaller), and the connector — no shim.
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C4): that is now the INTERIM,
+> not the end state.** #251's end state is **gateway only** — the plugin
+> carries the transport, the relay and connector are decommissioned (#251
+> Phase 4, tracked here, gated on #271). The paragraph above describes Plan
+> D's finish line, which is Plan C's midpoint.
 
 > **GOVERNING PRINCIPLE, added 2026-08-02 (Owen, standing — see `CLAUDE.md`): DO NOT
 > HARDEN THE RELAY OR CONNECTOR while this migration is pending.** *"Every time we
@@ -13735,6 +13803,14 @@ the Mac gateway after its next restart — its running process is mid-version); 
 shim-retirement lane (picker onto `/api/model/*`); (3) the file-fetch migration lane
 (#21); (4) then the relay is what remains, and its remaining tenants are a separate
 conversation. Owen routes each lane.
+
+> **⚠️ SUPERSEDED 2026-08-09 (reconciliation C5):** (1) and (2) are **DONE**
+> (routes re-verified 2026-08-09 per CLAUDE.md's table; Lane 5 merged
+> 2026-08-04, L5-E device-met). (3) is **superseded** — there is no file API
+> on `:8642` (Falsification 1 above) and #21's home is now the Phase-3
+> plugin mirror / media pipeline, filed as **#311**. What remains of this
+> list IS Phase 4, gated on #271 and on #309 (the eighteen-tenant
+> re-homing) and #310 (`relayBaseURL` optional).
 
 > **REFRAMED 2026-08-02, same day — the target hardened from "fewer processes" to
 > ZERO-SETUP** (Owen: eliminating additional setup "really takes the scary part out of it
@@ -13910,6 +13986,22 @@ conversation. Owen routes each lane.
 >
 > ### THE PHASED PLAN (Owen routes each; blockers named)
 >
+> **⚰️ SUPERSEDED IN FULL 2026-08-09 (reconciliation C2 — #268 flagged this
+> paragraph 2026-08-06 and it stayed unfixed).** The retirement blockquote at
+> the top of this entry does not reach down here, and a reader who scrolls
+> past it finds a live-looking Phase 2. So, phase by phase: **Phase 0** —
+> both repairs long since done. **Phase 1** — DONE (Lane 5, merged
+> 2026-08-04). **Phase 2 (the push sender)** — DEAD, killed by #238's
+> notification-surface removal on 2026-08-03, a day before #251 existed; the
+> hook was built and smoke-proven, then disarmed; branch
+> `claude/t27-223-talaria-push` @ `dd25e2d` is the archive — do not merge
+> it. **Phase 3 (upstream)** — DEAD by policy (no-upstream-PR ruling) and
+> unnecessary (Escape B proved plugin code reaches the live agent with zero
+> core edits). **Phase 4 (sensors deposit)** — SUPERSEDED by #242's
+> query-time `talaria_phone_query`, shipped and device-verified. **Phase 5
+> (relay retirement)** — the one survivor, now #251 Phase 4, tracked here,
+> gated on #271 + #309 + #310. The text below is the record, not the plan:
+>
 > - **Phase 0 — repairs, not this migration:** (i) the Mac gateway is running 0.19.0
 >   with the 0.19.1 tree updated underneath it — every agent creation now dies on an
 >   import mismatch (`CHECK_FN_CACHE_BYPASS`), so Mac chat is DOWN until
@@ -13964,6 +14056,15 @@ conversation. Owen routes each lane.
 > the developer `.p8`) is parked as an explicit gate. Lane 3's bar TEMPLATES live in
 > the plan and get copied INTO this entry, dated, before the first measured run. Not
 > started — Owen routes each lane.
+>
+> **⚰️ 2026-08-09: that plan document is an ARCHIVE, not a roadmap** — it now
+> carries a SUPERSEDED header (do not route any lane from it); every one of
+> its nine lanes is DEAD or DONE (`dispatch/FABLE-T27-223-251-reconciliation.md`
+> has the lane-by-lane verdict). **And the parked App-Store push-tier gate is
+> DECIDED, not parked** (reconciliation Q5): #251 decision 1 answered it —
+> durable outbox + fetch-on-connect + Live Activities; no vendor sender, no
+> BGTask-only tier, push stays dead. Recorded here so the question stops
+> being re-opened.
 
 > **Update 2026-08-06 late night (reconciliation audit):** the **"Lane 6
 > (upstream re-attach PR) is UNAFFECTED"** line above (from the 2026-08-03

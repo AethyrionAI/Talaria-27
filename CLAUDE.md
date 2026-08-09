@@ -69,7 +69,12 @@ StartType is still `Automatic`, so Windows will start it again at the next boot
 and the shim will be listening on `:8765` with nobody calling it. **To make the
 retirement survive a reboot, set StartType to Disabled** (elevation; Owen
 pastes) — until then "retired" describes the running state, not the configured
-one, and the difference shows up the next time that box restarts. The old dual-write
+one, and the difference shows up the next time that box restarts. **And the MAC
+shim is not stopped at all (probed 2026-08-09): `tools/models-shim/shim.py` runs
+under the hermes venv, up since Jul 24, answering 401 on `:8765`.** Harmless —
+the app provably never calls it (`ModelsShimClient` deleted from the tree) — but
+"the shim is retired" describes the MODEL PATH, not the processes: one host will
+resurrect its listener on reboot and the other never stopped its own. The old dual-write
 description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
@@ -95,6 +100,11 @@ a falsified mechanism while the tracker was right.)
   2026-08-03; where the process's stdout goes now is unlocated). Supervision gap is
   **OPEN_ITEMS #113**. `restart-relay.ps1` in
   `C:\Users\Owen\.hermes\scripts\` does `Restart-Service HermesMobileRelay` then the bat.
+  **⚠️ This shape is OJAMD-ONLY (found 2026-08-09): on the Mac the connector is an MCP
+  stdio CHILD of the gateway** — `connector/.venv/bin/hermes-mobile-mcp` supervised by
+  `mcp_stdio_watchdog.py --ppid <gateway pid>`, registered in `~/.hermes/config.yaml` as
+  MCP server `hermes_mobile`. The two hosts have different connector process stories;
+  #271 (OJAMD rollout) must not assume one shape.
 - **OPS:** `Start-Service HermesMobileRelay` / `Start-Service TalariaModelsShim` need
   elevation (Owen pastes). **Updates: Owen runs bare `hermes update` — that is his actual
   practice and it's fine** (the `hermes-update-safe.ps1` script exists but he has never
