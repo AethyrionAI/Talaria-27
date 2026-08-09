@@ -404,6 +404,9 @@ struct RunsPlaneTransportTests {
             case .artifactProduced: return "artifactProduced"
             case .contextPrimed: return "contextPrimed"
             case .modelResolved: return "modelResolved"
+            case .approvalRequested(let request):
+                return "approvalRequested(\(request.question == nil ? "degraded" : "question"))"
+            case .approvalResolved(_, let choice): return "approvalResolved(\(choice ?? "?"))"
             case .finished: return "finished"
             case .failed(let text): return "failed(\(text))"
             case .unreachable(let text): return "unreachable(\(text))"

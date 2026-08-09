@@ -541,6 +541,15 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
                 }
+            case .approvalRequested:
+                // #304: voice has no approval surface — say so honestly
+                // rather than sitting silent while the host's window burns.
+                // The chat transcript (ChatStore + HostApprovalCard) is the
+                // place to answer; this pipeline only reports the state.
+                voiceState = .thinking
+                statusMessage = "Hermes is waiting on a host approval that voice can't show. Open the chat to answer it."
+            case .approvalResolved:
+                break
             case .failed(let reason), .unreachable(let reason):
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn(reason)

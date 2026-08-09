@@ -503,6 +503,7 @@
 		F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */; };
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
 		F4A9033B8674DE5B87C9EF71 /* TaskDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24AAADA601692857BDEEE1D /* TaskDetailScreen.swift */; };
+		F4C65399424290F068B8AA0E /* HostApprovalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FBE88A2B3C7F579C6B5119 /* HostApprovalStore.swift */; };
 		F4CD2B4FCB1433333B7B5623 /* Icon-MidnightAquarium@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A59F115068928742EE2EB119 /* Icon-MidnightAquarium@3x.png */; };
 		F4D43B34BB7FA7B25E451D87 /* Icon-ComicFunnies@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = E1C72B32FFD539B62DEFBE7E /* Icon-ComicFunnies@2x.png */; };
 		F4E72B629E8B408FC11240F2 /* AppLockCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA13657305C577F4DC6CD814 /* AppLockCore.swift */; };
@@ -684,6 +685,7 @@
 		31AF84E49DFBC89FAE4AD725 /* Icon-DeepField@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-DeepField@3x.png"; sourceTree = "<group>"; };
 		325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaijuAttack@3x.png"; sourceTree = "<group>"; };
 		32F815FB445E74F44232A383 /* AppIconCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconCatalog.swift; sourceTree = "<group>"; };
+		32FBE88A2B3C7F579C6B5119 /* HostApprovalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostApprovalStore.swift; sourceTree = "<group>"; };
 		3396670D4A59E5D8808A7AB3 /* WidgetTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetTheme.swift; sourceTree = "<group>"; };
 		3435E81CD684734099521C82 /* TalkPreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkPreflight.swift; sourceTree = "<group>"; };
 		345A155F17C2C449664C1CA4 /* PairingServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingServiceProtocol.swift; sourceTree = "<group>"; };
@@ -1469,6 +1471,7 @@
 				B42BE7E738FC5E156E3130DE /* ConversationListStateStore.swift */,
 				D086BA232F3A7F933073B7F8 /* CronJobsStore.swift */,
 				FCDA88A494348CA2669EA79C /* HermesHostStore.swift */,
+				32FBE88A2B3C7F579C6B5119 /* HostApprovalStore.swift */,
 				078776BA69767B945B3B0B82 /* InboxStore.swift */,
 				564FBB51A62CECD63D04A001 /* InsightsStore.swift */,
 				D9E8AA633234249B0EC6C58B /* PairingStore.swift */,
@@ -2389,6 +2392,7 @@
 				5F3B60009D9E03118985EF9E /* HermesHostStatus.swift in Sources */,
 				21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */,
 				D7F95D4B5AC3C7A2F1F8DA9E /* HermesWidgetData.swift in Sources */,
+				F4C65399424290F068B8AA0E /* HostApprovalStore.swift in Sources */,
 				815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */,
 				EE8BA255BD3A6B50221B7E51 /* HostFedListPresentation.swift in Sources */,
 				70397C7350AA9AD6371C655E /* HostReachability.swift in Sources */,

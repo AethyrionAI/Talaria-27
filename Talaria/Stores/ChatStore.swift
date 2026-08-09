@@ -207,6 +207,11 @@ final class ChatStore {
 
     private let hermesClient: any HermesClientProtocol
     private let chatLiveActivity = LiveActivityService()
+    /// #304: the host-approval card's store — the `.approvalRequested` /
+    /// `.approvalResolved` consumer, torn down on every turn terminal
+    /// (bar 304-E). Wired by AppContainer; nil in constructions that predate
+    /// it (tests, previews), where approval updates are safely dropped.
+    var hostApprovals: HostApprovalStore?
     let persistence: any AppPersistenceStoreProtocol
 
     /// P1 (#90): the durable journal — the conversation's primary on-device
@@ -793,6 +798,11 @@ final class ChatStore {
                     if let resolved = runtime.model, !resolved.isEmpty {
                         activeModelName = resolved.split(separator: "/").last.map(String.init) ?? resolved
                     }
+
+                case .approvalRequested, .approvalResolved:
+                    // #304 RED shell — routed to `hostApprovals` in the
+                    // lane's GREEN commit.
+                    break
 
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes

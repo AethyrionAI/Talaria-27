@@ -179,6 +179,28 @@ protocol HermesClientProtocol {
     /// doc for the full account.
     func hardStopActiveRun()
 
+    /// #304 (Phase 3 slice 3B): answer a HOST approval parked on a `/v1/runs`
+    /// run — `POST /v1/runs/{run_id}/approval {"choice": …}`. Declared beside
+    /// `hardStopActiveRun()` because it is the same seam shape: a run-scoped
+    /// server command, forwarded `primary`-only by `ResilientHermesClient`
+    /// and by routing lock in `ChatBackendRouter`.
+    ///
+    /// Two deliberate differences from the stop:
+    /// - **The address rides the CALL, not client state.** `runID` and the
+    ///   run's frozen `endpoint` come from the `RunApprovalRequest` VALUE the
+    ///   stream frame minted — never from `activeRunContext`, whose single
+    ///   slot is cleared on terminal exit and can name a different run by the
+    ///   time a human answers (the #285 trap, dispatch §9).
+    /// - **Not fire-and-forget.** The classified outcome is the card's whole
+    ///   truth: only a 2xx is success, every 4xx renders distinctly (bar
+    ///   304-C), and a transport failure keeps the card LIVE (#264's rule).
+    ///   The POST reaching the host is what makes a state true (#279's
+    ///   discipline) — callers mutate nothing until this returns.
+    ///
+    /// The default is `.unsupported`: a client with no runs plane (mock /
+    /// relay / the on-device brain) has nothing to answer on.
+    func answerApproval(runID: String, choice: String, endpoint: SessionsHermesClient.ResolvedEndpoint) async -> RunApprovalAnswerOutcome
+
     /// #78: the consumer TRUNCATED the thread (regenerate, edit-and-resend)
     /// and this conversation is now the whole of it. Every client that keeps
     /// its own mirror in `currentConversation` must adopt it here.
@@ -211,5 +233,9 @@ extension HermesClientProtocol {
     var currentRunIsServerRecoverable: Bool { false }
     func abandonActiveRun() {}
     func hardStopActiveRun() {}
+    // #304: no runs plane to answer on — the honest dead end, never a fake
+    // success. `SessionsHermesClient` overrides with the real POST;
+    // `ResilientHermesClient`/`ChatBackendRouter` override to forward.
+    func answerApproval(runID: String, choice: String, endpoint: SessionsHermesClient.ResolvedEndpoint) async -> RunApprovalAnswerOutcome { .unsupported }
     func adoptTruncatedConversation(_ conversation: Conversation) {}
 }
