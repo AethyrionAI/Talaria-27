@@ -564,6 +564,20 @@ struct DeviceToolBeltTests {
         // enumeration over that exact family set.
         #expect(treatment.contains(
             CapabilityRegistry.armedCapabilityEnumeration(families: nonVisionFamilies)))
+        // The frame defect this pins: the first cut fused the generated
+        // list straight onto "the user's", producing "the user's their
+        // health and activity" — a double possessive — because two
+        // `displayPhrase`s already carry "their". The fix wraps the
+        // enumeration in an em-dash appositive instead (mirroring the
+        // ARMED sentence's own shape). Both checks below are registry-
+        // derived, not hand-written prose, so they pin the STRUCTURE, not
+        // a copy of the sentence.
+        #expect(treatment.contains(
+            " — \(CapabilityRegistry.armedCapabilityEnumeration(families: nonVisionFamilies)) — "),
+            "the enumeration must be em-dash-bracketed — the fused-join frame does not satisfy this")
+        #expect(!treatment.contains(
+            "user's \(CapabilityRegistry.armedCapabilityEnumeration(families: nonVisionFamilies))"),
+            "the old fused join (\"user's\" directly followed by the enumeration) must be absent")
     }
 
     /// #297 bar 297-C's structural precondition: the honesty clause
