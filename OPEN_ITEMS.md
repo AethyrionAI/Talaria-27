@@ -6787,6 +6787,32 @@ describes what the code does; **(292-C)** device arm: walk away from a runs
 turn, kill the network past 60s, and confirm the host log shows NO further
 `GET /v1/runs/{id}` polls.
 
+**2026-08-09 — 292-A's observation mechanism REFINED, filed before any code
+(pre-registration per #215; full derivation in
+`dispatch/FABLE-T27-292-producer-cancellation.md` §6):** the bar's teeth are
+the per-test knob override. `makeClient` sets `runsPollBudget` to 800ms
+suite-wide, so a test inheriting it passes ON the defect (the budget ends the
+poll on its own). The test therefore: (1) observes the producer through
+`RunsStubURLProtocol`'s request log (`count("/v1/runs/run-r1")`), never the
+collector; (2) overrides `runsPollBudget = 30s` / `runsPollInterval = 40ms`
+on the test's own client; (3) runs the collector INLINE (not `collect(from:)`,
+which awaits completion under its own belt); (4) waits bounded until the count
+reaches ≥2 (loop proven live, not one opportunistic read); (5) cancels the
+collector, records `atWalkAway`; (6) sleeps ≥10 poll intervals; (7) asserts
+the count did not advance. Second assertion in the same test:
+`activeRunContext == nil` after the walk-away settles (the defer-runs-on-cancel
+hazard). **RED evidence is mandatory and numeric** — run on HEAD pre-fix and
+record the actual counts (`atWalkAway = N, final = M`), not "it failed"; a
+green-on-first-write test here is a FAILED bar (the override did not take).
+No off-by-one tolerance up front — `== atWalkAway` until a real flake is
+observed and recorded. **292-B covers THREE comment sites, not one** — at
+today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
+`:777`, and `:780-781` (the entry's `:535-536` citation is stale; the file is
+`SessionsHermesClient+RunsTransport.swift`, there is no bare
+`RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
+hook) rather than deleted, plus a reciprocal note at the hook naming its three
+customer comments.
+
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
 **Verified chain (read, not inferred):**
