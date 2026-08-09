@@ -7,6 +7,17 @@ open question carries a recommendation, say "approved" or name what you'd flip.
 modified — every Hermes claim below is a read of `~/.hermes/hermes-agent` with a
 `file:line`.
 
+> **⚠️ 2026-08-09 (#304 lane, dispatch `FABLE-T27-283-3B-approvals.md` §4 C1):
+> every `api_server.py:NNNN` citation in this document is STALE.** The Mac
+> install advanced to `3dcbe9001` (2026-08-08) — an unknown real distance, the
+> checkout being shallow — while the version string stayed `0.20.0`. Measured
+> drift in the runs region is ≈ +150 lines (e.g. `_handle_run_approval`
+> `:6772`→`:6929`; full table in the dispatch §4 C1). **Cite the head you read;
+> re-resolve any line number here before quoting it.** Note also that the HOST's
+> approval gate is now answerable from the phone on the runs plane — that lane
+> is **#304** (slice 3B), a deliberately different actor from this proposal's
+> on-device gate; this proposal's scope statement (§3.8) is unchanged.
+
 ---
 
 ## 0. The honest framing first

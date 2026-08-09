@@ -80,6 +80,14 @@ final class ResilientHermesClient: HermesClientProtocol {
         primary.hardStopActiveRun()
     }
 
+    /// #304: same rule as `hardStopActiveRun` above — `sendStreaming` only
+    /// ever rides `primary`, so an approval question can only have come from
+    /// it, and forwarding the answer to `fallback` would be a POST that
+    /// always `.unsupported`s dressed up as coverage.
+    func answerApproval(runID: String, choice: String, endpoint: SessionsHermesClient.ResolvedEndpoint) async -> RunApprovalAnswerOutcome {
+        await primary.answerApproval(runID: runID, choice: choice, endpoint: endpoint)
+    }
+
     func availableModels() async throws -> [String] {
         try await primary.availableModels()
     }

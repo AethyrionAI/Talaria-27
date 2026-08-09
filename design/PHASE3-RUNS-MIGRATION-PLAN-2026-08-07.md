@@ -12,6 +12,16 @@ install was modified or bounced while writing this — every Hermes claim below 
 > answers forced (history continuity, attachment reshape) are registered in
 > #283.**
 
+> **⚠️ 2026-08-09 (#304 lane, dispatch `FABLE-T27-283-3B-approvals.md` §4 C1):
+> every `api_server.py:NNNN` citation in this document is STALE.** The Mac
+> install advanced (head at write time `01a1037d1` → `3dcbe9001` on 2026-08-08,
+> an UNKNOWN real distance — the checkout is shallow, so its log depth is a
+> floor, not a measurement) while the version string stayed `0.20.0`. Measured
+> drift in the runs region is ≈ +150 lines (e.g. `_handle_runs` `:6298`→`:6455`,
+> `_handle_run_approval` `:6772`→`:6929`, approval redaction+choices
+> `:6470-6478`→`:6621-6631`; full table in the dispatch §4 C1). **Cite the head
+> you read; re-resolve any line number here before quoting it.**
+
 Written 2026-08-07 for a morning read, in the #258/#224 pattern: one document, every open
 question carries a recommendation. Say "approved", or name what you'd flip.
 
@@ -195,6 +205,24 @@ not committed anything.
    has no command text; the honest UI is "the host is waiting on an approval — reconnect or
    deny"); `approvals.timeout` too short (S17 → §6 Q5).
 
+> **2026-08-09 corrections (#304 lane, dispatch §4 C4/C5) — two facts bullet 5
+> understates or omits:**
+> - **C4: N6's "reconnect or deny" undersells a source-proven capability. The
+>   ANSWER channel is stream-independent** — `resolve_gateway_approval` works
+>   off `_gateway_queues[session_key]`, and the run→key mapping
+>   `_run_approval_sessions[run_id]` is popped only in the run's own `finally`
+>   — so a client that lost the stream **can still POST an answer and it will
+>   land**; it merely cannot see the question. The honest degraded state
+>   therefore includes a **working Deny**, not just an apology (bar 304-D(i)).
+> - **C5 (NEW, nothing carried it): after an approval TIMES OUT, `GET
+>   /v1/runs/{id}` keeps reading `waiting_for_approval` for the remainder of
+>   the run.** `_set_run_status(run_id, "running", …)` fires only in
+>   `_handle_run_approval`; expiry resets nothing, and every later event
+>   re-stamps the current status until the terminal set. **The status object is
+>   not a pending-approval oracle — only a 409 `approval_not_pending` settles
+>   it**, and the app must never raise an approval card from status alone
+>   (bar 304-F).
+
 **Recovery, precisely (N2 + S22):** on any stream loss, poll `GET /v1/runs/{id}` until the
 status is terminal; `output` + `usage` are on the status object for an hour. This *replaces*
 the #235/#246 reconcile shape rather than extending it — and it removes the zombie-stream class
@@ -259,6 +287,13 @@ Concretely, the app already knows this from the stream it is decoding:
 moment the user most wants it. The bar for slice 3C is a test that a steer fired during the
 prose phase renders as *not applied* — not as success.
 
+> **2026-08-09 (#304 lane, dispatch §4 C6):** `/stop` is more than the mid-prose
+> steering fallback this section treats it as — **`POST /v1/runs/{id}/stop` on a
+> run PARKED on an approval resolves that approval as `deny` and unwinds
+> cleanly** (`is_interrupted()` inside the approval wait,
+> `tools/approval.py:3695-3703` at head `3dcbe9001`) rather than hanging for the
+> rest of the window. It is the already-wired escape hatch for a parked run.
+
 ### 2.6 How #267's queue composes with steer — ONE composer behavior
 
 | turn state | send does | UI says |
@@ -316,7 +351,7 @@ after 2A. Phase 3's slices are numbered **3A–3E** here to avoid a collision. N
 | slice | what | size | depends on | unblocks |
 |---|---|---|---|---|
 | **3A** | **Runs transport parity.** Probe N4/N9 first, then a runs client behind a Developer switch: submit, subscribe, decode (N3), status-poll recovery (N2), real stop (S23). Sessions path stays intact and default until 3A's device leg passes. | **L** | nothing | everything below |
-| **3B** | **Approvals over runs.** `approval.request` card, `POST …/approval`, expiry + dropped-stream states (N6), humane `approvals.timeout` (S17). | **M** | 3A | the #224 §F7d dead turn; MCP elicitation (S19) |
+| **3B** | **Approvals over runs.** `approval.request` card, `POST …/approval`, expiry + dropped-stream states (N6), humane `approvals.timeout` (S17). | **L** *(was "M" — falsified 2026-08-09, #304 lane, dispatch §4 C3: same shape as 3A, which was L — new `StreamingUpdate` cases, exhaustive-switch branches, a new store, a new view, a new client method + protocol member, multiple new files, plus four cannot-show-the-question states)* | 3A | the #224 §F7d dead turn; MCP elicitation (S19) |
 | **3C** | **Steering + queuing, one composer.** Plugin `steer` handler (§2.3), app-side gate (§2.5), #267's queue (§2.6), never-trust-queued pin. | **M** | 3A + a plugin deploy | Owen's #1 want |
 | **3D** | **Artifact mirror.** Plugin `pre_tool_call` hook → outbox → app correlation (§2.8(a)). | **S–M** | 3A + a plugin deploy | keeps #258/#262/#265 alive after the move |
 | **3E** | **Cutover + simplification.** Runs becomes the default remote path; the SSE-reconcile machinery (#235/#246) collapses into status polling; sessions plane keeps only history/fork/model-pin. | **M** | 3A–3D green on device | #251 Phase 4 (relay decommission), #223 |

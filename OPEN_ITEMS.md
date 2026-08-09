@@ -2329,6 +2329,93 @@ Logged 2026-07-11.
 > #253's route chip is the natural explanation surface for a memory answer
 > — shared instruments, separate lanes; do not merge.
 
+> **2026-08-09 — 101-A1's INSTRUMENT SHIPPED; the RUN is queued, and the
+> verdict is not in.** Branch `t27-101-crosschat-probe`, based on
+> `t27-257-capability-lever-p2` (both lanes extend the same two files;
+> #257 merges first). Commit **`6124ebf`** — `feat(#101):
+> crossChatRecallProbes + runCrossChatRecallProbe — the A-1 instrument
+> (device run queued)`.
+> **Nothing here is a result** — an instrument is not a measurement, and
+> A-1's bar (≥90% armed, n=20) is still exactly as pre-registered above.
+>
+> **What shipped, all DEBUG-side** (a harness, not a promoted clause —
+> #218's rule cuts the other way here):
+> - **`crossChatRecallProbes`** (`LocalChatBackend+Battery.swift`) — the
+>   NEW pinned list, **ten rows, closed from birth**, each a phrasing whose
+>   answer lives in a PAST conversation and nowhere else (not the current
+>   turn, not a sensor, not world knowledge). **The #205 closed series
+>   gained nothing** — `routerBaselineProbes` (10), `intentProbeGrid` (19),
+>   `vectorProbeGrid` (21) and #257's two lists (10/10) are untouched and
+>   pinned by test at those counts; a disjointness test proves no row is
+>   shared, so no two bars can read the same classification.
+> - **`runCrossChatRecallProbe(trials:)`** — classifies each row through
+>   **production's own route**, `routeTurn(prompt:)`, the same two-field
+>   call `LocalChatBackend.swift:890` makes, at `productionRouterVariant`
+>   with the default `context: ""` / `hasImage: false`. Those defaults are
+>   the point, not a shortcut: the modelled turn is the FIRST turn of a
+>   FRESH chat, where production's `priorAssistantTurn` is `""` by
+>   construction — #215's lesson applied before the run rather than after
+>   it. Only `needsDeviceTool` is scored; #257's `isCapabilityQuestion`
+>   rides the same generation and is deliberately not read.
+> - **Error discipline, per trial rather than per row.** `routeTurn` fails
+>   safe to ARMED, and "armed" is this probe's headline number — so a
+>   row-level failure delta would fold every thrown generation straight
+>   into the result. `routerFailureTally` is sampled around EACH
+>   classification; a thrown trial counts in `errors` and is **not
+>   scored**. Both bands emit `scored=<n>/<trials>` AND `errors=<n>`,
+>   through one-place line builders (`crossChatRecallProbeLine` /
+>   `crossChatRecallSummaryLine`) that the unit test pins byte-for-byte —
+>   `reapTrialLine`'s shape, so the test cannot drift from the string the
+>   probe actually emits.
+> - **Developer screen:** "Cross-chat recall routing A-1 (n=20)" —
+>   10 rows × 2 trials = the pre-registered n exactly. Read-only: no belt,
+>   no tools registered, nothing created and nothing to reap.
+>
+> **QUEUED — DEVICE.** A-1 is a generation question, so the test host
+> cannot answer it (`isAvailable == true`, then `Code=5000` no-assets:
+> availability ≠ generability). The device row goes in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` by the controller — **one queue**,
+> and this entry does not restate the check.
+>
+> **101-A2 and 101-A3 are UNCHANGED and UNSTARTED — post-verdict by
+> design.** No corpus widening, no store, no extractor, no privacy
+> classifier and no report builder exists or should be built until A-1
+> reports. That ordering is the whole reason A-1 ran first: if the router
+> sends cross-chat recall toolless, the already-armed
+> `ConversationSearchTool` never fires and Shape A is dead **before** any
+> of that work is spent — and a dead Shape A is a RESULT.
+>
+> **RUN PROTOCOL — pre-registered 2026-08-09, BEFORE any run (from the
+> instrument's independent review; deciding these after a number is in
+> hand is the redefinition the bar convention forbids):**
+> 1. **The rate is `armed/scored`, never `armed/trials`.** A run with
+>    `scored < 20` is **INCOMPLETE** — top it up to 20 scored trials (or
+>    re-run); it is never scored as a verdict. Worst case named in
+>    advance: a total-error run (assets unavailable) emits
+>    `armed=0/20 … errors=20`, and reading the headline fraction there
+>    would conclude "routes toolless ⇒ Shape A dead" — the exact wrong
+>    answer this instrument exists to prevent.
+> 2. **Near-miss protocol:** a result within ±2 trials of the 90% bar at
+>    n=20 triggers ONE further run at n=50 (5 trials/row); the bar itself
+>    does not move.
+> 3. **The ambiguity statement rides any MISS:** the ten rows are a
+>    phrasing hypothesis, pinned closed. A failing A-1 establishes "the
+>    router does not arm THESE TEN cross-chat phrasings," not "the model
+>    cannot route cross-chat recall" — report it with that attached.
+> 4. **The authoritative artifact is the emitted `router: CROSSCHAT` lines**
+>    (Console/file sink). `BatteryResultsScreen`'s row renders
+>    `correct/trials` with no error indicator and cannot be read for this
+>    bar.
+> 5. **One literal deviation from the bar's wording, recorded now rather
+>    than discovered later:** the probe scores `routeTurn`'s RETURN VALUE,
+>    not the `router: turn routed …` log line the bar named. Same Bool,
+>    strictly less lossy; noted so the run record matches the instrument.
+>
+> **✅ Lane gate 2026-08-09 (controller-run, CC-272-iPhone-Air, on the
+> branch merged with main): GATE: PASS — TEST SUCCEEDED, 1954 Swift
+> Testing + 13 XCUITest, Release build clean.** (Not a bar — the standing
+> pre-PR rule; A-1's own bars remain the device run.)
+
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
 Lane J PR 1 ships single-window-by-policy (`SingleWindowPolicy`, #108): `UIApplicationSupportsMultipleScenes` must stay true for CarPlay, so "New Window" / Stage Manager "+" affordances exist but a second app window scene is destroyed on connect. Lifting this properly requires auditing `ChatStore`/`AppContainer` (and every `@State`-held presentation shell: sessions drawer, model selector, composer text) for concurrent scene observation — two windows sharing one `@Observable` store graph means shared composer drafts, shared drawer state, racing scroll proxies, and double-driven streaming UI. Also decide per-window vs shared conversation identity (probably: second window = same conversation read-only, or independent conversation via scene-scoped selection). Until then the refusal stands. Cheap first rung if ever wanted: allow a second window only for the DEBUG GenUI harness (#106) or a future preview surface (#99), which don't touch ChatStore.
@@ -5485,6 +5572,17 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 side, just a thought").** Source-confirmed the same evening, so this is not filed on a
 screenshot alone.
 
+> **📍 READ THIS BEFORE THE SHELVING NOTE BELOW (head pointer added 2026-08-09,
+> #304 lane, dispatch §4 C8).** The 2026-08-04 shelving ("structurally blocked
+> AND operationally unneeded") is true of **reading/writing the host's
+> `approvals.mode`** — re-verified 2026-08-09, no `/api/config` in
+> `_http_route_table()` — and says **nothing about ANSWERING** the host's
+> approval requests. That half was routed out of this item by the 2026-08-06
+> update at the foot: it rides **#304** (Phase 3 slice 3B,
+> `POST /v1/runs/{run_id}/approval`), filed and executing 2026-08-09. A reader
+> who stops at the shelving note concludes the wrong thing — the dead §F7d turn
+> HAS a fix lane; only mode SELECTION stays parked.
+
 **What Hermes has.** `hermes_cli/web_server.py:933` declares the config key
 **`approvals.mode`**, `"Dangerous command approval mode"`, options
 **`["manual", "smart", "off"]`** — matching the screenshot's *Manual* ("ask before actions
@@ -5611,6 +5709,21 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+> **2026-08-09 corrections to the update above (#304 lane, dispatch §4 C4/C1):**
+> **(C4)** the update is true and INCOMPLETE the same way the plan's N6 bullet
+> was — a dropped-stream approval is visible "as a state but not as a question,"
+> **and the ANSWER channel is stream-independent**: `resolve_gateway_approval`
+> works off `_gateway_queues[session_key]`, and `_run_approval_sessions[run_id]`
+> is popped only in the run's own `finally`, so a client that lost the stream
+> can still POST a deny and it lands. The honest degraded state includes a
+> working Deny (bar 304-D(i)), not just an explanation. **(C1)** every
+> `api_server.py:NNNN` cited in this entry was read at pre-`3dcbe9001` heads and
+> is stale (e.g. `_handle_run_approval` `:6772`→`:6929`,
+> `register_gateway_notify`'s sole site `:6524`→`:6681`); the runs region
+> drifted ≈ +150 lines while the version string stayed `0.20.0`. Cite the head
+> you read; re-resolve before quoting (drift table: dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1).
 
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
@@ -6092,6 +6205,227 @@ paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
 `:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
 head). C2 (3B has no entry) is discharged by this filing.
 
+> **UPDATE 2026-08-09 (lane executed — branch `t27-304-3b-host-approvals`,
+> based on #292's tip `b2265cd` + `main` merged for the filings): 304-A..F
+> BUILT AND MET at the unit level, TDD with observed REDs throughout; 304-G
+> PENDING (controller runs the gate); 304-H/I QUEUED behind the 🔐
+> live-install go (O2 still owed — nothing on any live install was touched).**
+>
+> **Pre-lane baseline, measured on the lane's own base (`e87de11`): 1927
+> tests / 145 suites** (full `TalariaTests`, gate sim 47F68496). **Post-lane
+> full-unit run: 1953 tests / 148 suites passed** — the count MOVED by
+> exactly the lane's 26 new tests / 3 new suites (fresh `test`, not
+> `test-without-building`; the stale-`.xctest` tell checked). **#292
+> (PR #288) and #272 (PR #289) merged to `main` while this lane ran; `main`
+> was re-merged into the branch at `235e369` (auto-merge, no conflicts,
+> `oi-split-verify.py` PASS) and the full suite re-run on the merged head:
+> 1959 tests / 148 suites passed** (1953 + #272's 6).
+>
+> **Per-bar evidence (every RED observed on the gate sim before its GREEN;
+> RED log preserved in the lane report):**
+> - **304-A MET.** RED `bf6d08b`: 4 failed / 17 — `approval.request` still
+>   decoded to `.ignored("approval.request")`, the exact discard
+>   `RunsFrameParserTests:37` pinned. GREEN `a4295f7`: 17/17. Three producer
+>   fixtures (four-choice, `smart_denied` `["once","deny"]`, MCP elicitation
+>   with `pattern_key:"mcp_elicitation"` and command-as-MESSAGE) decode with
+>   `choices` verbatim; a no-choices frame stays `.ignored` (honest absence
+>   over invented buttons); the inverted test narrowed IN PLACE to
+>   `subagentFramesAreIgnoredNotDropped`. Buttons build from
+>   `request.question.choices` — nothing hardcodes four.
+> - **304-B MET.** RED `1895b88`: `answerApproval` resolved to the protocol
+>   default (`.unsupported`), zero POSTs recorded. GREEN `606ce16`:
+>   `onceAnswerPostsExactlyOneChoiceBodyToTheRunsPath` pins body ==
+>   `{"choice":"once"}`, one POST, Bearer auth;
+>   `answerRidesTheGivenEndpointNotTheLiveProviders` flips the live base URL
+>   before answering and the POST still hits the birth host (the endpoint
+>   rides the `RunApprovalRequest` VALUE — never `activeRunContext`, whose
+>   doc now says so);
+>   `HostApprovalStoreTests.atMostOnePostPerCardRegardlessOfTapCount` pins
+>   the tap-count half with a gated sender (in-flight double-tap no-ops;
+>   resolved card never posts again; `.unreachable` is the sole re-entry).
+> - **304-C MET.** RED: all arms classified `.unsupported`. GREEN: 409
+>   `approval_not_pending` → `.windowClosed` ("window closed — the host
+>   already denied this"), 409 `approval_not_active` → `.notActive`
+>   (distinct, no expiry claim), 404 → `.runGone`, 400 → `.rejected` with
+>   the host's words, transport failure → `.unreachable` (card stays LIVE,
+>   #264's rule) — and the store renders the three terminal arms as three
+>   DISTINCT notices with `resolvedChoice` nil
+>   (`theFourXXArmsRenderDistinctlyAndNeverAsSuccess`).
+> - **304-D MET, all three arms.** (i) `statusAloneRaisesOnly…`: events 404
+>   + status `waiting_for_approval` → exactly one degraded
+>   `.approvalRequested` with `question == nil`, and the store's degraded
+>   Deny SENDS (`degradedDenySendsAndARealQuestionIsNeverDowngraded`) — the
+>   stream-independent channel. (ii) same fixture: poll-budget expiry on the
+>   parked run yields one `.interrupted`, zero `.failed`. (iii) RED: the
+>   sync path threw the generic "did not answer in time" after 13 polls;
+>   GREEN: `pollRunToTerminal(haltOnApprovalPark:)` returns on the FIRST
+>   parked read (poll count == 1) and `syncTurnViaRuns` throws the honest
+>   refusal naming the parked approval (O5).
+> - **304-E MET.** Exactly one `.finished` with an approval frame in the
+>   turn; duplicate `approval.responded` frames idempotent at the store
+>   (`markResolvedIsIdempotentAndScopedToTheRun`); card torn down on EVERY
+>   driver exit — `.finished`/`.failed`/`.unreachable`/`.interrupted` (both
+>   arms), `cancelStreaming` (Stop AND revoked-budget), `abandonPendingRun`
+>   (thread switch/clear/reset) — proven end-to-end through a real
+>   `ChatStore` (`chatStoreRaisesTheCardMidTurnAndTearsItDownAtTurnEnd`).
+> - **304-F MET.** A question is only ever minted from a stream frame; the
+>   degraded raise carries `question: nil` by construction, pinned by the
+>   D(i) fixture's `request.question == nil` assertion, and
+>   `RunStatusSnapshot.liveStatuses`' doc now carries the C5 warning.
+> - **304-G ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air, on the branch merged with main @ `21d2b94`): TEST
+>   SUCCEEDED, **1981 Swift Testing + 13 XCUITest**, Release build clean.
+>   (Lane-local evidence beneath it: the five affected suites 68/68
+>   post-change, 3A's `RunsPlaneTransportTests` 33/33 unregressed.)
+> - **304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
+>   per-experiment go still owed; Owen's O3 routes them to the Mac. The
+>   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
+>   the §2.3 unknown: what a DENIED tool call emits on the runs stream —
+>   observe, don't guess (#296's family).
+>
+> **Owen's rulings applied as recorded:** O1 — all four choices render as
+> offered; `once`/`deny` one tap; `always`/`session` (and, fail-safe, any
+> unknown choice) behind a second confirm naming the consequence
+> ("Permanently allowlists this pattern on <host>…" / "Applies to this one
+> run only — not this conversation"); the `session` button reads **THIS
+> RUN**, pinned by `sessionChoiceRendersAsThisRunNeverAsSession`. O5 — the
+> sync path's honest refusal (above). O6 — `useRunsTransport` default
+> untouched (OFF); nothing is reachable outside Developer.
+>
+> **The card (`Talaria/Features/Chat/HostApprovalCard.swift`):** a SIBLING of
+> `ToolConfirmationCard`, rendered beside it in `ChatScreen` (both can be on
+> screen at once); distinguishable at a glance — "HOST APPROVAL" + antenna
+> glyph + the actor named (birth profile's name, else the frozen endpoint's
+> host) vs. the device card's "Confirm" + hand glyph; `command` rendered
+> VERBATIM (monospaced for commands, prose for the MCP-elicitation consent
+> MESSAGE — never presented as something the host would "run"), never
+> truncated, never a file-reconstruction surface (3A-D); degraded shape =
+> Deny + "this connection can't show you what it is"; terminal 4xx notices
+> render in the card's place; every color a `Design` token (forge header
+> family), so all four themes incl. Paper Tape resolve from the palette;
+> VoiceOver labels state the CONSEQUENCE (224-1D). `ToolConfirmationCenter`
+> untouched (dispatch §5's rejected-reuse ruling).
+>
+> **T9 (XCUITest): NOT SHIPPED, deliberately.** The UITest suite has no
+> fixture host for the chat plane (mock PAIRING exists; UITest chat runs on
+> the local brain), so the card is not genuinely reachable behind the
+> Developer switch in that harness — reaching it would mean an app-side mock
+> emitter, i.e. exactly the "test that exercises a mock and reads as
+> coverage" the dispatch's T9 forbids. The card's logic is store-level
+> unit-tested; its real reachability is 304-H's device bar.
+>
+> **Corrections LANDED (commit `be2d6cd` before any code, per §10):** C1 in
+> both design docs (dated head-notes), #224, #283, and the Swift doc
+> comments themselves (six stale `api_server.py:NNNN` re-resolved to
+> `3dcbe9001` values from the dispatch's measured table, plus the two
+> falsified "(and a future `/approval`)" comments — the approval does NOT
+> ride `activeRunContext`, and both docs now say so); C3 plan §3 (M→L,
+> dated); C4 plan §2.2 + #224's update; C5 plan §2.2 + #283 + the
+> `liveStatuses` doc; C6 plan §2.5 + CLAUDE.md `:8642`; C7 CLAUDE.md `:8642`
+> (choices ride the frame / command not always a command / status never
+> carries the question); C8 #224 head pointer. C2 discharged by the filing.
+>
+> **Deliberately NOT built (dispatch §5):** the deny REASON (no wire slot),
+> `resolve_all` (no UI story), the `smart_denied` arm's verification
+> (handled by construction, unprobed, no bar claims it), any
+> `ToolConfirmationCenter` reuse, and #305 (outlives-the-screen — filed, not
+> built; its user cost is real: with the app away, the host denies by
+> timeout).
+>
+> **Q7/Q6 coupling (dispatch §8):** 3B ships NO transcript receipt for an
+> answered approval and NO persisted preference — deliberate, recorded here
+> so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
+> that answer.
+
+> **⛔ REVIEW ROUND 1's FIX BELOW WAS FALSIFIED BY THE ROUND-2 RE-REVIEW
+> (2026-08-09, same day) — read the ROUND 2 note after it; the note below
+> stands as the record of what was tried, not of what shipped.** The
+> re-review's trace: the ONLY route from Talk to chat is ending the
+> session — End → `endSession()` → `teardownSessionResources()` →
+> `turnTask?.cancel()` → the round-1 post-loop scoped clear ran BEFORE the
+> overlay dismissed, so the user told to "open the chat" arrived at a chat
+> whose card was already gone. The plumbing was right; the promise was
+> still false. Round 1's "'open the chat' is now true" claim is STRUCK.
+>
+> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED
+> *(superseded — see above and ROUND 2 below)*:
+> the VOICE consumer was a state where the feature lied.** A voice turn
+> rides the same runs transport, so an `approval.request` frame lands in
+> `NativeVoicePipelineService`'s OWN stream consumer — which rendered "open
+> the chat to answer it" while raising nothing: no replay, the degraded
+> raise also lands in the voice stream, and the chat showed NO card (the
+> #180 shape, reviewer-caught). **Fix = the cross-store raise (option a):**
+> the voice consumer raises the SAME `HostApprovalStore` the chat screen
+> renders (full question from the frame; degraded for the question-less
+> park), `approval.responded` forwards to the idempotent teardown, and the
+> voice turn's every exit — including the barge-in cancellation — tears its
+> card down SCOPED via new `clearForTurnEnd(runID:)`, so a predecessor
+> turn's exit can never tear down a successor's card (bar 304-E, narrower
+> door). An honest-copy downgrade remains for store-less constructions (no
+> instruction to open a chat that would show nothing). Constraints held: no
+> new Task/loop (#292 — rides the existing consumer); the at-most-once POST
+> guard is store state shared across both surfaces by construction. RED
+> first (`3563adb`: the scripted voice backend held its stream open and
+> `store.current` stayed nil; the scoped clear no-oped), GREEN in the fix
+> commit (`71a6b46`) — 68/68 across the five affected suites incl. the new
+> `VoiceHostApprovalTests` and the amended service's own
+> `NativeVoicePipelineTests`; **full `TalariaTests` after the fix: 1961
+> tests / 149 suites passed** (the pre-fix merged head's 1959/148 + the
+> fix's 2 tests / 1 suite). Reviewer Minor #1 (a POST completing after
+> teardown renders its 4xx nowhere — deliberate never-false-success)
+> PARKED by the controller, no action.
+
+> **REVIEW ROUND 2 (2026-08-09) — RULED: round 1 NOT ADDRESSED (the
+> endSession-teardown trace above), plus one NEW Important (with two
+> raisers, the chat's eight UNSCOPED `clearForTurnEnd()` sites could tear
+> down a voice-raised card for a different run — the same race round 1
+> scoped against, in the other direction). The controller ruled option (b):
+> the HONEST DOWNGRADE, and the voice raise removed.**
+> - The voice consumer's `.approvalRequested` arm now states only what is
+>   true — *"Hermes is waiting on a host approval this voice surface can't
+>   show or answer. If it isn't answered, the host denies it when its
+>   approval window expires."* — Owen's O5 honest-refusal ruling applied to
+>   the voice surface. **No instruction to open the chat.**
+>   `.approvalResolved` is a deliberate no-op on this surface.
+> - **REMOVED (dead plumbing is not kept "for later"):** the pipeline's
+>   `hostApprovals` reference, the AppContainer hoist + wiring, and
+>   `HostApprovalStore.clearForTurnEnd(runID:)`. With ONE raiser (the chat
+>   consumer) the unscoped clears revert to being correct — the originally
+>   reviewed 304-E design — which also discharges the new Important.
+>   **KEPT:** `commitUserUtterance`'s `// harness-visible` widening (drives
+>   the round-2 test) and the `ScriptedVoiceBackend` fixture.
+> - **Inversion recorded:** round 1's two tests REFUSE TO COMPILE against
+>   round-2 code (`clearForTurnEnd(runID:)` and `.hostApprovals` no longer
+>   exist — observed, log preserved in the lane report's scratchpad).
+>   Rewritten to pin the new truth:
+>   `aVoiceTurnsApprovalProducesTheHonestRefusalAndInstructsNothingFalse`
+>   (the copy names can't-show and the timeout deny, contains NO
+>   "open the chat"/"open Talaria", and the frames don't kill the voice
+>   session); the scoped-clear test deleted with its method. Chat-path
+>   teardown tests byte-unchanged.
+> - **A voice-surface ANSWER path is explicitly #305's scope** (pointer
+>   added to #305's entry).
+> - **Counts after round 2:** covering suites 67/67 in 5 (the deleted
+>   scoped-clear test left with its method; the voice test replaced 1:1);
+>   **full `TalariaTests` 1960 tests / 149 suites passed.**
+
+> **REVIEW ROUND 3 (2026-08-09) — the last surviving instance of the same
+> false-instruction family, on the SYNC path (bar 304-D(iii)'s copy).** The
+> T7 refusal still ended *"Open Talaria to answer it before the host's
+> approval window expires"* — but a sync-parked run has no stream and no
+> replay, so opening the app surfaces NO card (the chat consumer raises
+> only from a stream it drives). D(iii)'s required half (name the parked
+> approval, never the generic timeout) was met and stays; the instruction
+> tail was the surplus lie. **Copy aligned to the round-2 honest standard:**
+> *"The Hermes host paused this run — it is waiting for an approval this
+> path can't show or answer. If it isn't answered, the host denies it when
+> its approval window expires."* — no instruction to open anything. The
+> pinned test (`aSyncTurnParkedOnAnApprovalSaysSoRatherThanTimingOut`) now
+> also asserts the deny-on-expiry statement and the ABSENCE of any
+> "open Talaria"/"open the chat" instruction. (The AskHermes "Open Talaria
+> to watch it finish" family is untouched — those instructions are TRUE:
+> the answer does land in the app.)
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
@@ -6104,6 +6438,17 @@ whether a dangerous host command should be approvable from a lock screen at all.
 (`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
 one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
 silently drop it.**
+
+> **2026-08-09 (#304 review round 2, controller's ruling): the VOICE surface's
+> answer path is explicitly THIS item's scope too.** A voice turn's
+> `approval.request` lands in the voice pipeline's own stream consumer; #304
+> round 2 ruled that surface down to the honest refusal (it cannot show or
+> answer; the host denies on its own window) after the cross-store raise was
+> falsified — the only route from Talk to chat is ending the session, whose
+> teardown destroys the turn (and destroyed the raised card) before the chat
+> is reachable. Any real voice-reachable answer surface — like any
+> approval that outlives its screen — is designed here, with scoped teardown
+> as part of that design, not bolted onto #304.
 
 ## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
 
@@ -6340,6 +6685,22 @@ currently WORSE than the sessions plane for #21 — 3A's honest-absence bar
 stands, and no approval card or preview may become a place someone reconstructs
 a written file. Decide the destination (plugin mirror / media pipeline /
 accepted limitation) when the host sitting scopes Phase 3's later slices.
+
+## 315. 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun` — **FILED 2026-08-09 by #306's whole-lane review (pre-existing on `main`, observed not introduced). #306 closed the QUEUE door on this class and #307 closed the DRAIN door; this is the one remaining door. NOT STARTED; bars pre-register here before any code.**
+
+During the reconcile window (`streamingMessageID == nil`, `pendingRun` live —
+the #278 state, which can last minutes), the composer's queue door renders only
+on `isStreaming` — so it offers **plain Send**. A manual send there posts into
+the live `pendingRun`, and `attemptReconcile`'s
+`timestamp > pending.sentAt` adoption can pair the dropped run's recovery with
+the MANUAL turn's reply — the #307 mechanism exactly, user-driven instead of
+drain-driven: someone else's reasoning re-attached, a fabricated duration, the
+old prompt re-paired, nothing erroring. **Candidate fix shape when routed:**
+render the queue door on `isTranscriptBusy` (C2 applied to the DOOR, not only
+the fire gate) so a mid-reconcile commit becomes a HOLD — one predicate swap in
+the composer's door condition, plus the matrix's row-3 semantics already
+shipped by #306. Evidence chain: #306's independent whole-lane review
+(2026-08-09), which traced the door predicate while verifying C2.
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
@@ -6990,6 +7351,28 @@ not walk — the doc half, being fixed now in the #291 lane.
 >   (117 pre-lane + this lane's ordering pin), RunsPlaneTransportTests
 >   32/32, both foreground.
 
+> **✅ 2026-08-09 — the "Interaction with #292 noted, not blocking" line in
+> Owen's ruling above is RESOLVED: the recovery is independent of the
+> producer, and #292's fix does not disturb it.** #292's cancellation hook
+> landed (`t27-292-producer-cancellation`) and the proof is structural, not
+> asserted: the arm's inputs are all store-side (`streamingMessageID`,
+> `streamingUserMessageID`, `activeStreamRun ?? activeSessionID`; `runId`
+> passed nil), and the recovery fetch is a separate client call
+> (`reconcileFromServer()` off `reconcileTask`), not work inside the
+> producer #292 now cancels. All seven of this entry's pins —
+> `expirationPathArmsTheRealRecovery`, `expirationPathSettlesTheUserRowWorking`,
+> `explicitStopStillSettlesTheUserRowDelivered`,
+> `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop`,
+> `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`,
+> `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`,
+> `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed` — ran green
+> WITHOUT edits after the fix. (The ruling's "Runs plane: the status poll"
+> misnaming of the shipped mechanism is already corrected in the 2026-08-09
+> supersession note above — the sessions-messages GET shipped on both
+> planes; not duplicated here.) One #292-side consequence recorded there,
+> Owen-overturnable: an abandoned runs turn's usage is never recorded, so
+> its session's CTX gauge goes stale rather than current.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -7154,6 +7537,89 @@ today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
 `RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
 hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
+
+> **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
+> numeric RED evidence — MERGED same day, PR #288 (`c2cc540`). Bars 292-A
+> and 292-B MET; ✅ 292-C QUEUED as `DEVICE-PASS-RUNNING-LIST.md` **§R8**
+> (the bar that closes this item); ✅ GATE: PASS 2026-08-09 (controller-run,
+> sim CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
+> RED by restoring the bug leaves an orphaned producer polling for up to the
+> test's 30s budget AFTER the test returns — later tests in the serialized
+> suite will see its requests as noise in the shared stub log. Expected
+> collateral of the un-fixed state, not a second regression.
+>
+> **⚠️ The entry's as-filed citations were stale — corrected here (close-out
+> rule), verified at the fix branch's HEAD:** the producer is
+> `sendStreaming` at `SessionsHermesClient.swift:346-393` (not `:322-350`,
+> which is the `postSyncTurn`/`discardStaleHop`/`postSyncChat` region); the
+> comment file is `SessionsHermesClient+RunsTransport.swift` (no bare
+> `RunsTransport.swift` exists) and there were THREE comment sites, not one
+> (post-fix: `:562-567`, `:795-806`'s "or on cancellation", and `:804-806`'s
+> "exits silently"); the cancellation checks are `streamTurnViaRuns`'s
+> events-loop break at `:444` and `pollRunToTerminal`'s single top-of-loop
+> check at `:824` plus the cancellation-shaped sleep catch at `:858`
+> (`:780` was a doc line, not a check). Note the 2026-08-09 refinement
+> note's own `:546-547`/`:777`/`:780-781` citations had already drifted by
+> the time it was committed (#296-C2's comment block landed above them);
+> the sites are the same three, found by the phrases, not the numbers.
+>
+> - **292-A MET, RED first with the numbers the bar demanded.** New test
+>   `consumerWalkAwayCancelsTheProducerAndStopsThePolling`
+>   (`RunsPlaneTransportTests.swift`), built exactly per the refinement
+>   note: stub-side counting, per-test `runsPollBudget = 30s` /
+>   `runsPollInterval = 40ms` override (the bar's teeth — stated as a
+>   comment in the test), inline collector, count proven ≥2 before the
+>   cancel, `==` with no tolerance. **RED on `f23a6fb`: `atWalkAway = 2,
+>   final = 13`** — eleven more authenticated `GET /v1/runs/run-r1` polls in
+>   a 500ms window after the consumer's stream was released — AND
+>   `activeRunContext` still non-nil (the second assertion, the
+>   defer-runs-on-cancel hazard, also failed on HEAD). **GREEN after the
+>   fix:** count frozen, context nil. The fix is the router's #192 shape
+>   verbatim: producer Task bound to a `let`,
+>   `continuation.onTermination = { _ in producer.cancel() }`
+>   (`SessionsHermesClient.swift:390-392`), strong capture of the Task
+>   handle. `RunsPlaneTransportTests` 33/33 (count MOVED 32 → 33, fresh
+>   DerivedData); the two tests the dispatch flagged as most likely to move
+>   — `streamCompletionSuppressesThePollPath` and
+>   `killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce` — both stayed
+>   green untouched.
+> - **292-B MET.** All three comments now name the mechanism that makes
+>   them true (`sendStreaming`'s `onTermination` hook, #292) and the hook
+>   carries the reciprocal note naming its three customer checks. Repo-wide
+>   grep for "costs nothing" / "exits silently" / "makes the poll a no-op":
+>   the only Swift hits touching cancellation are the two rewritten sites
+>   (`+RunsTransport.swift:563`, `:804`), both now describing shipped
+>   behavior; every other hit (`ChatScreen.swift:114`,
+>   `SessionsHermesClient.swift:126`, `+RunsTransport.swift:487` (296-C2's
+>   field), `LocalChatBackend.swift:2194`, `AppStoresTests.swift:5004`,
+>   `scripts/e1-doubleinstall-probe.swift:11`) is an unrelated claim the
+>   code walks.
+> - **Ruling 1 held (the #295 interaction):** all seven #295 pins plus
+>   `ChatBackendRouterTests`' two guards ran green WITHOUT edits
+>   (AppStoresTests + ChatBackendRouterTests, 144/144). **One real cost,
+>   deliberate and Owen-overturnable:** an abandoned runs turn's usage is
+>   never recorded (`deliverPolledTerminal`'s `usageIndex` write no longer
+>   runs for it), so that session's CTX gauge shows the previous run's
+>   occupancy — stale, never zero, never hidden. The alternative was ~60
+>   authenticated requests to keep a gauge current on a turn the user left.
+> - **Ruling 2 held:** the producer's cancellation path is network-free —
+>   no `/stop` wired (that flip stays Owen's, per #283's ruling), no
+>   reordering in `cancelStreaming`.
+> - **292-C, procedure for the device row** (NOT yet queued — the
+>   controller adds it to `DEVICE-PASS-RUNNING-LIST.md` at close-out): walk
+>   away from a runs turn, kill the network past 60s, host log shows no
+>   further `GET /v1/runs/{id}` and no `/stop` at all; record the
+>   pre-walk-away poll count so a producer that never reached the poll loop
+>   reads inconclusive, not passing.
+> - **Open for Owen (Ruling 3, filed not built):** whether the runs plane
+>   should get the literal status-poll recovery his #295 ruling named
+>   (needs a durable `run_id` surfaced out of the producer — MORE necessary
+>   post-fix, since the producer is now guaranteed not to be around to
+>   poll), and whether the usage-gap trade above stands or a single final
+>   status read on cancellation is worth it.
+> - **CLAUDE.md: nothing owed** — no standing rule is falsified by this
+>   fix (stated explicitly per the dispatch's close-out).
 
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
@@ -8304,6 +8770,18 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > server-side context the sessions plane feeds the agent; revisit at 3E,
 > where it compounds with attachment dataURLs toward a request-size cliff).
 >
+> **2026-08-09 (#292 close-out) — two of the numbers above moved, dated
+> note not a rewrite:** `sendStreaming` now cancels the producer on consumer
+> walk-away (`onTermination`, #292), so (1) the single-slot
+> `activeRunContext` clears AT walk-away — the producer's `defer` runs on
+> cancellation — instead of at poll-budget expiry, shrinking the
+> wrong-run-stop window from ≤120s to ~0 on abandoned turns (a Stop tapped
+> in that window now correctly finds no stale run to address); and (2) the
+> "~3 min worst case" silence window applies only to a WATCHING consumer —
+> an abandoned turn stops its polling at walk-away rather than running the
+> budget unwatched (which #292's filing noted was worse than the number
+> implied).
+>
 > **Falsified upstream in the same lane (close-out rule):** #145 Part A's
 > "everything that is not a stream gets 20s" was made false by the first
 > sync implementation and is now true again via a dedicated `runsSyncBudget`
@@ -8420,6 +8898,26 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > - Minor, adopted: the runs family is now promoted into **CLAUDE.md**'s
 >   `:8642` section as live-verified on 0.20.0, with the three
 >   design-relevant behaviours, so the next lane does not re-probe it.
+
+> **2026-08-09 corrections (#304 lane — slice 3B — dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1/C5):**
+> - **(C5, NEW — this entry's `liveStatuses` reasoning implicitly assumed the
+>   status tracks reality, and it does not):** after an approval TIMES OUT, the
+>   run status keeps reading **`waiting_for_approval` for the remainder of the
+>   run** — `_set_run_status(run_id, "running", …)` fires only in
+>   `_handle_run_approval`, expiry resets nothing, and every later event
+>   re-stamps the current status until the terminal set. `GET /v1/runs/{id}` is
+>   **not a pending-approval oracle**; only a 409 `approval_not_pending` settles
+>   it. Consequence carried into `RunStatusSnapshot.liveStatuses`' own doc
+>   comment and pinned by bar 304-F (status alone never raises a question).
+> - **(C1):** every `api_server.py:NNNN` this entry cites was read at
+>   pre-`3dcbe9001` heads and is stale — the runs region drifted ≈ +150 lines
+>   (e.g. `_handle_runs` `:6298`→`:6455`, `_RUN_STATUS_TTL` `:6187`→`:6344`,
+>   stream popped on disconnect `:6765-6766`→`:6921-6923`) while the version
+>   string stayed `0.20.0`. Cite the head you read; re-resolve before quoting
+>   (full drift table: the dispatch §4 C1). The Swift doc comments in
+>   `SessionsHermesClient+RunsTransport.swift` carried the same stale citations
+>   and were corrected in the #304 lane.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
@@ -9075,7 +9573,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. THE FIX IS OWED and is the only thing left on this item.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — 272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.**
 
 **Owen, 2026-07-25** (quoted verbatim in
 `handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
@@ -9255,8 +9753,10 @@ written before any code:
   each is flagged `PINS THE BUG` in-file. That is deliberate: this lane's
   scope was reproduce/record/stop, so pinning keeps the reproduction
   executable and the gate green. **The fix lane MUST invert every one of
-  them**; a fix that leaves them passing has not fixed anything.
-- **STILL OPEN: the fix.** Per the pre-registered response above it is not
+  them**; a fix that leaves them passing has not fixed anything. *(✅ Done
+  2026-08-09 — all four inverted in the fix commit; see the fix-lane block.)*
+- ~~**STILL OPEN: the fix.**~~ *(✅ Landed 2026-08-09, fix-lane block below.)*
+  Per the pre-registered response above it is not
   this lane's work. The shape to decide: should `didFailAuthentication`
   survive a foreground within the same lock episode until success or an
   explicit tap, or should `autoAuthenticateIfNeeded` track "already attempted
@@ -9378,6 +9878,98 @@ boundary that is something other than "any foreground."
 >   ladder shows `FIRED`. **This bar is also where Owen's reservation gets
 >   its honest exit: if the behaviour feels wrong in hand, the ruling is
 >   re-opened, not defended.**
+
+**✅ RESULT, 2026-08-09 — THE FIX LANE. 272-E MET (RED-FIRST), 272-F MET.
+Branch `t27-272-applock-fix` off `2a664f0`; no PR opened (the controller
+reads the diff and runs the gate). ✅ 272-G MET 2026-08-09 — GATE: PASS
+(controller-run, CC-272-iPhone-Air): TEST SUCCEEDED, 1932 Swift Testing +
+12 XCUITest, Release build clean. 272-H is Owen's hand on the phone. #272 STAYS OPEN until 272-H — and its device row is NOT YET
+QUEUED: the controller adds it to `dispatch/DEVICE-PASS-RUNNING-LIST.md` at
+session close-out (the lane was told not to touch that file).** Recorded
+against the bars above:
+
+- **272-E — MET.** `bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip`
+  added to the EXISTING `TalariaTests/AppLockControllerRaceTests.swift` (no
+  new file — no xcodegen, no scheme churn), driving `scenePhaseChanged(to:)`
+  only, gated authenticator parked and asserted anti-vacuous. **Run RED
+  against HEAD (`2a664f0`) before any fix code, on sim `CC-272-iPhone-Air`;
+  the failure, verbatim:**
+
+  ```
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:374:9: Expectation failed: auth.callCount == 1
+  ↳ 272-E: no second authenticate call may fire without a user tap
+  ↳ auth.callCount == 1 → false
+  ↳   auth.callCount → 2
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:375:9: Expectation failed: auth.pendingCount == 0
+  ↳ the sheet stays down — nothing may be parked
+  ↳ auth.pendingCount == 0 → false
+  ↳   auth.pendingCount → 1
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() failed after 0.033 seconds with 2 issues.
+  ✘ Test run with 9 tests in 1 suite failed after 0.226 seconds with 2 issues.
+  ```
+
+  The test compiled and failed on the loop's behaviour, per the bar (not a
+  compile error); the 8 pre-existing cases — including every `PINS THE BUG`
+  reproduction — still passed on HEAD in the same run. The RED run's sim
+  log also caught 272-C's exact device signature live: the paired
+  `didFailAuthentication true->false on .active` +
+  `autoAuth FIRED (no tap)` lines.
+- **272-F — MET, the dispatch's fix shape as specced plus one forced
+  amendment.** In `AppLockController.swift`: (1) `episodeAttempt` resets on
+  the transition INTO `.locked` (in `refreshCover()`, only when the cover
+  actually changes — not on every call; logged only when it clears a real
+  count); (2) `autoAuthenticateIfNeeded()` gains a FIFTH sequential guard,
+  `episodeAttempt == 0`, in 272-B's split-guard logging style
+  (`autoAuth BLOCKED guard=episodeAttempt(N)` — the line 272-H greps for);
+  (3) **the `:110` clear is untouched**, and it is load-bearing for the
+  positive pins — it un-sticks a stale `didFailAuthentication` at the start
+  of a NEW episode; (4) the UNLOCK tap path is guard-free, unchanged.
+  - **The forced amendment — the retry surface (found by this lane; the
+    dispatch's fix-shape list omitted it):** `AppLockOverlayView` showed the
+    UNLOCK button on `didFailAuthentication` alone, and the kept `:110`
+    clear wipes that flag on the sheet-dismissal blip that follows every
+    cancel (every rung of the 272-C ladder). With the new guard holding the
+    prompt down, the unamended overlay would strand a cancelled episode
+    with NO prompt AND NO button — worse than the loop, and unrecoverable
+    until an app kill (backgrounding cannot start a new episode while the
+    cover never leaves `.locked`). That violates the ruling's
+    plain-behaviour contract clause 2 ("the in-app UNLOCK button is the
+    only path, and it must work") and 272-H's "reachable and works," so the
+    overlay now keys on `controller.showsRetryUnlockButton`
+    (`didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)`;
+    `episodeAttempt` made observable) — behaviour identical to today
+    everywhere except the trap window. The tap's action is untouched.
+  - **Positive pins, all green:** fresh-stretch auto-prompts exactly once
+    in BOTH shapes (cold launch; grace-expiry after a successful unlock —
+    the pin that proves the guard cannot silence a new episode); the tap
+    path always gets an attempt after a cancel + blip and its success
+    unlocks; the stale-counter leak (capability-neutralized episode →
+    re-armed lock) is caught by the transition reset; and the retry surface
+    survives the flag wipe. **All four `PINS THE BUG` assertions inverted**
+    (A-ii, A-iii, interrupted, A-iv — A-iv is now "one cancel, five blips,
+    ONE prompt, button stands throughout"), per the 272-A block's own
+    demand.
+  - **Targeted suite: 39/39 green in 5 suites** (`AppLockControllerRaceTests`
+    14, `AppLockStateMachineTests` 15, `AppLockGracePeriodTests` 1,
+    `AppLockControllerTests` 7, `AppLockSettingsCodingTests` 2) on
+    `CC-272-iPhone-Air`, `** TEST SUCCEEDED **`. **Count MOVED from the
+    lane's own measured baseline (33 at `2a664f0`) — not a stale
+    `.xctest`.** 272-D input: `TalariaTests/AppLockTests.swift` has **ZERO
+    DIFF** (`git diff` empty), `lockSurvivesRepeatedForegrounding` and
+    `retryAfterFailureUsesNewEvaluation` unedited and green.
+- **272-G — PENDING.** The controller runs `scripts/mac/lane-gate.sh`
+  serially at merge time; a literal `GATE: PASS` plus the zero-diff above
+  completes the bar. (This lane deliberately did not run the gate.)
+- **272-H — PENDING, Owen's hand on the phone (the reservation's exit).**
+  Note for the trial: with the fix, the pulled log's blip signature is
+  `didFailAuthentication true->false on .active` followed by
+  `autoAuth BLOCKED guard=episodeAttempt(1)` — the flag-wipe line still
+  appears (the `:110` clear stays) and the NEW guard's line replaces
+  `autoAuth FIRED`.
+- **Carry into the PR body (per the dispatch, for whoever opens it):** #302
+  composes with this — 302-B's "locked interval held open" fixture gets
+  harder after this merges, so #302's bars need a re-read then. #302 itself
+  was not touched here.
 
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
@@ -10493,7 +11085,7 @@ other work in flight.
 > held when checked 2026-08-07; a live guard for them would be a different script,
 > and is **not** filed as owed work.
 
-## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that"); measured lane, not yet opened**
+## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that") → ROUTED 2026-08-09 (Owen: Lever 1b APPEND + 3a) → PHASES 1+2 BUILT same day on `t27-257-capability-lever`: 1-C MET (unit), 3a-A MET (unit), 3a-B MET (XCUITest), detection + append + probe shipped; 1-GATE/1-A/1-B/1-D QUEUED-DEVICE behind the tokenCount pre-flight; 3a-C Owen, 1-E controller**
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
 "do I have any new emails?" → *"I can't directly check your emails. Let
@@ -10650,6 +11242,147 @@ neighborhood — v1 ships slash-command + empty-state chip, which the bars
 cover without fixing the home). **Device needs (queued):** the pre-flight
 tokenCount measure and the detection probe run — one small probe grid, no
 full battery.
+
+> **▶ PHASE 1 BUILT + 257-1-C MET, 2026-08-09 (commit `93a42e6`, branch
+> `t27-257-capability-lever`).** `CapabilityRegistry.capabilityAnswerBlock(families:)`
+> renders the deterministic answer — opener + one derived bullet per
+> non-vision family + closer; the copy lives on `CapabilityGroup` as two
+> exhaustive switches, so a new case cannot COMPILE without an answer line.
+> **257-1-C MET as the unit bar it was written to be:** the rendered block
+> scores **10 of 10 non-vision families** under the SHIPPED
+> `toollessIndexFamiliesNamed(in:)` — the real scorer called, not
+> reimplemented — with the expected set derived from
+> `CapabilityGroup.allCases` minus `.vision`. Registry and keyword table
+> agree; no table widening was needed or done (#297's named trap).
+> Determinism (byte-identical renders), arity, vision suppression, and the
+> 297-C halves (counted SEPARATELY) are pinned beside it.
+> CapabilityRegistryTests moved 17 → 24, all green.
+>
+> **✅ OWEN APPROVED THE RENDERED BLOCK TEXT AS-IS, 2026-08-09** (the §7
+> cheap experiment's artifact — the suite prints the exact string). The
+> block ships unreworded, and it stays unchanged in phase 2: the
+> considered "More: tap Capabilities" footer line was NOT added, because
+> the approval was of the block as rendered.
+>
+> **▶ PHASE 2 BUILT 2026-08-09, same branch — detection, the 1b APPEND
+> wiring, the probe, and the 3a surface:**
+> - **Detection.** `isCapabilityQuestion: Bool` on the PRODUCTION
+>   `ToolIntentRoute` (`LocalChatBackend+IntentRouting.swift`), positive-test
+>   @Guide in the #217B v2 tactic, shipped verbatim as: *"true only if the
+>   user is asking what YOU can do, what you have access to, or what your
+>   features are"*. ONE generation carries both fields — no second router
+>   pass. On any throw the route falls back exactly as today:
+>   `needsDeviceTool` fails safe ARMED, `isCapabilityQuestion` fails safe
+>   FALSE — **discovery fails OPEN**; the model never has less than now.
+>   The two-field route generates under its OWN pinned constant
+>   `twoFieldRouterOptions` (greedy, cap **128**, pinned by test, comment
+>   naming `21F0C10D`); `toolIntentRouterOptions`' 64 pin is UNTOUCHED and
+>   now serves the pinned one-field control (`ToolIntentRouteSingleField`,
+>   DEBUG) and the #217 probe cells. **The mandatory device `tokenCount`
+>   pre-flight is QUEUED** — the test host throws Code=5000 on every
+>   generation (availability ≠ generability), so only a device can price
+>   the schema; noted in the code beside the constant.
+> - **Wiring (the 1b APPEND).** The append decision is FROZEN AT ROUTE
+>   TIME (`turnAppendsCapabilityAnswer` = routed toolless AND capability),
+>   so a mid-turn #229/#232 disarm can never retroactively arm it. `send`
+>   and `streamTurn` both settle their reply through ONE composition —
+>   `settledReplyContent(_:appendingCapabilityAnswer:)`, whose only text
+>   source is `capabilityAnswerBlock` (#202D) — and in `streamTurn` it
+>   lands after the snapshot loop and the repetition breaker, never
+>   mid-stream; ChatStore's `.finished` slot-swap paints it exactly once.
+>   Unit-pinned: appended once, model reply preserved verbatim as prefix
+>   (never replaced), armed turns never append, toolless non-capability
+>   turns never append, empty-reply edge delivers the block.
+> - **The probe.** `runCapabilityDetectionProbe(trials:)` in
+>   `LocalChatBackend+Battery.swift` (runVectorRouterProbe's mutex /
+>   batteryEmit / recorder plumbing): **arm = the 2-field production route,
+>   control = the pinned 1-field shape, SAME run.** Bands: GATE ×2 (the
+>   closed baseline ten, read in place, never extended — 257-1-GATE),
+>   RECALL (`capabilityQuestionProbes` — 257-1-A), DANGER (baseline +
+>   `capabilityControlProbes` — 257-1-B), HONESTY (the composed appended
+>   payload through the shipped 297-C scorers, claim and syntax halves
+>   emitted SEPARATELY — 257-1-D). The GATE/RECALL/DANGER bands emit
+>   `scored=<n>/<trials>` AND `errors=<n>`; the HONESTY band carries the
+>   same real denominators under its own tokens
+>   (`appended=`/`claimHits=`/`syntaxHits=`) — noted so "every band" is not
+>   read as a literal token claim. **The control list was written FIRST**, with the
+>   boundary pinned verbatim in the code: TRUE iff the message's subject is
+>   the assistant's own abilities/access/features in general; FALSE for any
+>   request to perform or answer a specific thing, phone-ecosystem how-tos,
+>   and rhetorical "can you". The #205 closed series gained NO rows
+>   (unit-pinned: 10/19/21 counts unchanged). Developer-screen button:
+>   "Capability detection (#257) (350)" — GATE 2×10×10 + RECALL 10×5 +
+>   DANGER 20×5.
+> - **The 3a surface.** `/capabilities` ships in
+>   `SlashCommand.localCommands`, handled in ChatScreen's local switch (the
+>   /alarm precedent), opening `CapabilitiesSheet`
+>   (`Talaria/Features/Chat/CapabilitiesSheet.swift`) — sections and rows
+>   DERIVED from `CapabilityRegistry(belt:)`'s `CapabilityDescriptor`s:
+>   per-tool `semanticDescription`, permissions, and riskClass rendering
+>   (`.write` reads "ASKS FIRST" — the confirm gate's own semantics), with
+>   the vision section carrying an attach-a-photo caveat (#176). Plus a
+>   fresh-chat empty-state chip ("WHAT CAN TALARIA DO?"). ChatScreen edits
+>   kept to four minimal isolated hunks (state var, sheet, switch case,
+>   chip) for the concurrent ChatScreen lane's rebase. New files went
+>   through `xcodegen generate`; the known Talaria.xcscheme BuildableName
+>   churn was reverted by hand ("Talaria 27.app" stands).
+>
+> **BAR STATUS after phase 2 (evidence beside each):**
+> - **257-1-C: MET** (unit, phase 1 — above).
+> - **257-3a-A: MET** (unit): `CapabilitySurfaceTests` pins the sheet's
+>   derivation against the REAL belt — every tool exactly once, groups in
+>   declaration order, id-sorted rows, empty registry renders the honest
+>   empty state; `/capabilities` pinned local and argument-free. 3/3 green.
+> - **257-3a-B: MET** (XCUITest, run on CC-257-iPhone-Air iOS 27.0,
+>   2026-08-09): the fresh-chat empty-state chip opens the sheet in ONE tap
+>   (≤2 bar), a real per-tool registry row (`readHealth`) is asserted in
+>   the render, and typing `/capabilities` in the composer opens the same
+>   sheet. 1 test, 0 failures, `** TEST SUCCEEDED **`. (First run caught a
+>   real render defect — MonoLabel force-uppercased the tool id into
+>   "READHEALTH"; ids now render case-preserved, which is also the honest
+>   display: the id IS the belt name.)
+> - **257-1-GATE / 1-A / 1-B / 1-D: QUEUED-DEVICE.** The two-field router
+>   SHIPS AHEAD of its device probe — safe by construction (detection
+>   fails open; a wrong TRUE costs an appended true block, the 1b
+>   asymmetry) — and **1-GATE's pre-registered response stands unchanged:
+>   missed → the second field is abandoned outright, a revert, no
+>   iteration.** The device `tokenCount` pre-flight runs BEFORE the probe.
+> - **257-3a-C: pending Owen** (his read of the surface; pass/fail his,
+>   stated in advance).
+> - **257-1-E: ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air): TEST SUCCEEDED, 1944 Swift Testing + 13 XCUITest,
+>   Release build clean.
+> Phase-2 targeted suites: 272/272 across 6 suites on CC-257-iPhone-Air
+> (iOS 27.0) — CapabilityRegistryTests **24 → 32**, CapabilitySurfaceTests
+> **3 (new)**, DeviceToolBelt 180, LocalChatBackend 42, RoutedTrialShape 5,
+> RouterIntent 10.
+>
+> **Three review corrections, 2026-08-09 (independent whole-lane review;
+> each traced in code, not taken from the implementer's report):**
+> 1. **VOICE: the block is appended but NEVER SPOKEN** — the phase-2
+>    report's "voice turns will read the appended block aloud" concern is
+>    wrong in the reassuring direction. Voice rides
+>    `sendStreaming → streamTurn`, so the block lands in the transcript
+>    item, but TTS is fed only by `.textDelta` and the voice pipeline's
+>    `finishStream(messageID:)` flushes only the streamed-delta tail — the
+>    block never rides a delta. **Consequence: a voice capability question
+>    still under-sells ALOUD while the screen shows the complete block —
+>    #257's original complaint shape, surviving on the voice surface.**
+>    Product question for Owen (rides 3a-C): is screen-only completeness
+>    acceptable on voice turns, or does voice need its own answer? The
+>    device probe row is briefed to listen for the block's ABSENCE in
+>    audio, not its presence.
+> 2. **Probe-comparison confound, stated plainly:** the retained
+>    `routeNeedsDeviceTool(variant:)` wrappers now generate the TWO-FIELD
+>    schema at the 128 cap, so every pre-#257 DEBUG probe measures the new
+>    production shape on future runs — correct per #202D (probes measure
+>    production), but any comparison against historical router numbers now
+>    carries a schema+cap confound. The #217B intent cells are unaffected
+>    (they call the one-field options directly).
+> 3. **1-D's device numbers add nothing over the unit test by
+>    construction** (the probe scores the block alone; no real model prefix
+>    exists in a classification-only probe) — read them as the denominator
+>    check they are, not as new honesty evidence.
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 
