@@ -2188,3 +2188,27 @@ The tinted app-icon variant's glow was flagged at filing as *"placeholder-grade,
 on the phone"* and **no verdict was ever recorded**. Next time the home screen is in a
 tinted / Focus appearance, look at the Talaria icon and say whether the glow reads as
 finished or as placeholder. Not a bar — a one-line judgement.
+
+### R4 · #272 — App Lock re-prompt loop, HARDER-THAN-ORDINARY repro
+
+**Supersedes the bare "background/foreground churn" #272 line in Group 4. Do NOT
+schedule a sitting for this alone — ride whatever sitting already touches
+Settings/Privacy.**
+
+272-A **reproduced this in a unit test on 2026-08-09**: after a cancelled attempt, ANY
+foreground event wipes `didFailAuthentication` and re-fires the prompt with no tap. What
+the unit test cannot settle is whether iOS 27 actually delivers that `.active` on Face ID
+sheet dismissal — **that is the only thing this row is for.**
+
+Both grace settings (**Immediately**, and **After 1 min**): lock the app, let the Face ID
+sheet auto-appear, then **CANCEL it and do nothing else — do not tap UNLOCK.**
+- **PASS:** the sheet stays down and the in-app UNLOCK button is the only way forward.
+- **FAIL / REPRO:** it comes straight back, unprompted.
+
+Then repeat with churn: cancel + notification shade down/up; cancel + Control Center
+open/close; cancel + app switcher and back.
+
+Pull Console and `grep AppLock`. The tell is
+`didFailAuthentication true->false on .active (retry flag cleared by foreground,
+attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` climbing.
+**Record the highest `attempt=` reached.**
