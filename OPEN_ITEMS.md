@@ -175,6 +175,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** ⚰️ Notifications never authorized on a fresh install + a false-green panel — **MOOT BY DELETION: #238 removed the subsystem; §F3 has nothing to run** (corrected 2026-08-09) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
 - **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272**, which leaves the locked interval unbounded. Observed in passing by #254's device run, **not investigated**
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen. Observed in passing by #254's lane, not caused by its diff, **not investigated.** Either the known trap is wider than recorded or this is a second defect — both worth knowing, and a sim repro is far cheaper than a device one
 - **#300** 🐛 `lane-gate.sh`'s failure advice misdiagnoses a Swift Testing failure WITH assertion text as an XCUITest flake WITHOUT one, and cites **#164, which is CLOSED** — following it literally reopens a closed item under a wrong diagnosis and re-rolls a real failure as noise. The discriminator it needs (presence of assertion text) is already in its own text
@@ -5623,6 +5624,78 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
+
+**The asymmetry, from source.** `startSession()` carries an explicit
+*"last line of defence"* re-check (`VoiceEngineRouter.swift:238`) —
+but it fires in **one direction only**:
+
+```swift
+if activeEngine == .realtime, !Self.realtimeIsPermitted(for: activeBrain()) {
+    // downgrade realtime → native
+}
+```
+
+There is **no matching upgrade**. If `activeEngine` is already `.native` — the
+value `init` assigned from `(realtimeIsPermitted(for: activeBrain()) &&
+isRelayPaired())` — nothing re-evaluates it before the session starts, no matter
+what the brain says by then.
+
+**Why that matters on a cold launch, measured on build 2330:**
+```
+14:00:22.780  active voice engine → native (initial; relayPaired=true)
+14:00:22.815  activeBrain on-device → hermes  initiator=refresh/sticky-default
+14:00:23.098  OpenHermesVoiceIntent.perform fired in the APP process — routing hermes://voice
+14:00:23.113  voice session starting on engine native (relayPaired=true)
+```
+`init` read the brain **35 ms before** the sticky-default restored `hermes`, and
+the session started **283 ms after** that restore — still native. No
+`refreshReadiness` line appears for that process, so nothing re-routed in
+between.
+
+**⚠️ THE COST IS UNMEASURED, AND THE ENTRY MUST NOT PRETEND OTHERWISE.** On the
+host this was found on, `talk/readiness` reports `configured:false`, so
+`shouldRouteNative` would have selected native **anyway**. Every observable
+consequence is therefore identical to correct behaviour here. **This is a
+code-path defect visible in the log ordering, not a demonstrated user-visible
+one** — it needs a host where realtime IS configured before anyone can say what
+it actually costs.
+
+**Two readings, and the entry does not pick between them:**
+- **It is a fail-safe, arguably deliberate.** The guarded direction is the
+  dangerous one (#221: never let a stale decision ship microphone audio to
+  OpenAI when the user chose on-device). Failing toward the local engine is the
+  private direction, and the asymmetry may be intentional.
+- **It is still wrong for the user who chose Hermes**, who gets the local engine
+  on every cold Control Center launch without having asked for it. Note this is
+  **not a silent substitution** in the #18 sense — `forward(from:engine:)` stamps
+  the real engine, so the overlay header names `native` honestly. The defect is
+  functional, not a lie: the setting is obeyed by chat and not by a cold voice
+  launch.
+
+**Bars, pre-registered before any code:**
+- **303-A — reproduce on a host where realtime IS configured.** Hermes brain,
+  paired, realtime available, cold Control Center launch. **PASS = the session
+  starts on `realtime`; a start on `native` confirms the defect.** Until this
+  runs, everything above is an ordering observation.
+- **303-B — the warm path is the CONTRAST and must be run in the same
+  sitting.** Open voice from inside the app (which does run `refreshReadiness`)
+  under the identical configuration. If warm reaches realtime and cold does not,
+  that difference *is* the defect, isolated.
+- **303-C — any fix keeps #221's gate un-weakened.** The downgrade direction
+  must still fire; an "upgrade" that lets pairing or a healthy probe re-admit
+  realtime against a forbidding brain re-introduces the exact defect #221 closed.
+  **A fix that makes 303-A pass by loosening the gate is a FAILURE, not a pass.**
+
+**Pre-registered response:** if 303-A shows realtime starting correctly on a
+configured host, this closes as **NOT A DEFECT** — the init guess would have
+been right whenever it mattered — and the log ordering gets documented so the
+next reader does not re-file it.
+
+**Related:** #221 (brain governs voice — the gate this must not weaken), #254
+(the run that surfaced it), #180-L (the overlay's engine copy), #18 (no silent
+local substitution — cited here to note this is *not* an instance of it).
+
 ## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING, NOT INVESTIGATED. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is the whole question. NOT STARTED; bars pre-register here before any code.**
 
 **Observed** on build 2330 (`main` @ `6b71872`, Release OTA), `whoGoesThere`,
@@ -10143,8 +10216,35 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > instruction was at fault, not the app; a runner told to "background it" will
 > reach for the overlay's own dismiss unless told not to.
 >
-> **254-D remains OWED and is unaffected** — realtime over a real network has a
-> genuine connect window. **Free capture from the same logs, routed out:** the
+> **⛔ 254-D — ATTEMPTED 2026-08-09, UNRUNNABLE ON THIS HOST. Not a fail: the
+> realtime engine cannot be reached from the Mac Mini profile at all, because
+> the host has no OpenAI key.** Owen switched the profile to Mac Mini and the
+> brain to Hermes and re-ran. The probe answered:
+> ```
+> 14:00:19.188  [VoiceEngineRouter] readiness routed voice to the native engine (configured=Optional(false), state=blocked)
+> 14:00:22.815  [ChatBackendRouter] activeBrain on-device → hermes initiator=refresh/sticky-default
+> ```
+> `configured: false` is `talk/readiness` reporting **no OpenAI key host-side**,
+> which `shouldRouteNative` correctly treats as "route native." **The app did
+> the right thing; the bar simply has no realtime engine to test against on this
+> host.** 254-D therefore stays OWED and needs a host where realtime is
+> configured — #221's history implies OJAMD was that host, which is the obvious
+> next attempt and has NOT been tried.
+> - The trial itself hit `(LIVE)` again (revoke at `14:00:24.637`, 179 ms after
+>   background) — a **fourth** clean native revoke, now with the Hermes brain
+>   selected. Not scored as 254-D.
+>
+> **A SECOND defect fell out of this attempt and is filed separately as #303:**
+> the engine is chosen at `VoiceEngineRouter.init` from a brain value that the
+> sticky-default refresh changes 35 ms later, and `startSession`'s re-check
+> guards only the `realtime → native` direction. So a cold Control Center launch
+> pins **native** even when the brain permits realtime. It is **masked on this
+> host** (`configured:false` would have routed native anyway), which is exactly
+> why it needs its own number rather than a line in this entry.
+>
+> **254-D remains OWED** — realtime over a real network has a
+> genuine connect window, once a host that HAS realtime is used. **Free capture
+> from the same logs, routed out:** the
 > voice session start precedes App Lock's cover evaluation by ~650 ms on a cold
 > Control Center launch → filed as **#302**.
 

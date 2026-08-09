@@ -2295,7 +2295,42 @@ client-side counterpart at all.
 
 **296-A is unaffected either way and needs no device** — the client knows it stopped.
 
-### R6 · #254-D — voice ghost, REALTIME pin
+### R6 · #254-D — voice ghost, REALTIME pin · **⛔ ATTEMPTED 2026-08-09 — UNRUNNABLE ON THE MAC MINI PROFILE. Still OWED; needs a realtime-configured host.**
+
+> **⛔ 2026-08-09, build 2330. Two attempts, neither reached the realtime
+> engine — and the second one explains the first.**
+>
+> **Attempt 1 (13:49, OJAMD-era config, on-device brain):** VOID — wrong engine.
+> `active voice engine → native (initial; relayPaired=true)`. Cause: **#221's
+> brain gate**, which is checked BEFORE pairing. The on-device brain forbids
+> realtime outright, so `relayPaired=true` on that line means nothing. **A
+> runner who does not set the brain to HERMES cannot run this row**, and the row
+> as written never says so — it says "paired + relay healthy," which is
+> necessary and NOT sufficient.
+>
+> **Attempt 2 (14:00, Mac Mini profile, brain switched to Hermes):** the brain
+> switch took (`activeBrain on-device → hermes`), and the probe answered:
+> ```
+> 14:00:19.188  readiness routed voice to the native engine (configured=Optional(false), state=blocked)
+> ```
+> **`configured:false` = the Mac Mini's Hermes has no OpenAI key.** There is no
+> realtime engine on this host to test. The app behaved correctly; the bar has
+> nothing to bind to.
+>
+> **➡️ To actually run 254-D:** a host where `talk/readiness` reports
+> `configured:true`. #221's history implies **OJAMD** was that host — untried
+> today, and the obvious next attempt. **Set the brain to HERMES as well as the
+> profile.**
+>
+> **Filed from these attempts: #303** — `VoiceEngineRouter` has no UPGRADE path,
+> so a cold Control Center launch pins native even when the brain permits
+> realtime. **Masked on this host** (`configured:false` routes native anyway),
+> so its cost is unmeasured — bars 303-A/B/C are in the tracker.
+>
+> **Fourth clean native `LIVE` revoke** captured in passing (179 ms after
+> background, Hermes brain selected this time).
+
+*(original row text follows, kept for the record)*
 
 Paired + relay healthy. **Force-quit for a genuinely COLD launch.** Control Center →
 "Talk to Hermes". Background the phone **before the header leaves `ESTABLISHING LINK`**;
