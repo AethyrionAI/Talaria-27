@@ -5485,6 +5485,17 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 side, just a thought").** Source-confirmed the same evening, so this is not filed on a
 screenshot alone.
 
+> **📍 READ THIS BEFORE THE SHELVING NOTE BELOW (head pointer added 2026-08-09,
+> #304 lane, dispatch §4 C8).** The 2026-08-04 shelving ("structurally blocked
+> AND operationally unneeded") is true of **reading/writing the host's
+> `approvals.mode`** — re-verified 2026-08-09, no `/api/config` in
+> `_http_route_table()` — and says **nothing about ANSWERING** the host's
+> approval requests. That half was routed out of this item by the 2026-08-06
+> update at the foot: it rides **#304** (Phase 3 slice 3B,
+> `POST /v1/runs/{run_id}/approval`), filed and executing 2026-08-09. A reader
+> who stops at the shelving note concludes the wrong thing — the dead §F7d turn
+> HAS a fix lane; only mode SELECTION stays parked.
+
 **What Hermes has.** `hermes_cli/web_server.py:933` declares the config key
 **`approvals.mode`**, `"Dangerous command approval mode"`, options
 **`["manual", "smart", "off"]`** — matching the screenshot's *Manual* ("ask before actions
@@ -5611,6 +5622,21 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+> **2026-08-09 corrections to the update above (#304 lane, dispatch §4 C4/C1):**
+> **(C4)** the update is true and INCOMPLETE the same way the plan's N6 bullet
+> was — a dropped-stream approval is visible "as a state but not as a question,"
+> **and the ANSWER channel is stream-independent**: `resolve_gateway_approval`
+> works off `_gateway_queues[session_key]`, and `_run_approval_sessions[run_id]`
+> is popped only in the run's own `finally`, so a client that lost the stream
+> can still POST a deny and it lands. The honest degraded state includes a
+> working Deny (bar 304-D(i)), not just an explanation. **(C1)** every
+> `api_server.py:NNNN` cited in this entry was read at pre-`3dcbe9001` heads and
+> is stale (e.g. `_handle_run_approval` `:6772`→`:6929`,
+> `register_gateway_notify`'s sole site `:6524`→`:6681`); the runs region
+> drifted ≈ +150 lines while the version string stayed `0.20.0`. Cite the head
+> you read; re-resolve before quoting (drift table: dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1).
 
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
@@ -8536,6 +8562,26 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > - Minor, adopted: the runs family is now promoted into **CLAUDE.md**'s
 >   `:8642` section as live-verified on 0.20.0, with the three
 >   design-relevant behaviours, so the next lane does not re-probe it.
+
+> **2026-08-09 corrections (#304 lane — slice 3B — dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1/C5):**
+> - **(C5, NEW — this entry's `liveStatuses` reasoning implicitly assumed the
+>   status tracks reality, and it does not):** after an approval TIMES OUT, the
+>   run status keeps reading **`waiting_for_approval` for the remainder of the
+>   run** — `_set_run_status(run_id, "running", …)` fires only in
+>   `_handle_run_approval`, expiry resets nothing, and every later event
+>   re-stamps the current status until the terminal set. `GET /v1/runs/{id}` is
+>   **not a pending-approval oracle**; only a 409 `approval_not_pending` settles
+>   it. Consequence carried into `RunStatusSnapshot.liveStatuses`' own doc
+>   comment and pinned by bar 304-F (status alone never raises a question).
+> - **(C1):** every `api_server.py:NNNN` this entry cites was read at
+>   pre-`3dcbe9001` heads and is stale — the runs region drifted ≈ +150 lines
+>   (e.g. `_handle_runs` `:6298`→`:6455`, `_RUN_STATUS_TTL` `:6187`→`:6344`,
+>   stream popped on disconnect `:6765-6766`→`:6921-6923`) while the version
+>   string stayed `0.20.0`. Cite the head you read; re-resolve before quoting
+>   (full drift table: the dispatch §4 C1). The Swift doc comments in
+>   `SessionsHermesClient+RunsTransport.swift` carried the same stale citations
+>   and were corrected in the #304 lane.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 
