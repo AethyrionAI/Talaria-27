@@ -2648,3 +2648,32 @@ must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
 **⚠️ This bar is Owen's RESERVATION EXIT (he accepted Option B "feels very
 'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
 REOPENS — that is the bar working, not a failure of the lane.
+
+### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · **[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]**
+
+**Prerequisites (each its own ask):** (1) Owen's explicit go for THIS experiment:
+set `approvals.mode: manual` on the **Mac** (`~/.hermes/config.yaml` — Owen's O3
+ruling routes this to the Mac; OJAMD untouched) and bounce the gateway to load
+it. State the end state and rollback when asking: rollback = restore the mode
+line, bounce again, verify the LISTENER both times (`lsof -nP -iTCP:8642
+-sTCP:LISTEN` — #264; a kill-respawn is not reliably self-healing). (2) A build
+at or past PR #292 (`848dada`), runs transport ON.
+
+**Procedure:** ask the agent for something with teeth (a gated shell command —
+e.g. a recursive delete in a scratch dir). The run parks `waiting_for_approval`;
+the phone shows the HOST APPROVAL card **with the host's own choice set**. Tap
+ONCE. **PASS = the run resumes and the command executes — evidence is the
+host's `agent.log`, not the screen.** Also glance: the 155-char voice-status
+copy renders sanely if a voice turn is tried (it wraps, by design), and the
+second-confirm sheet on ALWAYS/THIS RUN names the consequence.
+
+### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · **[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]**
+
+Same setup as R10. **Arm 1:** tap DENY → the host's own BLOCKED text arrives and
+the agent does NOT retry or rephrase (host log evidence). **Arm 2 (the escape
+hatch):** park a run, tap **Stop** → the approval resolves as a clean deny
+rather than hanging out the window (`tools/approval.py` `is_interrupted()`
+behavior, promoted to CLAUDE.md by this lane). **Also OBSERVE AND RECORD what a
+DENIED tool call renders as on the runs event stream** — the dispatch's open
+unknown (#296's family): does `tool.completed` arrive with an error field, or
+nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
