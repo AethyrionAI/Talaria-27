@@ -2175,99 +2175,6 @@ as “permission denied” (needs a third state: permissions OK but no mic input
 
 ---
 
-## 93. 🔧 P1 continuity fabric — journal primary, hop transplant, compose outbox (Lane A)
-
-> **Sim run 2026-07-13 (eve): fidelity gate still owed.** Full suite green on the iOS 27 sim, but `CondenserFidelityTests` (the fidelity acceptance) SKIPPED — 'Requires the on-device Apple Intelligence model'. A skip is not a pass; the gate still needs whoGoesThere.
-
-> **Audit 2026-07-13:** PR #61 merged (commit 5ab3477) with xcodegen regen (828ecf4) and a post-merge iOS compile fix (818d1be) — the 'NOT compiled' claim and the 'Next Mac session' merge/xcodegen checklist above are stale; that work is done (Lane C #59 -> Lane B #60 -> Lane A #61, exact order specified). No device-verified note exists anywhere in this file for Lane A/continuity fabric, and no note confirms CondenserFidelityTests actually RAN (vs. skipped) on Apple Intelligence hardware — 🔧/merged-unverified is correct, only the compiled-status wording needs fixing.
-
-**Built 2026-07-10 in the cloud (Fable, Lane A — `dispatch/FABLE-LANE-A-continuity-fabric.md`),
-branch `claude/talaria-27-lane-a-to5zv3`. NOT compiled, NOT device-verified.** Greenlit by the #89
-probe; the condenser-fidelity acceptance suite below is the probe's residual-risk guardrail.
-
-**What landed:**
-- **Journal = durable primary** (`Models/ConversationJournal.swift` + `Stores/ConversationJournalStore.swift`):
-  conversation identity is a local UUID owned by the journal; entries re-derive from the settled
-  transcript at every ChatStore persistence point (streamed finish, reconcile, polling, #44
-  truncation, voice) via `LocalChatBackend.transcriptTurns` — one mapping, no drift. Persisted at
-  `hermes.conversationJournal`.
-- **`apiSessionId` decoupled:** `SessionsHermesClient`'s single session var is GONE. The server
-  session id is a per-hop handle (`ConversationJournal.ServerHop`) with a `seenEntryCount`
-  waterline; `ensureSession()` → `ensureHopForTurn()`. Hop persists across relaunch (a live server
-  session resumes without re-priming); a 404 on a REUSED hop swaps the handle and retries ONCE on a
-  fresh transplanted hop (`SessionsClientError.sessionNotFound`). `switchModel` ends the hop so the
-  user's next message hops under the new model WITH context — a model switch is a brain hop now.
-- **Transplant at every hop** (`Services/Support/ContextTransplanter.swift` + 
-  `LocalIntelligenceService.condensedContextBrief`): fresh session → priming turn 0 composed from
-  the journal (guided-generation facts brief, corrections-at-latest + prune-distractors
-  instructions, temp 0.2); deterministic verbatim-tail fallback (newest turns, per-entry cap,
-  honest omission marker) when the model is unavailable — never fabricated condensation. Budget
-  1,500 tokens enforced by measurement (binary-search tail fit; non-additive-token ratchet).
-  Priming posts over SSE so `run.completed` usage is captured (real numbers or none).
-- **Local turns mark the hop stale on purpose:** journal entries from on-device/PCC/voice turns
-  don't bump the waterline, so the next Hermes turn re-hops with the full (condensed) context —
-  the brain-hop continuity story.
-- **Offline compose outbox** (`Models/ComposeOutboxState.swift`, `hermes.composeOutboxState`):
-  transport-level failures now stream `.unreachable` (vs `.failed`); text-only turns park as
-  `.queued` transcript rows + persisted outbox (SensorUpload pattern), drain FIFO on reachability
-  (the chat screen's ~10s health probe + cold load), one live send at a time, re-queue stops the
-  drain. Attachment turns still fail honestly (no durable wire form, v1). Siri intent reports a
-  queued turn honestly (new `.queued` outcome).
-- **Priming cost in receipts:** `.contextPrimed(TokenUsage?)` → system notice row in the
-  transcript ("[Context transplanted into a fresh session — N tokens]", `Message.isContextPriming`
-  + usage + servingModel), PRIMING line in StatusCard session totals
-  (`SessionUsageTotals.primingTokens/primingHops`), and priming included in the session cost
-  estimate (`ModelPricingCatalog.estimatedSessionCost`).
-- **Identity-churn fix:** `ChatStore.mergeConversationMetadata` now preserves the LOCAL
-  conversation UUID — refresh/reconcile used to mint a new `Conversation.id` every fetch, which
-  would have reset the journal (dropping the hop) and already orphaned #27 brain pins.
-
-**Tests (Swift Testing):** `CondenserFidelityTests.swift` — the REQUIRED acceptance suite: messy
-transcript (2 corrections + 2 distractors) → asserts latest-corrected-values, distractor pruning,
-and token budget on the REAL on-device condenser. Model-gated via an async `.enabled` trait: runs
-on Apple Intelligence hardware, skips honestly elsewhere — **a skip is NOT a pass; the Mac run is
-the acceptance gate.** Fallback + wire-format halves run everywhere. `ContinuityFabricTests.swift`
-— deterministic: journal identity/waterline/adopt/truncate-clamp/persistence, outbox
-dedupe/persist/clear, ChatStore priming-notice + totals + queue/drain/orphan-hygiene + the
-identity-stability regression.
-
-**Next Mac session:**
-1. Merge order per handoff: Lane C first (ChatScreen overlap), then this. `xcodegen generate` —
-   **4 new source files** (ConversationJournal, ConversationJournalStore, ComposeOutboxState,
-   ContextTransplanter) **+ 2 new test files** (CondenserFidelityTests,
-   ContinuityFabricTests); re-verify `aps-environment`/WeatherKit survive regen (#44/#48 trap);
-   regen commit SEPARATE.
-2. CLI build + full test run. **CondenserFidelityTests must RUN (not skip) — needs Apple
-   Intelligence on.** If the condenser fails fidelity/pruning, that's the #89 residual risk
-   firing: tune `condensedContextBrief` instructions before shipping, do not weaken the tests.
-3. Device checklist: (a) kill/relaunch mid-conversation → next turn resumes the SAME server
-   session (no priming notice); (b) stop the gateway, relaunch, restart gateway → next turn shows
-   the transplant notice + priming tokens in StatusCard; (c) model switch mid-conversation → next
-   turn hops with notice, new model answers WITH context; (d) local-brain turns then back to
-   Hermes → transplant carries the local exchange; (e) airplane mode → send parks `.queued`,
-   reconnect → auto-sends; (f) session totals show PRIMING row + cost including priming.
-4. Priming preamble wording: reconcile `ContextTransplanter.primingText` with the probe's
-   validated phrasing (`talaria-probe/probe.py` on OJAMD) if they differ materially.
-
-**Update (same session) — adversarial review pass, six findings fixed:** (1) `switchModel` no
-longer routes through `ensureHopForTurn` — a stale hop at switch time would have paid for a
-transplant that `endHop()` immediately discarded (double priming per switch); command turns now
-reuse the current hop or a bare throwaway session. (2) The sync-send path (voice context POST)
-surfaced no priming receipt — `appendVoiceTranscript` now detects the hop change after the send
-and appends the transplant notice, so that spend hits the transcript + totals too. (3)
-`isUnreachableError` narrowed: `.timedOut`/`.networkConnectionLost` can fire AFTER the body
-reached the server (the run may have committed), and queued turns auto-resend — those stay
-`.failed` so a human decides about the retry. **Device-checklist consequence: a dead host behind
-Tailscale can surface as `.timedOut` → honest `.failed` + retry, NOT `.queued`; checklist item
-(e) uses airplane mode (`.notConnectedToInternet`), which queues.** (4) `sendMessage` now returns
-whether it dispatched and resets the drain flag before its guards — the drain could previously
-destroy a queued turn whose re-send tripped the duplicate guard (row + outbox entry both already
-removed, flag stale). (5) Drain FIFO restore matches the re-queued turn by id, not last-by-text.
-(6) A priming hop whose run reported no usage now still counts in
-`SessionUsageTotals.primingHops`. Regression tests added for (4) and (6).
-
-Logged 2026-07-10.
-
 ## 99. 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verified 2026-07-20; WKContentRuleList pre-launch decision OWED
 
 **Device pass 2026-07-20 (Session C launch sweep): surface PASS.** Preview renders, sheet +
@@ -6270,6 +6177,43 @@ turn 2's.** Nothing errors; the transcript is plausible and wrong — the #278
 shape in the one place #278 did not sweep. **Fix: tighten both guards to
 `!isTranscriptBusy`** (one line each), inside #306's T4, cited against this
 number in the commit.
+
+## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
+
+The checklist is `dispatch/DEVICE-PASS-RUNNING-LIST.md` **Group 7**: items
+(a) kill/relaunch resumes the SAME hop with no priming notice; (b) gateway
+stop → app relaunch → gateway restart shows the transplant notice + priming
+tokens; **(c′) as rewritten 2026-08-09** (model pick mid-conversation → SAME
+hop reused, NO priming notice, reply attributed to the new model — a priming
+notice is a REGRESSION; the original (c) tested the removed
+`switchModel`-ends-the-hop mechanism); (d) local-brain turns then Hermes →
+the transplant carries the local exchange; (e) airplane mode parks `.queued`,
+reconnect auto-sends (**airplane mode specifically** — a dead host over
+Tailscale surfaces `.timedOut` → honest `.failed`, by design); (f) session
+totals show the PRIMING row + cost. **Batch with Group 6** (both need
+host-side gateway stop/restart); ~25–30 min corded.
+
+## 313. 🔬 `CondenserFidelityTests` has NEVER RUN — the #93 fidelity acceptance is a DEVICE bar, not a Mac bar — **FILED 2026-08-09 (successor B of #93's split).**
+
+The suite self-gates on a genuinely model-condensed trial composition
+(`CondenserFidelityTests.swift:52-59` — deliberately honest, since
+`isModelAvailable` is optimistic), the SIMULATOR has no model, and every
+`lane-gate.sh` run is a simulator run — so calling it "the Mac run" kept it
+un-runnable for four weeks. The test host reports `isAvailable == true` and
+then fails generation with `UnifiedAssetFramework Code=5000`: availability ≠
+generability. **Run the full suite on `whoGoesThere` corded; the suite must
+RUN, not skip.** If the condenser fails fidelity/pruning, that is #89's
+residual risk firing: tune `condensedContextBrief`'s instructions — do not
+weaken the tests.
+
+## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
+
+An `.unreachable` turn carrying attachments takes the honest `.failed`
+dead-end rather than parking (`ComposeOutboxState.swift:8-9`: "attachments
+have no durable wire-ready form to park here"). Worth re-examining against
+#283's `RunsTurnInput` reshape if Owen ever wants images queueable — noting
+that #306's mid-turn queue kept v1 text-only for the same reason, so both
+queue producers inherit whatever this decides.
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
