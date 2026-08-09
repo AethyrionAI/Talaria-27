@@ -6379,6 +6379,43 @@ outside its file scope; the text is in the PR body):
 > counterpart. **296-A is unaffected either way and needs no device**: the
 > stopped chip is client-side and already shipping.
 
+**✅ 296-C2 ANSWERED 2026-08-09 — by a direct wire probe on the Mac's `:8642`,
+which turned out to need no phone. The answer is the THIRD option nobody
+pre-registered: the host DOES populate `error` — as a BOOLEAN — and 296-C1's
+plumbing throws it away on a type mismatch.**
+
+Probe: `POST /v1/runs` (no `session_id` — standalone, no SessionDB rows) with a
+prompt whose tool call fails ordinarily (`cat /nope/missing.txt`), raw SSE
+consumed from `GET /v1/runs/{id}/events`. The frame, verbatim:
+
+```json
+data: {"event": "tool.completed", "run_id": "run_f916c984163f4d51…", "timestamp": 1786304648.615377, "tool": "terminal", "duration": 0.13, "error": true}
+```
+
+- **The field arrives, and it is `true` — a JSON boolean, not a string.** The
+  frame carries **no failure text at all**; the host's words never ride this
+  event. So the C2 question splits: *presence* YES, *the host's own words* NO.
+- **Consequence — 296-C1's parser silently drops it.** The parser reads
+  `payload["error"] as? String`
+  (`SessionsHermesClient+RunsTransport.swift:179`), and `as? String` on a
+  `Bool` is `nil`. **A failed tool on the runs plane renders as a clean
+  completion — the exact lie #296 exists to remove, arriving through the fix's
+  own plumbing.** Behind the OFF-by-default Phase 3 switch, so no production
+  exposure today; still a real defect in shipped code.
+- **The C1 tests pinned a string because the string was the design guess** —
+  `toolCompletedCarriesTheHostError` feeds `"error": "text"` and passes. The
+  wire sends `true`. A parser fix must accept BOTH (a future host build could
+  legitimately upgrade the flag to a message) and must keep
+  `anEmptyHostErrorDoesNotMarkACompletedToolInterrupted` green — `"error":
+  false` must behave like absent, NOT like a failure.
+- **Fix not built tonight** — it changes shipped parser behaviour and belongs
+  to a small lane with its own red-first test (`"error": true` → `.failure`,
+  `false`/absent → clean). Filed here rather than a new number: it is
+  296-C1's own bar, reopened by the wire.
+
+*(The stopped-tool half of the probe ran the same sitting — see the frames
+capture in the device list's R5 row for what a mid-flight stop emits.)*
+
 ## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there. → ✅ FIX LANDED 2026-08-08 — bars 295-A/B/C MET, gate PASS.**
 
 **The discovery, which is larger than the fix that surfaced it.** Three sites

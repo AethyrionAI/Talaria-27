@@ -321,9 +321,9 @@ stated precondition (*"the re-run that actually proves the leak stopped"*).
 >   assistant messages (an interim "Running —" and the final "Done"), which
 >   the bar's fixture never anticipated. What (c) guards is DUPLICATE
 >   ADOPTION, and there was none: the transcript renders exactly the rows the
->   host history holds, once each. (Screenshot-verified; a force-quit
->   re-render check is the remaining confirmation and was pending at
->   write-up.)
+>   host history holds, once each. (Screenshot-verified, then confirmed by
+>   force-quit + reopen the same sitting — Owen: *"transcript kept its
+>   shape."* Nothing pending.)
 >
 > **Two host findings, filed from the same run:**
 > - **A shutdown-killed process is reported as a CLEAN EXIT.** The wait tool
@@ -2402,10 +2402,36 @@ Pull Console and `grep AppLock`. The tell is
 attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` climbing.
 **Record the highest `attempt=` reached.**
 
-### R5 · #296-C2 — does the host ever SEND `tool.completed.error`?
+### R5 · #296-C2 — does the host ever SEND `tool.completed.error`? · **✅ ANSWERED 2026-08-09 BY DIRECT WIRE PROBE — no phone needed, and the phone half is MOOT. DO NOT RUN.**
 
-> **Partial host-side answer obtained 2026-08-09, from Z8's trial rather than
-> this row:** the host can go FURTHER than omitting the error field — a
+> **✅ VERDICT, 2026-08-09.** Probed directly on the Mac's `:8642` —
+> `POST /v1/runs` (no `session_id`, so no SessionDB rows) + raw SSE from
+> `/v1/runs/{id}/events` — both trials this row prescribes:
+>
+> - **Failing tool** (`cat /nope/missing.txt`):
+>   `{"event":"tool.completed", "tool":"terminal", "duration":0.13, "error":true}`
+> - **Stopped tool** (`sleep 30 && echo STOPTEST`, `&&` per Z8's lesson;
+>   `/stop` at +20 s): `{"event":"tool.completed", "duration":12.22,
+>   "error":true}` followed by `{"event":"run.cancelled"}`.
+>
+> **The answer is the option nobody pre-registered: `error` ARRIVES, as a JSON
+> BOOLEAN, with no failure text — and 296-C1's parser drops it on a type
+> mismatch** (`payload["error"] as? String` is `nil` for a `Bool`,
+> `SessionsHermesClient+RunsTransport.swift:179`). So on the runs plane a
+> failed OR stopped tool renders as a clean completion — the exact lie #296
+> exists to remove, reintroduced by its own plumbing's type guess. Failed and
+> stopped are **indistinguishable on the wire** (both `error:true`, no reason);
+> only the client's local knowledge separates them (296-A, unaffected).
+>
+> **The phone trial is MOOT, not skipped:** with no error text on the wire
+> there are no "host's own words" for the chip to carry, and with the parser
+> bug both trials would show clean chips — demonstrating nothing the wire
+> capture and source don't already prove. Frames archived at
+> `scratchpad/r5-trial{1,2}-frames.txt` (session-local). **Fix filed in
+> OPEN_ITEMS #296 (296-C1 reopened by the wire) — parser must accept Bool OR
+> String, `false`/absent must stay clean. Not built tonight.**
+
+> **Superseded context — the earlier partial answer from Z8's trial:** the host can go FURTHER than omitting the error field — a
 > process killed by the gateway's own shutdown cleanup came back
 > `completion_reason:"exited", termination_source:"", exit_code:0` (the exit
 > code was the `;`-chained echo's). So when this row runs, ALSO record those
