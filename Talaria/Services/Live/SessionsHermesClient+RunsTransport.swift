@@ -137,6 +137,16 @@ extension SessionsHermesClient {
         case toolStarted(name: String, preview: String?)
         case toolCompleted(name: String, error: String?)
         case reasoning(String)
+        /// #304: the host gated an action and parked the run
+        /// (`waiting_for_approval`). Carries the wire fields verbatim —
+        /// `choices` exactly as received (the set is computed per request
+        /// host-side; a hardcoded four-button card is a bar failure, 304-A).
+        /// The driver attaches the turn's frozen endpoint when it lifts this
+        /// into a `RunApprovalRequest`; the parser cannot know it.
+        case approvalRequest(runID: String, command: String, description: String?, patternKey: String?, choices: [String])
+        /// #304: the approval was resolved — by this client's own POST or by
+        /// anyone else with the run id. Used for idempotent card teardown.
+        case approvalResponded(choice: String?)
         case runCompleted(output: String, rawJSON: String)
         case runFailed(error: String)
         case runCancelled
@@ -523,6 +533,10 @@ extension SessionsHermesClient {
                         continuation.yield(.interrupted(sessionId: hop.sessionId, runId: acceptedRunID))
                     }
                     finishedYielded = true
+                case .approvalRequest, .approvalResponded:
+                    // #304 T1 RED shell — the parser does not produce these
+                    // yet; the driver arms land with T3.
+                    continue
                 case .ignored:
                     continue
                 }
