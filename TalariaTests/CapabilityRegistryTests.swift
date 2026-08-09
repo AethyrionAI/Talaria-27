@@ -304,7 +304,11 @@ struct CapabilityRegistryTests {
     #if DEBUG
     @Test func productionRouterOptionsStayAtTheMeasuredSixtyFourTokenCap() {
         // Unchanged measured artifact (#196/#217) — pinned so the vector's
-        // wider cap can never silently drift onto this one.
+        // wider cap can never silently drift onto this one. Since #257 the
+        // ONE-field cap serves the DEBUG control arm and the #217 probe
+        // cells; production's two-field route carries its own constant
+        // (`twoFieldRouterOptions`, pinned below). The 64 pin stays
+        // load-bearing either way.
         #expect(LocalChatBackend.toolIntentRouterOptions
             == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64))
     }
@@ -315,6 +319,112 @@ struct CapabilityRegistryTests {
         // needs ~90-110 tokens — every generation was truncated mid-JSON.
         #expect(LocalChatBackend.vectorRouterOptions
             == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 256))
+    }
+    #endif
+
+    // MARK: - #257 lever 1: detection (the second production Bool)
+
+    /// The two-field route's OWN cap, pinned. Never `toolIntentRouterOptions`
+    /// — that 64 pin is a measured one-field artifact and raising it would
+    /// re-point #196/#217's series. 128 exists because of run `21F0C10D`'s
+    /// exact failure shape: a schema that outgrows its cap throws on every
+    /// generation, the catch arm fails safe to ARMED, and a dead instrument
+    /// reads as a behavioral verdict.
+    @Test func twoFieldRouterOptionsCarryTheirOwnRaisedCap() {
+        #expect(LocalChatBackend.twoFieldRouterOptions
+            == GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 128))
+    }
+
+    /// The production route type carries the capability Bool — a Bool, never
+    /// a "which capability" multiway (#217/#217B falsified multiway intent;
+    /// the surviving hypothesis is "a single extra Bool", in as many words).
+    @Test func productionRouteTypeCarriesTheCapabilityBool() {
+        let route = ToolIntentRoute(needsDeviceTool: false, isCapabilityQuestion: true)
+        #expect(!route.needsDeviceTool)
+        #expect(route.isCapabilityQuestion)
+    }
+
+    #if DEBUG
+    /// The probe's control arm generates the PINNED one-field shape —
+    /// byte-for-byte the pre-#257 production `ToolIntentRoute` (its guide is
+    /// `IntentRouterGuide.boolGuide`, the shared verbatim copy) — so bar
+    /// 257-1-GATE compares the two-field arm against today's exact router.
+    @Test func singleFieldControlRouteKeepsTheOneFieldShape() {
+        let control = ToolIntentRouteSingleField(needsDeviceTool: true)
+        #expect(control.needsDeviceTool)
+    }
+    #endif
+
+    // MARK: - #257 lever 1b: the APPEND wiring (send + streamTurn share it)
+
+    /// The append decision, exhaustively: ONLY a turn the router routed
+    /// toolless AND flagged as a capability question appends. Armed turns
+    /// never append (even when flagged); toolless non-capability turns never
+    /// append. Captured at route time, so a mid-turn #232/#229 disarm cannot
+    /// retroactively arm the append.
+    @Test func capabilityAnswerAppendsOnlyOnRoutedToollessCapabilityTurns() {
+        #expect(LocalChatBackend.turnAppendsCapabilityAnswer(
+            routedToolless: true, isCapabilityQuestion: true))
+        #expect(!LocalChatBackend.turnAppendsCapabilityAnswer(
+            routedToolless: false, isCapabilityQuestion: true))   // armed: never
+        #expect(!LocalChatBackend.turnAppendsCapabilityAnswer(
+            routedToolless: true, isCapabilityQuestion: false))   // toolless non-capability: never
+        #expect(!LocalChatBackend.turnAppendsCapabilityAnswer(
+            routedToolless: false, isCapabilityQuestion: false))
+    }
+
+    /// The 1b shape: the model's reply survives verbatim as the PREFIX (a
+    /// false positive costs an unsolicited true block, never a destroyed
+    /// answer), the block is appended exactly once, and the appended text is
+    /// `capabilityAnswerBlock()` itself — the ONE builder (#202D), never a
+    /// copy. `send` and `streamTurn` both settle their reply through this
+    /// function, so pinning it pins both paths' composition.
+    @Test func settledReplyAppendsTheBlockOnceAndNeverReplacesTheReply() {
+        let reply = "I can help with a few things — ask me anything."
+        let settled = LocalChatBackend.settledReplyContent(
+            reply, appendingCapabilityAnswer: true)
+        #expect(settled.hasPrefix(reply))
+        #expect(settled == reply + "\n\n" + CapabilityRegistry.capabilityAnswerBlock())
+        let openers = settled.components(
+            separatedBy: CapabilityRegistry.capabilityAnswerOpener).count - 1
+        #expect(openers == 1)
+    }
+
+    @Test func settledReplyIsUntouchedWhenNoAppendIsArmed() {
+        let reply = "Just a normal toolless turn."
+        #expect(LocalChatBackend.settledReplyContent(
+            reply, appendingCapabilityAnswer: false) == reply)
+    }
+
+    /// Degenerate edge: a capability turn whose model text is empty still
+    /// delivers the block (the block joins an empty reply, it does not
+    /// vanish with it).
+    @Test func settledReplyOnAnEmptyModelTextIsJustTheBlock() {
+        #expect(LocalChatBackend.settledReplyContent(
+            "", appendingCapabilityAnswer: true)
+            == CapabilityRegistry.capabilityAnswerBlock())
+    }
+
+    // MARK: - #257 probe grids: closed lists, and the #205 series untouched
+
+    #if DEBUG
+    /// The two NEW closed lists ship at exactly ten rows each, control list
+    /// first-class (it was written before the positive list — §7's ordering,
+    /// so the boundary was stated before the grid could define it), and the
+    /// #205 closed series gained NO rows.
+    @Test func capabilityProbeListsAreClosedAndTheClosedSeriesDidNotGrow() {
+        #expect(LocalChatBackend.capabilityControlProbes.count == 10)
+        #expect(LocalChatBackend.capabilityQuestionProbes.count == 10)
+        // Spot-pin first rows verbatim so a silent re-order/edit is loud.
+        #expect(LocalChatBackend.capabilityControlProbes.first == "What's the weather?")
+        #expect(LocalChatBackend.capabilityQuestionProbes.first == "What can you do?")
+        // No overlap: a row that appears in both lists would score itself.
+        #expect(Set(LocalChatBackend.capabilityControlProbes)
+            .isDisjoint(with: Set(LocalChatBackend.capabilityQuestionProbes)))
+        // #205: the closed series stand exactly as filed.
+        #expect(LocalChatBackend.routerBaselineProbes.count == 10)
+        #expect(LocalChatBackend.intentProbeGrid.count == 19)
+        #expect(LocalChatBackend.vectorProbeGrid.count == 21)
     }
     #endif
 }

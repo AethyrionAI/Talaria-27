@@ -55,8 +55,33 @@ extension LocalChatBackend {
     /// Greedy + tiny cap: routing must be deterministic and fast (~0.6s
     /// measured on device); guided generation constrains decode to the
     /// `ToolIntentRoute` shape, so the router can never ramble.
+    ///
+    /// **Since #257 this 64 cap serves the PINNED ONE-FIELD shape only** —
+    /// the probe control (`ToolIntentRouteSingleField`) and the #217 probe
+    /// cells. Production's two-field route generates under
+    /// `twoFieldRouterOptions` below. The pin stays load-bearing: raising
+    /// this value would silently re-point the #196/#217 measured series.
     nonisolated static var toolIntentRouterOptions: GenerationOptions {
         GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 64)
+    }
+
+    /// #257: the TWO-field production route's own options — greedy, cap 128.
+    /// Its own named constant, never a raised `toolIntentRouterOptions`,
+    /// because of run `21F0C10D`'s exact failure: an 11-field schema reused
+    /// the 64 cap, every generation truncated mid-JSON, the catch arm failed
+    /// safe to ARMED, and 165/165 pure instrument errors read as a plausible
+    /// behavioral verdict. Two Bools very probably fit 64 — "probably" is not
+    /// the standard, so the cap is doubled and pinned by test.
+    ///
+    /// ⚠️ QUEUED DEVICE PRE-FLIGHT (#257 mandatory, before any measurement
+    /// run): measure the two-field schema's real token cost with
+    /// `tokenCount` ON DEVICE, outside a live turn — the test host reports
+    /// `isAvailable == true` but throws Code=5000 on every generation
+    /// (availability ≠ generability), so only a device can price this
+    /// schema, and `tokenCount()` concurrent with a streaming turn kills
+    /// the turn (ModelManagerError 1001).
+    nonisolated static var twoFieldRouterOptions: GenerationOptions {
+        GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 128)
     }
 
     /// #202A: the router framings. The live path routes through this enum,
@@ -232,10 +257,31 @@ extension LocalChatBackend {
     /// production envelope).
     func routeNeedsDeviceTool(prompt: String, context: String = "",
                               hasImage: Bool = false) async -> Bool {
-        await routeNeedsDeviceTool(prompt: prompt, context: context,
-                                   variant: Self.productionRouterVariant,
-                                   hasImage: hasImage,
-                                   includeImageGuide: Self.productionIncludesImageGuide)
+        (await routeTurn(prompt: prompt, context: context, hasImage: hasImage)).needsDeviceTool
+    }
+
+    /// #257: the production route, both fields. The capability Bool rides the
+    /// SAME single generation as the gate Bool — no second router pass.
+    func routeTurn(prompt: String, context: String = "",
+                   hasImage: Bool = false) async
+        -> (needsDeviceTool: Bool, isCapabilityQuestion: Bool) {
+        await routeTurn(prompt: prompt, context: context,
+                        variant: Self.productionRouterVariant,
+                        hasImage: hasImage,
+                        includeImageGuide: Self.productionIncludesImageGuide)
+    }
+
+    /// Bool-only view of the variant-parameterized router — kept so every
+    /// pre-#257 probe call site keeps compiling and measures what production
+    /// now generates (the two-field type).
+    func routeNeedsDeviceTool(prompt: String, context: String,
+                              variant: RouterVariant,
+                              applyContextCap: Bool = true,
+                              hasImage: Bool = false,
+                              includeImageGuide: Bool = false) async -> Bool {
+        (await routeTurn(prompt: prompt, context: context, variant: variant,
+                         applyContextCap: applyContextCap, hasImage: hasImage,
+                         includeImageGuide: includeImageGuide)).needsDeviceTool
     }
 
     /// The variant-parameterized router. **Production calls it with
@@ -243,11 +289,18 @@ extension LocalChatBackend {
     /// previous assistant turn as context** — the live path and every
     /// measured cell are the SAME code, not copies of one behavior. The
     /// `.control` variant is the pinned rollback, still probe-reachable.
-    func routeNeedsDeviceTool(prompt: String, context: String,
-                              variant: RouterVariant,
-                              applyContextCap: Bool = true,
-                              hasImage: Bool = false,
-                              includeImageGuide: Bool = false) async -> Bool {
+    ///
+    /// #257 fail-safe shape, per field: `needsDeviceTool` fails safe ARMED
+    /// (today's exact behavior — tools available, nothing lost);
+    /// `isCapabilityQuestion` fails safe FALSE — **discovery fails OPEN**
+    /// (#284's named design risk): an errored detection appends nothing and
+    /// the model never has less than it has now.
+    func routeTurn(prompt: String, context: String,
+                   variant: RouterVariant,
+                   applyContextCap: Bool = true,
+                   hasImage: Bool = false,
+                   includeImageGuide: Bool = false) async
+        -> (needsDeviceTool: Bool, isCapabilityQuestion: Bool) {
         let session = LanguageModelSession(
             model: model,
             instructions: Instructions(Self.routerInstructions(
@@ -259,9 +312,9 @@ extension LocalChatBackend {
                                              applyContextCap: applyContextCap,
                                              hasImage: hasImage)),
                 generating: ToolIntentRoute.self,
-                options: Self.toolIntentRouterOptions
+                options: Self.twoFieldRouterOptions
             ).content
-            return route.needsDeviceTool
+            return (route.needsDeviceTool, route.isCapabilityQuestion)
         } catch {
             Self.logger.notice("router: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#196)")
             #if DEBUG
@@ -271,7 +324,7 @@ extension LocalChatBackend {
             // correct answer on every `expected: true` row.
             Self.routerFailureTally += 1
             #endif
-            return true
+            return (true, false)
         }
     }
 
@@ -372,6 +425,33 @@ extension LocalChatBackend {
         }
     }
 
+    /// #257: the probe's CONTROL route — the pinned one-field shape under
+    /// the pinned 64 cap, i.e. production's router exactly as it stood
+    /// before the capability field. Same session build, same instructions,
+    /// same prompt envelope as `routeTurn` — the treatment is the schema
+    /// (and its cap) and nothing else, so bar 257-1-GATE's arm-vs-control
+    /// contrast is genuinely one variable. Fails safe armed, tallied.
+    func routeSingleFieldControl(prompt: String, context: String = "") async -> Bool {
+        let session = LanguageModelSession(
+            model: model,
+            instructions: Instructions(Self.routerInstructions(
+                for: Self.productionRouterVariant,
+                includeImageGuide: Self.productionIncludesImageGuide)))
+        do {
+            let route = try await session.respond(
+                to: Prompt(Self.routerPrompt(context: context, prompt: prompt,
+                                             variant: Self.productionRouterVariant)),
+                generating: ToolIntentRouteSingleField.self,
+                options: Self.toolIntentRouterOptions
+            ).content
+            return route.needsDeviceTool
+        } catch {
+            Self.logger.notice("routeSingleFieldControl: classification failed — failing safe to armed (\(String(String(describing: error).prefix(80)), privacy: .public)) (#257)")
+            Self.routerFailureTally += 1
+            return true
+        }
+    }
+
     /// #217B: the 2x2. Two candidate causes for #217's 12.5% dangerous rate —
     /// an incomplete vocabulary and a too-weak `other` guide — measured as
     /// MAIN EFFECTS rather than confounded into one candidate arm.
@@ -417,10 +497,24 @@ extension LocalChatBackend {
 /// macro expansion needs a non-nested, non-private type. The @Guide text is
 /// a measured artifact (pinned) — it carries the device-data/device-action
 /// enumeration AND the explicit words-only enumeration.
+///
+/// **TWO fields since #257 (2026-08-09).** `isCapabilityQuestion` is Lever
+/// 1's detection Bool — a Bool and never a "which capability" multiway,
+/// because #217/#217B falsified multiway intent outright (zero safe misses
+/// in 380 classifications) and named "a single extra Bool" as the surviving
+/// hypothesis. Its guide follows the #217B v2 tactic: one positive test the
+/// message must meet, no exclusion lists, no trap domains named. ONE
+/// generation carries both fields (#217's latency reasoning — a second
+/// router pass would double the ~1s routing cost). The pre-#257 one-field
+/// shape survives as `ToolIntentRouteSingleField` (DEBUG), the probe's
+/// pinned control arm.
 @Generable
 struct ToolIntentRoute {
     @Guide(description: "True only when the request needs the user's device data (health, location, weather, calendar, reminders, contacts, past chats) or a device action (create a reminder, calendar event, or alarm). Writing, poems, summaries, math, facts, and conversation are false — they need nothing from the device.")
     var needsDeviceTool: Bool
+
+    @Guide(description: "true only if the user is asking what YOU can do, what you have access to, or what your features are")
+    var isCapabilityQuestion: Bool
 }
 
 #if DEBUG
@@ -601,6 +695,18 @@ enum IntentRouterGuide {
     /// unfalsifiable — the out-of-vocabulary rows in the grid are chosen to be
     /// things this text never mentions.
     static let intentGuideV2 = "Answer \"other\" unless the request is unmistakably one of the named categories. A category is correct ONLY if the request asks for that exact thing: \"reminder\" only for the user's reminder or to-do list, \"alarm\" only for a clock alarm, \"calendar\" only for calendar events, \"weather\" only for forecast or conditions, \"health\" only for the user's own body data such as steps, sleep or heart rate. If the request is merely RELATED to a category, or needs anything not named here, the answer is \"other\". \"other\" is always safe; a wrong category is not."
+}
+
+/// #257: the PINNED one-field control — byte-for-byte the production
+/// `ToolIntentRoute` as it stood before the capability field (its guide is
+/// `IntentRouterGuide.boolGuide`, the shared verbatim copy of the measured
+/// Bool guide). The capability-detection probe's control arm generates this
+/// under the pinned 64-token `toolIntentRouterOptions`, so 1-GATE compares
+/// the two-field arm against yesterday's exact router in the same run.
+@Generable
+struct ToolIntentRouteSingleField {
+    @Guide(description: IntentRouterGuide.boolGuide)
+    var needsDeviceTool: Bool
 }
 
 /// narrow vocabulary + v1 guide — **#217's exact cell, byte-for-byte.** The
