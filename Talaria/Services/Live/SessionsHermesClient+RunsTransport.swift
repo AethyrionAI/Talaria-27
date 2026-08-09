@@ -137,6 +137,16 @@ extension SessionsHermesClient {
         case toolStarted(name: String, preview: String?)
         case toolCompleted(name: String, error: String?)
         case reasoning(String)
+        /// #304: the host gated an action and parked the run
+        /// (`waiting_for_approval`). Carries the wire fields verbatim —
+        /// `choices` exactly as received (the set is computed per request
+        /// host-side; a hardcoded four-button card is a bar failure, 304-A).
+        /// The driver attaches the turn's frozen endpoint when it lifts this
+        /// into a `RunApprovalRequest`; the parser cannot know it.
+        case approvalRequest(runID: String, command: String, description: String?, patternKey: String?, choices: [String])
+        /// #304: the approval was resolved — by this client's own POST or by
+        /// anyone else with the run id. Used for idempotent card teardown.
+        case approvalResponded(choice: String?)
         case runCompleted(output: String, rawJSON: String)
         case runFailed(error: String)
         case runCancelled
@@ -157,8 +167,8 @@ extension SessionsHermesClient {
     /// `jsonPayload` is the JSON text after `data: `. Returns `nil` for
     /// payloads that aren't a JSON object or carry no string `"event"` key;
     /// returns `.ignored(name)` for both known-but-unused event names
-    /// (`approval.request`, `approval.responded`, `subagent.start`,
-    /// `subagent.complete`) and any other event name this parser doesn't
+    /// (`subagent.start`, `subagent.complete` — `approval.*` graduated to
+    /// real cases in #304) and any other event name this parser doesn't
     /// otherwise recognize — forward-tolerant of new event types the way the
     /// rest of this client's SSE parsing is (see `decodeJSONString`,
     /// `thinkingDelta(fromToolProgress:)`).
@@ -187,10 +197,33 @@ extension SessionsHermesClient {
             return .runFailed(error: (payload["error"] as? String) ?? "")
         case "run.cancelled":
             return .runCancelled
+        case "approval.request":
+            // #304 (bar 304-A): the host's question, fields verbatim. The
+            // choice set is COMPUTED PER REQUEST host-side
+            // (`_approval_event_choices` — four-choice, three-choice, and
+            // smart_denied two-choice arms all exist), so it rides the frame
+            // as data. A frame offering NO choices cannot be rendered without
+            // inventing buttons — that stays `.ignored`, honest absence over
+            // fabrication.
+            guard let choices = payload["choices"] as? [String], !choices.isEmpty else {
+                return .ignored(name)
+            }
+            return .approvalRequest(
+                runID: (payload["run_id"] as? String) ?? "",
+                command: (payload["command"] as? String) ?? "",
+                description: payload["description"] as? String,
+                patternKey: payload["pattern_key"] as? String,
+                choices: choices
+            )
+        case "approval.responded":
+            // #304: pushed by `_handle_run_approval` when a stream is still
+            // registered — the idempotent teardown signal for a card someone
+            // (possibly this client) already resolved.
+            return .approvalResponded(choice: payload["choice"] as? String)
         default:
-            // Known-but-unused (approval.*, subagent.*) and any unrecognized
-            // future event name both land here — a valid frame the app
-            // chooses not to act on, distinct from an unparseable one.
+            // Known-but-unused (subagent.*) and any unrecognized future
+            // event name both land here — a valid frame the app chooses not
+            // to act on, distinct from an unparseable one.
             return .ignored(name)
         }
     }
@@ -202,17 +235,20 @@ extension SessionsHermesClient {
     static let runsPath = "/v1/runs"
 
     /// `POST /v1/runs` → `202 {"run_id":…,"status":"started"}`
-    /// (`api_server.py:6700`). The id is the handle for the event stream, the
-    /// status poll, `/stop` and `/approval`.
+    /// (`_handle_runs`, `api_server.py:6455` at `3dcbe9001` — #304 C1: the
+    /// runs region drifted ≈ +150 lines under an unchanged version string;
+    /// re-resolve any `:NNNN` here before quoting it). The id is the handle
+    /// for the event stream, the status poll, `/stop` and `/approval`.
     struct RunSubmitResponse: Decodable {
         let runID: String
         private enum CodingKeys: String, CodingKey { case runID = "run_id" }
     }
 
     /// One read of `GET /v1/runs/{id}` — the pollable status object the
-    /// gateway retains for `_RUN_STATUS_TTL` (3600s, `api_server.py:6187`).
-    /// This, not stream replay, is what survives a dropped connection: the
-    /// event queue is popped on disconnect (`:6765-6766`), so a reconnect
+    /// gateway retains for `_RUN_STATUS_TTL` (3600s, `api_server.py:6344` at
+    /// `3dcbe9001`; #304 C1 re-resolved — was cited `:6187` from an older
+    /// head). This, not stream replay, is what survives a dropped connection:
+    /// the event queue is popped on disconnect (`:6921-6923`), so a reconnect
     /// 404s and every delta after the drop is gone, while `status` + `output`
     /// + `usage` stay readable for an hour (plan §1.6 N2).
     struct RunStatusSnapshot: Sendable {
@@ -224,9 +260,19 @@ extension SessionsHermesClient {
         /// `run.completed` frame carries.
         let rawJSON: String
 
-        /// The gateway's own LIVE set (`api_server.py:1525`). Written as a
-        /// negative on purpose: a status name we have never seen must read as
-        /// terminal, or a future rename parks the poll forever.
+        /// The gateway's own LIVE set (`api_server.py:1586` at `3dcbe9001`;
+        /// #304 C1 re-resolved — was cited `:1525`). Written as a negative on
+        /// purpose: a status name we have never seen must read as terminal,
+        /// or a future rename parks the poll forever.
+        ///
+        /// #304 C5 — do not read `waiting_for_approval` as CURRENT truth:
+        /// after an approval TIMES OUT the status keeps reading
+        /// `waiting_for_approval` for the remainder of the run
+        /// (`_set_run_status(…, "running", …)` fires only in
+        /// `_handle_run_approval`; expiry resets nothing). The status object
+        /// is not a pending-approval oracle — only a 409
+        /// `approval_not_pending` settles it, and a card is never raised from
+        /// status alone (bar 304-F; `pollRunToTerminal`'s park hooks).
         static let liveStatuses: Set<String> = ["queued", "running", "waiting_for_approval", "stopping"]
 
         var isTerminal: Bool { !Self.liveStatuses.contains(status) }
@@ -261,8 +307,10 @@ extension SessionsHermesClient {
     ///   sessions plane — re-hop ONCE, with a transplant, then give up — and
     ///   it uses the same `discardStaleHop()` + `ensureHopForTurn()` pieces.
     /// - **No `.artifactProduced`, ever.** The runs `tool.started` carries no
-    ///   `args` (`api_server.py:6222-6229`), so #21 Tier 1 reconstruction has
-    ///   no source here. Honest absence beats a chip that cannot be opened.
+    ///   `args` (`api_server.py:6381-6386` at `3dcbe9001`; #304 C1
+    ///   re-resolved — was cited `:6222-6229`), so #21 Tier 1 reconstruction
+    ///   has no source here. Honest absence beats a chip that cannot be
+    ///   opened.
     /// - **No `.modelResolved`.** The runs `run.completed` carries no
     ///   `runtime` block; inventing one would be a fabricated attribution.
     /// - **History rides the body** (N4: runs WRITE the session transcript but
@@ -390,15 +438,19 @@ extension SessionsHermesClient {
             let acceptedRunID = submit.runID
             runID = acceptedRunID
             runSubmitted = true
-            // Task 7: promoted to client state — this is what `/stop` (and a
-            // future `/approval`) address. Set as soon as the run is
-            // committed server-side, not merely accepted for submission,
-            // because that is the earliest moment a stop request means
-            // anything.
+            // Task 7: promoted to client state — this is what `/stop`
+            // addresses. Set as soon as the run is committed server-side,
+            // not merely accepted for submission, because that is the
+            // earliest moment a stop request means anything. (#304: the
+            // "future `/approval`" this comment once promised deliberately
+            // does NOT ride this slot — it is cleared on terminal exit and
+            // can name a different run by the time a human answers, so the
+            // approval's address rides the `RunApprovalRequest` VALUE.)
             setActiveRunContext(runID: acceptedRunID, profileID: hop.profileID, endpoint: endpoint)
 
             // Subscribe IMMEDIATELY: the handler tolerates a short
-            // registration race (`api_server.py:6730`), and every event
+            // registration race (`api_server.py:6885-6890` at `3dcbe9001`;
+            // #304 C1 re-resolved — was cited `:6730`), and every event
             // emitted before we attach is gone — the queue has no replay.
             let eventsRequest = try makeRequest(
                 path: "\(Self.runsPath)/\(acceptedRunID)/events",
@@ -523,6 +575,28 @@ extension SessionsHermesClient {
                         continuation.yield(.interrupted(sessionId: hop.sessionId, runId: acceptedRunID))
                     }
                     finishedYielded = true
+                case .approvalRequest(let frameRunID, let command, let description, let patternKey, let choices):
+                    // #304: the host's question, lifted onto a value that
+                    // carries the turn's FROZEN endpoint (#285 / dispatch §9
+                    // trap 1) — the card must never read the single-slot
+                    // `activeRunContext`, which is cleared on terminal exit
+                    // and can name a different run by the time a human
+                    // answers. The choice set rides the frame verbatim.
+                    continuation.yield(.approvalRequested(RunApprovalRequest(
+                        runID: frameRunID.isEmpty ? acceptedRunID : frameRunID,
+                        profileID: hop.profileID,
+                        endpoint: endpoint,
+                        question: RunApprovalRequest.Question(
+                            command: command,
+                            description: description,
+                            patternKey: patternKey,
+                            choices: choices
+                        )
+                    )))
+                case .approvalResponded(let choice):
+                    // #304: resolved — by our own POST or anyone else's.
+                    // The store's teardown is idempotent (bar 304-E).
+                    continuation.yield(.approvalResolved(runID: acceptedRunID, choice: choice))
                 case .ignored:
                     continue
                 }
@@ -667,7 +741,8 @@ extension SessionsHermesClient {
             runID: submit.runID,
             profileID: hop.profileID,
             endpoint: endpoint,
-            budget: runsSyncBudget
+            budget: runsSyncBudget,
+            haltOnApprovalPark: true
         ) else {
             // Budget, 404 or cancellation. Giving up WATCHING is not the run
             // being lost: the submit was accepted, so the answer keeps being
@@ -701,6 +776,21 @@ extension SessionsHermesClient {
             return output
         case "failed":
             throw SessionsClientError.requestFailed(Self.runFailureText(snapshot.error ?? ""))
+        case "waiting_for_approval":
+            // #304 O5 / bar 304-D(iii), copy aligned by review round 3: a
+            // sync turn (Siri, widgets — the `send(...)` path) has no surface
+            // to show the host's question, so it refuses HONESTLY, naming the
+            // parked approval — never the generic "did not answer in time" —
+            // and stops polling a run that will not answer without a human
+            // (`haltOnApprovalPark` above returned on the first parked read).
+            // Deliberately NO instruction to open anything: a sync-parked run
+            // has no stream and no replay, so opening the app surfaces no
+            // card — the chat consumer raises only from a stream it drives
+            // (the rounds-1/2 false-instruction family, one surface over).
+            // The host's own window governs from here: unanswered = denied.
+            throw SessionsClientError.requestFailed(
+                "The Hermes host paused this run — it is waiting for an approval this path can't show or answer. If it isn't answered, the host denies it when its approval window expires."
+            )
         default:
             // `cancelled`, `stopped`, or a terminal name this build does not
             // know. Never invents a cause.
@@ -729,7 +819,8 @@ extension SessionsHermesClient {
     }
 
     /// Pure mapping half of the pre-fetch. Prose strings only — the server
-    /// coerces history content with `str()` (`api_server.py:6360-6370`), so a
+    /// coerces history content with `str()` (`api_server.py:6360-6370` at the
+    /// pre-`3dcbe9001` read; #304 C1: re-resolve before quoting), so a
     /// structured value would arrive as its Python repr.
     nonisolated static func runsHistory(
         from messages: [Message],
@@ -768,7 +859,10 @@ extension SessionsHermesClient {
     private enum RunStatusRead {
         case terminal(RunStatusSnapshot)
         /// Queued / running / waiting_for_approval / stopping — keep waiting.
-        case live
+        /// Carries the snapshot (#304): a park on `waiting_for_approval` is a
+        /// live state the CALLERS care about — the streamed recovery raises
+        /// the degraded Deny offer on it, the sync path refuses honestly.
+        case live(RunStatusSnapshot)
         /// `404 run_not_found`: the status TTL (3600s) expired, or this id
         /// belongs to another host. No amount of polling produces an answer.
         case gone
@@ -788,7 +882,8 @@ extension SessionsHermesClient {
     /// returns that snapshot — the recovery path's whole point.
     ///
     /// This, not stream replay, is what survives a dropped connection: the
-    /// event queue is popped on disconnect (`api_server.py:6765-6766`) so a
+    /// event queue is popped on disconnect (`api_server.py:6921-6923` at
+    /// `3dcbe9001`; #304 C1 re-resolved — was cited `:6765-6766`) so a
     /// re-subscribe 404s and every delta after the drop is gone, while
     /// `status` + `output` + `usage` stay readable for an hour.
     ///
@@ -810,15 +905,31 @@ extension SessionsHermesClient {
     /// anyone wait. The sync path passes its own, much shorter
     /// `runsSyncBudget`: it has a user waiting on one answer and nothing to
     /// degrade to, so it lives under the #145 Part A non-stream policy.
+    ///
+    /// #304 — the two approval-park hooks, both off by default:
+    /// - `haltOnApprovalPark` (the SYNC caller): the FIRST read that shows
+    ///   `waiting_for_approval` returns that (NON-terminal) snapshot instead
+    ///   of polling on — a parked run will not answer without a human, so
+    ///   burning the budget against it would just be the old timeout wearing
+    ///   a new face. The caller switches on the status and refuses honestly
+    ///   (bar 304-D(iii)).
+    /// - `onApprovalParked` (the STREAMED recovery): fired AT MOST ONCE, on
+    ///   the first parked read, so `deliverPolledTerminal` can raise the
+    ///   degraded Deny-only card (bar 304-D(i)) while the loop keeps waiting
+    ///   — parking is a live state, not a terminal one, and the budget still
+    ///   bounds it (bar 304-D(ii)).
     func pollRunToTerminal(
         runID: String,
         profileID: UUID?,
         endpoint: ResolvedEndpoint? = nil,
-        budget: Duration? = nil
+        budget: Duration? = nil,
+        haltOnApprovalPark: Bool = false,
+        onApprovalParked: (@MainActor () -> Void)? = nil
     ) async -> RunStatusSnapshot? {
         let deadline = ContinuousClock.now + (budget ?? runsPollBudget)
         var reads = 0
         var consecutiveUnreadable = 0
+        var approvalParkNotified = false
 
         while true {
             if Task.isCancelled { return nil }
@@ -826,8 +937,17 @@ extension SessionsHermesClient {
             switch await readRunStatus(runID: runID, profileID: profileID, endpoint: endpoint) {
             case .terminal(let snapshot):
                 return snapshot
-            case .live:
+            case .live(let snapshot):
                 consecutiveUnreadable = 0
+                if snapshot.status == "waiting_for_approval" {
+                    if haltOnApprovalPark {
+                        return snapshot
+                    }
+                    if !approvalParkNotified {
+                        approvalParkNotified = true
+                        onApprovalParked?()
+                    }
+                }
             case .gone:
                 runsTransportLogger.notice(
                     "runs: status poll for \(runID, privacy: .public) — host no longer has this run (404); arming recovery"
@@ -885,7 +1005,7 @@ extension SessionsHermesClient {
             guard let snapshot = RunStatusSnapshot(data) else {
                 return .unreadable("status body carried no status field")
             }
-            return snapshot.isTerminal ? .terminal(snapshot) : .live
+            return snapshot.isTerminal ? .terminal(snapshot) : .live(snapshot)
         } catch {
             return .unreadable(error.localizedDescription)
         }
@@ -913,7 +1033,27 @@ extension SessionsHermesClient {
         assembledReasoning: String,
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async -> Bool {
-        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID, endpoint: endpoint) else {
+        guard let snapshot = await pollRunToTerminal(
+            runID: runID,
+            profileID: profileID,
+            endpoint: endpoint,
+            onApprovalParked: {
+                // #304 bar 304-D(i): the stream is gone and the host reports
+                // the run PARKED on an approval. The question is not in the
+                // status object (bar 304-F), so nothing is invented — this is
+                // the degraded, question-less Deny offer, and it works
+                // because the ANSWER channel is stream-independent. Endpoint
+                // absent (no frozen resolution to ride) → no card: a Deny we
+                // cannot honestly address is worse than none.
+                guard let endpoint else { return }
+                continuation.yield(.approvalRequested(RunApprovalRequest(
+                    runID: runID,
+                    profileID: profileID,
+                    endpoint: endpoint,
+                    question: nil
+                )))
+            }
+        ) else {
             // Task 7 finding 1: the poll never reached a terminal snapshot —
             // budget exhausted, the host 404'd it (`gone`, already reaped),
             // or the unreadable-reads limit tripped. Every caller's fallback
@@ -1065,6 +1205,86 @@ extension SessionsHermesClient {
                     "runs: stop request for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public) — NOT marking self-stopped, so this run's eventual terminal delivery surfaces as recovery rather than a false silent success"
                 )
             }
+        }
+    }
+
+    // MARK: - Approvals (#304, slice 3B)
+
+    /// The wire body: exactly `{"choice": …}` (bar 304-B). Nothing else ever
+    /// rides it — no `all`/`resolve_all` (deferred, dispatch §5) and no
+    /// `reason` (no wire slot: `_handle_run_approval` never forwards one).
+    private struct RunApprovalAnswerBody: Encodable {
+        let choice: String
+    }
+
+    /// #304: `POST /v1/runs/{run_id}/approval` — answer a HOST approval.
+    ///
+    /// Modeled on `hardStopActiveRun()` above with two deliberate
+    /// differences (see the protocol declaration's doc): the address rides
+    /// the CALL — `runID` + the run's frozen `endpoint` from the
+    /// `RunApprovalRequest` VALUE, never the single-slot `activeRunContext`
+    /// (#285's trap) — and it is NOT fire-and-forget: the classified outcome
+    /// is the card's whole truth, and the #279 discipline holds — **the POST
+    /// reaching the host is what makes a state true**, so callers
+    /// (`HostApprovalStore`) mutate nothing until this returns. A transport
+    /// failure returns `.unreachable` and changes no state anywhere.
+    func answerApproval(runID: String, choice: String, endpoint: ResolvedEndpoint) async -> RunApprovalAnswerOutcome {
+        do {
+            let body = try JSONEncoder().encode(RunApprovalAnswerBody(choice: choice))
+            let request = try makeRequest(
+                path: "\(Self.runsPath)/\(runID)/approval",
+                method: "POST",
+                body: body,
+                accept: "application/json",
+                endpoint: endpoint
+            )
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .unreachable("The host returned a non-HTTP response.")
+            }
+            runsTransportLogger.notice(
+                "runs: approval answer '\(choice, privacy: .public)' for \(runID, privacy: .public) → HTTP \(httpResponse.statusCode, privacy: .public)"
+            )
+            return Self.classifyApprovalAnswer(status: httpResponse.statusCode, body: data)
+        } catch {
+            // The POST demonstrably did not land (transport/config failure).
+            // #264's one-truth rule: not denied, not approved — the card
+            // stays live and says it could not reach the host.
+            runsTransportLogger.error(
+                "runs: approval answer for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public)"
+            )
+            return .unreachable(failureMessage(for: error))
+        }
+    }
+
+    /// HTTP → outcome, and nothing else (bar 304-C: every arm distinct, none
+    /// success). The two 409s are told apart by the host's own error code —
+    /// structured `code` first (top-level or nested under `error`), raw-body
+    /// substring as the tolerant fallback; an unrecognizable 409 falls to
+    /// `.rejected` with the host's words rather than guessing an arm.
+    nonisolated static func classifyApprovalAnswer(status: Int, body: Data) -> RunApprovalAnswerOutcome {
+        if (200 ..< 300).contains(status) { return .resolved }
+        let payload = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
+        var code = payload?["code"] as? String
+        if code == nil, let errorObject = payload?["error"] as? [String: Any] {
+            code = errorObject["code"] as? String
+        }
+        let bodyText = String(decoding: body, as: UTF8.self)
+        func names(_ marker: String) -> Bool {
+            code == marker || bodyText.contains(marker)
+        }
+        switch status {
+        case 404:
+            return .runGone
+        case 409 where names("approval_not_pending"):
+            return .windowClosed
+        case 409 where names("approval_not_active"):
+            return .notActive
+        default:
+            let message = (payload?["error"] as? [String: Any])?["message"] as? String
+                ?? (payload?["error"] as? String)
+                ?? String(bodyText.prefix(200))
+            return .rejected("HTTP \(status). \(message)")
         }
     }
 

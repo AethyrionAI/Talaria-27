@@ -34,9 +34,14 @@ struct RunsFrameParserTests {
         #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"run.cancelled","run_id":"r1","timestamp":3.0}"#) == .runCancelled)
     }
 
-    @Test func approvalAndSubagentAreIgnoredNotDropped() {
-        #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"approval.request","run_id":"r1","command":"rm -rf /tmp/x","choices":["once"]}"#) == .ignored("approval.request"))
+    /// #304 inverted this IN PLACE (2026-08-09): it used to pin
+    /// `approval.request` as `.ignored` — that discard is now the defect, and
+    /// the approval assertion moved to `RunsApprovalTests` pointing the other
+    /// way. The subagent half still holds: those frames stay
+    /// known-but-unused, a valid frame distinct from an unparseable one.
+    @Test func subagentFramesAreIgnoredNotDropped() {
         #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"subagent.start","run_id":"r1"}"#) == .ignored("subagent.start"))
+        #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"subagent.complete","run_id":"r1"}"#) == .ignored("subagent.complete"))
     }
 
     /// #296-C1. The parser has always extracted `tool.completed`'s `error` —

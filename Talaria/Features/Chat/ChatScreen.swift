@@ -1045,6 +1045,17 @@ struct ChatScreen: View {
 
     // MARK: - Message List
 
+    /// #304: the approval card's actor line — the run's birth profile's name
+    /// when resolvable, else the frozen endpoint's host. Real data only.
+    private func hostApprovalActorLabel(_ request: RunApprovalRequest) -> String {
+        if let profileID = request.profileID,
+           let name = container.profilesStore?.profile(id: profileID)?.name,
+           !name.isEmpty {
+            return name
+        }
+        return request.hostDisplayName
+    }
+
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -1101,6 +1112,25 @@ struct ChatScreen: View {
                         )
                         .id(pendingConfirmation.id)
                         .transition(.opacity)
+                    }
+
+                    // #304: the HOST's approval card — a SIBLING of the
+                    // device confirm card above, a different actor (the
+                    // host's own gated action on a /v1/runs run), and the
+                    // two can be on screen at the same moment. When the card
+                    // settles on a terminal 4xx, its distinct honest notice
+                    // renders in its place (bar 304-C).
+                    if let hostApproval = container.hostApprovalStore.current {
+                        HostApprovalCard(
+                            store: container.hostApprovalStore,
+                            approval: hostApproval,
+                            actorLabel: hostApprovalActorLabel(hostApproval)
+                        )
+                        .id(hostApproval.id)
+                        .transition(.opacity)
+                    } else if let approvalNotice = container.hostApprovalStore.resolutionNotice {
+                        HostApprovalNoticeRow(notice: approvalNotice)
+                            .transition(.opacity)
                     }
 
                     if showStatusCard {

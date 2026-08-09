@@ -5572,6 +5572,17 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 side, just a thought").** Source-confirmed the same evening, so this is not filed on a
 screenshot alone.
 
+> **📍 READ THIS BEFORE THE SHELVING NOTE BELOW (head pointer added 2026-08-09,
+> #304 lane, dispatch §4 C8).** The 2026-08-04 shelving ("structurally blocked
+> AND operationally unneeded") is true of **reading/writing the host's
+> `approvals.mode`** — re-verified 2026-08-09, no `/api/config` in
+> `_http_route_table()` — and says **nothing about ANSWERING** the host's
+> approval requests. That half was routed out of this item by the 2026-08-06
+> update at the foot: it rides **#304** (Phase 3 slice 3B,
+> `POST /v1/runs/{run_id}/approval`), filed and executing 2026-08-09. A reader
+> who stops at the shelving note concludes the wrong thing — the dead §F7d turn
+> HAS a fix lane; only mode SELECTION stays parked.
+
 **What Hermes has.** `hermes_cli/web_server.py:933` declares the config key
 **`approvals.mode`**, `"Dangerous command approval mode"`, options
 **`["manual", "smart", "off"]`** — matching the screenshot's *Manual* ("ask before actions
@@ -5698,6 +5709,21 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+> **2026-08-09 corrections to the update above (#304 lane, dispatch §4 C4/C1):**
+> **(C4)** the update is true and INCOMPLETE the same way the plan's N6 bullet
+> was — a dropped-stream approval is visible "as a state but not as a question,"
+> **and the ANSWER channel is stream-independent**: `resolve_gateway_approval`
+> works off `_gateway_queues[session_key]`, and `_run_approval_sessions[run_id]`
+> is popped only in the run's own `finally`, so a client that lost the stream
+> can still POST a deny and it lands. The honest degraded state includes a
+> working Deny (bar 304-D(i)), not just an explanation. **(C1)** every
+> `api_server.py:NNNN` cited in this entry was read at pre-`3dcbe9001` heads and
+> is stale (e.g. `_handle_run_approval` `:6772`→`:6929`,
+> `register_gateway_notify`'s sole site `:6524`→`:6681`); the runs region
+> drifted ≈ +150 lines while the version string stayed `0.20.0`. Cite the head
+> you read; re-resolve before quoting (drift table: dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1).
 
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
@@ -6179,6 +6205,227 @@ paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
 `:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
 head). C2 (3B has no entry) is discharged by this filing.
 
+> **UPDATE 2026-08-09 (lane executed — branch `t27-304-3b-host-approvals`,
+> based on #292's tip `b2265cd` + `main` merged for the filings): 304-A..F
+> BUILT AND MET at the unit level, TDD with observed REDs throughout; 304-G
+> PENDING (controller runs the gate); 304-H/I QUEUED behind the 🔐
+> live-install go (O2 still owed — nothing on any live install was touched).**
+>
+> **Pre-lane baseline, measured on the lane's own base (`e87de11`): 1927
+> tests / 145 suites** (full `TalariaTests`, gate sim 47F68496). **Post-lane
+> full-unit run: 1953 tests / 148 suites passed** — the count MOVED by
+> exactly the lane's 26 new tests / 3 new suites (fresh `test`, not
+> `test-without-building`; the stale-`.xctest` tell checked). **#292
+> (PR #288) and #272 (PR #289) merged to `main` while this lane ran; `main`
+> was re-merged into the branch at `235e369` (auto-merge, no conflicts,
+> `oi-split-verify.py` PASS) and the full suite re-run on the merged head:
+> 1959 tests / 148 suites passed** (1953 + #272's 6).
+>
+> **Per-bar evidence (every RED observed on the gate sim before its GREEN;
+> RED log preserved in the lane report):**
+> - **304-A MET.** RED `bf6d08b`: 4 failed / 17 — `approval.request` still
+>   decoded to `.ignored("approval.request")`, the exact discard
+>   `RunsFrameParserTests:37` pinned. GREEN `a4295f7`: 17/17. Three producer
+>   fixtures (four-choice, `smart_denied` `["once","deny"]`, MCP elicitation
+>   with `pattern_key:"mcp_elicitation"` and command-as-MESSAGE) decode with
+>   `choices` verbatim; a no-choices frame stays `.ignored` (honest absence
+>   over invented buttons); the inverted test narrowed IN PLACE to
+>   `subagentFramesAreIgnoredNotDropped`. Buttons build from
+>   `request.question.choices` — nothing hardcodes four.
+> - **304-B MET.** RED `1895b88`: `answerApproval` resolved to the protocol
+>   default (`.unsupported`), zero POSTs recorded. GREEN `606ce16`:
+>   `onceAnswerPostsExactlyOneChoiceBodyToTheRunsPath` pins body ==
+>   `{"choice":"once"}`, one POST, Bearer auth;
+>   `answerRidesTheGivenEndpointNotTheLiveProviders` flips the live base URL
+>   before answering and the POST still hits the birth host (the endpoint
+>   rides the `RunApprovalRequest` VALUE — never `activeRunContext`, whose
+>   doc now says so);
+>   `HostApprovalStoreTests.atMostOnePostPerCardRegardlessOfTapCount` pins
+>   the tap-count half with a gated sender (in-flight double-tap no-ops;
+>   resolved card never posts again; `.unreachable` is the sole re-entry).
+> - **304-C MET.** RED: all arms classified `.unsupported`. GREEN: 409
+>   `approval_not_pending` → `.windowClosed` ("window closed — the host
+>   already denied this"), 409 `approval_not_active` → `.notActive`
+>   (distinct, no expiry claim), 404 → `.runGone`, 400 → `.rejected` with
+>   the host's words, transport failure → `.unreachable` (card stays LIVE,
+>   #264's rule) — and the store renders the three terminal arms as three
+>   DISTINCT notices with `resolvedChoice` nil
+>   (`theFourXXArmsRenderDistinctlyAndNeverAsSuccess`).
+> - **304-D MET, all three arms.** (i) `statusAloneRaisesOnly…`: events 404
+>   + status `waiting_for_approval` → exactly one degraded
+>   `.approvalRequested` with `question == nil`, and the store's degraded
+>   Deny SENDS (`degradedDenySendsAndARealQuestionIsNeverDowngraded`) — the
+>   stream-independent channel. (ii) same fixture: poll-budget expiry on the
+>   parked run yields one `.interrupted`, zero `.failed`. (iii) RED: the
+>   sync path threw the generic "did not answer in time" after 13 polls;
+>   GREEN: `pollRunToTerminal(haltOnApprovalPark:)` returns on the FIRST
+>   parked read (poll count == 1) and `syncTurnViaRuns` throws the honest
+>   refusal naming the parked approval (O5).
+> - **304-E MET.** Exactly one `.finished` with an approval frame in the
+>   turn; duplicate `approval.responded` frames idempotent at the store
+>   (`markResolvedIsIdempotentAndScopedToTheRun`); card torn down on EVERY
+>   driver exit — `.finished`/`.failed`/`.unreachable`/`.interrupted` (both
+>   arms), `cancelStreaming` (Stop AND revoked-budget), `abandonPendingRun`
+>   (thread switch/clear/reset) — proven end-to-end through a real
+>   `ChatStore` (`chatStoreRaisesTheCardMidTurnAndTearsItDownAtTurnEnd`).
+> - **304-F MET.** A question is only ever minted from a stream frame; the
+>   degraded raise carries `question: nil` by construction, pinned by the
+>   D(i) fixture's `request.question == nil` assertion, and
+>   `RunStatusSnapshot.liveStatuses`' doc now carries the C5 warning.
+> - **304-G ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air, on the branch merged with main @ `21d2b94`): TEST
+>   SUCCEEDED, **1981 Swift Testing + 13 XCUITest**, Release build clean.
+>   (Lane-local evidence beneath it: the five affected suites 68/68
+>   post-change, 3A's `RunsPlaneTransportTests` 33/33 unregressed.)
+> - **304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
+>   per-experiment go still owed; Owen's O3 routes them to the Mac. The
+>   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
+>   the §2.3 unknown: what a DENIED tool call emits on the runs stream —
+>   observe, don't guess (#296's family).
+>
+> **Owen's rulings applied as recorded:** O1 — all four choices render as
+> offered; `once`/`deny` one tap; `always`/`session` (and, fail-safe, any
+> unknown choice) behind a second confirm naming the consequence
+> ("Permanently allowlists this pattern on <host>…" / "Applies to this one
+> run only — not this conversation"); the `session` button reads **THIS
+> RUN**, pinned by `sessionChoiceRendersAsThisRunNeverAsSession`. O5 — the
+> sync path's honest refusal (above). O6 — `useRunsTransport` default
+> untouched (OFF); nothing is reachable outside Developer.
+>
+> **The card (`Talaria/Features/Chat/HostApprovalCard.swift`):** a SIBLING of
+> `ToolConfirmationCard`, rendered beside it in `ChatScreen` (both can be on
+> screen at once); distinguishable at a glance — "HOST APPROVAL" + antenna
+> glyph + the actor named (birth profile's name, else the frozen endpoint's
+> host) vs. the device card's "Confirm" + hand glyph; `command` rendered
+> VERBATIM (monospaced for commands, prose for the MCP-elicitation consent
+> MESSAGE — never presented as something the host would "run"), never
+> truncated, never a file-reconstruction surface (3A-D); degraded shape =
+> Deny + "this connection can't show you what it is"; terminal 4xx notices
+> render in the card's place; every color a `Design` token (forge header
+> family), so all four themes incl. Paper Tape resolve from the palette;
+> VoiceOver labels state the CONSEQUENCE (224-1D). `ToolConfirmationCenter`
+> untouched (dispatch §5's rejected-reuse ruling).
+>
+> **T9 (XCUITest): NOT SHIPPED, deliberately.** The UITest suite has no
+> fixture host for the chat plane (mock PAIRING exists; UITest chat runs on
+> the local brain), so the card is not genuinely reachable behind the
+> Developer switch in that harness — reaching it would mean an app-side mock
+> emitter, i.e. exactly the "test that exercises a mock and reads as
+> coverage" the dispatch's T9 forbids. The card's logic is store-level
+> unit-tested; its real reachability is 304-H's device bar.
+>
+> **Corrections LANDED (commit `be2d6cd` before any code, per §10):** C1 in
+> both design docs (dated head-notes), #224, #283, and the Swift doc
+> comments themselves (six stale `api_server.py:NNNN` re-resolved to
+> `3dcbe9001` values from the dispatch's measured table, plus the two
+> falsified "(and a future `/approval`)" comments — the approval does NOT
+> ride `activeRunContext`, and both docs now say so); C3 plan §3 (M→L,
+> dated); C4 plan §2.2 + #224's update; C5 plan §2.2 + #283 + the
+> `liveStatuses` doc; C6 plan §2.5 + CLAUDE.md `:8642`; C7 CLAUDE.md `:8642`
+> (choices ride the frame / command not always a command / status never
+> carries the question); C8 #224 head pointer. C2 discharged by the filing.
+>
+> **Deliberately NOT built (dispatch §5):** the deny REASON (no wire slot),
+> `resolve_all` (no UI story), the `smart_denied` arm's verification
+> (handled by construction, unprobed, no bar claims it), any
+> `ToolConfirmationCenter` reuse, and #305 (outlives-the-screen — filed, not
+> built; its user cost is real: with the app away, the host denies by
+> timeout).
+>
+> **Q7/Q6 coupling (dispatch §8):** 3B ships NO transcript receipt for an
+> answered approval and NO persisted preference — deliberate, recorded here
+> so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
+> that answer.
+
+> **⛔ REVIEW ROUND 1's FIX BELOW WAS FALSIFIED BY THE ROUND-2 RE-REVIEW
+> (2026-08-09, same day) — read the ROUND 2 note after it; the note below
+> stands as the record of what was tried, not of what shipped.** The
+> re-review's trace: the ONLY route from Talk to chat is ending the
+> session — End → `endSession()` → `teardownSessionResources()` →
+> `turnTask?.cancel()` → the round-1 post-loop scoped clear ran BEFORE the
+> overlay dismissed, so the user told to "open the chat" arrived at a chat
+> whose card was already gone. The plumbing was right; the promise was
+> still false. Round 1's "'open the chat' is now true" claim is STRUCK.
+>
+> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED
+> *(superseded — see above and ROUND 2 below)*:
+> the VOICE consumer was a state where the feature lied.** A voice turn
+> rides the same runs transport, so an `approval.request` frame lands in
+> `NativeVoicePipelineService`'s OWN stream consumer — which rendered "open
+> the chat to answer it" while raising nothing: no replay, the degraded
+> raise also lands in the voice stream, and the chat showed NO card (the
+> #180 shape, reviewer-caught). **Fix = the cross-store raise (option a):**
+> the voice consumer raises the SAME `HostApprovalStore` the chat screen
+> renders (full question from the frame; degraded for the question-less
+> park), `approval.responded` forwards to the idempotent teardown, and the
+> voice turn's every exit — including the barge-in cancellation — tears its
+> card down SCOPED via new `clearForTurnEnd(runID:)`, so a predecessor
+> turn's exit can never tear down a successor's card (bar 304-E, narrower
+> door). An honest-copy downgrade remains for store-less constructions (no
+> instruction to open a chat that would show nothing). Constraints held: no
+> new Task/loop (#292 — rides the existing consumer); the at-most-once POST
+> guard is store state shared across both surfaces by construction. RED
+> first (`3563adb`: the scripted voice backend held its stream open and
+> `store.current` stayed nil; the scoped clear no-oped), GREEN in the fix
+> commit (`71a6b46`) — 68/68 across the five affected suites incl. the new
+> `VoiceHostApprovalTests` and the amended service's own
+> `NativeVoicePipelineTests`; **full `TalariaTests` after the fix: 1961
+> tests / 149 suites passed** (the pre-fix merged head's 1959/148 + the
+> fix's 2 tests / 1 suite). Reviewer Minor #1 (a POST completing after
+> teardown renders its 4xx nowhere — deliberate never-false-success)
+> PARKED by the controller, no action.
+
+> **REVIEW ROUND 2 (2026-08-09) — RULED: round 1 NOT ADDRESSED (the
+> endSession-teardown trace above), plus one NEW Important (with two
+> raisers, the chat's eight UNSCOPED `clearForTurnEnd()` sites could tear
+> down a voice-raised card for a different run — the same race round 1
+> scoped against, in the other direction). The controller ruled option (b):
+> the HONEST DOWNGRADE, and the voice raise removed.**
+> - The voice consumer's `.approvalRequested` arm now states only what is
+>   true — *"Hermes is waiting on a host approval this voice surface can't
+>   show or answer. If it isn't answered, the host denies it when its
+>   approval window expires."* — Owen's O5 honest-refusal ruling applied to
+>   the voice surface. **No instruction to open the chat.**
+>   `.approvalResolved` is a deliberate no-op on this surface.
+> - **REMOVED (dead plumbing is not kept "for later"):** the pipeline's
+>   `hostApprovals` reference, the AppContainer hoist + wiring, and
+>   `HostApprovalStore.clearForTurnEnd(runID:)`. With ONE raiser (the chat
+>   consumer) the unscoped clears revert to being correct — the originally
+>   reviewed 304-E design — which also discharges the new Important.
+>   **KEPT:** `commitUserUtterance`'s `// harness-visible` widening (drives
+>   the round-2 test) and the `ScriptedVoiceBackend` fixture.
+> - **Inversion recorded:** round 1's two tests REFUSE TO COMPILE against
+>   round-2 code (`clearForTurnEnd(runID:)` and `.hostApprovals` no longer
+>   exist — observed, log preserved in the lane report's scratchpad).
+>   Rewritten to pin the new truth:
+>   `aVoiceTurnsApprovalProducesTheHonestRefusalAndInstructsNothingFalse`
+>   (the copy names can't-show and the timeout deny, contains NO
+>   "open the chat"/"open Talaria", and the frames don't kill the voice
+>   session); the scoped-clear test deleted with its method. Chat-path
+>   teardown tests byte-unchanged.
+> - **A voice-surface ANSWER path is explicitly #305's scope** (pointer
+>   added to #305's entry).
+> - **Counts after round 2:** covering suites 67/67 in 5 (the deleted
+>   scoped-clear test left with its method; the voice test replaced 1:1);
+>   **full `TalariaTests` 1960 tests / 149 suites passed.**
+
+> **REVIEW ROUND 3 (2026-08-09) — the last surviving instance of the same
+> false-instruction family, on the SYNC path (bar 304-D(iii)'s copy).** The
+> T7 refusal still ended *"Open Talaria to answer it before the host's
+> approval window expires"* — but a sync-parked run has no stream and no
+> replay, so opening the app surfaces NO card (the chat consumer raises
+> only from a stream it drives). D(iii)'s required half (name the parked
+> approval, never the generic timeout) was met and stays; the instruction
+> tail was the surplus lie. **Copy aligned to the round-2 honest standard:**
+> *"The Hermes host paused this run — it is waiting for an approval this
+> path can't show or answer. If it isn't answered, the host denies it when
+> its approval window expires."* — no instruction to open anything. The
+> pinned test (`aSyncTurnParkedOnAnApprovalSaysSoRatherThanTimingOut`) now
+> also asserts the deny-on-expiry statement and the ABSENCE of any
+> "open Talaria"/"open the chat" instruction. (The AskHermes "Open Talaria
+> to watch it finish" family is untouched — those instructions are TRUE:
+> the answer does land in the app.)
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
@@ -6191,6 +6438,17 @@ whether a dangerous host command should be approvable from a lock screen at all.
 (`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
 one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
 silently drop it.**
+
+> **2026-08-09 (#304 review round 2, controller's ruling): the VOICE surface's
+> answer path is explicitly THIS item's scope too.** A voice turn's
+> `approval.request` lands in the voice pipeline's own stream consumer; #304
+> round 2 ruled that surface down to the honest refusal (it cannot show or
+> answer; the host denies on its own window) after the cross-store raise was
+> falsified — the only route from Talk to chat is ending the session, whose
+> teardown destroys the turn (and destroyed the raised card) before the chat
+> is reachable. Any real voice-reachable answer surface — like any
+> approval that outlives its screen — is designed here, with scoped teardown
+> as part of that design, not bolted onto #304.
 
 ## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
 
@@ -8624,6 +8882,26 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > - Minor, adopted: the runs family is now promoted into **CLAUDE.md**'s
 >   `:8642` section as live-verified on 0.20.0, with the three
 >   design-relevant behaviours, so the next lane does not re-probe it.
+
+> **2026-08-09 corrections (#304 lane — slice 3B — dispatch
+> `FABLE-T27-283-3B-approvals.md` §4 C1/C5):**
+> - **(C5, NEW — this entry's `liveStatuses` reasoning implicitly assumed the
+>   status tracks reality, and it does not):** after an approval TIMES OUT, the
+>   run status keeps reading **`waiting_for_approval` for the remainder of the
+>   run** — `_set_run_status(run_id, "running", …)` fires only in
+>   `_handle_run_approval`, expiry resets nothing, and every later event
+>   re-stamps the current status until the terminal set. `GET /v1/runs/{id}` is
+>   **not a pending-approval oracle**; only a 409 `approval_not_pending` settles
+>   it. Consequence carried into `RunStatusSnapshot.liveStatuses`' own doc
+>   comment and pinned by bar 304-F (status alone never raises a question).
+> - **(C1):** every `api_server.py:NNNN` this entry cites was read at
+>   pre-`3dcbe9001` heads and is stale — the runs region drifted ≈ +150 lines
+>   (e.g. `_handle_runs` `:6298`→`:6455`, `_RUN_STATUS_TTL` `:6187`→`:6344`,
+>   stream popped on disconnect `:6765-6766`→`:6921-6923`) while the version
+>   string stayed `0.20.0`. Cite the head you read; re-resolve before quoting
+>   (full drift table: the dispatch §4 C1). The Swift doc comments in
+>   `SessionsHermesClient+RunsTransport.swift` carried the same stale citations
+>   and were corrected in the #304 lane.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
 

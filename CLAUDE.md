@@ -245,13 +245,28 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   `POST /v1/runs` (202 + `run_id`) · `GET /v1/runs/{id}/events` (SSE) ·
   `GET /v1/runs/{id}` (status + `output` + `usage`, 1h TTL) ·
   `POST /v1/runs/{id}/stop` (a REAL hard interrupt — device-proven, the host logged
-  `exit_code 130` / `interrupted_by_user`). **Three behaviours to know before designing
+  `exit_code 130` / `interrupted_by_user` — **and, on a run PARKED on an approval, a clean
+  `deny`**: `is_interrupted()` inside the approval wait resolves it rather than hanging
+  the window out — `tools/approval.py:3695-3703` at `3dcbe9001`; #304, 2026-08-09).
+  **Three behaviours to know before designing
   against them:** the events stream's frames are `data: {json}` with the event name INSIDE
   the JSON — there are **no `event:` lines**, unlike `/chat/stream`; a run carrying an
   existing `session_id` **WRITES its turns into SessionDB but never READS them** (history
   must ride the request, and a missing history does NOT error — the agent answers
   plausibly from long-term memory instead); and a freshly created, never-used session
   returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
+  **The APPROVAL family (`approval.request` on the events stream +
+  `POST /v1/runs/{id}/approval`) has three behaviours of its own (#304, 2026-08-09 —
+  code-read at `3dcbe9001`, wire-proven 2026-08-05 for the once/expiry arms):**
+  the CHOICE SET rides each `approval.request` frame (`choices` is computed per request —
+  four-choice, three-choice, and `smart_denied` two-choice arms all exist; **a hardcoded
+  four-button card is wrong**); **`command` is not always a command** (MCP elicitation
+  reuses the field for its consent MESSAGE — `pattern_key: "mcp_elicitation"`, no
+  `allow_permanent`); and **the status object never carries the question** — a timed-out
+  approval leaves `GET /v1/runs/{id}` reading `waiting_for_approval` for the rest of the
+  run, so only a stream frame may raise a question and only a 409 `approval_not_pending`
+  settles that the window closed. The ANSWER channel is stream-independent (a client that
+  lost the stream can still POST a deny and it lands).
   **✅ RE-VERIFIED 2026-08-09 — THE TABLE BELOW IS CURRENT. The 0.20.0
   re-verify warning is DISCHARGED.** `_http_route_table()` is **byte-identical
   (37 rows)** between the commit serving on 2026-08-02 and upstream HEAD
