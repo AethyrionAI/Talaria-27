@@ -9449,6 +9449,58 @@ sensor question.
 
 ## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.**
 
+> **🔑 MECHANISM COMPLETED 2026-08-09 — and there is a USER-FACING SWITCH that
+> triggers it. Owen surfaced it from a screenshot of Hermes desktop →
+> Messaging → API server → Advanced: a field called "API server model name".**
+>
+> **That field is the routing sentinel, not a display label.** Its UI copy —
+> *"Model name advertised on `/v1/models`. Defaults to the profile name (or
+> 'hermes-agent' for the default profile). Useful for multi-user setups with
+> OpenWebUI"* — reads cosmetic. Upstream's own docstring
+> (`api_server.py:379`) says otherwise: the advertised name is *"a stable
+> virtual model … **treat that alias as 'use the gateway default'**."*
+>
+> **The full chain, read at the installed head:**
+> 1. `_resolve_model_name` (`:1644`) resolves explicit override → active
+>    profile name → `"hermes-agent"`, cached as `self._model_name`.
+> 2. Session creation persists it whenever the client sends no model:
+>    `model = body.get("model") or self._model_name` (`:3397`). **Talaria's
+>    `createBareSession` posts an empty body, so every session we create
+>    stores that literal string** — this is the "walks into it by default"
+>    finding, now with the mechanism visible.
+> 3. The routing gate: `if not route and model and model != self._model_name`
+>    (`:2345`). Match ⇒ `route_source: "global"`, correct. **Mismatch ⇒
+>    `route_source: "raw_request"` for a model literally named
+>    `hermes-agent`, which no provider serves** ⇒ non-retryable 404 ⇒
+>    reported to the client as **HTTP 200**, which is this item.
+> 4. Seven further sites pass it as `virtual_model` into
+>    `_request_agent_overrides`.
+>
+> **Why this is a live hazard and not a curiosity:** the sentinel is read at
+> request time while the stored value was captured at session-creation time.
+> Anything that moves them apart — setting this field, renaming the profile,
+> or pointing the phone at a host whose name differs — converts every
+> pre-existing session's benign default into a request for a nonexistent
+> model. And the same docstring notes **Hermes-native endpoints (session chat
+> and `/v1/runs`) ALWAYS honour a bare `model` with no `provider`**, so the
+> `allow_bare_model` safety net that protects generic OpenAI clients does
+> **not** protect the two planes Talaria actually uses.
+>
+> **Live evidence, which had been in front of us all session unread:** every
+> `hermes-ojamd` reply carried `runtime: {provider: "kimi-coding", model:
+> "hermes-agent", route_source: "global", requested: {provider: "", model:
+> ""}}`. The real provider is reported; the *model* is the self-name; and
+> `route_source` is `global` precisely because the sentinel still matches.
+>
+> **Disposition unchanged — the park HOLDS, and this is not a request to
+> revisit it.** What changes is the ops posture, now recorded in CLAUDE.md:
+> **leave "API server model name" EMPTY.** It is currently unset (no "Saved"
+> chip in Owen's screenshot, unlike the four fields above it), so the default
+> applies and nothing is wrong today. The value of this note is that it stops
+> a future "harmless cosmetic rename" from breaking chat on every existing
+> session with a 200-shaped lie.
+
+
 **Source: the OJAMD-side session's findings file (archived at
 `handoffs/ojamd-findings-2026-08-03.md`, §2), agent.log timeline for sessions
 `api_1785804165_5e71b36d` / `api_1785804180_710d566f`, 19:42–19:45 CDT.** This is what

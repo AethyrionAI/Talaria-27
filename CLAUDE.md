@@ -106,6 +106,39 @@ a falsified mechanism while the tracker was right.)
   (git at head, `venv/bin/hermes` missing) — finish it with the venv's own
   `pip install -e ~/.hermes/hermes-agent`, don't reinstall. **Do NOT run
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
+- **⛔ DO NOT SET "API server model name" (Hermes desktop → Messaging → API server →
+  Advanced) — it is a ROUTING SENTINEL, not a display label, and changing it on a host
+  with existing sessions triggers #241 on every one of them.** Found 2026-08-09 from
+  Owen's screenshot of that pane. **Leave it EMPTY** (it is currently unset, so the
+  default applies and we are fine).
+  - The UI describes it as *"Model name advertised on `/v1/models`… useful for
+    multi-user setups with OpenWebUI"* — which reads purely cosmetic. **It is not.**
+    Upstream's own docstring (`api_server.py:379`) says the advertised name is
+    *"a stable virtual model … treat that alias as **use the gateway default**."*
+  - **The chain:** `_resolve_model_name` (`:1644`) picks explicit override →
+    profile name → `"hermes-agent"`, and caches it as `self._model_name`. Session
+    creation persists it when the client sends no model —
+    `model = body.get("model") or self._model_name` (`:3397`) — and Talaria's
+    `createBareSession` posts an empty body, so **every session we create stores
+    that literal string.** The routing gate then tests
+    `if not route and model and model != self._model_name` (`:2345`): match ⇒
+    `route_source: "global"` (the default, correct); **mismatch ⇒
+    `route_source: "raw_request"` for a model literally named `hermes-agent`,
+    which no provider has** ⇒ 404 ⇒ and per #241 that 404 reaches the client as
+    **HTTP 200**. Seven further sites pass it as `virtual_model`.
+  - **Why the hazard is real rather than theoretical:** the sentinel and the
+    stored value are captured at different times. Rename the profile, set this
+    field, or point the phone at a host whose name differs, and every
+    previously-created session's stored `model` stops matching. Worse, the
+    docstring notes **Hermes-native endpoints (session chat and `/v1/runs`) ALWAYS
+    honour a bare `model` with no `provider`** — so there is no safety net on
+    exactly the two planes Talaria uses.
+  - **Live confirmation, and it was in plain sight all session:** every
+    `hermes-ojamd` reply carried
+    `runtime: {provider: "kimi-coding", model: "hermes-agent", route_source: "global",
+    requested: {provider: "", model: ""}}`. Real provider, self-name as the model,
+    `global` because the sentinel still matches. **We are safe only because nobody
+    has changed that name.**
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
 - **🚨 THE `hermes-ojamd` MCP CAN FABRICATE OUTPUT ON THE FAILURE PATH (found
