@@ -899,6 +899,297 @@ struct ChatStorePersistenceTests {
         #expect(fresh.timestamp > history[2].timestamp)
     }
 
+    // MARK: - tracker #282: scoping the content claim's DEMAND side
+    //
+    // Tracker #282 is NOT GitHub PR #282. Owen's 2026-08-09 ruling: only a
+    // local row where `!status.isSettled` may consume a content claim.
+
+    /// tracker #282's server-transcript builder — what
+    /// `SessionsHermesClient.mapStoredMessage` actually produces for a thread
+    /// the host has stored: a STABLE server-derived id (#237), **no**
+    /// `clientMessageID` (the gateway echoes none), `.delivered`, and the
+    /// HOST's own clock, which is a different clock from the phone's. The
+    /// clock is the load-bearing detail — `Conversation.dedupingAdoptedEchoes`
+    /// keys on the timestamp, so a fixture that reuses the local one hides
+    /// every duplicate this seam can produce.
+    private func serverTranscript(
+        _ rows: [(MessageSender, String)],
+        sessionID: String = "tracker-282-session",
+        base: Date
+    ) -> [Message] {
+        rows.enumerated().map { index, row in
+            Message(
+                id: SessionsHermesClient.stableMessageID(sessionId: sessionID, serverRowID: index + 1),
+                sender: row.0,
+                content: row.1,
+                timestamp: base.addingTimeInterval(Double(index)),
+                status: .delivered
+            )
+        }
+    }
+
+    /// A two-turn thread born IN-APP on the Hermes path: client-minted ids,
+    /// `clientMessageID` on every user row, both turns settled `.delivered`
+    /// (`ChatStore.swift:883` / `:1363` are the two lines that settle them).
+    /// None of these rows has ever met the server.
+    private func inAppHermesHistory(base: Date) -> [Message] {
+        let firstUser = UUID(), secondUser = UUID()
+        return [
+            Message(id: firstUser, clientMessageID: firstUser, sender: .user,
+                    content: "Q1", timestamp: base, status: .delivered),
+            Message(sender: .hermes, content: "A1",
+                    timestamp: base.addingTimeInterval(1), status: .delivered),
+            Message(id: secondUser, clientMessageID: secondUser, sender: .user,
+                    content: "Q2", timestamp: base.addingTimeInterval(2), status: .delivered),
+            Message(sender: .hermes, content: "A2",
+                    timestamp: base.addingTimeInterval(3), status: .delivered),
+        ]
+    }
+
+    /// **282-B — THE BASELINE.** A characterization, not a defect pin: it
+    /// records what the Hermes-path reconcile merge produces TODAY, before
+    /// the demand-side guard exists, so that every other tracker #282 result
+    /// is read against a measured array rather than an assumed one.
+    ///
+    /// The shape is `attemptReconcile`'s (`ChatStore.swift:2476`): the WHOLE
+    /// local transcript merged onto the WHOLE server transcript. Rows born
+    /// in-app carry client ids, so tiers 1 and 2 both miss them and the
+    /// content claim is the only confirmation a user row has.
+    ///
+    /// **🔴 THE MEASURED BASELINE ALREADY CONTAINS DUPLICATES, and they are
+    /// ASSISTANT rows — `["Q1", "A1", "Q2", "A2", "A1", "A2"]`.** This is
+    /// tracker #299, filed from this run, and it is NOT tracker #282's to fix.
+    /// The claim tier is restricted to `.user`, so a `.hermes` row born in-app
+    /// has NO confirmation tier at all: it fails tier 1 (client id ≠ the
+    /// host's `stableMessageID`), fails tier 2 (the gateway echoes no
+    /// `clientMessageID`), is not eligible for tier 3, survives, and is
+    /// appended. `Conversation.dedupingAdoptedEchoes` cannot collapse the
+    /// pair because the phone's clock and the host's are different clocks.
+    /// The two user rows are single ONLY because the content claim absorbs
+    /// them — which is precisely the mechanism tracker #282's ruling removes
+    /// for settled rows.
+    @Test @MainActor
+    func theHermesReconcileMergeBaselineBeforeScopingTheClaim() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let (store, client, _, _) = makeMirroredStore(
+            history: inAppHermesHistory(base: localBase), shape: .hermesFetchCache
+        )
+        await store.loadConversationIfNeeded()
+
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle,
+            messages: serverTranscript(
+                [(.user, "Q1"), (.hermes, "A1"), (.user, "Q2"), (.hermes, "A2")],
+                base: localBase.addingTimeInterval(0.5)
+            )
+        )
+
+        await store.loadConversation()
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == ["Q1", "A1", "Q2", "A2", "A1", "A2"])
+    }
+
+    /// **tracker #299 evidence — is the assistant duplication BOUNDED?** The
+    /// question 282-B's baseline immediately raises: #237's corruption
+    /// COMPOUNDED (32 → 128), and a defect that doubles the transcript on
+    /// every reconcile is a different severity from one that adds a single
+    /// extra copy and then stops.
+    ///
+    /// Measured here rather than argued: a SECOND reconcile against the same
+    /// host transcript. `stableMessageID` is deterministic (#237), so the
+    /// re-fetch reproduces the same ids, the first merge's adopted rows now
+    /// confirm at tier 1, and #281's supply gate mints no claims at all. The
+    /// only rows without a tier are the same two client-id assistant rows.
+    @Test @MainActor
+    func theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let (store, client, _, _) = makeMirroredStore(
+            history: inAppHermesHistory(base: localBase), shape: .hermesFetchCache
+        )
+        await store.loadConversationIfNeeded()
+
+        let hostView = Conversation(
+            title: Conversation.defaultTitle,
+            messages: serverTranscript(
+                [(.user, "Q1"), (.hermes, "A1"), (.user, "Q2"), (.hermes, "A2")],
+                base: localBase.addingTimeInterval(0.5)
+            )
+        )
+
+        client.currentConversation = hostView
+        await store.loadConversation()
+        let afterFirst = try #require(store.conversation?.messages).map(\.content)
+
+        // The same rows, re-fetched: same server row ids ⇒ same stable ids.
+        client.currentConversation = hostView
+        await store.loadConversation()
+        let afterSecond = try #require(store.conversation?.messages).map(\.content)
+
+        #expect(afterFirst == ["Q1", "A1", "Q2", "A2", "A1", "A2"])
+        #expect(afterSecond == afterFirst)
+    }
+
+    /// **282-D — the settled-historical hole. PREDICTED RED under the
+    /// ruling.** A thread whose first turn SETTLED in-app and never met the
+    /// server, and whose second turn is mid-recovery. A user row born in-app
+    /// carries a client UUID; its server twin carries `stableMessageID` and
+    /// no `clientMessageID`, so tiers 1 and 2 both miss and the content claim
+    /// is the ONLY confirmation it has. Under the guard a `.delivered` row
+    /// can no longer consume, survives, and is appended at the tail — a
+    /// second "Q1" bubble below the reply.
+    ///
+    /// Deliberately scoped to USER rows: assistant rows have no claim tier at
+    /// all, so folding them in here would mix the guard's effect with the
+    /// separate A2 question 282-B measures.
+    @Test @MainActor
+    func aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let firstUser = UUID(), recoveringUser = UUID()
+        let localRows = [
+            Message(id: firstUser, clientMessageID: firstUser, sender: .user,
+                    content: "Q1", timestamp: localBase, status: .delivered),
+            Message(sender: .hermes, content: "A1",
+                    timestamp: localBase.addingTimeInterval(1), status: .delivered),
+            Message(id: recoveringUser, clientMessageID: recoveringUser, sender: .user,
+                    content: "Q2", timestamp: localBase.addingTimeInterval(2), status: .working),
+        ]
+        let (store, client, _, _) = makeMirroredStore(history: localRows, shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle,
+            messages: serverTranscript(
+                [(.user, "Q1"), (.hermes, "A1"), (.user, "Q2")],
+                base: localBase.addingTimeInterval(0.5)
+            )
+        )
+
+        await store.loadConversation()
+
+        let messages = try #require(store.conversation?.messages)
+        let userContents = messages.filter { $0.sender == .user }.map(\.content)
+        #expect(Set(userContents).count == userContents.count)
+    }
+
+    /// tracker #282 case (b): what `mapStoredMessage` produces for a stored
+    /// row the host returned with **no `id` and no `timestamp`** —
+    /// `SessionsHermesClient.swift:1031` falls back to a fresh `UUID()` and
+    /// `:1000` to a fresh `.now`. Both fallbacks are honest; both are
+    /// PER-FETCH, which is the whole of case (b). `stampedAt` makes the
+    /// per-fetch clock deterministic instead of racing the test runner.
+    private func idLessServerTranscript(
+        _ rows: [(MessageSender, String)], stampedAt: Date
+    ) -> [Message] {
+        rows.enumerated().map { index, row in
+            Message(id: UUID(), sender: row.0, content: row.1,
+                    timestamp: stampedAt.addingTimeInterval(Double(index)), status: .delivered)
+        }
+    }
+
+    /// **282-E — case (b). PREDICTED RED under the ruling.** A fresh `UUID()`
+    /// is never in `localIDs`, so #281's supply gate at the claim's SOURCE can
+    /// never bind for an id-less row: it mints a claim on every fetch,
+    /// forever. Today the claim tier absorbs that (a silent swallow). Under
+    /// the guard the row's previously-adopted local twin is `.delivered`
+    /// (`SessionsHermesClient.swift:1035`) and therefore settled, so nothing
+    /// consumes the claim and nothing filters the twin — and
+    /// `Conversation.dedupingAdoptedEchoes` cannot collapse the pair because
+    /// their timestamps differ. **A silent swallow becomes a duplicate per
+    /// fetch.**
+    @Test @MainActor
+    func anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches() async throws {
+        let (store, client, _, _) = makeMirroredStore(history: [], shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+
+        let firstFetchAt = Date(timeIntervalSince1970: 1_754_000_000)
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle,
+            messages: idLessServerTranscript([(.user, "Q1"), (.hermes, "A1")], stampedAt: firstFetchAt)
+        )
+        await store.loadConversation()
+        let afterFirst = try #require(store.conversation?.messages)
+            .filter { $0.sender == .user }.count
+
+        // The SAME two stored rows, re-fetched. The host still sends no id
+        // and no timestamp, so the mapper mints both again.
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle,
+            messages: idLessServerTranscript(
+                [(.user, "Q1"), (.hermes, "A1")], stampedAt: firstFetchAt.addingTimeInterval(10)
+            )
+        )
+        await store.loadConversation()
+        let afterSecond = try #require(store.conversation?.messages)
+            .filter { $0.sender == .user }.count
+
+        #expect(afterFirst == 1)
+        #expect(afterSecond == afterFirst)
+    }
+
+    /// **282-F — PLACEMENT, and the lane states its answer rather than
+    /// discovering it on device.** The merge APPENDS survivors
+    /// (`ChatStore.swift:2741`), so the `.failed` row the ruling saves comes
+    /// back at the BOTTOM of the transcript, not above the successful retry.
+    ///
+    /// **The answer pinned here: tail placement is ACCEPTED and DOCUMENTED
+    /// for this change.** Reinserting a survivor in place is a second
+    /// production edit the ruling does not authorise and that no bar has
+    /// measured. This bar exists so that the placement is a recorded decision
+    /// with a test behind it instead of a surprise in a device pass.
+    ///
+    /// Pre-change this is RED for an instructive reason: the content array is
+    /// IDENTICAL either way — what changes is WHICH row is last. Today the
+    /// failed row is eaten and the in-flight successor is the tail survivor.
+    ///
+    /// **WATCHED RED 2026-08-09 against unmodified production, verbatim:**
+    /// ```
+    /// ✘ ... recorded an issue at ChatStorePersistenceTests.swift:1117:9:
+    ///   Expectation failed: tail.id == failedID
+    /// ↳ tail.id → A543439B-2ED2-434E-BED9-2E0A1A1941E7
+    /// ↳ failedID → E52B1028-E8AE-4BE9-AD8C-14C9DCDFE393
+    /// ✘ ... recorded an issue at ChatStorePersistenceTests.swift:1118:9:
+    ///   Expectation failed: tail.status == .failed
+    /// ↳ tail.status → .working
+    /// ```
+    /// Note the first `#expect` — the content array — PASSED both times.
+    /// `["X", "reply", "X"]` is produced either way; only the identity of the
+    /// tail row moves. A content-only bar here would have been green for the
+    /// wrong reason.
+    ///
+    /// **DISABLED for the same reason as 282-A** — the guard was not written;
+    /// see tracker #299 and #282's entry. Assertions byte-unchanged.
+    @Test(.disabled("tracker #282: awaits Owen's decision — see tracker #299, the STOP this lane hit"))
+    @MainActor
+    func theSurvivingFailedRowIsAppendedAtTheTail() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let failedID = UUID(), retryID = UUID()
+        let localRows = [
+            Message(id: failedID, clientMessageID: failedID, sender: .user,
+                    content: "X", timestamp: localBase, status: .failed),
+            Message(id: retryID, clientMessageID: retryID, sender: .user,
+                    content: "X", timestamp: localBase.addingTimeInterval(5), status: .working),
+        ]
+        let (store, client, _, _) = makeMirroredStore(history: localRows, shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+
+        // The host stored only the turn that succeeded, plus its reply.
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle,
+            messages: serverTranscript(
+                [(.user, "X"), (.hermes, "reply")], base: localBase.addingTimeInterval(6)
+            )
+        )
+
+        await store.loadConversation()
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == ["X", "reply", "X"])
+        let tail = try #require(messages.last)
+        #expect(tail.id == failedID)
+        #expect(tail.status == .failed)
+    }
+
     // MARK: - #279: a retry's removal has to reach the backend mirror
 
     /// A thread whose only turn failed *after* its user row was mirrored —

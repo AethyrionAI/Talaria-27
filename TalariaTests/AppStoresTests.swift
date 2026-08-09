@@ -1263,6 +1263,54 @@ struct AppStoresTests {
         #expect(unconfirmed.map(\.id) == [freshID])
     }
 
+    /// **282-A (tracker #282 — NOT GitHub PR #282)** — the DEMAND side, case
+    /// (a). A `.failed` user row the host never stored sits ABOVE a later
+    /// identical prompt that succeeded. The server echoes ONE copy of the
+    /// SUCCESSFUL turn, which mints one claim (its stable id is not in
+    /// `localIDs`, so #281's supply gate lets it through, correctly). The
+    /// claim's consumer is chosen by LOCAL ORDER, so the `.failed` row — the
+    /// one row the user can still see and still retry — eats it and is
+    /// filtered out of the merge. It silently leaves the transcript.
+    ///
+    /// Owen's 2026-08-09 ruling: only an IN-FLIGHT row may consume. `.failed`
+    /// is settled (`MessageStatus.swift:22`), so the `.sending` successor —
+    /// the row the echo actually corresponds to — takes the claim instead.
+    ///
+    /// **WATCHED RED 2026-08-09 against unmodified production, verbatim:**
+    /// ```
+    /// ✘ Test aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() recorded an issue at
+    ///   AppStoresTests.swift:1289:9: Expectation failed: unconfirmed.map(\.id) == [failedID]
+    /// ↳ unconfirmed.map(\.id) == [failedID] → false
+    /// ↳   unconfirmed.map(\.id) → [2222529F-27AD-4AE2-863C-AB9000F87A1E]
+    /// ↳   [failedID] → [6086E267-4B34-4CDD-9FE7-6969688B7EBE]
+    /// ```
+    /// The returned id is the SUCCESSOR's, not the failed row's — the stated
+    /// reason, not a compile error and not a different assertion.
+    ///
+    /// **DISABLED, and the reason is the whole point of this lane.** The
+    /// one-line guard that turns this green was NOT written: 282-B's baseline
+    /// came back carrying assistant-row duplicates (tracker #299), which is
+    /// the dispatch's pre-registered STOP condition — the lane reports and
+    /// halts before touching `ChatStore.unconfirmedLocalMessages` rather than
+    /// landing a change on top of a freshly-found defect. The assertion below
+    /// is byte-unchanged from the run quoted above: delete the trait and it
+    /// reproduces. It is disabled rather than inverted because a missed bar is
+    /// a falsification, never a redefinition.
+    @Test(.disabled("tracker #282: awaits Owen's decision — see tracker #299, the STOP this lane hit"))
+    func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
+        let failedID = UUID(), successID = UUID(), serverID = UUID()
+        let local = [
+            Message(id: failedID, clientMessageID: failedID, sender: .user,
+                    content: "Summarize the thread", status: .failed),
+            Message(id: successID, clientMessageID: successID, sender: .user,
+                    content: "Summarize the thread", status: .sending),
+        ]
+        let refreshed = [Message(id: serverID, sender: .user,
+                                 content: "Summarize the thread", status: .delivered)]
+        let unconfirmed = ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed)
+        #expect(unconfirmed.map(\.id) == [failedID])
+    }
+
     // MARK: - #247 B2: the profile-switch verdict (bars 247-B)
 
     /// The exact strings are the product surface — pinned.

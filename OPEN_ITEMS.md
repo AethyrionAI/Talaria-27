@@ -5606,6 +5606,84 @@ Manual/Off app lane).**
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
 
+## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
+
+**How it was found.** Tracker #282's dispatch pre-registered a baseline
+characterization (282-B) whose whole job was to be read before its
+production change, and named this in advance as ASSUMPTION **A2**: *"that
+`.hermes` rows of prior in-app turns may ALREADY re-append on the same merge
+(they have no claim tier at all). If 282-B's characterization shows it, that
+is a NEW finding with its own number, not this lane's to fix."* It showed it
+on the first run. This entry is that number.
+
+**The measurement, verbatim.** `ChatStorePersistenceTests`
+`theHermesReconcileMergeBaselineBeforeScopingTheClaim`, against **unmodified**
+production at `12ed25b`:
+
+```
+↳ messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "A1", "A2"]
+```
+
+Fixture: a two-turn thread born IN-APP on the Hermes path (client-minted ids,
+`clientMessageID` on the user rows, both turns settled `.delivered`)
+reconciled against the host's own view of the same thread — stable
+`SessionsHermesClient.stableMessageID` ids on every row, no `clientMessageID`
+anywhere, host-clock timestamps. **"A1" and "A2" each appear twice. The user
+rows do not.**
+
+**The mechanism, and it is one line of scope.**
+`ChatStore.unconfirmedLocalMessages`'s third confirmation tier is guarded by
+`if localRow.sender == .user`. A `.hermes` row born in-app therefore has
+**no** tier that can reach it:
+
+- **tier 1 (exact id)** misses — the local row carries a client `UUID()`
+  minted by `SessionsHermesClient`'s streaming assembly; the host's copy
+  carries `stableMessageID` (#237).
+- **tier 2 (echoed `clientMessageID`)** misses — the gateway transcript
+  carries no `clientMessageID` at all, which is the entire reason tier 3
+  exists (#248).
+- **tier 3 (content claim)** is `.user`-only by construction.
+
+So the row survives, is appended at the tail (`ChatStore.swift:2741`), and
+`Conversation.dedupingAdoptedEchoes` cannot collapse the pair because its key
+includes `timestamp.timeIntervalSince1970` and the phone's clock is not the
+host's. **The two USER rows are single only because the content claim absorbs
+them** — the same mechanism tracker #282's ruling withdraws from settled rows.
+
+**Reachability is the everyday stall-recovery path, not a corner.**
+`ChatStore.attemptReconcile` (`:2476`) merges the WHOLE local transcript onto
+the WHOLE server transcript. Any thread created in-app, several turns deep,
+that then stalls once, hits this. A thread reopened from the drawer does NOT
+(its rows already carry stable ids and confirm at tier 1), which is the likely
+reason it has gone unreported: the shape needs in-app history plus a
+reconcile.
+
+**It is BOUNDED — measured, not assumed, because the severity turns on it.**
+`theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch` drives a second
+reconcile against the same host transcript and the array is unchanged:
+`afterSecond == afterFirst`. `stableMessageID` is deterministic, so the
+re-fetch reproduces the same ids, the first merge's adopted rows confirm at
+tier 1, and #281's supply gate mints nothing. **One extra copy per in-app
+assistant row, then stable — this is NOT #237's compounding 32→128 shape.**
+Worth stating plainly because "duplicate on every merge" was the natural fear
+and it is wrong.
+
+**Not fixed here, and deliberately not folded into #282.** #282's dispatch
+routed this to its own number precisely so a demand-side status guard would
+not be credited with, or blamed for, a defect on a different population. The
+scope question is Owen's: the obvious candidates are extending a confirmation
+tier to `.hermes` rows (content-claim symmetry, which inherits every
+order-keyed hazard #282 exists to bound) versus giving locally-born assistant
+rows a server-derived identity at adoption time. **Neither is built. Bars
+pre-register here before any code.**
+
+**Interactions.** #237 (`dedupingAdoptedEchoes` is the last line of defence
+and its timestamp key is why it does not hold — do NOT loosen that key, its
+`Conversation.swift:47-49` note records that a genuinely repeated user message
+differs only in timestamp). #248 (the tier's origin, and its four pins are all
+`.user`). #281 (the supply gate, which is what makes the second reconcile
+inert). #282 (the demand-side ruling that halted on this).
+
 ## 298. 🧹 #238 teardown residue in `updateWidgetData`'s comments — a RATIONALE that outlived its mechanism, and an "ordering guarantee" that turns out never to have been one — **FILED 2026-08-09 from the #287 lane's deliberately-deferred finding. VERDICT: DEAD. Comments corrected in the filing commit; no ordering fix owed, NO BARS (there is no run to bar).**
 
 **The finding as handed over:** two comments in `Talaria/Stores/AppContainer.swift` still describe notification machinery that #238 removed wholesale on 2026-08-03. One of them (in `updateWidgetData`) makes what reads like a load-bearing **ORDERING** claim, so the question routed here was deliberately NOT "these are stale, delete them" but **"did deleting the push-wake path silently delete a *guarantee*?"** — because if it did, deleting the comment loses the guarantee rather than a dead note. **#126's widget briefing was named as the thing leaning on it. It does not.** Both halves are refuted below.
@@ -7624,6 +7702,125 @@ report, do not widen. If 282-D/E come back GREEN, the dispatch's §6 code
 reading is wrong and the ruling ships as written, which is worth knowing
 precisely because it was predicted otherwise. If 282-B's baseline already
 shows duplicates, A2 is real and gets filed before anything else happens.
+
+### 🛑 RESULT 2026-08-09 — THE LANE STOPPED AT 282-B. THE PRODUCTION LINE WAS NEVER CHANGED.
+
+**The pre-registered STOP condition fired on the first run.** 282-B's baseline
+came back carrying duplicates, and they are ASSISTANT rows — assumption **A2**,
+now filed as **tracker #299**. Per the dispatch (§5, §6 Task 1) and the lane's
+own bars, that halts the lane *before* `ChatStore.unconfirmedLocalMessages` is
+touched. **`Talaria/Stores/ChatStore.swift` is byte-unmodified on this
+branch.** The one-line guard was not written, so **282-D and 282-E's
+post-change results — the lane's intended headline — DO NOT EXIST.** They were
+measured pre-change only. Saying otherwise would be inventing the number this
+lane was sent to get.
+
+**Everything measured, against unmodified production at `12ed25b`, run
+2026-08-09, `iPhone 17e` (iOS 27.0), 159 tests in 2 suites:**
+
+- **282-A — WATCHED RED, for the stated reason.** Verbatim:
+  ```
+  ✘ Test aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() recorded an issue at
+    AppStoresTests.swift:1289:9: Expectation failed: unconfirmed.map(\.id) == [failedID]
+  ↳ unconfirmed.map(\.id) == [failedID] → false
+  ↳   unconfirmed.map(\.id) → [2222529F-27AD-4AE2-863C-AB9000F87A1E]
+  ↳   [failedID] → [6086E267-4B34-4CDD-9FE7-6969688B7EBE]
+  ```
+  The returned id is the SUCCESSOR's, not the failed row's — the defect as
+  described, not a compile error and not a different assertion. **Case (a) is
+  REAL and REPRODUCED.** The test is committed `.disabled` with this text in
+  its doc comment; delete the trait and it reproduces.
+
+- **282-B — MEASURED, and it is the STOP.** Verbatim:
+  ```
+  ↳ messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "A1", "A2"]
+  ```
+  Two turns born in-app, reconciled against the host's own view. **"A1" and
+  "A2" each appear twice; the user rows do not.** Full derivation, mechanism
+  and reachability in **#299**. Now pinned as a green characterization, plus a
+  second bar proving the duplication is BOUNDED (a second reconcile leaves the
+  array unchanged — not #237's compounding shape).
+
+- **282-C — GREEN, byte-unmodified.** All five pins passed:
+  `adoptedServerCopyConfirmsTheLocalUserRowByContent` (248-A),
+  `contentClaimConfirmsAtMostOneLocalPerServerRow` (248-B),
+  `echoedClientMessageIDStillConfirms` (248-C),
+  `inFlightSendSurvivesAnEmptyRefresh` (248-D),
+  `anAlreadyIDConfirmedRefreshedRowMintsNoContentClaim` (281-A). The diff on
+  `AppStoresTests.swift`'s #248/#281 region is purely additive.
+
+- **282-D — GREEN PRE-CHANGE, as predicted. Post-change: NOT MEASURED.**
+  `✔ Test aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge() passed`.
+  Today's tier 3 confirms the settled `.delivered` user row by content, so no
+  user content repeats. The dispatch predicts this goes RED under the guard;
+  **that prediction is untested and stays a prediction.**
+
+- **282-E — GREEN PRE-CHANGE, as predicted. Post-change: NOT MEASURED.**
+  `✔ Test anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches() passed`.
+  The user-row count is flat across two fetches of an id-less transcript,
+  because the claim tier absorbs the per-fetch claim. Same status as 282-D.
+
+- **282-F — WATCHED RED pre-change, and it taught something the bar as written
+  would have missed.** Verbatim:
+  ```
+  ✘ ... Expectation failed: tail.id == failedID
+  ↳ tail.id → A543439B-2ED2-434E-BED9-2E0A1A1941E7
+  ↳ failedID → E52B1028-E8AE-4BE9-AD8C-14C9DCDFE393
+  ✘ ... Expectation failed: tail.status == .failed
+  ↳ tail.status → .working
+  ```
+  **The content assertion `["X", "reply", "X"]` PASSED.** The array is
+  identical with and without the guard; only the identity of the tail row
+  moves. A content-only placement bar would have been green for the wrong
+  reason. Committed `.disabled` alongside 282-A.
+
+- **282-G — NOT REQUESTED.** Its precondition was 282-D and 282-E coming back
+  GREEN *post-change*, and there is no post-change. No device pass is owed.
+
+**Gate: NOT RUN, and deliberately.** `scripts/mac/lane-gate.sh` exists to
+certify a production change before a PR. This branch contains no production
+change — only tests, this entry, and #299 — so a `GATE: PASS` here would
+certify nothing and would burn ~45 minutes on a box already at load 60–80 from
+concurrent lanes. The unit count moved by construction and is recorded above
+(159 tests in the two suites touched). **If the orchestrator wants a gate on
+this branch, say so and it runs; it is a deliberate omission, not an
+oversight.**
+
+> **⚠️ BLOCKING, FOUND WHILE BRANCHING — `main` at `5835c52` DOES NOT
+> COMPILE.** Commit `fc123c3` (bar 252R-A, merged as `5835c52`) added
+> `SettingsCardAccent.voice(brainIsLocal:engine:talkState:)` taking a
+> **non-optional** `engine: VoiceEngine` (`SettingsChannels.swift:193`) and
+> calls it with `talkStore.voiceEngine`, which is `VoiceEngine?`
+> (`TalkStore.swift:44`):
+> ```
+> Talaria/Features/Settings/SettingsChannelsScreen.swift:429:35: error: value of
+> optional type 'VoiceEngine?' must be unwrapped to a value of type 'VoiceEngine'
+> ** TEST FAILED **
+> ```
+> The sibling value formatter `SettingsCardValues.voice`
+> (`SettingsChannels.swift:82`) correctly takes `VoiceEngine?`, so only the new
+> accent overload is wrong. `12ed25b` (the tracker #279 merge) compiles;
+> `5835c52` does not; `fc123c3` is the only commit between them touching these
+> files. **This lane is therefore branched off `12ed25b`, not `5835c52`** —
+> stated here because the dispatch says "off `main` after tracker #279 has
+> merged" and `12ed25b` is exactly that, minus the broken commit. **The #218
+> shape again**: 252R-A's own notes quote watched-RED unit runs, and the merged
+> result still does not build.
+
+**Owen's decision, and this lane is not authorised to make it.** Three things
+are now on the table where the dispatch expected two:
+
+1. **Case (a) is confirmed real** (282-A's RED) and the ruled one-line guard
+   does close it. Nothing measured argues against the ruling.
+2. **The dispatch's two companion options** (rank consumers instead of banning
+   them; give `mapStoredMessage` a deterministic fallback id) each need a
+   per-change go. **Neither was built.**
+3. **#299 is new and is arguably upstream of all of it** — a merge that
+   already duplicates assistant rows is the context any demand-side change
+   lands in, and a fix that gives locally-born rows a server-derived identity
+   at adoption would close #299 *and* remove case (b)'s root cause (the
+   dispatch's option 2) with one mechanism. **That is a recommendation, not a
+   build.**
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
