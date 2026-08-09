@@ -7107,22 +7107,132 @@ scenePhase × grace × auth matrix (`AppLockCore.swift`) is the obvious place
 a re-entrant unlock could re-arm itself before the prior attempt's result
 is consumed.
 
-**Possible interaction, worth checking before assuming a pure
-state-machine bug:** #252's Settings redesign lane touched this exact
-surface — its own build history (`HANDOFF-2026-08-05-T27-BIG-DAY.md:57-58`)
-records "App Lock grace segments — parity gap caught by review,
-live-verified" as a mid-lane fix. That gap was reportedly caught and fixed
-before #252 merged, and #252's entry shows bars A-F all MET with no
-open App Lock thread — but it is the same Privacy → App Lock surface, and
-the fix predates this item's filing, so it has never been checked against
-this specific symptom. Rule it in or out before diagnosing blind.
+**~~Possible interaction, worth checking before assuming a pure
+state-machine bug~~ — ✅ RULED OUT 2026-08-09, do not re-derive.** The
+paragraph that stood here asked whether #252's Settings redesign lane
+caused or masked this, on the strength of its build history
+(`HANDOFF-2026-08-05-T27-BIG-DAY.md:57-58`) recording *"App Lock grace
+segments — parity gap caught by review, live-verified"* as a mid-lane fix.
+`dispatch/OPUS-T27-272-applock-prereq.md` §1a answered it by exhaustive git
+history rather than inference, and the answer is folded in here so the next
+lane starts from it:
 
-**Status: unreproduced since 2026-07-25.** No second sighting, no
-diagnosis, no lane. Needs a repro attempt on the current build before this
-is routed anywhere — queued in `dispatch/DEVICE-PASS-RUNNING-LIST.md`
-(background/foreground churn while the unlock prompt is up).
+- **Every commit that has ever touched App Lock code** (`git log --oneline
+  -- Talaria/Core/AppLock/ Talaria/Services/Support/AppLockCore.swift`) is
+  three commits — `baff8fa`, `3108de7`, `02a1e3f` — **all dated
+  2026-07-19, all from #124's original build, six days BEFORE Owen's
+  report, and nothing since.**
+- **`PrivacySettingsScreen.swift`'s App Lock section is likewise
+  untouched.** #252's two commits on that file (`dce6042` adds an
+  `embedded: Bool` flag wrapping background/header; `f8badf7` adds a
+  `SubsystemHero` block) both land in the top of `body`; `appLockSection`,
+  `graceSegment(_:)` and the `ForEach(AppLockGracePeriod.allCases…)` loop
+  sit far below and are unmodified. The other four commits on that file are
+  independently unrelated by subject and carry no `appLock` / `App Lock`
+  text in their diffs.
+- **Conclusion: no commit, ever, has changed App Lock's state machine,
+  controller, overlay view, or its Settings UI section — before OR after
+  2026-07-25.** #252 is out as a cause, a mask, and an interaction. **#272
+  is pre-existing since #124's original 2026-07-19 build.**
+- **The one thread this does NOT close** (named so it is not mistaken for
+  closed): #252 embedded `PrivacySettingsScreen` inside a `TabView` deck
+  page, which changes that view's appear/disappear LIFECYCLE without
+  touching its code. That is a thinner, separate thread — it is not the
+  grace-segment question this ruling answers.
 
-**Bars pre-register here before any code.**
+**Status: unreproduced since 2026-07-25.** No second sighting on device.
+Needs a repro attempt on the current build before this is routed anywhere —
+queued in `dispatch/DEVICE-PASS-RUNNING-LIST.md` (background/foreground
+churn while the unlock prompt is up).
+
+**Bars, pre-registered 2026-08-09 BEFORE any test or production code
+(no-device half of the lane).** The suspect mechanism is
+`dispatch/OPUS-T27-272-applock-prereq.md` §1b: `scenePhaseChanged(to:)`
+clears `didFailAuthentication = false` **unconditionally on every `.active`
+delivery**, at the top of the function, *before* `autoAuthenticateIfNeeded()`
+runs later in the same call — and that flag is the ONLY thing standing
+between a failed attempt and a re-fire (the class's own doc comment promises
+*"a failed or cancelled attempt drops to the retry button (no prompt
+loop)"*). This is a **hypothesis with named lines, not a diagnosis.**
+
+- **272-A — no-device deterministic reproduction ATTEMPT.** Build a
+  `GatedAppLockAuthenticator` (the `GatedSecureStore` / `DebounceGate`
+  idiom: park inside `authenticate(reason:)` on a `withCheckedContinuation`
+  until the test resumes it) and drive `AppLockController` through the
+  interleavings below, recording the observed `authenticate` call count for
+  each. **PASS = every listed interleaving is actually exercised (the gate
+  genuinely parked — an unparked run proves nothing) and each yields a
+  determinate recorded verdict.** The bar is explicitly **NOT** "the loop
+  reproduces": per the pre-registered response below, a non-reproduction at
+  every interleaving is an accepted outcome that FALSIFIES §1b. The
+  interleavings, each run and recorded:
+  - **A-i** — `.active` (auto-fire parks) → `.inactive` → `.active`
+    delivered *while the first attempt is still parked* (the TOCTOU window,
+    §1b-2).
+  - **A-ii** — `.active` (auto-fire parks) → resolve `false` → `.inactive`
+    → `.active`. This is the sheet's OWN blip: `AppLockCore.swift`'s
+    comment already asserts the Face ID sheet is `.inactive`, so its
+    dismissal guarantees a following `.active` (§1b-1, inactive variant).
+  - **A-iii** — as A-ii but `.background` → `.active` (§1b-1 as written).
+  - **A-iv** — iterate A-ii five times with **no user tap anywhere**.
+    Unbounded growth in the `authenticate` count is the loop itself.
+  - **A-v** — two `.active` deliveries with no `await` between them (pure
+    synchronous TOCTOU; a structural probe, not a claim that SwiftUI
+    delivers this shape).
+- **272-B — instrumentation, lands REGARDLESS of 272-A's result.** A
+  `Logger(subsystem: TalariaLog.subsystem, category: "AppLock")` emitting
+  **always-on `.notice`** lines with `privacy: .public` (NOT behind Verbose
+  Logging — this is rare and diagnostic, and Console.app hides `.info`).
+  **PASS = all four sites emit:** (1) every `scenePhaseChanged(to:)` entry —
+  old→new phase plus `isLocked`/`isAuthenticating`/`didFailAuthentication`
+  **before** the function's own mutations; (2) the
+  `didFailAuthentication = false` reset **only when it clears a `true`** (a
+  `false→false` reset is noise and must not log); (3) every
+  `autoAuthenticateIfNeeded()` — fired, or blocked by WHICH guard clause;
+  (4) every `requestUnlock()` entry/exit with branch taken and an **attempt
+  counter scoped to the current lock episode**, so a log grep shows "3
+  attempts in 4 seconds" with no timestamp math. **The acceptance test is a
+  single `grep AppLock` over a Console pull making the mechanism legible
+  without a live repro.**
+- **272-C — device repro, OPPORTUNISTIC. Do NOT schedule a sitting for it
+  alone.** 15+ days with no sighting under ordinary use; Group 4 of
+  `dispatch/DEVICE-PASS-RUNNING-LIST.md` already tried. Fold a
+  harder-than-ordinary attempt into the next sitting already touching
+  Settings/Privacy, now that 272-B makes a hit legible after the fact.
+- **272-D — regression guard.** The existing `AppLockControllerTests` /
+  `AppLockStateMachineTests` cases must stay green **and unedited** — in
+  particular `lockSurvivesRepeatedForegrounding` and
+  `retryAfterFailureUsesNewEvaluation`, which encode *intentional* repeat
+  behaviour (a user who fixes their Face ID and returns SHOULD eventually
+  get a fresh attempt). A naive "never reset `didFailAuthentication` on
+  foreground" fix would wrongly kill them. **PASS = zero diff to those
+  cases and a literal `GATE: PASS`.**
+
+**Pre-registered response (written before the run, binding):** if the gated
+double cannot reproduce the loop at any plausible interleaving, that is a
+**REAL RESULT** — record it as a falsification of §1b with the interleavings
+tried, and **do NOT force a patch onto an unconfirmed mechanism.** Other
+transitions (`.inactive` handling, `configurationChanged()`, the retry
+button's own independent `Task` at `AppLockOverlayView.swift:87`) would then
+be the next candidates. **And even on a reproduction, the FIX is not this
+lane's** — the fix shape (should `didFailAuthentication` survive a
+foreground within the same lock episode; should `autoAuthenticateIfNeeded`
+track "already attempted this episode" independently) is new work, reviewed
+against 272-D.
+
+**Why the existing suite cannot see this — VERIFIED 2026-08-09, not
+assumed.** `TalariaTests/AppLockTests.swift` covers the pure machine well,
+but every controller test drives `requestUnlock()` **directly and awaits
+it**. The `autoAuthenticateIfNeeded()` → `Task { await requestUnlock() }`
+path *is* spawned by the `scenePhaseChanged(to: .active)` those tests call
+first — but it is never awaited and never asserted on, and the tell is
+`retryAfterFailureUsesNewEvaluation`'s `#expect(auth.authenticateCallCount
+>= 2)`: a `>=` hedging against an auto-fire nobody controls. Worse,
+`MockAppLockAuthenticator.authenticate(reason:)` returns **synchronously**,
+so awaiting it never yields — the interleaving is **structurally
+inexpressible** in the current suite, exactly the shape #285's
+`GatedSecureStore` note describes. **A fully green `lane-gate.sh` says
+nothing about this bug, by construction.**
 
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
