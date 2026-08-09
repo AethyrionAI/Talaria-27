@@ -5591,7 +5591,9 @@ are different (settle the user row vs. do not persist an empty terminal).
 
 > **🔧 FIXED 2026-08-07 night on `claude/t27-291-stop-settles` (Owen: "take
 > the small ones"), TDD with RED first. Gate PASS: 1804 Swift Testing + 12
-> XCUITest, Release green. AWAITING PR + Owen's read.** Bundled with #294,
+> XCUITest, Release green. ~~AWAITING PR + Owen's read.~~ **MERGED
+> 2026-08-08 as PR #280 (`b54ec1e`) — stale claim corrected 2026-08-09.**
+> Bundled with #294,
 > #293(a) and #293(c).
 > - **291-A MET** — `ChatStore` now tracks `streamingUserMessageID` beside
 >   `streamingMessageID`, and `cancelStreaming` settles THAT row
@@ -5911,7 +5913,7 @@ dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
 > `CondenserFidelityTests` are the pre-existing #93/#183 on-device-only
 > gate, unrelated to this lane; Release build green — the #218 check).
 
-## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; merge is Owen's call.**
+## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; ~~merge is Owen's call~~ **MERGED 2026-08-08 as PR #281 (`82625c8`) — stale claim corrected 2026-08-09 by the archive-pass dispatch, which caught that this header still asked for a decision Owen had already made.**
 
 > **✅ THE FIX, 2026-08-08 — one lane, three parts, exactly the shape the
 > parking note demanded (no partial fix: keys AND activation AND the runs
@@ -6638,7 +6640,53 @@ that gap."*
 
 **Nothing is pre-registered here on purpose.** Bars go in this entry before
 any code, per the standing convention — but writing them now would pre-empt
-the scope decision this item exists to surface.
+the scope decision this item exists to surface. *(Superseded 2026-08-09 —
+the scope decision is now MADE, see the ruling immediately below. Bars are
+owed and no longer pre-empted.)*
+
+> **OWEN'S RULING 2026-08-09 — SCOPE: IN-FLIGHT ROWS ONLY.** Only a local
+> row where `!localRow.status.isSettled` (the predicate #278 added — covering
+> exactly `.sending`/`.working`/`.queued`) may consume a content claim.
+> **Deleting the tier outright was explicitly REFUSED** — it re-opens #248 for
+> as long as the gateway transcript carries no `clientMessageID`, which is not
+> ours to change. Lane dispatch written
+> (`dispatch/OPUS-T27-282-claim-demand-scope.md`); bars pre-register here
+> before any code, per the standing convention.
+>
+> **⚠️ CORRECTION, same day, to this ruling's own stated support.** As first
+> written, this block justified the ruling with #281's claim that the
+> in-flight guard *"would have made #281 impossible by construction"* and
+> that "all four #248 pins already satisfy it." **The second half is TRUE and
+> verified row-by-row. The first half is FALSE**, and it was carried here
+> verbatim from #281 without being checked — the fourth place that borrowed
+> claim has now appeared.
+>
+> **Traced against 281-A's own fixture**
+> (`AppStoresTests.swift:1246-1264`): the local rows are a `.delivered`
+> historical row and a **fresh `.sending` row** with the same content; the
+> refreshed historical row minted the surplus claim and **the `.sending` row
+> ate it**. The consumer was IN-FLIGHT, so the in-flight guard would have
+> left it eligible and #281 would have happened anyway. #281's parenthetical
+> — *"a `.delivered` historical row could never eat anything"* — names the
+> wrong actor: in #281 the `.delivered` row was the claim's **supplier**, not
+> its consumer. **#281 was a SUPPLY-side bug; this ruling is a DEMAND-side
+> change.** They are adjacent, not the same fix.
+>
+> **The ruling STANDS** — it rests on case (a), where a `.failed` row (settled,
+> per `MessageStatus.swift:22`) eats a later identical prompt's claim, and the
+> guard closes that cleanly. One of the two reasons originally given for it
+> was simply wrong. Supersede the claim at its own home in
+> `OPEN_ITEMS-ARCHIVE.md` #281 when the lane closes out.
+>
+> **⚠️ AND CASE (b) DOES NOT MERELY SURVIVE — IT INVERTS.**
+> `mapStoredMessage`'s honest `stableID ?? UUID()`
+> (`SessionsHermesClient.swift:1031`) means #281's supply gate can never bind,
+> and under the in-flight guard the row's `.delivered` local twin loses its
+> only remaining confirmation tier. **A silent swallow becomes a per-fetch
+> DUPLICATE** — #248's exact reported symptom, on a population its four pins
+> do not cover. The dispatch pre-registers this as **predicted-RED** (bars
+> 282-D/E) with a STOP-and-report instruction: the lane surfaces it to Owen
+> rather than widening its own scope. It does not get quietly folded in.
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
@@ -6649,6 +6697,47 @@ cover it; left unchanged rather than altered without a bar. Fix is
 presumably the same `isUserAuthored` predicate, but it needs its own bar
 because the display semantics (should a voice thread's card show the
 transcript text?) are a product question, not a mechanical one.
+
+> **OWEN'S RULING 2026-08-09 — the card carries an ON-DEVICE GENERATED
+> title.** Not the raw first-user-message heuristic, and not a won't-do. The
+> product question this entry raised ("should a voice thread's card show the
+> transcript text?") is answered: it should show a *generated* title, the same
+> as any other thread.
+>
+> **⚠️ THIS ENTRY'S STATED MECHANISM IS FALSIFIED — DIAGNOSED 2026-08-09,
+> and the fix the entry suggests is a NO-OP.**
+>
+> The empty `firstUserText` is not the bug; it is a **designed-for input.**
+> `LocalIntelligenceService.fallbackCard` (`:448-466`) deliberately borrows
+> the reply's first line as the title and steps the preview to its second,
+> exactly as `ChatStore.swift:2508-2511`'s own comment says it does. An empty
+> user string is handled.
+>
+> **The real cause is that the generator is NEVER INVOKED for a voice
+> thread**, and there are two independent reasons, either of which alone is
+> sufficient:
+> 1. `appendVoiceTranscript` (`ChatStore.swift:1550-1596`) never calls
+>    `finalizeOnDeviceIntelligence()`. That function has exactly **two** call
+>    sites — `:1073` and `:2474` — and neither is on the voice path.
+> 2. Even if it were called, its eligibility guard (`:2501-2505`) requires
+>    `$0.sender == .hermes`, while a voice thread's replies are the distinct
+>    **`.voiceHermes`** case (`MessageSender.swift:8`). It would return at
+>    the guard.
+>
+> **Why this matters more than an ordinary wrong-cause note:** applying the
+> `isUserAuthored` predicate at `:2513`, as this entry suggests, **changes
+> nothing observable.** A lane could ship it, watch the suite go green, and
+> close #280 in good faith having fixed nothing. Bar 280-A is written
+> specifically to catch that.
+>
+> **And the symptom is worse than "cosmetic."** The title stays `"Hermes"` →
+> `LocalChatBackend.swift:1976` maps it to nil → `ChatScreen.swift:555-557`
+> falls back to the *preview* as the title while `:562` uses that same
+> preview as the subtitle. **One string printed twice** — which is the
+> duplicate-card shape #61 already recorded as a device-pass FAIL.
+>
+> Full diagnosis and six proposed bars:
+> `dispatch/OPUS-T27-280-dictated-thread-title.md`.
 
 ## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FILED 2026-08-07 from #78's lane; pre-existing. Bars pre-register here before any code.**
 
@@ -8698,7 +8787,38 @@ lane opens.
 > spawn the server cannot authenticate — that is what makes tui_gateway a
 > desktop-app story rather than a phone story.
 
-## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; lane not yet scheduled**
+## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
+
+> **⚠️ HEADER CORRECTED 2026-08-09 — it said "lane not yet scheduled" for four
+> days after the lane shipped.** Caught by the routing sweep, which had queued
+> this item as un-spec'd work on the strength of that header alone. Verified at
+> HEAD: `e10ece4` ("Merge pull request #269 … claude/t27-250-icon-identity") is
+> an ancestor of `main`; `Shared/SelectedIconHandoff.swift` has been on disk
+> since 2026-08-05; `TalariaWidgets/HermesLiveActivity.swift` reads the handoff
+> via `HermesBrandIcon.loadImage()` and falls back to bundled art. **This is
+> the board's own "do not read a header and stop" warning firing in the
+> opposite direction** — the documented failure was headers that look CLOSED
+> while work remains; this is a header that looked OPEN while the work was
+> done. Both waste a lane.
+>
+> **The platform constraint, SDK-verified rather than assumed:**
+> `UIApplication.alternateIconName` / `setAlternateIconName` /
+> `supportsAlternateIcons` are all `NS_EXTENSION_UNAVAILABLE("Extensions may
+> not have alternate icons")` in the beta4 `UIApplication.h`. A widget target
+> cannot read the selected icon at all — which is why the app-group file
+> handoff exists and is the correct shape, not a workaround.
+>
+> **What actually remains: 250-D's island half only**, and it is a WATCH, not
+> a lane — Owen *"can't consistently trigger the island."* It was queued in no
+> device list (grep-confirmed, zero hits). Dispatch
+> `dispatch/OPUS-T27-250-icon-identity.md` proposes 250-E (device verification
+> once triggerable), 250-F (strengthen 250-C to assert the RIGHT icon is
+> republished, not merely that one is), and a Debug-only harness trigger to
+> make 250-E runnable at all.
+>
+> The "change the default icon at a version boundary?" question this sweep
+> raised for Owen is **moot** — that decision was made and shipped in place on
+> 2026-08-05, and is device-confirmed on his phone.
 
 **FILED from Owen, 2026-08-04 night, during device testing:** *"In the
 preview island it uses the Hermes default icon for hermes desktop. I'd

@@ -1,5 +1,33 @@
 # Zero-Setup Migration — Execution Plan (OPEN_ITEMS #223)
 
+> # ⛔ SUPERSEDED 2026-08-09 — DO NOT EXECUTE ANY LANE IN THIS DOCUMENT
+>
+> **Every one of this plan's nine lanes is now DEAD or DONE. None survives as
+> written.** Established by the reconciliation investigation of 2026-08-09 —
+> full evidence and the corrected arc: **`dispatch/FABLE-T27-223-251-reconciliation.md`**.
+>
+> | lane | status | why |
+> |---|---|---|
+> | **1, 2, 3, 4** (the `talaria-push` hook, app flag, pilot, follow-ons) | **DEAD** | Killed by **#238**, the notification-surface removal of **2026-08-03** — a day *before* #251 existed. The push surface these lanes build for was deleted. |
+> | **5** (shim retirement) | **DONE** | Merged 2026-08-04; L5-E device-met. The shim is out of the model path and `TalariaModelsShim` is stopped and disabled on OJAMD. |
+> | **6** | **DEAD by policy** | No upstream PRs. |
+> | **7** | **SUPERSEDED** | Replaced by **#242**'s query-time sensor approach. |
+>
+> **What survives is only the GOAL** — "install Hermes, paste one key" — and it
+> now lives in **#251**'s plugin arc: slices **#269** (conversational installer),
+> **#270** (desktop face v0), **#271** (OJAMD rollout), with **#223** as the
+> tracker home for Phase 4, the relay decommission, gated on #271.
+>
+> **Why this block exists at all:** this document was written 2026-08-02, has
+> exactly one commit (`69d7306`), was never amended, and contained **zero**
+> references to #238, #251, or #268 across 712 lines — while still opening with
+> "REQUIRED SUB-SKILL: use subagent-driven-development to implement this plan
+> task-by-task." An agentic worker following that instruction would have built a
+> push sender for a surface that no longer exists. **This is precisely the
+> failure #268 was filed to prevent.**
+>
+> ---
+>
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps
 > use checkbox (`- [ ]`) syntax for tracking. **Owen routes each lane; do not start a lane

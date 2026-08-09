@@ -60,7 +60,11 @@ sessions persist.
 "no shim POST, no session pin, nothing to await" (`ModelsSettingsScreen.swift`); the
 catalog comes from the gateway (`/api/model/options` per the route table) and the pick
 persists client-side (the client's per-turn lock). The OJAMD `TalariaModelsShim`
-service is stopped and disabled. The old dual-write description that stood here —
+service is ~~stopped and disabled~~ **STOPPED but NOT disabled — `StartType: Automatic`,
+live-probed on OJAMD 2026-08-09. A reboot RESTARTS it.** If the shim is meant to stay
+retired, its StartType needs setting to Disabled (elevation; Owen pastes) — until then
+"retired" describes the running state, not the configured one. The old dual-write
+description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
 of it**. (This section was false from 2026-08-04 until the 2026-08-06 reconciliation
