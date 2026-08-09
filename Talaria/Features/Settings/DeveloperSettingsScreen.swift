@@ -928,6 +928,30 @@ struct DeveloperSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #297 toolless-index A/B: READ-ONLY, no tools registered — the toolless
+    // branch by definition, so no confirmation gate can fire. 2 arms
+    // (control/treatment) x 3 prompts, both built through the one
+    // productionToollessInstructions builder (#202D). Bars 297-A/B/C are
+    // pre-registered in OPEN_ITEMS #297.
+    @ViewBuilder
+    private func toollessIndexBatteryButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runToollessIndexBattery(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1913,6 +1937,13 @@ struct DeveloperSettingsScreen: View {
                 // its number is settled across two runs.
                 HStack(spacing: Design.Spacing.sm) {
                     honestyV2BatteryButton(trials: 10, label: "Honesty v2 n=10 (20+24+1)")
+                }
+                // #297: does a registry-generated capability index make "What
+                // can you do?" honest without costing the toolless branch's
+                // own honesty? 2 arms x 3 prompts x n. Belt is empty in both
+                // arms — nothing created, nothing to reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    toollessIndexBatteryButton(trials: 20, label: "Toolless index A/B n=20 (120)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

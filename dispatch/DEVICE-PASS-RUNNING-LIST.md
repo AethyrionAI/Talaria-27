@@ -9,6 +9,183 @@ verdicts.
 
 ---
 
+## Batch 2026-08-08 — four lanes merged/opened the same day (#284, #286, #295, #297) + Owen's rulings
+
+**Context:** a single session ran #284 (capability broker) spec→plan→SDD→device
+probe→close-out, then #286 (honest settlement), then #295 (expiration recovery),
+then #297 (toolless capability index). Three merged (GitHub PRs #282/#283/#284);
+#297 is PR #285 awaiting merge. **(PR #285 merged same day as `5521260` —
+see Z1's discharge note below.)** **Everything below is device debt this
+session CREATED or moved.** Nothing here is a re-statement of §A–§G — those
+stand unchanged.
+
+**⚑ PREREQUISITE FOR THE WHOLE BATCH: install OTA 2250** (staged 2026-08-08 from
+merged `main` `29fa34a`, Debug config so `#if DEBUG` surfaces exist). The phone's
+prior build (2225) predates #286 and #295 entirely. If PR #285 (#297) merges
+first, re-stage — Z1 needs code that is not in 2250. **It did merge, and Z1's
+harness lane landed more code after that — see Z1's discharge note: a fresh
+re-stage past OTA 2250 is needed before Z1 runs.**
+
+### Z1 · #297 — toolless capability index A/B · **BARS PRE-REGISTERED, NOT MET**
+
+**Correcting the entry's own wording:** #297's bars blockquote says the flag "may
+be BUILT and landed behind the flag before this run." **It now IS built** —
+PR #285, gate PASS (1852 tests + XCUITest + Release), flag
+`includeToollessCapabilityIndex` defaults **false**, production text byte-identical
+to today's and pinned by test. Building was not shipping; this run is what decides
+shipping.
+
+~~**⛔ MUST BE BUILT BEFORE THIS CAN RUN:** there is **no DEBUG A/B cell yet.** The
+treatment builder is `productionToollessInstructions(includeToollessCapabilityIndex: true)`
+— a Developer-screen cell must wire to THAT (never a copied string; #202D's
+one-builder rule). Building that cell is part of this run's lane, not #297's
+build lane.~~
+
+> **✅ BLOCKER DISCHARGED, 2026-08-08 (Task 3 of the A/B-harness lane, branch
+> `t27-297-ab-harness`).** The cell exists: `runToollessIndexBattery(trials:)`
+> (`LocalChatBackend+Battery.swift`, commits `2d9b94b`/`257c000`/`6947370`)
+> wired to the Developer-screen button `toollessIndexBatteryButton` (commit
+> `d513505`), sitting beside the other probe buttons. **Its exact label, for
+> whoever runs the phone: "Toolless index A/B n=20 (120)".** Gate PASS on
+> this branch. **The remaining prerequisite is only the OTA stage** — this
+> code postdates OTA 2250 (staged before PR #285's build-phase merge), so
+> the phone needs a fresh re-stage before this row can run; nothing else
+> blocks it.
+
+> **✅ THE CELL IS SPEC'D 2026-08-08 —
+> `planning/superpowers/specs/2026-08-08-297-toolless-index-ab-design.md`
+> (Owen approved the design; scoring approach, detection approach, n=20 all
+> confirmed).** `runToollessIndexBattery(trials:)`, 2 arms × 3 prompts × n=20.
+> Three things from it that change how this row runs:
+> - **Sequencing: the harness lane cannot start until PR #285 merges** (or must
+>   branch from `t27-297-toolless-index`) — `includeToollessCapabilityIndex`
+>   does not exist on `main` yet, and starting from `main` fails as a
+>   missing-argument error that looks like a typo. **(Historical, 2026-08-08:
+>   PR #285 merged as `5521260` and the harness lane — `t27-297-ab-harness` —
+>   started from `main` after that merge, per plan.)**
+> - **297-C is a UNION measure — claim OR tool syntax — inherited from #202C**,
+>   whose gate FAILED by measuring only prose lies while the control's failures
+>   moved into raw tool syntax (lies 10/12→4/10, syntax 2/12→6/10). Either
+>   pattern set alone reproduces that mistake.
+> - **Two halves of this run are transcript READS, not automated:** 297-C's
+>   backstop and 297-B's correct-arithmetic / is-it-a-haiku judgments, which
+>   no flag can score. The emit line carries the text, so it is reading — not
+>   re-running. **Corrected 2026-08-08 (findings pass):** 297-C is scored on
+>   ALL THREE prompt rows, not just `whatcanyoudo` — read every trial the ARM
+>   SUMMARY flags on any row, not only the treatment's 20 `whatcanyoudo`
+>   replies.
+> - **A flagged 297-C hit is not automatically real (findings pass,
+>   2026-08-08):** some patterns (`"action:"`, `"done!"`, `"done —"`) are
+>   deliberately broad and will catch ordinary prose that is neither a claim
+>   nor tool syntax. Since the patterns are correctly frozen, the transcript
+>   read is the ONLY way to catch a false flag — confirm a flagged trial is a
+>   genuine claim/syntax leak before it fails the bar, the same way you'd
+>   confirm a pattern gap didn't let a real one through.
+
+- **What to do:** device A/B. Control = the shipped toolless payload
+  (`toolless-lic2` + clause v2). Treatment = same + the index sentence.
+- **Rows:** "What can you do?" at n=20 per arm; plus the two toolless canaries at
+  n=20 per arm — **"What's 2+2?"** and **"Write a haiku about sledding"** (exact
+  text, from `LocalChatBackend+Battery.swift:158-159`).
+- **Bars (registered in the #297 entry BEFORE any code):**
+  - **297-A** ≥90% of trials (≥18/20) name ≥8 of the 10 non-vision capability
+    families.
+  - **297-B** canaries no worse than control beyond the stated margin.
+  - **297-C** **ZERO** trials claim a performed device action or emit tool syntax
+    — a single occurrence FAILS the bar. This is the specific risk: the sentence
+    names capabilities on a branch with NO tools armed (#196's disclaimer tic,
+    #202B's asserted-create).
+- **Pre-registered responses:** 297-A missed → the sentence does not ship, #257's
+  conversational bar stays open. **297-B or 297-C missed → does not ship
+  REGARDLESS of 297-A** (a capability index that costs honesty on the branch built
+  to protect honesty is not a trade worth making).
+- **Why it exists:** device-verified 2026-08-08 on build 2225 — production's
+  one-Bool router routes "What can you do?" **toolless**, and the reply named
+  **zero** capability families (`IN=500`, a beltless turn). #284's armed-side fix
+  cannot reach that question.
+
+### Z2 · #290(a) — history-vs-body-budget, read the logged sizes · **RULED: measure before deciding**
+
+- **What to do:** Developer screen → **Runs Transport switch ON** (it ships OFF).
+  Then a LONG thread plus an image-attached turn — the shape that can exceed the
+  budget.
+- **Signal:** the one-shot warning log that fires when `history + attachments`
+  exceeds the 900 KB budget (shipped in #283). Read the real sizes.
+- **The decision it unblocks:** trim oldest-first vs raise the budget vs leave it
+  measured-and-unbounded. Owen 2026-08-08: *"Measure deliberately, then decide"* —
+  do NOT decide from first principles.
+- **#290(b) is CLOSED, not owed** — Owen ruled 2026-08-08 there is NO whole-`send()`
+  deadline: host model think-time varies wildly (his example: Kimi K3 vs DeepSeek
+  flash), so a fixed whole-turn clock would misclassify slow models as failures.
+
+### Z3 · #286 — honest-settlement smoke check · **cheap, fold into any sitting**
+
+Merged tonight (PR #283). A failed ACK / `query_result` now classifies the drain
+`.failed` instead of lying `.delivered`. The unit bars are met; what a device adds
+is the **live plugin** — the risk is a regression in the HAPPY path or a hot loop,
+not the failure path.
+
+- **What to do:** nothing special — ordinary use with the platform link active
+  (sensor traffic / `hermes_mobile` tools) for a while.
+- **Signal (mostly host-side, Claude can read it):** the plugin outbox shows no
+  growing undelivered backlog — `~/.hermes/plugins/talaria/outbox.json` absent, or
+  present with everything carrying `delivered_at`. **Baseline recorded 2026-08-08:
+  no `outbox.json` at all on the Mac = the healthy state.** App-side: no repeated
+  drain-failure lines, no backoff ladder stuck.
+
+### Z4 · #295 — expiration recovery · **OPPORTUNISTIC ONLY — do NOT schedule**
+
+Merged tonight (PR #284). **Deliberately not triggerable:** the path is reachable
+only from an **attachment** turn (`beginContinuedSend` is wired only when
+attachments are non-empty), **backgrounded**, when **iOS decides** to revoke the
+continued-processing budget. You cannot request that revocation, and a
+"nothing happened" sitting would prove nothing — which is why **no device bar was
+registered** and bars 295-A/B/C are unit-pinned instead.
+
+- **If it ever happens in real use:** the user row should show **`.working`** and a
+  reply should arrive via the reconcile loop — instead of the old silent hole
+  (delivered-looking prompt, no reply, no spinner, no retry). **Screenshot it and
+  say so** — that is the only way this behavior is ever seen live.
+- **Gate ruling worth knowing:** a **local-brain** turn deliberately does NOT arm
+  recovery (it keeps finalize-and-`.delivered`) — arming one would have adopted a
+  later Hermes reply onto a dead local turn and destroyed its partial.
+
+### Z5 · #284 — the `fullBelt=` budget contrast · **opportunistic, no bar**
+
+Not owed (arming didn't ship, so nothing narrows — the #284 verdict records
+"reclaim: n/a"). But the line now measures the **un-narrowed** belt cost per turn,
+which is a real number #229/#101 have never had.
+
+- **What to do:** Developer screen → verbose logging ON, then any ARMED turn.
+- **Signal:** the session-budget line, grep `session budget:` — the new field is
+  `fullBelt=<n>tok` (or `fullBelt=—` when unknown; never a fabricated 0).
+
+### Z6 · #293(b) — reconcile clock-skew delta · **no repro needed, watch for it**
+
+Instrumented 2026-08-07, deliberately NOT fixed — the strict `>` comparison and
+zero slack are untouched pending measurement.
+
+- **What to do:** nothing special; the line fires on a **failed reconcile pass**.
+- **Signal:** the logged client `pending.sentAt` vs the newest host row timestamp,
+  and their delta. That delta is what decides whether the sibling guard's 60s
+  clock-skew slack (`historyAdoptsQueuedTurn`) belongs here too.
+
+### Z7 · 288-C — orphan device rows re-run · **PRECONDITION NOW MET**
+
+The #285 profile-atomicity fix **merged 2026-08-08** (PR #281), which was 288-C's
+stated precondition (*"the re-run that actually proves the leak stopped"*).
+
+- **What to do:** after some **real profile-switch traffic**, re-read each paired
+  host's `devices.json` and cross-check `active:true` rows against pairings the
+  phone recognizes.
+- **⚠️ Read the result carefully:** a found orphan is **NOT automatically a fix
+  failure.** `pair()`'s checkpoint sits between the pair RESPONSE and the Keychain
+  store, so a `stop()` landing while that POST is in flight can still mint an
+  orphan. **Record WHICH window produced it.** 288-C is not a total seal and must
+  not be reported as one.
+
+---
+
 ## Consolidated run 2026-08-07
 
 **Context (written 2026-08-06 evening):** Owen approved one consolidated

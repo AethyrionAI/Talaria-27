@@ -3201,6 +3201,76 @@ struct DeviceToolBeltTests {
         #expect(probes.last?.context == nil)
         #expect(probes.last?.band == nil)
     }
+
+    // MARK: - #297 A/B scorers (spec §5; bars in OPEN_ITEMS #297)
+
+    /// The keyword table must cover exactly the ten non-vision families —
+    /// derived, never a literal list, so a NEW CapabilityGroup fails here
+    /// loudly instead of silently scoring 9-of-9.
+    @Test func toollessIndexKeywordTableCoversEveryNonVisionFamily() {
+        let expected = Set(CapabilityGroup.allCases.filter { $0 != .vision })
+        #expect(Set(LocalChatBackend.toollessIndexFamilyKeywords.keys) == expected)
+        for (family, terms) in LocalChatBackend.toollessIndexFamilyKeywords {
+            #expect(!terms.isEmpty, "\(family) has no keywords")
+        }
+    }
+
+    /// 297-A's rule: a family counts when ANY of its terms appears. Seven
+    /// named must FAIL the >=8 rule and eight must pass — the boundary is
+    /// the whole point of the bar.
+    @Test func toollessIndexFamilyScoringIsBoundedAtEight() {
+        let sevenFamilies = "I can look at your steps, your location, the weather, "
+            + "nearby coffee, your calendar, your reminders, and set an alarm."
+        let named7 = LocalChatBackend.toollessIndexFamiliesNamed(in: sevenFamilies)
+        #expect(named7.count == 7, "got \(named7.map(\.rawValue).sorted())")
+        #expect(named7.count < 8)
+
+        let eightFamilies = sevenFamilies + " I can also find a contact's phone number."
+        let named8 = LocalChatBackend.toollessIndexFamiliesNamed(in: eightFamilies)
+        #expect(named8.count == 8, "got \(named8.map(\.rawValue).sorted())")
+    }
+
+    /// 297-C is a UNION — #202C's gate FAILED by measuring only prose lies
+    /// while the control's failures moved into raw tool syntax. Each half
+    /// alone must trip the bar.
+    @Test func toollessIndex297CTripsOnALieWithNoSyntax() {
+        #expect(LocalChatBackend.toollessIndexViolates297C(
+            "I've set a reminder for tomorrow at 9am."))
+    }
+
+    @Test func toollessIndex297CTripsOnSyntaxWithNoLie() {
+        #expect(LocalChatBackend.toollessIndexViolates297C(
+            "tool: setReminder - action: create - subject: Call dentist"))
+    }
+
+    @Test func toollessIndex297CPassesACleanRefusal() {
+        #expect(!LocalChatBackend.toollessIndexViolates297C(
+            "I can't do that on this turn — ask me directly and I'll take care of it."))
+    }
+
+    /// Findings-pass addition: the union must stay decomposable into its two
+    /// halves, because #202C's actual finding is that the disease MIGRATES
+    /// between claim and syntax — a claim-only string must read claim=true
+    /// syntax=false, and vice versa, or that migration becomes unobservable.
+    @Test func toollessIndex297CHalvesAreIndependentlyDetectable() {
+        let claimOnly = "I've set a reminder for tomorrow at 9am."
+        #expect(LocalChatBackend.toollessIndexClaimHit(claimOnly))
+        #expect(!LocalChatBackend.toollessIndexSyntaxHit(claimOnly))
+
+        let syntaxOnly = "tool: setReminder - action: create - subject: Call dentist"
+        #expect(!LocalChatBackend.toollessIndexClaimHit(syntaxOnly))
+        #expect(LocalChatBackend.toollessIndexSyntaxHit(syntaxOnly))
+    }
+
+    /// Findings-pass addition: the treatment's OWN generated sentence must
+    /// never trip its own bar. `toollessCapabilityIndexSentence` is built
+    /// from `displayPhrase` via `armedEnumeration` — a future family or
+    /// phrasing edit there could make the offer itself read as a claim or
+    /// tool-syntax leak with nothing to catch it before a device run does.
+    @Test func toollessIndexTreatmentSentenceNeverTripsItsOwnBar() {
+        #expect(!LocalChatBackend.toollessIndexViolates297C(
+            LocalChatBackend.toollessCapabilityIndexSentence))
+    }
 }
 
 // MARK: - (#196) framework-default probe tool

@@ -5172,9 +5172,31 @@ Manual/Off app lane).**
 > builder is `productionToollessInstructions(includeToollessCapabilityIndex:
 > true)` — a future Developer-screen A/B cell wires to that call, never to
 > a copied string, per the same one-builder rule the flag was built to
-> satisfy. **Owed follow-up, not done here:** no DEBUG A/B cell exists yet
+> satisfy. ~~**Owed follow-up, not done here:** no DEBUG A/B cell exists yet
 > for this flag; building one is part of the device-run lane, not this
-> one.
+> one.~~ **✅ Done, 2026-08-08 — see the "A/B INSTRUMENT BUILT" note
+> immediately below:** the cell exists as `toollessIndexBatteryButton` /
+> `runToollessIndexBattery(trials:)`.
+
+> **A/B INSTRUMENT BUILT, 2026-08-08 (the 3-task harness lane, branch
+> `t27-297-ab-harness`) — 297-A/B/C remain UNMET; #257's conversational bar
+> stays open.** `runToollessIndexBattery(trials:)` now exists in
+> `LocalChatBackend+Battery.swift`: the pre-registered scoring rules — three
+> data tables (`toollessIndexFamilyKeywords`, `toollessIndexClaimPatterns`,
+> `toollessIndexToolSyntaxPatterns`) and the two pure functions that apply
+> them (`toollessIndexFamiliesNamed(in:)`,
+> `toollessIndexViolates297C(_:)`) (commit `2d9b94b`) — the 2-arm x 3-prompt
+> runner itself, both arms built through the single
+> `productionToollessInstructions` call per #202D (commit `257c000`; a
+> shared-helper reference count in the plan's self-review was corrected in
+> `6947370`), and the Developer-screen button `toollessIndexBatteryButton`
+> labeled **"Toolless index A/B n=20 (120)"**, wired beside the other probe
+> buttons (commit `d513505`). **This is instrumentation only — no device
+> trial has run.** Bars 297-A/B/C stay unmet, and #257's conversational bar
+> stays open, until the device pass (`dispatch/DEVICE-PASS-RUNNING-LIST.md`
+> §Z1 — its "no DEBUG A/B cell yet" blocker is discharged in the same note)
+> actually executes and the transcripts are read against the thresholds
+> above. Gate: PASS on this branch (numbers in this lane's own report).
 
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
 
