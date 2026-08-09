@@ -10835,6 +10835,75 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > still works under its old name. Item stays open only for (b)/(c)
 > verdicts; everything else in the inventory was KEEP or rides #251.
 
+**2026-08-09 — FULL COUNTED INVENTORY DONE and the FREE bucket ROUTED (Owen:
+execute now, deletions DEFERRED)** — `dispatch/FABLE-T27-255-debranding-inventory.md`
+(17 pattern rows, real `rg` counts, blast-radius ruling per row). What it adds
+beyond the 2026-08-05 pass: **real counts** (333 occurrences of
+`hermes[_-]mobile` across 68 files, 145 `HermesMobile*` across 39, all confined
+to the EOL sidecars + docs, confirming the SATISFIED-BY-#251 verdict), a
+**PERSISTED-state finding the prior pass missed** (below — the single
+highest-risk item in the inventory), and **two stale doc breaks the (a) rename
+left behind**:
+- **⚠️ AMENDMENT to the (a) note above:** the skills rename was NOT fully
+  docs-clean — `relay/docs/DEPLOY_MAC.md:94` and
+  `design/T6_MAC_BACKEND_SPEC.md:75` still instruct copying
+  `../skills/hermes-ios`, a path that has not existed since 2026-08-05.
+  Broken instructions, not untidiness; Task 1 of the free bucket fixes both.
+- **🔴 THE PERSISTED-KEY LANDMINE (for whenever (b)/(c) is decided — NOT this
+  lane's scope):** `UserDefaultsAppPersistenceStore.swift:6-20` defines 12
+  literal `hermes.*` UserDefaults keys for every piece of durable app state,
+  and `BackendProfile.swift:167,179,181` derives three more for
+  **Keychain**-backed secrets (`hermes.apiServerKey` — the chat bearer token —
+  `hermes.pairedRelayConfiguration`, `hermes.sessionState`), plus the
+  App-Group-shared `"hermes.widget.data"` defined in TWO files that must
+  agree. These name the AGENT, not dylan — (b)/(c) bucket — but a blind
+  `Hermes*` sweep would silently destroy every existing user's conversation
+  history, pairing, and stored API key on first launch (exact-string lookups,
+  no migration). Same class: `MessageSender` rawValues `"hermes"`/
+  `"voice_hermes"` are persisted inside every stored Message. **Any future
+  (b)/(c) lane needs a migration, never a rename.**
+- Also ruled by the dispatch, recorded so nobody re-proposes: `hermes_delegate`
+  is OpenAI's tool-call contract (not ours to rename, hard LEAVE);
+  `"object":"hermes.run"` is the gateway's own wire format pinned in test
+  fixtures (LEAVE); git history/authorship is LEGAL/IMMUTABLE (never touch);
+  bundle IDs/App Group/entitlements are already clean (nothing to do); the
+  Fly.io leftovers (`relay/fly.toml` + docs + the dead `APNS_BUNDLE_ID`) are
+  DELETE-not-rename candidates — **Owen deferred all deletions 2026-08-09**,
+  they ride the relay decommission.
+
+**THE FREE BUCKET (Tasks 1–4, one small PR, executes this session):**
+Task 1 fix the two stale `hermes-ios` doc paths → `skills/talaria`; Task 2
+`.gitignore:57` `hermes-mobile-plans/` → `talaria-mobile-plans/` (checking
+nothing uses the old convention first); Task 3
+`LiveCameraOverlay.swift:202` DispatchQueue label `hermes.camera.capture` →
+`talaria.camera.capture`; Task 4 `AppTemplateUITests.swift:12,21`
+`/tmp/hermesmobile-uitest-config.json` → `/tmp/talariamobile-uitest-config.json`
+(confirming nothing external references the old path). No files added → no
+xcodegen.
+
+**BARS — pre-registered 2026-08-09, before the run:**
+- **255-A (the free renames land clean):** after Tasks 1–4,
+  `rg -i 'hermes[_-]mobile|hermes-ios'` returns zero hits in the
+  renamed/fixed locations, and `git diff --stat` shows **no file outside the
+  five touched paths changed** — proving the pass didn't drift into the EOL
+  sidecars or the persisted-key namespace.
+- **255-B (no persisted user state orphaned):** expected trivially MET
+  because Tasks 1–4 never touch the §1.5 keys — its purpose is to prove that
+  in writing. Evidence: the diff shows zero changes to
+  `UserDefaultsAppPersistenceStore.swift`, `BackendProfile.swift`,
+  `MessageSender.swift`, or either widget-data definition. (The
+  install-over-real-state device form runs only if a wider rename ever
+  happens.)
+- **255-C (the wire still speaks):** the sidecars weren't touched — zero
+  diff under `relay/` (beyond the Task-1 doc fix) and `connector/`; the
+  `hermes_mobile` MCP namespace, console scripts, and NSSM service name
+  appear nowhere in the diff. (The on-OJAMD verbatim form is unnecessary
+  when the diff proves non-contact.)
+- **255-D (gate):** `scripts/mac/lane-gate.sh` literal `GATE: PASS` (Debug
+  suite + XCUITest + Release). The load-bearing check for THIS lane is
+  255-A's file-list discipline, not the suite — but the gate runs anyway
+  per standing practice.
+
 ## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — **254-D still OWED; ~~254-E~~ UNRUNNABLE AS WRITTEN on device 2026-08-09 (its airplane-mode pin collapses the connect window to 23 ms), with the native `LIVE` arm verified in its place and labelled as a substitute, not scored as the bar**
 
 > **⚠️ HEADER CORRECTED TWICE, and this item is NOT closed.** The downgrade to
