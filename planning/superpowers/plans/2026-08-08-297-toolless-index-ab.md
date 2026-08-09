@@ -1,5 +1,16 @@
 # #297 Toolless-Index A/B Harness Implementation Plan
 
+> **DEVICE VERDICT, 2026-08-09 — the harness this plan built RAN** (run
+> `A04154D7`, OTA build 2271 from merged `main` `11aaeb2`, iOS 27.0
+> 24A5390f): `scored=20/20` on all six rows, zero swallowed trials. 297-A
+> **MISSED** at 7/20 against the ≥18/20 bar; 297-B and 297-C both **MET**
+> clean. The sentence does not ship; the flag stays default-OFF; #257's
+> conversational bar stays open. **The instrument itself worked exactly as
+> designed** — all three tasks below did what they set out to do, the
+> scorers produced a clean 20/20-examined verdict with zero false
+> positives, and no re-run is owed. Full numbers and the transcript
+> finding: OPEN_ITEMS #297.
+
 > **OUTCOME 2026-08-08:** all 3 tasks executed — pre-registered scorers
 > (`2d9b94b`), the runner (`257c000` + count-fix `6947370`), the
 > Developer-screen button and close-out docs (this task) — all on

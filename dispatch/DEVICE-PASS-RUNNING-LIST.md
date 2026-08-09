@@ -26,7 +26,7 @@ first, re-stage — Z1 needs code that is not in 2250. **It did merge, and Z1's
 harness lane landed more code after that — see Z1's discharge note: a fresh
 re-stage past OTA 2250 is needed before Z1 runs.**
 
-### Z1 · #297 — toolless capability index A/B · **BARS PRE-REGISTERED, NOT MET**
+### Z1 · #297 — toolless capability index A/B · ~~**BARS PRE-REGISTERED, NOT MET**~~ **✅ RUN 2026-08-09 (`A04154D7`) — VERDICT FILED, NO RE-RUN OWED**
 
 **Correcting the entry's own wording:** #297's bars blockquote says the flag "may
 be BUILT and landed behind the flag before this run." **It now IS built** —
@@ -103,6 +103,13 @@ build lane.~~
   one-Bool router routes "What can you do?" **toolless**, and the reply named
   **zero** capability families (`IN=500`, a beltless turn). #284's armed-side fix
   cannot reach that question.
+
+> **✅ RAN, 2026-08-09 — run `A04154D7`, OTA build 2271 (merged `main`
+> `11aaeb2`), iOS 27.0 (24A5390f), `scored=20/20` on all six rows (no
+> swallowed trials). 297-A MISSED at 7/20 vs the ≥18/20 bar; 297-B and 297-C
+> both MET clean. The sentence does not ship; #257's conversational bar
+> stays open. This row is done — no re-run is owed. Full numbers, the
+> per-trial distribution, and the compression finding: OPEN_ITEMS #297.**
 
 ### Z2 · #290(a) — history-vs-body-budget, read the logged sizes · **RULED: measure before deciding**
 

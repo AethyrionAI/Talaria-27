@@ -14,6 +14,11 @@
 > A/B (bars 297-A/B/C) has NOT run; #257's conversational bar is still
 > open. See OPEN_ITEMS #297 for current state; this note does not rewrite
 > the outcome recorded above.
+>
+> **Dated note, 2026-08-09 — the device A/B above HAS since run and the
+> above sentence is now historical.** Run `A04154D7`: 297-A MISSED at
+> 7/20 (bar ≥18/20); 297-B/C MET. The toolless-index sentence does not
+> ship; #257's conversational bar stays open. Verdict: OPEN_ITEMS #297.
 
 **Date:** 2026-08-08. **Tracker:** OPEN_ITEMS #284. **Approved by:** Owen (scope,
 selection mechanism, and probe-first routing all chosen in the 2026-08-08

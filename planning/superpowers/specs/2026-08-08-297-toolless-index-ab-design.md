@@ -1,5 +1,16 @@
 # #297 toolless-index A/B harness — design spec
 
+> **DEVICE VERDICT, 2026-08-09 — the instrument ran (run `A04154D7`, OTA
+> build 2271, iOS 27.0 24A5390f): `scored=20/20` on all six rows, zero
+> swallowed trials. 297-A MISSED at 7/20 vs the ≥18/20 bar (the model
+> compresses the ten-family list into a natural-sounding sample rather
+> than reciting it); 297-B and 297-C both MET clean, including zero false
+> positives from this spec's deliberately-broad §5.2 patterns. The
+> instrument this spec designed worked exactly as intended — every rule
+> pre-registered here was applied, and §1's bars decided the outcome
+> cleanly, with no scoring ambiguity to resolve. The sentence does not
+> ship. Full verdict: OPEN_ITEMS #297.**
+
 **Date:** 2026-08-08. **Tracker:** OPEN_ITEMS #297; device queue
 `dispatch/DEVICE-PASS-RUNNING-LIST.md` §Z1. **Approved by:** Owen
 (2026-08-08 — scoring approach, detection approach, and n=20 all confirmed).

@@ -5198,6 +5198,61 @@ Manual/Off app lane).**
 > actually executes and the transcripts are read against the thresholds
 > above. Gate: PASS on this branch (numbers in this lane's own report).
 
+> **VERDICT — DEVICE RUN 2026-08-09, `A04154D7` — 297-A MISSED, 297-B MET,
+> 297-C MET. The sentence does NOT ship. #257's conversational bar STAYS
+> OPEN. Item NOT closed.** OTA build 2271 (from merged `main` `11aaeb2`),
+> iOS 27.0 (24A5390f), started 2026-08-09T04:37:40Z, `endedCleanly: true`.
+> 2 arms × 3 prompts × n=20 = 120 generations. **`scored=20/20` on all six
+> rows** — zero timeouts, zero errors, so every denominator below is a real
+> examined count, not a survivor rate.
+>
+> - **297-A MISSED — 7/20 (35%) vs the ≥18/20 (≥90%) bar.** Treatment arm,
+>   `whatcanyoudo` row. Control scored 0/20 as expected (no index sentence
+>   present). Per-trial family-count distribution on the treatment row:
+>   **10/10 families ×3, 9/10 ×3, 8/10 ×1** (= the 7 trials that clear the
+>   ≥8 rule), then **7/10 ×3, 5/10 ×2, 4/10 ×7, 0/10 ×1**.
+> - **297-B MET.** `cant=0/20` and `denial=0/20` on both canaries in BOTH
+>   arms. The transcript half (which no flag can score) was read: every
+>   `What's 2+2?` reply is a correct "4" ("4", "2 plus 2 is 4.", "2 + 2 is
+>   4."), every sledding reply is a genuine 5-7-5 haiku, no meta-refusals,
+>   in both arms. Treatment indistinguishable from control.
+> - **297-C MET — zero violations AND zero false positives.**
+>   `claimOrSyntax=0/20`, `claimHits=0/20`, `syntaxHits=0/20` on all six
+>   rows (0/120 total). The ledger's own deferred worry — that the
+>   deliberately-broad patterns (`"action:"`, `"done!"`, `"reminder set"`)
+>   would false-positive on real replies — did not materialize on any of
+>   the 120.
+>
+> **Why 297-A failed, from the transcripts — this is the finding, and it is
+> NOT a scoring artifact.** The distribution above is bimodal, not a near
+> miss. 7 of 20 replies name the SAME four families and stop — verbatim:
+> *"I can help you check the weather, find nearby places, look at your
+> calendar, or review your health and activity data."* Meanwhile 3 name
+> all ten. One named none, gesturing generically at *"read your device
+> data."* The model COMPRESSES the enumeration into a natural-sounding
+> sample rather than reciting it. The low-scoring replies were checked
+> against the keyword table: reminders/alarms/contacts/conversations/
+> deviceStatus simply were not mentioned in any form, so widening synonyms
+> would not move this number. **The mechanism is compression, not
+> ignorance and not a keyword gap.**
+>
+> **Consequence, per the pre-registration already filed above:** 297-A
+> missed → the sentence does NOT ship, the flag stays default-**OFF**, this
+> entry records the falsification (not a redefinition — the threshold was
+> fixed before the run), and **#257's conversational bar stays OPEN.**
+>
+> **What this run DID establish:** the index is **SAFE** — 297-B and 297-C
+> both clean, so the sentence itself costs nothing in honesty or canary
+> regression — but **NOT SUFFICIENT**. A future attempt at #257 needs a
+> **different mechanism** than putting the family list in the
+> instructions and trusting the model to recite it, because the failure
+> mode here is compression under natural-language generation, not a
+> vocabulary or keyword gap that a reworded sentence would fix.
+>
+> **Evidence:** full capture log archived locally at
+> `handoffs/evidence/t297-ab-A04154D7.log` (2.9 MB; `handoffs/evidence/` is
+> gitignored — reference it, do not commit it).
+
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
@@ -7607,6 +7662,16 @@ the lane opens.
 > remaining evidence, not a done claim. Not closed here; Owen closes.
 
 > Correction, same day: the meta-row inference above is withdrawn — production routes "What can you do?" toolless (build 2225 device check: reply named zero families, IN=500 beltless). The armed-surface fix stands but is unreachable on this question; the conversational bar is NOT met, and the remaining fix is spec §4's toolless capability index (plan Task 12, a measured arm). **Filed as #297, 2026-08-08.**
+
+> **Update 2026-08-09 — #297's device run is IN and the fix FAILED its bar.**
+> Run `A04154D7`: the treatment arm's index sentence scored **7/20 (35%)**
+> against the pre-registered ≥18/20 (≥90%) bar — full numbers and the
+> transcript finding (the model COMPRESSES the ten-family list into a
+> natural-sounding sample rather than reciting it) are in OPEN_ITEMS #297.
+> The sentence does NOT ship; #257's conversational bar is **still open**,
+> and putting the family list in the toolless instructions is now a
+> **ruled-out mechanism**, not an untried one — any next attempt needs a
+> different approach than instruction-clause enumeration.
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run**
 
