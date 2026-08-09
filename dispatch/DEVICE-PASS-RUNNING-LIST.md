@@ -2212,3 +2212,23 @@ Pull Console and `grep AppLock`. The tell is
 `didFailAuthentication true->false on .active (retry flag cleared by foreground,
 attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` climbing.
 **Record the highest `attempt=` reached.**
+
+### R5 · #296-C2 — does the host ever SEND `tool.completed.error`?
+
+**Developer screen → Runs Transport (Phase 3) ON.** It defaults OFF, so **this row
+measures nothing without it.**
+
+Run two turns:
+1. a tool call that FAILS ordinarily — `cat /nope/missing.txt`;
+2. a long tool STOPPED mid-flight — `sleep 30; echo STOPTEST`.
+
+**Read the FRAMES, not the bubble.** Verbose logging on; watch for
+`{"event":"tool.completed", …, "error": …}`.
+
+**Pass/fail is not the point — this is a discovery probe.** If `error` is present and
+non-empty, 296-C1's plumbing is live and the chip carries the host's own words. If it is
+absent or empty on both, 296-C1 still ships and #296 records that the host does not
+populate it — which also settles whether the `exit_code 130` host-log capture ever had a
+client-side counterpart at all.
+
+**296-A is unaffected either way and needs no device** — the client knows it stopped.
