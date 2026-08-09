@@ -2457,6 +2457,338 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
+    // MARK: - #257 capability-detection probe (bars 257-1-GATE/A/B/D in OPEN_ITEMS #257)
+
+    /// #257 boundary — PINNED, and written down BEFORE either list existed
+    /// (§7's ordering: a boundary you cannot write is a boundary the model
+    /// cannot be measured against): **TRUE iff the message's subject is the
+    /// assistant's own abilities/access/features in general; FALSE for any
+    /// request to perform or answer a specific thing, phone-ecosystem
+    /// how-tos, and rhetorical "can you".**
+    ///
+    /// `capabilityControlProbes` is the NEAR-MISS NEGATIVE list (bar
+    /// 257-1-B's grid), written FIRST — a positive list written first
+    /// quietly defines the boundary to suit itself, which is how a grid ends
+    /// up measuring the grid instead of the model (#217's named trap). A NEW
+    /// closed list: the #205 series (`routerBaselineProbes`,
+    /// `intentProbeGrid`, `vectorProbeGrid`, the toolless-index prompts)
+    /// gain no rows.
+    nonisolated static let capabilityControlProbes: [String] = [
+        "What's the weather?",                      // specific answerable thing
+        "What's on my calendar today?",             // specific device read
+        "What did we talk about yesterday?",        // past-conversation read, not meta
+        "What can I make with eggs?",               // "what can" about eggs, not the assistant
+        "What's my battery at?",                    // device status read
+        "Can you set an alarm for 7am?",            // "can you" performing a specific action
+        "What should I do today?",                  // advice, not abilities
+        "How do I enable dark mode on my phone?",   // phone-ecosystem how-to
+        "What apps can read my health data?",       // ecosystem capability, not the assistant's
+        "Can you believe it's already August?",     // rhetorical "can you"
+    ]
+
+    /// The POSITIVE list (bar 257-1-A's grid) — capability-meta phrasings
+    /// whose subject is the assistant's own abilities/access/features in
+    /// general. Closed at ten rows, written AFTER the control list above.
+    nonisolated static let capabilityQuestionProbes: [String] = [
+        "What can you do?",
+        "What else can you do?",
+        "What are you capable of?",
+        "What can you help me with?",
+        "What data can you see?",
+        "What are your features?",
+        "Can you do anything with my phone?",
+        "What do you have access to?",
+        "Tell me everything you can do.",
+        "What kinds of things can I ask you?",
+    ]
+
+    /// #257 detection probe — arm (the 2-field production `routeTurn`) vs
+    /// control (the pinned 1-field shape at the pinned 64 cap), SAME run —
+    /// a cross-run comparison carries the thermal problem #215/#216 both had
+    /// to caveat. Bands:
+    ///   GATE ×2  — 257-1-GATE: `routerBaselineProbes` read in place (the
+    ///              closed pinned ten, never extended), arm AND control.
+    ///              Pre-registered response on a miss: the second field is
+    ///              abandoned outright — a revert, no iteration.
+    ///   RECALL   — 257-1-A: `capabilityQuestionProbes`, full per-row
+    ///              distribution (the bar reads rows, not a pooled ratio).
+    ///   DANGER   — 257-1-B: baseline + `capabilityControlProbes`; every
+    ///              capability=TRUE is a false positive against ≤2%.
+    ///              Pre-registered response on a miss: Lever 1 does not
+    ///              ship; fall back to 3a alone.
+    ///   HONESTY  — 257-1-D: every trial where production would have
+    ///              appended scores the composed payload — built by the ONE
+    ///              builder chain (`settledReplyContent` →
+    ///              `capabilityAnswerBlock`, #202D) — through the SHIPPED
+    ///              297-C scorers, claim and syntax halves SEPARATE (#202C:
+    ///              folding them destroys the migration signal).
+    /// Every band emits `scored=<n>/<trials>` AND `errors=<n>` — `21F0C10D`'s
+    /// rule: a band with no error counter reports the failure path as data.
+    ///
+    /// Per-band n derives from `trials` per the pre-registered bars: the
+    /// Developer button passes 10 → GATE n=10, RECALL/DANGER n=5 (#217B's
+    /// determinism finding: zero variance in 380 classifications; n=10
+    /// bought nothing).
+    ///
+    /// ⚠️ QUEUED DEVICE PRE-FLIGHT before trusting any run of this probe:
+    /// measure the two-field schema's real cost with `tokenCount` ON DEVICE,
+    /// outside a live turn — see `twoFieldRouterOptions`' comment.
+    func runCapabilityDetectionProbe(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let gateTrials = trials
+        let sideTrials = max(1, trials / 2)
+        let baseline = Self.routerBaselineProbes
+        Self.batteryEmit("router: CAPABILITY PROBE START gateTrials=\(gateTrials) sideTrials=\(sideTrials) baseline=\(baseline.count) questions=\(Self.capabilityQuestionProbes.count) controls=\(Self.capabilityControlProbes.count) (#257)")
+        Self.batteryRecorder.beginRun(trialsPerCell: gateTrials,
+                                      cells: ["cap-arm", "cap-control"],
+                                      kind: "capability-detection")
+
+        // Band 1 — 1-GATE, ARM: the pinned ten through production's
+        // two-field route.
+        for probe in baseline {
+            var correct = 0
+            var capTrue = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...gateTrials {
+                let route = await routeTurn(prompt: probe.text)
+                if route.needsDeviceTool == probe.expected { correct += 1 }
+                if route.isCapabilityQuestion { capTrue += 1 }
+            }
+            let errors = Self.routerFailureTally - failuresBefore
+            Self.batteryEmit("router: [cap-arm] GATE \(correct)/\(gateTrials) cap=\(capTrue)/\(gateTrials) scored=\(gateTrials - errors)/\(gateTrials) errors=\(errors) expected=\(probe.expected) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: probe.text, expected: probe.expected, correct: correct,
+                trials: gateTrials, variant: "cap-arm", band: "gate", errors: errors)
+        }
+
+        // Band 2 — 1-GATE, CONTROL: the SAME ten through the pinned
+        // one-field type at the pinned 64 cap — yesterday's exact router,
+        // same run, same thermal envelope.
+        for probe in baseline {
+            var correct = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...gateTrials {
+                if await routeSingleFieldControl(prompt: probe.text) == probe.expected {
+                    correct += 1
+                }
+            }
+            let errors = Self.routerFailureTally - failuresBefore
+            Self.batteryEmit("router: [cap-control] GATE \(correct)/\(gateTrials) scored=\(gateTrials - errors)/\(gateTrials) errors=\(errors) expected=\(probe.expected) probe=\(probe.text)")
+            Self.batteryRecorder.recordProbe(
+                probe: probe.text, expected: probe.expected, correct: correct,
+                trials: gateTrials, variant: "cap-control", band: "gate", errors: errors)
+        }
+
+        // Bands 3+4 track how many trials would have APPENDED in production
+        // (routed toolless AND capability) — 1-D's denominator.
+        var appendedTrials = 0
+
+        // Band 3 — 1-A RECALL: want capability=TRUE on every row.
+        for text in Self.capabilityQuestionProbes {
+            var capTrue = 0
+            var toolless = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...sideTrials {
+                let route = await routeTurn(prompt: text)
+                if route.isCapabilityQuestion { capTrue += 1 }
+                if !route.needsDeviceTool { toolless += 1 }
+                if Self.turnAppendsCapabilityAnswer(
+                    routedToolless: !route.needsDeviceTool,
+                    isCapabilityQuestion: route.isCapabilityQuestion) {
+                    appendedTrials += 1
+                }
+            }
+            let errors = Self.routerFailureTally - failuresBefore
+            Self.batteryEmit("router: [cap-arm] RECALL cap=\(capTrue)/\(sideTrials) toolless=\(toolless)/\(sideTrials) scored=\(sideTrials - errors)/\(sideTrials) errors=\(errors) probe=\(text)")
+            Self.batteryRecorder.recordProbe(
+                probe: text, expected: true, correct: capTrue,
+                trials: sideTrials, variant: "cap-arm", band: "recall", errors: errors)
+        }
+
+        // Band 4 — 1-B DANGER: want capability=FALSE on every row.
+        var dangerTrue = 0
+        var dangerTotal = 0
+        for text in baseline.map(\.text) + Self.capabilityControlProbes {
+            var capTrue = 0
+            var toolless = 0
+            let failuresBefore = Self.routerFailureTally
+            for _ in 1...sideTrials {
+                let route = await routeTurn(prompt: text)
+                if route.isCapabilityQuestion { capTrue += 1 }
+                if !route.needsDeviceTool { toolless += 1 }
+                if Self.turnAppendsCapabilityAnswer(
+                    routedToolless: !route.needsDeviceTool,
+                    isCapabilityQuestion: route.isCapabilityQuestion) {
+                    appendedTrials += 1
+                }
+            }
+            dangerTrue += capTrue
+            dangerTotal += sideTrials
+            let errors = Self.routerFailureTally - failuresBefore
+            Self.batteryEmit("router: [cap-arm] DANGER cap=\(capTrue)/\(sideTrials) toolless=\(toolless)/\(sideTrials) scored=\(sideTrials - errors)/\(sideTrials) errors=\(errors) probe=\(text)")
+            Self.batteryRecorder.recordProbe(
+                probe: text, expected: false, correct: sideTrials - capTrue,
+                trials: sideTrials, variant: "cap-arm", band: "danger", errors: errors)
+        }
+        Self.batteryEmit("router: [cap-arm] DANGER SUMMARY capTrue=\(dangerTrue)/\(dangerTotal)")
+
+        // Band 5 — 1-D HONESTY over every appended trial. The payload is
+        // deterministic, but it is scored per appended trial so the emitted
+        // denominator is the run's REAL appended count, never an assumption.
+        var claimHits = 0
+        var syntaxHits = 0
+        for _ in 0..<appendedTrials {
+            let payload = Self.settledReplyContent("", appendingCapabilityAnswer: true)
+            if Self.toollessIndexClaimHit(payload) { claimHits += 1 }
+            if Self.toollessIndexSyntaxHit(payload) { syntaxHits += 1 }
+        }
+        Self.batteryEmit("router: [cap-arm] HONESTY appended=\(appendedTrials) claimHits=\(claimHits)/\(appendedTrials) syntaxHits=\(syntaxHits)/\(appendedTrials)")
+
+        Self.batteryEmit("router: CAPABILITY PROBE DONE (#257)")
+        Self.batteryRecorder.endRun()
+    }
+
+    // MARK: - #101 Shape A cross-chat recall routing probe (bar 101-A1)
+
+    /// #101 Shape A's FALSIFIER, and the entirety of bar 101-A1.
+    ///
+    /// **A NEW CLOSED SERIES, closed at ten rows FROM BIRTH** (#205's rule).
+    /// The existing closed lists — `routerBaselineProbes`, `intentProbeGrid`,
+    /// `vectorProbeGrid`, the toolless-index prompt list, and #257's
+    /// `capabilityQuestionProbes`/`capabilityControlProbes` — gain no rows
+    /// here and are read nowhere in this probe. This list does not grow
+    /// either: appending to it after the run silently re-points the series
+    /// and moves a pre-registered bar.
+    ///
+    /// Every row is a phrasing whose answer lives in a **past conversation**
+    /// and nowhere else — not in the current turn, not on a sensor, not in
+    /// world knowledge. That is the population Shape A serves, and it is the
+    /// only population this probe claims anything about.
+    ///
+    /// **Why this list is the cheapest experiment in #101.**
+    /// `ConversationSearchTool` is ALREADY on the belt (standing cost 0), so
+    /// Shape A's whole thesis is "widen the corpus behind a tool we already
+    /// pay for." But a tool on a belt that is never ARMED never fires, and no
+    /// amount of corpus, extractor or privacy-classifier work can rescue it.
+    /// **If these rows route TOOLLESS, Shape A is dead before any corpus work
+    /// begins — and a dead Shape A is a RESULT, not a failed lane.**
+    nonisolated static let crossChatRecallProbes: [String] = [
+        "What did we decide about the boat?",
+        "What did I say my usual dose was?",
+        "Remind me what we called that project.",
+        "What did I tell you my landlord's name was?",
+        "Which paint color did we settle on?",
+        "What was the workout plan we made?",
+        "Didn't I mention a deadline last time? What was it?",
+        "What did we talk about on Tuesday?",
+        "Bring up what we said about the trip budget.",
+        "What was the name of that restaurant I liked?",
+    ]
+
+    /// The per-row line, built HERE and nowhere else so the test pins the
+    /// string the probe actually emits rather than a copy of it
+    /// (`reapTrialLine`'s shape). `scored` is derived as `trials - errors` in
+    /// this one place: a trial whose route THREW is counted in `errors` and
+    /// is not scored, because `routeTurn` fails safe to ARMED and counting
+    /// that as an armed classification would launder the failure path into
+    /// this probe's headline number — `21F0C10D`'s rule, and the exact bar
+    /// 101-A1 was written with.
+    nonisolated static func crossChatRecallProbeLine(probe: String, armed: Int, toolless: Int,
+                                                     trials: Int, errors: Int) -> String {
+        "router: [crosschat] ROW armed=\(armed)/\(trials) toolless=\(toolless)/\(trials) scored=\(trials - errors)/\(trials) errors=\(errors) probe=\(probe) (#101)"
+    }
+
+    /// The summary band. `trials` here is the run's TOTAL classification
+    /// count (rows × per-row trials = n), so the emitted denominator is the
+    /// bar's n and never an assumption about it.
+    nonisolated static func crossChatRecallSummaryLine(rows: Int, armed: Int, toolless: Int,
+                                                       trials: Int, errors: Int) -> String {
+        "router: [crosschat] SUMMARY rows=\(rows) armed=\(armed)/\(trials) toolless=\(toolless)/\(trials) scored=\(trials - errors)/\(trials) errors=\(errors) (#101)"
+    }
+
+    /// Bar 101-A1's instrument: classify every `crossChatRecallProbes` row
+    /// through **production's own route**, tally armed vs toolless per row,
+    /// and emit the per-row distribution plus a summary band.
+    ///
+    /// **The bar, pre-registered in OPEN_ITEMS #101 before this ran:**
+    /// production's router arms **≥90% of trials**, n=20. Default `trials`
+    /// is 2, which over the ten pinned rows is exactly that n.
+    ///
+    /// **How this consumes production.** It calls
+    /// `routeTurn(prompt:)` — the same two-field production route
+    /// `LocalChatBackend.swift:890` calls, at
+    /// `productionRouterVariant`/`productionIncludesImageGuide`, with the
+    /// default `context: ""` and `hasImage: false`. Those defaults are not a
+    /// simplification: the turn this probe models is the FIRST turn of a
+    /// FRESH conversation ("I opened a new chat and asked about the boat"),
+    /// where production's `priorAssistantTurn` is `""` by construction and no
+    /// attachment exists. Anything else would measure a configuration the
+    /// scenario never enters — #215's lesson, applied before the run instead
+    /// of after it.
+    ///
+    /// Only `needsDeviceTool` is scored. `isCapabilityQuestion` rides the
+    /// same generation and is #257's field; it is deliberately not read here,
+    /// so this probe cannot quietly become a second capability measurement.
+    ///
+    /// READ-ONLY: classifications only. No belt, no tools registered, nothing
+    /// created and nothing to reap.
+    func runCrossChatRecallProbe(trials: Int = 2) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let rows = Self.crossChatRecallProbes
+        let total = rows.count * trials
+        Self.batteryEmit("router: CROSSCHAT PROBE START trials=\(trials) rows=\(rows.count) n=\(total) (#101)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: ["crosschat"],
+                                      kind: "crosschat-recall")
+
+        var totalArmed = 0
+        var totalToolless = 0
+        var totalErrors = 0
+        for text in rows {
+            var armed = 0
+            var toolless = 0
+            var errors = 0
+            for _ in 1...trials {
+                // Sampled PER TRIAL, not per row: `routeTurn` fails safe to
+                // armed, so a row-level delta would still fold every thrown
+                // generation into `armed`. The trial that threw is counted
+                // and dropped.
+                let failuresBefore = Self.routerFailureTally
+                let route = await routeTurn(prompt: text)
+                if Self.routerFailureTally > failuresBefore {
+                    errors += 1
+                    continue
+                }
+                if route.needsDeviceTool { armed += 1 } else { toolless += 1 }
+            }
+            totalArmed += armed
+            totalToolless += toolless
+            totalErrors += errors
+            Self.batteryEmit(Self.crossChatRecallProbeLine(
+                probe: text, armed: armed, toolless: toolless,
+                trials: trials, errors: errors))
+            // `expected: true` — the bar's hypothesis is that cross-chat
+            // recall ARMS. A row that comes back toolless is the falsifying
+            // observation, recorded as such.
+            Self.batteryRecorder.recordProbe(
+                probe: text, expected: true, correct: armed,
+                trials: trials, variant: "crosschat", band: "routing", errors: errors)
+        }
+        Self.batteryEmit(Self.crossChatRecallSummaryLine(
+            rows: rows.count, armed: totalArmed, toolless: totalToolless,
+            trials: total, errors: totalErrors))
+        Self.batteryEmit("router: CROSSCHAT PROBE DONE (#101)")
+        Self.batteryRecorder.endRun()
+    }
+
     // MARK: - (#202A) context-blind router probe
 
     /// Which band a grid row belongs to. The bars are written per band, so

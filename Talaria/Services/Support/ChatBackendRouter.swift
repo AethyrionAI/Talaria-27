@@ -521,6 +521,17 @@ final class ChatBackendRouter: HermesClientProtocol {
         backend(for: brain).hardStopActiveRun()
     }
 
+    /// #304: the approval answer, forwarded by routing lock exactly like
+    /// `hardStopActiveRun` above. A live card only exists while the runs
+    /// turn (or its recovery poll) is alive — `ChatStore` tears it down on
+    /// every driver exit (bar 304-E) — so the lock names the owning brain.
+    /// If the lock is gone anyway, the protocol default's `.unsupported` is
+    /// the honest answer; guessing a backend is not.
+    func answerApproval(runID: String, choice: String, endpoint: SessionsHermesClient.ResolvedEndpoint) async -> RunApprovalAnswerOutcome {
+        guard let brain = runningBrain else { return .unsupported }
+        return await backend(for: brain).answerApproval(runID: runID, choice: choice, endpoint: endpoint)
+    }
+
     func loadConversation() async -> Conversation {
         await backend(for: runningBrain ?? activeBrain).loadConversation()
     }

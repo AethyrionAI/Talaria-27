@@ -132,6 +132,13 @@ final class AppContainer {
     /// a card in the chat transcript and suspends the tool until the user
     /// decides. Defaults closed (app death = nothing created).
     let toolConfirmationCenter = ToolConfirmationCenter()
+    /// #304: the HOST-approval card's store — a SIBLING of the device gate
+    /// above, deliberately not a reuse of it (different actor: the host's own
+    /// gated action on a `/v1/runs` run, answered over the network). Wired in
+    /// makeDefault (`sendAnswer` → the router's routing-lock forward;
+    /// `chatStore.hostApprovals` → this). Reachable only behind the
+    /// `useRunsTransport` Developer switch (O6: default stays OFF).
+    let hostApprovalStore = HostApprovalStore()
     let sensorUploadService: SensorUploadService?
     /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
     /// profile's gateway key, drains the plugin's durable outbox into the
@@ -744,6 +751,27 @@ final class AppContainer {
         )
 
         container.chatAPIKeyBox = hermesAPIKeyBox
+
+        // #304: the host-approval card's plumbing. The store's answer rides
+        // the router's routing-lock forward (the same seam shape as
+        // hardStopActiveRun), and the address rides the REQUEST VALUE — run
+        // id + frozen endpoint — never the client's single-slot
+        // activeRunContext (#285's trap).
+        container.hostApprovalStore.sendAnswer = { request, choice in
+            await chatBackendRouter.answerApproval(
+                runID: request.runID,
+                choice: choice,
+                endpoint: request.endpoint
+            )
+        }
+        container.chatStore.hostApprovals = container.hostApprovalStore
+        // #304 review-2 ruling: the voice pipeline deliberately does NOT get
+        // this store. Its own consumer swallows a voice turn's approval
+        // frame, and the only route from Talk to chat (ending the session)
+        // tears the turn — and would tear a raised card — down before the
+        // chat is reachable, so a cross-store raise made a promise the
+        // teardown broke. Voice states the honest refusal instead (O5's
+        // shape); a voice-surface ANSWER path is #305's scope.
 
         // #113: repeated drain retry-exhaustion (the dead-connector shape)
         // surfaces as ONE deduped local inbox alert; the next successful

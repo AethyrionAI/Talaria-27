@@ -2602,3 +2602,118 @@ appear on that line — **pairing does not determine the engine, the probe resul
 device module on a forced loudspeaker; native speaks through `SpeechOutputService` with
 `managesAudioSession == false`. Two different audio paths produce the ghost two different
 ways.
+
+### R8 · #292-C — abandoned runs turn stops polling · **[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]**
+
+**Prerequisite:** a build at or past PR #288's merge (`c2cc540`), runs transport
+switch ON (Developer → runs transport), host = the Mac (observable `agent.log`)
+or OJAMD.
+
+**Procedure:** send a long-running runs turn; once the stream is clearly live,
+**walk away without tapping Stop** (switch threads, or background the app —
+both reach `streamingTask.cancel()`). Then kill the network and hold past 60s.
+Return later; the turn should still resolve via the reconcile path.
+
+**PASS =** the host log shows **no** `GET /v1/runs/{id}` after the walk-away
+moment, **and no `POST /v1/runs/{id}/stop` at all** (the walk-away must stay
+network-free — #283 3A-C half 2's shape). **Record the poll count BEFORE the
+walk-away too:** a run where the producer never entered the poll loop reads as
+**INCONCLUSIVE**, not as a pass — a zero-after with no non-zero-before proves
+nothing (instrument the error path).
+
+**Known cost to observe, not a failure:** the abandoned turn's token usage is
+never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
+shows the previous run's occupancy.
+
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+
+**Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
+repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
+arms) on the FIXED build; §R4 itself is DO-NOT-RE-RUN only in the sense that
+the repro on the broken build is settled.
+
+**PASS =** the plain-behaviour contract, felt on the phone: (1) fresh lock
+auto-prompts once; (2) cancel → the sheet stays down and the in-app UNLOCK
+button is present and works — including after backgrounding and returning;
+(3) a successful unlock re-arms the next locked stretch's auto-prompt;
+(4) within a cancelled stretch, returning never auto-prompts (one extra UNLOCK
+tap is the deliberate, accepted cost).
+
+**Log read (hand-launched build):** `sudo /usr/bin/log collect --device-udid
+00008150-000E794C3C47801C` (hardware UDID, Owen pastes), grep `AppLock`. The
+broken signature was the paired lines `didFailAuthentication true->false on
+.active` + `autoAuth FIRED (no tap)` sharing a timestamp; **the fixed build
+must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
+
+**⚠️ This bar is Owen's RESERVATION EXIT (he accepted Option B "feels very
+'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
+REOPENS — that is the bar working, not a failure of the lane.
+
+### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · **[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]**
+
+**Prerequisites (each its own ask):** (1) Owen's explicit go for THIS experiment:
+set `approvals.mode: manual` on the **Mac** (`~/.hermes/config.yaml` — Owen's O3
+ruling routes this to the Mac; OJAMD untouched) and bounce the gateway to load
+it. State the end state and rollback when asking: rollback = restore the mode
+line, bounce again, verify the LISTENER both times (`lsof -nP -iTCP:8642
+-sTCP:LISTEN` — #264; a kill-respawn is not reliably self-healing). (2) A build
+at or past PR #292 (`848dada`), runs transport ON.
+
+**Procedure:** ask the agent for something with teeth (a gated shell command —
+e.g. a recursive delete in a scratch dir). The run parks `waiting_for_approval`;
+the phone shows the HOST APPROVAL card **with the host's own choice set**. Tap
+ONCE. **PASS = the run resumes and the command executes — evidence is the
+host's `agent.log`, not the screen.** Also glance: the 155-char voice-status
+copy renders sanely if a voice turn is tried (it wraps, by design), and the
+second-confirm sheet on ALWAYS/THIS RUN names the consequence.
+
+### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · **[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]**
+
+Same setup as R10. **Arm 1:** tap DENY → the host's own BLOCKED text arrives and
+the agent does NOT retry or rephrase (host log evidence). **Arm 2 (the escape
+hatch):** park a run, tap **Stop** → the approval resolves as a clean deny
+rather than hanging out the window (`tools/approval.py` `is_interrupted()`
+behavior, promoted to CLAUDE.md by this lane). **Also OBSERVE AND RECORD what a
+DENIED tool call renders as on the runs event stream** — the dispatch's open
+unknown (#296's family): does `tool.completed` arrive with an error field, or
+nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
+
+### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · **[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]**
+
+**Prerequisite:** a build at or past PR #290 (`c8759b9`).
+
+1. **The tokenCount pre-flight (BEFORE the probe — the `21F0C10D` gate):**
+   Developer screen, BETWEEN turns (never during a streaming turn —
+   `tokenCount()` mid-turn kills the turn), measure the two-field router
+   schema's real cost. The shipped `twoFieldRouterOptions` cap is 128 with the
+   one-Bool 64 pin untouched; the measurement confirms headroom or forces a
+   revisit BEFORE the probe is trusted.
+2. **The detection probe:** "Capability detection (#257) (350)" button — GATE
+   ×2 (baseline ten, arm + control), RECALL, DANGER, HONESTY bands. Bars:
+   **257-1-GATE ≥95%** (pre-registered response on a miss: the second field is
+   ABANDONED outright — a revert, no iteration), **1-A ≥90%**, **1-B ≤2%**
+   (miss → Lever 1 does not ship; 3a stands alone), **1-D zero** (halves
+   separate). Read `scored=`/`errors=` on every band; 1-D's device numbers are
+   a denominator check only (the unit test is the evidence).
+3. **3a-C — Owen's read (pass/fail his, stated in advance):** open
+   `/capabilities` (or the fresh-chat chip) and judge whether the sheet
+   answers "what can you do" better than the model does.
+4. **Voice check (from the lane's review):** ask a capability question BY
+   VOICE — **listen for the block's ABSENCE**: the spoken reply still
+   compresses to ~4 families while the screen shows the complete block.
+   That asymmetry is a recorded product question (NEEDS-OWEN §3.1), not a
+   defect; confirm the observation matches.
+
+### R13 · #101 — bar 101-A1: the cross-chat recall routing run · **[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]**
+
+**Prerequisite:** a build at or past PR #291 (`1ecaa86`).
+
+Developer screen → "Cross-chat recall routing A-1 (n=20)". Before reading any
+number, re-read the RUN PROTOCOL in #101's entry (pre-registered 2026-08-09):
+the rate is **armed/scored** (never armed/trials); `scored < 20` = INCOMPLETE,
+top up — never a verdict; a result within ±2 of the 90% bar triggers ONE n=50
+run with the bar unmoved; a MISS carries the ten-phrasings ambiguity statement;
+the emitted `router: CROSSCHAT` lines are the authoritative artifact (the
+results screen has no error indicator). **The verdict decides Shape A:** ≥90%
+armed → the corpus-widening lane opens; a miss → Shape A is dead before any
+corpus work, and that is a RESULT.

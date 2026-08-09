@@ -466,7 +466,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         }
     }
 
-    private func commitUserUtterance(_ text: String) {
+    // harness-visible (#304 review fixes): private in spirit — the voice
+    // turn's one entry, widened only so the approval honest-refusal test can
+    // drive a real turn through `runTurn` without the audio stack.
+    func commitUserUtterance(_ text: String) {
         // A final landing while a reply is still in flight (barge-in that
         // skipped the volatile phase) supersedes that reply.
         if turnTask != nil {
@@ -541,6 +544,22 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 if latencyMetrics.firstAssistantFinalizedAt == nil {
                     latencyMetrics.firstAssistantFinalizedAt = .now
                 }
+            case .approvalRequested:
+                // #304 review-2 RULING (option b — Owen's O5 honest-refusal
+                // shape, applied to the voice surface): this surface cannot
+                // show or answer the approval, and it must SAY so — nothing
+                // more. Round 1 raised the shared chat card and said "open
+                // the chat"; the re-review traced that the only route from
+                // Talk to chat is ending the session, whose teardown
+                // (`endSession` → `turnTask?.cancel()`) destroyed the card
+                // before the chat was reachable — the promise stayed false.
+                // A voice-surface answer path is explicitly #305's scope.
+                voiceState = .thinking
+                statusMessage = "Hermes is waiting on a host approval this voice surface can't show or answer. If it isn't answered, the host denies it when its approval window expires."
+            case .approvalResolved:
+                // The host resolved it (or it expired) — the run continues or
+                // terminates on its own; nothing voice-side to tear down.
+                break
             case .failed(let reason), .unreachable(let reason):
                 speechOutput.cancelStream(messageID: ttsTurnID)
                 failTurn(reason)

@@ -332,6 +332,14 @@ Instead, the app should verify installation through a deterministic endpoint.
 
 For example:
 
+> **⚠️ SUPERSEDED 2026-08-09 (#269's investigation): a plugin CANNOT add a
+> `:8642` route.** The platform-adapter contract gives it exactly two hooks —
+> `verify_http_event_request` and `dispatch_http_event` — behind the single
+> registered route `POST /api/platforms/{platform}/events`. The capability
+> probe below is right in PAYLOAD but must be an **envelope verb** (`describe`
+> in the plugin's dispatch table), not a new GET route. The payload sketch
+> stands; the transport does not.
+
 ```http
 GET /talaria/capabilities
 ```

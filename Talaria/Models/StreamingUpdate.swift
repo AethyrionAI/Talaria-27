@@ -58,6 +58,18 @@ enum StreamingUpdate: Sendable {
     /// Emitted just before `.finished` when the gateway reports one (v0.20.0+);
     /// older gateways simply never emit it.
     case modelResolved(TurnRuntime)
+    /// #304 (Phase 3 slice 3B): the HOST gated an action mid-turn and parked
+    /// the run on an approval. Carries everything needed to render AND answer
+    /// the question — including the run's frozen endpoint, because the
+    /// client's `activeRunContext` is a single slot cleared on terminal exit
+    /// and must never be what a card reads (the #285 trap). `question` nil is
+    /// the DEGRADED shape (bar 304-D(i)): stream lost, park visible on the
+    /// status object, question unknowable — Deny-only, honestly labeled.
+    /// Only a stream frame ever carries a non-nil question (bar 304-F).
+    case approvalRequested(RunApprovalRequest)
+    /// #304: the parked approval was resolved — by this client's own POST or
+    /// by anyone else holding the run id. Idempotent card-teardown signal.
+    case approvalResolved(runID: String, choice: String?)
     case finished(Message, TokenUsage?, CodeDiff?)
     case failed(String)
     /// P1 (#90): the turn never reached the Sessions API at all (transport

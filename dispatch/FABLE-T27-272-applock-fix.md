@@ -84,6 +84,19 @@ re-fire share a millisecond timestamp on every rung; `attempt=` reached 4 in
    independent `Task { await requestUnlock() }`) must remain guard-free —
    the user's tap always gets an attempt.
 
+> **⚠️ AMENDED BY THE LANE, 2026-08-09 — this list was one item short.**
+> The overlay showed the UNLOCK button on `didFailAuthentication` alone,
+> and the kept `:110` clear wipes that flag on the sheet-dismissal blip
+> after every cancel — so items 1–4 as written would have held the prompt
+> down AND hidden the button, stranding a cancelled episode with no way
+> forward until an app kill (the cover never leaves `.locked`, so no new
+> episode can start). That violates the plain-behaviour contract's clause 2
+> above and 272-H's "reachable and works." The lane added item 5: the
+> overlay keys visibility on `controller.showsRetryUnlockButton`
+> (`didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)`);
+> the tap's action path is untouched. Details in the #272 entry's fix-lane
+> result block.
+
 ## Traps, from the sessions that came before you
 
 - **Every existing controller test drives `requestUnlock()` directly** — none
