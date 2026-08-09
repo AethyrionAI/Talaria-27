@@ -8707,7 +8707,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. THE FIX IS OWED and is the only thing left on this item.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — 272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.**
 
 **Owen, 2026-07-25** (quoted verbatim in
 `handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
@@ -8887,8 +8887,10 @@ written before any code:
   each is flagged `PINS THE BUG` in-file. That is deliberate: this lane's
   scope was reproduce/record/stop, so pinning keeps the reproduction
   executable and the gate green. **The fix lane MUST invert every one of
-  them**; a fix that leaves them passing has not fixed anything.
-- **STILL OPEN: the fix.** Per the pre-registered response above it is not
+  them**; a fix that leaves them passing has not fixed anything. *(✅ Done
+  2026-08-09 — all four inverted in the fix commit; see the fix-lane block.)*
+- ~~**STILL OPEN: the fix.**~~ *(✅ Landed 2026-08-09, fix-lane block below.)*
+  Per the pre-registered response above it is not
   this lane's work. The shape to decide: should `didFailAuthentication`
   survive a foreground within the same lock episode until success or an
   explicit tap, or should `autoAuthenticateIfNeeded` track "already attempted
@@ -9010,6 +9012,96 @@ boundary that is something other than "any foreground."
 >   ladder shows `FIRED`. **This bar is also where Owen's reservation gets
 >   its honest exit: if the behaviour feels wrong in hand, the ruling is
 >   re-opened, not defended.**
+
+**✅ RESULT, 2026-08-09 — THE FIX LANE. 272-E MET (RED-FIRST), 272-F MET.
+Branch `t27-272-applock-fix` off `2a664f0`; no PR opened (the controller
+reads the diff and runs the gate). 272-G and 272-H are PENDING — the gate
+runs serially at merge time under the controller, and 272-H is Owen's hand
+on the phone. #272 STAYS OPEN until 272-H.** Recorded against the bars
+above:
+
+- **272-E — MET.** `bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip`
+  added to the EXISTING `TalariaTests/AppLockControllerRaceTests.swift` (no
+  new file — no xcodegen, no scheme churn), driving `scenePhaseChanged(to:)`
+  only, gated authenticator parked and asserted anti-vacuous. **Run RED
+  against HEAD (`2a664f0`) before any fix code, on sim `CC-272-iPhone-Air`;
+  the failure, verbatim:**
+
+  ```
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:374:9: Expectation failed: auth.callCount == 1
+  ↳ 272-E: no second authenticate call may fire without a user tap
+  ↳ auth.callCount == 1 → false
+  ↳   auth.callCount → 2
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:375:9: Expectation failed: auth.pendingCount == 0
+  ↳ the sheet stays down — nothing may be parked
+  ↳ auth.pendingCount == 0 → false
+  ↳   auth.pendingCount → 1
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() failed after 0.033 seconds with 2 issues.
+  ✘ Test run with 9 tests in 1 suite failed after 0.226 seconds with 2 issues.
+  ```
+
+  The test compiled and failed on the loop's behaviour, per the bar (not a
+  compile error); the 8 pre-existing cases — including every `PINS THE BUG`
+  reproduction — still passed on HEAD in the same run. The RED run's sim
+  log also caught 272-C's exact device signature live: the paired
+  `didFailAuthentication true->false on .active` +
+  `autoAuth FIRED (no tap)` lines.
+- **272-F — MET, the dispatch's fix shape as specced plus one forced
+  amendment.** In `AppLockController.swift`: (1) `episodeAttempt` resets on
+  the transition INTO `.locked` (in `refreshCover()`, only when the cover
+  actually changes — not on every call; logged only when it clears a real
+  count); (2) `autoAuthenticateIfNeeded()` gains a FIFTH sequential guard,
+  `episodeAttempt == 0`, in 272-B's split-guard logging style
+  (`autoAuth BLOCKED guard=episodeAttempt(N)` — the line 272-H greps for);
+  (3) **the `:110` clear is untouched**, and it is load-bearing for the
+  positive pins — it un-sticks a stale `didFailAuthentication` at the start
+  of a NEW episode; (4) the UNLOCK tap path is guard-free, unchanged.
+  - **The forced amendment — the retry surface (found by this lane; the
+    dispatch's fix-shape list omitted it):** `AppLockOverlayView` showed the
+    UNLOCK button on `didFailAuthentication` alone, and the kept `:110`
+    clear wipes that flag on the sheet-dismissal blip that follows every
+    cancel (every rung of the 272-C ladder). With the new guard holding the
+    prompt down, the unamended overlay would strand a cancelled episode
+    with NO prompt AND NO button — worse than the loop, and unrecoverable
+    until an app kill (backgrounding cannot start a new episode while the
+    cover never leaves `.locked`). That violates the ruling's
+    plain-behaviour contract clause 2 ("the in-app UNLOCK button is the
+    only path, and it must work") and 272-H's "reachable and works," so the
+    overlay now keys on `controller.showsRetryUnlockButton`
+    (`didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)`;
+    `episodeAttempt` made observable) — behaviour identical to today
+    everywhere except the trap window. The tap's action is untouched.
+  - **Positive pins, all green:** fresh-stretch auto-prompts exactly once
+    in BOTH shapes (cold launch; grace-expiry after a successful unlock —
+    the pin that proves the guard cannot silence a new episode); the tap
+    path always gets an attempt after a cancel + blip and its success
+    unlocks; the stale-counter leak (capability-neutralized episode →
+    re-armed lock) is caught by the transition reset; and the retry surface
+    survives the flag wipe. **All four `PINS THE BUG` assertions inverted**
+    (A-ii, A-iii, interrupted, A-iv — A-iv is now "one cancel, five blips,
+    ONE prompt, button stands throughout"), per the 272-A block's own
+    demand.
+  - **Targeted suite: 39/39 green in 5 suites** (`AppLockControllerRaceTests`
+    14, `AppLockStateMachineTests` 15, `AppLockGracePeriodTests` 1,
+    `AppLockControllerTests` 7, `AppLockSettingsCodingTests` 2) on
+    `CC-272-iPhone-Air`, `** TEST SUCCEEDED **`. **Count MOVED from the
+    lane's own measured baseline (33 at `2a664f0`) — not a stale
+    `.xctest`.** 272-D input: `TalariaTests/AppLockTests.swift` has **ZERO
+    DIFF** (`git diff` empty), `lockSurvivesRepeatedForegrounding` and
+    `retryAfterFailureUsesNewEvaluation` unedited and green.
+- **272-G — PENDING.** The controller runs `scripts/mac/lane-gate.sh`
+  serially at merge time; a literal `GATE: PASS` plus the zero-diff above
+  completes the bar. (This lane deliberately did not run the gate.)
+- **272-H — PENDING, Owen's hand on the phone (the reservation's exit).**
+  Note for the trial: with the fix, the pulled log's blip signature is
+  `didFailAuthentication true->false on .active` followed by
+  `autoAuth BLOCKED guard=episodeAttempt(1)` — the flag-wipe line still
+  appears (the `:110` clear stays) and the NEW guard's line replaces
+  `autoAuth FIRED`.
+- **Carry into the PR body (per the dispatch, for whoever opens it):** #302
+  composes with this — 302-B's "locked interval held open" fixture gets
+  harder after this merges, so #302's bars need a re-read then. #302 itself
+  was not touched here.
 
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 

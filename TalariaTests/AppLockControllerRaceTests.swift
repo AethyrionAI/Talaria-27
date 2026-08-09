@@ -2,14 +2,16 @@ import Foundation
 import Testing
 @testable import Talaria
 
-// MARK: - #272 bar 272-A — the App Lock re-prompt loop, no-device reproduction
+// MARK: - #272 — the App Lock re-prompt loop: reproduction (272-A) and fix pins (272-E/F)
 //
 // Owen, 2026-07-25: the app "continually tries to unlock and won't stay
 // stagnant on the app provided unlock prompt, and gives the system/faceid
-// stuff." Unreproduced since; never diagnosed. These tests are the no-device
-// half — a deterministic harness for the hypothesis in
-// `dispatch/OPUS-T27-272-applock-prereq.md` §1b and the bars in OPEN_ITEMS
-// #272.
+// stuff." Reproduced here deterministically (bar 272-A), confirmed on device
+// at millisecond resolution (272-C), and FIXED 2026-08-09 (bars 272-E/F;
+// Option B — one auto-prompt per locked stretch). This file is both the
+// no-device harness from the repro lane
+// (`dispatch/OPUS-T27-272-applock-prereq.md` §1b) and the fix's pins
+// (`dispatch/FABLE-T27-272-applock-fix.md`; bars in OPEN_ITEMS #272).
 //
 // **Why the existing suite cannot express any of this.** Every case in
 // `AppLockTests.swift`'s `AppLockControllerTests` drives `requestUnlock()`
@@ -26,13 +28,16 @@ import Testing
 // the test controls exactly when a pending attempt resolves relative to a
 // second `scenePhaseChanged` delivery.
 //
-// ⚠️ **THESE ASSERTIONS PIN THE BUG, NOT THE DESIRED BEHAVIOUR.** #272's
-// dispatch scope is "reproduce, record, stop" — the fix is explicitly a
-// later lane's work, reviewed against bar 272-D. So the reproducing cases
-// below assert what the code ACTUALLY does today, each one flagged
-// `PINS THE BUG`, so the reproduction survives as an executable artifact and
-// the gate stays green. **The fix lane MUST invert every `PINS THE BUG`
-// assertion**; a fix that leaves them passing has not fixed anything.
+// **HISTORY: the reproducing cases below originally PINNED THE BUG** — the
+// repro lane's scope was "reproduce, record, stop," so each asserted what the
+// code actually did (the loop), flagged `PINS THE BUG`, keeping the
+// reproduction executable and the gate green while the fix waited on Owen's
+// ruling. That lane's header demanded the fix lane invert every one of them,
+// and the 272-F fix commit did exactly that: the episode-attempt reset on
+// the transition into `.locked` plus the `episodeAttempt == 0` fifth
+// auto-auth guard, with the UNLOCK tap path left guard-free. The inverted
+// cases now pin the FIX; each is flagged `INVERTED 2026-08-09` at the
+// assertion it flipped.
 //
 // Everything here is `@MainActor`, so there is no true parallelism —
 // interleaving is possible only at `await` suspension points, which is what
@@ -176,30 +181,21 @@ struct AppLockControllerRaceTests {
         await settle()
     }
 
-    // MARK: - A-ii — the reproduction
+    // MARK: - A-ii — the reproduction, inverted into the fix's pin
 
-    /// **A-ii — REPRODUCES THE LOOP. PINS THE BUG.**
+    /// **A-ii — WAS the reproduction; now pins the fix.**
     ///
     /// The Face ID sheet's own dismissal is the trigger. `AppLockCore.swift`
     /// states in its own comment that the sheet is `.inactive`; dismissing it
-    /// therefore delivers `.active`. `scenePhaseChanged(to:)` clears
-    /// `didFailAuthentication = false` UNCONDITIONALLY at the top of the
-    /// function, and then calls `autoAuthenticateIfNeeded()` at the bottom of
-    /// the SAME call — so the flag that is the class's only anti-loop guard
-    /// is destroyed before it is ever read. A cancelled attempt re-arms
-    /// itself, with no user input whatsoever.
-    ///
-    /// What this test establishes is a CONDITIONAL, and the distinction is
-    /// load-bearing: *given* an `.active` delivery after a failed attempt
-    /// within the same lock episode, the controller re-prompts with no user
-    /// interaction. Whether iOS 27 delivers that `.active` on sheet dismissal
-    /// (and orders it after `evaluatePolicy` resolves) is a device fact this
-    /// test cannot settle — that is bar 272-C's job, and 272-B's logging is
-    /// what will read it.
-    ///
-    /// **The fix lane must invert this: `callCount` should stay 1 and the
-    /// retry button should be the only way forward.**
-    @Test func inactiveBlipAfterCancelledAttemptRePromptsWithoutUserTap() async {
+    /// therefore delivers `.active` (272-C confirmed iOS 27 really does).
+    /// `scenePhaseChanged(to:)` still clears `didFailAuthentication = false`
+    /// at the top of the function and calls `autoAuthenticateIfNeeded()` at
+    /// the bottom of the SAME call — that clear is deliberate (it un-sticks
+    /// a stale flag at the start of a NEW episode) — but the auto-prompt no
+    /// longer keys on that flag alone: the `episodeAttempt == 0` guard holds
+    /// because the episode's attempt was already consumed, and the counter
+    /// resets only on the transition INTO `.locked`, never on a foreground.
+    @Test func inactiveBlipAfterCancelledAttemptDoesNotReprompt() async {
         let auth = GatedAppLockAuthenticator()
         let controller = makeController(authenticator: auth)
 
@@ -218,26 +214,23 @@ struct AppLockControllerRaceTests {
         // No tap on the retry button. No backgrounding. Nothing the user did.
         controller.scenePhaseChanged(to: .inactive)
         controller.scenePhaseChanged(to: .active)
-        await waitForPark(auth, expecting: 1)
         await settle()
 
-        // PINS THE BUG — this is the loop.
-        #expect(
-            auth.callCount == 2,
-            "REPRODUCED: a foreground blip re-fires the prompt with no user tap"
-        )
-        #expect(!controller.didFailAuthentication, "the retry flag was wiped by the .active reset")
-        #expect(auth.log == ["authenticate#1", "authenticate#2"])
-
-        auth.release(false)
-        await settle()
+        // INVERTED 2026-08-09 (was: callCount == 2, "REPRODUCED: a foreground
+        // blip re-fires the prompt with no user tap").
+        #expect(auth.callCount == 1, "FIXED: a foreground blip must not re-fire the prompt")
+        #expect(auth.pendingCount == 0, "the sheet stays down")
+        #expect(!controller.didFailAuthentication, "the .active reset still wipes the flag — the fifth guard is what holds")
+        #expect(controller.showsRetryUnlockButton, "the UNLOCK button carries the episode after the wipe")
+        #expect(auth.log == ["authenticate#1"])
     }
 
-    /// **A-iii — the `.background` variant of A-ii. PINS THE BUG.**
+    /// **A-iii — the `.background` variant of A-ii; now pins the fix.**
     /// Same mechanism via a real background round trip rather than a blip,
     /// which is the shape `dispatch/DEVICE-PASS-RUNNING-LIST.md` already
-    /// tried to provoke by hand.
-    @Test func backgroundRoundTripAfterCancelledAttemptRePromptsWithoutUserTap() async {
+    /// tried to provoke by hand. The cover never leaves `.locked` on this
+    /// trip, so it is the SAME episode and the consumed attempt still blocks.
+    @Test func backgroundRoundTripAfterCancelledAttemptDoesNotReprompt() async {
         let auth = GatedAppLockAuthenticator()
         let controller = makeController(authenticator: auth)
 
@@ -251,22 +244,22 @@ struct AppLockControllerRaceTests {
 
         controller.scenePhaseChanged(to: .background)
         controller.scenePhaseChanged(to: .active)
-        await waitForPark(auth, expecting: 1)
         await settle()
 
-        // PINS THE BUG.
-        #expect(auth.callCount == 2, "REPRODUCED: a background round trip re-fires the prompt")
-        #expect(!controller.didFailAuthentication)
-
-        auth.release(false)
-        await settle()
+        // INVERTED 2026-08-09 (was: callCount == 2, "REPRODUCED: a background
+        // round trip re-fires the prompt").
+        #expect(auth.callCount == 1, "FIXED: a background round trip must not re-fire the prompt")
+        #expect(auth.pendingCount == 0, "the sheet stays down")
+        #expect(controller.showsRetryUnlockButton, "the UNLOCK button is the way forward")
     }
 
-    /// **A-ii variant — the attempt is INTERRUPTED rather than declined.**
-    /// The scene leaves while `evaluatePolicy` is still pending (the OS
-    /// cancels it and `BiometricAppLockAuthenticator`'s `catch { return
-    /// false }` reports `false`), then comes back. Same collapse. PINS THE BUG.
-    @Test func interruptedAttemptResolvingAfterBackgroundRePromptsOnReturn() async {
+    /// **A-ii variant — the attempt is INTERRUPTED rather than declined; now
+    /// pins the fix.** The scene leaves while `evaluatePolicy` is still
+    /// pending (the OS cancels it and `BiometricAppLockAuthenticator`'s
+    /// `catch { return false }` reports `false`), then comes back. The
+    /// interrupted attempt still counted against the episode, so the return
+    /// must not re-arm.
+    @Test func interruptedAttemptResolvingAfterBackgroundDoesNotRepromptOnReturn() async {
         let auth = GatedAppLockAuthenticator()
         let controller = makeController(authenticator: auth)
 
@@ -286,24 +279,25 @@ struct AppLockControllerRaceTests {
         #expect(controller.didFailAuthentication)
 
         controller.scenePhaseChanged(to: .active)
-        await waitForPark(auth, expecting: 1)
         await settle()
 
-        // PINS THE BUG.
-        #expect(auth.callCount == 2, "REPRODUCED: an interrupted attempt re-arms on return")
-
-        auth.release(false)
-        await settle()
+        // INVERTED 2026-08-09 (was: callCount == 2, "REPRODUCED: an
+        // interrupted attempt re-arms on return").
+        #expect(auth.callCount == 1, "FIXED: an interrupted attempt must not re-arm on return")
+        #expect(auth.pendingCount == 0, "the sheet stays down")
+        #expect(controller.showsRetryUnlockButton, "the UNLOCK button is the way forward")
     }
 
-    // MARK: - A-iv — the loop is unbounded
+    // MARK: - A-iv — the loop is gone: the cover settles on the retry button
 
-    /// **A-iv — five cancellations, zero user taps, six prompts. PINS THE BUG.**
-    /// This is the symptom in its own words: the prompt "won't stay stagnant."
-    /// Nothing in the controller bounds this — there is no attempt cap, no
-    /// backoff, and the retry button is never the only way forward because
-    /// the flag that would reveal it is cleared on every foreground.
-    @Test func repeatedCancellationsNeverSettleOnTheRetryButton() async {
+    /// **A-iv inverted — one cancellation, five foreground blips, ONE
+    /// prompt.** The original pinned the unbounded loop (five cancellations,
+    /// zero taps, SIX prompts — the symptom in Owen's own words: the prompt
+    /// "won't stay stagnant"); on device it reached attempt=4 in ~7 s with
+    /// only backgrounding ending it (272-C). Fixed, the episode consumes its
+    /// one auto-prompt and every later foreground settles on the UNLOCK
+    /// button, which stays offered throughout.
+    @Test func repeatedForegroundBlipsAfterOneCancelSettleOnTheRetryButton() async {
         let auth = GatedAppLockAuthenticator()
         let controller = makeController(authenticator: auth)
 
@@ -311,33 +305,212 @@ struct AppLockControllerRaceTests {
         await waitForPark(auth)
         #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
 
-        for round in 1...5 {
-            auth.release(false)
-            await settle()
-            #expect(controller.didFailAuthentication, "round \(round): a cancelled attempt flags retry…")
+        auth.release(false)
+        await settle()
+        #expect(controller.didFailAuthentication, "a cancelled attempt flags retry")
 
+        for round in 1...5 {
             controller.scenePhaseChanged(to: .inactive)
             controller.scenePhaseChanged(to: .active)
-            await waitForPark(auth, expecting: 1)
             await settle()
 
-            // …and the very next foreground event throws that flag away.
-            #expect(
-                !controller.didFailAuthentication,
-                "round \(round): the retry flag did not survive the foreground"
-            )
-            #expect(
-                auth.callCount == round + 1,
-                "round \(round): the prompt re-fired instead of settling"
-            )
+            // INVERTED 2026-08-09 (was: callCount == round + 1 — one fresh
+            // prompt per blip, unbounded).
+            #expect(auth.callCount == 1, "round \(round): no re-fire, ever")
+            #expect(auth.pendingCount == 0, "round \(round): the sheet stays down")
+            #expect(controller.showsRetryUnlockButton, "round \(round): the UNLOCK button stands")
         }
 
-        // PINS THE BUG: 1 auto-prompt + 5 unrequested re-prompts.
-        #expect(auth.callCount == 6, "REPRODUCED: the loop is unbounded — six prompts, zero taps")
-        #expect(controller.cover == .locked, "and the app never got past the lock")
+        // INVERTED 2026-08-09 (was: callCount == 6, "the loop is unbounded").
+        #expect(auth.callCount == 1, "FIXED: one auto-prompt, five blips, zero re-prompts")
+        #expect(controller.cover == .locked, "still locked — the button, not a fresh prompt, is the way forward")
+    }
+
+    // MARK: - 272-E — the fix's contract (written RED-FIRST against HEAD)
+
+    /// **Bar 272-E — one auto-prompt per locked stretch (Option B, ruled
+    /// 2026-08-09).** Drives `scenePhaseChanged(to:)` only — never
+    /// `requestUnlock()` directly — with the gated authenticator:
+    /// auto-prompt → the user cancels → the sheet's dismissal blips the
+    /// scene (`.inactive` → `.active`) → NO second `authenticate` call may
+    /// fire without a tap. Per the bar this was run RED against HEAD before
+    /// the fix (HEAD re-fires: callCount reached 2; failure text recorded
+    /// verbatim in OPEN_ITEMS #272) and is made green by 272-F's fix —
+    /// the episode-attempt reset on the transition into `.locked` plus the
+    /// `episodeAttempt == 0` fifth auto-auth guard.
+    @Test func bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
+        #expect(auth.callCount == 1, "a fresh locked stretch auto-prompts exactly once")
+
+        // The user cancels the system sheet.
+        auth.release(false)
+        await settle()
+        #expect(controller.cover == .locked)
+
+        // Dismissing the sheet blips the scene. No tap anywhere.
+        controller.scenePhaseChanged(to: .inactive)
+        controller.scenePhaseChanged(to: .active)
+        await settle()
+
+        #expect(auth.callCount == 1, "272-E: no second authenticate call may fire without a user tap")
+        #expect(auth.pendingCount == 0, "the sheet stays down — nothing may be parked")
+    }
+
+    // MARK: - 272-F — positive pins (the fix must not over-reach)
+
+    /// A FRESH locked stretch still auto-prompts exactly once — the
+    /// cold-launch shape. Unchanged from today, pinned so the new guard can
+    /// never eat the first prompt.
+    @Test func coldLaunchLockedStretchAutoPromptsExactlyOnce() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+        #expect(controller.cover == .locked, "cold launch with the lock enabled must be locked")
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-prompt must actually park (anti-vacuous)")
+        #expect(auth.callCount == 1, "exactly one auto-prompt")
+
+        auth.release(true)
+        await settle()
+        #expect(controller.cover == .none)
+    }
+
+    /// A FRESH locked stretch still auto-prompts exactly once — the
+    /// grace-expiry shape: successful unlock, background past grace, return.
+    /// This is the episode BOUNDARY doing its job: the counter that blocked
+    /// the old episode's re-prompts must not silence the new episode's one
+    /// auto-prompt.
+    @Test func freshLockedStretchAfterGraceExpiryAutoPromptsExactlyOnce() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
+        auth.release(true)
+        await settle()
+        #expect(controller.cover == .none, "unlocked")
+
+        // Background past the (immediate) grace period and return: the cover
+        // newly locks — a NEW episode.
+        controller.scenePhaseChanged(to: .background)
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth, expecting: 1)
+        #expect(auth.pendingCount == 1, "the new episode's auto-prompt must actually park (anti-vacuous)")
+        #expect(auth.callCount == 2, "a fresh locked stretch fires exactly ONE fresh auto-prompt")
+
+        auth.release(true)
+        await settle()
+        #expect(controller.cover == .none)
+        #expect(auth.callCount == 2, "…and exactly one")
+    }
+
+    /// The UNLOCK button's path stays guard-free: after a cancel and the
+    /// blip that wipes the failure flag, a tap (the overlay's exact
+    /// `Task { await requestUnlock() }`) always gets a fresh attempt — and a
+    /// successful one ends the episode. This is the ruling's accepted cost
+    /// made concrete: within a cancelled episode the tap is the ONLY path,
+    /// and it must work.
+    @Test func unlockTapAfterCancelAndBlipStillAuthenticates() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
+        auth.release(false)
+        await settle()
+
+        controller.scenePhaseChanged(to: .inactive)
+        controller.scenePhaseChanged(to: .active)
+        await settle()
+        #expect(auth.callCount == 1, "no auto re-fire before the tap")
+        #expect(controller.showsRetryUnlockButton, "the button is offered")
+
+        // The user taps UNLOCK — AppLockOverlayView's exact action.
+        Task { await controller.requestUnlock() }
+        await waitForPark(auth, expecting: 1)
+        #expect(auth.pendingCount == 1, "the tap's attempt must actually park (anti-vacuous)")
+        #expect(auth.callCount == 2, "a user tap ALWAYS gets an attempt")
+
+        auth.release(true)
+        await settle()
+        #expect(controller.cover == .none, "the tap's success unlocks")
+    }
+
+    /// The episode-boundary reset itself, exercised on the one path that
+    /// exits `.locked` WITHOUT touching the counter: a capability change
+    /// neutralizing the lock mid-episode (`refreshCapability` →
+    /// `.unavailable` → effective configuration disabled) bypasses both
+    /// `requestUnlock`'s success reset and `configurationChanged`'s disable
+    /// reset. When the lock later re-arms, the transition into `.locked`
+    /// must clear the stale count — or the new episode's auto-prompt would
+    /// be silenced forever.
+    @Test func staleAttemptCountDoesNotLeakIntoTheNextLockEpisode() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
+        auth.release(false)
+        await settle()
+        #expect(controller.episodeAttempt == 1, "one consumed attempt this episode")
+
+        // Passcode removed while backgrounded: the next foreground
+        // neutralizes the lock without passing through success or
+        // configurationChanged.
+        auth.stubbedCapability = .unavailable
+        controller.scenePhaseChanged(to: .inactive)
+        controller.scenePhaseChanged(to: .active)
+        await settle()
+        #expect(controller.cover == .none, "capability loss neutralizes the lock")
+        #expect(controller.episodeAttempt == 1, "…and nothing on that path reset the counter (the leak this pin guards)")
+
+        // Passcode restored; a background round trip re-arms the lock.
+        auth.stubbedCapability = .faceID
+        controller.scenePhaseChanged(to: .background)
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth, expecting: 1)
+        #expect(auth.pendingCount == 1, "the NEW episode's auto-prompt fired and parked (anti-vacuous)")
+        #expect(auth.callCount == 2, "the transition into .locked reset the stale count")
+
+        auth.release(true)
+        await settle()
+    }
+
+    /// The retry surface across the episode (what `AppLockOverlayView` keys
+    /// on): hidden while the fresh episode's attempt is in flight, offered
+    /// from the cancel onward, and — the #272 trap — STILL offered after the
+    /// sheet's dismissal blip wipes `didFailAuthentication`. Without this,
+    /// the fixed guard would hold the prompt down AND the button would
+    /// vanish, stranding a cancelled episode with no way forward: exactly
+    /// what bar 272-H's "reachable and works" forbids.
+    @Test func retrySurfaceSurvivesTheForegroundBlipThatWipesTheFailureFlag() async {
+        let auth = GatedAppLockAuthenticator()
+        let controller = makeController(authenticator: auth)
+
+        controller.scenePhaseChanged(to: .active)
+        await waitForPark(auth)
+        #expect(auth.pendingCount == 1, "the auto-fired attempt must actually be parked (anti-vacuous)")
+        #expect(!controller.showsRetryUnlockButton, "no button behind the fresh episode's own sheet")
 
         auth.release(false)
         await settle()
+        #expect(controller.didFailAuthentication)
+        #expect(controller.showsRetryUnlockButton, "the cancel offers the button")
+
+        controller.scenePhaseChanged(to: .inactive)
+        controller.scenePhaseChanged(to: .active)
+        await settle()
+        #expect(!controller.didFailAuthentication, "the .active reset wiped the flag…")
+        #expect(controller.showsRetryUnlockButton, "…but the button MUST survive the wipe (it is the only path)")
     }
 
     // MARK: - Controls

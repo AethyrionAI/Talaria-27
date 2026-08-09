@@ -30,8 +30,10 @@ final class AppLockController {
 
     // MARK: - #272 diagnostics
     //
-    // The re-prompt loop Owen reported on 2026-07-25 has never been seen
-    // twice and has never been diagnosed. These lines are ALWAYS ON — not
+    // The re-prompt loop Owen reported on 2026-07-25 — reproduced in unit
+    // (272-A), caught on device at millisecond resolution (272-C), and FIXED
+    // 2026-08-09 (Option B: one auto-prompt per locked stretch; see
+    // `autoAuthenticateIfNeeded()`). These lines are ALWAYS ON — not
     // behind Verbose Logging — because the event is rare, cheap, and only
     // useful if it is already recording when it happens. `.notice` (not
     // `.info`) because Console.app hides `.info` by default, and every
@@ -39,11 +41,26 @@ final class AppLockController {
     @ObservationIgnored
     private let log = Logger(subsystem: TalariaLog.subsystem, category: "AppLock")
 
-    /// Attempts made in the CURRENT lock episode. Reset when the episode ends
-    /// (a successful unlock, or the lock being disabled) — so a log grep
-    /// reads "attempt=3" directly instead of needing timestamp math over a
-    /// Console pull.
-    @ObservationIgnored private var episodeAttempt = 0
+    /// Attempts made in the CURRENT lock episode — the episode is the locked
+    /// STRETCH, bounded by the transition into `.locked` (reset there, see
+    /// `refreshCover()`; #272 fix), a successful unlock, or the lock being
+    /// disabled. A log grep reads "attempt=3" directly instead of needing
+    /// timestamp math over a Console pull. Observable (not
+    /// `@ObservationIgnored`) since the #272 fix: the overlay's UNLOCK
+    /// button keys its visibility on it via `showsRetryUnlockButton`.
+    private(set) var episodeAttempt = 0
+
+    /// Whether the `.locked` cover should offer the in-app UNLOCK button.
+    /// #272 fix: `didFailAuthentication` alone cannot carry this — the
+    /// `.active` reset in `scenePhaseChanged(to:)` wipes it on the
+    /// sheet-dismissal blip that follows every cancel (the 272-C device
+    /// ladder shows the pair on every rung), which would leave a cancelled
+    /// episode with no prompt AND no button. Once this episode has consumed
+    /// its attempt, the button is the way forward — except while an attempt
+    /// is actually in flight (the system sheet is up).
+    var showsRetryUnlockButton: Bool {
+        didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)
+    }
 
     /// Previous scene phase, tracked only so the log can show old → new.
     @ObservationIgnored private var lastPhase: AppLockScenePhase = .background
@@ -177,6 +194,19 @@ final class AppLockController {
     private func refreshCover() {
         let newCover = machine.cover(configuration: effectiveConfiguration())
         guard newCover != cover else { return }
+        // #272 fix (Option B, ruled 2026-08-09): the lock EPISODE begins at
+        // the transition INTO `.locked`, so the attempt counter resets here
+        // and nowhere else on the scene-phase path. The ordinary exits from
+        // `.locked` already reset it (success in `requestUnlock`, disable in
+        // `configurationChanged`); this boundary catches the path that
+        // bypasses both — a capability change neutralizing the lock
+        // mid-episode — and is the invariant the `episodeAttempt == 0`
+        // auto-auth guard relies on. Logged only when it clears a real
+        // count — a 0->0 reset is noise.
+        if newCover == .locked, episodeAttempt != 0 {
+            note("cover \(Self.label(cover)) -> locked: new lock episode, attempt counter reset (was \(episodeAttempt))")
+            episodeAttempt = 0
+        }
         cover = newCover
         onCoverChanged?(newCover)
     }
@@ -184,15 +214,24 @@ final class AppLockController {
     /// First foregrounding of a lock episode prompts without a tap; a failed
     /// or cancelled attempt drops to the retry button (no prompt loop).
     ///
-    /// ⚠️ #272: that second clause is a PROMISE THIS CODE DOES NOT KEEP —
-    /// `scenePhaseChanged(to:)` clears `didFailAuthentication` on every
-    /// `.active` before this runs, so a foreground event re-arms the prompt
-    /// with no user tap. Reproduced deterministically in
-    /// `TalariaTests/AppLockControllerRaceTests.swift`; the fix is a separate
-    /// lane (see OPEN_ITEMS #272, bars 272-A/D). Do not delete this note
-    /// until the reproduction's assertions have been inverted.
+    /// #272 (FIXED 2026-08-09 — Option B, one auto-prompt per locked
+    /// stretch): that second clause used to be a promise this code did not
+    /// keep — `scenePhaseChanged(to:)` clears `didFailAuthentication` on
+    /// every `.active` before this runs, so the fourth guard's input was
+    /// destroyed upstream in the same call and a foreground event re-armed
+    /// the prompt with no user tap (reproduced in
+    /// `TalariaTests/AppLockControllerRaceTests.swift`; device ladder in
+    /// OPEN_ITEMS #272, 272-C — the reproduction's assertions are now
+    /// inverted and pin the fix). The fifth guard closes it: the auto-prompt
+    /// fires only while this lock episode has consumed NO attempt, and
+    /// `episodeAttempt` resets on the transition INTO `.locked`
+    /// (`refreshCover()`) — never on a foreground. The `.active` clear at
+    /// the top of `scenePhaseChanged(to:)` stays: it is what un-sticks a
+    /// stale `didFailAuthentication` at the start of a new episode. The
+    /// UNLOCK button's own path (`requestUnlock()`) carries none of these
+    /// guards — a user's tap always gets an attempt.
     ///
-    /// Split from one `guard` into four so the log can name WHICH clause
+    /// Split from one `guard` into five so the log can name WHICH clause
     /// blocked. Same clauses, same order, same short-circuiting.
     private func autoAuthenticateIfNeeded() {
         guard cover == .locked else {
@@ -209,6 +248,10 @@ final class AppLockController {
         }
         guard !didFailAuthentication else {
             note("autoAuth BLOCKED guard=didFailAuthentication (retry button is showing)")
+            return
+        }
+        guard episodeAttempt == 0 else {
+            note("autoAuth BLOCKED guard=episodeAttempt(\(episodeAttempt)) (one auto-prompt per lock episode; UNLOCK button is the way forward)")
             return
         }
         note("autoAuth FIRED (no tap) after attempt=\(episodeAttempt) this episode")
