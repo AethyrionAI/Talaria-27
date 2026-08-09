@@ -1405,13 +1405,20 @@ struct RunsPlaneTransportTests {
     /// `hermesClient.loadConversation()`'s CACHED conversation, no network
     /// call), but via the genuine recovery route: `cancelStreaming`
     /// (`hardStopHost: false`) now arms `pendingRun` + `reconcileFromServer()`
-    /// on this expiration path too, gated on `currentRunIsServerRecoverable`
-    /// (the real `SessionsHermesClient` these two tests wire up always
-    /// answers `true`, so both turns here ARE recoverable — this pair just
-    /// doesn't assert on `pendingRun`/reconcile state, only on whether
-    /// `/stop` was POSTed, so that arm is orthogonal to what's pinned below).
-    /// See `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the full
-    /// account.
+    /// on this expiration path too, gated on `currentRunIsServerRecoverable`.
+    /// The real `SessionsHermesClient` these two tests wire up always answers
+    /// `true` for that gate — but `makeChatStore` constructs its `ChatStore`
+    /// with NO `journal:`, a separate `ConversationJournalStore` from the one
+    /// `makeClient` gave the `SessionsHermesClient`, so `activeSessionID`
+    /// (`journal?.activeHop?.apiSessionId`) and therefore `activeStreamRun`
+    /// never resolve on THIS `ChatStore` — the arm's session-id guard fails
+    /// regardless of the recoverability flag, and both turns land in the
+    /// residual defensive tail (`.delivered`, no `pendingRun`) same as
+    /// before. That's why this pair asserts only on the `/stop` POST, not on
+    /// `pendingRun`/reconcile state — the arm doesn't fire in this fixture
+    /// either way, so it's orthogonal to what's pinned below. See
+    /// `ChatStore.cancelStreaming(hardStopHost:)`'s doc for the full account
+    /// of the arm itself.
     ///
     /// This pair of tests exercises a REAL `ChatStore` wired to a REAL
     /// `SessionsHermesClient` against this file's HTTP stub — not a
