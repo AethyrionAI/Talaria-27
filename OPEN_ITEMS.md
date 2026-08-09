@@ -4223,11 +4223,37 @@ it cannot verify.
 > Decision queued for Owen: enrich the shim and build option (a) on it, or take the lighter
 > never-claim path. Probe run from the #180 lane (PR #237).
 >
-> **AMENDED same day — capability surfacing is NOT shim-gated after all.** Owen flagged
+> **⚠️ CORRECTED 2026-08-09 — FOUR OF THE FIVE ROUTES NAMED BELOW DO NOT
+> EXIST, AND NEVER DID ON THIS PLANE.** `/api/model/options` is the **only**
+> `/api/model/*` route on `:8642`. `GET /api/model/info`,
+> `/api/model/recommended-default`, `/api/model/auxiliary` and
+> `POST /api/model/set` are **dashboard-only** (`:9119`, different app,
+> different auth) — re-confirmed by live probe on 2026-08-09, all four 404,
+> against upstream HEAD `62431364e` where `_http_route_table()` is byte-
+> identical to its 2026-08-02 form.
+>
+> **This is the exact error CLAUDE.md's flagship rule exists to prevent** —
+> *"NEVER claim a `:8642` route from a `web_server.py` grep; read
+> `_http_route_table()`, which is the whole list."* CLAUDE.md was corrected
+> when that rule was written; **this entry was not**, so the wrong list sat in
+> an open item for a week, ready to be designed against. Upstream-stale,
+> downstream-corrected — the close-out rule's own failure mode.
+>
+> **What survives the correction, and it is the part that mattered:** the
+> `/api/model/options` finding is REAL and independently verified — 200 on the
+> live gateway, same Bearer auth as chat, payload carrying the per-model
+> `capabilities` map. So the conclusion below (capability surfacing is not
+> shim-gated) **still holds**; only the route inventory supporting it was
+> wrong. The missing `vision` key is still absent from `_apply_capabilities` at
+> HEAD, so #173's "one field away" is unchanged — except that it is **two**
+> fields, not one (`GatewayModelCatalog` has no `capabilities` key at all).
+
+> ~~**AMENDED same day — capability surfacing is NOT shim-gated after all.**~~ Owen flagged
 > that shim enrichment would hard-gate keeping a shim slated for retirement; probing for
 > alternatives found the retirement path already built upstream: **the gateway serves a
-> native model API on `:8642`** — `GET /api/model/info` / `/api/model/options` /
-> `/api/model/recommended-default` / `/api/model/auxiliary` and `POST /api/model/set`.
+> native model API on `:8642`** — ~~`GET /api/model/info` /~~ `/api/model/options` ~~/
+> `/api/model/recommended-default` / `/api/model/auxiliary` and `POST /api/model/set`~~
+> *(struck 2026-08-09 — see the correction above; only `/api/model/options` is real)*.
 > `/api/model/options` answered **HTTP 200 on the live Mac gateway**, same Bearer auth as
 > chat, and its payload carries the SAME per-model `capabilities` map (verified on the
 > wire: `{fast, reasoning}`, 35 nous entries) — both it and the shim ride

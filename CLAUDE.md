@@ -183,19 +183,57 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   must ride the request, and a missing history does NOT error — the agent answers
   plausibly from long-term memory instead); and a freshly created, never-used session
   returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
-  **⏳ RE-VERIFICATION IN FLIGHT (2026-08-09) — treat the table below as
-  0.19.1-era until it lands.** The warning above says re-verify on 0.20.0 and
-  that was never done in full. Two things now make it urgent: the local
-  install (`~/.hermes/hermes-agent`) is a **SHALLOW CLONE** whose `git log`
-  bottoms out at 31 entries — so nobody can diff upstream history from it, and
-  a previously-reported "31 commits of drift" was that floor, not a
-  measurement — and Owen reports upstream moving hundreds of commits in days.
-  Results will land in `planning/reports/2026-08-09-route-table-reverify.md`.
-  **Until then: do not add a NEW route claim on the strength of this table,
-  and re-probe anything you are about to design against.**
+  **✅ RE-VERIFIED 2026-08-09 — THE TABLE BELOW IS CURRENT. The 0.20.0
+  re-verify warning is DISCHARGED.** `_http_route_table()` is **byte-identical
+  (37 rows)** between the commit serving on 2026-08-02 and upstream HEAD
+  `62431364e`; all 37 routes were live-probed read-only and **not one 404'd**.
+  No route added, removed, or changed. Full evidence:
+  `planning/reports/2026-08-09-route-table-reverify.md`. Every dependent
+  question settled the same way: **no `/api/config`** (so approval-mode
+  SELECTION stays dashboard-only), **no `/api/files`**, `/api/model/options`
+  still the only `/api/model/*`, `/v1/runs` unchanged, and
+  `POST /api/sessions/{id}/model` present with the same shape.
+
+  **⚠️ ONE THING THE TABLE HAS ALWAYS OMITTED: the `/p/{profile}` multiplex
+  mirror.** Every route below is **dual-registered** under a profile prefix —
+  live-confirmed, and undocumented here since 2026-07-16. Read the table as
+  "each of these, plus its `/p/{profile}/…` twin."
+
+  > **🔴 THE HAZARD THIS RE-VERIFY ACTUALLY EXPOSED — read it before trusting
+  > any live probe.** On 2026-08-09 the Mac's `~/.hermes/hermes-agent`
+  > **auto-updated at 01:21 while this session was running**, which is why two
+  > agents read two different heads an hour apart and neither was wrong. The
+  > reflog is the only honest record:
+  > ```
+  > ceebb21dd  2026-08-09 01:21  merge origin/main   ← checkout head
+  > 3dcbe9001  2026-08-08 23:14  reset
+  > d408fdbfc  2026-08-08 19:30  reset
+  > 01a1037d1  2026-08-05 19:31  merge origin/main   ← what the LISTENER serves
+  > ```
+  > **The running listener (PID from Aug 7, uptime >1d) serves `01a1037d1`
+  > from Aug 5 — four days and three updates behind its own checkout.**
+  > Routing does not diverge (identical table), but BEHAVIOUR does: the
+  > running process still 400s `PATCH /api/sessions/{id}` with `pinned`, while
+  > the installed head persists it. **Both report `0.20.0`, so the version
+  > string cannot see any of this.**
+  >
+  > **Pin the running code by REFLOG, not by `git log -1`:** match the
+  > listener's start time (`ps -p $(lsof -nP -iTCP:8642 -sTCP:LISTEN -t) -o
+  > lstart=`) against reflog timestamps. `git log -1` tells you what the NEXT
+  > restart will serve, which is a different question and is the one people
+  > answer by accident.
+  >
+  > **Also note `.git/shallow` is present** (log depth 31) — a reported "31
+  > commits of drift" was that floor, not a measurement. Diff against a fresh
+  > clone, never against this checkout's history.
+  >
+  > **NOT verified: OJAMD's table** — and that is the host the phone actually
+  > talks to. The read-only MCP has no route probe. Treat OJAMD parity as
+  > ASSUMED until someone probes it directly.
 
   **The complete `:8642` table, verified 2026-08-02 against a
-  fresh 0.19.1 process:**
+  fresh 0.19.1 process and RE-VERIFIED UNCHANGED 2026-08-09 against upstream
+  HEAD `62431364e`:**
   `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY
   `/api/model/*` route — there is no `/info`, `/recommended-default`, `/auxiliary`, or
   `POST /api/model/set`)** · `/v1/capabilities` · `/v1/skills` · `/v1/toolsets` ·
