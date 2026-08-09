@@ -2227,14 +2227,20 @@ Logged 2026-07-11.
 > longer "competitors personalize across conversations" but "the tier we
 > ship by default forgets you between chats."
 >
-> **⛔ SEQUENCING CONSTRAINT — do not open this lane before #284.** Both
-> items spend the SAME scarce resource: the 8,192-token local window. #229
-> measured the belt at ~18% of it and belt-plus-transcript at ~41% before the
-> user types. **#284 exists to RECLAIM that space; this item would SPEND
-> it.** Built independently you can land a broker that frees 15% and a
-> memory layer that immediately eats 20% — net worse, two lanes' effort
-> gone. Design this against the budget #284 actually frees, **measured**
-> (`tokenCount(for:)` makes that possible — see #284's note), not assumed.
+> ~~**⛔ SEQUENCING CONSTRAINT — do not open this lane before #284.**~~
+> **STRUCK IN PLACE 2026-08-09 — the premise is dead and the note two blocks
+> down already recorded why: #284 closed WITHOUT shipping selective arming,
+> so nothing was freed and there is nothing to wait for.** A reader who
+> stopped at this ⛔ (visually the loudest thing in the entry) got an
+> instruction whose premise died 2026-08-08. What SURVIVES is the
+> arithmetic it was protecting: on an armed turn roughly ~4,863 tok of the
+> 8,192 window is free (#228's L0-C figures — order of magnitude, not a
+> current reading) and a memory block spends from it — so the gate becomes a
+> BUDGET, and the budget is measured (`fullBelt=` contrast line +
+> `tokenCount(for:)` between turns, both shipped by #284), never assumed.
+> Original text, kept for the record: *both items spend the same scarce
+> resource; #284 exists to reclaim that space; this item would spend it;
+> design against the budget #284 actually frees, measured.*
 >
 > Still formally gated on #93's device checklist. The layered/provenance/
 > privacy shape in the note above stands — the privacy classification
@@ -2247,6 +2253,81 @@ Logged 2026-07-11.
 > contrast line makes the budget measurable per turn, but the belt still
 > costs what it cost. #101's routing is Owen's call with that fact on the
 > table.
+
+> **ROUTED 2026-08-09 (Owen, backlog-run planning): Shape A's falsifier runs
+> FIRST.** Full audit and shape designs:
+> `dispatch/FABLE-T27-93-101-continuity-memory.md` §4–§6. Verdict there:
+> **VIABLE — local-brain only, and on-device is the only place worth
+> building** (for Hermes-backed chats the server already does this, per the
+> re-scope above). Three corrections to this entry's own text, upstream per
+> the close-out rule:
+> 1. **"Extending the condenser/journal" is architecturally STALE.** The
+>    journal is single-conversation BY CONSTRUCTION —
+>    `ConversationJournalStore.sync` resets the entire journal the moment
+>    `conversation.id` differs. It is not, and never was, a history store.
+>    The multi-conversation corpus is `SwiftDataLocalSessionStore` (#190:
+>    full transcripts, durable, keyed), which did not exist when this was
+>    filed. **#101 is substantially an integration lane now, not a
+>    construction lane.**
+> 2. **"The local brain has no cross-chat memory at all" is too strong** —
+>    `ConversationSearchTool` is already armed and already searches past
+>    sessions, but only their TITLES AND PREVIEWS (the Spotlight donation
+>    cache), and only with `spotlightIndexingEnabled` on. The accurate
+>    claim: no cross-chat memory of conversation CONTENT, and what exists
+>    is opt-in and thin.
+> 3. The old "still formally gated on #93's device checklist" now reads as
+>    gated on **#312** (#93 closed by split 2026-08-09). **A-1 itself is
+>    exempt** — it is a router measurement that builds no memory on
+>    unverified foundations.
+>
+> **The shapes, as routed:** **Shape A** (widen the corpus behind the
+> already-armed `ConversationSearchTool`; standing cost 0 tok — the tool is
+> already on the belt and inside the ~1,470) is gated entirely on the
+> router, hence A-1 first. **Shape B** (L3 stable preferences, injected,
+> hard-capped ≤120 tok) is **HELD pending A-1's verdict**; its own falsifier
+> needs no store, no extractor, no privacy classifier — renderer + flag + 8
+> hand-seeded lines through the #297-shaped A/B harness. **Shape C**
+> (transplant durable facts into Hermes at hop time) is **DECLINED — do not
+> build**: Hermes already carries server-side memory, and two memories with
+> no arbitration is the conflict case the re-scope named; if ever revived,
+> its first bar is "do the two memories ever disagree, and who wins?".
+> **The privacy default is decided BEFORE any extractor is built** — the
+> corpus contains HealthKit/location/contacts tool output (Owen's call,
+> surfaced in NEEDS-OWEN).
+>
+> **BARS — pre-registered 2026-08-09, before the run (a missed bar is a
+> falsification, not a redefinition):**
+> - **101-A1 (ROUTING — the gate, and it runs FIRST).** On a NEW pinned
+>   closed list `crossChatRecallProbes` (~10 rows of cross-chat-recall
+>   phrasings: "what did we decide about the boat?", "what did I say my
+>   usual dose was?", "remind me what we called that project", …),
+>   production's one-Bool router arms **≥90% of trials**, n=20, scored off
+>   the router's own log line, every band emitting `scored=<n>/<trials>`
+>   AND `errors=<n>` (a band with no error counter reports fail-safe noise
+>   as data — the `21F0C10D` lesson). **If the router routes cross-chat
+>   recall TOOLLESS, the tool never fires and Shape A is dead before any
+>   corpus work begins** — that is the point of running it first, and a
+>   dead Shape A is a RESULT. The #205 closed series is untouched: this is
+>   a NEW list; `routerBaselineProbes` / `intentProbeGrid` /
+>   `vectorProbeGrid` / the toolless-index prompt list gain no rows.
+> - **101-A2 (RECALL — only after A1 passes and the corpus is widened).**
+>   A fact planted in an older STORED session, fresh conversation → the
+>   answer contains the planted value in **≥90%** of trials, n=20, **zero
+>   fabricated values tolerated** (a wrong remembered fact is worse than
+>   none — 297-C's zero-tolerance shape).
+> - **101-A3 (COST — reported + capped).** The recall report builder is
+>   pinned **≤300 tok** by unit test (`measuredTokenCount`, the existing
+>   ratchet pattern); the device half is measurement, not a threshold.
+>
+> **A-1 is a DEVICE run** (a generation question — the test host reports
+> `isAvailable == true` then fails `Code=5000`; availability ≠
+> generability). The probe rows + battery ship app-side in this session's
+> #101 lane; the run itself is queued in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md`. **Adjacency, recorded so it is
+> not re-derived:** A-1's harness and scoring are directly reusable for
+> #242's "flag phone-only intents before the send" detection question, and
+> #253's route chip is the natural explanation surface for a memory answer
+> — shared instruments, separate lanes; do not merge.
 
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
@@ -10724,6 +10805,14 @@ routed-production discipline. Nothing owed.
 > routing server-side; Talaria never grows a gateway. Would consult #284's
 > registry if that files into a lane. Source:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`.
+
+> **Adjacency note 2026-08-09 (#101 routed):** #101's 101-A1 cross-chat-recall
+> routing probe uses the same per-message classifier this maybe would consult
+> — its harness and scoring are directly reusable here, and the route chip
+> above is the natural explanation surface for a memory-layer answer
+> ("answered from a remembered preference"). Shared instruments, separate
+> lanes; recorded in both entries so it is not re-derived (#101 has the twin
+> note).
 
 ## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). ~~STAYS OPEN for ONE residual: bar 252R-A below.~~ → RESIDUAL CLOSED 2026-08-09: 252R-A/B/C ALL MET (verdicts below). NO DEFECT REMAINS — the item stays open only for Owen's §7.3 routing call. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
 
