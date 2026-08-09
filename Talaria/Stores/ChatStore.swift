@@ -799,10 +799,27 @@ final class ChatStore {
                         activeModelName = resolved.split(separator: "/").last.map(String.init) ?? resolved
                     }
 
-                case .approvalRequested, .approvalResolved:
-                    // #304 RED shell — routed to `hostApprovals` in the
-                    // lane's GREEN commit.
-                    break
+                case .approvalRequested(let request):
+                    // #304: the HOST's question (or its degraded,
+                    // question-less shape) — routed to the card's store. A
+                    // different actor from ToolConfirmationCenter, and the
+                    // two cards can be on screen at once.
+                    self.lastStreamActivityAt = .now
+                    if request.question == nil {
+                        self.hostApprovals?.raiseDegraded(
+                            runID: request.runID,
+                            profileID: request.profileID,
+                            endpoint: request.endpoint
+                        )
+                    } else {
+                        self.hostApprovals?.raise(request)
+                    }
+                    continuedSend?.tick()
+
+                case .approvalResolved(let runID, let choice):
+                    // #304: idempotent teardown — our own POST's echo or
+                    // someone else's answer (bar 304-E).
+                    self.hostApprovals?.markResolved(runID: runID, choice: choice)
 
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
@@ -926,6 +943,9 @@ final class ChatStore {
                     // could still need these identifiers.
                     self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
+                    // #304 bar 304-E: the driver exited — an outstanding
+                    // approval card is torn down, never left tappable.
+                    self.hostApprovals?.clearForTurnEnd()
                     self.chatLiveActivity.endActivity()
                     // #110: the finished content lets the service retract the
                     // pending queue when a #102 breaker trip shortened the
@@ -948,6 +968,7 @@ final class ChatStore {
                         // #295: a late duplicate is still a terminal outcome
                         // for THIS stream — nothing left to capture for.
                         self.activeStreamRun = nil
+                        self.hostApprovals?.clearForTurnEnd()   // #304 bar 304-E
                         self.chatLiveActivity.endActivity()
                         self.speechOutput?.cancelStream(messageID: placeholderID)
                         continuedSend?.finish(success: true)
@@ -974,6 +995,13 @@ final class ChatStore {
                     // above — this stream's own capture has nothing left to
                     // recover from it.
                     self.activeStreamRun = nil
+                    // #304 bar 304-E: `.interrupted` is a driver exit too —
+                    // including the degraded Deny card D(i) raised during the
+                    // recovery window. Past this point the reconcile loop
+                    // owns the run; a card against it would read from a
+                    // cleared context. #305 is the filed home for approvals
+                    // that outlive the screen.
+                    self.hostApprovals?.clearForTurnEnd()
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     // #14: the continued task's job — keeping the stream alive —
@@ -1011,6 +1039,7 @@ final class ChatStore {
                     // for a later cancelStreaming to recover.
                     self.activeStreamRun = nil
                     self.pendingMessageSentAt = nil
+                    self.hostApprovals?.clearForTurnEnd()   // #304 bar 304-E
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     continuedSend?.finish(success: false)
@@ -1032,6 +1061,7 @@ final class ChatStore {
                     // the polling fallback below, THIS stream is over —
                     // nothing left for a later cancelStreaming to recover.
                     self.activeStreamRun = nil
+                    self.hostApprovals?.clearForTurnEnd()   // #304 bar 304-E
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == clientMessageID }) {
@@ -1199,6 +1229,9 @@ final class ChatStore {
         pollingTask?.cancel()
         pollingTask = nil
         pendingMessageSentAt = nil
+        // #304 bar 304-E: a walk-away (thread switch, clear, reset) exits
+        // the driver too — the card must not survive into the next thread.
+        hostApprovals?.clearForTurnEnd()
         chatLiveActivity.endActivity()
         if stopSpeech {
             speechOutput?.stop()
@@ -1307,6 +1340,12 @@ final class ChatStore {
         // the router's routing lock so the brain toggle re-derives now.
         // Unconditional: correct on BOTH paths, gated or not.
         hermesClient.abandonActiveRun()
+        // #304 bar 304-E: Stop (or a revoked background budget) ends the
+        // turn — an outstanding approval card goes with it. The host's own
+        // machinery settles the parked approval: an explicit Stop's `/stop`
+        // resolves it as deny host-side (`tools/approval.py:3695-3703`), and
+        // an unanswered park times out on the host's window.
+        hostApprovals?.clearForTurnEnd()
         chatLiveActivity.endActivity()
         // User asked for silence along with the stop — cut read-aloud too.
         speechOutput?.stop()

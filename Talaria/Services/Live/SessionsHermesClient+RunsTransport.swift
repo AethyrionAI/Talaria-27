@@ -556,10 +556,28 @@ extension SessionsHermesClient {
                         continuation.yield(.interrupted(sessionId: hop.sessionId, runId: acceptedRunID))
                     }
                     finishedYielded = true
-                case .approvalRequest, .approvalResponded:
-                    // #304 T1 RED shell — the parser does not produce these
-                    // yet; the driver arms land with T3.
-                    continue
+                case .approvalRequest(let frameRunID, let command, let description, let patternKey, let choices):
+                    // #304: the host's question, lifted onto a value that
+                    // carries the turn's FROZEN endpoint (#285 / dispatch §9
+                    // trap 1) — the card must never read the single-slot
+                    // `activeRunContext`, which is cleared on terminal exit
+                    // and can name a different run by the time a human
+                    // answers. The choice set rides the frame verbatim.
+                    continuation.yield(.approvalRequested(RunApprovalRequest(
+                        runID: frameRunID.isEmpty ? acceptedRunID : frameRunID,
+                        profileID: hop.profileID,
+                        endpoint: endpoint,
+                        question: RunApprovalRequest.Question(
+                            command: command,
+                            description: description,
+                            patternKey: patternKey,
+                            choices: choices
+                        )
+                    )))
+                case .approvalResponded(let choice):
+                    // #304: resolved — by our own POST or anyone else's.
+                    // The store's teardown is idempotent (bar 304-E).
+                    continuation.yield(.approvalResolved(runID: acceptedRunID, choice: choice))
                 case .ignored:
                     continue
                 }
@@ -704,7 +722,8 @@ extension SessionsHermesClient {
             runID: submit.runID,
             profileID: hop.profileID,
             endpoint: endpoint,
-            budget: runsSyncBudget
+            budget: runsSyncBudget,
+            haltOnApprovalPark: true
         ) else {
             // Budget, 404 or cancellation. Giving up WATCHING is not the run
             // being lost: the submit was accepted, so the answer keeps being
@@ -738,6 +757,18 @@ extension SessionsHermesClient {
             return output
         case "failed":
             throw SessionsClientError.requestFailed(Self.runFailureText(snapshot.error ?? ""))
+        case "waiting_for_approval":
+            // #304 O5 / bar 304-D(iii): a sync turn (Siri, widgets — the
+            // `send(...)` path) has no surface to show the host's question,
+            // so it refuses HONESTLY, naming the parked approval — never the
+            // generic "did not answer in time" — and stops polling a run that
+            // will not answer without a human (`haltOnApprovalPark` above
+            // returned on the first parked read). The host's own approval
+            // window still governs the run; the chat transcript is where it
+            // can be answered.
+            throw SessionsClientError.requestFailed(
+                "The Hermes host paused this run — it is waiting for an approval that this path can't show. Open Talaria to answer it before the host's approval window expires."
+            )
         default:
             // `cancelled`, `stopped`, or a terminal name this build does not
             // know. Never invents a cause.
@@ -805,7 +836,10 @@ extension SessionsHermesClient {
     private enum RunStatusRead {
         case terminal(RunStatusSnapshot)
         /// Queued / running / waiting_for_approval / stopping — keep waiting.
-        case live
+        /// Carries the snapshot (#304): a park on `waiting_for_approval` is a
+        /// live state the CALLERS care about — the streamed recovery raises
+        /// the degraded Deny offer on it, the sync path refuses honestly.
+        case live(RunStatusSnapshot)
         /// `404 run_not_found`: the status TTL (3600s) expired, or this id
         /// belongs to another host. No amount of polling produces an answer.
         case gone
@@ -847,15 +881,31 @@ extension SessionsHermesClient {
     /// anyone wait. The sync path passes its own, much shorter
     /// `runsSyncBudget`: it has a user waiting on one answer and nothing to
     /// degrade to, so it lives under the #145 Part A non-stream policy.
+    ///
+    /// #304 — the two approval-park hooks, both off by default:
+    /// - `haltOnApprovalPark` (the SYNC caller): the FIRST read that shows
+    ///   `waiting_for_approval` returns that (NON-terminal) snapshot instead
+    ///   of polling on — a parked run will not answer without a human, so
+    ///   burning the budget against it would just be the old timeout wearing
+    ///   a new face. The caller switches on the status and refuses honestly
+    ///   (bar 304-D(iii)).
+    /// - `onApprovalParked` (the STREAMED recovery): fired AT MOST ONCE, on
+    ///   the first parked read, so `deliverPolledTerminal` can raise the
+    ///   degraded Deny-only card (bar 304-D(i)) while the loop keeps waiting
+    ///   — parking is a live state, not a terminal one, and the budget still
+    ///   bounds it (bar 304-D(ii)).
     func pollRunToTerminal(
         runID: String,
         profileID: UUID?,
         endpoint: ResolvedEndpoint? = nil,
-        budget: Duration? = nil
+        budget: Duration? = nil,
+        haltOnApprovalPark: Bool = false,
+        onApprovalParked: (@MainActor () -> Void)? = nil
     ) async -> RunStatusSnapshot? {
         let deadline = ContinuousClock.now + (budget ?? runsPollBudget)
         var reads = 0
         var consecutiveUnreadable = 0
+        var approvalParkNotified = false
 
         while true {
             if Task.isCancelled { return nil }
@@ -863,8 +913,17 @@ extension SessionsHermesClient {
             switch await readRunStatus(runID: runID, profileID: profileID, endpoint: endpoint) {
             case .terminal(let snapshot):
                 return snapshot
-            case .live:
+            case .live(let snapshot):
                 consecutiveUnreadable = 0
+                if snapshot.status == "waiting_for_approval" {
+                    if haltOnApprovalPark {
+                        return snapshot
+                    }
+                    if !approvalParkNotified {
+                        approvalParkNotified = true
+                        onApprovalParked?()
+                    }
+                }
             case .gone:
                 runsTransportLogger.notice(
                     "runs: status poll for \(runID, privacy: .public) — host no longer has this run (404); arming recovery"
@@ -922,7 +981,7 @@ extension SessionsHermesClient {
             guard let snapshot = RunStatusSnapshot(data) else {
                 return .unreadable("status body carried no status field")
             }
-            return snapshot.isTerminal ? .terminal(snapshot) : .live
+            return snapshot.isTerminal ? .terminal(snapshot) : .live(snapshot)
         } catch {
             return .unreadable(error.localizedDescription)
         }
@@ -950,7 +1009,27 @@ extension SessionsHermesClient {
         assembledReasoning: String,
         into continuation: AsyncStream<StreamingUpdate>.Continuation
     ) async -> Bool {
-        guard let snapshot = await pollRunToTerminal(runID: runID, profileID: profileID, endpoint: endpoint) else {
+        guard let snapshot = await pollRunToTerminal(
+            runID: runID,
+            profileID: profileID,
+            endpoint: endpoint,
+            onApprovalParked: {
+                // #304 bar 304-D(i): the stream is gone and the host reports
+                // the run PARKED on an approval. The question is not in the
+                // status object (bar 304-F), so nothing is invented — this is
+                // the degraded, question-less Deny offer, and it works
+                // because the ANSWER channel is stream-independent. Endpoint
+                // absent (no frozen resolution to ride) → no card: a Deny we
+                // cannot honestly address is worse than none.
+                guard let endpoint else { return }
+                continuation.yield(.approvalRequested(RunApprovalRequest(
+                    runID: runID,
+                    profileID: profileID,
+                    endpoint: endpoint,
+                    question: nil
+                )))
+            }
+        ) else {
             // Task 7 finding 1: the poll never reached a terminal snapshot —
             // budget exhausted, the host 404'd it (`gone`, already reaped),
             // or the unreadable-reads limit tripped. Every caller's fallback
@@ -1102,6 +1181,86 @@ extension SessionsHermesClient {
                     "runs: stop request for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public) — NOT marking self-stopped, so this run's eventual terminal delivery surfaces as recovery rather than a false silent success"
                 )
             }
+        }
+    }
+
+    // MARK: - Approvals (#304, slice 3B)
+
+    /// The wire body: exactly `{"choice": …}` (bar 304-B). Nothing else ever
+    /// rides it — no `all`/`resolve_all` (deferred, dispatch §5) and no
+    /// `reason` (no wire slot: `_handle_run_approval` never forwards one).
+    private struct RunApprovalAnswerBody: Encodable {
+        let choice: String
+    }
+
+    /// #304: `POST /v1/runs/{run_id}/approval` — answer a HOST approval.
+    ///
+    /// Modeled on `hardStopActiveRun()` above with two deliberate
+    /// differences (see the protocol declaration's doc): the address rides
+    /// the CALL — `runID` + the run's frozen `endpoint` from the
+    /// `RunApprovalRequest` VALUE, never the single-slot `activeRunContext`
+    /// (#285's trap) — and it is NOT fire-and-forget: the classified outcome
+    /// is the card's whole truth, and the #279 discipline holds — **the POST
+    /// reaching the host is what makes a state true**, so callers
+    /// (`HostApprovalStore`) mutate nothing until this returns. A transport
+    /// failure returns `.unreachable` and changes no state anywhere.
+    func answerApproval(runID: String, choice: String, endpoint: ResolvedEndpoint) async -> RunApprovalAnswerOutcome {
+        do {
+            let body = try JSONEncoder().encode(RunApprovalAnswerBody(choice: choice))
+            let request = try makeRequest(
+                path: "\(Self.runsPath)/\(runID)/approval",
+                method: "POST",
+                body: body,
+                accept: "application/json",
+                endpoint: endpoint
+            )
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .unreachable("The host returned a non-HTTP response.")
+            }
+            runsTransportLogger.notice(
+                "runs: approval answer '\(choice, privacy: .public)' for \(runID, privacy: .public) → HTTP \(httpResponse.statusCode, privacy: .public)"
+            )
+            return Self.classifyApprovalAnswer(status: httpResponse.statusCode, body: data)
+        } catch {
+            // The POST demonstrably did not land (transport/config failure).
+            // #264's one-truth rule: not denied, not approved — the card
+            // stays live and says it could not reach the host.
+            runsTransportLogger.error(
+                "runs: approval answer for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public)"
+            )
+            return .unreachable(failureMessage(for: error))
+        }
+    }
+
+    /// HTTP → outcome, and nothing else (bar 304-C: every arm distinct, none
+    /// success). The two 409s are told apart by the host's own error code —
+    /// structured `code` first (top-level or nested under `error`), raw-body
+    /// substring as the tolerant fallback; an unrecognizable 409 falls to
+    /// `.rejected` with the host's words rather than guessing an arm.
+    nonisolated static func classifyApprovalAnswer(status: Int, body: Data) -> RunApprovalAnswerOutcome {
+        if (200 ..< 300).contains(status) { return .resolved }
+        let payload = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
+        var code = payload?["code"] as? String
+        if code == nil, let errorObject = payload?["error"] as? [String: Any] {
+            code = errorObject["code"] as? String
+        }
+        let bodyText = String(decoding: body, as: UTF8.self)
+        func names(_ marker: String) -> Bool {
+            code == marker || bodyText.contains(marker)
+        }
+        switch status {
+        case 404:
+            return .runGone
+        case 409 where names("approval_not_pending"):
+            return .windowClosed
+        case 409 where names("approval_not_active"):
+            return .notActive
+        default:
+            let message = (payload?["error"] as? [String: Any])?["message"] as? String
+                ?? (payload?["error"] as? String)
+                ?? String(bodyText.prefix(200))
+            return .rejected("HTTP \(status). \(message)")
         }
     }
 
