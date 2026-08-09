@@ -10881,6 +10881,17 @@ nothing uses the old convention first); Task 3
 (confirming nothing external references the old path). No files added → no
 xcodegen.
 
+**🔧 EXECUTED 2026-08-09 on `t27-255-free-bucket`. Task 1 was found ALREADY
+DONE** — both doc paths carry dated correction notes landed by the marathon's
+row-corrections pass before this lane started (`DEPLOY_MAC.md:95` "(was
+skills/hermes-ios; renamed 2026-08-05, #255)"; `T6_MAC_BACKEND_SPEC.md:77`
+"(Corrected 2026-08-09…)") — so the executed bucket is Tasks 2–4, three
+one-line renames. Pre-flight checks both clean: no `*mobile-plans*` directory
+exists at repo root, and no `scripts/`/CI reference to the old `/tmp` fixture
+path. 255-A's grep over the three touched files: zero hits. Diff stat: exactly
+3 files, 4 lines. Gate (255-D) pending — runs last, after the session's other
+merges, per the rebase-onto-a-settled-tree ordering.
+
 **BARS — pre-registered 2026-08-09, before the run:**
 - **255-A (the free renames land clean):** after Tasks 1–4,
   `rg -i 'hermes[_-]mobile|hermes-ios'` returns zero hits in the
