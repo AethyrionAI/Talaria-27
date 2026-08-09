@@ -7220,6 +7220,53 @@ foreground within the same lock episode; should `autoAuthenticateIfNeeded`
 track "already attempted this episode" independently) is new work, reviewed
 against 272-D.
 
+**✅ RESULT, 2026-08-09 — 272-A REPRODUCED THE LOOP. 272-B LANDED. Gate
+`GATE: PASS` (1867 Swift Testing + 12 XCUITest + Release, 2 expected
+Apple-Intelligence skips).** Recorded against the bars above, which were
+written before any code:
+
+- **272-A — MET, and the hypothesis is CONFIRMED in one half and REFUTED in
+  the other.** `TalariaTests/AppLockControllerRaceTests.swift`'s
+  `GatedAppLockAuthenticator` parks inside `authenticate(reason:)`; all five
+  interleavings ran, every park point asserted, eight cases green.
+  - **§1b-1 CONFIRMED (A-ii, A-iii, and the interrupted variant).** After a
+    cancelled or interrupted attempt, a single foreground event —
+    `.inactive → .active` OR `.background → .active` — wipes
+    `didFailAuthentication` and re-fires the prompt. `authenticate` count
+    1 → 2, **with no user tap.**
+  - **A-iv: five cancellations, zero taps, SIX prompts** and the cover never
+    leaves `.locked`. Nothing bounds it — no attempt cap, no backoff, and
+    the retry button never becomes the only way forward.
+  - **§1b-2 (TOCTOU) REFUTED.** `requestUnlock()` re-checks
+    `!isAuthenticating` and sets it synchronously before its first `await`;
+    on a serial MainActor there is no window. Probed both realistically
+    (A-i) and structurally (A-v, synchronous double `.active`) — one
+    evaluation each time.
+  - **What this establishes is a CONDITIONAL, and the distinction is
+    load-bearing:** *given* an `.active` after a failed attempt in the same
+    lock episode, the controller re-prompts unprompted. Whether iOS 27
+    actually delivers that `.active` on sheet dismissal — and orders it
+    after `evaluatePolicy` resolves — is a device fact this cannot settle.
+    `AppLockCore.swift`'s own comment asserts the sheet is `.inactive`, which
+    is what makes the antecedent plausible; **272-C is what confirms it.**
+- **272-B — MET.** All four sites emit; the `false→false` reset is silent as
+  specced. The single `guard`s in `requestUnlock()` and
+  `autoAuthenticateIfNeeded()` were split into sequential ones so the log can
+  name the clause — same clauses, same order, same short-circuiting, no
+  behaviour change.
+- **272-D — MET.** `AppLockTests.swift` has **zero diff**; the new suite is a
+  sibling file with its own private double.
+- **⚠️ The reproducing assertions PIN THE BUG, not the desired behaviour** —
+  each is flagged `PINS THE BUG` in-file. That is deliberate: this lane's
+  scope was reproduce/record/stop, so pinning keeps the reproduction
+  executable and the gate green. **The fix lane MUST invert every one of
+  them**; a fix that leaves them passing has not fixed anything.
+- **STILL OPEN: the fix.** Per the pre-registered response above it is not
+  this lane's work. The shape to decide: should `didFailAuthentication`
+  survive a foreground within the same lock episode until success or an
+  explicit tap, or should `autoAuthenticateIfNeeded` track "already attempted
+  this episode" independently? Reviewed against 272-D.
+
 **Why the existing suite cannot see this — VERIFIED 2026-08-09, not
 assumed.** `TalariaTests/AppLockTests.swift` covers the pure machine well,
 but every controller test drives `requestUnlock()` **directly and awaits
