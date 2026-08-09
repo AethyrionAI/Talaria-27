@@ -2332,8 +2332,9 @@ Logged 2026-07-11.
 > **2026-08-09 — 101-A1's INSTRUMENT SHIPPED; the RUN is queued, and the
 > verdict is not in.** Branch `t27-101-crosschat-probe`, based on
 > `t27-257-capability-lever-p2` (both lanes extend the same two files;
-> #257 merges first). Commit: `feat(#101): crossChatRecallProbes +
-> runCrossChatRecallProbe — the A-1 instrument (device run queued)`.
+> #257 merges first). Commit **`6124ebf`** — `feat(#101):
+> crossChatRecallProbes + runCrossChatRecallProbe — the A-1 instrument
+> (device run queued)`.
 > **Nothing here is a result** — an instrument is not a measurement, and
 > A-1's bar (≥90% armed, n=20) is still exactly as pre-registered above.
 >
