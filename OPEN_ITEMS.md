@@ -7596,6 +7596,213 @@ the next merge — the same resurrection family as #78, through a path that
 lane deliberately did not touch. Fix shape: route it through the primitive
 like `/retry` and `/undo` now are.
 
+> **⚠️ FOUR CORRECTIONS TO THE TEXT ABOVE — 2026-08-09, written from a read of
+> the code at `bfbd154`, BEFORE any code of this lane. The paragraph above is
+> right about the defect and wrong in four particulars.**
+>
+> 1. **"The user row of a failed turn IS in the local brain's mirror" is true
+>    for ONE of the two failure paths, not both.** `LocalChatBackend.swift`'s
+>    availability gate (`:493-497`) yields `.failed` and `return`s *before*
+>    `appendUserMessage` runs (`:525`). A refusal-to-run failure — the
+>    `.unavailable` model tier — leaves **nothing** in the mirror and cannot
+>    resurrect anything. The claim holds only for a **generation** failure
+>    (`:646`, inside the streaming loop's `catch`, i.e. after `:525`). The bars
+>    below are written for the generation-failure path, which is the one that
+>    mirrors.
+> 2. **"Fix shape: route it through the primitive" is NOT literally
+>    implementable, and doing it literally is a worse bug than the one being
+>    fixed.** `truncateTranscript(from:)` removes `index...` — *to the end of
+>    the transcript*. `retryMessage` removes ONE row and is reachable on any
+>    `.failed` row **anywhere** in the thread (`MessageBubble.swift:211`, and
+>    `finalizeStaleSendsFromCache` `ChatStore.swift:502-511` manufactures
+>    mid-transcript `.failed` rows on every cold load after a mid-stream
+>    death). Literal routing would delete every turn below the retried one.
+>    **The correct reading is "reach the mirror", not "truncate to the end"** —
+>    i.e. route the single-row removal through the same adoption tail
+>    (`adoptLocalTranscript()`, `:1807`). **Bar 279-D exists specifically to
+>    fail if anyone implements this sentence literally.**
+> 3. **The entry omits a second defect in the same eight lines: the swallowed
+>    re-send.** The removal at `:1739` is unconditional; the re-send at `:1757`
+>    calls `await sendMessage(...)` and **discards** its `Bool`. `sendMessage`
+>    returns `false` from the empty guard (`:575`) or from
+>    `hasPendingDuplicateMessage` (`:576`, defined `:2211-2218`) — a
+>    byte-identical turn still `.sending` or `.queued` elsewhere in the thread.
+>    When that happens the failed row is deleted and **nothing is sent**. That
+>    is the precise residual `regenerateReply` was given
+>    `restoreTruncatedRows(_:at:)` for (`:1794`, used at `:1858-1864`) and
+>    `retryMessage` never got. Bar 279-C covers it.
+> 4. **The entry does not scope the Hermes path, and without that scoping
+>    279-B reads as a promise the code cannot keep.**
+>    `SessionsHermesClient.adoptTruncatedConversation` (`:766-768`) assigns
+>    `currentConversation` and nothing else — that mirror is a **fetch cache**,
+>    not the gateway's session. On the Hermes path this fix stops the *cache*
+>    from re-serving the removed row and does nothing more; the GATEWAY session
+>    still holds the turn, and the documented `/retry` caveat
+>    (`ChatStore.swift:1823-1829`) applies unchanged. The fix is total only on
+>    the local brain.
+>
+> **PRE-REGISTERED BARS — written 2026-08-09, before the first line of code,
+> per CLAUDE.md ("Where the BARS live"). A missed bar is a falsification, not
+> a redefinition.**
+>
+> - **279-A (unit, characterization — written and GREEN against the UNMODIFIED
+>   tree, and green again after the fix with the new number).** On a
+>   `.localBrain`-shaped mirroring double, drive a turn to `.failed` *after*
+>   the user row has been mirrored, then `retryMessage` that row, then let the
+>   retried turn finish. Assert the merged transcript's user-row count.
+>   **This bar records TODAY'S number first.** If the pre-fix number is not 2,
+>   the mechanism above is wrong and **the lane stops and re-diagnoses rather
+>   than proceeding.** Evidence: the asserted count, quoted verbatim here, from
+>   both sides of the fix. No device.
+> - **279-B (unit, fails today — the defect):** same setup as 279-A; after the
+>   retried turn settles, exactly **one** user row carrying the retried text
+>   survives, and it is the row minted by the retry (its `id` is not the failed
+>   row's `id`), and the backend mirror was TOLD (an
+>   `adoptTruncatedConversation` call recorded between the removal and the
+>   re-send). Evidence: the filtered count, the id inequality, the adopt log.
+>   Expected RED before the fix with the count at 2. No device.
+> - **279-C (unit, fails today — the swallowed re-send):** arrange a retry
+>   whose `sendMessage` returns `false` via `hasPendingDuplicateMessage`
+>   (`ChatStore.swift:2211`) — a byte-identical `.queued` or `.sending` user
+>   row elsewhere in the thread. Assert the failed row is **still present** and
+>   the backend was not asked to send (`client.sentPrompts` unchanged). Today
+>   the row is gone and nothing was sent. Evidence: both assertions. No device.
+> - **279-D (unit, no over-reach — the mid-transcript case):** a thread whose
+>   `.failed` user row sits at index 0 with two later *successful* exchanges
+>   below it (a production shape, not a contrived one — `#56`'s
+>   `finalizeStaleSendsFromCache` manufactures exactly it). After
+>   `retryMessage` on that row, **every row below it survives**, count and
+>   contents pinned explicitly. This is the bar that fails if correction 2 is
+>   implemented literally. Evidence: the full `messages.map(\.content)` array.
+>   No device.
+> - **279-E (unit, fixture fidelity — 281-C's lesson applied before it costs a
+>   day again):** the double used by 279-A/B must reproduce what
+>   `LocalChatBackend` does on a generation failure and not an invented shape:
+>   (i) the user row is mirrored with `id == clientMessageID` **and**
+>   `clientMessageID` set, matching `LocalChatBackend.swift:1318-1338`; (ii) on
+>   a failed turn the reply is **not** mirrored (nothing reaches
+>   `appendAssistantMessage`); (iii) the double records every
+>   `adoptTruncatedConversation` call, so 279-B can prove the mirror was told
+>   rather than that the count merely came out right. **This is a fidelity pin
+>   and it is GREEN on both sides of the fix — its "RED" was that the
+>   capability did not exist in the double at all, recorded honestly as such,
+>   the way 281-C is.** No device.
+> - **279-F (device, OWEN — NOT claimed by this lane; queue it):** on the
+>   **LOCAL BRAIN**, force a turn to fail *after* it starts generating —
+>   **Airplane mode will not do it**, that is the `.unreachable` path, and the
+>   `.unavailable` model tier is correction 1's non-mirroring path; use a
+>   prompt that trips a generation error, or the Developer forced-trip harness
+>   (#134). Tap retry on the failed bubble. **The question must appear exactly
+>   once**, carrying the retry-time bubble, and must still be exactly once
+>   after leaving the thread and returning. Expected RED until this lands.
+>
+> **Falsification stated in advance.** If 279-A's pre-fix count is 1, the
+> mirror is not the resurrection source and the mechanism above is wrong — the
+> lane reports that and stops. If 279-B goes green but 279-F still shows two
+> bubbles on device, the duplicate has a second source (the server transcript
+> on the Hermes path per correction 4, or the assistant-row hole below) and the
+> fix is **incomplete, not wrong**.
+>
+> **Out of scope, watched:** `unconfirmedLocalMessages` restricts the
+> content-claim tier to `sender == .user` (`ChatStore.swift:2751`), so prior
+> `.hermes` reply rows have no claim tier at all and may already double on
+> server-sourced merges. That is #282's seam, not this one — if 279-A's
+> baseline shows it, FILE it for a number, do not absorb it here.
+>
+> Full pre-code analysis: `dispatch/OPUS-T27-279-retry-adoption.md`.
+
+> **📊 MEASURED — 2026-08-09, branch `claude/t27-279-retry-adoption`. Every
+> bar above met except 279-F, which is device-owed and NOT claimed by this
+> lane.**
+>
+> **279-A, the number, quoted from the run that produced it.** Written and run
+> GREEN against the UNMODIFIED tree first, asserting `userRows.count == 2`.
+> **The pre-fix merged user-row count is 2** — the mechanism above stands, so
+> the lane proceeded. Post-fix the same assertion is **1**. Both numbers live
+> in the test's own comment (`aRetriedFailedTurnsMergedUserRowCount`).
+> (Renamed from the dispatch's proposed
+> `aRetriedFailedTurnLeavesTheMirrorHoldingTheOldRow` — a characterization
+> bar's name has to stay true on both sides of a fix that moves its number.)
+>
+> **279-B/C/D watched RED against unmodified production**, verbatim from
+> `xcodebuild`:
+>
+> ```
+> 279-B  retried.count == 1 → false
+>          retried.count → 2
+>        retried.first?.id != failed.id → false
+>          retried.first?.id → 5B7F72A1-0F37-44CC-860C-A2C693F47CED
+>          failed.id        → 5B7F72A1-0F37-44CC-860C-A2C693F47CED
+>        !client.adoptedMessageCounts.isEmpty
+>          client.adoptedMessageCounts → []
+> 279-C  messages.map(\.content) → ["Same question", "generation failed"]
+> 279-D  messages.map(\.content) → ["Failed question", "Second question",
+>          "Second answer", "Third question", "Third answer",
+>          "Failed question", "Done."]
+> ```
+>
+> 279-D's array is the defect rendered: the removed "Failed question" is back
+> at index 0, *above* everything, with the retried copy beneath it.
+>
+> **279-E green on both sides**, as a fidelity pin should be. Recorded
+> honestly: its "RED" was that `MirroringReplyClient` could not fail a turn at
+> all — the capability did not exist — not that production was broken in a way
+> it could see.
+>
+> **THE FIX** (`ChatStore.swift`, `retryMessage`): `firstIndex` + `remove(at:)`
+> instead of `removeAll(where:)`, then **`adoptLocalTranscript()`** — the same
+> tail `truncateTranscript` exits through. **Deliberately NOT
+> `truncateTranscript(from:)`**, per correction 2. `sendMessage`'s `Bool` is
+> now read, and every early return restores the row via the existing
+> `restoreTruncatedRows(_:at:)` (new one-line wrapper `restoreRetriedRow`, so
+> the three return paths restore identically).
+>
+> **Not pinned to text the fix never touched — both halves re-probed
+> (2026-08-09).** The suite was re-run twice with one half of the fix reverted
+> at a time:
+> - adoption call removed, index refactor kept → **279-A and 279-B RED**
+>   (`retried.count → 2`, `adoptedMessageCounts → []`), **279-C stayed GREEN**;
+> - restore branch removed, adoption kept → **279-C alone RED**
+>   (`messages.map(\.content) → ["Same question", "generation failed"]`,
+>   `cached.messages.count → 2`), everything else green.
+>
+>   The two halves are therefore independently pinned; neither bar is riding
+>   on the other's change. `ChatStore.swift` was byte-diffed back to the fixed
+>   state after each probe.
+>
+> **CLOSE-OUT (same commit, at each claim's own home):**
+> - `ChatStore.swift` `truncateTranscript`'s doc said it was *"**The one way**
+>   to remove rows from the rendered transcript"* — **false when written**;
+>   `retryMessage` removed rows and never came through it. Corrected: it owns
+>   the RANGE case, and the invariant that actually holds is one level down —
+>   every removal exits through `adoptLocalTranscript()`.
+> - `TalariaTests/ChatStorePersistenceTests.swift` 275-C's doc comment now
+>   says it covers source SELECTION only and never saw the removal. Its
+>   assertions are byte-unmodified.
+>
+> **GATE: PASS** (`scripts/mac/lane-gate.sh`, run 3). Swift Testing
+> **1859 → 1864** (+5, the bars above — verified by `@Test` count 30 → 35 in
+> `ChatStorePersistenceTests`, not by arithmetic alone), XCUITest 12, Release
+> build green. **Runs 1 and 2 are recorded rather than hidden**, per the gate
+> script's own instruction on a flake: run 1 failed on three *fresh-simulator
+> prerequisites* (EventKit TCC not pre-granted — the probe's own doc says to
+> grant it with `simctl privacy`; a cold-start WKWebView control arm; and the
+> #195/#236 keyboard-focus typing race), all three green on the warmed sim;
+> run 2 failed on `testPairedRelaunchSkipsPairingEntry()` with **no assertion
+> text**, which the gate itself classifies as a harness flake — it had passed
+> in run 1 on identical code, under load average 15.7/31.6/61 with three
+> concurrent gates.
+>
+> **Sim note for the next lane:** this ran on a dedicated `CC-279-iPhone-Air`
+> created on the **iOS 27.0** runtime. **The stock `iPhone Air` on this Mac
+> exists only on iOS 26.5** and cannot host the 27.0 deployment target, so
+> naming it in `TALARIA_SIM_NAME` fails preflight-then-destination; and
+> `lane-gate.sh` resolves the name with `head -1`, which picks the 26.5 entry
+> because `simctl` lists that runtime first. A freshly created sim also has
+> **no TCC grants**, which is what cost run 1.
+>
+> **STILL OWED: 279-F, device, Owen.** Everything above is simulator-side.
+
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
 
 **What #261 established (2026-08-06, Owen's instruction):** *"Take that out of

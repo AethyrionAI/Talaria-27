@@ -1735,8 +1735,27 @@ final class ChatStore {
         composeOutbox.remove(id: message.clientMessageID ?? message.id)
         persistComposeOutbox()
 
-        // Remove the failed message
-        conversation?.messages.removeAll { $0.id == message.id }
+        // #279: remove the failed row through the SAME adoption tail the
+        // truncation primitive uses. A bare `messages.removeAll` here left
+        // the backend's mirror still holding the row, and the mirror is the
+        // BASE of the post-turn merge (`:886-889`) — so the retried turn's
+        // own finish put the removed row straight back, above the retried
+        // copy. Two identical user bubbles, which is what the user sees.
+        // Index-based, and the index is kept: the restore below needs it.
+        let removedIndex = conversation?.messages.firstIndex(where: { $0.id == message.id })
+        let removedRow = removedIndex.flatMap { conversation?.messages[$0] }
+        if let removedIndex {
+            conversation?.messages.remove(at: removedIndex)
+            // #279: NOT `truncateTranscript(from:)` — that removes
+            // `index...` to the END of the transcript, and a `.failed` row
+            // can sit anywhere (the bubble's retry affordance has no
+            // "is it the last row" condition, and #56's
+            // `finalizeStaleSendsFromCache` manufactures mid-transcript
+            // failed rows on every cold load after a mid-stream death).
+            // Routing the FILING literally would delete every turn below the
+            // retried one; what is owed is the adoption, not the truncation.
+            adoptLocalTranscript()
+        }
 
         // Determine the user content to retry (attachments can't be recovered
         // from metadata). #275: user-AUTHORED, so a dictated turn is a valid
@@ -1749,17 +1768,55 @@ final class ChatStore {
             sourceMessage = conversation?.messages.last(where: { $0.sender.isUserAuthored })
         }
 
-        guard let sourceMessage else { return }
+        // #279: every early return below leaves the row REMOVED unless it is
+        // put back — same residual `regenerateReply` was given
+        // `restoreTruncatedRows` for (`:1858-1864`), which this path never got.
+        guard let sourceMessage else {
+            restoreRetriedRow(removedRow, at: removedIndex, why: "no re-sendable source turn")
+            return
+        }
         let attachments = sourceMessage.attachments.compactMap(PendingAttachment.restore)
         let content = normalizedRetryContent(for: sourceMessage)
-        guard !content.isEmpty || !attachments.isEmpty else { return }
+        guard !content.isEmpty || !attachments.isEmpty else {
+            restoreRetriedRow(removedRow, at: removedIndex, why: "the turn has nothing re-sendable")
+            return
+        }
 
-        await sendMessage(content, attachments: attachments)
+        // #279: `sendMessage`'s `Bool` was DISCARDED here. It returns false
+        // from the empty guard (`:575`) and from `hasPendingDuplicateMessage`
+        // (`:576`) — a byte-identical turn still `.sending` or `.queued`
+        // elsewhere in the thread — and when it did, the failed row had been
+        // deleted and nothing was sent.
+        let dispatched = await sendMessage(content, attachments: attachments)
+        guard !dispatched else { return }
+        restoreRetriedRow(removedRow, at: removedIndex, why: "the re-send was swallowed by a send guard")
+    }
+
+    /// #279: puts a retried row back when the re-send never dispatched.
+    /// Thin wrapper over `restoreTruncatedRows` (id-deduped, re-adopts) so
+    /// every early return in `retryMessage` restores identically and logs the
+    /// same way `regenerateReply` does (`:1863`).
+    private func restoreRetriedRow(_ row: Message?, at index: Int?, why: String) {
+        guard let row, let index else { return }
+        chatLog.notice("retry: \(why, privacy: .public) — restoring the removed row at index \(index) (#279/#78)")
+        restoreTruncatedRows([row], at: index)
     }
 
     // MARK: - Transcript truncation (#78)
 
-    /// **The one way to remove rows from the rendered transcript.**
+    /// **The one way to remove a RANGE of rows from the rendered transcript**
+    /// — everything from `index` to the end.
+    ///
+    /// **This doc said "the one way to remove rows" and that was FALSE when
+    /// it was written (corrected #279, 2026-08-09).** `retryMessage` removed
+    /// a row with a bare `messages.removeAll` and never came through here, so
+    /// the mirror kept it and the retried turn's own merge put it back — the
+    /// exact failure the paragraph below describes, live in the one path #78
+    /// did not touch. The invariant that actually holds is one level down:
+    /// **every removal exits through `adoptLocalTranscript()`.** This
+    /// primitive owns the range case; `retryMessage` removes its single row
+    /// and calls that tail directly, because truncating-to-the-end on a
+    /// mid-transcript `.failed` row would delete every turn below it.
     ///
     /// Truncating the local array is only half the operation, and always was
     /// (#78): every backend keeps its OWN mirror of the thread, and this
