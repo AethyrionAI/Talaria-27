@@ -5999,6 +5999,124 @@ pre-register here if it is ever routed.**
 3. What is the compatibility signal — a version floor the plugin asserts at
    load, a probe, or a tested-against tag?
 
+## 304. 🔧 Phase 3 slice 3B — answer host `approval.request` from the phone (`POST /v1/runs/{run_id}/approval`) — **FILED 2026-08-09 (lane T0). The dispatch proposed #298; that number was consumed during the marathon — this is the reassigned home (`22ee09e`). Owen routed it into the 2026-08-09 backlog run and ruled the blocking questions the same day. Size L (the plan's "M" is falsified — dispatch §4 C3). Executes from `dispatch/FABLE-T27-283-3B-approvals.md`.**
+
+**Goal:** when the Hermes host gates a dangerous action mid-turn, the phone shows
+the host's own question with the host's own choice set and resolves it over
+`POST /v1/runs/{run_id}/approval` — and in every state where the question cannot
+be shown, says so honestly instead of inventing one (#180 applied to a surface
+that has never existed).
+
+**Scope ruling (dispatch §5):** ONE lane ships (this one); ONE more is
+filed-not-built (**#305**); and mode SELECTION is **NOT a slice** —
+`approvals.mode` is dashboard-plane (`:9119`) config, `:8642` has no
+`/api/config` (re-verified 2026-08-09 at Mac head `3dcbe9001`), and the app never
+displays, mirrors, or claims to know the host's mode. Deferred *within* the lane,
+each for a stated reason: the deny REASON (no wire slot — `_handle_run_approval`
+never forwards it; upstream ask ruled out); `resolve_all` (no UI story, no
+observed case of two pending in one run); the `smart_denied` two-choice arm
+(handled by construction — choices render from the frame — but unprobed, so no
+bar claims it); reusing `ToolConfirmationCenter` (rejected — different actor,
+different lifetime, single-slot auto-decline would drop a host approval; build a
+sibling). Everything rides the `useRunsTransport` Developer switch.
+
+**OWEN'S RULINGS, 2026-08-09 (pre-lane):**
+- **O1 (the card):** render **all four** choices exactly as the host offers them;
+  `once`/`deny` are one tap; **`always` and `session` get a second confirm naming
+  the consequence** ("permanently allowlists this pattern on <host>" /
+  "applies to this one run" — `session` scopes to `approval_session_key`, which
+  IS the run id, so the button must not imply conversation scope).
+- **O3 (device-bar host):** the **Mac** (observable — `agent.log`, launchd; 3A's
+  device-pass host). OJAMD untouched by this lane.
+- **O5 (sync/Siri path):** honest refusal — the sync turn names the parked
+  approval it cannot show; the host times out on its own 300s window. Matches
+  bar 304-D(iii).
+- **O6 (default):** `useRunsTransport` default stays **OFF** — 3B ships
+  unreachable to anyone who never opens Developer; cutover remains 3E's decision.
+- **O2 (the live-install go)** is still owed **per-experiment at device-bar
+  time**: 304-H/I need `approvals.mode: manual` on the Mac plus a gateway
+  bounce. **Do not set it — ask, name the experiment, wait for the word.**
+
+**BARS — pre-registered 2026-08-09, before any code (renumbered from the
+dispatch's 298-\*; a missed bar is a falsification, not a redefinition):**
+
+- **304-A** `approval.request` decodes to a typed value carrying `run_id`,
+  `command`, `description`, `pattern_key`, and **the `choices` array exactly as
+  received**. Three fixtures: four-choice; `smart_denied` `["once","deny"]`; the
+  MCP-elicitation shape (`pattern_key:"mcp_elicitation"`, no `allow_permanent` —
+  where `command` is a MESSAGE, not a command). **A hardcoded four-button card is
+  a bar FAILURE.** [unit]
+- **304-B** `once` and `deny` each POST `/v1/runs/{id}/approval` with exactly
+  `{"choice": …}`, to the run's **frozen** endpoint, **at most once per card**
+  regardless of tap count. [unit]
+- **304-C** Every 4xx renders distinctly and **none renders as success**:
+  409 `approval_not_pending` → "the window closed, the host denied it";
+  409 `approval_not_active` → distinct; 404 `run_not_found` → distinct.
+  [unit, three arms]
+- **304-D** The three unanswerable states, each honest, each inventing nothing:
+  **(i)** stream lost + status `waiting_for_approval` + no question → the app
+  offers Deny, says it cannot show what it would deny, **and the Deny POST is
+  still issued and lands** (the stream-independent answer channel);
+  **(ii)** `runsPollBudget` expires while the run is legitimately parked →
+  `.interrupted`, **never** a failure claim; **(iii)** `syncTurnViaRuns` meets
+  `waiting_for_approval` → a message naming the parked approval, **never** "did
+  not answer in time." [unit, three arms]
+- **304-E** Answering does not disturb terminal discipline: `.finished` still
+  yields **exactly once** (#237 shape pinned absent); a card outstanding when the
+  driver exits is torn down, not left tappable against a cleared
+  `activeRunContext`; a duplicate `approval.responded` is idempotent. [unit]
+- **304-F** **Status is not an oracle.** After a simulated timeout the status
+  object still reads `waiting_for_approval`; the app must NOT raise a card from
+  status alone — only a stream frame raises a question. [unit]
+- **304-G** `scripts/mac/lane-gate.sh` → literal **`GATE: PASS`** — units AND
+  XCUITest AND a green Release build, unit count MOVED from the baseline the lane
+  measures on its own base commit. [Mac]
+- **304-H** Device + live host: a real remote turn hits a gated command; the run
+  parks; the phone shows the card **with the host's own choice set**; `once`
+  resumes it and the command executes. **Evidence is the host's `agent.log`, not
+  the screen.** [device + 🔐 LIVE-INSTALL GATE]
+- **304-I** Device + live host, the deny arm and the escape hatch: `deny`
+  produces the host's BLOCKED text and the agent does **not** retry or rephrase;
+  separately, tapping **Stop** on a parked run resolves it as a deny
+  (`tools/approval.py:3695-3703`) rather than hanging for the window. Also
+  **observe what a DENIED tool call renders as on the runs event stream and
+  record it** (the dispatch §2.3 open unknown — #296's family; do not guess).
+  [device + 🔐 LIVE-INSTALL GATE]
+
+**304-A…G need no live host and no device — build and land them first. 304-H/I
+are device debt in the 3A pattern, queued in
+`dispatch/DEVICE-PASS-RUNNING-LIST.md`.**
+
+**#224 triage (dispatch §8):** NONE of #224's eight questions blocks 3B —
+different actors (they govern OUR on-device gate; this governs the HOST's). Q7
+(receipts for auto-approved actions) and Q6 (Privacy-screen home) are
+coupled-not-blocking: 3B ships no persisted preference and deliberately leaves no
+receipt unless Q7 decides otherwise — recorded so the drift is deliberate rather
+than accidental.
+
+**Corrections this lane owes at close (dispatch §10, upstream per THE CLOSE-OUT
+RULE):** C1 (file:line drift across the Phase-3 corpus — both design docs, #283,
+#224, and `SessionsHermesClient+RunsTransport.swift`'s own doc comments), C3
+(plan §3's size row M→L), C4 (N6 understated — the answer channel survives a
+dropped stream), C5 (status keeps reading `waiting_for_approval` after a
+timeout), C6 (`/stop` on a parked run = deny; plan §2.5 + CLAUDE.md's `:8642`
+paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
+`:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
+head). C2 (3B has no entry) is discharged by this filing.
+
+## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
+
+An approval arriving while the app is backgrounded or closed is currently
+answerable only by reopening the app inside the host's ~300s window; otherwise
+the host denies by timeout. **That is a real user cost and it deserves a filing
+rather than a shrug** — but it is genuinely separate from #304: it depends on the
+platform link, on #238's notification cuts, and on a product decision about
+whether a dangerous host command should be approvable from a lock screen at all.
+`InboxItemType.approval` exists with no producer
+(`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
+one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
+silently drop it.**
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
