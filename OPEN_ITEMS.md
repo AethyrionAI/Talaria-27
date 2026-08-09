@@ -7178,10 +7178,10 @@ hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
 
 > **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
-> numeric RED evidence. Bars 292-A and 292-B MET; 292-C NOT YET QUEUED
-> (device — the controller adds the row to `DEVICE-PASS-RUNNING-LIST.md` at
-> session close-out); ✅ GATE: PASS 2026-08-09 (controller-run, sim
-> CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> numeric RED evidence — MERGED same day, PR #288 (`c2cc540`). Bars 292-A
+> and 292-B MET; ✅ 292-C QUEUED as `DEVICE-PASS-RUNNING-LIST.md` **§R8**
+> (the bar that closes this item); ✅ GATE: PASS 2026-08-09 (controller-run,
+> sim CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
 > Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
 > RED by restoring the bug leaves an orphaned producer polling for up to the
 > test's 30s budget AFTER the test returns — later tests in the serialized
