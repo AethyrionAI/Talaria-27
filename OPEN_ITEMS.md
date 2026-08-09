@@ -6117,6 +6117,160 @@ whether a dangerous host command should be approvable from a lock screen at all.
 one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
 silently drop it.**
 
+## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
+
+**Routing (plan §5 Q7, ANSWERED 2026-08-09):** standalone, now — under three
+binding constraints that neutralize the plan's designing-the-composer-twice
+risk. **If the lane cannot hold all three, the plan's recommendation wins and
+this waits for 3C:**
+- **C1** — the composer names the door from day one: a `ComposerDoor` enum ships
+  with `.queued` implemented and `.steered` / `.interrupted` present as cases
+  every switch must handle. The word **"sent" never appears** for a message that
+  has not been posted.
+- **C2** — the readiness gate is **`isTranscriptBusy`, never `isStreaming`**
+  (#278's exact lesson: during the reconcile window `isStreaming` reads false
+  while the run is very much alive).
+- **C3** — a queued message **mints no transcript row until it actually sends**
+  (chip on the composer, not a bubble — the identity ruling below).
+
+**OWEN'S RULINGS, 2026-08-09:** **O2 (the defining behavior): after Stop, the
+held message NEVER auto-fires — it is held, and the text RESTORES to the
+composer**; one extra tap is the deliberate price ("Stop means stop"). O1
+standalone (above). O3–O8 adopted as dispatched: failed/exhausted/expired
+terminals HOLD + SURFACE (never auto-retry into a broken session); depth 1 ("a
+next message, not a mailbox"); v1 text-only (attachments inherit
+`ComposeOutboxState`'s ruling); the queued message renders as a composer-attached
+CHIP, not a transcript bubble (Owen sees it before ship — 306-L); #307 filed and
+fixed inside this lane; a held message travels with its thread.
+
+**IDENTITY RULING (dispatch §6):** `clientMessageID` is minted at SEND time,
+inside `sendMessage`, exactly as today. The queue entry carries its **own,
+separate durable id**; `ComposeOutboxState.PendingTurn`'s id-fusion (entry id ==
+transcript row id) is broken in the same commit — the existing `id` becomes an
+optional `transcriptRowID`, populated only for `.unreachable`-parked turns.
+Compose-time row minting fails four ways at HEAD: the poll-exhaustion sweep eats
+it; cold load fails it; `hasPendingDuplicateMessage` swallows the queue's own
+fire; `attemptReconcile` mis-times it. And with no row there is nothing for
+#282's claim tier to eat. **One store, one order** — the mid-turn queue and the
+offline outbox are the SAME `ComposeOutboxState`, gaining a `reason`
+discriminator (`.unreachable` / `.heldDuringTurn`), oldest-first.
+
+**THE TERMINAL MATRIX (dispatch §5 — the feature's contract; HOLD = stays
+queued/visible/editable/cancellable, nothing posts; FIRE = `sendMessage` runs,
+row + id minted then; SURFACE = the chip says the turn it waited on produced no
+answer, offers Send now / Edit / Discard):**
+
+| # | terminal | action |
+|---|---|---|
+| 1 | Completed (`.finished`) | **FIRE**, once, as soon as `!isTranscriptBusy` — the feature |
+| 2 | User pressed Stop | **HOLD + SURFACE, never auto-fire; text restores to the composer** (O2) |
+| 3 | Stream dropped, run committed (real `.interrupted`) | **HOLD** until `pendingRun == nil`; on reconcile-budget expiry with no adoption → SURFACE, never silently fire (firing mid-reconcile is #307's corruption) |
+| 4 | Late-duplicate interrupt | no-op (the `isTranscriptBusy` gate handles it with no special case) |
+| 5 | Unreachable | **DEMOTE into the same outbox behind the failed turn, order preserved**; never fire, never vanish; attachment turns take the honest `.failed` dead-end and the queued message SURFACEs |
+| 6 | Failed outright (`acceptedJobID == nil`) | HOLD + SURFACE |
+| 7 | Failed after accept | HOLD — the turn is not over (poll loop owns it; resolves to row 1 or 8) |
+| 8 | Poll exhaustion | HOLD + SURFACE (also why the queue mints no early `.sending` row — the sweep is not targeted) |
+| 9 | Background budget expired, recoverable | HOLD — identical to row 3 (#295's ruling) |
+| 10 | Background budget expired, NOT recoverable (local brain) | HOLD + SURFACE — `.delivered` here means "settled", not "answered" |
+| 11 | Walk-away (thread switch / new chat / reset) | queue travels with the departing thread, never fires into the arriving one (`abandonPendingRun` is the seam) |
+| 12 | Process death mid-turn | survives relaunch, SURFACEs, never auto-fires on launch |
+
+**The one-line rule the matrix encodes: the queue auto-fires on exactly ONE
+terminal — a turn that actually completed. Everything else holds and says why.**
+The sharpest trap: rows 1, 2, and 10 all leave the user row `.delivered` — the
+fire condition branches on the OBSERVED TERMINAL, never on the row's final
+status.
+
+**BARS — pre-registered 2026-08-09, before any code (renumbered from the
+dispatch's 300-\*; every unit bar must be demonstrated RED by restoring the
+pre-fix behavior named in its RED condition, and the lane records which line was
+reverted for each; a missed bar is a falsification):**
+
+- **306-A** The composer accepts a commit gesture while a turn streams and the
+  text is held, not posted — `sendMessage` not called, `sendStreaming` call
+  count unchanged. RED: on `main` today there is no send control while
+  `isStreaming` (`ChatInputBar.swift:452`), so the gesture does not exist. [unit]
+- **306-B** **FIRE-ONCE on completion**: exactly one post, one new user row, one
+  `clientMessageID` after `.finished`; assert the SEND COUNT, not the
+  transcript's final appearance. RED both arms: no fire wiring → count 0
+  forever; remove the `!isTranscriptBusy` guard and drive `.finished` twice →
+  count 2 (the #237 shape — the arm that will actually regress). [unit]
+- **306-C** **STOP DOES NOT FIRE**: after `cancelStreaming(hardStopHost: true)`
+  the message is still held, `sendStreaming` never re-invoked, text restored to
+  the composer. RED: wire the fire to "any terminal" → the Stop arm posts. The
+  feature's single most important negative. [unit]
+- **306-D** **The three `.delivered` terminals are distinguished** — completion,
+  Stop, non-recoverable expiration all leave `.delivered`; only the first fires;
+  assert on the observed terminal, never on `status`. RED: implement the fire as
+  `status == .delivered` → arms 2 and 3 both post. [unit, three arms]
+- **306-E** **A live `pendingRun` blocks the fire** (the #278 window:
+  `streamingMessageID` nil, `pendingRun` non-nil): no post until
+  `attemptReconcile` clears it, and the reply the reconcile adopts is the
+  DROPPED run's, never the queued turn's. RED: gate on `!isStreaming` instead of
+  `!isTranscriptBusy` → posts mid-reconcile, adoption assertion fails. **This
+  same test covers #307.** [unit]
+- **306-F** **No transcript row exists before the send** — through hold, edit,
+  cancel, relaunch: zero rows for the queued text; exactly one appears at fire,
+  its `clientMessageID` minted by `sendMessage`; a poll-exhaustion sweep and a
+  cold-load scrub running while a message is held touch nothing. RED: mint the
+  row at compose time → both sweeps flip it `.failed` and `onSendFailed()`
+  fires. [unit]
+- **306-G** **Unreachable demotes, preserving order** — a mid-turn-held message
+  whose turn ends `.unreachable` lands in the SAME outbox behind the parked
+  turn; the drain posts oldest-first; neither lost. RED: keep a separate
+  mid-turn store → the drain strands or reorders it. [unit]
+- **306-H** **Thread-scoped** — held in thread A: not posted, not visible, not
+  fired when `abandonPendingRun` runs and thread B opens; returning to A
+  restores it. RED: store the queue on the store rather than keyed to the
+  thread → it appears and fires in B. [unit]
+- **306-I** **Survives relaunch without auto-firing** — held → process death →
+  cold load: present, chip SURFACEs, nothing posted during launch. RED: drive
+  the fire off cold-load reconciliation → a post at launch. [unit]
+- **306-J** **The composer names the door and never says "sent"** —
+  `ComposerDoor` switch exhaustive over `.queued`/`.steered`/`.interrupted`; the
+  rendered string for a held message contains no form of "sent"; a held message
+  renders a cancel affordance that removes it with nothing posted. RED: enum →
+  Bool (exhaustiveness cannot compile); hardcode "Message sent" (string
+  assertion fails). C1 made testable. [unit + XCUITest]
+- **306-K** **THE GATE** — `scripts/mac/lane-gate.sh` → literal `GATE: PASS`
+  (Debug units + XCUITest + Release), unit count MOVED from a baseline measured
+  on this lane's own base commit (never inherited from the tracker). [Mac]
+- **306-L** **DEVICE, Owen** — one real remote conversation: (i) compose
+  mid-turn, watch it fire after the answer lands; (ii) compose mid-turn, Stop,
+  confirm nothing posts and the text is back in the composer; (iii) compose
+  mid-turn, background past the stall guard so recovery arms, confirm the
+  message waits for the reconcile. Evidence for (ii)/(iii) is the host's
+  `agent.log` (no POST for the held message), not the phone's screen. [device]
+
+**Traps carried from the dispatch (§10, read before building):** #292's producer
+overlap (the queue does not worsen it; do not fix it here), the
+`hasPendingDuplicateMessage` swallow (copy the drain's remove-row-first order —
+and a swallowed fire is a 306-B failure, not a no-op), the composer-text
+divergence on Stop-restore (decide and test; last-writer must not win),
+`retryMessage`'s outbox removal colliding with a held entry (audit in the
+id-fusion commit), and the decode-compatibility hazard — a
+`ComposeOutboxState` schema break silently EMPTIES a real user's outbox
+(`UserDefaultsAppPersistenceStore.swift:355` returns a default on failure), so
+the reshape ships with a decode-compatibility test.
+
+## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
+
+**The mechanism, traced at HEAD:** `drainComposeOutboxIfPossible()` guards on
+`!isStreaming` (`ChatStore.swift:1967`) and its trigger `refreshDirectHealth()`
+likewise (`:1926`) — neither uses `isTranscriptBusy`. During the reconcile
+window (`streamingMessageID == nil`, `pendingRun != nil` — precisely the state
+`:127-135` documents) the offline outbox can drain into a live run.
+`attemptReconcile` (`:2389`) then selects the last Hermes message with
+`timestamp > pending.sentAt` — which is the DRAINED turn's reply — re-attaches
+the dropped run's `partialReasoning` to it, stamps a `turnDuration` measured
+from the OLD turn's `sentAt`, and re-pairs it with the OLD prompt. Reachable
+sequence: turn 1 unreachable → turn 2 committed but its stream drops → health
+probe reports connected → drain fires turn 1 → **turn 1's answer is adopted as
+turn 2's.** Nothing errors; the transcript is plausible and wrong — the #278
+shape in the one place #278 did not sweep. **Fix: tighten both guards to
+`!isTranscriptBusy`** (one line each), inside #306's T4, cited against this
+number in the commit.
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -9480,6 +9634,31 @@ Size: S-M. Bars pre-register here before any code.
 > plan builds them together as **slice 3C** rather than shipping the queue first —
 > shipping it alone means designing the composer twice and unlearning the wording.
 > Detail: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.5 + §2.6.
+
+**SUPERSESSION + ROUTING, 2026-08-09 — the lane is #306; read that entry, not
+this sketch.** Three corrections to the text above (full derivation:
+`dispatch/FABLE-T27-267-message-queuing.md` §4):
+1. **The terminal set this entry assumed is STALE.** "Post it when
+   `run.completed` lands" describes a one-terminal feature; since filing,
+   #291 (Stop settles the user row `.delivered`), #294 (pre-token Stop removes
+   the placeholder), and #295 (expiration arms real recovery, but only when
+   `currentRunIsServerRecoverable`) rewrote the terminal landscape. The
+   12-row terminal matrix in **#306** supersedes this entry's parenthetical
+   edge-case list.
+2. **"An app-held queue" understates the scope by one axis** — the queue is
+   held against the THREAD, not the app: a message queued in thread A must
+   not fire into thread B (`abandonPendingRun` is the teardown seam).
+   Thread-scoped and durable, not merely app-held.
+3. **The blockquote's "slice 3C rather than shipping the queue first" was a
+   recommendation on an OPEN question (plan §5 Q7), and Owen answered it
+   2026-08-09: STANDALONE**, under binding constraints C1 (the composer names
+   the door from day one — `ComposerDoor` enum with `.steered`/`.interrupted`
+   present, never the word "sent"), C2 (readiness gate is `isTranscriptBusy`,
+   never `isStreaming`), C3 (a queued message mints no transcript row until it
+   sends). On the shipping default (`useRunsTransport` OFF) the steer door
+   does not exist, so the queue door is the only door — shipping it first
+   ships the door that is always taken. 3C still owns the steer and
+   interrupt-and-resend doors.
 
 ## 266. 🗃️ Separate the board by actionability — notes, decision records, and waiting items out of the way so OPEN_ITEMS reads as "what we need to work on" — **FILED 2026-08-06 late night (Owen: "we should probably separate the doc notes and other things from open items, so that its truly only 'open' items. Then, we'll know what we need to work on"); the successor to #261's archive split**
 
