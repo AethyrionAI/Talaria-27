@@ -392,6 +392,7 @@
 		C037C1F85943D624651BCB20 /* Icon-KaijuAttack@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 325BBB9012E78FDEBEC9F667 /* Icon-KaijuAttack@3x.png */; };
 		C071A887FB7D775DE0017757 /* IconPreview-SummerSolar.png in Resources */ = {isa = PBXBuildFile; fileRef = 85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */; };
 		C0FF81DED4CD6E59145668D7 /* TaskScheduleDraft.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19C6C9629F76EE94AD95BA67 /* TaskScheduleDraft.swift */; };
+		C1030FA2BBBCA9A79627A6F2 /* AppLockControllerRaceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DACB616F407B28D67410AC1F /* AppLockControllerRaceTests.swift */; };
 		C20AE3B12E90CF743FAD2077 /* Icon-LunarDiner@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */; };
 		C2DDCB8500B27F368AE44CC0 /* Icon-SpringSprout@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9E4DFA5389F9FC0BC51F405B /* Icon-SpringSprout@2x.png */; };
 		C3120A8C7A505783D2793FD2 /* MockEntitlementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DBDD32C7878328DCCBAADAF /* MockEntitlementService.swift */; };
@@ -1021,6 +1022,7 @@
 		D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceActionToolsTests.swift; sourceTree = "<group>"; };
 		D9E8AA633234249B0EC6C58B /* PairingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingStore.swift; sourceTree = "<group>"; };
 		DAC26BEA596A26F21093FF52 /* TalariaPlatformInboxServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformInboxServiceTests.swift; sourceTree = "<group>"; };
+		DACB616F407B28D67410AC1F /* AppLockControllerRaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockControllerRaceTests.swift; sourceTree = "<group>"; };
 		DAE15242F1EBCEF8DCE336A8 /* SharedWidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedWidgetDataStore.swift; sourceTree = "<group>"; };
 		DC388517E5C6F45D742F0E43 /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
 		DC4D288F004D52E614E5A280 /* Icon-CyberCactus@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CyberCactus@2x.png"; sourceTree = "<group>"; };
@@ -1202,6 +1204,7 @@
 				BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */,
 				8CEBE11A12DBCD1349D97C3B /* AlarmCommandParsingTests.swift */,
 				C1EBB25EF20155CC80C56FC4 /* AppIconCatalogTests.swift */,
+				DACB616F407B28D67410AC1F /* AppLockControllerRaceTests.swift */,
 				5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */,
 				3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */,
 				A3A103D6FF3E893A48AE64C3 /* AppTemplateTests.swift */,
@@ -2574,6 +2577,7 @@
 				8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */,
 				0D61F177FD88F4C441AB9C71 /* AlarmCommandParsingTests.swift in Sources */,
 				8948D8F45C1422C15C6D5DD4 /* AppIconCatalogTests.swift in Sources */,
+				C1030FA2BBBCA9A79627A6F2 /* AppLockControllerRaceTests.swift in Sources */,
 				FD770D93F0C4CBDACA2F2544 /* AppLockTests.swift in Sources */,
 				893E3D0A9F65586C2824B63E /* AppStoresTests.swift in Sources */,
 				3A416A1C3DE88071A6765234 /* AppTemplateTests.swift in Sources */,
