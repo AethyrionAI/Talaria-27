@@ -147,7 +147,7 @@ const SHOTS = [
     desc:"Where the gateway URL and its API_SERVER_KEY live. Chat talks straight to this — nothing in between.",
     notes:["Gateway URL and bearer key, stored per profile in the Keychain","Relay URL kept separate, because the two services fail independently"] },
   { src:"img/s_models.png", label:"MODELS", group:"SETTINGS", title:"Models.", alt:"Model roster",
-    desc:"Your full provider roster, read from the gateway's own API. Picks apply as a per-turn model lock plus a session pin.",
+    desc:"Your full provider roster, read from the gateway's own API. A pick applies as a per-turn model lock and takes effect immediately.",
     notes:["No third service — the old models shim on :8765 is retired","Switching mid-session doesn't restart anything"] },
   { src:"img/s_model_active.png", label:"MODEL · ACTIVE", group:"SETTINGS", title:"Model, mid-swap.", alt:"Model selection, active state",
     desc:"The transition state — what's pinned, what's about to take over, and what the next turn will actually use.",

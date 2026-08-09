@@ -183,6 +183,17 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   must ride the request, and a missing history does NOT error — the agent answers
   plausibly from long-term memory instead); and a freshly created, never-used session
   returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
+  **⏳ RE-VERIFICATION IN FLIGHT (2026-08-09) — treat the table below as
+  0.19.1-era until it lands.** The warning above says re-verify on 0.20.0 and
+  that was never done in full. Two things now make it urgent: the local
+  install (`~/.hermes/hermes-agent`) is a **SHALLOW CLONE** whose `git log`
+  bottoms out at 31 entries — so nobody can diff upstream history from it, and
+  a previously-reported "31 commits of drift" was that floor, not a
+  measurement — and Owen reports upstream moving hundreds of commits in days.
+  Results will land in `planning/reports/2026-08-09-route-table-reverify.md`.
+  **Until then: do not add a NEW route claim on the strength of this table,
+  and re-probe anything you are about to design against.**
+
   **The complete `:8642` table, verified 2026-08-02 against a
   fresh 0.19.1 process:**
   `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY

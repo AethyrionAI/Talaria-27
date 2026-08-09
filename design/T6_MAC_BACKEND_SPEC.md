@@ -72,8 +72,11 @@ deployment, not the Mac.
    it's one env var).
 2. **Connector → Hermes config:** setup registers the `hermes_mobile` MCP server in
    `~/.hermes/config.yaml` and validates with `hermes-mobile validate-mcp` (equivalent of
-   `hermes mcp test hermes_mobile`); copy the `hermes-ios` skill into `~/.hermes/skills/`
+   `hermes mcp test hermes_mobile`); copy the `talaria` skill into `~/.hermes/skills/`
    (**real copy, not symlink** — setup does NOT do this automatically), then `/reload-mcp`.
+   *(Corrected 2026-08-09: this said `hermes-ios`, a directory that has not existed
+   since the 2026-08-05 rename under #255. As written the step silently copied
+   nothing.)*
 3. **Relay → gateway push-watch (#38):** `GATEWAY_BASE_URL=http://127.0.0.1:8642` +
    `GATEWAY_API_KEY` = the **Mac's** `API_SERVER_KEY` (from the Mini's `~/.hermes/.env`) so
    run-completion pushes fire from the local gateway. Do NOT copy OJAMD's key.

@@ -24,7 +24,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | Tool calls & agent files | Working |
 | Inbox / Directives & daily briefing | Working — actionable items (approvals, reminders, briefings) land in the in-app inbox; approve or dismiss in place |
 | Sensor pipeline (location / HealthKit / motion) | Working — deliberate opt-in (off by default) with per-sensor grants; resume-from-background can occasionally be flaky |
-| Model picking | Working — the full provider roster comes from the gateway's own API; picks apply as a per-turn model lock plus a session pin. The old models shim is retired — no third service |
+| Model picking | Working — the full provider roster comes from the gateway's own API; a pick applies as a **per-turn model lock**, and takes effect immediately. The old models shim is retired — no third service |
 | Widgets & Live Activities | Working — status, health, and briefing widgets; alarm Live Activity; lock-screen controls |
 | Share extension | Working — share URLs, images, files, and text into Hermes from any app |
 | Notifications (local + push) | Removed by design — the app posts no notifications and registers for no push; chat, the inbox, and Live Activities carry state in-app |
@@ -72,7 +72,7 @@ iPhone (Talaria)
                                    → connector → hermes_mobile MCP tools
 ```
 
-Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster, per-turn lock, session pin). The relay carries everything else phone-facing: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster fetch, then a per-turn lock carried on each request). The relay carries everything else phone-facing: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
