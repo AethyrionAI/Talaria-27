@@ -266,6 +266,7 @@ prose phase renders as *not applied* — not as success.
 | tool in flight | plugin `steer` → injected at the next tool-result boundary | "steering this turn" |
 | prose phase | app-held queue, fires on `run.completed` | "queued — sends when this turn ends" |
 | stream lost, run still live | queue (the run is unreachable for steering anyway) | "queued" |
+| | ⚠️ *superseded 2026-08-09 (#306/#307): row 3's queue is HELD until the pending run resolves — firing into a live `pendingRun` lets `attemptReconcile` adopt the queued turn's reply as the dropped run's answer. Queue yes; fire no.* | |
 | user chooses Interrupt | `/stop` then send as a fresh turn | "stopped — sending as a new message" |
 
 The composer never asks the user to understand tool-result boundaries. It picks the door and
@@ -469,6 +470,12 @@ Each has a recommendation. "Approved" means all of them as recommended.
    *Recommendation:* **Inside 3C.** Standalone is tempting because it has no host dependency, but
    §2.6 shows steer and queue are one state machine; shipping the queue alone means designing the
    composer twice and risks the "sent" wording we would then have to unlearn.
+   **✅ ANSWERED by Owen, 2026-08-09: STANDALONE, as #306** — under three binding constraints
+   that neutralize this recommendation's stated risk (C1 the composer ships the `ComposerDoor`
+   enum with `.steered`/`.interrupted` present from day one and never says "sent"; C2 the gate is
+   `isTranscriptBusy`; C3 chip-not-row, no transcript row until the send fires). Rationale: on the
+   shipping default (`useRunsTransport` OFF) the steer door does not exist, so the queue door is
+   the only door. 3C keeps the steer and interrupt-and-resend doors. See #306's entry.
 
 8. **tui_gateway: formally drop it from the roadmap, or keep it as a someday row?**
    *Recommendation:* **Drop it from the phone's roadmap; keep the D dossier as the desktop-face
