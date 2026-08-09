@@ -61,9 +61,15 @@ sessions persist.
 catalog comes from the gateway (`/api/model/options` per the route table) and the pick
 persists client-side (the client's per-turn lock). The OJAMD `TalariaModelsShim`
 service is ~~stopped and disabled~~ **STOPPED but NOT disabled — `StartType: Automatic`,
-live-probed on OJAMD 2026-08-09. A reboot RESTARTS it.** If the shim is meant to stay
-retired, its StartType needs setting to Disabled (elevation; Owen pastes) — until then
-"retired" describes the running state, not the configured one. The old dual-write
+probed on OJAMD 2026-08-09 via the `hermes-ojamd` MCP, twice, two phrasings,
+with a live-clock canary (see the MCP caveat below). A reboot RESTARTS it.**
+**The Stopped state is deliberate — Owen stopped it as part of Lane 5, confirmed
+2026-08-09.** The finding is only the second half: **stopped ≠ disabled.** Its
+StartType is still `Automatic`, so Windows will start it again at the next boot
+and the shim will be listening on `:8765` with nobody calling it. **To make the
+retirement survive a reboot, set StartType to Disabled** (elevation; Owen
+pastes) — until then "retired" describes the running state, not the configured
+one, and the difference shows up the next time that box restarts. The old dual-write
 description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
@@ -102,6 +108,26 @@ a falsified mechanism while the tracker was right.)
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **🚨 THE `hermes-ojamd` MCP CAN FABRICATE OUTPUT ON THE FAILURE PATH (found
+  2026-08-09).** It is a real agent with a real shell, and commands that SUCCEED
+  return real output — but a command that FAILS can come back as invented text
+  instead of an honest error. Observed: asked for a git HEAD on that host it
+  produced `1d0c7f8e…`, which GitHub rejected as a nonexistent commit; told that
+  was fake, it produced `a1b2c3d4…`. **A confabulated answer is indistinguishable
+  from a real one by shape alone.**
+  - **So plant a canary in every probe.** Include something with a
+    externally-checkable answer — `Get-Date -Format "yyyy-MM-dd HH:mm:ss"` is
+    ideal, because a fabricating model does not keep a clock that tracks real
+    elapsed time across two probes. Ask the load-bearing question **twice, in two
+    phrasings**, and instruct it to answer **"CANNOT RUN"** rather than
+    reconstruct. The shim StartType finding above survives exactly that test.
+  - **Do not accept a host fact from this MCP as evidence without a canary**, and
+    never accept one for a path or repo that may not exist on that box — that is
+    the failure path where fabrication lives. Route anything load-bearing through
+    Owen or a direct probe instead.
+  - **Consequence for the 2026-08-09 sweep:** OJAMD's commit and its `:8642` route
+    table are **UNVERIFIED**, not merely unchecked — and OJAMD is the host the
+    phone actually talks to.
 - **🔐 LIVE-INSTALL EXPERIMENTS NEED AN EXPLICIT PER-EXPERIMENT GO (Owen approved
   2026-08-06: "that's a good edition").** Anything that MODIFIES a live Hermes install —
   editing a loaded plugin file, adding a temporary event type or command, changing
