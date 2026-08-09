@@ -199,7 +199,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#242** ✅ LOCAL-ANSWER BRIDGE — **CLOSED 2026-08-09: DELIVERED as #251 Slice 2A (talaria_phone_query + PhoneQueryResponder), device-proven 2026-08-06**
-- **#241** 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and …
+- **#241** ✅ HERMES CORE — **CLOSED 2026-08-09 (RECLASSIFIED): the self-name IS a documented virtual model (by design); the 200-on-prose-failure half is OURS and moved to #180. Park dissolved, nothing to submit.**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
 - **#235** 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips …
@@ -4346,6 +4346,35 @@ Logged 2026-07-23.
 
 ## 180. 🎨 UMBRELLA — the app hides its own degradation: four instances, one design default
 
+> **➕ INSTANCE ADDED 2026-08-09 — inherited from #241, which closed as
+> RECLASSIFIED rather than fixed (Owen's ruling).**
+>
+> **A host-fed prose failure is indistinguishable from a real answer.** The
+> gateway's `_handle_session_chat` returns an unconditional HTTP 200 with the
+> agent's text — and that is *defensible upstream*, because the gateway runs an
+> agent rather than proxying a model call: the turn really did complete. But the
+> consequence lands on us. When the agent could not reach any model and says so
+> in prose, **Talaria renders that with exactly the confidence of a real
+> reply** — no failure strip, no degraded marker, nothing.
+>
+> **This is the umbrella's rule with the sign unchanged:** a seam rendering state
+> the app does not own, modelled as two-valued (answer / no-answer) when the
+> truth is three (answer / prose-failure / no-answer), with UNKNOWN landing on
+> the affirmative side. Sibling of **#132**, which is the same defect for
+> attachments the host cannot see — and #132 already shows the local plane
+> disclosing blindness in-band while the remote plane does not.
+>
+> **Answer this BEFORE writing bars:** is there a machine-readable
+> discriminator? The reply carries a `runtime` block (`provider` / `model` /
+> `route_source` / `model_lock`). **If it is null or degraded when no model was
+> reached, this is a small lane. If the only signal is the prose itself, it is a
+> much harder one** — and it should be scoped that way from the start rather
+> than discovered mid-flight. The register's existing entries were all
+> structural; this is the first that may have no structural tell at all.
+>
+> Full derivation, the sentinel mechanism, and the dissolved park: **#241**.
+
+
 > **INSTANCE 4 CLOSED 2026-08-02 — Owen rejudged the disconnection-indicator question
 > mid-outage on a #237–#242 build (device pass §F5):** *"Now that I see the attempt to
 > send, yes, I think that's enough."* The reactive convention (failure strips, "as of"
@@ -5497,6 +5526,64 @@ unaffected (still `.delivered`, still silent, no reconcile armed);
 not walk — the doc half, being fixed now in the #291 lane.
 
 > **OWEN'S RULING 2026-08-08: the recommended shape is APPROVED — settle `.working` + arm the plane-appropriate recovery, expiration path (`hardStopHost: false`) ONLY.** Sessions plane: the reconcile loop `.interrupted` already arms. Runs plane: the status poll (the answer is durably fetchable for ~1h). User-initiated Stop unchanged (`.delivered`, silent, no reconcile — bar 295-B). Bars 295-A/B/C stand as registered. Interaction with #292 noted, not blocking. Lane not yet opened; Owen routes scheduling.
+
+> **⚠️ SUPERSESSION 2026-08-09 — THE RULING STANDS, ITS STATED REASONING DOES
+> NOT. Second correction to this same ruling in one day.** Corrected here, at
+> the claim's own home, per the close-out rule.
+>
+> **The falsified parenthetical:** this entry and the ruling above both say the
+> runs-plane answer is *"durably fetchable for ~1h by status poll"*, and the
+> ruling picked the runs plane partly because it *"may be a better recovery than
+> the sessions-plane reconcile it would inherit."* **It is the weaker of the
+> two.** `self._run_statuses` is a plain in-memory `Dict`
+> (`api_server.py:1433`) with `_RUN_STATUS_TTL = 3600` (`:6344`) — **a gateway
+> restart drops it and `GET /v1/runs/{id}` returns 404 `run_not_found`.** The
+> sessions plane's target is on disk (`SessionDB(state.db)`) and survives. The
+> hour is a TTL, not durability.
+>
+> *(The earlier correction, same day: the ruling said "Runs plane: the status
+> poll" when the sessions-messages GET shipped on both planes. **Twice now the
+> outcome was right and the justification was wrong** — both were written from
+> prose summaries rather than the code, which is the failure this project keeps
+> paying for.)*
+>
+> **Upstream moved recoverability UP, not down — the shipped gate is safe.**
+> `51fa7db46` then `d9ddfb23d` (both ancestors of the installed head) now
+> cooperatively interrupt in-flight turns on gateway shutdown. `d9ddfb23d`'s
+> `_shutdown_interruptible_agents` registry is armed at the one unconditional
+> agent-creation site in `_run_agent()`, so it covers **both session-chat
+> routes — our plane.** A cooperative interrupt reaches the single post-loop
+> `finalize_turn(...)`, where `_persist_session` is **not** gated behind a
+> not-interrupted check. **So a gateway restart now writes a closing assistant
+> row where it previously wrote none** — the turn used to sit parked until the
+> process died. Recoverability moved in exactly one direction.
+>
+> **Bars re-checked, all still MET.** 295-A better supported than when it was
+> scored — note a recovered reply can now legitimately be the literal
+> `"Operation interrupted."` (the placeholder `close_interrupted_tool_sequence`
+> appends); that is honest prose and satisfies "neither a false failure nor a
+> silent hole." The interrupt *reason* never enters the transcript. 295-B
+> untouched — these are shutdown-time paths only and `POST /v1/runs/{id}/stop`
+> is unchanged. 295-C: no shipped Swift comment makes a durability claim; the
+> overclaim was tracker prose, corrected above.
+>
+> **Residual, recorded not fixed — and it is NOT a regression:** the closing
+> placeholder is appended only when the tail is a `tool` message. **An interrupt
+> during the first model call — no tool run yet, no assistant row — closes
+> nothing**, so the armed reconcile finds nothing to recover. Best-effort on
+> that sub-case.
+>
+> **Intersection worth knowing:** #295 fires when iOS revokes a background
+> budget (`hardStopHost: false`), where the host is never told to stop. Gateway
+> shutdown is an independent event, so the overlap is "budget revoked **and**
+> gateway restarts mid-turn" — narrow, **but real, because the gateway is
+> restarted after every `hermes update`.**
+>
+> **No code change owed.** The one cheap probe that would upgrade this from
+> code-read to verified: start a sessions-plane turn on the Mac, `kill` the
+> gateway mid-turn (launchd respawns clean), then `GET
+> /api/sessions/{id}/messages` and look for the closing assistant row.
+
 
 > **🔧 FIX LANDED 2026-08-08 on `t27-295-expiration-recovery`, TDD with RED
 > evidence at every step. Gate PASS. Bars 295-A/B/C all MET.** Three
@@ -9447,7 +9534,47 @@ inline and skip Hermes for that turn; (3) the setting's name and default;
 does not come back with this and should be said out loud when deciding #223's
 sensor question.
 
-## 241. 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.**
+## 241. ✅ ~~🐛 HERMES CORE (upstream)~~: gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — **✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.** *(historical: ⏸ PARKED UNSUBMITTED 2026-08-04 night, Owen's call: not critical to us — the app rides the (working) lock plumbing, and #246/#235 guard the failure shape client-side. Draft + evidence preserved at `handoffs/241-upstream-report-DRAFT.md`; the submission gate (his read + explicit go on the exact text) stands unchanged if ever revived.)*
+
+> **✅ CLOSE-OUT 2026-08-09 — RECLASSIFIED, not fixed and not abandoned. Owen's
+> ruling on the direct question "does 241 need to be removed as by design / not
+> broken?" — yes for one half, no for the other.**
+>
+> **HALF ONE — "sends its own self-name as the model id" — IS BY DESIGN.
+> STRUCK.** `hermes-agent` is a deliberate, documented **virtual model** meaning
+> *"use the gateway default"* — upstream's own words at `api_server.py:379`.
+> This item carried it as a defect for five days; it never was one. **The
+> mechanism is retained rather than deleted**, because it is what makes the
+> standing ops rule intelligible: *leave "API server model name" EMPTY* — it is
+> the routing sentinel (`:2345`), not a label, and moving it apart from what
+> sessions persisted (`:3397`) is what manufactures a bogus model id. See the
+> block above and CLAUDE.md's OJAMD section.
+>
+> **HALF TWO — "reports the failure as HTTP 200" — SURVIVES, but it is not
+> upstream's bug either.** `_handle_session_chat` ends in an unconditional
+> `web.json_response({...})` with no error branch — verified by reading it, not
+> relayed. **But the gateway is not proxying a model call; it is running an
+> agent.** If the agent ran and produced prose, the turn genuinely completed —
+> HTTP 200 honestly means *"the agent turn finished"*, not *"the model call
+> succeeded."* That is defensible, and it is why no upstream report is owed.
+>
+> **What is left is OURS, and it belongs to #180:** Talaria cannot distinguish a
+> real answer from a prose failure report. Same shape as #132 (confident replies
+> when the host cannot see attachments) — the app presenting certainty it has not
+> earned. **Moved to #180's instance register; do not track it here.**
+>
+> **THE OPEN TECHNICAL QUESTION, for whoever takes the #180 instance — answer it
+> BEFORE writing bars:** is there a machine-readable discriminator? The response
+> carries a `runtime` block (`provider` / `model` / `route_source` /
+> `model_lock`). If that is null or degraded when no model was reached, there is
+> something testable. **If the only signal is the prose, this is a materially
+> harder lane** and should be scoped as such rather than discovered mid-flight.
+>
+> **The park is DISSOLVED.** `handoffs/241-upstream-report-DRAFT.md` is now a
+> **historical artifact, not a pending decision** — there is nothing to submit,
+> so the submission gate has nothing to gate. One fewer open question on Owen's
+> plate; the draft stays on disk as the evidence trail.
+
 
 > **🔑 MECHANISM COMPLETED 2026-08-09 — and there is a USER-FACING SWITCH that
 > triggers it. Owen surfaced it from a screenshot of Hermes desktop →
