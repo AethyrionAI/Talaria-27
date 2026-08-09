@@ -2300,6 +2300,114 @@ extension LocalChatBackend {
         return claimed || syntax
     }
 
+    /// #297's A/B: does a registry-generated capability index on the TOOLLESS
+    /// branch make "What can you do?" honest without costing the branch's own
+    /// honesty? Bars 297-A/B/C are pre-registered in OPEN_ITEMS #297; spec is
+    /// `planning/superpowers/specs/2026-08-08-297-toolless-index-ab-design.md`.
+    ///
+    /// Belt is EMPTY in both arms — this is the toolless branch, so no tool
+    /// executes and no confirmation gate can fire. Control runs FIRST: the
+    /// incumbent takes the cool slot (#201B).
+    ///
+    /// **Both arms build through `productionToollessInstructions`.** Never a
+    /// copied string — #202D exists because a measured arm once went stale
+    /// against text production had already changed.
+    ///
+    /// **Deliberate deviation from the spec's §4 (flagged in the plan's
+    /// self-review, not hidden):** the spec said reuse `executeBatteryTrial`.
+    /// That helper emits a fixed line shape (`battery: shape=… p=… t=…
+    /// cant=… denial=… chars=… inTok=… outTok=… text=…`) two OTHER batteries
+    /// depend on byte-identically, and it has no way to carry 297-A's family
+    /// count or 297-C's claim/syntax verdict without either changing that
+    /// shared line or bolting on optional parameters that would still need
+    /// a different prefix (`[toolless-index]`) and a different field order
+    /// than every existing caller. Inlining an equivalent trial loop here
+    /// keeps the shared helper — and its two dependents — untouched.
+    func runToollessIndexBattery(trials: Int) async {
+        guard Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+
+        let prompts: [(tag: String, text: String)] = [
+            ("whatcanyoudo", "What can you do?"),
+            // Verbatim from the #196-family canaries so this run's numbers are
+            // comparable to every prior battery's (#205: copy, never re-point).
+            ("canary", "What's 2+2?"),
+            ("haiku", "Write a haiku about sledding"),
+        ]
+        let arms: [(name: String, index: Bool)] = [("control", false), ("treatment", true)]
+        let nonVisionFamilies = CapabilityGroup.allCases.filter { $0 != .vision }.count
+
+        Self.batteryEmit("battery: TOOLLESS-INDEX START trials=\(trials) arms=\(arms.count) prompts=\(prompts.count) (#297)")
+        Self.batteryRecorder.beginRun(trialsPerCell: trials,
+                                      cells: arms.map(\.name), kind: "toolless-index")
+
+        for arm in arms {
+            let instructions = Self.productionToollessInstructions(
+                deviceContext: Self.deviceContextLine(),
+                hasImageTools: false,
+                includeToollessCapabilityIndex: arm.index
+            )
+            for (tag, prompt) in prompts {
+                var familiesGE8 = 0
+                var claimOrSyntax = 0
+                var cantCount = 0
+                var denialCount = 0
+                for trial in 1...trials {
+                    ToolEventRelay.batteryTrialTag = "toolless-index arm=\(arm.name) p=\(tag) t=\(trial)"
+                    Self.batteryRecorder.beginTrial()
+                    let session = LanguageModelSession(
+                        model: model, tools: [], instructions: Instructions(instructions))
+                    let respondTask = Task {
+                        try await session.respond(to: Prompt(prompt),
+                                                  options: Self.chatGenerationOptions(for: activeTier))
+                    }
+                    let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+                    do {
+                        let response = try await respondTask.value
+                        timeoutTask.cancel()
+                        let text = response.content
+                        let lower = text.lowercased()
+                        let named = Self.toollessIndexFamiliesNamed(in: text)
+                        let violates = Self.toollessIndexViolates297C(text)
+                        let cant = lower.hasPrefix("i can\u{2019}t") || lower.hasPrefix("i cant")
+                            || lower.hasPrefix("i cannot") || lower.hasPrefix("i can not")
+                            || lower.hasPrefix("i can't")
+                        let denial = Self.batteryDenialPatterns.contains { lower.contains($0) }
+                        if named.count >= 8 { familiesGE8 += 1 }
+                        if violates { claimOrSyntax += 1 }
+                        if cant { cantCount += 1 }
+                        if denial { denialCount += 1 }
+                        let flat = text.replacingOccurrences(of: "\n", with: " / ")
+                        Self.batteryEmit("battery: [toolless-index] arm=\(arm.name) p=\(tag) t=\(trial) families=\(named.count)/\(nonVisionFamilies) named=\(named.map(\.rawValue).sorted().joined(separator: "+")) claimOrSyntax=\(violates) cant=\(cant) denial=\(denial) chars=\(text.count) text=\(String(flat.prefix(500)))")
+                        // The FULL text goes to the recorder — 297-C's
+                        // transcript backstop (spec §5.3): a pattern gap must
+                        // not be able to pass a zero-tolerance bar silently.
+                        Self.batteryRecorder.endTrial(shape: arm.name, prompt: tag, trial: trial,
+                                                      text: text, cant: cant, denial: denial,
+                                                      inputTokens: response.usage.input.totalTokenCount,
+                                                      outputTokens: response.usage.output.totalTokenCount)
+                    } catch is CancellationError {
+                        timeoutTask.cancel()
+                        Self.batteryEmit("battery: [toolless-index] arm=\(arm.name) p=\(tag) t=\(trial) TIMEOUT")
+                        Self.batteryRecorder.endTrialTimeout(shape: arm.name, prompt: tag, trial: trial)
+                    } catch {
+                        timeoutTask.cancel()
+                        Self.batteryEmit("battery: [toolless-index] arm=\(arm.name) p=\(tag) t=\(trial) ERROR=\(String(String(describing: error).prefix(200)))")
+                        Self.batteryRecorder.endTrialError(shape: arm.name, prompt: tag, trial: trial,
+                                                           error: String(describing: error))
+                    }
+                }
+                Self.batteryEmit("battery: [toolless-index] ARM SUMMARY arm=\(arm.name) p=\(tag) familiesGE8=\(familiesGE8)/\(trials) claimOrSyntax=\(claimOrSyntax)/\(trials) cant=\(cantCount)/\(trials) denial=\(denialCount)/\(trials)")
+            }
+        }
+        ToolEventRelay.batteryTrialTag = nil
+        Self.batteryEmit("battery: TOOLLESS-INDEX DONE (#297)")
+        Self.batteryRecorder.endRun()
+    }
+
     // MARK: - (#202A) context-blind router probe
 
     /// Which band a grid row belongs to. The bars are written per band, so
