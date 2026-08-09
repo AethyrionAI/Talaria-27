@@ -5956,6 +5956,92 @@ next reader of #276 has both sites in one place. Every other
 checked and is either a fresh construction, a mutate-a-copy, or a
 decode-from-wire — none carry the shape.
 
+> **📌 BARS PRE-REGISTERED 2026-08-09, before any code was touched** — one
+> lane/branch with #287 (`dispatch/OPUS-T27-287-289-audit-residue.md`), per
+> the #291/#294/#293 bundling precedent. Bars live in the entry, not only in
+> a dispatch doc (the #215-era convention).
+>
+> - **289-A** — `staged(atLocalPath:)` preserves every property of its input
+>   including `anchorOffset`. *As filed, unchanged in substance.* Evidence:
+>   the extended `AgentFileFetchTests.stagedCopyKeepsIdentityAndFetchPointer`
+>   passes. No device — unit test.
+> - **289-B** — its test asserts the full property set, so the next field
+>   added to `MessageAttachment` fails loudly here instead of silently
+>   defaulting. **REFINED, and the refinement is the load-bearing part:** the
+>   input's `anchorOffset` must be SEEDED non-nil before `staged()` runs.
+>   Every real call site hands it a nil anchor today, so a nil-vs-nil
+>   comparison passes against the UNFIXED code and proves nothing — the
+>   "tests written after a defect" trap, where the assertion is pinned to
+>   something the bug cannot move. Mechanism: a whole-struct equality
+>   (`MessageAttachment` is already `Hashable`, so `==` is synthesized)
+>   against an `expected` that names all ten properties, **plus** a
+>   stored-property-count pin (`Mirror(reflecting:).children.count == 10`) so
+>   that property #11 lands as a RED here instead of quietly defaulting on
+>   both sides of the comparison.
+>   - **Why not the tidier copy-and-mutate** (`var expected = attachment;
+>     expected.localStoragePath = path`), which the dispatch's task breakdown
+>     proposes: **it does not compile.** `localStoragePath` is `let`
+>     (`Message.swift:11`) — only `anchorOffset` is `var`, exactly as this
+>     entry's own "the type system CANNOT catch it when the property is an
+>     `Optional var`" framing says. The dispatch contradicts itself between
+>     its §Verified state and its §Task breakdown here; the count pin is what
+>     buys back the future-field coverage the copy-and-mutate form would have
+>     given for free.
+>
+> **No device.** Both halves of this lane are static/struct assertions; the
+> gate's simulator Debug suite + Release build are sufficient.
+
+> **⚠️ CITATION DRIFT CORRECTED 2026-08-09 (close-out rule — corrections go
+> to the claim's own home, and this is it). The VERDICTS all survive
+> re-verification; only line numbers and one count were wrong.** Five-plus
+> lanes (#283, #285, the #291/294/293 bundle, #295, #297) have merged into
+> `ChatStore.swift` since this was filed on 2026-08-07, which is where the
+> drift comes from — not a wrong claim at filing time.
+>
+> - **The non-nil `anchorOffset` assignment sites: `:690`, `:762`, `:2439` →
+>   now `:751`, `:823`, `:2810`. The COUNT OF THREE WAS RIGHT — only the line
+>   numbers moved.** Established by reading the file at the filing-day commit
+>   (`git show bafa04e:Talaria/Stores/ChatStore.swift`), not by inferring
+>   from deltas: at that commit `:690` is the Tier-1 mint
+>   (`anchored.anchorOffset = conv.messages[idx].content.count`, now `:751`),
+>   `:762` is the finish-boundary transfer
+>   (`resolved.attachments[i].anchorOffset = streamedAnchors[…]`, now `:823`)
+>   and `:2439` is `mergeAttachments`' carry-forward (now `:2810`). All three
+>   citations were exact when filed.
+>   - **⚠️ The routing dispatch's recount ("exactly 2 sites, not 3") is
+>     ITSELF WRONG and is superseded here.** It read the middle site as the
+>     dictionary comprehension at `:817` (`chip.anchorOffset.map { … }`,
+>     genuinely a read) and concluded a read had been miscounted — but the
+>     entry meant `:823`, six lines below it, which really does assign.
+>     Recorded because a dispatch is ephemeral and this entry is where the
+>     correction has to live; corrections that themselves need correcting are
+>     exactly what the close-out rule is for.
+>   - Only `:751` MINTS a value; `:823` and `:2810` transfer or carry forward
+>     one that came from it. That distinction — not the count — is what the
+>     entry's verdict rests on.
+> - **The invariant is re-confirmed and NOT A LIVE BUG TODAY still holds:**
+>   `staged()` is called only from `ChatStore.swift:1501` (inside
+>   `fetchAgentFile`, guarded by `localStoragePath == nil` — a
+>   not-yet-downloaded Tier-2 chip), and all three assignment sites trace
+>   back to the Tier-1 `.artifactProduced` mint, so a Tier-2 chip's
+>   `anchorOffset` is always nil when `staged()` runs.
+> - **`mergeAttachments`: `:2404-2442` → `:2775-2813`; its #276 fix comment
+>   `:2394-2400` → `:2762-2774`.** Content unchanged.
+> - **`mergeConversationMetadata`'s `Conversation(...)` rebuild:
+>   `:2325-2332` → `:2696-2703`** (the containing function is `:2578-2711`).
+>   **FRAGILE-BUT-COMPLETE is re-confirmed current:** it carries 6 of
+>   `Conversation`'s 6 stored properties (`Conversation.swift:9-17`), so
+>   nothing is dropped there today and nothing is being fixed there.
+> - **Beware a bare `grep anchorOffset`:** `ChatStore.swift:715` is
+>   `ToolActivity.anchorOffset` — a different struct in a different file that
+>   happens to share the field name. Check the receiver type before counting
+>   a hit.
+> - **The one thing being ADDED at the `mergeConversationMetadata` site is a
+>   comment, and only a comment** — mirroring the "if you add a field, add it
+>   here" guard `mergeAttachments` has carried since the #276 fix and this
+>   rebuild has never had. No behaviour change; the FRAGILE-BUT-COMPLETE
+>   finding above stays a non-defect.
+
 ## 288. 🧹 Orphan device rows on paired hosts — audit + deactivate, one-time chore, **RE-RUN OWED after #285 is fixed for good** — **FILED 2026-08-07 evening on Owen's routing ("yes to the data chore as well, I bet it needs to be run now, and then put it on the books to be run after its fixed for good"). BASELINE AUDIT RAN THE SAME EVENING — result: NOTHING TO CLEAN. Chore stays open for the post-fix re-run.**
 
 **Where it comes from:** #285's repro 3b showed a re-pair reaching a
@@ -6035,6 +6121,48 @@ registration exists; **(287-B)** `backgroundBootstrap` mirrors actual
 execution order; **(287-C)** launch partition tests green; archived history
 stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 `LaunchInitStep` archive hits are the historical #136-era work, not this.
+
+> **📌 BARS PRE-REGISTERED 2026-08-09, before any code was touched** — one
+> lane/branch with #289 (`dispatch/OPUS-T27-287-289-audit-residue.md`), per
+> the #291/#294/#293 bundling precedent. Bars live in the entry, not only in
+> a dispatch doc (the #215-era convention).
+>
+> - **287-A** — no live launch-contract entry claims push registration
+>   exists. *As filed.* This one is a review checkpoint, not a CI assertion —
+>   no test can principledly grep its own source for a removed word.
+>   Evidence: `grep -n "push" Talaria/Stores/AppContainer.swift` returns
+>   nothing inside the `LaunchInitStep` block or the degraded-mode comment.
+>   The two surviving hits at `:63` and `:390` pre-date this case (a
+>   design-doc line and a #144 device-row comment, both using "push" for an
+>   unrelated concept) — out of scope, left alone.
+> - **287-B** — `backgroundBootstrap` mirrors actual execution order.
+>   **REFINED with a concrete mechanism, because the existing suite turns out
+>   not to cover it at all:** `launchCriticalPathIsLocalOnly`
+>   (`AppStoresTests.swift:4680-4705`) checks the partition against
+>   `allCases`, and `allCases` shrinks by exactly one the moment the case is
+>   deleted — so that assertion is trivially true both before and after and
+>   can never see this ghost. Nothing in the suite pins the CONTENTS of
+>   either list. The bar is met by a NEW literal-pin test,
+>   `backgroundBootstrapHasNoGhostSteps`, asserting
+>   `backgroundBootstrap == [.sessionBootstrap, .validateRestoredIdentity,
+>   .hostRefresh, .inboxLoad, .commandCatalogRefresh, .gatewayModelSeed,
+>   .sensorForegroundRefresh]` — 7 steps, order significant (#3/#46).
+> - **287-C** — launch partition tests green: `launchCriticalPathIsLocalOnly`
+>   plus the new pin, inside `scripts/mac/lane-gate.sh`'s Debug suite.
+>
+> **No device.** Both halves of this lane are static/struct assertions; the
+> gate's simulator Debug suite + Release build are sufficient.
+>
+> **Re-verified 2026-08-09 — and unlike #289's, THIS entry has not drifted.**
+> The three preamble citations `:249` / `:266` / `:283` still match exactly
+> at HEAD. The *dynamic* half of the claim ("`runBackgroundBootstrap` no
+> longer performs it") was the part that needed a fresh trace, and it holds:
+> `AppContainer.swift:1389-1436` calls `sessionStore.bootstrap()`,
+> `pairingStore.validateRestoredIdentity()`, `hostStore.refresh()`,
+> `inboxStore.loadInbox()`, `refreshCommandCatalog(force: true)`,
+> conditionally `seedActiveModelFromGateway()`,
+> `sensorUploadService?.handleAppDidBecomeActive()`, `updateWidgetData()` —
+> and nothing anywhere in the file registers a push token.
 
 ## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED → ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
 
