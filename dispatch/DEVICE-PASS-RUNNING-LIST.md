@@ -111,7 +111,16 @@ build lane.~~
 > stays open. This row is done — no re-run is owed. Full numbers, the
 > per-trial distribution, and the compression finding: OPEN_ITEMS #297.**
 
-### Z2 · #290(a) — history-vs-body-budget, read the logged sizes · **RULED: measure before deciding**
+### Z2 · #290(a) — history-vs-body-budget, read the logged sizes · ~~RULED: measure before deciding~~ **✅ MEASURED 2026-08-09 — warning did NOT fire on the worst realistic case; full numbers and the decision-ready summary in OPEN_ITEMS #290. Only Owen's ruling remains.**
+
+> **✅ 2026-08-09, build 2330:** ~50-turn thread (95 server rows, 237 KB by the
+> app's formula) + a 3-photo turn, runs plane VERIFIED via the host access log
+> (`POST /v1/runs` 202 — do not trust the toggle alone; an off-toggle run is
+> silent in exactly the same way as an under-budget one). Warning silent with a
+> positive control. The app sent `history=32` — it windows history, which
+> bounds the growth this row worried about. Photos described correctly via the
+> host's auxiliary vision model. Recommendation recorded in #290:
+> leave measured-and-unbounded.
 
 - **What to do:** Developer screen → **Runs Transport switch ON** (it ships OFF).
   Then a LONG thread plus an image-attached turn — the shape that can exceed the

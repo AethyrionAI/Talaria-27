@@ -6850,6 +6850,37 @@ Both are cheap NOW while the runs path is behind an OFF switch and
 
 > **OWEN'S RULINGS 2026-08-08.** **(a) Measure deliberately before deciding:** a dedicated pass — runs switch ON (Developer), long-thread + image turns — then read the logged sizes and rule; no trimming or budget change from first principles. The one-shot warning log stands guard meanwhile. **(b) NO whole-`send()` deadline, ruled on the merits:** host model choice varies wildly in think time (Owen's example: Kimi K3 vs DeepSeek flash), so any fixed whole-turn clock would misclassify slow models as failures. Per-op transport timeouts remain the transport-health check; slow models ride the durable status-poll recovery. The 20s 'parity' framing is retired — sessions-plane streaming starts fast because it streams, not because the model is bounded; run completion time is model-dependent by design. The honest-claim halves already shipped in #283; (b) is now CLOSED as ruled, (a) stays open pending the measurement pass.
 
+**✅ (a)'s MEASUREMENT PASS RAN 2026-08-09 (device list row Z2) — build 2330,
+Mac profile, Runs Transport ON, the worst realistic case deliberately chosen:
+one of Owen's longest threads (~50 visible turns; 95 rows server-side) plus a
+THREE-photo turn. The decision is now data-shaped:**
+
+- **The turn verifiably rode the runs plane** — `POST /v1/runs` → 202 from the
+  phone at 14:45:36 (host access log), events stream served 61,625 bytes. Not
+  assumed from the toggle: the silence trap here is that an off-toggle run
+  logs nothing and reads identically to under-budget.
+- **The warning did NOT fire** — with a positive control (623 app lines in the
+  same archive window), so the silence is evidence, not absence of evidence.
+- **The real sizes:** full server transcript = 95 rows, **237 KB** by the
+  app's own byte formula — a QUARTER of the 900 KB figure. And the app only
+  sent **`history=32`** (host `turn_context` line) — it windows history, so
+  the wire load is smaller still. Three downscaled photos on top stayed under
+  budget with the attachment side already capped at 900 KB aggregate by
+  construction.
+- **Ride-along observations for whoever takes the decision:** the host logged
+  `Repaired 16 message-alternation violations before request` on the app's
+  history — the windowed history the app ships is imperfect and host-repaired
+  (filed nowhere else; it belongs to this decision's context). And the 3-image
+  turn was answered correctly via the host's **auxiliary vision** model —
+  which also falsifies the decision dossier's "Mac is currently neither"
+  premise on #132's option question.
+- **Recommendation from the data: leave it measured-and-unbounded.** The
+  longest real thread plus a heavy attachment turn uses ~a third of the
+  budget end-to-end; the app's own history window bounds the growth; the
+  warning stands guard for the outlier. Trimming would spend a
+  genuinely-forgetting behaviour change on a case no real thread reaches
+  today. **The ruling is Owen's; (a) stays open only for that ruling.**
+
 ## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix. → ✅ FIX LANDED 2026-08-09 — bars 289-A/B MET, `GATE: PASS` (bundled with #287).**
 
 **The shape (#276's lesson):** a routine that rebuilds a model value
