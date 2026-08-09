@@ -80,6 +80,100 @@ struct CapabilityRegistryTests {
         #expect(!armed.contains("attached image"))
     }
 
+    // MARK: - #257 lever 1: the deterministic capability answer block
+
+    /// **BAR 257-1-C**, scored by the SHIPPED scorer — the real
+    /// `toollessIndexFamiliesNamed(in:)` that produced zero false positives
+    /// across 120 device replies in #297, called here rather than
+    /// reimplemented. The thing run `A04154D7` spent a device run failing
+    /// (10 of 10 non-vision families named) is true BY CONSTRUCTION for a
+    /// rendered block, and this is the proof.
+    ///
+    /// A miss here is NOT a licence to widen the keyword table (#297's named
+    /// trap) — it means the registry and the table disagree, which is a
+    /// finding to report, not a test to tune.
+    #if DEBUG
+    @Test func capabilityAnswerBlockNamesEveryNonVisionFamilyUnderTheShippedScorer() {
+        let block = CapabilityRegistry.capabilityAnswerBlock()
+        // The dispatch's §7 cheap experiment: the rendered string IS the
+        // product, so the suite prints it — Owen judges the copy without a
+        // device run, a build, or an OTA.
+        print("#257 CAPABILITY BLOCK ↓↓↓\n\(block)\n#257 CAPABILITY BLOCK ↑↑↑")
+
+        let named = LocalChatBackend.toollessIndexFamiliesNamed(in: block)
+        let expected = Set(CapabilityGroup.allCases.filter { $0 != .vision })
+        #expect(named == expected,
+                "missed: \(expected.subtracting(named).map(\.rawValue).sorted())")
+        #expect(named.count == expected.count)   // 10 of 10, derived not literal
+    }
+
+    /// The block must not itself trip #297's honesty union — it rides a real
+    /// reply in the 1b APPEND shape, so 297-C scores it too. Halves counted
+    /// SEPARATELY (#202C: folding them destroys the migration signal).
+    @Test func capabilityAnswerBlockCarriesNoActionClaimAndNoToolSyntax() {
+        let block = CapabilityRegistry.capabilityAnswerBlock()
+        #expect(!LocalChatBackend.toollessIndexClaimHit(block))
+        #expect(!LocalChatBackend.toollessIndexSyntaxHit(block))
+    }
+    #endif
+
+    /// Registry-DERIVED arity: the expected line count comes from
+    /// `allCases`, never from a literal list, so adding a `CapabilityGroup`
+    /// fails the suite loudly. (The two exhaustive switches behind the line
+    /// already fail the COMPILE — this pins the block's shape on top.)
+    @Test func capabilityAnswerBlockRendersOneDerivedBulletPerNonVisionFamily() {
+        let expected = CapabilityGroup.allCases.filter { $0 != .vision }
+        let lines = CapabilityRegistry.capabilityAnswerBlock().components(separatedBy: "\n")
+        #expect(lines.count == expected.count + 2)   // opener + N bullets + closer
+        #expect(lines.first == CapabilityRegistry.capabilityAnswerOpener)
+        #expect(lines.last == CapabilityRegistry.capabilityAnswerCloser)
+        for (line, group) in zip(lines.dropFirst().dropLast(), expected) {
+            #expect(line == "• \(group.capabilityAnswerTitle) — \(group.capabilityAnswerDetail)")
+        }
+    }
+
+    /// Determinism: two renders are byte-identical. Zero generation is the
+    /// whole mechanism — if this ever wobbles, something stochastic got in.
+    @Test func capabilityAnswerBlockIsByteIdenticalAcrossRenders() {
+        let first = CapabilityRegistry.capabilityAnswerBlock()
+        let second = CapabilityRegistry.capabilityAnswerBlock()
+        #expect(first == second)
+        #expect(Array(first.utf8) == Array(second.utf8))
+        // Caller ordering must not leak into the output either.
+        #expect(CapabilityRegistry.capabilityAnswerBlock(
+            families: CapabilityGroup.allCases.reversed()) == first)
+    }
+
+    /// #176 rule V at this seam: `.vision` never appears, even when a caller
+    /// hands it in explicitly — the mirror of
+    /// `visionInTheFamiliesListNeverLeaksWithoutImageTools`.
+    @Test func capabilityAnswerBlockNeverAdvertisesTheImageTools() {
+        let block = CapabilityRegistry.capabilityAnswerBlock(families: CapabilityGroup.allCases)
+        #expect(!block.contains(CapabilityGroup.vision.capabilityAnswerTitle))
+        #expect(!block.contains("barcode"))
+        #expect(!block.contains("photo"))
+    }
+
+    /// Narrowing works and stays ordered — the surface #257's lever 3a would
+    /// reuse can render a subset without a second builder (#202D).
+    @Test func capabilityAnswerBlockHonorsANarrowedFamilyList() {
+        let block = CapabilityRegistry.capabilityAnswerBlock(families: [.reminders, .calendar])
+        let lines = block.components(separatedBy: "\n")
+        #expect(lines.count == 4)
+        #expect(lines[1].hasPrefix("• Calendar —"))     // declaration order, not caller order
+        #expect(lines[2].hasPrefix("• Reminders —"))
+        #expect(!block.contains("Health and activity"))
+        #expect(CapabilityRegistry.capabilityAnswerBlock(families: []).isEmpty)
+        #expect(CapabilityRegistry.capabilityAnswerBlock(families: [.vision]).isEmpty)
+    }
+
+    @Test func everyGroupHasAnAnswerTitleAndDetail() {
+        for group in CapabilityGroup.allCases {
+            #expect(!group.capabilityAnswerTitle.isEmpty)
+            #expect(!group.capabilityAnswerDetail.isEmpty)
+        }
+    }
+
     // MARK: - Belt pins (#200 actionToolNames pattern, bidirectional)
 
     @MainActor private static func fullBelt() -> [any Tool] {
