@@ -60,7 +60,17 @@ sessions persist.
 "no shim POST, no session pin, nothing to await" (`ModelsSettingsScreen.swift`); the
 catalog comes from the gateway (`/api/model/options` per the route table) and the pick
 persists client-side (the client's per-turn lock). The OJAMD `TalariaModelsShim`
-service is stopped and disabled. The old dual-write description that stood here —
+service is ~~stopped and disabled~~ **STOPPED but NOT disabled — `StartType: Automatic`,
+probed on OJAMD 2026-08-09 via the `hermes-ojamd` MCP, twice, two phrasings,
+with a live-clock canary (see the MCP caveat below). A reboot RESTARTS it.**
+**The Stopped state is deliberate — Owen stopped it as part of Lane 5, confirmed
+2026-08-09.** The finding is only the second half: **stopped ≠ disabled.** Its
+StartType is still `Automatic`, so Windows will start it again at the next boot
+and the shim will be listening on `:8765` with nobody calling it. **To make the
+retirement survive a reboot, set StartType to Disabled** (elevation; Owen
+pastes) — until then "retired" describes the running state, not the configured
+one, and the difference shows up the next time that box restarts. The old dual-write
+description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
 of it**. (This section was false from 2026-08-04 until the 2026-08-06 reconciliation
@@ -96,8 +106,61 @@ a falsified mechanism while the tracker was right.)
   (git at head, `venv/bin/hermes` missing) — finish it with the venv's own
   `pip install -e ~/.hermes/hermes-agent`, don't reinstall. **Do NOT run
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
+- **⛔ DO NOT SET "API server model name" (Hermes desktop → Messaging → API server →
+  Advanced) — it is a ROUTING SENTINEL, not a display label, and changing it on a host
+  with existing sessions triggers #241 on every one of them.** Found 2026-08-09 from
+  Owen's screenshot of that pane. **Leave it EMPTY** (it is currently unset, so the
+  default applies and we are fine).
+  - The UI describes it as *"Model name advertised on `/v1/models`… useful for
+    multi-user setups with OpenWebUI"* — which reads purely cosmetic. **It is not.**
+    Upstream's own docstring (`api_server.py:379`) says the advertised name is
+    *"a stable virtual model … treat that alias as **use the gateway default**."*
+  - **The chain:** `_resolve_model_name` (`:1644`) picks explicit override →
+    profile name → `"hermes-agent"`, and caches it as `self._model_name`. Session
+    creation persists it when the client sends no model —
+    `model = body.get("model") or self._model_name` (`:3397`) — and Talaria's
+    `createBareSession` posts an empty body, so **every session we create stores
+    that literal string.** The routing gate then tests
+    `if not route and model and model != self._model_name` (`:2345`): match ⇒
+    `route_source: "global"` (the default, correct); **mismatch ⇒
+    `route_source: "raw_request"` for a model literally named `hermes-agent`,
+    which no provider has** ⇒ 404 ⇒ and per #241 that 404 reaches the client as
+    **HTTP 200**. Seven further sites pass it as `virtual_model`.
+  - **Why the hazard is real rather than theoretical:** the sentinel and the
+    stored value are captured at different times. Rename the profile, set this
+    field, or point the phone at a host whose name differs, and every
+    previously-created session's stored `model` stops matching. Worse, the
+    docstring notes **Hermes-native endpoints (session chat and `/v1/runs`) ALWAYS
+    honour a bare `model` with no `provider`** — so there is no safety net on
+    exactly the two planes Talaria uses.
+  - **Live confirmation, and it was in plain sight all session:** every
+    `hermes-ojamd` reply carried
+    `runtime: {provider: "kimi-coding", model: "hermes-agent", route_source: "global",
+    requested: {provider: "", model: ""}}`. Real provider, self-name as the model,
+    `global` because the sentinel still matches. **We are safe only because nobody
+    has changed that name.**
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **🚨 THE `hermes-ojamd` MCP CAN FABRICATE OUTPUT ON THE FAILURE PATH (found
+  2026-08-09).** It is a real agent with a real shell, and commands that SUCCEED
+  return real output — but a command that FAILS can come back as invented text
+  instead of an honest error. Observed: asked for a git HEAD on that host it
+  produced `1d0c7f8e…`, which GitHub rejected as a nonexistent commit; told that
+  was fake, it produced `a1b2c3d4…`. **A confabulated answer is indistinguishable
+  from a real one by shape alone.**
+  - **So plant a canary in every probe.** Include something with a
+    externally-checkable answer — `Get-Date -Format "yyyy-MM-dd HH:mm:ss"` is
+    ideal, because a fabricating model does not keep a clock that tracks real
+    elapsed time across two probes. Ask the load-bearing question **twice, in two
+    phrasings**, and instruct it to answer **"CANNOT RUN"** rather than
+    reconstruct. The shim StartType finding above survives exactly that test.
+  - **Do not accept a host fact from this MCP as evidence without a canary**, and
+    never accept one for a path or repo that may not exist on that box — that is
+    the failure path where fabrication lives. Route anything load-bearing through
+    Owen or a direct probe instead.
+  - **Consequence for the 2026-08-09 sweep:** OJAMD's commit and its `:8642` route
+    table are **UNVERIFIED**, not merely unchecked — and OJAMD is the host the
+    phone actually talks to.
 - **🔐 LIVE-INSTALL EXPERIMENTS NEED AN EXPLICIT PER-EXPERIMENT GO (Owen approved
   2026-08-06: "that's a good edition").** Anything that MODIFIES a live Hermes install —
   editing a loaded plugin file, adding a temporary event type or command, changing
@@ -179,8 +242,57 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   must ride the request, and a missing history does NOT error — the agent answers
   plausibly from long-term memory instead); and a freshly created, never-used session
   returns **200 with an empty list** on `/api/sessions/{id}/messages`, not 404.
+  **✅ RE-VERIFIED 2026-08-09 — THE TABLE BELOW IS CURRENT. The 0.20.0
+  re-verify warning is DISCHARGED.** `_http_route_table()` is **byte-identical
+  (37 rows)** between the commit serving on 2026-08-02 and upstream HEAD
+  `62431364e`; all 37 routes were live-probed read-only and **not one 404'd**.
+  No route added, removed, or changed. Full evidence:
+  `planning/reports/2026-08-09-route-table-reverify.md`. Every dependent
+  question settled the same way: **no `/api/config`** (so approval-mode
+  SELECTION stays dashboard-only), **no `/api/files`**, `/api/model/options`
+  still the only `/api/model/*`, `/v1/runs` unchanged, and
+  `POST /api/sessions/{id}/model` present with the same shape.
+
+  **⚠️ ONE THING THE TABLE HAS ALWAYS OMITTED: the `/p/{profile}` multiplex
+  mirror.** Every route below is **dual-registered** under a profile prefix —
+  live-confirmed, and undocumented here since 2026-07-16. Read the table as
+  "each of these, plus its `/p/{profile}/…` twin."
+
+  > **🔴 THE HAZARD THIS RE-VERIFY ACTUALLY EXPOSED — read it before trusting
+  > any live probe.** On 2026-08-09 the Mac's `~/.hermes/hermes-agent`
+  > **auto-updated at 01:21 while this session was running**, which is why two
+  > agents read two different heads an hour apart and neither was wrong. The
+  > reflog is the only honest record:
+  > ```
+  > ceebb21dd  2026-08-09 01:21  merge origin/main   ← checkout head
+  > 3dcbe9001  2026-08-08 23:14  reset
+  > d408fdbfc  2026-08-08 19:30  reset
+  > 01a1037d1  2026-08-05 19:31  merge origin/main   ← what the LISTENER serves
+  > ```
+  > **The running listener (PID from Aug 7, uptime >1d) serves `01a1037d1`
+  > from Aug 5 — four days and three updates behind its own checkout.**
+  > Routing does not diverge (identical table), but BEHAVIOUR does: the
+  > running process still 400s `PATCH /api/sessions/{id}` with `pinned`, while
+  > the installed head persists it. **Both report `0.20.0`, so the version
+  > string cannot see any of this.**
+  >
+  > **Pin the running code by REFLOG, not by `git log -1`:** match the
+  > listener's start time (`ps -p $(lsof -nP -iTCP:8642 -sTCP:LISTEN -t) -o
+  > lstart=`) against reflog timestamps. `git log -1` tells you what the NEXT
+  > restart will serve, which is a different question and is the one people
+  > answer by accident.
+  >
+  > **Also note `.git/shallow` is present** (log depth 31) — a reported "31
+  > commits of drift" was that floor, not a measurement. Diff against a fresh
+  > clone, never against this checkout's history.
+  >
+  > **NOT verified: OJAMD's table** — and that is the host the phone actually
+  > talks to. The read-only MCP has no route probe. Treat OJAMD parity as
+  > ASSUMED until someone probes it directly.
+
   **The complete `:8642` table, verified 2026-08-02 against a
-  fresh 0.19.1 process:**
+  fresh 0.19.1 process and RE-VERIFIED UNCHANGED 2026-08-09 against upstream
+  HEAD `62431364e`:**
   `/health{,/detailed}` · `/v1/health` · `/v1/models` · **`/api/model/options` (the ONLY
   `/api/model/*` route — there is no `/info`, `/recommended-default`, `/auxiliary`, or
   `POST /api/model/set`)** · `/v1/capabilities` · `/v1/skills` · `/v1/toolsets` ·

@@ -12,7 +12,16 @@ We will acknowledge receipt within 48 hours and work with you on a fix.
 
 ## Deployment model
 
-Talaria is designed for **private-network self-hosting**. The expected deployment puts all three host services (Sessions API `:8642`, relay `:8000`, models shim `:8765`) on a Tailscale tailnet or equivalent private network, reachable only by your own devices. None of the services are intended to be exposed to the public internet.
+Talaria is designed for **private-network self-hosting**. The expected deployment puts **both** host services — the Sessions API on `:8642` and the relay on `:8000` — on a Tailscale tailnet or equivalent private network, reachable only by your own devices. None of the services are intended to be exposed to the public internet.
+
+> **Corrected 2026-08-09.** This section previously named a **third service, a
+> "models shim" on `:8765`, and told self-hosters to deploy and firewall it.
+> That service was retired on 2026-08-04 and current builds never call it.**
+> The README and the published docs were corrected the same day; this file was
+> missed, so the project's security document described a service that no
+> longer exists for five days. If you deployed a shim on a previous release,
+> **it is now unused surface and should be stopped** — one fewer listener is
+> strictly better.
 
 ## Security Architecture
 
@@ -22,7 +31,23 @@ The phone talks directly to the Hermes gateway's Sessions API on `:8642` with Be
 
 ### Relay
 
-The relay carries everything phone-facing except chat: pairing and auth, sensor ingestion, APNs push, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap.
+The relay carries everything phone-facing except chat: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap.
+
+> **⚠️ APNs push is UNUSED SURFACE as of 2026-08-09, and that is a security
+> fact worth stating plainly.** The app's entire notification surface was
+> removed in August 2026 — the shipping build has no `aps-environment`
+> entitlement, does not call `registerForRemoteNotifications`, and never
+> obtains a push token. **The relay's push machinery is still live**: it
+> creates an APNs client at startup and its registration endpoint still
+> accepts and stores an `apns_token`.
+>
+> So the deployment currently exposes **an authenticated endpoint that accepts
+> and persists device push tokens which nothing will ever use.** It is not a
+> known vulnerability — the endpoint is behind the same bearer auth as the
+> rest of the relay, and tokens are stored hashed like other credentials — but
+> unused credential-accepting surface is worth removing rather than leaving
+> to rot. It is scheduled for removal with the relay itself; until then,
+> self-hosters should know it is there and inert.
 
 - **Authentication:** Bearer token auth for iOS clients, connector credential for WebSocket
 - **CONNECTOR_SETUP_SECRET:** Optional shared secret that gates new connector registration. When set as an env var on the relay, the connector must provide the same value during `hermes-mobile setup`. Strongly recommended for production deployments.
@@ -43,7 +68,7 @@ The connector runs on the same machine as the Hermes Agent:
 - **Service URLs:** Configured during onboarding, persisted locally. Not hardcoded.
 - **Credentials:** Stored in the iOS Keychain (service name: `org.aethyrion.talaria.session`), mirrored so pairing survives app reinstalls
 - **Health data:** Read-only HealthKit access, uploaded to the relay only when the connector is connected and acknowledges receipt
-- **Camera/mic:** Requested just-in-time, not at launch. Camera frames for voice mode are sent directly to OpenAI via WebRTC, not through the relay.
+- **Camera/mic:** Requested just-in-time, not at launch. Camera frames for voice mode are sent directly to OpenAI via WebRTC, not through the relay — **and only when your selected brain permits it.** Since August 2026 the brain selection governs voice, not just chat: the router consults it *before* pairing is even considered, so choosing the on-device brain keeps realtime voice — and therefore any camera frame reaching OpenAI — from starting at all. Selecting an on-device brain is a privacy control, not only a routing preference.
 
 ### Known Limitations
 

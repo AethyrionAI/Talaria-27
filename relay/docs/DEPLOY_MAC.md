@@ -91,7 +91,8 @@ export HERMES_WORKDIR=~/Hermes/agent-work
 export CONNECTOR_SETUP_SECRET=<same value as relay/.env>
 .venv/bin/hermes-mobile setup --relay-url http://127.0.0.1:8000/v1   # loopback: same host
 .venv/bin/hermes-mobile validate-mcp        # hermes_mobile registered in ~/.hermes/config.yaml
-cp -R ../skills/hermes-ios ~/.hermes/skills/   # REAL copy, not symlink — setup does NOT do this
+cp -R ../skills/talaria ~/.hermes/skills/      # REAL copy, not symlink — setup does NOT do this
+                                               # (was skills/hermes-ios; renamed 2026-08-05, #255)
 # then in a Hermes chat: /reload-mcp
 .venv/bin/hermes-mobile service install && .venv/bin/hermes-mobile service start
 .venv/bin/hermes-mobile status              # expect: running (macOS launchd)
