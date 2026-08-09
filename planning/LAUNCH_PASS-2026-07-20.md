@@ -187,6 +187,157 @@ decided per line, not left by accident. DoD: Release archive audit clean.
   compliance (standard HTTPS answer). EULA note for BYOK/Connected tier.
 - ASC product + sandbox purchase for #127 (already tracked; pre-flip gate).
 
+---
+
+> **Runbook added 2026-08-09 (#166f, bar 166-F).** The four subsections below are
+> hermex's runbook skeleton translated onto Talaria — **Stop Conditions, Review
+> Notes, Known Risk Register, Definition of Ready.** #166f's own instruction is
+> *"fold into the existing launch-pass doc rather than a new file,"* and the
+> second half of that bar is the part that gets forgotten: **no new runbook
+> document exists outside `dispatch/`** — `find . -path ./.claude -prune -o -iname
+> '*RUNBOOK*' -print` returns only `dispatch/OPUS-T27-166-8-appstore-runbook.md`.
+>
+> Statuses below were read at HEAD `bfbd154` on 2026-08-09. **The single largest
+> unknown in this whole section is the Developer Portal / App Store Connect state,
+> which is not inspectable from the repo** — it is 166e, it is Owen's, and its
+> checklist lives in `handoffs/OWEN-166e-PORTAL-CHECKLIST.md`.
+
+#### P-4.1 Stop Conditions
+
+**Any one of these unmet means the submission does not go.** Not a preference — a
+stop.
+
+| # | condition | state 2026-08-09 | owner |
+|---|---|---|---|
+| S1 | **Privacy-policy URL live and linked** from at least one public surface | 🔴 **BLOCKED — none exists.** `grep -rniE 'privacy.?polic' README.md SECURITY.md docs/*.html` returns nothing. #166a's hard stop | Owen (Claude can draft the text from real data flows) |
+| S2 | **Support URL live** | 🟠 not confirmed | Owen |
+| S3 | **ASC app record exists** for `org.aethyrion.talaria27` | 🟠 ASSUMED, unverifiable from the repo | Owen |
+| S4 | **Export compliance answered** | ✅ `project.yml:352` — `ITSAppUsesNonExemptEncryption: false` ships, so ASC stops asking per upload | done |
+| S5 | **Monetization gate inert** — no reachable purchase surface | ✅ `MonetizationGate.swift:29` `isEnabled = false`. **Three** paywall presentation sites — `ContentView.swift:233-234` (inline `ConnectedPaywallView()`), `ServerSettingsScreen.swift:230-231` and `UplinkSettingsScreen.swift:163-164` (both `.sheet(isPresented: $paywallPresented)`) — and **four** gate checks that are the only way to reach them (`ContentView.swift:233`, `ServerSettingsScreen.swift:456` and `:470`, `UplinkSettingsScreen.swift:566`), every one testing `container.connectGateVerdict(for:)`. With `isEnabled = false` the verdict is `.allow`, so none renders. `MonetizationGateTests` pins dormancy — *"the test fails loudly on flip day"* (#127) | done, re-verify at archive |
+| S6 | **Release archive validates clean** — zero ITMS errors | 🔴 never run. Bar 166-C | archive = Claude · **Validate = Owen** |
+| S7 | **Purpose strings name the app, not the host** | 🔴 14 of 16 say "Hermes". Bar 166-D; proposal in `handoffs/DRAFT-166-PURPOSE-STRINGS.md` | Owen approves, then Claude edits `project.yml` |
+| S8 | **Portal capabilities match the binary** — incl. **WeatherKit** | 🟠 ASSUMED. If WeatherKit is not on the App ID **the archive fails** | Owen (166e) |
+| S9 | **Age rating set** | 🟠 not confirmed | Owen |
+
+**And the standing one that outranks all of them:** *outward-facing submissions need
+Owen's read of the exact text plus his explicit go.* Nothing in P-4 sends anything.
+
+#### P-4.2 Review Notes (166c — drafted, AWAITING OWEN'S APPROVAL)
+
+**Bar 166-B: a person who has never seen this repo must be able to read this and
+predict what the app does when launched cold.** Five paragraphs, ≤2 pages. This is
+the text that goes in App Store Connect's *Notes for Review* field. **Owen approves
+the exact wording before it goes anywhere near ASC.**
+
+> **1 — No account, no login, nothing to configure.**
+> Talaria has no sign-up, no sign-in, and no server of ours behind it. Launch it and
+> it works. There is no demo account to provide because there are no accounts at all.
+> Nothing is required from the reviewer beyond installing and opening the app.
+>
+> **2 — The on-device brain is the reviewable product.**
+> The app's chat runs entirely on-device using Apple's FoundationModels framework. No
+> network connection of any kind is needed to exercise the core experience: open the
+> app, type a message, get a streaming reply. Sessions persist locally, read-aloud
+> works, and the device tool belt (calendar, reminders, contacts, weather, health,
+> alarms and timers) runs against the reviewer's own device with the system's normal
+> permission prompts. **The app works in airplane mode**, and that is the intended
+> default experience, not a fallback.
+>
+> **3 — The optional "paired" features need hardware the reviewer does not have, and
+> that is normal for a self-hosted client.**
+> Talaria can additionally connect to a *Hermes* AI agent that the user installs and
+> runs on their own computer, over their own private network. There is no hosted
+> service to point it at — by design, since the entire premise is that the user owns
+> the machine. Features in this tier (server-side chat sessions, the user's desktop
+> model roster, the sensor pipeline, realtime voice, the agent inbox) therefore cannot
+> be exercised without the reviewer standing up their own server, and we do not ask
+> them to. This is the same shape as any self-hosted client — an SSH client, a NAS
+> app, a home-automation controller — where the server is the user's own. **Every
+> paired feature degrades to a clearly-labelled unavailable state rather than an
+> error**, and the app never blocks on pairing.
+>
+> **4 — Why background location and background audio are declared, and why sensors
+> are off by default.**
+> `UIBackgroundModes` includes `location` and `audio` (`project.yml:353-357`).
+> **Background audio** is real and straightforward: voice mode is a continuous
+> speech-to-speech conversation that must keep running when the screen locks.
+> **Background location** exists only for the optional sensor pipeline in the paired
+> tier, which delivers location, health and motion context to the user's own machine.
+> **That pipeline is opt-in and ships OFF** — the user must enable it explicitly in
+> Settings, per sensor, and it is unreachable entirely for a user who has not paired a
+> host. No location data is collected on a default install. Each permission is
+> requested just-in-time at the moment the feature is first used, never at launch.
+>
+> **5 — No purchase flow is reachable in this build.**
+> The app contains scaffolding for a future paid "Connected" tier. It ships **dormant**:
+> the gate constant is `false`, every one of the three paywall presentation sites is
+> behind that gate, and a test in the suite fails loudly if it is ever flipped without
+> intent. **There is no purchasable item, no restore flow, and no paywall a reviewer
+> can reach.** If and when the tier is enabled, it will be submitted with its product
+> configured and exercisable.
+
+**Do not add to these notes:** any claim about *why* the ATS exception works. The
+mechanism is disputed in-repo (#166b vs #167) and unresolved pending bar 140-D. **The
+notes are shorter and safer without it, and nothing above needs it.**
+
+#### P-4.3 Known Risk Register (#166a–j, statuses at 2026-08-09)
+
+| id | risk | status at HEAD | evidence / next step |
+|---|---|---|---|
+| **166a** | Privacy manifests missing | ✅ **DONE** 2026-07-22 (`6d1515e`, under #167) | `Talaria/Resources/PrivacyInfo.xcprivacy`, `TalariaWidgets/PrivacyInfo.xcprivacy`, `TalariaShare/PrivacyInfo.xcprivacy` all exist. **#166's own entry still describes this as open — see the tracker corrections.** *Its separate half — the public privacy-policy URL — is stop condition S1 and is NOT done* |
+| **166b** | Global ATS exception (`NSAllowsArbitraryLoads`) | ✅ **DONE** 2026-07-22 (PR #138, `d3c962d`) — **with a caveat** | `project.yml:345-348` — range-scoped `NSExceptionDomains` keyed `"100.64.0.0/10"`. **What shipped is not in dispute; *why it works* is.** #166b (load-bearing, four-arm **sim** experiment) vs #167 (inert; bare IPs unpoliced). Bar **140-D** decides it and needs a device. **Consequence here is narrow: the review notes and the App Privacy answers must not repeat a mechanism we cannot defend** |
+| **166c** | Review-notes framing | 🟡 **DRAFTED 2026-08-09** — P-4.2 above | Re-scoped by Owen 2026-08-01 to a writing task, under one condition: the monetization gate ships dormant. **Condition re-verified at HEAD (S5) — the ruling stands.** Corollary: *the day "Connected" becomes purchasable, the reviewer-reachable-host question comes back* |
+| **166d** | Export-compliance key absent | ✅ **DONE** 2026-07-22 (under #167) | `project.yml:352`. **#166's entry still describes this as open** |
+| **166e** | Portal capability pre-flight | 🔴 **NOT STARTED — Owen's.** Checklist written 2026-08-09 | `handoffs/OWEN-166e-PORTAL-CHECKLIST.md`. **The filed checklist was wrong three ways**: push must come OUT (`aps-environment` absent from `project.yml` and all three `.entitlements`; #238), Siri is not an entitlement we carry (App Intents need none), and **WeatherKit was missing entirely** (`project.yml:52`) — without it on the App ID, **the archive fails** |
+| **166f** | Runbook skeleton | ✅ **DONE 2026-08-09** — this section | Folded into P-4, not a new file. `find … -iname '*RUNBOOK*'` returns only the dispatch |
+| **166g** | TestFlight upload rehearsal *(absorbs #8)* | 🔴 **NOT STARTED, and correctly blocked** | Prereq chain: **166e → Release archive → 166-C Validate → internal testers → Beta App Review (external only)**. #8's four filed clauses are all falsified — see the tracker corrections. **No build is created by this lane** |
+| **166h** | **NEW** — CarPlay scene declared with no CarPlay entitlement | 🟠 **CONFIRMED at HEAD, unresolvable from the repo** | `project.yml:364-370` ships `CPTemplateApplicationSceneSessionRoleApplication` → `CarPlaySceneDelegate` while the entitlement at `:61` is **commented out** (correctly — #45/#74 parked). App builds and runs; the scene never connects. **Risk is at upload validation.** Surfaces at *Validate App* (S6). **Do not pre-emptively strip the manifest** — it may validate clean, and removing it undoes #74's local CarPlay-Simulator path |
+| **166i** | **NEW** — every permission dialog says "Hermes"; `NSHealthUpdateUsageDescription` claims a write we never do | 🔴 **CONFIRMED at HEAD.** Proposal drafted | 14 of 16 app purpose strings begin "Hermes" (`project.yml:150-158`, `:165-175`) while the display name is `Talaria27` (`:116`) and the default user is hostless. **`LiveHealthService.swift:70` passes `toShare: []` and no `healthStore.save` exists anywhere — so `NSHealthUpdateUsageDescription` (`:152`) should be DELETED, not reworded.** Bar 166-D; text in `handoffs/DRAFT-166-PURPOSE-STRINGS.md`. **Launch-blocking subset of #255 — must not wait for the full de-branding sweep** |
+| **166j** | **NEW** — background location + background audio have no recorded defence | ✅ **DEFENCE NOW WRITTEN** — P-4.2 ¶4 | `project.yml:353-357`. Both are defensible (sensors opt-in and off by default per #137; voice mode is real background audio) — the gap was that the defence existed only in tracker entries. **Option A of the purpose-string draft moves it into the permission dialogs themselves**, which is the cheapest place to make it |
+
+**Two risks that belong to other lanes and are named so they are not re-discovered:**
+`docs/index.html:91` and `README.md:34` both say *"NO APP STORE · NO TESTFLIGHT"* — true
+today, **false the moment 166g runs** (owned by #140's public-face lane, deliberately
+deferred there); and #255's full de-branding, of which only 166i's strings move now.
+
+#### P-4.4 Definition of Ready
+
+**Submission is ready when every line is true.** Not "mostly" — this is the checklist
+that replaces judgement at 2am.
+
+- [ ] **All nine Stop Conditions (P-4.1) green.** S1 (privacy-policy URL) is the one
+      that gates everything and has no in-repo workaround.
+- [ ] **166e complete** — three bundle IDs, App Group on all three targets, HealthKit
+      on app **and** widgets, **WeatherKit on the app**, **no push**, **no SiriKit**,
+      CarPlay not requested.
+- [ ] **Purpose strings pass bar 166-D** —
+      `grep -n 'UsageDescription' project.yml | grep -i hermes` returns nothing, and
+      `NSHealthUpdateUsageDescription` is gone. **`xcodegen generate` re-run and the
+      generated `Info.plist` confirmed to carry them** (these keys are silently
+      dropped if written as `INFOPLIST_KEY_` settings — the #58 lesson).
+- [ ] **`scripts/mac/lane-gate.sh` PASS with a positive Release marker** (bar 166-E).
+      A green Debug suite cannot see a mis-set gate — #218's corollary.
+- [ ] **Release archive produced**, then **Owen presses Validate**, and it returns
+      **zero ITMS errors** (bar 166-C). This is the only check that can see 166h's
+      CarPlay mismatch and any ITMS-91053 the privacy manifests missed.
+- [ ] **Review notes (P-4.2) approved by Owen verbatim** and pasted into ASC's *Notes
+      for Review*.
+- [ ] **App Privacy questionnaire answered**, and its answers **cross-checked against
+      `SECURITY.md`** — specifically: health is read-only, no push, no data collected
+      by us, location only via the opt-in sensor pipeline. A questionnaire that
+      contradicts our own security doc is worse than a slow review.
+- [ ] **Screenshots** — 6.9″ **and** 13″ iPad sets **if iPad is still in v1.0 scope.**
+      ⚠️ **That decision is this doc's own header line (`:5`) and has gone unre-confirmed
+      since 2026-07-20; #109 is still open on the live board. It doubles the most
+      expensive job in P-4. Owen re-affirms or drops it before the batch is shot.**
+- [ ] **#127's IAP product created but NOT submitted** — creating
+      `org.aethyrion.talaria27.connected` early unblocks the sandbox round-trip;
+      submitting it for review against an inert gate is the 2.3.1 shape. **Create
+      early, submit at the flip.**
+- [ ] **The public "no App Store / no TestFlight" copy is corrected in the same change
+      that makes it false** — `docs/index.html:91`, `README.md:34`, and
+      `docs/index.html:215`. Close-out rule: upstream, same commit.
+
 ### P-5 Feature discoverability — TipKit (Fable-dispatchable, small)
 Three or four dismissible tips, first-eligible-moment triggered: Siri phrase
 is "Ask Talaria27" (surface after first successful chat), share extension
