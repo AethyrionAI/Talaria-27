@@ -2602,3 +2602,49 @@ appear on that line — **pairing does not determine the engine, the probe resul
 device module on a forced loudspeaker; native speaks through `SpeechOutputService` with
 `managesAudioSession == false`. Two different audio paths produce the ghost two different
 ways.
+
+### R8 · #292-C — abandoned runs turn stops polling · **[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]**
+
+**Prerequisite:** a build at or past PR #288's merge (`c2cc540`), runs transport
+switch ON (Developer → runs transport), host = the Mac (observable `agent.log`)
+or OJAMD.
+
+**Procedure:** send a long-running runs turn; once the stream is clearly live,
+**walk away without tapping Stop** (switch threads, or background the app —
+both reach `streamingTask.cancel()`). Then kill the network and hold past 60s.
+Return later; the turn should still resolve via the reconcile path.
+
+**PASS =** the host log shows **no** `GET /v1/runs/{id}` after the walk-away
+moment, **and no `POST /v1/runs/{id}/stop` at all** (the walk-away must stay
+network-free — #283 3A-C half 2's shape). **Record the poll count BEFORE the
+walk-away too:** a run where the producer never entered the poll loop reads as
+**INCONCLUSIVE**, not as a pass — a zero-after with no non-zero-before proves
+nothing (instrument the error path).
+
+**Known cost to observe, not a failure:** the abandoned turn's token usage is
+never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
+shows the previous run's occupancy.
+
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+
+**Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
+repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
+arms) on the FIXED build; §R4 itself is DO-NOT-RE-RUN only in the sense that
+the repro on the broken build is settled.
+
+**PASS =** the plain-behaviour contract, felt on the phone: (1) fresh lock
+auto-prompts once; (2) cancel → the sheet stays down and the in-app UNLOCK
+button is present and works — including after backgrounding and returning;
+(3) a successful unlock re-arms the next locked stretch's auto-prompt;
+(4) within a cancelled stretch, returning never auto-prompts (one extra UNLOCK
+tap is the deliberate, accepted cost).
+
+**Log read (hand-launched build):** `sudo /usr/bin/log collect --device-udid
+00008150-000E794C3C47801C` (hardware UDID, Owen pastes), grep `AppLock`. The
+broken signature was the paired lines `didFailAuthentication true->false on
+.active` + `autoAuth FIRED (no tap)` sharing a timestamp; **the fixed build
+must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
+
+**⚠️ This bar is Owen's RESERVATION EXIT (he accepted Option B "feels very
+'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
+REOPENS — that is the bar working, not a failure of the lane.
