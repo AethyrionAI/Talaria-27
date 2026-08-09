@@ -10093,13 +10093,21 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > either direction.**
 > - The engine line reads `relayPaired=true`. The bar's own warning held:
 >   pairing did not choose the engine, the failed readiness probe did.
-> - **This does NOT mean the native STARTING window is unreachable in
->   principle.** The correction block above names two uncovered windows — the
->   #82 mic preflight and the realtime→native fallback — and the fallback one
->   *requires the network to be present*. Airplane mode cannot open it **by
->   construction**, which is the specific thing now known. A native pin that
->   keeps the network (the on-device brain, per #221) is the untried candidate
->   route.
+> - ~~**This does NOT mean the native STARTING window is unreachable in
+>   principle.** … A native pin that keeps the network (the on-device brain,
+>   per #221) is the untried candidate route.~~ **🔧 CORRECTED SAME DAY, ~1 h
+>   later — I wrote that the network-keeping native pin was UNTRIED and might
+>   open the window. It was tried within the hour, accidentally, and it does
+>   not.** The 254-D attempt at 13:49 ran with the network **up** (zero
+>   `unreachable` / `offline` / `timed out` / `degraded` lines in that archive,
+>   in contrast to the airplane runs which are full of them) — and the engine
+>   was still `native` with the same collapsed window:
+>   `perform 13:49:49.821 → voice session starting 13:49:49.843` = **22 ms**.
+>   **So airplane mode was never what closed the window; the native start is
+>   simply that fast, network or not.** The realtime→native FALLBACK window
+>   (which does need the network) remains a distinct, still-unopened door — but
+>   reaching it requires realtime to be *attempted and to fail*, which needs the
+>   Hermes brain, not merely a network.
 >
 > **✅ NATIVE `LIVE` ARM — PASS. Recorded under its own name; this is NOT a
 > 254-E pass and must never be cited as one.**

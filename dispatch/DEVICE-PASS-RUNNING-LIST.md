@@ -2330,12 +2330,16 @@ not exercise the race** — retry, do not record it as a pass.
 > Owen: *"silence, mic went dark."* That proves the native audio path tears down
 > under the #118 guard, which is real value; it says **nothing** about STARTING.
 >
-> **If someone wants to re-open the native STARTING arm, airplane mode is
-> permanently the wrong fixture** — the realtime→native fallback window
-> (`OPEN_ITEMS.md` #254's correction block) *requires the network*, so airplane
-> mode closes it by construction. The untried candidate is a native pin that
-> KEEPS the network: select the **on-device brain** (#221's brain-governs-voice
-> route). Nobody has run that.
+> **The native STARTING arm may simply not be reachable from a cold Control
+> Center launch at all** — corrected the same day, an hour after this row was
+> first written. My first draft said airplane mode was the culprit and that a
+> network-keeping native pin (the on-device brain) was the untried candidate.
+> **That route was tried within the hour** — the 13:49 254-D attempt ran with
+> the network up and the brain on-device — **and it produced the same 22 ms.**
+> Native is simply that fast; airplane mode was never the cause. The one door
+> still unopened is the realtime→**native FALLBACK**, which needs realtime to be
+> attempted and to FAIL — i.e. the **Hermes** brain plus a broken/unconfigured
+> realtime path, not merely a network.
 >
 > **Two things came free from the same logs and are already banked:** Z5's
 > `fullBelt=1648tok` (below), and the "Talk to Hermes" half of §F6's #58/#179 —
