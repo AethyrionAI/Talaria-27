@@ -14,13 +14,20 @@ struct TalkSessionRulesTests {
     @Test func backgroundEndsActiveSession() {
         #expect(TalkBackgroundRule.shouldEndSession(
             isSessionActive: true,
+            isStartingSession: false,
             routeHasCarAudio: false
         ))
     }
 
+    /// **KEPT, not inverted (#254 bar 254-A).** A genuinely idle store must
+    /// still be left alone — revoking on every backgrounding would reach
+    /// `setActive(false, .notifyOthersOnDeactivation)` with nothing live, the
+    /// #84 stray-deactivation shape. #254 ADDS an input; it does not remove
+    /// this one.
     @Test func backgroundIgnoresIdleSession() {
         #expect(!TalkBackgroundRule.shouldEndSession(
             isSessionActive: false,
+            isStartingSession: false,
             routeHasCarAudio: false
         ))
     }
@@ -30,6 +37,7 @@ struct TalkSessionRulesTests {
         // the privacy hook must not kill the session the car is driving.
         #expect(!TalkBackgroundRule.shouldEndSession(
             isSessionActive: true,
+            isStartingSession: false,
             routeHasCarAudio: true
         ))
     }
@@ -37,6 +45,55 @@ struct TalkSessionRulesTests {
     @Test func backgroundIgnoresIdleSessionEvenUnderCarPlay() {
         #expect(!TalkBackgroundRule.shouldEndSession(
             isSessionActive: false,
+            isStartingSession: false,
+            routeHasCarAudio: true
+        ))
+    }
+
+    // MARK: - TalkBackgroundRule, #254 extension (bar 254-A)
+
+    /// **The #254 defect, as a pure function.** `isSessionActive` is derived
+    /// from the ENGINE's published `connectionState`, so it is false through
+    /// the whole prologue of a start and false again during the
+    /// realtime→native fallback. Backgrounding in either window used to
+    /// return false here and revoke nothing, and the connect then landed
+    /// live in the background under `UIBackgroundModes: audio`.
+    ///
+    /// Bar 254-F (2026-08-09) established that this rule is the ONLY backstop:
+    /// `VoiceOverlayScreen.onDisappear` does not fire on backgrounding, so
+    /// #139's unguarded `abandonSession()` never runs on this path.
+    @Test func backgroundRevokesAStartInFlight() {
+        #expect(TalkBackgroundRule.shouldEndSession(
+            isSessionActive: false,
+            isStartingSession: true,
+            routeHasCarAudio: false
+        ))
+    }
+
+    /// **The CarPlay exemption applies to BOTH arms.** A start in flight in a
+    /// car is still a session CarPlay is driving (#19); the new input must not
+    /// smuggle a teardown past the exemption the live arm has always honoured.
+    @Test func backgroundSparesAStartInFlightUnderCarPlay() {
+        #expect(!TalkBackgroundRule.shouldEndSession(
+            isSessionActive: false,
+            isStartingSession: true,
+            routeHasCarAudio: true
+        ))
+    }
+
+    /// Both true at once is reachable: the flag is cleared when the start
+    /// RESOLVES, and the engine publishes `.connecting` — which makes
+    /// `isSessionActive` true — part-way through. The window overlaps by
+    /// construction, so the rule must not treat the pair as contradictory.
+    @Test func backgroundRevokesWhenActiveAndStartingOverlap() {
+        #expect(TalkBackgroundRule.shouldEndSession(
+            isSessionActive: true,
+            isStartingSession: true,
+            routeHasCarAudio: false
+        ))
+        #expect(!TalkBackgroundRule.shouldEndSession(
+            isSessionActive: true,
+            isStartingSession: true,
             routeHasCarAudio: true
         ))
     }

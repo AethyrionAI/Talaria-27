@@ -1145,18 +1145,48 @@ final class AppContainer {
         // backgrounded by design (#19). The notification payload is never
         // touched (Swift 6 region-isolation landmine) -- the closure only
         // hops to the main actor.
+        //
+        // #254: THIS OBSERVER IS THE ONLY BACKSTOP, and that is measured, not
+        // assumed. Bar 254-F (2026-08-09, two trials + a positive control):
+        // `VoiceOverlayScreen.onDisappear` does NOT fire when the app
+        // backgrounds a presented `fullScreenCover`, so #139's unguarded
+        // `abandonSession()` never runs on this path. Two changes follow:
+        //
+        //   1. The rule takes `isStartingSession` as well. Gating on
+        //      `isSessionActive` alone made a start-in-flight invisible, and a
+        //      connect that landed AFTER backgrounding came up live, speaking,
+        //      on a forced loudspeaker with no UI and no owner.
+        //   2. The revoke is `abandonSession()`, not `endSession()` -- the
+        //      generation bump is what stops a connect already in flight from
+        //      being adopted when it returns (#139). `abandonSession` calls
+        //      `endSession` internally, so nothing the user-end path did is
+        //      lost.
+        //
+        // What is deliberately NOT done: dropping `isSessionActive` from the
+        // rule. Revoking on EVERY backgrounding would reach
+        // `setActive(false, .notifyOthersOnDeactivation)` with nothing live --
+        // the #84 stray-deactivation shape that once killed the live mic. The
+        // rule gains a third input; it does not lose its first. Bar 254-C pins
+        // that negative case.
         NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil, queue: .main
         ) { [weak container] _ in
             Task { @MainActor [weak container] in
                 guard let container else { return }
+                let isActive = container.talkStore.isSessionActive
+                let isStarting = container.talkStore.isStartingSession
                 guard TalkBackgroundRule.shouldEndSession(
-                    isSessionActive: container.talkStore.isSessionActive,
+                    isSessionActive: isActive,
+                    isStartingSession: isStarting,
                     routeHasCarAudio: TalkAudioRoute.currentRouteHasCarAudio()
                 ) else { return }
-                containerLog.notice("#118: app backgrounded with a live voice session — ending it")
-                await container.talkStore.endSession()
+                // #254: name WHICH arm fired. A verdict that cannot say whether
+                // it revoked a live session or an in-flight start is the #220
+                // disease one layer up.
+                let arm = isActive ? "LIVE" : "STARTING"
+                containerLog.notice("#118/#254: app backgrounded with a voice session (\(arm, privacy: .public)) — revoking it")
+                await container.talkStore.abandonSession()
                 container.router.isVoiceOverlayPresented = false
             }
         }
