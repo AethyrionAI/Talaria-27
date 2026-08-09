@@ -5909,7 +5909,7 @@ Both are cheap NOW while the runs path is behind an OFF switch and
 
 > **OWEN'S RULINGS 2026-08-08.** **(a) Measure deliberately before deciding:** a dedicated pass — runs switch ON (Developer), long-thread + image turns — then read the logged sizes and rule; no trimming or budget change from first principles. The one-shot warning log stands guard meanwhile. **(b) NO whole-`send()` deadline, ruled on the merits:** host model choice varies wildly in think time (Owen's example: Kimi K3 vs DeepSeek flash), so any fixed whole-turn clock would misclassify slow models as failures. Per-op transport timeouts remain the transport-health check; slow models ride the durable status-poll recovery. The 20s 'parity' framing is retired — sessions-plane streaming starts fast because it streams, not because the model is bounded; run completion time is model-dependent by design. The honest-claim halves already shipped in #283; (b) is now CLOSED as ruled, (a) stays open pending the measurement pass.
 
-## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix.**
+## 289. 🐛 DORMANT LANDMINE — `MessageAttachment.staged(atLocalPath:)` drops `anchorOffset`: the same field, in the same struct, that already shipped as #276 — **FILED 2026-08-07 evening from a targeted sweep for the #276 reconstruction shape (the gpt-sol audit's §8 watch-seam heuristic, run rather than just noted). NOT a live bug today — the invariant that saves it is verified below. One-line fix. → ✅ FIX LANDED 2026-08-09 — bars 289-A/B MET, `GATE: PASS` (bundled with #287).**
 
 **The shape (#276's lesson):** a routine that rebuilds a model value
 field-by-field silently drops any property it does not name, and the type
@@ -6042,6 +6042,36 @@ decode-from-wire — none carry the shape.
 >   rebuild has never had. No behaviour change; the FRAGILE-BUT-COMPLETE
 >   finding above stays a non-defect.
 
+> **✅ BARS MET 2026-08-09 — `anchorOffset` is threaded through.** Branch
+> `t27-287-289-audit-residue`, bundled with #287. `GATE: PASS` (1860 Swift
+> Testing units + 12 XCUITest, Release build clean).
+>
+> - **289-A MET.** `Message.swift`'s `staged(atLocalPath:)` now passes
+>   `anchorOffset: anchorOffset`, and carries a doc comment in the shape
+>   `mergeAttachments` has used since #276: staging may change
+>   `localStoragePath` and nothing else.
+> - **289-B MET, and the design differs from a literal reading of this
+>   entry** — worth recording, since "add the assertion to the existing test"
+>   would have produced a test that passes against the BUG.
+>   `stagedCopyKeepsIdentityAndFetchPointer` was rewritten to (a) seed
+>   `anchorOffset = 42` on the input, (b) compare the WHOLE struct against an
+>   `expected` naming all ten properties, (c) name `anchorOffset` in its own
+>   `#expect` so a regression reads as "the anchor was dropped" rather than
+>   two opaque struct dumps, and (d) pin the stored-property count at 10 via
+>   `Mirror`. (d) is what actually delivers this bar: whole-struct equality
+>   alone CANNOT catch an eleventh property, because it would default to nil
+>   on both sides of the comparison and pass in silence — which is precisely
+>   how `anchorOffset` stayed invisible here for as long as it did.
+> - **Watched RED against the unmodified tree first**, and for the stated
+>   reason specifically: every field matched except
+>   `staged.anchorOffset → nil` vs `expected.anchorOffset → 42`.
+>   `localStoragePath` was identical on both sides, ruling out a path typo
+>   as the source of the failure. Green after the one-argument fix.
+> - **`mergeConversationMetadata`: comment only, as recommended.** A "if you
+>   add a field to `Conversation`, add it here" guard now sits above the
+>   rebuild (`ChatStore.swift:2695-2698`). Nothing was fixed there because
+>   nothing is broken there — FRAGILE-BUT-COMPLETE stands, verbatim.
+
 ## 288. 🧹 Orphan device rows on paired hosts — audit + deactivate, one-time chore, **RE-RUN OWED after #285 is fixed for good** — **FILED 2026-08-07 evening on Owen's routing ("yes to the data chore as well, I bet it needs to be run now, and then put it on the books to be run after its fixed for good"). BASELINE AUDIT RAN THE SAME EVENING — result: NOTHING TO CLEAN. Chore stays open for the post-fix re-run.**
 
 **Where it comes from:** #285's repro 3b showed a re-pair reaching a
@@ -6110,7 +6140,7 @@ re-run is the one that actually proves the leak stopped).
 > **Consequence for this chore:** when 288-C runs, an orphan found does NOT
 > mean the fix failed — it may be this window. Record which.
 
-## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material.**
+## 287. 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A3, `planning/reports/2026-08-07-gpt-sol-xhigh-work-audit.md`); STATIC SHAPE VERIFIED same day (`AppContainer.swift:249`, `:266`, `:283` — the case exists, sits in the touches-network list and in `backgroundBootstrap`, and `runBackgroundBootstrap` no longer performs it). Small, self-contained; close-out-rule material. → ✅ FIX LANDED 2026-08-09 — bars 287-A/B/C MET, `GATE: PASS` (bundled with #289).**
 
 The launch partition's whole purpose is to be machine-checkable; a ghost step
 makes its tests document a fiction. Fix = remove the case from the enum +
@@ -6163,6 +6193,36 @@ stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 > conditionally `seedActiveModelFromGateway()`,
 > `sensorUploadService?.handleAppDidBecomeActive()`, `updateWidgetData()` —
 > and nothing anywhere in the file registers a push token.
+
+> **✅ BARS MET 2026-08-09 — the ghost is gone.** Branch
+> `t27-287-289-audit-residue`, bundled with #289. `GATE: PASS` (1860 Swift
+> Testing units + 12 XCUITest, Release build clean).
+>
+> - **287-A MET.** `case pushTokenRegistration` deleted from the enum, from
+>   the `touchesNetwork` network-touching arm, and from `backgroundBootstrap`;
+>   the degraded-mode comment now reads "sensor upload, inbox". The symbol no
+>   longer exists in `Talaria/`, `TalariaTests/` or `TalariaUITests/` except
+>   inside the new test's explanatory comment, where it names the removed
+>   ghost on purpose.
+> - **287-B MET, via the refined mechanism.** New literal-pin test
+>   `AppStoresTests.backgroundBootstrapHasNoGhostSteps`. **Watched RED against
+>   the unmodified tree first** — it failed with the actual array still
+>   carrying `Talaria.AppContainer.LaunchInitStep.pushTokenRegistration` at
+>   index 6, which is the stated reason and no other. Green after the fix.
+> - **287-C MET.** `launchCriticalPathIsLocalOnly` and the new pin both green
+>   inside the gate's Debug suite.
+>
+> **A finding this lane turned up but did NOT act on, filed here so it is not
+> lost:** #238's push teardown left more residue than this item's enum case.
+> `registerForRemoteNotifications` / `UNUserNotificationCenter` / `apnsToken`
+> now appear **zero** times anywhere in `Talaria/`, yet two comments still
+> describe push as live machinery — `AppContainer.swift:2043` ("the push-wake
+> path already orders `loadInbox(force:)` before this call") and `:2114`
+> ("push watch arming"). Both are the same ghost shape as this item, neither
+> is a launch-contract entry, and both were explicitly out of the dispatch's
+> scope — so they were left alone rather than silently widening this diff.
+> **Wants its own tracker number and a decision from Owen** on whether the
+> comments are stale or describe something that genuinely survived.
 
 ## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED → ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
 

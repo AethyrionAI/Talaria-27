@@ -47,16 +47,48 @@ struct AgentFileFetchTests {
     }
 
     @Test func stagedCopyKeepsIdentityAndFetchPointer() {
-        let attachment = MessageAttachment.fetchableAgentFile(
+        var attachment = MessageAttachment.fetchableAgentFile(
             name: "report.pdf", remotePath: "reports/report.pdf", profileID: UUID()
         )
+        // #289: seed a non-nil anchorOffset. Every real call site hands
+        // `staged()` a nil anchor today (a Tier-2 chip's is always nil), so a
+        // nil-vs-nil comparison passes against the UNFIXED function and proves
+        // nothing about the drop this test exists to catch.
+        attachment.anchorOffset = 42
+
         let staged = attachment.staged(atLocalPath: "/tmp/staged/report.pdf")
-        #expect(staged.id == attachment.id)
-        #expect(staged.localStoragePath == "/tmp/staged/report.pdf")
-        #expect(staged.remotePath == attachment.remotePath)
-        #expect(staged.remoteProfileID == attachment.remoteProfileID)
-        #expect(staged.fileName == attachment.fileName)
-        #expect(staged.mimeType == attachment.mimeType)
+
+        // The ONLY property staging may change is `localStoragePath`. Compare
+        // the whole struct, not a field list: `staged()` rebuilds field by
+        // field, which is the #276 silent-drop shape — every property has a
+        // default, so an omission compiles and reads as "correctly nil".
+        //
+        // `expected` names all ten explicitly rather than copy-and-mutating
+        // the input, because every property except `anchorOffset` is `let`.
+        let expected = MessageAttachment(
+            id: attachment.id,
+            kind: attachment.kind,
+            fileName: attachment.fileName,
+            mimeType: attachment.mimeType,
+            thumbnailBase64: attachment.thumbnailBase64,
+            localStoragePath: "/tmp/staged/report.pdf",
+            voiceMemoAudioPath: attachment.voiceMemoAudioPath,
+            remotePath: attachment.remotePath,
+            remoteProfileID: attachment.remoteProfileID,
+            anchorOffset: attachment.anchorOffset
+        )
+        #expect(staged == expected)
+        // Named separately so a regression reads as "the anchor was dropped"
+        // instead of two opaque struct descriptions (#289's actual defect).
+        #expect(staged.anchorOffset == 42)
+
+        // Bar 289-B: the property COUNT is what makes the next field added to
+        // `MessageAttachment` fail loudly here. Whole-struct equality alone
+        // cannot see it — an eleventh property would default to nil on BOTH
+        // sides of the comparison above and pass in silence, which is exactly
+        // how `anchorOffset` stayed invisible. Raise this number only in the
+        // same commit that threads the new property through `staged()`.
+        #expect(Mirror(reflecting: staged).children.count == 10)
     }
 
     @Test func stageFetchedAgentFileMovesTheDownload() throws {
