@@ -148,27 +148,45 @@ struct VoiceOverlayScreen: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var sessionHeaderLabel: String {
+        Self.sessionHeaderLabel(
+            engine: talkStore.voiceEngine,
+            connectionState: talkStore.connectionState,
+            duration: talkStore.sessionDuration
+        )
+    }
+
     /// #119b: bound to the live connection state machine — the label must
     /// never claim CONNECTING once the session is past the connect phase
     /// (the old shape fell back to CONNECTING for EVERY inactive state, so a
     /// mid-conversation `.failed` blip read as a stuck connect). Connected
     /// shows the ticking duration; blocked/failed show the state's own label.
-    private var sessionHeaderLabel: String {
-        let isNative = talkStore.voiceEngine == .native
-        switch talkStore.connectionState {
+    ///
+    /// #180 lane 180-L: extracted from a private computed property on the View
+    /// so the derivation is unit-testable — the house pattern
+    /// (`ChatScreen.sessionSummary`, `ChatStore.voiceTranscriptMessages`).
+    /// Pure code motion at this commit; the unknown-engine branch is bar
+    /// 180-C's fix and lands next.
+    nonisolated static func sessionHeaderLabel(
+        engine: VoiceEngine?,
+        connectionState: TalkConnectionState,
+        duration: TimeInterval
+    ) -> String {
+        let isNative = engine == .native
+        switch connectionState {
         case .connected:
-            return "\(isNative ? "LOCAL VOICE" : "VOICE SESSION") · \(formattedDuration)"
+            return "\(isNative ? "LOCAL VOICE" : "VOICE SESSION") · \(formattedDuration(duration))"
         case .idle, .checking, .ready, .connecting:
             return isNative ? "LOCAL VOICE · STARTING" : "VOICE LINK · CONNECTING"
         case .blocked, .failed:
             let tag = isNative ? "LOCAL VOICE" : "VOICE LINK"
-            return "\(tag) · \(talkStore.connectionState.displayLabel.uppercased())"
+            return "\(tag) · \(connectionState.displayLabel.uppercased())"
         }
     }
 
-    private var formattedDuration: String {
-        let minutes = Int(talkStore.sessionDuration) / 60
-        let seconds = Int(talkStore.sessionDuration) % 60
+    nonisolated static func formattedDuration(_ duration: TimeInterval) -> String {
+        let minutes = Int(duration) / 60
+        let seconds = Int(duration) % 60
         return String(format: "%02d:%02d", minutes, seconds)
     }
 

@@ -752,4 +752,111 @@ struct LocalSessionHistoryTests {
         #expect(stub.isUnresumable == true)
         #expect(stub.subtitle == ChatBackendRouter.unresumableReason, "a dimmed row carries its reason")
     }
+
+    // MARK: - #180 lane 180-L / L1: a drawer row never prints one string twice
+    //
+    // Bars 180-A (RED on the defect, two shapes) and 180-B (the green-today
+    // regression PIN). The rule being applied is `HostFedListPresentation`'s
+    // rule 5 corollary — *a fallback may NARROW a claim; it may never
+    // SUBSTITUTE a different one* — and its in-repo precedent is
+    // `LocalIntelligenceService.fallbackCard` (`:452-458`), which solved the
+    // identical render for the on-device card on 2026-07-11 and was never
+    // generalized to the server-fed row.
+
+    /// **180-A row (i) — #177's shape.** Hermes derives BOTH `title` and
+    /// `preview` from the first user message, so the server-fed drawer sends
+    /// them identical by construction. Before L1 the title branch took
+    /// `title` and the subtitle ladder took `preview`, printing the same
+    /// string on both lines of the row the paid-tier user actually looks at.
+    @Test @MainActor
+    func serverRowWithIdenticalTitleAndPreviewDoesNotPrintItTwice() {
+        let row = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-dupe", title: "what's the weather in London",
+            preview: "what's the weather in London", model: "opus",
+            source: "chat", messageCount: 4, lastActive: .now, isActive: false
+        ))
+
+        #expect(row.title == "what's the weather in London")
+        #expect(row.title != row.subtitle,
+                "#177: the server sends title == preview; the row must not print it twice")
+        #expect(row.subtitle == "4 messages",
+                "the ladder steps to the next rung rather than echoing")
+    }
+
+    /// **180-A row (ii) — #280's shape.** `title: nil` with a preview: the
+    /// title branch substitutes the preview, and the subtitle rung then
+    /// repeats it. This BELTS #280's drawer symptom — it does not close
+    /// #280, whose bar 280-A asserts `conversation.title !=
+    /// Conversation.defaultTitle` and which this change does not touch.
+    @Test @MainActor
+    func titlelessRowDoesNotEchoItsPreviewOnBothLines() {
+        let row = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "local-1", title: nil, preview: "remind me to call mum",
+            model: "on-device", source: LocalChatBackend.localSessionSource,
+            messageCount: 2, lastActive: .now, isActive: false
+        ))
+
+        #expect(row.title == "remind me to call mum",
+                "the substitution STAYS — a row whose only text is its preview should still show it, once")
+        #expect(row.title != row.subtitle)
+        #expect(row.subtitle == "2 messages")
+    }
+
+    /// **180-A, the empty corner.** Title == preview on a thread with no
+    /// counted messages: the ladder's last rung has to carry the row.
+    @Test @MainActor
+    func duplicateRowWithNoMessagesFallsToTheFinalRung() {
+        let row = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-empty", title: "[screenshot]", preview: "[screenshot]",
+            model: "opus", source: "chat", messageCount: 0, lastActive: .now, isActive: false
+        ))
+
+        #expect(row.title == "[screenshot]")
+        #expect(row.subtitle == "No messages")
+        #expect(row.title != row.subtitle)
+    }
+
+    /// **180-B — the regression PIN. GREEN TODAY BY CONSTRUCTION, and that is
+    /// recorded rather than implied:** a bar that was never red is a pin, not
+    /// a proof. Its job is to fail if L1 over-reaches and "fixes" 180-A by
+    /// deleting the subtitle.
+    @Test @MainActor
+    func distinctTitleAndPreviewKeepBothLines() {
+        let row = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-1", title: "Weekly review", preview: "Let's start with Monday",
+            model: "opus", source: "chat", messageCount: 9, lastActive: .now, isActive: false
+        ))
+
+        #expect(row.title == "Weekly review")
+        #expect(row.subtitle == "Let's start with Monday",
+                "a genuinely distinct preview is the subtitle — L1 must not eat it")
+    }
+
+    /// **180-B, second half — the three ladder rungs #190 owns are unchanged.**
+    @Test @MainActor
+    func the190SubtitleLadderRungsSurviveL1() {
+        // Rung 1: an unresumable row carries its honest reason, not a preview
+        // it cannot deliver on.
+        let dimmed = ChatScreen.sessionSummary(from: remoteInfo(id: "h-gone", lastActive: .now)
+            .asUnresumable(reason: ChatBackendRouter.unresumableReason))
+        #expect(dimmed.subtitle == ChatBackendRouter.unresumableReason)
+
+        // Rung 2: no preview, messages counted — plural and singular.
+        let counted = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-2", title: "Named", preview: nil, model: "opus",
+            source: "chat", messageCount: 3, lastActive: .now, isActive: false))
+        #expect(counted.subtitle == "3 messages")
+
+        let one = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-3", title: "Named", preview: nil, model: "opus",
+            source: "chat", messageCount: 1, lastActive: .now, isActive: false))
+        #expect(one.subtitle == "1 message")
+
+        // Rung 3: nothing at all.
+        let empty = ChatScreen.sessionSummary(from: HermesSessionInfo(
+            id: "h-4", title: "Named", preview: nil, model: "opus",
+            source: "chat", messageCount: 0, lastActive: .now, isActive: false))
+        #expect(empty.subtitle == "No messages")
+        #expect(empty.title == "Named")
+    }
 }

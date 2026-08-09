@@ -128,6 +128,21 @@ struct SharedInboxStore: Sendable {
     static let envelopeFileName = "envelope.json"
     private static let blobsDirName = "blobs"
 
+    /// #180 lane 180-L (bar 180-E) — **the refusal's arithmetic lives next to
+    /// the guard it explains.** This was `ShareSheetModel.LoadedItem.byteLabel`
+    /// in `ShareViewController.swift`, which is compiled ONLY into the
+    /// TalariaShare target and is therefore unreachable from the suite; this
+    /// file is compiled into both, so the number the user is shown and the
+    /// number the guard enforces can be asserted against each other.
+    /// Pure code motion at this commit.
+    static func byteLabel(_ count: Int) -> String {
+        ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file)
+    }
+
+    /// The limit as the refusal states it. Same formatter as any file size the
+    /// extension shows, so the two are comparable by construction.
+    static var sizeLimitLabel: String { byteLabel(defaultMaxEnvelopeBytes) }
+
     private static let log = Logger(subsystem: "org.aethyrion.talaria", category: "SharedInbox")
 
     init(
