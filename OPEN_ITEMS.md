@@ -5127,6 +5127,55 @@ Manual/Off app lane).**
 > (default `false`) before this run — building is not shipping; only
 > flipping the default after 297-A/B/C all PASS counts as shipping.
 
+> **BUILD PHASE CLOSED OUT, 2026-08-08 — BUILT and gate-PASSED behind the
+> flag; bars NOT met; #297 is NOT closed.** Four commits on
+> `t27-297-toolless-index`: `63d1e09` (test, RED-first), `764f6af` (feat,
+> the `includeToollessCapabilityIndex: Bool = false` flag on
+> `instructionsText`, appended AFTER `toollessHonestyClauseV2` in the
+> `includeToollessLic2Clause` branch; `productionToollessInstructions`
+> gained the same defaulted pass-through parameter so a future measured
+> arm builds through the SAME builder per #202D's one-builder rule),
+> `85c2499` (fix, appositive frame), `16913b9` (test, fused-join structure
+> pins). **Production behavior is unchanged and pinned by test** — the
+> flag-OFF production text is byte-identical to before this lane, which is
+> what makes merging this safe without device time. The generated sentence
+> (via `CapabilityRegistry.armedCapabilityEnumeration` over the ten
+> non-vision families) reads: " You can also read the user's own device
+> data when asked — their health and activity, their location, the
+> weather, nearby places, calendar, reminders, alarms, contacts, past
+> conversations, and device status — so offer to, rather than saying you
+> can't."
+>
+> **A defect was hit and fixed inside the lane, worth recording on its
+> own:** the first frame double-possessived the registry's own phrases
+> ("the user's **their** health and activity") because two
+> `displayPhrase` values already carry "their". Fixed in `85c2499` by
+> mirroring the ARMED sentence's em-dash appositive frame — **the
+> `displayPhrase` values themselves were left alone**; only the
+> surrounding frame changed shape to fit them. Code review then found the
+> new tests could not distinguish the broken frame from the fixed one (the
+> fix commit never touched the test file) — `16913b9` closes that gap with
+> registry-derived structure pins (em-dash bracketing + absence of the old
+> fused join), RED-verified by restoring the broken frame first (both new
+> assertions failed at `DeviceToolBeltTests.swift:575` and `:578`) and then
+> restoring the fix (173/173 green).
+>
+> **Gate: PASS** on this branch — 1852 tests / 142 suites + XCUITest,
+> Release build green.
+>
+> **The bars are NOT met.** 297-A/B/C are a device A/B and it has not been
+> run — nothing here exercises a device, and no measured arm has been
+> built. #257's conversational bar remains open until 297-A clears.
+> Flipping `includeToollessCapabilityIndex` to `true` in production is the
+> only remaining step, and it is gated on 297-A/B/C clearing, Owen
+> routing. **Where the measured arm would run from:** the treatment
+> builder is `productionToollessInstructions(includeToollessCapabilityIndex:
+> true)` — a future Developer-screen A/B cell wires to that call, never to
+> a copied string, per the same one-builder rule the flag was built to
+> satisfy. **Owed follow-up, not done here:** no DEBUG A/B cell exists yet
+> for this flag; building one is part of the device-run lane, not this
+> one.
+
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent

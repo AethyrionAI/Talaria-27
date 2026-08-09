@@ -5,6 +5,15 @@
 > 37.5% MISSED (every miss a superset — zero under-arming). Per §5.3's pre-registered
 > response, §6 selective arming did NOT ship; §4's toolless question REOPENED by same-day device evidence: the vector routes capability-meta armed, but PRODUCTION's one-Bool router routes it toolless (build 2225, reply named zero families) — the §4 toolless-index arm is live; see the #284 correction note. Verdict:
 > OPEN_ITEMS #284, 2026-08-08.
+>
+> **Dated note, 2026-08-08 (later same day):** "is live" above should not
+> read as un-started. §4's toolless-index arm was filed as its own item,
+> **#297**, and its BUILD phase is now done — the
+> `includeToollessCapabilityIndex` flag and the registry-generated
+> sentence are landed behind a default-OFF flag, gate-PASSED. The device
+> A/B (bars 297-A/B/C) has NOT run; #257's conversational bar is still
+> open. See OPEN_ITEMS #297 for current state; this note does not rewrite
+> the outcome recorded above.
 
 **Date:** 2026-08-08. **Tracker:** OPEN_ITEMS #284. **Approved by:** Owen (scope,
 selection mechanism, and probe-first routing all chosen in the 2026-08-08
