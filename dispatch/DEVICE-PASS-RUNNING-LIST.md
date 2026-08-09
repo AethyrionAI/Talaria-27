@@ -2493,6 +2493,27 @@ client-side counterpart at all.
 > today, and the obvious next attempt. **Set the brain to HERMES as well as the
 > profile.**
 >
+> **⚠️ AND AN OPENAI KEY ON THE MAC DOES NOT CHANGE THIS — verified
+> 2026-08-09 (same evening) after Owen added one to the Mac's
+> `~/.hermes/.env`.** The realtime talk plane is **relay + connector**:
+> the app probes the RELAY (`/v1/talk/readiness`, `relay/app/main.py:1221`),
+> which RPCs the CONNECTOR (`talk.prewarm`), and the CONNECTOR is what holds
+> the OpenAI key and mints realtime client secrets
+> (`connector/src/…/client.py:213`). Relay and connector run on **OJAMD**;
+> the Mac has neither, so keys in the Mac's env are invisible to this plane
+> no matter what. (The Mac key DOES serve the gateway's own voice-note
+> STT/TTS — gateway restarted 15:07 to load it, listener verified.) **254-D's
+> route is the OJAMD profile, full stop** — where realtime has been
+> configured all along; it is what produced the original full-volume ghost.
+> One cold Control Center launch there scores **303-A and 254-D from the
+> same trial** (engine line first: `native` despite Hermes-brain+configured
+> = #303 CONFIRMED and the ghost bar stays blocked behind it; `realtime` =
+> 303-A refuted and the background-mid-connect trial proceeds).
+>
+> **Status 2026-08-09 evening: NOT attempted — Owen has OJAMD's gateway
+> deliberately OFF (*"to prevent confusion"*). The trial waits for that
+> host's next uptime; nothing else blocks it.**
+>
 > **Filed from these attempts: #303** — `VoiceEngineRouter` has no UPGRADE path,
 > so a cold Control Center launch pins native even when the brain permits
 > realtime. **Masked on this host** (`configured:false` routes native anyway),
