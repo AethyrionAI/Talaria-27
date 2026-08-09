@@ -6990,6 +6990,28 @@ not walk — the doc half, being fixed now in the #291 lane.
 >   (117 pre-lane + this lane's ordering pin), RunsPlaneTransportTests
 >   32/32, both foreground.
 
+> **✅ 2026-08-09 — the "Interaction with #292 noted, not blocking" line in
+> Owen's ruling above is RESOLVED: the recovery is independent of the
+> producer, and #292's fix does not disturb it.** #292's cancellation hook
+> landed (`t27-292-producer-cancellation`) and the proof is structural, not
+> asserted: the arm's inputs are all store-side (`streamingMessageID`,
+> `streamingUserMessageID`, `activeStreamRun ?? activeSessionID`; `runId`
+> passed nil), and the recovery fetch is a separate client call
+> (`reconcileFromServer()` off `reconcileTask`), not work inside the
+> producer #292 now cancels. All seven of this entry's pins —
+> `expirationPathArmsTheRealRecovery`, `expirationPathSettlesTheUserRowWorking`,
+> `explicitStopStillSettlesTheUserRowDelivered`,
+> `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop`,
+> `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`,
+> `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`,
+> `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed` — ran green
+> WITHOUT edits after the fix. (The ruling's "Runs plane: the status poll"
+> misnaming of the shipped mechanism is already corrected in the 2026-08-09
+> supersession note above — the sessions-messages GET shipped on both
+> planes; not duplicated here.) One #292-side consequence recorded there,
+> Owen-overturnable: an abandoned runs turn's usage is never recorded, so
+> its session's CTX gauge goes stale rather than current.
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -7154,6 +7176,89 @@ today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
 `RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
 hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
+
+> **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
+> numeric RED evidence. Bars 292-A and 292-B MET; 292-C NOT YET QUEUED
+> (device — the controller adds the row to `DEVICE-PASS-RUNNING-LIST.md` at
+> session close-out); ✅ GATE: PASS 2026-08-09 (controller-run, sim
+> CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
+> RED by restoring the bug leaves an orphaned producer polling for up to the
+> test's 30s budget AFTER the test returns — later tests in the serialized
+> suite will see its requests as noise in the shared stub log. Expected
+> collateral of the un-fixed state, not a second regression.
+>
+> **⚠️ The entry's as-filed citations were stale — corrected here (close-out
+> rule), verified at the fix branch's HEAD:** the producer is
+> `sendStreaming` at `SessionsHermesClient.swift:346-393` (not `:322-350`,
+> which is the `postSyncTurn`/`discardStaleHop`/`postSyncChat` region); the
+> comment file is `SessionsHermesClient+RunsTransport.swift` (no bare
+> `RunsTransport.swift` exists) and there were THREE comment sites, not one
+> (post-fix: `:562-567`, `:795-806`'s "or on cancellation", and `:804-806`'s
+> "exits silently"); the cancellation checks are `streamTurnViaRuns`'s
+> events-loop break at `:444` and `pollRunToTerminal`'s single top-of-loop
+> check at `:824` plus the cancellation-shaped sleep catch at `:858`
+> (`:780` was a doc line, not a check). Note the 2026-08-09 refinement
+> note's own `:546-547`/`:777`/`:780-781` citations had already drifted by
+> the time it was committed (#296-C2's comment block landed above them);
+> the sites are the same three, found by the phrases, not the numbers.
+>
+> - **292-A MET, RED first with the numbers the bar demanded.** New test
+>   `consumerWalkAwayCancelsTheProducerAndStopsThePolling`
+>   (`RunsPlaneTransportTests.swift`), built exactly per the refinement
+>   note: stub-side counting, per-test `runsPollBudget = 30s` /
+>   `runsPollInterval = 40ms` override (the bar's teeth — stated as a
+>   comment in the test), inline collector, count proven ≥2 before the
+>   cancel, `==` with no tolerance. **RED on `f23a6fb`: `atWalkAway = 2,
+>   final = 13`** — eleven more authenticated `GET /v1/runs/run-r1` polls in
+>   a 500ms window after the consumer's stream was released — AND
+>   `activeRunContext` still non-nil (the second assertion, the
+>   defer-runs-on-cancel hazard, also failed on HEAD). **GREEN after the
+>   fix:** count frozen, context nil. The fix is the router's #192 shape
+>   verbatim: producer Task bound to a `let`,
+>   `continuation.onTermination = { _ in producer.cancel() }`
+>   (`SessionsHermesClient.swift:390-392`), strong capture of the Task
+>   handle. `RunsPlaneTransportTests` 33/33 (count MOVED 32 → 33, fresh
+>   DerivedData); the two tests the dispatch flagged as most likely to move
+>   — `streamCompletionSuppressesThePollPath` and
+>   `killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce` — both stayed
+>   green untouched.
+> - **292-B MET.** All three comments now name the mechanism that makes
+>   them true (`sendStreaming`'s `onTermination` hook, #292) and the hook
+>   carries the reciprocal note naming its three customer checks. Repo-wide
+>   grep for "costs nothing" / "exits silently" / "makes the poll a no-op":
+>   the only Swift hits touching cancellation are the two rewritten sites
+>   (`+RunsTransport.swift:563`, `:804`), both now describing shipped
+>   behavior; every other hit (`ChatScreen.swift:114`,
+>   `SessionsHermesClient.swift:126`, `+RunsTransport.swift:487` (296-C2's
+>   field), `LocalChatBackend.swift:2194`, `AppStoresTests.swift:5004`,
+>   `scripts/e1-doubleinstall-probe.swift:11`) is an unrelated claim the
+>   code walks.
+> - **Ruling 1 held (the #295 interaction):** all seven #295 pins plus
+>   `ChatBackendRouterTests`' two guards ran green WITHOUT edits
+>   (AppStoresTests + ChatBackendRouterTests, 144/144). **One real cost,
+>   deliberate and Owen-overturnable:** an abandoned runs turn's usage is
+>   never recorded (`deliverPolledTerminal`'s `usageIndex` write no longer
+>   runs for it), so that session's CTX gauge shows the previous run's
+>   occupancy — stale, never zero, never hidden. The alternative was ~60
+>   authenticated requests to keep a gauge current on a turn the user left.
+> - **Ruling 2 held:** the producer's cancellation path is network-free —
+>   no `/stop` wired (that flip stays Owen's, per #283's ruling), no
+>   reordering in `cancelStreaming`.
+> - **292-C, procedure for the device row** (NOT yet queued — the
+>   controller adds it to `DEVICE-PASS-RUNNING-LIST.md` at close-out): walk
+>   away from a runs turn, kill the network past 60s, host log shows no
+>   further `GET /v1/runs/{id}` and no `/stop` at all; record the
+>   pre-walk-away poll count so a producer that never reached the poll loop
+>   reads inconclusive, not passing.
+> - **Open for Owen (Ruling 3, filed not built):** whether the runs plane
+>   should get the literal status-poll recovery his #295 ruling named
+>   (needs a durable `run_id` surfaced out of the producer — MORE necessary
+>   post-fix, since the producer is now guaranteed not to be around to
+>   poll), and whether the usage-gap trade above stands or a single final
+>   status read on cancellation is worth it.
+> - **CLAUDE.md: nothing owed** — no standing rule is falsified by this
+>   fix (stated explicitly per the dispatch's close-out).
 
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
@@ -8303,6 +8408,18 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > History rides EVERY submit unbounded (parked deliberately: parity with the
 > server-side context the sessions plane feeds the agent; revisit at 3E,
 > where it compounds with attachment dataURLs toward a request-size cliff).
+>
+> **2026-08-09 (#292 close-out) — two of the numbers above moved, dated
+> note not a rewrite:** `sendStreaming` now cancels the producer on consumer
+> walk-away (`onTermination`, #292), so (1) the single-slot
+> `activeRunContext` clears AT walk-away — the producer's `defer` runs on
+> cancellation — instead of at poll-budget expiry, shrinking the
+> wrong-run-stop window from ≤120s to ~0 on abandoned turns (a Stop tapped
+> in that window now correctly finds no stale run to address); and (2) the
+> "~3 min worst case" silence window applies only to a WATCHING consumer —
+> an abandoned turn stops its polling at walk-away rather than running the
+> budget unwatched (which #292's filing noted was worse than the number
+> implied).
 >
 > **Falsified upstream in the same lane (close-out rule):** #145 Part A's
 > "everything that is not a stream gets 20s" was made false by the first
