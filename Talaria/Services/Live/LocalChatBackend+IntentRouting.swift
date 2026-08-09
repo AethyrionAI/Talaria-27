@@ -204,14 +204,24 @@ extension LocalChatBackend {
     /// the promoted `toolless-lic2` payload PLUS clause v2.
     /// **Rollback: drop `includeToollessHonestyClauseV2`** — that is exactly
     /// the `honesty-control` cell, measured at 9/10 broken turns.
+    ///
+    /// `includeToollessCapabilityIndex` is #297's pass-through: defaulted
+    /// `false` so every existing call site (production's included) is
+    /// unaffected, and here — not a copy of this function — is where a
+    /// future DEBUG measured arm builds the treatment text, per #202D's
+    /// "one place so the live path and the measured arm cannot drift" rule.
+    /// Production does not flip it; that is Owen's call after bars
+    /// 297-A/B/C clear on device.
     nonisolated static func productionToollessInstructions(
-        deviceContext: String, date: Date = .now, hasImageTools: Bool
+        deviceContext: String, date: Date = .now, hasImageTools: Bool,
+        includeToollessCapabilityIndex: Bool = false
     ) -> String {
         instructionsText(
             deviceContext: deviceContext, date: date,
             hasTools: false, hasImageTools: hasImageTools,
             includeToollessLic2Clause: true,
-            includeToollessHonestyClauseV2: true
+            includeToollessHonestyClauseV2: true,
+            includeToollessCapabilityIndex: includeToollessCapabilityIndex
         )
     }
 

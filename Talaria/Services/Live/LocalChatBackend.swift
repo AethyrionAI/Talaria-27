@@ -1733,6 +1733,20 @@ final class LocalChatBackend: HermesClientProtocol {
         return CapabilityRegistry.armedCapabilityEnumeration(families: all)
     }
 
+    /// #297: the toolless capability index — one registry-generated
+    /// sentence offering the #257 conversational fix on the toolless-lic2
+    /// branch, so a fresh "What can you do?" turn can name what it CAN
+    /// offer instead of only stonewalling. Fixed to the full non-vision
+    /// catalog via `armedEnumeration`, never a hand-written list (#257's
+    /// root cause) and never the caller's narrowed `armedCapabilityFamilies`
+    /// — a toolless turn registers no belt at all (#196's structural cure),
+    /// so there is no "armed subset" for this branch, only the full offer.
+    /// Vision is excluded outright (`hasImageTools: false`, not merely
+    /// unlisted): it is image-gated (#176) and irrelevant here regardless,
+    /// since a toolless turn was never given image tools either.
+    nonisolated static let toollessCapabilityIndexSentence =
+        " You can also read the user's \(LocalChatBackend.armedEnumeration(families: CapabilityGroup.allCases, hasImageTools: false)) when asked — offer to, rather than saying you can't."
+
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
@@ -1756,7 +1770,14 @@ final class LocalChatBackend: HermesClientProtocol {
         includeCompositionAnswerClause: Bool = false,
         includeCardCorrectionClause: Bool = false,
         includeToollessHonestyClause: Bool = false,
-        includeToollessHonestyClauseV2: Bool = false
+        includeToollessHonestyClauseV2: Bool = false,
+        // #297: the toolless capability index (spec §4's contingency,
+        // #284 plan Task 12). Default OFF — production ships this false
+        // until Owen's device A/B (bars 297-A/B/C) clears it. Applies only
+        // on the `includeToollessLic2Clause` branch, appended AFTER
+        // `includeToollessHonestyClauseV2` — order matters, the honesty
+        // clause must never be displaced.
+        includeToollessCapabilityIndex: Bool = false
     ) -> String {
         let day = date.formatted(date: .complete, time: .omitted)
         // #196 second battery: the composition-licensing sentence — the
@@ -1908,6 +1929,7 @@ final class LocalChatBackend: HermesClientProtocol {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job — facts you know are not guesses, and writing about the world from your own knowledge needs no internet or lookup. Simple math and everyday factual questions you answer directly yourself. Reply in plain conversational prose — never JSON, XML, code blocks, or tool syntax unless the user asks for them. You have no internet access and no external tools in this mode; when you genuinely don't know something, say so plainly instead of guessing."
                 + (includeToollessHonestyClause ? toollessHonesty : "")
                 + (includeToollessHonestyClauseV2 ? Self.toollessHonestyClauseV2 : "")
+                + (includeToollessCapabilityIndex ? Self.toollessCapabilityIndexSentence : "")
         } else if includeToollessLicensingClause {
             // #196 toolless-lic cell: the bare branch, licensed. Composition
             // licensed up front; the no-internet honesty caveat KEPT — the
