@@ -125,4 +125,144 @@ struct SettingsChannelsTests {
     @Test func aboutIsHealthyConfiguredAndOffline() {
         #expect(SettingsCardValues.aboutIsHealthy(hostConfigured: true, connectionOnline: false) == false)
     }
+
+    // MARK: - #252R-A — card ACCENT predicates
+    //
+    // These are the first tests that have ever reached `cardIsAccented`. Until
+    // the extraction into `SettingsCardAccent` it was a `private func` on the
+    // View, unreachable even under `@testable import` — which is exactly why
+    // #256-H could move the Voice card's VALUE to the engine route, leave its
+    // ACCENT reading `readAloudAutoPlay`, and have the whole suite stay green
+    // for four days.
+
+    /// **252R-A, watched RED.** The card can read `LOCAL ONLY` (no live voice
+    /// anywhere) and still glow, purely because an unrelated read-aloud
+    /// auto-play toggle is on — a glow describing a setting the card no longer
+    /// names. That is the #180 family: a signal that does not say what it
+    /// appears to say.
+    ///
+    /// Watched RED against the defect extracted verbatim out of the View
+    /// (`voice(readAloudAutoPlay:brainIsLocal:engine:talkState:) ->
+    /// readAloudAutoPlay`), which is what let the extra argument be passed:
+    ///
+    ///     ✘ Test voiceAccentDoesNotFollowReadAloudWhenTheRouteIsIdle()
+    ///       recorded an issue … Expectation failed:
+    ///       SettingsCardAccent.voice(readAloudAutoPlay: true,
+    ///       brainIsLocal: false, engine: .realtime, talkState: .idle) == false
+    ///       ↳ … → true
+    ///
+    /// The fix deletes `readAloudAutoPlay` from the signature outright, so the
+    /// guarantee this pin was reaching for — the accent cannot move with the
+    /// read-aloud toggle — is now carried by the type system rather than by a
+    /// runtime assertion.
+    @Test func voiceAccentDoesNotFollowReadAloudWhenTheRouteIsIdle() {
+        #expect(SettingsCardAccent.voice(
+            brainIsLocal: false, engine: .realtime, talkState: .idle) == false)
+    }
+
+    /// **252R-A, watched RED.** The mirror failure: a genuinely connected
+    /// realtime session — the card reads `REALTIME · LIVE` — renders
+    /// unaccented because read-aloud happens to be off.
+    ///
+    ///     ✘ Test voiceAccentIsTrueForAConnectedSessionWithReadAloudOff()
+    ///       recorded an issue … Expectation failed:
+    ///       SettingsCardAccent.voice(readAloudAutoPlay: false,
+    ///       brainIsLocal: false, engine: .realtime, talkState: .connected)
+    ///       == true
+    ///       ↳ … → false
+    @Test func voiceAccentIsTrueForAConnectedSessionWithReadAloudOff() {
+        #expect(SettingsCardAccent.voice(
+            brainIsLocal: false, engine: .realtime, talkState: .connected) == true)
+    }
+
+    /// **252R-A's real contract, pinned exhaustively.** A card's ACCENT must
+    /// describe the same fact as its VALUE, so the two cannot disagree: over
+    /// every (brain × engine × talk-state) combination the accent is true
+    /// exactly when the value reads the live-session string. This is the pin
+    /// that would have caught #256-H, and it will catch the next such move.
+    ///
+    /// Owen's ruling (2026-08-09): `ON-DEVICE` is always available, so glowing
+    /// for it would make the accent meaningless on a hostless install — the
+    /// default user under the launch pivot. Only a connected realtime session
+    /// glows. Read-aloud is not an input here at all.
+    @Test func voiceAccentAndValueCannotDisagree() {
+        let talkStates: [TalkConnectionState] =
+            [.idle, .checking, .ready, .connecting, .connected, .blocked, .failed]
+        for brainIsLocal in [true, false] {
+            for engine: VoiceEngine in [.realtime, .native] {
+                for talkState in talkStates {
+                    let value = SettingsCardValues.voice(
+                        brainIsLocal: brainIsLocal, engine: engine, talkState: talkState)
+                    let accent = SettingsCardAccent.voice(
+                        brainIsLocal: brainIsLocal, engine: engine, talkState: talkState)
+                    #expect(accent == (value == "REALTIME · LIVE"),
+                            "accent \(accent) disagrees with value \(value) for brainIsLocal=\(brainIsLocal) engine=\(engine) talk=\(talkState)")
+                }
+            }
+        }
+    }
+
+    // A fourth pin, `voiceAccentIsIndependentOfReadAloud`, was watched RED here
+    // (7 issues, one per talk state) and then deliberately RETIRED rather than
+    // made green: the fix removes `readAloudAutoPlay` from the signature
+    // entirely, so "the accent does not move with the read-aloud toggle" became
+    // a statement the compiler enforces and a runtime assertion could no longer
+    // express. The read-aloud toggle keeps its own home on
+    // `VoiceSettingsScreen`, and its real consumer is the auto-read pipeline in
+    // `AppContainer` — which is untouched by 252R-A.
+
+    /// The other eight predicates, moved verbatim out of the View — no
+    /// behaviour change, but they had no coverage either. Each means the same
+    /// thing: *this subsystem is in a live/active state.*
+    @Test func accentPredicatesForTheOtherEightSubsystems() {
+        #expect(SettingsCardAccent.uplink(state: .online) == true)
+        #expect(SettingsCardAccent.uplink(state: .offline) == false)
+        #expect(SettingsCardAccent.uplink(state: .unreachable) == false)
+        #expect(SettingsCardAccent.uplink(state: .notConnected) == false)
+
+        #expect(SettingsCardAccent.server(hasActiveProfile: true) == true)
+        #expect(SettingsCardAccent.server(hasActiveProfile: false) == false)
+
+        #expect(SettingsCardAccent.models(activeModelName: "kimi-k3") == true)
+        #expect(SettingsCardAccent.models(activeModelName: "") == false)
+        #expect(SettingsCardAccent.models(activeModelName: nil) == false)
+
+        #expect(SettingsCardAccent.appearance == true)
+
+        #expect(SettingsCardAccent.privacy(masterOn: true, health: true,
+                                           location: false, motion: false) == true)
+        #expect(SettingsCardAccent.privacy(masterOn: true, health: false,
+                                           location: false, motion: false) == false)
+        #expect(SettingsCardAccent.privacy(masterOn: false, health: true,
+                                           location: true, motion: true) == false)
+
+        // nil is "not loaded yet" (value renders "…"), not zero sessions.
+        #expect(SettingsCardAccent.sessions(count: nil) == false)
+        #expect(SettingsCardAccent.sessions(count: 0) == true)
+        #expect(SettingsCardAccent.sessions(count: 12) == true)
+
+        #expect(SettingsCardAccent.about(isHealthy: true) == true)
+        #expect(SettingsCardAccent.about(isHealthy: false) == false)
+
+        #expect(SettingsCardAccent.developer == false)
+    }
+
+    /// The accent predicates must agree with the value formatters wherever
+    /// both describe the same fact — the same coupling 252R-A pins for Voice,
+    /// checked on its nearest neighbour so the principle is not a one-off.
+    @Test func privacyAccentAndValueCannotDisagree() {
+        for masterOn in [true, false] {
+            for health in [true, false] {
+                for location in [true, false] {
+                    for motion in [true, false] {
+                        let value = SettingsCardValues.privacy(
+                            masterOn: masterOn, health: health, location: location, motion: motion)
+                        let accent = SettingsCardAccent.privacy(
+                            masterOn: masterOn, health: health, location: location, motion: motion)
+                        #expect(accent == (value != "SENSORS OFF"))
+                    }
+                }
+            }
+        }
+    }
 }

@@ -409,21 +409,39 @@ struct SettingsChannelsScreen: View {
         }
     }
 
+    // #252R-A: the predicates themselves live in SettingsChannels.swift beside
+    // the value formatters — pure, store-free and unit-testable. This switch is
+    // now only the store→argument wiring, which is the same shape `cardValue`
+    // above already had. Before the extraction this was a private View method
+    // no test could reach, which is why the Voice card's accent could drift
+    // away from its value for four days without a single failure.
     private func cardIsAccented(_ subsystem: SettingsSubsystem) -> Bool {
         switch subsystem {
-        case .uplink: effectiveConnectionState == .online
-        case .server: container.profilesStore?.activeProfile != nil
-        case .models: container.chatStore.activeModelName?.isEmpty == false
-        case .voice: settingsStore.settings.readAloudAutoPlay
-        case .appearance: true
+        case .uplink:
+            SettingsCardAccent.uplink(state: effectiveConnectionState)
+        case .server:
+            SettingsCardAccent.server(hasActiveProfile: container.profilesStore?.activeProfile != nil)
+        case .models:
+            SettingsCardAccent.models(activeModelName: container.chatStore.activeModelName)
+        case .voice:
+            SettingsCardAccent.voice(
+                brainIsLocal: container.chatBackendRouter?.activeBrain != .hermes,
+                engine: talkStore.voiceEngine,
+                talkState: talkStore.connectionState)
+        case .appearance:
+            SettingsCardAccent.appearance
         case .privacy:
-            settingsStore.settings.sensorStreamingEnabled &&
-            (settingsStore.settings.healthCollectionEnabled ||
-             settingsStore.settings.locationCollectionEnabled ||
-             settingsStore.settings.motionCollectionEnabled)
-        case .sessions: sessionCount != nil
-        case .about: aboutIsHealthy
-        case .developer: false
+            SettingsCardAccent.privacy(
+                masterOn: settingsStore.settings.sensorStreamingEnabled,
+                health: settingsStore.settings.healthCollectionEnabled,
+                location: settingsStore.settings.locationCollectionEnabled,
+                motion: settingsStore.settings.motionCollectionEnabled)
+        case .sessions:
+            SettingsCardAccent.sessions(count: sessionCount)
+        case .about:
+            SettingsCardAccent.about(isHealthy: aboutIsHealthy)
+        case .developer:
+            SettingsCardAccent.developer
         }
     }
 

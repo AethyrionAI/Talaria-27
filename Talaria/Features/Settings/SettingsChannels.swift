@@ -137,3 +137,68 @@ enum SettingsCardValues {
 
     static func developer(environmentLabel: String) -> String { environmentLabel.uppercased() }
 }
+
+/// #252R-A — the ACCENT half of the card telemetry, extracted here from
+/// `SettingsChannelsScreen.cardIsAccented` so it is unit-testable **at all**.
+///
+/// Every predicate below answers one question: *is this subsystem in a live /
+/// active state?* Pure and store-free, exactly like `SettingsCardValues`
+/// above — `SettingsChannelsScreen` feeds them live values.
+///
+/// **Why the extraction is part of the fix, not tidying.** `cardIsAccented`
+/// was a `private func` on the View: unreachable even under
+/// `@testable import`, so it carried zero coverage while the value formatters
+/// beside it carried thirteen pins. #256-H moved the Voice card's VALUE from
+/// the read-aloud toggle to the engine route and left the ACCENT reading
+/// `readAloudAutoPlay`; nothing in the suite could see the divergence, and it
+/// stood for four days. Testability was the missing guard, so it is restored
+/// in the same change as the behaviour.
+enum SettingsCardAccent {
+    static func uplink(state: HermesHostConnectionState) -> Bool { state == .online }
+
+    static func server(hasActiveProfile: Bool) -> Bool { hasActiveProfile }
+
+    static func models(activeModelName: String?) -> Bool { activeModelName?.isEmpty == false }
+
+    /// #252R-A: the Voice card's accent must describe the same fact its VALUE
+    /// names, so the glow and the text cannot disagree. It takes the same
+    /// three inputs `SettingsCardValues.voice` takes, and the equivalence
+    /// `accent ⇔ value == "REALTIME · LIVE"` is pinned exhaustively over
+    /// every (brain × engine × talk-state) combination in
+    /// `SettingsChannelsTests`.
+    ///
+    /// **Owen's ruling (2026-08-09):** glow ONLY for a genuinely connected
+    /// realtime session — not for any "available" route. `ON-DEVICE` is
+    /// always available, so glowing for it would make the accent meaningless
+    /// on a hostless install, which is the DEFAULT user under the launch
+    /// pivot. Cheap to reverse if he wants the broader reading later.
+    ///
+    /// `readAloudAutoPlay` is deliberately absent: it is what this predicate
+    /// used to return, and it names a setting the card no longer displays —
+    /// the #180 family (a signal that does not say what it appears to say).
+    /// The read-aloud toggle keeps its own home on `VoiceSettingsScreen`, and
+    /// the auto-read pipeline keeps its own reader in `AppContainer`.
+    static func voice(brainIsLocal: Bool, engine: VoiceEngine,
+                      talkState: TalkConnectionState) -> Bool {
+        guard !brainIsLocal, engine == .realtime else { return false }
+        return talkState == .connected
+    }
+
+    /// The one card whose subject is always on — a theme is always applied.
+    /// Named rather than inlined so the nine read as a single table.
+    static var appearance: Bool { true }
+
+    /// Accented exactly when the value is not "SENSORS OFF" — the master
+    /// switch on AND at least one stream selected.
+    static func privacy(masterOn: Bool, health: Bool, location: Bool, motion: Bool) -> Bool {
+        masterOn && (health || location || motion)
+    }
+
+    /// `nil` is "not loaded yet" (the value renders "…"), not zero sessions.
+    static func sessions(count: Int?) -> Bool { count != nil }
+
+    static func about(isHealthy: Bool) -> Bool { isHealthy }
+
+    /// The Developer row is not a subsystem card and never glows.
+    static var developer: Bool { false }
+}

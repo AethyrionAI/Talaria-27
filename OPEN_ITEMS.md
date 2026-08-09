@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
 - **#254** 👁 Control Center voice session survives dismissal — **WATCH (downgraded 2026-08-05, header corrected 2026-08-09); mechanism now identified — connect-window race, STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
-- **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; STAYS OPEN only for the Voice-card accent residual (bar 252R-A, pre-registered 2026-08-09, NOT STARTED — Owen routes)**
+- **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
 - **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
@@ -8279,7 +8279,12 @@ routed-production discipline. Nothing owed.
 > registry if that files into a lane. Source:
 > `planning/reports/2026-08-07-open-source-momentum-report.md`.
 
-## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). STAYS OPEN for ONE residual: bar 252R-A below. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
+## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). ~~STAYS OPEN for ONE residual: bar 252R-A below.~~ → RESIDUAL CLOSED 2026-08-09: 252R-A/B/C ALL MET (verdicts below). NO DEFECT REMAINS — the item stays open only for Owen's §7.3 routing call. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
+
+> **✅ BARS 252R-A / 252R-B / 252R-C — ALL MET 2026-08-09** (branch
+> `t27-252r-voice-accent`, commit `33319c4`). Verdicts at the end of this
+> blockquote; the pre-registered text below is left VERBATIM so the bars can
+> be read as they were written, before the run.
 
 > **🎯 BAR 252R-A — PRE-REGISTERED 2026-08-09, NOT STARTED.** Written here
 > before any code, per the standing convention. **Owen routes when to run it.**
@@ -8327,6 +8332,132 @@ routed-production discipline. Nothing owed.
 > an unloaded session count renders `"…"` rather than a false `0`. 252R-A
 > extends that honesty from card **text** to card **accent**, which is the
 > same #180 principle one layer out.
+
+**⚠️ CORRECTION OF RECORD (2026-08-09, found while running 252R-A) — the
+"only site" claim above, and in `dispatch/OPUS-T27-252-settings-channels.md`
+§2, is WRONG.** Both say `SettingsChannelsScreen` was the only site reading
+`readAloudAutoPlay` outside `VoiceSettingsScreen`'s own toggle, and both offer
+that as *the tell that it was orphaned*. It is not the only site:
+**`Talaria/Stores/AppContainer.swift:1217`** reads it too
+(`container.chatStore.autoReadAloudEnabled = { … }`), wiring the TTS auto-read
+pipeline — a real, intentional third site, left untouched by this lane.
+**The defect was real and is fixed; only that one supporting argument
+overstated its case.** Recorded here because the close-out rule sends
+corrections to the stale claim's own home — the dispatch doc still carries the
+sentence and was outside this lane's permitted file set, so its copy is owed
+by whoever next edits it.
+
+**Bar verdicts (2026-08-09, the 252R lane — all three MET):**
+
+- **252R-A MET.** `SettingsCardAccent.voice` now takes the same three inputs
+  as `SettingsCardValues.voice` (`brainIsLocal`, `engine`, `talkState`) and
+  returns true only for a genuinely connected realtime session;
+  `readAloudAutoPlay` is gone from the accent path entirely. **Owen's ruling
+  on the semantics (2026-08-09, the §7.2 question the dispatch left open):
+  glow ONLY when the session is genuinely connected** — "always on for
+  on-device" would make the accent meaningless on a hostless install, the
+  DEFAULT user under the launch pivot. **Cheap to reverse** if he later wants
+  any-live-route.
+  - **Watched RED first, and it failed for the SEMANTIC reason, not a compile
+    error** — the run built clean (0 `error:` lines) and executed 19 tests:
+
+        ✘ Test voiceAccentDoesNotFollowReadAloudWhenTheRouteIsIdle() recorded an
+          issue at SettingsChannelsTests.swift:144:9: Expectation failed:
+          SettingsCardAccent.voice(readAloudAutoPlay: true, brainIsLocal: false,
+          engine: .realtime, talkState: .idle) == false
+          ↳ … == false → false
+          ↳   SettingsCardAccent.voice(…, talkState: .idle) → true
+
+        ✘ Test voiceAccentIsTrueForAConnectedSessionWithReadAloudOff() recorded an
+          issue at SettingsChannelsTests.swift:153:9: Expectation failed:
+          SettingsCardAccent.voice(readAloudAutoPlay: false, brainIsLocal: false,
+          engine: .realtime, talkState: .connected) == true
+          ↳ … == true → false
+          ↳   SettingsCardAccent.voice(…, talkState: .connected) → false
+
+  - **The extraction is the durable half, and it is why the drift was
+    invisible.** `cardIsAccented` was a `private func` on the View —
+    unreachable even under `@testable import` — so it carried **zero**
+    coverage while the value formatters beside it carried thirteen pins. That
+    is the whole reason #256-H could move the Voice card's VALUE and leave its
+    ACCENT behind for four days with a green suite. All nine predicates now
+    live in `SettingsChannels.swift` as pure store-free functions and the
+    screen's switch is reduced to store→argument wiring. **The eight non-voice
+    predicates moved verbatim, and their new pins passed in the same RED run
+    that failed the voice ones** — that is the evidence the motion was
+    behaviour-preserving, not an assertion about it.
+  - **Coupling is now machine-checked, not just fixed.**
+    `voiceAccentAndValueCannotDisagree` asserts, over every
+    (brain × engine × talk-state) combination, that the accent is true exactly
+    when the value reads `REALTIME · LIVE`; `privacyAccentAndValueCannotDisagree`
+    pins the same shape on its nearest neighbour so the principle is not a
+    one-off. The next lane that moves a card's value cannot leave its accent
+    behind silently.
+  - **A fourth pin was watched RED and then deliberately RETIRED rather than
+    made green:** `voiceAccentIsIndependentOfReadAloud` (7 issues, one per talk
+    state) became inexpressible once the fix deleted `readAloudAutoPlay` from
+    the signature — the guarantee moved from a runtime assertion to the type
+    system. Recorded in the test file so the deletion is not mistaken for a
+    dropped assertion.
+  - Arithmetic: `SettingsChannelsTests` **13 → 18** `@Test` cases (+5 net;
+    6 added, 1 retired). Whole-suite total at gate: **1864** Swift Testing units.
+  - **No device time spent**, as specified.
+
+- **252R-B MET.** `git diff` on `TalariaTests/SettingsChannelsTests.swift`
+  shows **zero deleted lines** — all 13 pre-existing pins are byte-for-byte
+  untouched, and they were green in the RED run *before* the fix as well as
+  after. `TalariaUITests/AppTemplateUITests.swift` **is not in the diff at
+  all**; both strip assertions passed unmodified in the passing gate —
+  `testSettingsGridPresentsNineSubsystems` (statusStrip present-in-grid,
+  14.563s) and `testSettingsDeckNavigation` (absent-in-deck, 19.479s). Read as
+  numbers, not as `TEST SUCCEEDED`: 1864 units + 12 XCUITest executed.
+
+- **252R-C MET — `GATE: PASS`, and ALL THREE RUNS ARE RECORDED HERE**, per
+  #219's standing protocol (never re-run until green and report only the green
+  one).
+  - **Run 1 — `GATE: FAIL (3 check(s))`.** Units 1864 PASS, Release PASS. Sole
+    failure: `MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs`
+    (388.584s), only 9 of 12 XCUITest reached.
+  - **Run 2 — `GATE: FAIL (3 check(s))`.** Identical: same test, same
+    assertion, 153.566s. Units 1864 PASS, Release PASS. **Two identical
+    failures is not a coin-flip flake, so it was isolated rather than re-rolled.**
+  - **Attribution, established by an isolated control PAIR rather than by
+    assertion:** the same single test, run alone, **passed on untouched `main`
+    (`bfbd154`) in 68.154s and on this branch in 70.802s** — 2.6s apart,
+    `Executed 1 test, with 0 failures` both times. The test is indifferent to
+    this diff.
+  - **Run 3 — `GATE: PASS`.** Debug leg `TEST SUCCEEDED`, **1864** units,
+    **12** XCUITest (the full set), 2 expected skips (`CondenserFidelityTests`,
+    Apple Intelligence hardware); Release leg `BUILD SUCCEEDED`, 0 Swift
+    compile errors. In this run the flaky test passed in 68.985s.
+  - **What actually differed, and it was the machine, not the tree.** Runs 1–2
+    executed with **load average 92–125** — four concurrent `xcodebuild` jobs
+    across three booted simulators from other lanes. Run 3 executed at **load
+    ~17**. The same contention shows up directly in the timings:
+    `testDisconnectReturnsToStandaloneChat` took **894.819s** in run 2 and
+    **81.188s** in run 3, an 11× spread on identical code.
+  - Logs: `/tmp/gate-252r/` (run 3 in place; earlier runs overwritten by
+    design — their verdicts are transcribed above).
+
+> **⚠️ A REAL FINDING FELL OUT OF THIS, and it belongs to #236/#195, not
+> here.** The failure text in runs 1 and 2 was identical and is a **third,
+> distinct symptom** for that long-flaky test:
+> `MessageIdentityUITests.swift:92: error: … Failed to synthesize event:
+> Neither element nor any descendant has keyboard focus.` — the composer never
+> took focus, so `typeText` could not dispatch at all.
+> - It is **not #195**, whose mechanism is characters DUPLICATING ("firstst")
+>   and whose fix keys the assertion to the composer's settled value — that fix
+>   cannot help when nothing was typed.
+> - It is **not #236's own mechanism**, which is render LATENCY at the reply
+>   wait (`:113`, budget raised 20 → 40s). This fires 21 lines earlier, at the
+>   typing step.
+> - It is **not #219**, whose discriminator is the ABSENCE of assertion text.
+>   This has assertion text, so #219's own rule excludes it.
+> - The proximate cause is visible in the helper: `sendMessage` does
+>   `composer.tap()` immediately followed by `composer.typeText(text)` with no
+>   wait for keyboard focus between them. Under load the focus has not landed.
+>   **Not fixed here** — out of this lane's scope, and hardening someone else's
+>   test inside a settings fix is how scope creep starts. Filed for #236.
 
 **Source:** Claude Design handoff bundle (Owen, 2026-08-05):
 `Settings Redesign.dc.html` (three-directions survey: 1a Command Deck /
