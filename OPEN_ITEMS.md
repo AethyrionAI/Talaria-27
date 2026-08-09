@@ -10709,8 +10709,11 @@ full battery.
 >   RECALL (`capabilityQuestionProbes` — 257-1-A), DANGER (baseline +
 >   `capabilityControlProbes` — 257-1-B), HONESTY (the composed appended
 >   payload through the shipped 297-C scorers, claim and syntax halves
->   emitted SEPARATELY — 257-1-D). Every band emits `scored=<n>/<trials>`
->   AND `errors=<n>`. **The control list was written FIRST**, with the
+>   emitted SEPARATELY — 257-1-D). The GATE/RECALL/DANGER bands emit
+>   `scored=<n>/<trials>` AND `errors=<n>`; the HONESTY band carries the
+>   same real denominators under its own tokens
+>   (`appended=`/`claimHits=`/`syntaxHits=`) — noted so "every band" is not
+>   read as a literal token claim. **The control list was written FIRST**, with the
 >   boundary pinned verbatim in the code: TRUE iff the message's subject is
 >   the assistant's own abilities/access/features in general; FALSE for any
 >   request to perform or answer a specific thing, phone-ecosystem how-tos,
@@ -10760,6 +10763,33 @@ full battery.
 > (iOS 27.0) — CapabilityRegistryTests **24 → 32**, CapabilitySurfaceTests
 > **3 (new)**, DeviceToolBelt 180, LocalChatBackend 42, RoutedTrialShape 5,
 > RouterIntent 10.
+>
+> **Three review corrections, 2026-08-09 (independent whole-lane review;
+> each traced in code, not taken from the implementer's report):**
+> 1. **VOICE: the block is appended but NEVER SPOKEN** — the phase-2
+>    report's "voice turns will read the appended block aloud" concern is
+>    wrong in the reassuring direction. Voice rides
+>    `sendStreaming → streamTurn`, so the block lands in the transcript
+>    item, but TTS is fed only by `.textDelta` and the voice pipeline's
+>    `finishStream(messageID:)` flushes only the streamed-delta tail — the
+>    block never rides a delta. **Consequence: a voice capability question
+>    still under-sells ALOUD while the screen shows the complete block —
+>    #257's original complaint shape, surviving on the voice surface.**
+>    Product question for Owen (rides 3a-C): is screen-only completeness
+>    acceptable on voice turns, or does voice need its own answer? The
+>    device probe row is briefed to listen for the block's ABSENCE in
+>    audio, not its presence.
+> 2. **Probe-comparison confound, stated plainly:** the retained
+>    `routeNeedsDeviceTool(variant:)` wrappers now generate the TWO-FIELD
+>    schema at the 128 cap, so every pre-#257 DEBUG probe measures the new
+>    production shape on future runs — correct per #202D (probes measure
+>    production), but any comparison against historical router numbers now
+>    carries a schema+cap confound. The #217B intent cells are unaffected
+>    (they call the one-field options directly).
+> 3. **1-D's device numbers add nothing over the unit test by
+>    construction** (the probe scores the block alone; no real model prefix
+>    exists in a classification-only probe) — read them as the denominator
+>    check they are, not as new honesty evidence.
 
 ## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
 
