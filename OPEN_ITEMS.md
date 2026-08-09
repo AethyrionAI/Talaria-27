@@ -8325,6 +8325,73 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > connect": it is false at the START and it is false again during the FALLBACK,
 > which is a different and more interesting claim.
 
+> **✅ 254-A / 254-B / 254-C: MET, 2026-08-09. Fix landed. `GATE: PASS`.**
+>
+> **RED first, and the RED is verbatim.** The rule's SIGNATURE was extended
+> while its BODY was left unchanged, so these are assertion failures rather
+> than compile errors — a compile error proves a signature changed, not that a
+> behaviour was wrong:
+> ```
+> TalkSessionRulesTests.swift:66:9: Expectation failed:
+>   TalkBackgroundRule.shouldEndSession(isSessionActive: false, isStartingSession: true, routeHasCarAudio: false)
+> TalkStoreBackgroundRevokeTests.swift:168:9: Expectation failed: revoked
+> TalkStoreBackgroundRevokeTests.swift:169:9: Expectation failed: service.endCallCount >= 1
+> TalkStoreBackgroundRevokeTests.swift:175:9: Expectation failed: !store.isSessionActive
+> ✘ Test run with 20 tests in 2 suites failed after 0.787 seconds with 4 issues.
+> ```
+> **The last line is the ghost itself** — the connect that landed after the
+> non-revoke flipped the store live, in a unit test. After the one-line body
+> change: `✔ Test run with 20 tests in 2 suites passed after 0.179 seconds.`
+>
+> **The fix, in three parts.** `TalkStore` publishes `isStartingSession`
+> (`private(set)`), set before the first `await` in BOTH start doors and
+> cleared by `defer` on every exit plus on any explicit `endSession()`;
+> `TalkBackgroundRule.shouldEndSession` gains it as a third input,
+> `(isSessionActive || isStartingSession) && !routeHasCarAudio`; the background
+> observer revokes via the unguarded `abandonSession()` and its notice names
+> which arm fired — `#118/#254: app backgrounded with a voice session (LIVE|STARTING) — revoking it`.
+>
+> **`isSessionActive` was NOT deleted from the rule, deliberately.** Revoking on
+> every backgrounding would call `endSession()` with nothing live, reaching
+> `setActive(false, .notifyOthersOnDeactivation)` unconditionally — the #84
+> shape, where a stray deactivation on the shared session killed the live mic.
+> **254-C is that negative case, and it is honestly labelled in the test file as
+> a regression guard that is green before AND after** — not as evidence the fix
+> works. CarPlay (#19) exempts both arms.
+>
+> **Unit count MOVED: 1859 → 1867 (+8).** Measured as `@Test` declarations in
+> `TalariaTests` at `bfbd154` vs HEAD, and the 1867 cross-validates against the
+> gate's own reported Swift Testing count. **A caution for the next lane: the
+> 272d gate (a DIFFERENT branch, `6420cb7`) also reported 1867, so "same number
+> as last time" is not by itself the stale-`.xctest` symptom** — resolve the
+> baseline from THIS lane's base commit, not from the last gate log you happen
+> to have. Independent proof the binary was not stale: all eight new tests
+> appear by name as `✔ passed` in the gate log, and `TalkStoreBackgroundRevokeTests`
+> is among the 143 suites — a stale bundle cannot contain a file that did not
+> exist when it was built.
+>
+> **THREE gate runs, all recorded — two FAILs before the PASS, neither caused by
+> this branch:**
+>
+> | run | verdict | cause |
+> |---|---|---|
+> | 1 (`/tmp/gate-254`) | **FAIL** | `Simulator device failed to launch org.aethyrion.talaria27` — the unit-test HOST would not launch. **Self-inflicted:** 254-F's evidence run hand-installed a `CODE_SIGNING_ALLOWED=NO` build on that same sim and it crashed mid-session. Cleared by `simctl uninstall` + sim reboot + re-granting the calendar/reminders TCC the reboot dropped. **Lesson for any lane that runs a device/sim probe before its gate: uninstall the probe build first.** |
+> | 2 (`/tmp/gate-254-run2`) | **FAIL** | one test: `HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()` — `Expectation failed: landed` after 5.754 s. Isolated on this same branch immediately afterwards: **PASSED in 1.878 s**, whole suite 6/6 green. A local-network beacon race, and this branch touches no WebKit, no networking, no listener. |
+> | 3 (`/tmp/gate-254-run3`) | **`GATE: PASS`** | Swift Testing 1867 · XCUITest 12 · Release build PASS · 2 expected skips (CondenserFidelityTests, #93). |
+>
+> **A finding about the GATE itself, worth more than the flake:** on run 2 the
+> gate labelled that failure *"NO assertion text — likely an XCUITest harness
+> flake (runner lost/restarted). Re-run ONCE and RECORD both runs in OPEN_ITEMS
+> #164."* **Both halves misfire.** The failure DID carry assertion text
+> (`Expectation failed: landed`) and it is a **Swift Testing unit test**, not an
+> XCUITest; and **#164 is CLOSED** (`OPEN_ITEMS-ARCHIVE.md:4775`, closed
+> 2026-08-04) and is about a different test entirely
+> (`testDisconnectReturnsToStandaloneChat`). Following the instruction literally
+> would have reopened a closed item under the wrong diagnosis. **The flake is
+> recorded here instead and needs its own number — Owen's call**, since
+> allocating one touches the numbering sequence and the INDEX and is outside
+> this lane's scope.
+
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
 hermes buttons in the control center started working? The chat one takes
 me right to the composer and the talk to takes me directly to a voice
