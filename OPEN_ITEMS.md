@@ -4783,6 +4783,42 @@ warm. A counter nobody increments is how the first one sat unexamined for two we
 > remains a counted WATCH. (#219's 2026-08-01 runner death did not involve
 > this test.)
 
+> **📌 TWO NEW FLAKE OCCURRENCES RECORDED 2026-08-09 (lane 180-L gate,
+> `026c72b`, warm bundle, sim `iPhone 17e`). NEITHER IS THIS TEST** — recorded
+> here because #164 is archived and this is the flake family's live home. **Do
+> not merge them into #182's counter; #182 stays at 1.**
+>
+> Both are **new tests to this family**, both are **pure timing budgets**, and
+> both correlate with machine load rather than with any code change. The lane's
+> diff touches the drawer-row mapping, the voice-engine snapshot and the share
+> cap — none of them the composer, WebKit, or networking.
+>
+> | run | failure | load avg (1m) |
+> |---|---|---|
+> | gate #1 04:0x | `MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs` — `XCTAssertTrue failed - send button should appear once the composer holds text` (`:102`, a **5s** `waitForExistence`) | **353** |
+> | gate #2 04:3x | `HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener` — `Expectation failed: landed` (`:157`, a **5s** budget of 50 × 0.1s for a WebKit load + beacon) | **~124→33** |
+> | gate #3 04:4x | **`GATE: PASS`** — 1874 units, 12 XCUITest, Release ✅ | **~28** |
+>
+> **The isolation check was run, not assumed:** `testTranscriptNeverRenders
+> DuplicateMessageIDs` alone → `** TEST SUCCEEDED **`, passing in **208s** — a
+> test whose healthy runtime is minutes cannot hold 5s internal waits on a box
+> at load 353. The `controlArm` test takes **3.07s** against its own 5s budget
+> when healthy, i.e. it ships with ~40% headroom. Its listener uses
+> `NWListener(on: .any)`, so a concurrent lane's port is NOT the cause —
+> checked, because it would have been the interesting answer.
+>
+> **The real finding is environmental and worth more than either flake:**
+> **three lanes were running xcodebuild concurrently on a 10-core box.** Load
+> peaked at **353**. Two independent 5-second assertions in unrelated
+> subsystems failed in two consecutive gates and both passed once load fell.
+> **A gate run under that contention is not evidence about the branch.**
+> Whoever schedules parallel lanes should either stagger the gates or expect to
+> re-run them — and every re-run has to be recorded, which is the whole point
+> of #164.
+>
+> **Bar for promotion, unchanged:** three occurrences of the SAME signature.
+> Each of these is at 1.
+
 Logged 2026-07-24 (review of PR #144).
 
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
