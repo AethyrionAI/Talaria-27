@@ -255,9 +255,75 @@ stated precondition (*"the re-run that actually proves the leak stopped"*).
 > lsof -nP -iTCP:8642 -sTCP:LISTEN -t
 > ```
 >
-> **4. Timing that actually works:** the model may think for ~60 s before the
-> tool runs, so "kill when you press send" is too early. Kill once the terminal
-> activity is visibly RUNNING.
+> **4. ~~Timing that actually works: … kill once the terminal activity is
+> visibly RUNNING.~~ SUPERSEDED same day — the phone CANNOT provide this
+> trigger.** Trial 2 proved it: the runner watched for "terminal activity,"
+> but the screen does not reliably distinguish model-thinking from
+> tool-running, and the kill landed **9 s after the turn had already
+> completed** (the model thought for 4 s, not 60; the 90 s the runner read as
+> thinking WAS the tool). **The working trigger is host-side:** watch
+> `agent.log` for `tools.terminal_tool: local environment ready`, then kill
+> ~15 s later — automated, no human timing anywhere. Trial 3 landed 15 s into
+> a 300 s sleep this way, first try.
+
+> ## ✅ Z8 RAN 2026-08-09 (trial 3; trials 1–2 void) — (a) MET · (b) UNEXERCISABLE via SIGTERM · (c) no duplication, wording inapplicable. **DO NOT RE-RUN AS WRITTEN — the row's core premise is false on this host in the GOOD direction.**
+>
+> **What the host actually does on SIGTERM mid-turn: it DRAINS.** Full arc,
+> build 2330, gateway at checkout head:
+> ```
+> 14:26:12  SIGTERM (kill landed 15 s into a 300 s sleep, host-log-triggered)
+> 14:28:29  drain done +137.06s — timed_out=False, api_at_start=1, api_now=0
+> 14:28:34  adapters disconnected; final-cleanup tool kill
+> 14:28:37  exit code 1
+> 14:28:42  new listener bound (cleanly this time — headless respawn is a
+>           2-of-3 RACE, not deterministic)
+> ```
+> The drain saw the active API turn (`api_at_start=1`), kept the listener AND
+> the phone's SSE stream alive for 137 s, and let the turn COMPLETE through
+> the teardown. **The stream never broke, so the reconcile loop was never
+> invoked — there is nothing for `PendingRun` → reconcile → adopt to do.**
+> This row's premise paragraph ("the turn was amputated with nothing
+> persisted") is wrong for this host: SIGTERM defers the restart rather than
+> amputating. **Only SIGKILL would exercise the recovery machinery**, and
+> that variant skips every teardown the drain exists to do — it is NOT
+> queued; it is a decision for Owen.
+>
+> **Verdicts against the pre-registered bars:**
+> - **(a) ✅ MET.** Owen, verbatim: *"no vibration, no error indication."*
+>   The user row never flipped `.failed`; the UI showed an honest
+>   "STILL WORKING" throughout the 137 s drain. #291's guarantee held under a
+>   real host restart.
+> - **(b) ⛔ UNEXERCISABLE via SIGTERM** — see above; not a fail. What was
+>   measured instead, and it is worth having: **a user whose turn is live when
+>   the gateway restarts feels nothing at all** — the reply arrives on the
+>   ordinary stream and the restart is invisible.
+> - **(c) ✅ in spirit, literal wording inapplicable.** The bar says "ONE
+>   assistant row, not two" — but this turn LEGITIMATELY produced two
+>   assistant messages (an interim "Running —" and the final "Done"), which
+>   the bar's fixture never anticipated. What (c) guards is DUPLICATE
+>   ADOPTION, and there was none: the transcript renders exactly the rows the
+>   host history holds, once each. (Screenshot-verified; a force-quit
+>   re-render check is the remaining confirmation and was pending at
+>   write-up.)
+>
+> **Two host findings, filed from the same run:**
+> - **A shutdown-killed process is reported as a CLEAN EXIT.** The wait tool
+>   returned `completion_reason:"exited", termination_source:"", exit_code:0`
+>   for a process the gateway's own final-cleanup killed. Partial answer to
+>   §R5/#296-C2 from an unplanned angle: the host does not merely omit error
+>   fields — it can mislabel a termination as voluntary success.
+> - **⚠️ FIXTURE DEFECT, inherited by every plan built on this row's own
+>   suggested prompt:** `sleep N; echo X` uses `;`, so killing the sleep
+>   RUNS the echo — output `RESTARTTEST`, exit 0, and **a killed command
+>   reads as a successful one.** The trial's "Done ✅ / exit 0" was real
+>   output honestly captured, not model fabrication — the kill itself
+>   triggered it. Any future amputation fixture must use `&&`.
+>
+> **Errors made running this, kept for the next runner:** two pollers
+> declared recovery on seeing the DYING process's socket (compare PIDs,
+> always); and a `cut -c1-170` truncated the drain log line, briefly
+> producing a false "the drain counter is blind to API turns" claim —
+> `api_at_start=1` was in the cut-off tail. Both corrected same hour.
 
 **Why this exists.** Z4 above is opportunistic *because you cannot ask iOS to
 revoke a background budget*. **This one you can trigger on purpose**, and it
@@ -2318,6 +2384,15 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 **Record the highest `attempt=` reached.**
 
 ### R5 · #296-C2 — does the host ever SEND `tool.completed.error`?
+
+> **Partial host-side answer obtained 2026-08-09, from Z8's trial rather than
+> this row:** the host can go FURTHER than omitting the error field — a
+> process killed by the gateway's own shutdown cleanup came back
+> `completion_reason:"exited", termination_source:"", exit_code:0` (the exit
+> code was the `;`-chained echo's). So when this row runs, ALSO record those
+> two fields for the stopped-tool trial, not just the presence/absence of
+> `error` on the frame. The row itself is still worth running — it measures
+> the FRAME on the runs plane, which Z8's sessions-plane observation does not.
 
 **Developer screen → Runs Transport (Phase 3) ON.** It defaults OFF, so **this row
 measures nothing without it.**
