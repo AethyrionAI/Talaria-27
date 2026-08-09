@@ -349,7 +349,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         clientMessageID: UUID
     ) -> AsyncStream<StreamingUpdate> {
         AsyncStream { continuation in
-            Task { @MainActor [weak self] in
+            let producer = Task { @MainActor [weak self] in
                 guard let self else {
                     continuation.yield(.failed("Client deallocated"))
                     continuation.finish()
@@ -375,6 +375,20 @@ final class SessionsHermesClient: HermesClientProtocol {
                     )
                 }
                 continuation.finish()
+            }
+            // #292: the consumer walking away (stop button, thread switch,
+            // backgrounding — anything that cancels ChatStore's streaming
+            // task) terminates this stream. Without this hook, the producer
+            // ran on with Task.isCancelled == false for its whole life — on
+            // the runs plane that meant up to ~60 authenticated
+            // GET /v1/runs/{id} polls over the 120s budget for a turn nobody
+            // was watching. Same shape as ChatBackendRouter's #192 hook, one
+            // layer down. Three cancellation checks in +RunsTransport.swift
+            // (the events-loop break, and pollRunToTerminal's top-of-loop
+            // check and sleep catch) are this hook's customers — they were
+            // unreachable from a walk-away until it existed.
+            continuation.onTermination = { _ in
+                producer.cancel()
             }
         }
     }
