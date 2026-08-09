@@ -1,8 +1,41 @@
-# DISPATCH — #272 App Lock re-prompt loop: THE FIX LANE
+# DISPATCH — #272 App Lock re-prompt loop: THE FIX LANE · **FABLE RUN**
 
-**Written 2026-08-09, the same sitting that met 272-C on device. Bars 272-E…H
-are pre-registered in OPEN_ITEMS #272 — they are the contract; this brief is
-the context that lets a cold session start without re-deriving anything.**
+**Written 2026-08-09, the same sitting that met 272-C on device; adapted the
+same day for a cold Fable session. Bars 272-E…H are pre-registered in
+OPEN_ITEMS #272 — they are the contract; this brief is the context that lets
+a cold session start without re-deriving anything. Read the #272 entry's
+272-A/B/C result blocks and the bars BEFORE writing code.**
+
+## How to run this (cold-session mechanics)
+
+1. **Branch off current `main`:** `t27-272-applock-fix`. Run
+   `git log --oneline -3` first and confirm you see `ac71368` or later —
+   earlier means you are missing the ruling and these bars.
+2. **Sequencing inside the lane:** 272-E red FIRST (watch it fail against
+   HEAD and record the failure text verbatim in the entry — a compile error
+   is not a RED, per the bar) → 272-F fix + positive pins → 272-G.
+3. **If you add any Swift file, `xcodegen generate` is mandatory** — and it
+   will rewrite `Talaria.xcscheme` `BuildableName`s from `"Talaria 27.app"`
+   to `"Talaria.app"`, which is WRONG (`PRODUCT_NAME` is `"Talaria 27"`).
+   Revert the scheme churn by hand before committing; every lane this week
+   has hit it. Prefer adding tests to the EXISTING
+   `AppLockControllerRaceTests.swift` — no new file, no churn.
+4. **The gate:** `scripts/mac/lane-gate.sh` — takes minutes, so run it
+   backgrounded (`nohup … &`) and poll; a blocking tool call will time out
+   at 4 min. `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer`
+   in every shell. A literal `GATE: PASS` is 272-G's bar; confirm the unit
+   count MOVED from the baseline you measure at your base commit (a repeated
+   count is the stale-`.xctest` tell — but measure your OWN baseline; other
+   branches have coincidentally equal counts).
+5. **Close-out (THE CLOSE-OUT RULE applies):** update the #272 entry's bars
+   with results in the same commit as the fix; queue **272-H** as a new row
+   in `dispatch/DEVICE-PASS-RUNNING-LIST.md` (it repeats §R4's exact trial
+   on the fixed build — copy the procedure, cite the bar); sweep this
+   dispatch and the entry for any text your result falsifies.
+6. **Open a PR; do NOT merge it.** Owen reads the diff and merges. Report
+   RED text, GATE verdict, and files touched in the PR body.
+7. **NOT this lane's to claim:** 272-H needs Owen's hand on the phone. The
+   lane ships the fix and the queued row; #272 stays OPEN until 272-H.
 
 ## The ruling you are implementing (do not re-litigate)
 

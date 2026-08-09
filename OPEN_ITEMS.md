@@ -8933,7 +8933,8 @@ boundary that is something other than "any foreground."
 > ("cancel means cancel; one extra UNLOCK tap after a cancel, however long
 > ago"), and bar 272-H below exists precisely so the fixed build gets judged
 > in Owen's hand before this closes. Lane brief:
-> `dispatch/OPUS-T27-272-applock-fix.md`.
+> `dispatch/FABLE-T27-272-applock-fix.md` *(renamed from `OPUS-…` same day —
+> Owen routed the lane to a Fable run; cold-session mechanics added)*.
 >
 > **Bars 272-E…H — PRE-REGISTERED 2026-08-09, before any fix code:**
 > - **272-E — red-first repro through the PUBLIC surface.** A test that
