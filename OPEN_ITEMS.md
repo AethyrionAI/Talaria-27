@@ -6838,8 +6838,9 @@ customer comments.
 > **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
 > numeric RED evidence. Bars 292-A and 292-B MET; 292-C NOT YET QUEUED
 > (device — the controller adds the row to `DEVICE-PASS-RUNNING-LIST.md` at
-> session close-out); gate pending (controller runs it serially at merge
-> time).** One RED-verification caveat for the record: re-verifying 292-A's
+> session close-out); ✅ GATE: PASS 2026-08-09 (controller-run, sim
+> CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
 > RED by restoring the bug leaves an orphaned producer polling for up to the
 > test's 30s budget AFTER the test returns — later tests in the serialized
 > suite will see its requests as noise in the shared stub log. Expected
