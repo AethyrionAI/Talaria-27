@@ -235,17 +235,20 @@ extension SessionsHermesClient {
     static let runsPath = "/v1/runs"
 
     /// `POST /v1/runs` → `202 {"run_id":…,"status":"started"}`
-    /// (`api_server.py:6700`). The id is the handle for the event stream, the
-    /// status poll, `/stop` and `/approval`.
+    /// (`_handle_runs`, `api_server.py:6455` at `3dcbe9001` — #304 C1: the
+    /// runs region drifted ≈ +150 lines under an unchanged version string;
+    /// re-resolve any `:NNNN` here before quoting it). The id is the handle
+    /// for the event stream, the status poll, `/stop` and `/approval`.
     struct RunSubmitResponse: Decodable {
         let runID: String
         private enum CodingKeys: String, CodingKey { case runID = "run_id" }
     }
 
     /// One read of `GET /v1/runs/{id}` — the pollable status object the
-    /// gateway retains for `_RUN_STATUS_TTL` (3600s, `api_server.py:6187`).
-    /// This, not stream replay, is what survives a dropped connection: the
-    /// event queue is popped on disconnect (`:6765-6766`), so a reconnect
+    /// gateway retains for `_RUN_STATUS_TTL` (3600s, `api_server.py:6344` at
+    /// `3dcbe9001`; #304 C1 re-resolved — was cited `:6187` from an older
+    /// head). This, not stream replay, is what survives a dropped connection:
+    /// the event queue is popped on disconnect (`:6921-6923`), so a reconnect
     /// 404s and every delta after the drop is gone, while `status` + `output`
     /// + `usage` stay readable for an hour (plan §1.6 N2).
     struct RunStatusSnapshot: Sendable {
@@ -257,9 +260,19 @@ extension SessionsHermesClient {
         /// `run.completed` frame carries.
         let rawJSON: String
 
-        /// The gateway's own LIVE set (`api_server.py:1525`). Written as a
-        /// negative on purpose: a status name we have never seen must read as
-        /// terminal, or a future rename parks the poll forever.
+        /// The gateway's own LIVE set (`api_server.py:1586` at `3dcbe9001`;
+        /// #304 C1 re-resolved — was cited `:1525`). Written as a negative on
+        /// purpose: a status name we have never seen must read as terminal,
+        /// or a future rename parks the poll forever.
+        ///
+        /// #304 C5 — do not read `waiting_for_approval` as CURRENT truth:
+        /// after an approval TIMES OUT the status keeps reading
+        /// `waiting_for_approval` for the remainder of the run
+        /// (`_set_run_status(…, "running", …)` fires only in
+        /// `_handle_run_approval`; expiry resets nothing). The status object
+        /// is not a pending-approval oracle — only a 409
+        /// `approval_not_pending` settles it, and a card is never raised from
+        /// status alone (bar 304-F; `pollRunToTerminal`'s park hooks).
         static let liveStatuses: Set<String> = ["queued", "running", "waiting_for_approval", "stopping"]
 
         var isTerminal: Bool { !Self.liveStatuses.contains(status) }
@@ -294,8 +307,10 @@ extension SessionsHermesClient {
     ///   sessions plane — re-hop ONCE, with a transplant, then give up — and
     ///   it uses the same `discardStaleHop()` + `ensureHopForTurn()` pieces.
     /// - **No `.artifactProduced`, ever.** The runs `tool.started` carries no
-    ///   `args` (`api_server.py:6222-6229`), so #21 Tier 1 reconstruction has
-    ///   no source here. Honest absence beats a chip that cannot be opened.
+    ///   `args` (`api_server.py:6381-6386` at `3dcbe9001`; #304 C1
+    ///   re-resolved — was cited `:6222-6229`), so #21 Tier 1 reconstruction
+    ///   has no source here. Honest absence beats a chip that cannot be
+    ///   opened.
     /// - **No `.modelResolved`.** The runs `run.completed` carries no
     ///   `runtime` block; inventing one would be a fabricated attribution.
     /// - **History rides the body** (N4: runs WRITE the session transcript but
@@ -423,15 +438,19 @@ extension SessionsHermesClient {
             let acceptedRunID = submit.runID
             runID = acceptedRunID
             runSubmitted = true
-            // Task 7: promoted to client state — this is what `/stop` (and a
-            // future `/approval`) address. Set as soon as the run is
-            // committed server-side, not merely accepted for submission,
-            // because that is the earliest moment a stop request means
-            // anything.
+            // Task 7: promoted to client state — this is what `/stop`
+            // addresses. Set as soon as the run is committed server-side,
+            // not merely accepted for submission, because that is the
+            // earliest moment a stop request means anything. (#304: the
+            // "future `/approval`" this comment once promised deliberately
+            // does NOT ride this slot — it is cleared on terminal exit and
+            // can name a different run by the time a human answers, so the
+            // approval's address rides the `RunApprovalRequest` VALUE.)
             setActiveRunContext(runID: acceptedRunID, profileID: hop.profileID, endpoint: endpoint)
 
             // Subscribe IMMEDIATELY: the handler tolerates a short
-            // registration race (`api_server.py:6730`), and every event
+            // registration race (`api_server.py:6885-6890` at `3dcbe9001`;
+            // #304 C1 re-resolved — was cited `:6730`), and every event
             // emitted before we attach is gone — the queue has no replay.
             let eventsRequest = try makeRequest(
                 path: "\(Self.runsPath)/\(acceptedRunID)/events",
@@ -797,7 +816,8 @@ extension SessionsHermesClient {
     }
 
     /// Pure mapping half of the pre-fetch. Prose strings only — the server
-    /// coerces history content with `str()` (`api_server.py:6360-6370`), so a
+    /// coerces history content with `str()` (`api_server.py:6360-6370` at the
+    /// pre-`3dcbe9001` read; #304 C1: re-resolve before quoting), so a
     /// structured value would arrive as its Python repr.
     nonisolated static func runsHistory(
         from messages: [Message],
@@ -859,7 +879,8 @@ extension SessionsHermesClient {
     /// returns that snapshot — the recovery path's whole point.
     ///
     /// This, not stream replay, is what survives a dropped connection: the
-    /// event queue is popped on disconnect (`api_server.py:6765-6766`) so a
+    /// event queue is popped on disconnect (`api_server.py:6921-6923` at
+    /// `3dcbe9001`; #304 C1 re-resolved — was cited `:6765-6766`) so a
     /// re-subscribe 404s and every delta after the drop is gone, while
     /// `status` + `output` + `usage` stay readable for an hour.
     ///

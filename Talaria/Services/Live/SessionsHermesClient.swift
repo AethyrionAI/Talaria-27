@@ -88,16 +88,22 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// Var, not let: the suite shortens it. // harness-visible
     var runsSyncBudget: Duration = .seconds(20)
 
-    /// #283 Task 7: the run `POST /v1/runs/{id}/stop` (and a future
-    /// `/approval`) addresses. Set the moment a submit succeeds
-    /// (`streamTurnViaRuns` / `syncTurnViaRuns`), cleared on that same turn's
-    /// terminal exit — so a stop request always targets the run actually in
-    /// flight, or finds nothing and no-ops. `private(set)`: only
-    /// `setActiveRunContext`/`clearActiveRunContext` below may write it;
-    /// everyone else (the router, `hardStopActiveRun`'s own callers) reads.
+    /// #283 Task 7: the run `POST /v1/runs/{id}/stop` addresses. Set the
+    /// moment a submit succeeds (`streamTurnViaRuns` / `syncTurnViaRuns`),
+    /// cleared on that same turn's terminal exit — so a stop request always
+    /// targets the run actually in flight, or finds nothing and no-ops.
+    /// `private(set)`: only `setActiveRunContext`/`clearActiveRunContext`
+    /// below may write it; everyone else (the router, `hardStopActiveRun`'s
+    /// own callers) reads.
     /// #285: carries the turn's frozen `endpoint` too, so a stop issued
     /// after a mid-turn profile switch still addresses the host the run
     /// actually lives on.
+    /// #304 (superseding this doc's old "and a future `/approval`" promise):
+    /// the approval answer deliberately does NOT read this slot — it is
+    /// SINGLE and cleared on terminal exit, so a card answered even a beat
+    /// after the driver returned would address nothing. `answerApproval`
+    /// rides the `RunApprovalRequest` VALUE's own frozen run id + endpoint
+    /// instead (dispatch §9 trap 1).
     private(set) var activeRunContext: (runID: String, profileID: UUID?, endpoint: ResolvedEndpoint)?
 
     /// #283 Task 7: run ids WE told the host to stop. A late `run.cancelled`
