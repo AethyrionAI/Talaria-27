@@ -2232,3 +2232,32 @@ populate it — which also settles whether the `exit_code 130` host-log capture 
 client-side counterpart at all.
 
 **296-A is unaffected either way and needs no device** — the client knows it stopped.
+
+### R6 · #254-D — voice ghost, REALTIME pin
+
+Paired + relay healthy. **Force-quit for a genuinely COLD launch.** Control Center →
+"Talk to Hermes". Background the phone **before the header leaves `ESTABLISHING LINK`**;
+wait 60s.
+
+**PASS:** silence, mic indicator dark, and the log carries
+`#118/#254: app backgrounded with a voice session (STARTING) — revoking it`.
+
+**VOID unless the log also quotes `voice session starting on engine realtime`** (#220's
+rule — a verdict that cannot name its own engine tested nothing). Read at
+`oslogSeverity: ["all"]` at least once: #198B's `fault` hides under `default`.
+
+If the `(LIVE)` arm fires instead, the connect window closed first and **the trial did
+not exercise the race** — retry, do not record it as a pass.
+
+### R7 · #254-E — voice ghost, NATIVE pin (airplane mode, free)
+
+Same procedure with **airplane mode ON**, which fails the realtime readiness probe and
+forces native at zero cost.
+
+**PASS** adds `voice session starting on engine native`. Note `relayPaired=true` may
+appear on that line — **pairing does not determine the engine, the probe result does.**
+
+**A 254-D pass says NOTHING about this arm:** realtime speaks through WebRTC's audio
+device module on a forced loudspeaker; native speaks through `SpeechOutputService` with
+`managesAudioSession == false`. Two different audio paths produce the ghost two different
+ways.
