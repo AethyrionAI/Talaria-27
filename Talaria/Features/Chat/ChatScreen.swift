@@ -559,7 +559,28 @@ struct ChatScreen: View {
             // #190: a dimmed row's one line is its honest reason, not a
             // preview it can't deliver on.
             if !info.isResumable { return info.unresumableReason ?? "Unavailable" }
-            if let preview = info.preview, !preview.isEmpty { return preview }
+            // #180 lane 180-L / #177: step to the NEXT rung when the preview
+            // would just repeat the title, instead of printing one string on
+            // both lines.
+            //
+            // Two different causes land here and the fix is one:
+            //   • Hermes derives BOTH `title` and `preview` from the first
+            //     user message, so the server-fed drawer sends them
+            //     near-identical by construction (#177);
+            //   • a title-less row has already borrowed the preview AS its
+            //     title three lines up, so reusing it here echoes it (#280's
+            //     drawer symptom — belted here, NOT closed; 280-A asserts
+            //     `conversation.title != Conversation.defaultTitle`, which
+            //     this does not touch).
+            //
+            // The substitution is deliberately KEPT: a row whose only text is
+            // its preview should still show it — once. This is
+            // `LocalIntelligenceService.fallbackCard`'s rule (`:452-458`,
+            // 2026-07-11, from a device-pass FAIL) finally generalized to the
+            // server-fed row, and `HostFedListPresentation`'s rule 5
+            // corollary in the general case: a fallback may NARROW a claim,
+            // never SUBSTITUTE a different one.
+            if let preview = info.preview, !preview.isEmpty, preview != title { return preview }
             guard info.messageCount > 0 else { return "No messages" }
             return "\(info.messageCount) message\(info.messageCount == 1 ? "" : "s")"
         }()

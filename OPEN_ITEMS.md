@@ -4283,7 +4283,41 @@ capture the app sends no text part at all on those turns, so "[screenshot]" — 
 both Hermes-generated. Carry into #132's host-side question.
 **Why it matters:** this is the session list the paid-tier user actually looks at, and it reads
 as broken even though the app is behaving correctly.
-**Owner: Hermes-side, not app-side.**
+~~**Owner: Hermes-side, not app-side.**~~
+
+> **⚠️ CORRECTED 2026-08-09 — that owner line was HALF TRUE, and it read as a
+> won't-do for 17 days. ✅ THE APP-SIDE HALF IS NOW FIXED (lane 180-L, bar
+> 180-A).**
+>
+> **Host-side CAUSE — verified, unchanged:** `SessionsHermesClient.listSessions`
+> maps the row verbatim (`:892-906`, `title: row.title` at `:895`,
+> `preview: row.preview` at `:896`). The app invents nothing, and we cannot make
+> Hermes stop deriving both fields from the first user message.
+>
+> **App-side MITIGATION — available, and it was the only remedy we control.**
+> `ChatScreen.sessionSummary` substituted the preview as the title when `title`
+> was empty and then used that same preview as the subtitle, so a server
+> duplicate became a *printed* duplicate. It now steps to the next rung of the
+> existing #190 subtitle ladder when the preview would repeat the title. **The
+> row is honest against any server that sends a duplicate**, so this does not
+> depend on Hermes changing.
+>
+> **The identical problem in the LOCAL path was solved app-side a month
+> earlier** — `LocalIntelligenceService.fallbackCard` (`:452-458`, 2026-07-11,
+> written from a device-pass FAIL: *"repeats the first line on both lines"*).
+> Nobody generalized it to the server-fed row, which is #180's thesis in one
+> hunk and the reason rule 5 is now written into
+> `Talaria/Core/HostFedListPresentation.swift`.
+>
+> **NOT claimed here:** that Owen's 2026-07-23 sighting still reproduces on the
+> current gateway. That observation was against 0.19.x and OJAMD is 0.20.0; the
+> server behaviour was not re-probed. The client substitution WAS verified at
+> HEAD, and the fix is correct either way.
+>
+> Bars: **180-A MET** (two RED rows, one per cause), **180-B MET** as the
+> green-today regression pin. Filed under #180.
+
+**Owner: host-side CAUSE, app-side MITIGATION — the mitigation shipped 2026-08-09.**
 
 Logged 2026-07-23.
 
