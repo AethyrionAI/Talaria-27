@@ -6337,6 +6337,35 @@ the reshape ships with a decode-compatibility test.
 > stands — Stop can address the wrong one. Nothing here worsens it; do not
 > rediscover.
 
+> **Update 2026-08-09, review round 1 — two Important findings fixed on the
+> branch (commit follows the review; both covering suites re-run green):**
+> - **I-1 (row 11's NEW-CHAT arm — a divergence from the filed matrix,
+>   fixed):** the lane's `clearConversation` KILLED the departing thread's
+>   held entries, but the matrix as filed says the queue travels with the
+>   departing thread for "thread switch, new chat, reset" — and M-15 made
+>   New Chat NON-destructive (the old thread stays in the drawer,
+>   reopenable). Fixed to the honest distinction: on non-destructive
+>   departures (New Chat, thread switch via `openSession`) a held entry
+>   PARKS with its thread (surfaced by the walk-away park) and is restored
+>   on return; `.unreachable` parks and legacy nil-keyed entries keep the
+>   #90 die-with-the-clear precedent; genuinely destructive teardown
+>   (`reset()`, the pairing lifecycle) still nukes the store. New test:
+>   `heldTurnSurvivesNewChatAndReturnsWithItsThread` (ContinuityFabricTests)
+>   — hold → New Chat → reopen from the drawer → present, surfaced, nothing
+>   fired into the fresh thread. **O8's tail is Owen's:** he may prefer
+>   kill-on-new-chat — surfaced in NEEDS-OWEN; the code follows the filed
+>   matrix until he re-rules.
+> - **I-2 (the #307 health-report trade, fixed):** `refreshDirectHealth`'s
+>   guard REVERTED to its original `!isStreaming` — tightening it skipped
+>   the probe and asserted `.connected` unprobed for the whole reconcile
+>   window (banner/pip/Settings painted ONLINE on a dead network, #180's
+>   shape). The drain's own `!isTranscriptBusy` guard alone carries the #307
+>   fix (every trigger goes through it); 306-E's test passes UNEDITED across
+>   the change. #307's entry records the amended resolution.
+> - Parked by the controller for later triage (no action this round): M-1
+>   `.released` limbo, M-2 trap-6 branch untested, M-3 Send-now silent
+>   no-op, M-4 comment attribution, M-5 red-log filenames.
+
 ## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
 
 **The mechanism, traced at HEAD:** `drainComposeOutboxIfPossible()` guards on
@@ -6356,14 +6385,24 @@ shape in the one place #278 did not sweep. **Fix: tighten both guards to
 number in the commit.
 
 > **✅ FIXED 2026-08-09 inside #306's lane — commit `73f7378` (branch
-> `t27-306-message-queuing`), cited against this number in its message.**
-> Both guards tightened to `!isTranscriptBusy` exactly as filed
-> (`drainComposeOutboxIfPossible` and `refreshDirectHealth`). Pinned by
-> bar 306-E's test
-> (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`), whose observed
-> RED was precisely this mechanism: with both lines reverted to
-> `!isStreaming`, the parked turn drained into the live run during the
-> reconcile window. Closes when #306's lane merges (gate 306-K pending).
+> `t27-306-message-queuing`), cited against this number in its message —
+> with the RESOLUTION AMENDED by review round 1 (same day):** the filed
+> "tighten both guards" prescription is superseded. **The fix is the DRAIN
+> gate alone** — `drainComposeOutboxIfPossible` guards on
+> `!isTranscriptBusy`, which every trigger (including `refreshDirectHealth`)
+> goes through, so the outbox can no longer drain into a live run.
+> **`refreshDirectHealth`'s guard stays `!isStreaming`, deliberately:**
+> tightening it would SKIP the probe and assert `.connected` unprobed for
+> the whole reconcile window (up to 120s, entered by a stream DROP —
+> weak-to-negative evidence of connectivity), painting the offline banner,
+> the pip, and three Settings reachability surfaces ONLINE on a dead
+> network — #180's hidden-degradation shape. The probe keeps running and
+> reporting honestly through the window. Pinned by bar 306-E's test
+> (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`, unedited across
+> the amendment), whose observed RED was precisely this mechanism: with the
+> drain gate reverted to `!isStreaming`, the parked turn drained into the
+> live run during the reconcile window. Closes when #306's lane merges
+> (gate 306-K pending).
 
 ## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
 

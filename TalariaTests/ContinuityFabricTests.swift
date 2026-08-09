@@ -807,6 +807,48 @@ struct ContinuityFabricTests {
         #expect(restored.phase == .surfaced)
     }
 
+    @Test @MainActor
+    func heldTurnSurvivesNewChatAndReturnsWithItsThread() async throws {
+        // #306 row 11, the NEW CHAT arm (review round 1 fix): M-15 made New
+        // Chat non-destructive — the departing thread stays in the drawer,
+        // reopenable — so a held message PARKS with its thread instead of
+        // dying with the clear, surfaces, never fires into the fresh thread,
+        // and is restored on return. (`.unreachable` parks keep the #90
+        // die-with-the-clear precedent — pinned separately by
+        // `clearConversationResetsJournalAndOutbox`.)
+        let persistence = Self.makePersistence()
+        let client = HoldableStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.openSession("A")
+        let turnInA = Task { @MainActor in await store.sendMessage("turn in A") }
+        let live = await pollUntil { client.continuations.count == 1 }
+        #expect(live)
+        #expect(store.holdComposedTurn("held across new chat"))
+
+        try await store.clearConversation()
+        _ = await turnInA.value
+
+        // The fresh thread sees nothing of A's hold…
+        #expect(store.currentThreadHeldTurn == nil)
+        // …and it survives durably, parked with thread A.
+        #expect(persistence.loadComposeOutboxState().pendingTurns.contains {
+            $0.text == "held across new chat" && $0.threadKey == "A"
+        })
+
+        // A full completed turn in the new chat fires nothing of A's.
+        client.autoFinishSends = true
+        await store.sendMessage("turn in new chat")
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(!client.sentMessages.contains("held across new chat"))
+
+        // Reopening A from the drawer restores the hold, surfaced.
+        await store.openSession("A")
+        let restored = try #require(store.currentThreadHeldTurn)
+        #expect(restored.text == "held across new chat")
+        #expect(restored.phase == .surfaced)
+    }
+
     // MARK: - ChatStore: journal wiring
 
     @Test @MainActor

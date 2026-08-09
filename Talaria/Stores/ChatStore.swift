@@ -1269,13 +1269,24 @@ final class ChatStore {
         onConversationChanged?()
         // P1 (#90): the journal resets to the fresh thread's identity (the
         // client already ended its hop). Queued offline turns belonged to the
-        // cleared thread — they die with it. #306 (O8): OTHER threads' held
-        // turns are not this clear's business — the queue travels with its
-        // thread, so only the departing thread's entries (and legacy
-        // nil-keyed ones, which have always meant "this thread") die here.
+        // cleared thread — they die with it (the #90 precedent, unchanged:
+        // `.unreachable` parks and legacy nil-keyed entries).
+        //
+        // #306 row 11 (review round 1 fix): a HELD turn does NOT die here.
+        // M-15 made New Chat non-destructive — the departing thread stays in
+        // the drawer, reopenable — so the held entry PARKS with its thread
+        // (already surfaced by `abandonPendingRun` above) and is restored on
+        // return, exactly as the filed matrix says for "thread switch, new
+        // chat". Only genuinely destructive teardown (`reset()`, the pairing
+        // lifecycle) still nukes the whole store. Owen's O8 tail (he may
+        // prefer kill-on-new-chat) is surfaced in NEEDS-OWEN; this follows
+        // the filed matrix until he re-rules. OTHER threads' entries were
+        // never this clear's business.
         journal?.sync(with: fresh)
         composeOutbox.pendingTurns.removeAll { turn in
-            turn.threadKey == nil || departingThreadKeys.contains(turn.threadKey!)
+            guard let key = turn.threadKey else { return true }
+            guard departingThreadKeys.contains(key) else { return false }
+            return turn.reason == .unreachable
         }
         persistComposeOutbox()
         pollingTask?.cancel()
@@ -2108,12 +2119,17 @@ final class ChatStore {
     /// actively streaming the connection is, by definition, live, so we skip the
     /// probe and report `.connected`.
     func refreshDirectHealth() async {
-        // #307: `!isTranscriptBusy`, not `!isStreaming` — during the
-        // reconcile window the stream is gone but the run is live, and this
-        // probe is the drain's trigger; probing there kicked the outbox into
-        // a live run. A busy transcript means a run is in flight, which is
-        // itself the strongest possible "connected" signal.
-        guard !isTranscriptBusy else {
+        // #307 (review round 1): this guard stays `!isStreaming`, NOT
+        // `!isTranscriptBusy`. Tightening it here would skip the probe and
+        // assert `.connected` UNPROBED for the whole reconcile window (up to
+        // 120s, entered by a stream DROP — weak-to-negative evidence of
+        // connectivity), painting the offline banner, the pip, and three
+        // Settings surfaces ONLINE on a dead network — #180's
+        // hidden-degradation shape. The #307 corruption fix lives in
+        // `drainComposeOutboxIfPossible`'s own `!isTranscriptBusy` guard,
+        // which this trigger cannot bypass; the probe here keeps reporting
+        // honestly through the window.
+        guard !isStreaming else {
             directConnectionStatus = .connected
             return
         }
