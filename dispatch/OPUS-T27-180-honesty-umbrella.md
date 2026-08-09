@@ -1,5 +1,33 @@
 # OPUS T27 #180 — the honesty umbrella: the register, the rule, and the one lane that is left
 
+> ## ➕ AMENDED 2026-08-09 (after this dispatch was written) — ONE NEW INSTANCE
+>
+> **A host-fed prose failure is indistinguishable from a real answer.** Inherited
+> from **#241**, which was reopened as TRACK-UPSTREAM the same day. The gateway's
+> `_handle_session_chat` returns an unconditional HTTP 200 carrying the agent's
+> text — defensible upstream, because the gateway runs an *agent* rather than
+> proxying a model call, so the turn genuinely completed. **The consequence lands
+> on us:** when the agent could not reach any model and says so in prose,
+> Talaria renders it with exactly the confidence of a real reply.
+>
+> **It fits the register's rule with the sign unchanged** — a seam rendering
+> state the app does not own, modelled as two-valued (answer / no-answer) when
+> the truth is three (answer / prose-failure / no-answer), unknown landing on the
+> affirmative side. **Sibling of #132**, which is the same defect for attachments
+> the host cannot see.
+>
+> **⚠️ ANSWER THIS BEFORE WRITING ITS BAR — it decides the lane's size.** Is
+> there a machine-readable discriminator? The reply carries a `runtime` block
+> (`provider` / `model` / `route_source` / `model_lock`). **If that is null or
+> degraded when no model was reached, this is a small lane. If the only signal is
+> the prose itself, it is a much harder one** — and **every other entry in this
+> register has a structural tell; this may be the first that does not.** Scope it
+> from the start rather than discovering it mid-flight.
+>
+> **This instance is NOT part of lane 180-L.** 180-L (the drawer row, the voice
+> header, the share label, the rule comment) is unchanged and remains the
+> executable lane. Filed in `OPEN_ITEMS.md` #180; derivation in #241.
+
 **Tier that EXECUTES this lane: OPUS.** Written 2026-08-09 from a HEAD code read
 (`t27-295-expiration-recovery`, `35c6234`). **No code was written for this brief and
 no tracker file was edited.**

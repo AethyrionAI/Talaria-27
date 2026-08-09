@@ -1,5 +1,32 @@
 # OPUS T27 — the archive pass (docs-only, no code)
 
+> ## ⚠️ AMENDED 2026-08-09 — THE CANDIDATE SET NEARLY DOUBLED AFTER THIS WAS WRITTEN
+>
+> The free-wins sweep (commit `231f973`) **closed eight more items in place**
+> after this dispatch was drafted. They are closed-in-place, so they are still
+> in `OPEN_ITEMS.md` and are now MOVE candidates for this sweep:
+>
+> **#80** (superseded by #251 2A) · **#81** (removed by #238) · **#130** (Owen
+> closed it 2026-07-31) · **#149** (already satisfied) · **#161** (a
+> never-actioned close from 2026-08-01) · **#187** (absent from the handler,
+> upstream) · **#242** (delivered as #251 2A) · **#256** (shipped 2026-08-05).
+>
+> **Plus the original eight**, unchanged: #78, #285, #286, #295, #291, #294,
+> #273, #284. **So ~14 MOVE candidates, not 6** — re-run Step 1's residue check
+> on each of the new ones rather than trusting this note.
+>
+> **STILL STAY LIVE, and the list grew too:** #250, #252 and #254 were
+> deliberately NOT closed (each owes a residual — 250-D's island watch, the
+> Voice-card accent bar 252R-A, and #254's watch with a newly identified
+> mechanism). **#241 was closed and then REOPENED the same day** as
+> TRACK-UPSTREAM — do not sweep it. #257 and #297 stay live as before.
+>
+> **The baseline is unchanged at live 124 / archive 179 / union 303** — closed
+> items migrate at cleanup passes, not instantly, which is exactly what this
+> sweep is for. Re-measure at execution time regardless; the count moved four
+> times in one day.
+
+
 **Item:** none (housekeeping across the whole tracker). **Goal:** move every
 item that is genuinely, wholly closed from `OPEN_ITEMS.md` to
 `OPEN_ITEMS-ARCHIVE.md`, VERBATIM, with a verification procedure that does not

@@ -1,5 +1,48 @@
 # OPUS-T27-140 — the public face, third pass: SECURITY.md was never swept
 
+> ## ⚠️ AMENDED 2026-08-09 — MUCH OF THIS IS ALREADY DONE. READ BEFORE EXECUTING.
+>
+> Owen asked for the stale docs to be corrected directly, so **the highest-value
+> items in this dispatch were executed the same night** (commit `9b6008c`). An
+> executor starting from the body below will duplicate work and may "fix" text
+> that is already correct.
+>
+> **DONE — do not redo:**
+> - **`SECURITY.md:15`** — no longer names a third service. The models-shim line
+>   is gone, with a note telling anyone running one from an older release to stop
+>   it.
+> - **`SECURITY.md:25`** — APNs push removed from the relay's live-jobs list, and
+>   replaced with something stronger than a deletion: the relay's push machinery
+>   is still live (`main.py:230` creates an APNs client, `:420` accepts and
+>   persists `apns_token`) while the app has no push at all, so the deployment
+>   holds **an authenticated endpoint collecting push tokens nothing will use.**
+>   Recorded as unused surface, not a vulnerability.
+> - **`SECURITY.md:46`** — camera/mic entry now carries **#221's brain gate**: the
+>   brain selection is consulted *before* pairing, so an on-device brain stops
+>   realtime — and any camera frame reaching OpenAI — from starting. This was an
+>   *improvement*, not just a correction: brain choice is a privacy control.
+> - **The "session pin" claim in all four places** — `README.md:27`, `README.md:75`,
+>   `docs/index.html:182`, `docs/screens.html:150`. There is no session pin: the
+>   app never POSTs `/api/sessions/{id}/model` (zero occurrences in Swift) and
+>   `ModelsSettingsScreen.swift:84` says so outright.
+> - **Two broken deploy steps** that had been silently copying nothing since the
+>   2026-08-05 rename — `relay/docs/DEPLOY_MAC.md:94` and
+>   `design/T6_MAC_BACKEND_SPEC.md:75` both said `cp -R ../skills/hermes-ios`;
+>   only `skills/talaria` exists.
+>
+> **VERIFIED CURRENT — do not "fix" these:** `~/.hermes-mobile/secrets.json` is
+> still real (the connector uses it); the `hermes-mobile` CLI still exists
+> (`connector/pyproject.toml:19`), so the app's onboarding copy is accurate
+> rather than broken; `CLEAN_CHAT_PATH.md` has no stale claims;
+> `connector/README.md:144` removes both old and new skill paths on uninstall,
+> which is correct and defensive.
+>
+> **WHAT REMAINS FOR THIS LANE:** re-derive the residue against HEAD rather than
+> trusting the list below. The lane is now **small** — verify what is left, then
+> close. Its own finding still stands as the lesson: **the brief for this
+> dispatch was itself stale** (the "wedge narrative" it was commissioned to fix
+> had been corrected on 2026-08-04), which is why re-deriving beats executing.
+
 **Label:** OPUS · **Item:** #140 (README + GitHub Pages refresh) · **Written:** 2026-08-09
 **Status:** DISPATCH ONLY — no code, no `docs/` edits, no `OPEN_ITEMS.md` edits, nothing published.
 

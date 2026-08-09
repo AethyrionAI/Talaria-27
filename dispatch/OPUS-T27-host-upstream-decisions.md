@@ -1,5 +1,42 @@
 # OPUS · T27 — the four "we may not own the fix" items: #132 · #187 · #241 · #264
 
+> ## ⚠️ AMENDED 2026-08-09 — SUPERSEDED IN PART BY TWO LATER REPORTS. READ THOSE FIRST.
+>
+> This brief was written before upstream was actually consulted. Two reports now
+> supersede its dispositions:
+> `planning/reports/2026-08-09-upstream-recheck.md` (all six items re-read at
+> upstream HEAD) and `planning/reports/2026-08-09-upstream-prior-art.md` (what
+> other people have already filed).
+>
+> **What changed:**
+> - **#187 — CLOSED** 2026-08-09, and for a *better* reason than this brief had.
+>   Prior art surfaced a blocker: `message_count` is NULL for `source=api_server`
+>   (**0 of 35 sessions measured**), so even if upstream exposed `min_messages`
+>   it would filter out every Talaria session.
+> - **#241 — this brief's "park holds" is right, but its mechanism reading is
+>   superseded twice.** It was closed as by-design and then **REOPENED the same
+>   day as TRACK-UPSTREAM**: upstream files it as a Bug (#79101), a
+>   maintainer-reviewed fix is open (**PR #72739**), and four people found it
+>   independently. Also a second poison channel nobody here had found
+>   (`_last_resolved_model`, #79824). **Watch #72739.**
+> - **#264 — confirmed DELIBERATE with published rationale.** Merged PR #65665
+>   *is* our bug: retrying re-introduced an fd leak (1,568 retries over 5 days).
+>   **Nothing to track for a fix; our ops rule IS the answer** — and it must be
+>   widened to the second cause (a weak `API_SERVER_KEY` fails the adapter closed
+>   with an identical symptom and a completely different remedy).
+> - **#132 — prior art exists but only for the wrong lane.** PR #18597 was our
+>   exact fix shape and died of refactor churn; only `/v1/chat/completions` was
+>   ever addressed. The Sessions lane is unreported, and HEAD still carries
+>   `# Silently skip image_url` at `api_server.py:521`.
+> - **#170b — better news than filed.** `model` exists end-to-end in `cron/`;
+>   the `:8642` whitelist simply omits it. **An omission, not a missing
+>   capability.**
+>
+> **Unchanged:** no filing is recommended anywhere, and #241 stays parked from a
+> submission standpoint — it is filed four times over, so there is nothing to
+> submit.
+
+
 **Tier: OPUS.** Written 2026-08-09 from a HEAD code read of BOTH sides — the app at
 `t27-295-expiration-recovery` @ `04af0a7`, and the Mac's Hermes install at
 `~/.hermes/hermes-agent` @ `3dcbe9001`. **No code was written. No live install was
