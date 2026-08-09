@@ -8303,6 +8303,25 @@ routed-production discipline. Nothing owed.
 > usually pinned to text the fix never touched, and this one must be proven
 > otherwise. **No device time.** ~10 lines plus pins.
 >
+> **🎯 BAR 252R-B (no collateral) — PRE-REGISTERED 2026-08-09, before any
+> code.** The 13 existing `SettingsChannelsTests` cases and BOTH strip
+> XCUITest assertions (`TalariaUITests/AppTemplateUITests.swift` —
+> `settings.statusStrip` present-in-grid, absent-in-deck) stay green
+> **unmodified**. If any existing pin needs editing, the change has exceeded
+> its scope — STOP and report rather than adjusting the test. *Evidence:* the
+> gate's executed count read as a NUMBER, never as `TEST SUCCEEDED` (both
+> false-green variants this project has hit — a class name that doesn't exist,
+> #252's own correction of record; and a METHOD path under a Swift Testing
+> struct, #249F — report success while matching zero tests).
+>
+> **🎯 BAR 252R-C (gate) — PRE-REGISTERED 2026-08-09, before any code.**
+> `scripts/mac/lane-gate.sh`, FULL run (not `--release` only), literal
+> `GATE: PASS`. Release leg is not optional (#218: a green Debug suite proved
+> nothing while `main` could not build in Release for two days). *Evidence:*
+> the literal marker plus the moved unit count from 252R-A.
+>
+> **A missed bar is a falsification, not a redefinition.**
+>
 > **Adjacent, deliberately NOT bundled:** #252's real-data-only rule holds at
 > HEAD — all nine card *values* are store-derived, unknown host renders `"—"`,
 > an unloaded session count renders `"…"` rather than a false `0`. 252R-A
