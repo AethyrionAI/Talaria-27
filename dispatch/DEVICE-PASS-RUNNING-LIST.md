@@ -217,6 +217,48 @@ stated precondition (*"the re-run that actually proves the leak stopped"*).
 
 ### Z8 · #295 / #235 recovery — **GATEWAY RESTART MID-TURN. Cheap, deliberately triggerable, and it tests machinery Z4 cannot reach** *(added 2026-08-09)*
 
+> **🔴 STOP — THIS ROW'S PREMISE IS FALSE ON THE MAC, verified 2026-08-09.
+> Attempt 1 that day was VOID. Read this block before running it again.**
+>
+> **1. The two upstream commits this row rests on are NOT installed.** The text
+> below says `51fa7db46` + `d9ddfb23d` are *"both already on the Mac install"*
+> and therefore persist a closing assistant row. Checked at the file level, with
+> a positive control so an empty grep could not read as a negative:
+>
+> | revision | drain test file | shutdown-interrupt code |
+> |---|---|---|
+> | `01a1037d1` — what the listener served | absent | 0 hits |
+> | `ceebb21dd` — checkout HEAD | absent | 0 hits |
+> | `d9ddfb23d` — the commit itself (**control**) | — | **2 hits** |
+>
+> `git branch -a --contains` returns **nothing** for either commit — they are
+> fetched objects on no ref, **not on `origin/main`**. So this is an **unmerged
+> upstream PR**, and `hermes update` will NOT bring it. **Pass criterion (b) is
+> therefore expected to fail for a HOST reason.** Run (a) and (c) as real bars
+> and treat (b) as a measurement of today's production behaviour — do not score
+> it as a failure.
+>
+> **2. iOS autocapitalize silently defeats the fixture.** Attempt 1's prompt
+> became `Sleep 25; echo RESTARTTEST` — capital `S` is not a command, so it
+> no-op'd, the turn was never long-running, and the shutdown landed after it had
+> already completed. **The agent itself flagged the capital**, which is the only
+> reason it was caught. Write the prompt so the command is not sentence-initial,
+> and confirm the lowercase `s` on screen before sending.
+>
+> **3. ⚠️ THE RESTART CAN LEAVE THE GATEWAY HEADLESS — budget for it.** launchd
+> respawned 6 s after the old API server released; the socket was not free;
+> `[Errno 48] address already in use`; the gateway then ran for **two minutes
+> with a healthy PID and no `:8642` listener**. A second `kill` fixed it in 2 s.
+> **After the kill, verify the LISTENER, not the process** (#264), and be ready
+> to restart again:
+> ```bash
+> lsof -nP -iTCP:8642 -sTCP:LISTEN -t
+> ```
+>
+> **4. Timing that actually works:** the model may think for ~60 s before the
+> tool runs, so "kill when you press send" is too early. Kill once the terminal
+> activity is visibly RUNNING.
+
 **Why this exists.** Z4 above is opportunistic *because you cannot ask iOS to
 revoke a background budget*. **This one you can trigger on purpose**, and it
 exercises the same downstream recovery machinery (`PendingRun` → reconcile →

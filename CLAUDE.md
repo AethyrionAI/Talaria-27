@@ -269,12 +269,37 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   > d408fdbfc  2026-08-08 19:30  reset
   > 01a1037d1  2026-08-05 19:31  merge origin/main   ← what the LISTENER serves
   > ```
-  > **The running listener (PID from Aug 7, uptime >1d) serves `01a1037d1`
-  > from Aug 5 — four days and three updates behind its own checkout.**
+  > ~~**The running listener (PID from Aug 7, uptime >1d) serves `01a1037d1`
+  > from Aug 5 — four days and three updates behind its own checkout.**~~
   > Routing does not diverge (identical table), but BEHAVIOUR does: the
   > running process still 400s `PATCH /api/sessions/{id}` with `pinned`, while
   > the installed head persists it. **Both report `0.20.0`, so the version
   > string cannot see any of this.**
+  >
+  > **✅ THAT SPECIFIC DRIFT IS CLOSED as of 2026-08-09 14:12** — the device
+  > sitting restarted the Mac gateway, so the listener is now **PID 94227,
+  > started 14:12:23, serving the checkout head (`ceebb21dd`)**. The Aug-5
+  > behaviour described above is no longer what answers `:8642` here. **The
+  > LESSON is unchanged and still load-bearing** — pin the running code by
+  > reflog-vs-start-time, never by `git log -1` — only this instance of it is
+  > discharged.
+  >
+  > **⚠️ AND THE RESTART ITSELF EXPOSED A NEW HAZARD, observed live the same
+  > minute — a gateway restart can leave the box HEADLESS.** launchd respawned
+  > **6 s** after the old API server released, the socket was not free yet, and
+  > the host logged:
+  > ```
+  > 14:09:31  [Api_Server] API server stopped
+  > 14:09:37  ERROR Could not bind 0.0.0.0:8642: [Errno 48] address already in use
+  > 14:09:37  ✗ api_server failed to connect
+  > ```
+  > The gateway then ran on with a **healthy PID, a happy `agent.log`, and no
+  > chat plane for two full minutes** until a second restart was issued. **This
+  > is #264's ops rule happening rather than being predicted:** after ANY bounce,
+  > verify the LISTENER (`lsof -nP -iTCP:8642 -sTCP:LISTEN`), never the process
+  > — and a `kill`-then-respawn is NOT reliably self-healing, so budget a
+  > verify-and-maybe-restart-again step into any procedure that bounces it
+  > (`DEVICE-PASS-RUNNING-LIST.md` §Z8 does exactly this).
   >
   > **Pin the running code by REFLOG, not by `git log -1`:** match the
   > listener's start time (`ps -p $(lsof -nP -iTCP:8642 -sTCP:LISTEN -t) -o
