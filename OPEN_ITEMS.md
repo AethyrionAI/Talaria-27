@@ -175,6 +175,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#189** 🔧 Notifications never authorized on a fresh install + a false-green panel — FIX MERGED (PR #152) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and …
+- **#298** 🧹 #238 teardown residue in `updateWidgetData`'s comments — **VERDICT: DEAD.** The push-wake path really did order `loadInbox(force:)` before it and #238 T4 really did delete that, but it was 1 of only 3 orderers among 9 callers, `stampBriefing` guard-returns rather than wiping, and #126's briefing is producerless — so **#126's dependence is REFUTED** and no ordering fix is owed. Comments corrected; no bars (no run) …
 - **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — NOT STARTED, scope is Owen's call …
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — bars pre-register before any code …
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — bars pre-register …
@@ -5278,6 +5279,57 @@ Manual/Off app lane).**
 > slice 3B** (`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md` §2.2). Note that
 > the app-side proposal `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` deliberately
 > excludes all of this — it governs OUR gate; this governs the HOST's.
+
+## 298. 🧹 #238 teardown residue in `updateWidgetData`'s comments — a RATIONALE that outlived its mechanism, and an "ordering guarantee" that turns out never to have been one — **FILED 2026-08-09 from the #287 lane's deliberately-deferred finding. VERDICT: DEAD. Comments corrected in the filing commit; no ordering fix owed, NO BARS (there is no run to bar).**
+
+**The finding as handed over:** two comments in `Talaria/Stores/AppContainer.swift` still describe notification machinery that #238 removed wholesale on 2026-08-03. One of them (in `updateWidgetData`) makes what reads like a load-bearing **ORDERING** claim, so the question routed here was deliberately NOT "these are stale, delete them" but **"did deleting the push-wake path silently delete a *guarantee*?"** — because if it did, deleting the comment loses the guarantee rather than a dead note. **#126's widget briefing was named as the thing leaning on it. It does not.** Both halves are refuted below.
+
+### VERIFIED — what was read, not inferred
+
+1. **The teardown is total.** `grep -rn` over `Talaria/` for `registerForRemoteNotifications`, `UNUserNotificationCenter`, `apnsToken`, `UNTextInputNotificationAction`, `HERMES_REPLY`, `handleNotificationReply` returns **zero hits**.
+2. **The comment was TRUE when written.** `git log -S "the push-wake path already" -- Talaria/Stores/AppContainer.swift` returns exactly one commit: `b1edbcc` *"feat(#126): local markRead + widget stamp in the updateWidgetData funnel."*
+3. **#238 falsified it, and the diff is unambiguous.** The path the comment names is `AppContainer.handleRemoteNotificationWake()`, deleted whole by `4f6ea16` (**#238 T4**). Its deleted body contains, verbatim, `await inboxStore.loadInbox(force: true)` and — ten lines later — `updateWidgetData()`. So the ordering the comment asserts really did exist, and really was removed. **This much of the hypothesis holds.**
+4. **But it was NEVER a global invariant — and that is what settles the item.** `updateWidgetData()` has **nine live call sites**. Only **two** order a `loadInbox` before it, and **both survive #238**:
+   - `runBackgroundBootstrap` — `await inboxStore.loadInbox()` (`:1417`) → `updateWidgetData()` (`:1435`). The cold-launch path. Non-forced, but `loadInbox`'s early return is `if isLoading || (!force && !items.isEmpty)` and a cold container's `items` is empty, so it does fetch.
+   - `handleActiveProfileChanged` — `await inboxStore.loadInbox(force: true)` (`:2283`) → `updateWidgetData()` (`:2305`).
+
+   **Seven never ordered one, before OR after #238:** `initialize()` `:1329`; `runForegroundActivation` `:1599` *and* `:1645`; `handleBackgroundRefresh` `:1707`; the three `makeDefault` callbacks (`:1250` conversation-changed, `:1269` talk-state, `:1288` host-changed); and `AppEntry.swift:149` (appearance change). The push-wake path was the **third orderer of nine callers** — not the only one, and never a funnel-wide contract.
+5. **The failure mode is a DESIGNED no-op.** `HermesWidgetData.stampBriefing(from:)` (`Talaria/Models/InboxBriefing.swift:63`) opens with `guard let briefing = InboxItem.latestBriefing(in: items) else { return }`, and its own doc says existing values are KEPT so *"a failed or empty mid-day fetch must not wipe the morning briefing off the widget."* An unordered call therefore **cannot blank the briefing fields.** The worst a missing `loadInbox` buys is **staleness** — which #126 explicitly chose over wiping.
+6. **And the feature is inert anyway.** **#126 was DROPPED 2026-07-23** (Owen: *"the daily cron — lets drop that"*): *"the app half is merged and inert without a host sending `category: "briefing"` payloads."* No producer exists on any host, so `stampBriefing` guard-returns on **every** production call today, ordering or no ordering.
+
+### VERDICT — the guarantee is DEAD, three times over
+
+**This is not a lost guarantee. It is a lost RATIONALE for a decision that never depended on it.**
+
+- Its named mechanism is gone (#238 T4) — but
+- it was never universal (2 of 9 callers established it; 7 never did), and
+- its worst case is a designed no-op (`stampBriefing`'s guard), on
+- a feature with no producer (#126, dropped).
+
+**#126's widget briefing does NOT lean on the ordering — REFUTED**, on two independent grounds, (5) and (6). The hypothesis was worth testing and did not survive the test.
+
+**Is this the #287 shape? Only partly, and the difference is worth keeping.** #287 is **executable** residue — a live `LaunchInitStep` case sitting in real dispatch lists that nothing performs. This is **comment-only** residue: the property the comment worries about is enforced by a guard in the code, not by the ordering it cites. Call it *a rationale that outlived its mechanism*, which is a weaker and more common thing than *a contract that outlived its enforcement*. Filing them as the same shape would overstate this one.
+
+### BARS: none, deliberately
+
+A verdict of DEAD makes the fix a comment correction. **Bars pre-register before a RUN, and there is no run here** — nothing behavioural changes and nothing is measurable; inventing a bar for a comment edit would be theatre. Had the verdict come back REAL this entry would have **stopped** and pre-registered bars for re-establishing the order, per the dispatch. It did not.
+
+### DONE in the filing commit — comments only
+
+- **`updateWidgetData`** — the push-wake sentence replaced with what is actually true (order-independent by construction), plus a pointer to the two callers that *do* order a load, and to this item.
+- **`handleActiveProfileChanged`'s doc** — *"push watch arming"* struck from the re-resolve list (#238 deleted that surface; same dead surface as **#226**, retired MOOT for the same reason), recorded as a dated strike rather than a silent deletion.
+
+### 🔎 SEPARATE RESIDUE FOUND IN PASSING — NOT fixed here, and it is not #238's
+
+The `///` block describing `handleActiveProfileChanged` is **ORPHANED from its own function.** `d10b136` (#114, M-5..M-10) added it directly above the function; `29a9812` (#247/#248) then inserted `// MARK: - #247 B2` **plus ~66 lines of other declarations** between the doc comment and the thing it documents, which now sits at `:2185`. Swift attaches it to nothing, and the next reader finds a doc comment floating above a MARK. **Left as found** — relocating it is a judgement call outside this lane's scope, and it is collateral of a *different* lane than the one this item is about. Whoever next touches that region should move it back onto `handleActiveProfileChanged`. Noted in-source so the next reader is not surprised.
+
+### ⚠️ CLOSE-OUT RULE, partially discharged — one pointer could not be written
+
+THE CLOSE-OUT RULE wants the upstream correction filed at the stale claim's own home, which here means a pointer in **#238's entry**. **#238 lives in `OPEN_ITEMS-ARCHIVE.md`**, and both this lane's constraints and #261's archive rule (closed items move *verbatim*, never rewritten) forbid editing it. The tension is real and standing, not specific to this item: **an archived lane can still be discovered to have left residue, and there is currently nowhere upstream to say so.** Recorded here for Owen; the cross-references below carry the link in the one direction that was available.
+
+### Cross-references
+
+**#238** (the teardown that left this residue), **#126** (the dropped briefing whose comment this is, and whose dependence on the ordering is refuted above), **#287** (the sibling finding from the same sweep — the *stronger* form of this shape), **#226** (the push-watch surface, already retired MOOT by #238; "push watch arming" was the same dead surface surviving in prose).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 

@@ -2040,8 +2040,15 @@ final class AppContainer {
             data.lastMessageSender = msg.sender.rawValue
             data.lastMessageAt = msg.timestamp
         }
-        // #126: latest briefing for the widget — the push-wake path already
-        // orders loadInbox(force:) before this call.
+        // #126: latest briefing for the widget. ORDER-INDEPENDENT BY
+        // CONSTRUCTION — `stampBriefing` keeps existing values when no
+        // briefing is visible in `items`, so an un-refreshed inbox goes
+        // STALE here, never blank. (#298: until #238 this line read "the
+        // push-wake path already orders loadInbox(force:) before this call."
+        // That path — `handleRemoteNotificationWake` — was deleted whole by
+        // #238 T4. It was never the only orderer and never a funnel-wide
+        // contract: of nine call sites only `runBackgroundBootstrap` and
+        // `handleActiveProfileChanged` order a load first, and both survive.)
         data.stampBriefing(from: inboxStore.items)
         SharedWidgetDataStore.write(data)
     }
@@ -2111,8 +2118,15 @@ final class AppContainer {
     /// construction: nothing is cleared — the previous profile's pairing,
     /// tokens, and sessions stay in their slots, and the current conversation
     /// keeps working via its birth-profile affinity (M-5). Only the
-    /// relay-plane interactive surfaces (inbox, host status, push watch
-    /// arming) and the shim/model surfaces re-resolve.
+    /// relay-plane interactive surfaces (inbox, host status) and the
+    /// shim/model surfaces re-resolve.
+    ///
+    /// #298: "push watch arming" was in that list until #238 deleted the
+    /// notification plane out from under it (same dead surface as #226,
+    /// retired MOOT for the same reason). Struck 2026-08-09 rather than
+    /// silently dropped. NOTE: this doc block is ORPHANED from the function
+    /// it describes — `handleActiveProfileChanged` now sits ~66 lines below,
+    /// behind the `#247 B2` MARK that was inserted between them.
     // MARK: - #247 B2: the profile-switch verdict
 
     /// What a 5s gateway probe concluded. Mirrors the #151 Test Connection
