@@ -1592,4 +1592,90 @@ struct ChatStorePersistenceTests {
         #expect(activity.failure == nil)
     }
 
+    // MARK: - #306: the mid-turn hold across a relaunch (bars 306-I / 306-F)
+
+    /// Streams stay open until the test ends them — the state a process
+    /// death lands in. Local to this suite because `ImmediateReplyClient`
+    /// cannot hold a turn open.
+    @MainActor
+    private final class HoldOpenStreamClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        private(set) var sentMessages: [String] = []
+        private(set) var continuations: [AsyncStream<StreamingUpdate>.Continuation] = []
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            sentMessages.append(message)
+            return AsyncStream { continuation in
+                continuation.yield(.messageSent(jobID: UUID()))
+                self.continuations.append(continuation)
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: Conversation.defaultTitle)
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+    }
+
+    @Test @MainActor
+    func heldTurnSurvivesRelaunchSurfacedWithoutAutoFiringOrMintingARow() async throws {
+        // 306-I: held → process death mid-turn → cold load. The message is
+        // present, SURFACED (the turn it waited on died with the process),
+        // and NOTHING posts during launch. 306-F's relaunch half rides the
+        // same relaunch: the cold-load scrub flips the dead turn's `.sending`
+        // row to `.failed` and touches nothing of the held message, because
+        // there is no row of it to touch.
+        let persistence = makePersistence()
+        let client = HoldOpenStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await store.sendMessage("dies mid-stream") }
+        let deadline = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < deadline, client.continuations.isEmpty {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(store.isStreaming)
+        #expect(store.holdComposedTurn("survives the relaunch"))
+
+        // Process death: the store is simply never heard from again. The
+        // hold was persisted at commit time — the sendMessage precedent.
+        sendTask.cancel()
+
+        // The relaunch: a fresh store over the same persistence.
+        let relaunchClient = HoldOpenStreamClient()
+        let relaunched = ChatStore(hermesClient: relaunchClient, persistence: persistence)
+        await relaunched.loadConversationIfNeeded()
+        // Let the load-time drain kick (a scheduled Task) run — it must not
+        // touch a surfaced hold.
+        try? await Task.sleep(for: .milliseconds(150))
+
+        // Present, surfaced, and NOT posted.
+        let held = try #require(relaunched.currentThreadHeldTurn)
+        #expect(held.text == "survives the relaunch")
+        #expect(held.phase == .surfaced, "306-I: the chip SURFACEs — its turn died with the process")
+        #expect(relaunchClient.sentMessages.isEmpty, "306-I: nothing may post during launch")
+
+        // 306-F: zero transcript rows for the held text — before and after
+        // the cold-load scrub — while the dead turn's own row took the
+        // ordinary `.failed` path.
+        let rows = relaunched.conversation?.messages ?? []
+        #expect(rows.contains { $0.content == "survives the relaunch" } == false)
+        #expect(rows.first { $0.sender == .user && $0.content == "dies mid-stream" }?.status == .failed)
+    }
+
 }

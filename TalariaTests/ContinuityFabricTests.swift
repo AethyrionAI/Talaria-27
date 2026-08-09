@@ -656,6 +656,157 @@ struct ContinuityFabricTests {
         #expect(store.hasQueuedComposeTurns)
     }
 
+    // MARK: - #306: the mid-turn hold meets the outbox (bars 306-G / 306-H)
+
+    /// Hands each stream's continuation to the test so a hold can be
+    /// committed MID-turn and the terminal driven explicitly. Sends made
+    /// under `autoFinishSends` (the drain's re-sends) complete immediately.
+    @MainActor
+    private final class HoldableStreamClient: HermesClientProtocol {
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+        private(set) var sentMessages: [String] = []
+        private(set) var continuations: [AsyncStream<StreamingUpdate>.Continuation] = []
+        var autoFinishSends = false
+        var reconcileConversation: Conversation?
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(
+            message: String,
+            attachments: [PendingAttachment],
+            clientMessageID: UUID
+        ) -> AsyncStream<StreamingUpdate> {
+            sentMessages.append(message)
+            let autoFinish = autoFinishSends
+            return AsyncStream { continuation in
+                continuation.yield(.messageSent(jobID: UUID()))
+                if autoFinish {
+                    continuation.yield(.finished(
+                        Message(sender: .hermes, content: "auto-reply: \(message)", status: .delivered),
+                        nil, nil
+                    ))
+                    continuation.finish()
+                } else {
+                    self.continuations.append(continuation)
+                }
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: Conversation.defaultTitle)
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: Conversation.defaultTitle)
+        }
+
+        func openSession(_ id: String) async throws -> Conversation {
+            Conversation(title: "session \(id)")
+        }
+
+        func reconcileFromServer() async -> Conversation? { reconcileConversation }
+    }
+
+    @MainActor
+    private func pollUntil(
+        timeout: Duration = .seconds(5),
+        _ condition: @MainActor () -> Bool
+    ) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while clock.now < deadline {
+            if condition() { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return condition()
+    }
+
+    @Test @MainActor
+    func unreachableDemotesHeldTurnIntoTheSameOutboxBehindTheParkedTurn() async throws {
+        // Bar 306-G: a mid-turn hold whose turn ends `.unreachable` lands in
+        // the SAME outbox BEHIND the just-parked turn; the drain then posts
+        // everything oldest-first; nothing is lost. One store, one order.
+        let persistence = Self.makePersistence()
+        let client = HoldableStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        // An earlier offline park.
+        let firstTask = Task { @MainActor in await store.sendMessage("park me") }
+        var live = await pollUntil { client.continuations.count == 1 }
+        #expect(live)
+        client.continuations[0].yield(.unreachable("down"))
+        client.continuations[0].finish()
+        _ = await firstTask.value
+        #expect(store.hasQueuedComposeTurns)
+
+        // A second turn goes out; the user queues a follow-up mid-turn; the
+        // turn then fails to reach the host at all.
+        let secondTask = Task { @MainActor in await store.sendMessage("turn two") }
+        live = await pollUntil { client.continuations.count == 2 }
+        #expect(live)
+        #expect(store.holdComposedTurn("held follow"))
+        client.continuations[1].yield(.unreachable("still down"))
+        client.continuations[1].finish()
+        _ = await secondTask.value
+
+        // Same store, correct order: parked turns first, the demoted hold
+        // BEHIND the turn that just failed.
+        #expect(persistence.loadComposeOutboxState().pendingTurns.map(\.text)
+            == ["park me", "turn two", "held follow"])
+
+        // Reachability returns — the drain posts oldest-first.
+        client.autoFinishSends = true
+        await store.drainComposeOutboxIfPossible()
+
+        let parkIdx = try #require(client.sentMessages.lastIndex(of: "park me"))
+        let twoIdx = try #require(client.sentMessages.lastIndex(of: "turn two"))
+        let heldIdx = try #require(client.sentMessages.lastIndex(of: "held follow"))
+        #expect(parkIdx < twoIdx && twoIdx < heldIdx, "306-G: oldest-first, neither lost")
+        #expect(persistence.loadComposeOutboxState().isEmpty)
+        #expect(store.currentThreadHeldTurn == nil)
+    }
+
+    @Test @MainActor
+    func heldTurnIsThreadScopedAcrossSessionSwitches() async throws {
+        // Bar 306-H: a message held in thread A is not posted, not visible,
+        // and not fired while thread B runs; returning to A restores it.
+        let persistence = Self.makePersistence()
+        let client = HoldableStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+
+        await store.openSession("A")
+
+        let turnInA = Task { @MainActor in await store.sendMessage("turn in A") }
+        let live = await pollUntil { client.continuations.count == 1 }
+        #expect(live)
+        #expect(store.holdComposedTurn("held in A"))
+
+        // Walk away to thread B mid-turn — `abandonPendingRun` is the seam.
+        await store.openSession("B")
+        _ = await turnInA.value
+
+        #expect(store.currentThreadHeldTurn == nil, "306-H: A's hold must not be visible in B")
+
+        // A full completed turn in B must not fire A's hold.
+        client.autoFinishSends = true
+        await store.sendMessage("turn in B")
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(!client.sentMessages.contains("held in A"), "306-H: A's hold must never fire in B")
+
+        // Returning to A restores it — surfaced, because the turn it waited
+        // on was abandoned by the walk-away (matrix row 11).
+        await store.openSession("A")
+        let restored = try #require(store.currentThreadHeldTurn)
+        #expect(restored.text == "held in A")
+        #expect(restored.phase == .surfaced)
+    }
+
     // MARK: - ChatStore: journal wiring
 
     @Test @MainActor

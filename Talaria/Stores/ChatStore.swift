@@ -474,6 +474,9 @@ final class ChatStore {
                 lastTokenUsage = cachedUsage
             }
             finalizeStaleSendsFromCache()
+            // #306 matrix row 12: no turn survives a relaunch — every
+            // still-held entry surfaces, and nothing fires at launch.
+            surfaceHeldTurnsAfterColdLoad()
         }
         if conversation != nil {
             // P1 (#90): align the journal with the restored thread. A cache
@@ -928,6 +931,8 @@ final class ChatStore {
                         finishedContent: finalMessage.content
                     )
                     continuedSend?.finish(success: true)
+                    // #306 matrix row 1: the ONE terminal that fires.
+                    self.resolveHeldTurn(after: .completed)
 
                 case .interrupted(let sessionId, let runId):
                     // #237: a late duplicate from a dying stream must not
@@ -944,6 +949,9 @@ final class ChatStore {
                         self.chatLiveActivity.endActivity()
                         self.speechOutput?.cancelStream(messageID: placeholderID)
                         continuedSend?.finish(success: true)
+                        // #306 matrix row 4: noise from a dying stream —
+                        // whatever the queue was doing, it keeps doing.
+                        self.resolveHeldTurn(after: .lateDuplicate)
                         break
                     }
                     // Run committed server-side but the stream dropped (lock /
@@ -973,6 +981,10 @@ final class ChatStore {
                     // is over; the reconcile loop owns recovery from here. Not a
                     // failure in the system progress UI.
                     continuedSend?.finish(success: true)
+                    // #306 matrix row 3: HOLD until the pendingRun resolves —
+                    // firing here is #307's corruption (the reconcile would
+                    // adopt the queued turn's reply as this run's answer).
+                    self.resolveHeldTurn(after: .streamDroppedRunLive)
                 case .unreachable(let errorMessage):
                     // P1 offline compose outbox (#90): the turn never reached
                     // the Sessions API at all. Text-only turns park durably
@@ -1015,6 +1027,14 @@ final class ChatStore {
                     self.chatLiveActivity.endActivity()
                     self.speechOutput?.cancelStream(messageID: placeholderID)
                     continuedSend?.finish(success: false)
+                    // #306 matrix row 5: a text turn just parked — the hold
+                    // demotes into the same outbox BEHIND it, order
+                    // preserved. An attachment turn took the honest .failed
+                    // dead-end instead, so the hold SURFACEs.
+                    self.resolveHeldTurn(
+                        after: attachments.isEmpty && !trimmedContent.isEmpty
+                            ? .unreachable : .failedOutright
+                    )
 
                 case .failed(let errorMessage):
                     if let idx = self.conversation?.messages.firstIndex(where: { $0.id == placeholderID }) {
@@ -1045,6 +1065,13 @@ final class ChatStore {
                         self.onSendFailed?()
                     }
                     continuedSend?.finish(success: false)
+                    // #306 matrix rows 6/7: an outright failure SURFACEs the
+                    // hold (the follow-up was composed against an answer
+                    // that never came); a post-accept failure HOLDs — the
+                    // poll loop owns the turn and resolves to row 1 or 8.
+                    self.resolveHeldTurn(
+                        after: acceptedJobID == nil ? .failedOutright : .failedAfterAccept
+                    )
                 }
             }
         }
@@ -1200,6 +1227,11 @@ final class ChatStore {
         pollingTask?.cancel()
         pollingTask = nil
         pendingMessageSentAt = nil
+        // #306 matrix row 11: the walk-away park. The departing thread's
+        // hold travels with that thread (surfaced — its awaited turn will
+        // never report a terminal now) and can never fire into the arriving
+        // one: the fire and the chip are both keyed to the CURRENT thread.
+        parkHeldTurnsOnWalkAway()
         chatLiveActivity.endActivity()
         if stopSpeech {
             speechOutput?.stop()
@@ -1300,6 +1332,10 @@ final class ChatStore {
     /// still happens on every path; only the network call and the recovery
     /// arm are gated.
     func cancelStreaming(hardStopHost: Bool = true) {
+        // #306: whether this call is actually terminating a live turn — a
+        // defensive cancel with nothing streaming must not restore or
+        // surface a held message.
+        let terminatedALiveTurn = streamingMessageID != nil
         // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
         // before cancelling the consuming task (which the router treats as a
         // walk-away and may itself release the routing lock from, per
@@ -1467,6 +1503,18 @@ final class ChatStore {
         // case settles `.delivered`, same as an explicit Stop, because as far
         // as this client can ever know, no recovery is coming.
         settleStoppedUserMessage(as: (hardStopHost || !armedRecovery) ? .delivered : .working)
+        // #306 matrix rows 2/9/10 — report the OBSERVED terminal, never the
+        // row status (all three of these can leave the row `.delivered`).
+        // Row 2 (Stop): never auto-fire; the text restores (O2). Row 9
+        // (expiration, recovery armed): HOLD — the reconcile owns it. Row 10
+        // (expiration, nothing coming): HOLD + SURFACE.
+        if terminatedALiveTurn {
+            if hardStopHost {
+                resolveHeldTurn(after: .stopped)
+            } else {
+                resolveHeldTurn(after: armedRecovery ? .expiredRecoverable : .expiredUnrecoverable)
+            }
+        }
         streamingMessageID = nil
         // #295: whatever this stream's captured identifiers were, this
         // function is itself a terminal path for it.
@@ -2060,7 +2108,12 @@ final class ChatStore {
     /// actively streaming the connection is, by definition, live, so we skip the
     /// probe and report `.connected`.
     func refreshDirectHealth() async {
-        guard !isStreaming else {
+        // #307: `!isTranscriptBusy`, not `!isStreaming` — during the
+        // reconcile window the stream is gone but the run is live, and this
+        // probe is the drain's trigger; probing there kicked the outbox into
+        // a live run. A busy transcript means a run is in flight, which is
+        // itself the strongest possible "connected" signal.
+        guard !isTranscriptBusy else {
             directConnectionStatus = .connected
             return
         }
@@ -2139,7 +2192,14 @@ final class ChatStore {
     /// row. Stops as soon as a send re-queues — still unreachable; the next
     /// reachability signal retries.
     func drainComposeOutboxIfPossible() async {
-        guard !isDrainingComposeOutbox, !isStreaming,
+        // #307: `!isStreaming` here let the outbox drain INTO A LIVE RUN
+        // during the reconcile window (`streamingMessageID` nil, `pendingRun`
+        // live — exactly the #278 state), and `attemptReconcile` then adopted
+        // the drained turn's reply as the dropped run's answer, re-attached
+        // the dropped run's reasoning to it, and stamped it with the old
+        // turn's duration. `isTranscriptBusy` is THE "is a run in flight"
+        // question; bar 306-E pins this line.
+        guard !isDrainingComposeOutbox, !isTranscriptBusy,
               composeOutbox.pendingTurns.contains(where: { isDrainableComposeTurn($0) })
         else { return }
         isDrainingComposeOutbox = true
@@ -2218,6 +2278,233 @@ final class ChatStore {
 
     private func persistComposeOutbox() {
         persistence.saveComposeOutboxState(composeOutbox)
+    }
+
+    // MARK: - Mid-turn message queue (#306)
+
+    /// #306 (O2/trap 7): reads the composer's LIVE text at Stop time, wired
+    /// by ChatScreen. The Stop-restore must not let the last writer win: an
+    /// empty composer takes the held text back (via the #48 seed); a
+    /// composer the user has since typed into KEEPS the user's text, and the
+    /// held text stays on the chip for explicit restore. Nil (tests, Siri's
+    /// Cancel with no composer on screen) reads as empty.
+    var composerLiveText: (@MainActor () -> String)?
+
+    /// The current thread's mid-turn hold, if any — held or surfaced; a
+    /// `.released` entry is in drain flight and no longer the chip's
+    /// business. Drives the composer chip (chip, not a transcript bubble —
+    /// the identity ruling and #282 both forbid a row).
+    var currentThreadHeldTurn: ComposeOutboxState.PendingTurn? {
+        composeOutbox.pendingTurns.first {
+            $0.reason == .heldDuringTurn && $0.phase != .released
+                && composeTurnBelongsToCurrentThread($0)
+        }
+    }
+
+    /// #306 T2 — the hold: commit the NEXT message while a turn is still in
+    /// flight. Thread-scoped, depth 1 (O4: "a next message, not a mailbox"),
+    /// persisted immediately (the `sendMessage` precedent — nothing may die
+    /// holding the only copy), and mints NO transcript row (C3). Returns
+    /// false when there is nothing to wait on (`isTranscriptBusy` — C2,
+    /// never `isStreaming`) or a hold already exists for this thread.
+    @discardableResult
+    func holdComposedTurn(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard isTranscriptBusy else { return false }
+        guard currentThreadHeldTurn == nil else { return false }
+        composeOutbox.hold(text: trimmed, threadKey: currentComposeThreadKey)
+        persistComposeOutbox()
+        chatLog.notice("mid-turn hold: composed turn held against the thread (#306)")
+        return true
+    }
+
+    /// The chip's Cancel/Discard: removes the hold with nothing posted.
+    func cancelHeldTurn() {
+        guard let turn = currentThreadHeldTurn else { return }
+        composeOutbox.remove(entryID: turn.id)
+        persistComposeOutbox()
+    }
+
+    /// The chip's Edit: removes the hold and hands its text back for the
+    /// composer. The entry id dies here; a later re-hold mints a fresh one.
+    func editHeldTurn() -> String? {
+        guard let turn = currentThreadHeldTurn else { return nil }
+        composeOutbox.remove(entryID: turn.id)
+        persistComposeOutbox()
+        return turn.text
+    }
+
+    /// The surfaced chip's "Send now": the user's explicit fire. Same gate
+    /// as the automatic one — never into a live run.
+    func sendHeldTurnNow() async {
+        guard !isTranscriptBusy, !isDrainingComposeOutbox else { return }
+        guard let turn = currentThreadHeldTurn else { return }
+        composeOutbox.releaseToTail(entryID: turn.id)
+        persistComposeOutbox()
+        await drainComposeOutboxIfPossible()
+    }
+
+    /// #306 T3 — how a turn ended, as OBSERVED at its terminal arm. The fire
+    /// condition branches on this and never on the user row's final status:
+    /// `.completed`, `.stopped`, and `.expiredUnrecoverable` all leave that
+    /// row `.delivered` (trap 3 / bar 306-D), so a status read ships matrix
+    /// rows 2 and 10 as bugs on day one.
+    enum ObservedTurnTerminal {
+        /// Matrix row 1 — `.finished`, or the poll loop confirming delivery
+        /// (row 7's happy resolution). The ONE terminal that fires.
+        case completed
+        /// Row 2 — the user's Stop. Never fires; text restores (O2).
+        case stopped
+        /// Row 3 — stream dropped, run committed; `pendingRun` is live and
+        /// `attemptReconcile` owns resolution. HOLD.
+        case streamDroppedRunLive
+        /// Row 4 — a dying stream's late duplicate (#237). No-op.
+        case lateDuplicate
+        /// Row 5 — the host never got the turn. DEMOTE into the outbox
+        /// behind the just-parked turn; reachability owns it from here.
+        case unreachable
+        /// Row 6 — failed before acceptance. HOLD + SURFACE.
+        case failedOutright
+        /// Row 7 — failed after acceptance; the poll loop owns the turn.
+        /// HOLD — resolves to `.completed` or `.pollExhausted`.
+        case failedAfterAccept
+        /// Row 8 — the poll loop gave up. HOLD + SURFACE.
+        case pollExhausted
+        /// Row 9 — background budget expired, recovery armed (#295). HOLD —
+        /// identical to row 3.
+        case expiredRecoverable
+        /// Row 10 — background budget expired, nothing is coming (#295).
+        /// HOLD + SURFACE (`.delivered` here means settled, not answered).
+        case expiredUnrecoverable
+        /// Row 3's resolution — `attemptReconcile` adopted the dropped run's
+        /// reply. Fires.
+        case reconciled
+        /// Row 3's other tail — the reconcile budget expired with no
+        /// adoption. SURFACE, never silently fire.
+        case reconcileBudgetExpired
+    }
+
+    /// #306 T3 — THE single resolution point. Every terminal arm reports its
+    /// outcome here (not twelve scattered edits), and this switch is the
+    /// whole of the matrix's queue column. Walk-away (row 11) and process
+    /// death (row 12) do not come through a terminal at all — they park via
+    /// `abandonPendingRun` and the cold-load surface pass respectively.
+    private func resolveHeldTurn(after terminal: ObservedTurnTerminal) {
+        switch terminal {
+        case .completed, .reconciled:
+            attemptHeldTurnFire()
+        case .stopped:
+            performStopRestoreOfHeldTurn()
+        case .streamDroppedRunLive, .failedAfterAccept, .expiredRecoverable, .lateDuplicate:
+            break // HOLD — the turn (or its recovery) is still in motion.
+        case .unreachable:
+            demoteHeldTurnIntoOutbox()
+        case .failedOutright, .pollExhausted, .expiredUnrecoverable, .reconcileBudgetExpired:
+            surfaceHeldTurn()
+        }
+    }
+
+    /// Schedules the fire off the terminal arm's synchronous path. The fire
+    /// itself re-checks the gate — the scheduled task may run into a world
+    /// where a new turn already started.
+    private func attemptHeldTurnFire() {
+        Task { [weak self] in await self?.fireHeldTurnIfReady() }
+    }
+
+    /// #306 T4 — the fire. Gated strictly on `!isTranscriptBusy` (C2 — the
+    /// #278 window keeps `isStreaming` false while a run is very much alive,
+    /// and firing there is #307's corruption: `attemptReconcile` adopts the
+    /// queued turn's reply as the dropped run's answer) and
+    /// `!isDrainingComposeOutbox`. Only a `.held` entry fires — a surfaced
+    /// one NEVER auto-fires (the user decides via Send now). The release
+    /// moves the entry into the drain, which owns the remove-then-send
+    /// discipline so `hasPendingDuplicateMessage` cannot swallow the post.
+    private func fireHeldTurnIfReady() async {
+        guard !isTranscriptBusy, !isDrainingComposeOutbox else { return }
+        guard let turn = currentThreadHeldTurn, turn.phase == .held else { return }
+        composeOutbox.releaseToTail(entryID: turn.id)
+        persistComposeOutbox()
+        chatLog.notice("mid-turn hold: firing after a completed turn (#306)")
+        await drainComposeOutboxIfPossible()
+    }
+
+    /// #306 O2 — Stop means stop, and the text comes BACK. With an empty
+    /// composer the held text restores through the #48 seed (seed-only,
+    /// never auto-send; ChatScreen already consumes it). With diverged live
+    /// text (trap 7) the user's typing keeps the composer and the held text
+    /// surfaces on the chip for explicit restore — last writer must not win.
+    private func performStopRestoreOfHeldTurn() {
+        guard let turn = currentThreadHeldTurn, turn.phase == .held else { return }
+        let liveText = (composerLiveText?() ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if liveText.isEmpty {
+            composeOutbox.remove(entryID: turn.id)
+            persistComposeOutbox()
+            seedComposer(turn.text)
+            chatLog.notice("mid-turn hold: Stop — held text restored to the composer (#306 O2)")
+        } else {
+            var surfaced = turn
+            surfaced.phase = .surfaced
+            composeOutbox.update(surfaced)
+            persistComposeOutbox()
+            chatLog.notice("mid-turn hold: Stop with diverged composer — held text surfaced on the chip (#306 trap 7)")
+        }
+    }
+
+    /// Matrix row 5 — the turn this hold was waiting on never reached the
+    /// host. The `.unreachable` arm just parked THAT turn; the hold joins
+    /// the same outbox BEHIND it, order preserved, and reachability owns
+    /// both from here. Never fires; never vanishes.
+    private func demoteHeldTurnIntoOutbox() {
+        guard let turn = currentThreadHeldTurn, turn.phase == .held else { return }
+        composeOutbox.releaseToTail(entryID: turn.id)
+        persistComposeOutbox()
+        chatLog.notice("mid-turn hold: demoted into the offline outbox behind the parked turn (#306 row 5)")
+    }
+
+    /// Rows 6/8/10 + row 3's budget expiry: the turn produced no answer.
+    /// The chip says so and offers Send now / Edit / Discard — auto-firing
+    /// into a broken session is worse than one extra tap (O3).
+    private func surfaceHeldTurn() {
+        guard var turn = currentThreadHeldTurn, turn.phase == .held else { return }
+        turn.phase = .surfaced
+        composeOutbox.update(turn)
+        persistComposeOutbox()
+    }
+
+    /// Row 11 — the walk-away park, called from `abandonPendingRun` (the one
+    /// teardown primitive every walk-away path calls). The departing
+    /// thread's hold is not discarded and not fired: it surfaces, because
+    /// the turn it was waiting on will never report a terminal now.
+    private func parkHeldTurnsOnWalkAway() {
+        var changed = false
+        for idx in composeOutbox.pendingTurns.indices
+        where composeOutbox.pendingTurns[idx].reason == .heldDuringTurn
+            && composeOutbox.pendingTurns[idx].phase == .held
+            && composeTurnBelongsToCurrentThread(composeOutbox.pendingTurns[idx]) {
+            composeOutbox.pendingTurns[idx].phase = .surfaced
+            changed = true
+        }
+        if changed { persistComposeOutbox() }
+    }
+
+    /// Row 12 — process death mid-turn. No turn survives a relaunch, so
+    /// every still-`.held` entry (any thread) surfaces on cold load — and
+    /// nothing fires at launch: the fire only ever runs off an observed
+    /// terminal, which a launch does not have.
+    private func surfaceHeldTurnsAfterColdLoad() {
+        var changed = false
+        for idx in composeOutbox.pendingTurns.indices
+        where composeOutbox.pendingTurns[idx].reason == .heldDuringTurn
+            && composeOutbox.pendingTurns[idx].phase == .held {
+            composeOutbox.pendingTurns[idx].phase = .surfaced
+            changed = true
+        }
+        if changed {
+            persistComposeOutbox()
+            chatLog.notice("mid-turn hold: surfaced after cold load — the turn it waited on died with the process (#306 row 12)")
+        }
     }
 
     // MARK: - Model controls
@@ -2473,6 +2760,12 @@ final class ChatStore {
                 }
                 if self.hasPendingMessages == false {
                     self.pendingMessageSentAt = nil
+                    // #306 matrix row 7 → row 1: the poll confirmed delivery
+                    // — a completed terminal. (After any OTHER terminal the
+                    // held entry is no longer `.held`, so this report is a
+                    // no-op there; the fire branches on observed terminals
+                    // and phases, never on row status.)
+                    self.resolveHeldTurn(after: .completed)
                     break
                 }
             }
@@ -2491,6 +2784,10 @@ final class ChatStore {
                 }
                 self.pendingMessageSentAt = nil
                 self.onSendFailed?()
+                // #306 matrix row 8: the poll gave up — HOLD + SURFACE.
+                // (Also why the queue mints no early `.sending` row: this
+                // sweep is not targeted and would have eaten it.)
+                self.resolveHeldTurn(after: .pollExhausted)
             }
 
             if self.pollingGeneration == generation {
@@ -2574,6 +2871,13 @@ final class ChatStore {
                 try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, let pending = self.pendingRun else { break }
                 if await self.attemptReconcile(pending) { break }
+            }
+            // #306 matrix row 3's other tail: the budget ran out with no
+            // adoption and the run is still unresolved — SURFACE the held
+            // message, never silently fire (`pendingRun` stays live, so the
+            // fire gate would block anyway; the user gets the honest chip).
+            if !Task.isCancelled, self.pendingRun != nil {
+                self.resolveHeldTurn(after: .reconcileBudgetExpired)
             }
             if self.reconcileGeneration == generation {
                 self.reconcileTask = nil
@@ -2671,6 +2975,9 @@ final class ChatStore {
             journal?.sync(with: conversation, lastExchangeViaActiveHop: true)
         }
         finalizeOnDeviceIntelligence()
+        // #306 matrix row 3 resolved: the dropped run's reply was adopted —
+        // the held message may now fire (the gate re-checks busyness).
+        resolveHeldTurn(after: .reconciled)
         return true
     }
 
