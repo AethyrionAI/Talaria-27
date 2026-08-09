@@ -1738,6 +1738,21 @@ struct AppStoresTests {
     /// #294 bar B, the other half: a Stop during a tool call has no prose
     /// but does have visible activity — the row stays, with its chips
     /// resolved rather than left spinning.
+    ///
+    /// **#296 extended this test in place rather than writing a parallel one,
+    /// because #294's guarantees and #296's are about the same row and must
+    /// be read together.** #294 said KEEP the row; #296 says do not let
+    /// keeping it become a claim that the tool succeeded. Everything #294
+    /// asserted still holds below, unchanged — the count, the resolved
+    /// `isActive`, the `.delivered` status. What is added is the marker and
+    /// the rail state derived from it. #294-B's assertions describe a
+    /// two-state world (`isActive` false meant "done"); after #296 there is a
+    /// third state, and `isActive == false` alone no longer decides the glyph.
+    ///
+    /// This is also the **read-before-clear ordering pin** for
+    /// `cancelStreaming`: the store marks still-active activities and clears
+    /// the flag in two separate passes, and a fused loop that cleared first
+    /// would leave `failure` nil — the assertion below is what catches it.
     @Test @MainActor
     func stopDuringAToolCallKeepsTheActivityRow() async throws {
         let suiteName = "chat-store-stop-tool-\(UUID().uuidString)"
@@ -1760,6 +1775,154 @@ struct AppStoresTests {
         #expect(reply.toolActivities.count == 1, "294-B: tool activity with no prose is still something to keep")
         #expect(reply.toolActivities.allSatisfy { $0.isActive == false })
         #expect(reply.status == .delivered)
+
+        // #296-A. Everything above is unchanged; this is what was missing.
+        let stopped = try #require(reply.toolActivities.first)
+        #expect(
+            stopped.failure != nil,
+            "296-A: a tool the user stopped is not a tool that finished"
+        )
+        #expect(stopped.failure == ToolActivity.stoppedByUser)
+        // …and stated against the derivation that actually drives the glyph,
+        // so this is a claim about what renders, not just about a field.
+        #expect(
+            ToolActivityRail.state(of: stopped) == .interrupted,
+            "296-A: the rail must not draw this as a completed call"
+        )
+        #expect(ToolActivityRail.summaryState(of: reply.toolActivities) == .interrupted)
+        // The input summary is the more useful half and must survive being
+        // told why the call ended.
+        #expect(stopped.label == "read_file")
+    }
+
+    /// #296 bar B, row (i) — the regression bar. A tool resolved by a NAMED
+    /// `tool.completed` genuinely finished; a later Stop on the same turn
+    /// must not retroactively relabel it. Without this test the cheapest way
+    /// to "fix" #296 is to stop drawing the ✓ at all, which trades one lie
+    /// for another.
+    @Test @MainActor
+    func stopAfterANamedToolCompletionLeavesThatToolCompleted() async throws {
+        let suiteName = "chat-store-stop-after-completion-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(script: .toolThenNamedCompletion("read_file"))
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("read then stop") }
+        let resolved = await pollUntil {
+            chatStore.conversation?.messages.contains {
+                $0.toolActivities.contains { !$0.isActive }
+            } == true
+        }
+        #expect(resolved)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        let done = try #require(reply.toolActivities.first)
+        #expect(
+            done.failure == nil,
+            "296-B: a tool that reported its own completion before the Stop still finished"
+        )
+        #expect(ToolActivityRail.state(of: done) == .completed)
+        #expect(
+            ToolActivityRail.summaryState(of: reply.toolActivities) == .completed,
+            "296-B: the ✓ stays where the ✓ is earned"
+        )
+    }
+
+    /// #296 bar B, row (ii) — the SAME guarantee down a different code path.
+    /// A chip is also resolved implicitly when prose starts arriving
+    /// (`.textDelta` clears every in-flight activity, because the model
+    /// cannot be answering and still be waiting on the tool). That happens in
+    /// `ChatStore`'s `.textDelta` arm, not its `.toolActivity` arm, so a fix
+    /// that only understood named completions would mark this one stopped.
+    @Test @MainActor
+    func stopAfterProseResolvedAToolLeavesThatToolCompleted() async throws {
+        let suiteName = "chat-store-stop-after-prose-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let hermesClient = StoppableStreamingChatClient(
+            script: .toolThenProse(name: "read_file", text: "The file says ")
+        )
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("read then talk then stop") }
+        let proseArrived = await pollUntil {
+            chatStore.conversation?.messages.contains {
+                $0.sender == .hermes && !$0.content.isEmpty && !$0.toolActivities.isEmpty
+            } == true
+        }
+        #expect(proseArrived)
+
+        chatStore.cancelStreaming()
+        _ = await sendTask.value
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.content == "The file says ", "294-B: the partial answer is still kept")
+        let done = try #require(reply.toolActivities.first)
+        #expect(
+            done.failure == nil,
+            "296-B: prose arriving means the tool finished — the Stop landed after it, not on it"
+        )
+        #expect(ToolActivityRail.state(of: done) == .completed)
+        #expect(ToolActivityRail.summaryState(of: reply.toolActivities) == .completed)
+    }
+
+    /// #296-C1 at the store. A `tool.completed` carrying the host's error
+    /// text lands on the resolving activity's `failure` — and, the half that
+    /// matters just as much, leaves `detail` alone. `detail` is the call's
+    /// INPUT summary (#11); overwriting it would trade "what the call
+    /// touched" for "why it stopped" and lose the more useful of the two.
+    @Test @MainActor
+    func aHostReportedToolErrorLandsOnFailureAndLeavesDetailAlone() async throws {
+        let suiteName = "chat-store-tool-error-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let client = ScriptedStreamChatClient(script: [
+            .toolActivity(ToolCallEvent(name: "terminal", phase: .started, detail: "cat missing.txt")),
+            .toolActivity(ToolCallEvent(name: "terminal", phase: .completed, detail: "exit_code 1: no such file")),
+            .finished(Message(sender: .hermes, content: "That file is not there.", status: .delivered), nil, nil),
+        ])
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+
+        await chatStore.sendMessage("cat missing.txt")
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        let activity = try #require(reply.toolActivities.first)
+        #expect(activity.failure == "exit_code 1: no such file", "296-C1: the host's own account of the failure survives")
+        #expect(activity.detail == "cat missing.txt", "296-C1: and it does NOT overwrite the input summary")
+        #expect(activity.isActive == false)
+        #expect(ToolActivityRail.state(of: activity) == .interrupted)
+    }
+
+    /// The other side of 296-C1, and it is 296-B in miniature: an EMPTY
+    /// `error` on a `tool.completed` is a host saying nothing went wrong.
+    /// Writing `""` into `failure` would make a successful call render as
+    /// interrupted — #296's defect pointed the other way.
+    @Test @MainActor
+    func anEmptyHostErrorDoesNotMarkACompletedToolInterrupted() async throws {
+        let suiteName = "chat-store-empty-tool-error-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let client = ScriptedStreamChatClient(script: [
+            .toolActivity(ToolCallEvent(name: "terminal", phase: .started, detail: "echo hi")),
+            .toolActivity(ToolCallEvent(name: "terminal", phase: .completed, detail: "")),
+            .finished(Message(sender: .hermes, content: "hi", status: .delivered), nil, nil),
+        ])
+        let chatStore = ChatStore(hermesClient: client, persistence: persistence)
+
+        await chatStore.sendMessage("echo hi")
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        let activity = try #require(reply.toolActivities.first)
+        #expect(activity.failure == nil)
+        #expect(ToolActivityRail.state(of: activity) == .completed)
     }
 
     // MARK: - #295 — the expiration path's own settle + identifier capture
@@ -4454,6 +4617,15 @@ struct AppStoresTests {
             case partialProse(String)
             /// Stop during a tool call: no prose, but visible activity.
             case toolActivityOnly(String)
+            /// #296 bar B, row (i): the tool GENUINELY finished — a named
+            /// `tool.completed` resolved its chip — and only then is the turn
+            /// stopped. The finished call must keep its ✓.
+            case toolThenNamedCompletion(String)
+            /// #296 bar B, row (ii): the same outcome by the OTHER road — the
+            /// chip is resolved implicitly because prose started arriving.
+            /// Different code path in `ChatStore` (`.textDelta`, not
+            /// `.toolActivity`), so handling only row (i) is a half-fix.
+            case toolThenProse(name: String, text: String)
         }
 
         let script: Script
@@ -4505,8 +4677,55 @@ struct AppStoresTests {
                     continuation.yield(.textDelta(text))
                 case .toolActivityOnly(let name):
                     continuation.yield(.toolActivity(ToolCallEvent(name: name)))
+                case .toolThenNamedCompletion(let name):
+                    continuation.yield(.toolActivity(ToolCallEvent(name: name)))
+                    continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed)))
+                case .toolThenProse(let name, let text):
+                    continuation.yield(.toolActivity(ToolCallEvent(name: name)))
+                    continuation.yield(.textDelta(text))
                 }
                 // Never finishes — the run stays live until the Stop.
+            }
+        }
+
+        func loadConversation() async -> Conversation {
+            currentConversation ?? Conversation(title: "Hermes")
+        }
+
+        func clearConversation() async throws -> Conversation {
+            Conversation(title: "Hermes")
+        }
+    }
+
+    /// #296: emits a literal script of `StreamingUpdate`s and then FINISHES.
+    /// The counterpart to `StoppableStreamingChatClient` — that one models a
+    /// turn held open for a Stop; this one models an ordinary turn that runs
+    /// to completion, which is what 296-C1 needs: the host's error text rides
+    /// a `tool.completed` on a turn nobody interrupted.
+    private final class ScriptedStreamChatClient: HermesClientProtocol {
+        let script: [StreamingUpdate]
+        var connectionStatus: ConnectionStatus = .connected
+        var currentConversation: Conversation?
+
+        init(script: [StreamingUpdate]) {
+            self.script = script
+        }
+
+        func connect() async {}
+        func disconnect() async {}
+
+        func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+            Message(sender: .hermes, content: "unused", status: .delivered)
+        }
+
+        func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+            let script = script
+            return AsyncStream { continuation in
+                continuation.yield(.messageSent(jobID: UUID()))
+                for update in script {
+                    continuation.yield(update)
+                }
+                continuation.finish()
             }
         }
 

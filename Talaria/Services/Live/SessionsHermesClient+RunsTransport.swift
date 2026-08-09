@@ -469,8 +469,24 @@ extension SessionsHermesClient {
                     continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .started, detail: preview)))
                     // Deliberately nothing else: no `args`, so no Tier 1
                     // reconstruction and no path harvest from the payload.
-                case .toolCompleted(let name, _):
-                    continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed, detail: nil)))
+                case .toolCompleted(let name, let error):
+                    // #296 (296-C1): this used to bind the parsed `error` to
+                    // `_` and yield `detail: nil` — the parser extracted the
+                    // host's own account of why a call did not finish and the
+                    // transport threw it on the floor one line later. It now
+                    // rides `detail`, which on a `.completed` event means the
+                    // FAILURE REASON rather than the input summary it carries
+                    // on `.started`; `ChatStore` routes it to
+                    // `ToolActivity.failure` and never over `detail`.
+                    //
+                    // ⚠️ 296-C2 is NOT settled by this line. Whether the host
+                    // ever populates `error` on `tool.completed` is
+                    // unverified on the wire — the `exit_code 130` capture
+                    // everyone cites is a HOST LOG line, not an observed
+                    // frame. Plumbing a field is not evidence the field
+                    // arrives. If it never does, this costs nothing and is
+                    // still the honest home for the value.
+                    continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed, detail: error)))
                 case .runCompleted(let output, let rawJSON):
                     let usage = Self.decodeRunUsage(rawJSON)
                     // #25: the resumed session's CTX numerator. Tolerant —

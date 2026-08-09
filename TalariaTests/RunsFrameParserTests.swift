@@ -39,6 +39,33 @@ struct RunsFrameParserTests {
         #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"subagent.start","run_id":"r1"}"#) == .ignored("subagent.start"))
     }
 
+    /// #296-C1. The parser has always extracted `tool.completed`'s `error` —
+    /// the transport is what bound it to `_` and yielded `detail: nil`. This
+    /// test exists because a field with no consumer reads as dead code, and
+    /// the obvious "clean-up" is to delete it from the parser too. It is not
+    /// dead: it is the host's own account of why a call did not finish.
+    ///
+    /// ⚠️ This is C1, not C2. It proves the CLIENT keeps the value, and says
+    /// nothing about whether the host ever sends one — that is unverified on
+    /// the wire and owed a device turn.
+    @Test func toolCompletedCarriesTheHostError() {
+        let e = SessionsHermesClient.parseRunsFrame(
+            #"{"event":"tool.completed","run_id":"r1","timestamp":2.0,"tool":"terminal","error":"[Command interrupted] exit_code 130"}"#
+        )
+        #expect(e == .toolCompleted(name: "terminal", error: "[Command interrupted] exit_code 130"))
+    }
+
+    /// The ordinary frame — no `error` key at all — still parses, with a nil
+    /// error rather than a throw. That is the shape the sessions-plane host
+    /// was verified to send, and the runs plane is assumed to match until
+    /// 296-C2 says otherwise.
+    @Test func toolCompletedWithoutAnErrorKeyParsesWithNilError() {
+        let e = SessionsHermesClient.parseRunsFrame(
+            #"{"event":"tool.completed","run_id":"r1","timestamp":2.0,"tool":"terminal"}"#
+        )
+        #expect(e == .toolCompleted(name: "terminal", error: nil))
+    }
+
     @Test func garbageReturnsNil() {
         #expect(SessionsHermesClient.parseRunsFrame("not json") == nil)
         #expect(SessionsHermesClient.parseRunsFrame(#"{"no_event_key":true}"#) == nil)

@@ -4681,6 +4681,20 @@ Logged 2026-07-23.
 > live under this umbrella now has its own home: #296 and #280 have dispatches,
 > the drawer row / voice header / share label are lane 180-L above, and the health
 > permission card needs a number before it can be worked.
+>
+> **UPDATE 2026-08-09 — #296 is a NAMED INSTANCE of this umbrella and it is now
+> FIXED.** It belongs on the register above, not merely in the "has a dispatch"
+> footnote: it is this umbrella's thesis compressed into one glyph. A tool call
+> the USER killed rendered with the same accent ✓ as one that succeeded, because
+> the rail was two-valued and everything not-running drew "done" — and on a turn
+> stopped before any prose that checkmark was the *entire message*. Same default
+> as #173 and the three refresh-failure sites: **the app had the information, and
+> the surface asserted the successful reading of it.** The fix gives the call a
+> third state (interrupted) and puts the mark in the warning slot rather than the
+> danger slot, because the usual cause is something the user asked for. One
+> honest-degradation residual is knowingly accepted rather than hidden — a
+> server-transcript reload restores the ✓ — and it is written into #296 as a
+> decision, not left to be discovered.
 
 **Raised 2026-07-23 after four independent findings in a single session converged on one shape.**
 Each was filed or observed separately; together they look like a default rather than a run of
@@ -5932,7 +5946,7 @@ THE CLOSE-OUT RULE wants the upstream correction filed at the stale claim's own 
 > `handoffs/evidence/t297-ab-A04154D7.log` (2.9 MB; `handoffs/evidence/` is
 > gitignored — reference it, do not commit it).
 
-## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family.**
+## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family. → ✅ FIX LANDED 2026-08-09 — 296-A/B/C1/D/E MET, gate PASS. 296-C2 is DEVICE-OWED and is NOT claimed.**
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
 `sleep 30; echo STOPTEST` and tapped Stop after a few seconds. The stopped
@@ -6041,6 +6055,130 @@ forced, plus two bars the filing did not have.
   hand-written `decodeIfPresent`), and this bar exists to make that **proven, not
   assumed**: a mandatory RED step declares the field non-optional, runs this one
   test, and watches it fail on a decode error.
+
+### ✅ Result, 2026-08-09 — branch `t27-296-interrupted-tool-state`
+
+**The shape that shipped.** `ToolActivity` gained `var failure: String?` — *why
+this call did not complete*, deliberately separate from `detail`, which is the
+call's INPUT summary and stays untouched. The rail's glyph decision moved out of
+`body` into `ToolActivityRail.StepState` + two `nonisolated static` functions
+(`state(of:)`, `summaryState(of:)`), so the third state is a pure, testable
+derivation rather than an inline boolean. `cancelStreaming` now marks
+still-active activities BEFORE clearing `isActive`, in two passes. The
+interrupted glyph is `xmark` / `xmark.circle.fill` in **`Design.Brand.forge`
+(the warning slot), NOT `Design.Colors.danger`** — the usual cause is the user's
+own Stop, which is a thing they asked for and not a fault to flag in red.
+**⚠️ Owen has not seen the glyph yet; the rail is HUD design surface and the
+visual is his to approve.**
+
+| bar | verdict | evidence |
+|---|---|---|
+| **296-A** | ✅ MET | `AppStoresTests.stopDuringAToolCallKeepsTheActivityRow` (extended IN PLACE, not forked): `failure == ToolActivity.stoppedByUser`, and `ToolActivityRail.state(of:) == .interrupted` + `summaryState(of:) == .interrupted`, i.e. stated against the derivation that drives the glyph. #294-B's own assertions (`count == 1`, `allSatisfy { !isActive }`, `.delivered`) are unchanged and still green — the falsification condition did not trigger. |
+| **296-B row (i)** | ✅ MET | `stopAfterANamedToolCompletionLeavesThatToolCompleted` — a chip resolved by a named `tool.completed` keeps `failure == nil` and `state == .completed` through a later Stop. |
+| **296-B row (ii)** | ✅ MET | `stopAfterProseResolvedAToolLeavesThatToolCompleted` — the same guarantee down the OTHER path (`.textDelta` resolving in-flight chips). Both rows green; the marking loop only ever touches activities that were still `isActive`. |
+| **296-B (glyph)** | ✅ MET | `ToolActivityStateTests.resolvedActivityWithNoFailureIsCompleted`, `summaryOfEntirelyCompletedStepsIsCompleted`, `preFixActivityWithNoMarkerIsUnchanged`. The ✓ stays where the ✓ is earned. |
+| **296-C1** | ✅ MET | `RunsFrameParserTests.toolCompletedCarriesTheHostError` (+ the no-key case), and `AppStoresTests.aHostReportedToolErrorLandsOnFailureAndLeavesDetailAlone` — the host string lands on `failure` and `detail` is verified untouched. `anEmptyHostErrorDoesNotMarkACompletedToolInterrupted` covers the reverse lie: `"error": ""` on a success must not flip a completed call to interrupted. |
+| **296-C2** | ⛔ **NOT MET, NOT CLAIMED** | Unverified on the wire. Device row queued (below). Plumbing a field is not evidence the field arrives. |
+| **296-D** | ✅ MET | Recorded in this entry, above. |
+| **296-E** | ✅ MET | `ChatStorePersistenceTests.legacyToolActivityJSONStillDecodes` — a hand-written pre-#296 blob (no `failure` key anywhere) round-trips to a full 2-message conversation with its activity and `detail` intact. |
+
+**The RED steps, and what each failed ON** — the point of a RED is that it fails
+for the stated reason, not merely that it fails.
+
+- **296-E, field temporarily `var failure: String = ""`:**
+  `✘ Test legacyToolActivityJSONStillDecodes() recorded an issue at
+  ChatStorePersistenceTests.swift:1518:6: Caught error:
+  DecodingError.keyNotFound: Key 'failure' not found in keyed decoding
+  container. Path: messages[1].toolActivities[0]. Debug description: No value
+  associated with key CodingKeys(stringValue: "failure", intValue: nil)
+  ("failure").` **The optional is load-bearing, and it is now proven rather
+  than assumed.** The fixture is hand-written for exactly this reason: with
+  `failure` nil `JSONEncoder` omits the key anyway, so a round-tripped fixture
+  would have passed against the very declaration it exists to reject.
+- **296-A, marking loop reverted:** `Expectation failed: stopped.failure != nil`
+  — the intended reason (a missing marker), not a count mismatch and not a
+  compile error. Three dependent assertions fell with it
+  (`== ToolActivity.stoppedByUser`, `state == .interrupted`,
+  `summaryState == .interrupted`), and **296-B's two tests stayed GREEN in that
+  same reverted run**, which is the evidence that they are regression bars and
+  not restatements of 296-A.
+- **296-C1, the `ChatStore` write reverted:**
+  `Expectation failed: activity.failure == "exit_code 1: no such file"` — and
+  `activity.detail == "cat missing.txt"` did NOT fail in that run, confirming
+  the input summary was never on the overwrite path.
+
+**A CLAIM IN THE DISPATCH THAT HEAD FALSIFIES — worth carrying forward.** The
+brief states the expiration path *"never reaches the marking loop"* because
+`cancelStreaming(hardStopHost: false)` removes the placeholder via
+`armPendingRunRecovery`. **That is true only of the RECOVERABLE expiration.**
+#295's review follow-up added the `turnIsServerRecoverable` gate, so a
+non-recoverable expiration (the on-device/PCC brain) now falls through to the
+`else` branch and DOES reach the loop. It is marked — correctly, because
+nothing is coming back for that turn — but with a different string:
+`ToolActivity.interruptedBySystem` (*"Interrupted"*), not
+`stoppedByUser` (*"Stopped"*). Labelling a turn the user never stopped as
+"Stopped" would be a small lie of its own. The recoverable path still never
+reaches the loop, which is what the dispatch's rule was actually protecting.
+
+**Verified rather than trusted, per the dispatch's own instruction:** #294's
+`stoppedPlaceholderHasNothingToShow` is unaffected. Its documented hazard is
+about a new field on **`Message`** populated outside the `.finished` case;
+`failure` is a field on an **activity**, and the predicate's activity test is
+`message.toolActivities.isEmpty`, which a marker cannot change. A
+stopped-mid-tool turn has an activity, so it never reaches that branch at all —
+read from the predicate, not from the brief.
+`Conversation.dedupingAdoptedEchoes` keys empty-content rows on activity
+LABELS only; `failure` is not in the key and
+`ToolActivityStateTests.failureIsNotPartOfTheAdoptedEchoKey` pins that it never
+becomes part of it.
+
+### ⚠️ RESIDUAL — DECIDED, not left open (Task 5)
+
+**A server-transcript reload erases the marker, and we are ACCEPTING that.**
+`ChatStore.openSession` **assigns** the fetched conversation wholesale
+(`conversation = convo`), and `SessionsHermesClient.mapStoredMessage` rebuilds
+every activity as `ToolActivity(label:startedAt:isActive: false, detail:)` — no
+failure. So reopening a stopped turn's session from the drawer restores the ✓.
+**The fix is real everywhere else** — live turns, the conversation cache, and
+relaunch all carry the marker (the `.finished` merge carries the placeholder's
+activity list onto the final message, and `ToolActivity` is `Codable`).
+
+*Why accept rather than carry.* Carrying it means a #277-shaped sidecar —
+record the markers per session, replay them onto the rebuilt rows. #277 does
+exactly that for agent-file chips, so the mechanism exists and this is not
+"impossible". But the replay needs to match a rebuilt activity to a recorded
+one, and **activities have no stable identity across that boundary**: the
+server's stored `tool_calls` carry a name and a preview, get fresh UUIDs, and
+all inherit the message's timestamp. That is fuzzy matching on the one path
+with a documented corruption history (#237 adopted echoes, #248's unconfirmed
+re-append) — and it would be built to preserve a *display annotation*, where
+#277 was built to preserve *bytes the user would otherwise lose*. The costs are
+not comparable and the risk runs the wrong way.
+
+*What would reopen it:* Owen seeing the ✓ come back after reopening a stopped
+turn and minding. The fix shape is named above; this is a decision about
+priority, not about feasibility. **Recorded here rather than in a handoff — a
+handoff is where a decision happened, not where it lives (#268).**
+
+### Device row owed — 296-C2
+
+Queued for `dispatch/DEVICE-PASS-RUNNING-LIST.md` (not written by this lane —
+outside its file scope; the text is in the PR body):
+
+> **Z9 · #296-C2 — does the host ever SEND `tool.completed.error`?** Developer
+> screen → **Runs Transport (Phase 3) ON** (it defaults OFF, so this row
+> measures nothing without it). Run a turn with a tool call that FAILS for an
+> ordinary reason — `cat /nope/missing.txt` is enough — and a second turn where
+> a long tool (`sleep 30; echo STOPTEST`) is STOPPED mid-flight. **Read the
+> frames**, not the bubble: verbose logging on, watch for
+> `{"event":"tool.completed", ..., "error": …}`. **Pass/fail is not the point —
+> this is a discovery probe.** If `error` is present and non-empty, 296-C1's
+> plumbing is live and the chip shows the host's own words. If it is absent or
+> empty on both, 296-C1 still ships (it costs nothing and is the honest home
+> for the value) and #296 records that the host does not populate it —
+> which also settles whether the `exit_code 130` capture ever had a client-side
+> counterpart. **296-A is unaffected either way and needs no device**: the
+> stopped chip is client-side and already shipping.
 
 ## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there. → ✅ FIX LANDED 2026-08-08 — bars 295-A/B/C MET, gate PASS.**
 
