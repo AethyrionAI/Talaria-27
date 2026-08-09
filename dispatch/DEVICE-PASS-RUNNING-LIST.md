@@ -548,8 +548,20 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
     same diagnosis (`mergeAttachments` silently dropping `anchorOffset`) was
     filed as **#276** and fixed in #78's lane. Nothing left on the phone for
     this row.
-- [ ] #80 (revised — push-delivery sub-checks are dead, see MAJOR FINDING
-  above) — Ask Hermes, in a Talaria chat, to create an inbox item; then
+> **⚰️ MOOT 2026-08-09 — annotating, not deleting.** OPEN_ITEMS #80 CLOSED
+> 2026-08-09 (superseded by #251 Slice 2A). **This row is not merely stale, it is
+> UNRUNNABLE:** its first leg ("ask Hermes to create an inbox item") needs an
+> agent-callable PRODUCER tool, and the talaria plugin registers exactly ONE tool —
+> `talaria_phone_query`, a PULL (`~/.hermes/plugins/talaria/tools.py:29, 146-157`).
+> `hermes talaria send` is a CLI subcommand (`admin.py:21`, `register_cli_command`
+> at `:93-95`) — Owen at a host shell, not something an agent can call mid-turn. Its
+> last leg (verdict readback, ex-`get_inbox_verdict`) has **no successor at all**.
+> Inbox itself still works via `TalariaPlatformInboxService`; its device coverage
+> lives under #251's own 2A bars (2A-A/C/D/E/F/G MET). **Do not carry this into a
+> sitting.** *(Verified on the MAC install; #149's close-out records that the Windows
+> plugin path does not exist on OJAMD, so that host is a separate question.)*
+- [ ] ~~#80 (revised — push-delivery sub-checks are dead, see MAJOR FINDING
+  above)~~ — Ask Hermes, in a Talaria chat, to create an inbox item; then
   pull-to-refresh the Inbox screen (or leave/reopen it); approve it in-app
   and ask Hermes to read back the verdict. (PASS: the item appears after a
   manual refresh/reopen — NOT automatically, that path is gone — and the
@@ -1648,7 +1660,7 @@ four times total.
 | **#222** | **On-device brain**, attach an image, then ask something OCR **cannot** answer from a list of strings — *"who posted this?"*, *"is this the Safe Harbor group?"*, or anything about layout/colour/what is depicted | **Either answer is informative.** A correct answer ⇒ the model genuinely sees the image and #222's premise falls. A wrong/hedged answer, or a `readImageText` chip firing and it reasoning only over extracted text, ⇒ the transcript really is text-only and the SDK's `ImageAttachment` is an unused capability. **Works in any state — Owen already ran the OCR half on-device in airplane mode.** Do NOT re-run "what's this say" — that already passed and answers the wrong question. **✅ ANSWERED 2026-08-02 — the premise HOLDS: the transcript is text-only and `ImageAttachment` is an unused capability.** Fixture: Facebook post screenshot (Safe Harbor group), "Who posted this?", airplane mode, on-device. A `READIMAGETEXT` chip fired and the reply said outright *"I can't see the image itself, but the text in it mentions 'Owen Jones'…"* — right answer, wrong faculty: the byline happened to be in the OCR text. Console nails it: the router KNEW (`turn routed armed ctx=none img=true`, 15 tools registered) and the model still only got text. Honesty note: the limitation was disclosed, not papered over — no #199 shape |
 | **#262-E** ⭐ *(added 2026-08-06)* | Fast-model artifact turn: prompt the agent to write a file mid-turn, watch the reply stream. | Bar text from OPEN_ITEMS #262: "the chip appears under the write_file card and DOES NOT MOVE while text streams beneath; tappable mid-turn; after relaunch/history reload the placement persists (anchor is persisted with the message)." Bars 262-A/B/C/D already MET in-suite + gate; **PR #277 merged, this is the device leg (262-E), rides the first OTA after merge — tomorrow's build is that OTA.** |
 | **#78** *(added 2026-08-06)* | Long-press each bubble type (user/Hermes/voice-transcript); Copy/Share/Select Text; Regenerate a MID-history reply; Edit & Resend with and without an attachment; confirm no menu on a streaming bubble. | **Source: OPEN_ITEMS #78's own device checklist**, never previously carried into this file. PASS: all actions work per bubble type; Regenerate truncates from the correct turn; Edit & Resend restores attachments; nothing history-mutating offered mid-stream. Merged (PR #52, confirmed on main); no new files, no xcodegen owed. |
-| **#80** *(added 2026-08-06, revised — see the notification-removal finding below §F8)* | Ask Hermes to create an inbox item, then pull-to-refresh/reopen Inbox; approve it; ask Hermes to read back the verdict. | **Source: OPEN_ITEMS #80's device checklist, minus the two sub-checks #238 killed** (silent-push wake, `notify="alert"` visible push — both dead, Inbox is poll-fed only now). PASS: item appears after a manual refresh/reopen; verdict readback matches the approval. |
+| **#80** ⚰️ **MOOT 2026-08-09 — DO NOT RUN** *(added 2026-08-06, revised, now retired)* | ~~Ask Hermes to create an inbox item, then pull-to-refresh/reopen Inbox; approve it; ask Hermes to read back the verdict.~~ | **UNRUNNABLE, not merely stale.** OPEN_ITEMS #80 closed 2026-08-09 (superseded by #251 Slice 2A). The first leg needs an agent-callable PRODUCER tool; the talaria plugin registers exactly one tool, `talaria_phone_query`, and it is a PULL (`tools.py:29, 146-157`). `hermes talaria send` is a CLI subcommand (`admin.py:21, 93-95`) — Owen at a host shell, not an agent mid-turn. The verdict-readback leg has **no successor at all**. Inbox still works via `TalariaPlatformInboxService`; its device coverage rides #251's own 2A bars. *(Verified on the Mac install; OJAMD's plugin path is a separate question — #149's close-out records it does not exist there.)* |
 | **#21 (OJAMD side)** *(added 2026-08-06)* | Ask the OJAMD-backed agent to write a fresh file, tap the chip. | **Source: OPEN_ITEMS #21**, "Valid OJAMD retest: ask OJAMD's agent to WRITE a fresh file... then tap the chip." PASS: preview + ShareLink, matching the Mac-side PASS already recorded 2026-07-20 (the OJAMD side has never been measured). See §F9 for the Mac-side re-confirm. |
 | **#21 (route containment)** *(added 2026-08-06; ~~queued here~~ → **routed to §G 2026-08-07**, hygiene sweep #273)* | **NOT a phone check — do not carry this into a sitting.** Server-side confirmation that the device-files route refuses to serve anything outside its configured directory. | **Source: OPEN_ITEMS #21**, "One relay-side check: confirm the device-files route rejects traversal." PASS: refused, not served. Method and reasoning: **out-of-repo security addendum, 2026-08-07**. |
 | **#21 (noise, passive)** *(added 2026-08-06)* | No setup — over the course of this session, note whether any ordinary turn that merely *mentions* a MobileDL path grows an unwanted attachment bubble. | **Source: OPEN_ITEMS #21**, "announcement-scan noise... if it grates, narrowing to write-shaped tools is a small follow-up." Record either outcome — an eyeball finding, not strictly pass/fail. |
@@ -2128,3 +2140,51 @@ backgrounding; the system decides when, and it cannot be forced.
 **ARMED 2026-08-02 (night):** Owen backgrounds a hand-launched (uninstrumented —
 Xcode session deliberately stopped first, see D4's observer effect) build
 overnight. Read the log next sitting.
+
+---
+
+## §R · Added 2026-08-09 (backlog run) — passive observations and standing watches
+
+Three rows the tracker had queued nowhere. Verified absent before adding:
+`grep -n "#256\|#252\|#249\|#250\|island\|Island"` over this file returned zero
+matches across 2,130 lines. **One queue — these are not restated in `OPEN_ITEMS.md`.**
+
+### R1 · #256-E (2nd half) + #249F-D — reminder phrasing, PASSIVE
+
+**Prerequisite:** a build at or past `ca895f2` (#249F, PR #273). OTA 2250 and anything
+staged after it qualifies; **confirm the build before counting a reading** — an
+observation on an older build reads as a miss when it is really a configuration error.
+
+**No forced test — observe on the next NATURAL evening reminder ask.** One ask can
+settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening).
+
+- **256-E (2nd half):** an evening "remind me at 8" comes back **offering tonight**
+  rather than silently resolving to a past or next-day hour.
+- **249F-D:** the reply asks **tonight-or-tomorrow** and makes **no claim that anything
+  was set** — the false-positive direction is the dangerous one (user believes a
+  reminder exists, relies on it, misses the call).
+
+**Record the model's exact words.** Both are text bars, and the failure mode they guard
+against is a *mined phrase*, not a wrong time.
+
+### R2 · #250-E — the Dynamic Island wears the selected icon, STANDING WATCH
+
+**Currently UNTRIGGERABLE on demand** — Owen's own words: he cannot consistently bring
+the island up. No Debug harness trigger exists (it would live beside the other harness
+buttons — `grep "toollessIndexBatteryButton"` for the pattern). **Do not schedule this;
+it is a watch, not a runnable check.**
+
+When an island does appear during real use: its leading icon slot must match the icon
+selected in Settings → Appearance → App Icon — both right after a switch, and on a
+fresh cold-launch island. Bars 250-A/B/C are MET and the home-screen half is already
+confirmed; this is the only unverified half.
+
+*(Whether to build the Debug trigger and make this runnable is Owen's call — see
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.)*
+
+### R3 · #250-A tinted variant — one look, no setup
+
+The tinted app-icon variant's glow was flagged at filing as *"placeholder-grade, judge
+on the phone"* and **no verdict was ever recorded**. Next time the home screen is in a
+tinted / Focus appearance, look at the Talaria icon and say whether the glow reads as
+finished or as placeholder. Not a bar — a one-line judgement.

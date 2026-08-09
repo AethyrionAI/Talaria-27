@@ -759,7 +759,7 @@ Logged 2026-06-27.
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
-Working CarPlay voice scaffold exists in `Talaria/CarPlay/` (`CarPlaySceneDelegate` + `CarPlayVoiceManager` bridging `TalkStore` → `CPVoiceControlTemplate`); scene declared in `project.yml`, `audio` background mode present. Can't run on device without the CarPlay entitlement (managed capability; new **voice-based conversational apps** category, requestable from iOS 26.4). App Store distribution NOT required — a granted entitlement works on a development profile — but the grant is discretionary; only way to know is to file at `developer.apple.com/contact/carplay/`. Functional gap (sim-testable without grant): the manager only reflects `TalkStore`, never starts a session — needs auto-start on connect + WebRTC↔AVAudioSession routing. Depends on voice working on the phone first (→ #47). Full reference + weekend sim plan in `CARPLAY.md`.
+Working CarPlay voice scaffold exists in `Talaria/CarPlay/` (`CarPlaySceneDelegate` + `CarPlayVoiceManager` bridging `TalkStore` → `CPVoiceControlTemplate`); scene declared in `project.yml`, `audio` background mode present. Can't run on device without the CarPlay entitlement (managed capability; new **voice-based conversational apps** category, requestable from iOS 26.4). App Store distribution NOT required — a granted entitlement works on a development profile — but the grant is discretionary; only way to know is to file at `developer.apple.com/contact/carplay/`. Functional gap (sim-testable without grant): the manager only reflects `TalkStore`, never starts a session — needs auto-start on connect + WebRTC↔AVAudioSession routing. Depends on voice working on the phone first (→ #47) — **cleared: voice has worked since #82's fix, 2026-07-16.** ~~Full reference + weekend sim plan in `CARPLAY.md`.~~ **⚠️ Corrected 2026-08-09: `CARPLAY.md` has never existed in this repo's history** — `git log --all -- CARPLAY.md` is empty, an all-history `--diff-filter=A` sweep finds no CarPlay markdown, and it is not on disk. The pointer was aspirational from the filing. The live sim plan is #74's own text plus bars 74-A…F.
 
 **Update 2026-07-07:** the functional gaps are worked as Wave 5 GitHub #19 → **#74**
 (auto-start on connect, observation tracking, routing re-assert, local entitlement
@@ -3019,6 +3019,31 @@ app sends no text part at all for image-only turns, yet Hermes materialises a pl
 suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
 this item's model-vision/config question should also account for where those strings are minted.
 
+> **⚠️ MECHANISM SUPERSEDED 2026-08-09 — the ownership verdict survives, the symptom's
+> cause does not.** `prepare image failed` / `failed to decode image` have **ZERO
+> occurrences** across `gateway/`, `agent/`, `hermes_cli/`, `providers/` at upstream
+> HEAD. The 07-17 probe's 400 came from a code path that no longer exists; at head,
+> `_normalize_multimodal_content` (`api_server.py:550-665`) passes image parts through
+> **verbatim**.
+>
+> **The live mechanism is a ROUTING ASYMMETRY, not a drop.** `agent/image_routing.py`
+> (`decide_image_input_mode` → `vision_analyze` → prepend a description) has exactly
+> one caller, `gateway/run.py:16260`, inside the platform-adapter lane. **The Sessions
+> API lane the phone speaks has no equivalent** — a text-only host model gets raw
+> `image_url` parts with no fallback and no error. "Two of everything" in a third place.
+>
+> **Ownership re-stated:** upstream owns routing parity · **config owns the immediate
+> cure and it is Owen's** (Mac is `kimi-coding`/`kimi-k3` with
+> `auxiliary.vision.provider: auto` — i.e. neither a vision model nor a configured text
+> fallback) · **we own the honesty floor, regardless of how the other two land.**
+>
+> **App-side, re-verified at HEAD:** encoding is correct on both transports, and a
+> **caption-less image turn sends NO text part at all** — `ChatStore.swift:578-580`
+> synthesizes `[N attachment(s)]` for DISPLAY only, `:643` sends the trimmed (empty)
+> content, and `AttachmentInlining.swift:79` prepends a text part only when the message
+> is non-empty. That is why the host has to mint `[attachment]`/`[screenshot]` itself —
+> this entry's own second finding, now explained.
+
 > **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
 > with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
 > image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
@@ -4777,10 +4802,17 @@ future lane wants host-side removal or retitling.
 **Update 2026-07-26 — option (1) shipped; this item now owns only the gateway half.**
 The client-side filter landed with the 2b sessions shelf. `SessionSummary` gained
 `messageCount` (the drawer's view model never carried it — only `HermesSessionInfo`
-did), and `SessionsDrawerModel.grouped` drops `messageCount == 0` rows with two
-exemptions: the **active** session — non-negotiable, since New Chat creates a
+did), and `SessionsDrawerModel.grouped` drops `messageCount == 0` rows with **three**
+exemptions *(corrected 2026-08-09 — this said "two"; `SessionsDrawer.swift:194-196`
+has three)*: the **active** session — non-negotiable, since New Chat creates a
 zero-message session that would otherwise be invisible in the shelf that just opened —
-and any **pinned** session, because an explicit user act outranks a heuristic. The
+any session whose **row** carries `isPinned`, **and** membership in the **`pinnedIDs`
+overlay** (the device-local pin store, a separate source from the row flag). The last
+two are both "an explicit user act outranks a heuristic," arriving by two different
+doors. **Trap for anyone writing a test here:** the **static** `grouped(...)` defaults
+`showEmptySessions: true` (`SessionsDrawer.swift:175`) while the model property
+defaults `false` (`:88`), so the static entry point does NOT reproduce shipping
+behaviour unless you pass the flag. The
 header stat and the ⌘1…⌘9 jump ordinals both read the filtered list, so neither can
 claim a count the shelf does not show. `UserSettings.showEmptySessions` (default OFF)
 is the escape hatch, in Settings → Sessions → Shelf.
@@ -7681,8 +7713,32 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
   A healthy PID proves nothing about the chat plane.
 - The defect is upstream (hermes core): no bind retry/backoff on a
   transient EADDRINUSE, and no SO_REUSEADDR-style mitigation on our side to
-  configure. Candidate upstream ask: retry the bind for ~15s before giving
-  up, or exit nonzero so launchd respawns instead of running headless.
+  configure. ~~Candidate upstream ask: retry the bind for ~15s before giving
+  up~~ — **STRUCK 2026-08-09: that ask would RE-INTRODUCE the bug upstream
+  deliberately fixed.** `api_server.py:7260-7274`'s own comment names it: a bare
+  `return False` made the reconnect watcher treat this as retryable and *"loop
+  forever at the backoff cap (observed: 1568+ retries over 5 days …), filling
+  errors.log and leaking the adapter's ResponseStore fds each retry."*
+  `retryable=False` is intentional and documented. **The surviving ask is only the
+  second variant** — exit nonzero (or make the state loud) so nothing runs
+  headless silently.
+- **⚠️ #264 HAS TWO CAUSES, AND THEY PRESENT IDENTICALLY** (found 2026-08-09).
+  Besides the port conflict, `api_server.py:7147-7168` fails the adapter closed
+  with `_set_fatal_error("api_server_key_invalid", …, retryable=False)` when
+  `API_SERVER_KEY` is missing, placeholder, under 16 chars, **or
+  strength-unverifiable because `hermes_cli.auth` failed to import** — so a
+  half-finished update turns a good 64-char key into a fatal error. Same symptom,
+  completely different remedy. **An ops rule that only checks the port
+  MISDIAGNOSES this one.**
+- **THE CHEAPEST DETECTOR, and it needs no listener:**
+  `~/.hermes/gateway_state.json` carries per-platform truth on disk —
+  `platforms.api_server.state` + `error_code`. It distinguishes "healthy PID,
+  headless gateway" from "healthy PID, healthy chat" **and covers BOTH causes**,
+  which the port check does not. Recovery verb: `/platform resume api_server`
+  (`gateway/slash_commands.py:1438-1521`) — caveat, it is a gateway *slash
+  command*, so it needs a SURVIVING platform to issue it through. On the Mac a
+  second `kill` (launchd respawn) is simpler; **OJAMD has no launchd, which is
+  where this command earns its keep.**
 - Filed as a WATCH + ops-rule item, not a lane — we keep zero core edits
   (standing rule), so the fix is an upstream report or an ops habit.
 
@@ -11489,6 +11545,23 @@ image turns are routed:
 - **`Transcript.ImageAttachment`** — inits from `CGImage`, `CIImage`,
   `CVPixelBuffer`, `imageURL`, with `orientation`.
 - **`ImageAttachmentContent`** + `extension Attachment where Content == ImageAttachmentContent`.
+- **⚠️ Which type to actually CONSTRUCT (pinned 2026-08-09 against the beta4 interface —
+  BOTH types carry the same four inits, and only one is usable as INPUT).** An earlier
+  draft correction claimed `Transcript.ImageAttachment` "declares no public init" — that
+  is **wrong, and the bullet above is right**: its four inits are at `:2369-2372`,
+  declared in an *extension*, which is why the struct body at `:2345` looks init-less.
+  The real distinction:
+  - `Transcript.ImageAttachment` (inits `:2369-2372`) **does NOT reach a `Prompt`.** It
+    is the payload of `Transcript.Attachment.image(_:)` (`:2338`), itself the `content`
+    of `Transcript.AttachmentSegment` (`:2325`), reached via
+    `Transcript.Segment.attachment(_:)` (`:2253`) — a transcript-INSPECTION chain.
+  - `Attachment where Content == ImageAttachmentContent` (`:2784`, inits `:2785-2788`)
+    **DOES.** `Attachment : PromptRepresentable` (`:2769`) →
+    `Prompt.init(_ content: some PromptRepresentable)` (`:2882`) →
+    `LanguageModelSession.respond(to prompt:…)` (`:2051`).
+
+  **So the shape to cost is `Attachment(cgImage) → Prompt → respond(to:)`**, not
+  "construct a `Transcript.ImageAttachment`."
 - **`ImageReference`** (iOS 27+) — holds only `attachmentLabel: String`, is
   `ConvertibleFromGeneratedContent`, so **the model can emit one as structured
   output**, and `resolved(in: transcript)` turns the label back into the image.
@@ -11540,7 +11613,37 @@ a positive control (2026-08-02).
   possible answer nobody has costed, and it would be the honest one: no attachment
   leaves the phone.
 
-### Owed — cheap, no phone, and NOT a promotion
+### Owed — item 1 DONE; what remains is one no-phone slice + a device arm + Owen's call, and NOT a promotion
+
+> **✅ 222-A MET 2026-08-09 — the construction path COMPILES.** Xcode-beta4 27A5228h,
+> Swift 6.4, `iPhoneOS27.0.sdk`. Both the bare form and the explicitly-annotated form
+> type-check clean (empty output, exit 0):
+> ```
+> DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer \
+>   xcrun swiftc -typecheck -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+>   -target arm64-apple-ios27.0 probe1_bare_inference.swift
+> ```
+> Generic inference resolves with **no annotation** — `let x: Int = Attachment(cgImage,
+> orientation: .up)` prints *"cannot convert value of type
+> `Attachment<ImageAttachmentContent>` to specified type `Int`"*. Real code never needs
+> the explicit `<ImageAttachmentContent>`.
+>
+> **⚠️ AND THE BAR'S OWN METHODOLOGY WAS TOO WEAK TO ANSWER ITS OWN QUESTION — this is
+> the transferable finding.** `swiftc -typecheck` **never runs the region-isolation /
+> `Sendable` pass at all**; it fires at SIL generation. Proven with a control: a
+> non-Sendable class in a genuine two-region race compiled *silently clean* under
+> `-typecheck -strict-concurrency=complete -swift-version 6`, and only failed under
+> `-emit-sil -swift-version 6`. **Future Sendability probes must use `-emit-sil`, not
+> `-typecheck`** — otherwise a green result proves nothing, the same family as the
+> stale-incremental and no-op-marker traps.
+>
+> Re-run under full Swift 6 strict concurrency (`-emit-sil -swift-version 6`):
+> build-then-await **clean**; hold-across-an-unrelated-`await` **clean**; transfer into
+> `Task.detached` **clean**. Only an artificial double-use across two isolation domains
+> fails, with the identical diagnostic an ordinary non-Sendable class produces. **Every
+> shape our integration would actually use compiles.** `222-C` is therefore ARMED, but
+> stays opportunistic and is **NOT runnable on the sim or the test host** (`Code=5000` —
+> a green off-device result is a false negative dressed as evidence).
 
 1. **Correct the comment first.** It is wrong in the tree right now and it is being
    read as a premise. That is a standalone fix regardless of what follows.

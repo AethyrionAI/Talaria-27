@@ -1,6 +1,11 @@
 # #252 — Settings "Subsystem Channels" redesign (Claude Design direction 1c)
 
-**Status:** awaiting Owen's review. **Tracker:** OPEN_ITEMS #252 (routing recorded
+**Status:** ⚠️ **SUPERSEDED BY THE BUILD 2026-08-05** — Owen reviewed, routed all four
+decisions, and device-judged the result on build 2034 the same day. Shipped on `main`
+across six commits (`20b85b4` → `c47a91b`); bars 252-A…F all MET with a gate PASS. See
+OPEN_ITEMS #252 for the bar verdicts and the one residual (252R-A, the Voice card's
+accent predicate). *(Corrected 2026-08-09 — this line read "awaiting Owen's review" for
+four days after the code merged.)* **Tracker:** OPEN_ITEMS #252 (routing recorded
 there 2026-08-05). **Source design:** Claude Design handoff — `Settings Channels
 Prototype.dc.html` (primary, fully interactive) + `Settings Redesign.dc.html`
 (three-directions survey; 1c chosen). **Companion:** every existing control this spec

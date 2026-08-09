@@ -1,5 +1,13 @@
 # #252 companion — Settings surface control inventory (as-built, 2026-08-05)
 
+> **⚠️ THIS DESCRIBES THE *PRE*-#252 SURFACE. Read it as a historical baseline, not as
+> current state.** *(Note added 2026-08-09.)* The redesign shipped 2026-08-05 and
+> `c470631` **deleted two of the files listed below** — `SystemSettingsScreen.swift`
+> (listed here as "THE ROOT") and `DiagnosticsSettingsScreen.swift`. The settings root
+> is now `SettingsChannelsScreen`, presented from `ContentView.swift:273`. A reader
+> arriving cold will otherwise grep for files that are not there. The inventory remains
+> correct and useful as the parity baseline bar 252-C was measured against.
+
 Produced by a read-only sweep of `Talaria/Features/Settings/` at `main` ≈ `2e88cc2`.
 This is the canonical "every control must land somewhere" checklist for the #252 spec
 (`2026-08-05-252-settings-channels-design.md`). Ignore `.claude/worktrees/` copies

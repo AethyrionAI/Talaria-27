@@ -276,9 +276,21 @@ result that falsifies them (THE CLOSE-OUT RULE). **Do not edit OPEN_ITEMS.md whi
 reading this dispatch** — these are the corrections the LANE owes when it lands.
 
 **C1 — every `api_server.py:NNNN` citation in the Phase 3 corpus is stale.** The Mac install
-advanced **31 commits**, `01a1037d1` → `3dcbe9001` (2026-08-08), while the version string
+advanced ~~**31 commits**~~ **an UNKNOWN distance** *(corrected 2026-08-09 — see the
+note below)*, `01a1037d1` → `3dcbe9001` (2026-08-08), while the version string
 stayed `0.20.0` — precisely the trap CLAUDE.md warns about ("verify by process start time,
-not version string"). Measured drift in the runs region, ≈ +150 lines:
+not version string").
+
+> **⚠️ "31 commits" was the SHALLOW-CLONE DEPTH, not a measured delta** *(correction,
+> 2026-08-09)*. `~/.hermes/hermes-agent` has `.git/shallow` present, so
+> `git log --oneline | wc -l` returns the clone's floor, not the distance travelled.
+> **That floor has since moved to 34** — anyone re-running the count will read "+3" and
+> see a measurement where there is none. The real distance is **not knowable from that
+> checkout**; diff against a fresh clone. The line-number table below is unaffected — it
+> was measured by reading both trees — and so is the close-out point that every
+> `api_server.py:NNNN` citation in the Phase 3 corpus is stale.
+
+Measured drift in the runs region, ≈ +150 lines:
 
 | claim | cited | actual at `3dcbe9001` |
 |---|---|---|
