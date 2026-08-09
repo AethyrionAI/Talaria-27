@@ -1,6 +1,6 @@
 # #295 Expiration-Path Recovery Implementation Plan
 
-> **OUTCOME 2026-08-08:** all 3 tasks executed, bars 295-A/B/C met, gate PASS. PR pending.
+> **OUTCOME 2026-08-08:** all 3 tasks executed, bars 295-A/B/C met, gate PASS; merged same day as GitHub PR #284 (merge `29fa34a`). One mid-lane ruling changed the design: the arm is GATED to server-recoverable turns (`currentRunIsServerRecoverable`) — see the #295 entry.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
