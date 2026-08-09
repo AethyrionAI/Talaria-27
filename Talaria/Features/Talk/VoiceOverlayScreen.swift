@@ -1,5 +1,22 @@
+import OSLog
 import SwiftUI
 import UIKit
+
+private let voiceOverlayLog = Logger(subsystem: "org.aethyrion.talaria", category: "VoiceOverlay")
+
+private extension UIApplication.State {
+    /// Named for the 254-F log line — an `onDisappear` that fires while the
+    /// app is `.background` means something very different from one that
+    /// fires while it is `.active`.
+    var talariaName: String {
+        switch self {
+        case .active: return "active"
+        case .inactive: return "inactive"
+        case .background: return "background"
+        @unknown default: return "unknown"
+        }
+    }
+}
 
 /// Full-screen arc-reactor "VOICE LINK" overlay.
 /// Auto-starts a voice session on appear and tears it down on dismiss.
@@ -89,6 +106,14 @@ struct VoiceOverlayScreen: View {
             await talkStore.startSessionDirectly()
         }
         .onDisappear {
+            // #254 bar 254-F: this line records the ONE assumption the #254
+            // mechanism rests on — that `onDisappear` does NOT fire when the
+            // app backgrounds a presented `fullScreenCover`. If it fired on
+            // background, the unguarded `abandonSession()` below would already
+            // cover the connect-window race and no lifecycle fix would be
+            // owed. Keep it: it is the cheapest possible re-check of a premise
+            // that a future SwiftUI release could silently invert.
+            voiceOverlayLog.notice("#254 254-F: VoiceOverlayScreen.onDisappear fired (appState=\(UIApplication.shared.applicationState.talariaName, privacy: .public))")
             // Always clean up the voice session when the overlay disappears.
             // Use a short delay to avoid killing the session when the camera
             // fullScreenCover appears (which triggers onDisappear transiently).

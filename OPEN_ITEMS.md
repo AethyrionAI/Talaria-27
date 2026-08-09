@@ -193,7 +193,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt …
 - **#256** ✅ SETTINGS GRID STATUS STRIP — **CLOSED 2026-08-09: shipped 2026-08-05, bars met on 2042/2047; 256-E's text superseded by 256-G, its device half rides #249's 249F-D**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
-- **#254** 👁 Control Center voice session survives dismissal — **WATCH (downgraded 2026-08-05, header corrected 2026-08-09); mechanism now identified — connect-window race, STAYS OPEN**
+- **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C, device bars 254-D/E OWED — STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
@@ -9685,13 +9685,18 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > still works under its old name. Item stays open only for (b)/(c)
 > verdicts; everything else in the inventory was KEEP or rides #251.
 
-## 254. 👁 Control Center "Ask/Talk to Hermes" buttons now BIND (good) — but the voice session SURVIVES dismissing its UI and keeps talking at full volume — **FILED 2026-08-05 evening from Owen's OTA-2024 device report; ⬇️ DOWNGRADED TO WATCH 2026-08-05 (not reproducible on 2034) — header corrected 2026-08-09, it was still present-tense; STAYS OPEN as a watch with a mechanism now identified**
+## 254. 👁 Control Center "Ask/Talk to Hermes" buttons BIND — **Half 1 CONFIRMED WORKING on build 2034**; Half 2 (the ghost session) is a **connect-window OWNERSHIP RACE**, not a present-tense defect — **NOT REPRODUCIBLE on 2034, ⬇️ WATCH since 2026-08-05; mechanism named and its premise MEASURED (bar 254-F) 2026-08-09; app-side fix landed same day under bars 254-A/B/C — device bars 254-D/E OWED**
 
-> **⚠️ HEADER CORRECTED 2026-08-09, and this item is NOT closed.** The
-> downgrade to WATCH was recorded in the body on 2026-08-05 but the header
-> kept describing a live ghost, which is why the 2026-08-09 sweep commissioned
-> a lane against it. **The item stays open** — a watch with a named mechanism
-> is worth more than a closed item with none.
+> **⚠️ HEADER CORRECTED TWICE, and this item is NOT closed.** The downgrade to
+> WATCH was recorded in the body on 2026-08-05 but the header kept describing a
+> live ghost, which is why the 2026-08-09 sweep commissioned a lane against it.
+> A first pass that day appended the downgrade to the header but **left the
+> leading clause present-tense** ("the voice session SURVIVES dismissing its UI
+> and keeps talking at full volume") and left Half 1's CONFIRMED-WORKING status
+> buried in a parenthetical. The header above is the second correction: Half 1
+> leads as confirmed, Half 2 is named as a race with a measured premise. **The
+> item stays open** — a watch with a named mechanism is worth more than a closed
+> item with none, and the two device bars are still owed.
 >
 > **The mechanism, found 2026-08-09 and it explains the non-reproduction.**
 > Teardown has exactly two owners: `VoiceOverlayScreen.onDisappear`
@@ -9715,6 +9720,167 @@ cleaner than feared; dispositions below, decisions owed from Owen:**
 > backgrounded? It either kills the mechanism outright or promotes this from
 > ghost to known race. Bars and the full trace:
 > `dispatch/OPUS-T27-voice-130-138-254.md`.
+
+> **🎯 BARS 254-A…F — PRE-REGISTERED 2026-08-09, BEFORE ANY FIX CODE.** Written
+> here per the standing convention (bars live in the OPEN_ITEMS entry since
+> #215; a dispatch doc is optional). 254-F's statement was pre-registered
+> earlier the same day in `dispatch/OPUS-T27-voice-130-138-254.md` §6 and
+> referenced from this entry above — it ran FIRST, against a bar already in
+> writing, because it is the one bar that could retire the whole lane.
+>
+> | bar | statement | evidence | engine pin | device? |
+> |---|---|---|---|---|
+> | **254-A** | `TalkBackgroundRule` returns **true** for a session that is STARTING but not yet active, and still **false** for a genuinely idle store and for CarPlay. The existing `backgroundIgnoresIdleSession` pin is KEPT — an extension, not an inversion. | New red-first cases in `TalariaTests/TalkSessionRulesTests.swift`. | n/a (pure function) | **NO** |
+> | **254-B** | Backgrounding while a start is in flight **revokes** it: the voice service records an `endSession`, and a snapshot returning afterwards does not flip the store live. | Store-level test driving `TalkStore` against a delayed-start stub. **RED first — confirmed failing against HEAD.** | n/a | **NO** |
+> | **254-C** | Backgrounding with **no** session and **no** start in flight calls nothing — no `endSession`, no `setActive(false)`. Guards the #84 stray-deactivation regression. | Same harness, negative case. | n/a | **NO** |
+> | **254-D** | Control Center → "Talk to Hermes" from a cold app, background the phone **before** the header leaves `VOICE LINK · CONNECTING`, wait 60 s: **silence**, mic indicator dark, and the log carries the revoke line. | Device log; must quote the engine line. | **realtime** (paired + relay healthy) | **YES** → `DEVICE-PASS-RUNNING-LIST.md` §F6 |
+> | **254-E** | Same as 254-D on the other engine. | Device log; must quote the engine line. | **native** (airplane mode) | **YES** → §F6 |
+> | **254-F** | `onDisappear` firing behaviour on background is **recorded**, not assumed. **This bar can retire the whole lane.** | One `.notice` in `VoiceOverlayScreen.onDisappear`, one background event, plus a POSITIVE CONTROL proving the instrument fires at all. | either | **YES/sim**, ~1 min |
+>
+> **254-D and 254-E are two engines because the ghost's audio differs by
+> engine** — realtime speaks through WebRTC's ADM on a forced loudspeaker,
+> native through `SpeechOutputService` whose native-pipeline instance has
+> `managesAudioSession == false`. A pass on one says nothing about the other
+> (#220's rule, applied prospectively).
+
+> **✅ 254-F: MET, 2026-08-09 — and it CONFIRMS the mechanism rather than
+> retiring the lane. `onDisappear` does NOT fire when the app backgrounds a
+> presented `fullScreenCover`.**
+>
+> **Configuration, named:** simulator `CC-272-iPhone-Air`
+> (`530ACE23-CBC3-4BFD-9CCC-ECB1496D0357`), **iOS 27.0**, Xcode-beta4, Debug,
+> unpaired. **Engine pin — quoted from the log, per #220:**
+> `voice session starting on engine native (relayPaired=false)`.
+> Simulator, not device: 254-D/E remain owed and are the device bars.
+>
+> **Two trials, both negative, each with the app proven ALIVE and proven
+> BACKGROUNDED:**
+>
+> | | overlay presented | HOME pressed | background proof (in-app) | `onDisappear` line |
+> |---|---|---|---|---|
+> | trial 1 | 06:32:43 | 06:32:43 | `app-refresh submit failed…` 06:32:48 | **absent** |
+> | trial 2 | 06:33:50 | ~06:33:55 | `app-refresh submit failed…` 06:33:57 | **absent** |
+>
+> The background proof is not SpringBoard's word for it: `BackgroundRefreshScheduler.schedule()`
+> is called **only** from `AppEntry.swift:178` under `newPhase == .background`,
+> so that log line IS the app observing its own scene going to background.
+> `launchctl list` showed the process alive across both trials, so the absence
+> is not a dead process.
+>
+> **POSITIVE CONTROL — the absence means something.** Foregrounded, then the
+> overlay dismissed by its own end-call button:
+> ```
+> 06:33:07.596  [org.aethyrion.talaria:VoiceOverlay] #254 254-F: VoiceOverlayScreen.onDisappear fired (appState=active)
+> ```
+> The instrument fires on a genuine dismissal and does not fire on
+> backgrounding. Without this control the negative would have been the
+> `cmd | grep || echo "absent"` shape — empty output reading as a result.
+>
+> **Consequence: `abandonSession()` does NOT cover the background race, the
+> #118 observer is the only backstop, and its guard is the defect.** The §5
+> mechanism stands.
+
+> **🔧 CORRECTION to the mechanism paragraph above, found while building the
+> fix — it does not weaken the mechanism, it sharpens it.** The line
+> *"`isSessionActive` is false for the entire connect window"* is **too
+> strong**, and the same sentence is in `dispatch/OPUS-T27-voice-130-138-254.md`
+> §2/§5. What is actually true:
+>
+> - `TalkStore.startSessionDirectly()` sets `connectionState = .connecting` on
+>   the **store** (`TalkStore.swift:74`) but **never assigns `isSessionActive`** —
+>   that flag is written in exactly two places, `applySnapshot` and `reset()`.
+> - `applySnapshot` computes `isSessionActive = connectionState == .connecting
+>   || connectionState == .connected` (`TalkStore.swift:238`), and the engines
+>   DO publish a `.connecting` snapshot (`LiveVoiceSessionService.swift:257`,
+>   `NativeVoicePipelineService.swift:218`, each with
+>   `didSet { publishSnapshot() }`), which `VoiceEngineRouter.forward`
+>   (`:306-317`) relays to the store.
+>
+> **So the flag flips true PART-WAY through the connect, not at the end.** The
+> uncovered window is everything BEFORE the active engine publishes
+> `.connecting` — the brain gate, the pairing check, the #82 mic preflight
+> (which can sit on a permission dialog indefinitely) — **plus a second window
+> nobody had named: the realtime→native fallback.** A realtime start that lands
+> `.failed`/`.idle` publishes a NOT-active state, and `shouldFallBackToNative`
+> then opens a LOCAL microphone from that state (`VoiceEngineRouter.swift:~250`
+> onward) — with `isSessionActive` false for the whole fallback start. #139's
+> own comment already names that door ("a user who dismissed during
+> ESTABLISHING LINK got a LOCAL microphone opened by the very belt added to
+> bound the hang"); this entry now names it for the BACKGROUND door too.
+>
+> **Net effect on the lane: none of the fix changes** — the rule still needs the
+> third input, and `isStartingSession` spans both windows because it is set
+> before the first `await` and cleared only when the start resolves. But a
+> future reader should not carry away "the flag is false for the whole
+> connect": it is false at the START and it is false again during the FALLBACK,
+> which is a different and more interesting claim.
+
+> **✅ 254-A / 254-B / 254-C: MET, 2026-08-09. Fix landed. `GATE: PASS`.**
+>
+> **RED first, and the RED is verbatim.** The rule's SIGNATURE was extended
+> while its BODY was left unchanged, so these are assertion failures rather
+> than compile errors — a compile error proves a signature changed, not that a
+> behaviour was wrong:
+> ```
+> TalkSessionRulesTests.swift:66:9: Expectation failed:
+>   TalkBackgroundRule.shouldEndSession(isSessionActive: false, isStartingSession: true, routeHasCarAudio: false)
+> TalkStoreBackgroundRevokeTests.swift:168:9: Expectation failed: revoked
+> TalkStoreBackgroundRevokeTests.swift:169:9: Expectation failed: service.endCallCount >= 1
+> TalkStoreBackgroundRevokeTests.swift:175:9: Expectation failed: !store.isSessionActive
+> ✘ Test run with 20 tests in 2 suites failed after 0.787 seconds with 4 issues.
+> ```
+> **The last line is the ghost itself** — the connect that landed after the
+> non-revoke flipped the store live, in a unit test. After the one-line body
+> change: `✔ Test run with 20 tests in 2 suites passed after 0.179 seconds.`
+>
+> **The fix, in three parts.** `TalkStore` publishes `isStartingSession`
+> (`private(set)`), set before the first `await` in BOTH start doors and
+> cleared by `defer` on every exit plus on any explicit `endSession()`;
+> `TalkBackgroundRule.shouldEndSession` gains it as a third input,
+> `(isSessionActive || isStartingSession) && !routeHasCarAudio`; the background
+> observer revokes via the unguarded `abandonSession()` and its notice names
+> which arm fired — `#118/#254: app backgrounded with a voice session (LIVE|STARTING) — revoking it`.
+>
+> **`isSessionActive` was NOT deleted from the rule, deliberately.** Revoking on
+> every backgrounding would call `endSession()` with nothing live, reaching
+> `setActive(false, .notifyOthersOnDeactivation)` unconditionally — the #84
+> shape, where a stray deactivation on the shared session killed the live mic.
+> **254-C is that negative case, and it is honestly labelled in the test file as
+> a regression guard that is green before AND after** — not as evidence the fix
+> works. CarPlay (#19) exempts both arms.
+>
+> **Unit count MOVED: 1859 → 1867 (+8).** Measured as `@Test` declarations in
+> `TalariaTests` at `bfbd154` vs HEAD, and the 1867 cross-validates against the
+> gate's own reported Swift Testing count. **A caution for the next lane: the
+> 272d gate (a DIFFERENT branch, `6420cb7`) also reported 1867, so "same number
+> as last time" is not by itself the stale-`.xctest` symptom** — resolve the
+> baseline from THIS lane's base commit, not from the last gate log you happen
+> to have. Independent proof the binary was not stale: all eight new tests
+> appear by name as `✔ passed` in the gate log, and `TalkStoreBackgroundRevokeTests`
+> is among the 143 suites — a stale bundle cannot contain a file that did not
+> exist when it was built.
+>
+> **THREE gate runs, all recorded — two FAILs before the PASS, neither caused by
+> this branch:**
+>
+> | run | verdict | cause |
+> |---|---|---|
+> | 1 (`/tmp/gate-254`) | **FAIL** | `Simulator device failed to launch org.aethyrion.talaria27` — the unit-test HOST would not launch. **Self-inflicted:** 254-F's evidence run hand-installed a `CODE_SIGNING_ALLOWED=NO` build on that same sim and it crashed mid-session. Cleared by `simctl uninstall` + sim reboot + re-granting the calendar/reminders TCC the reboot dropped. **Lesson for any lane that runs a device/sim probe before its gate: uninstall the probe build first.** |
+> | 2 (`/tmp/gate-254-run2`) | **FAIL** | one test: `HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()` — `Expectation failed: landed` after 5.754 s. Isolated on this same branch immediately afterwards: **PASSED in 1.878 s**, whole suite 6/6 green. A local-network beacon race, and this branch touches no WebKit, no networking, no listener. |
+> | 3 (`/tmp/gate-254-run3`) | **`GATE: PASS`** | Swift Testing 1867 · XCUITest 12 · Release build PASS · 2 expected skips (CondenserFidelityTests, #93). |
+>
+> **A finding about the GATE itself, worth more than the flake:** on run 2 the
+> gate labelled that failure *"NO assertion text — likely an XCUITest harness
+> flake (runner lost/restarted). Re-run ONCE and RECORD both runs in OPEN_ITEMS
+> #164."* **Both halves misfire.** The failure DID carry assertion text
+> (`Expectation failed: landed`) and it is a **Swift Testing unit test**, not an
+> XCUITest; and **#164 is CLOSED** (`OPEN_ITEMS-ARCHIVE.md:4775`, closed
+> 2026-08-04) and is about a different test entirely
+> (`testDisconnectReturnsToStandaloneChat`). Following the instruction literally
+> would have reopened a closed item under the wrong diagnosis. **The flake is
+> recorded here instead and needs its own number — Owen's call**, since
+> allocating one touches the numbering sequence and the INDEX and is outside
+> this lane's scope.
 
 **Owen (2026-08-05, on OTA build 2024):** *"the ask hermes and talk to
 hermes buttons in the control center started working? The chat one takes
@@ -13102,6 +13268,21 @@ in the record distinguishes them.
 - **#138** (realtime self-barge-in). Names its engine, and is the one item that
   caught this organically: *"Scope broadened 2026-07-20 (Owen): NOT
   realtime-only"* — found by observing the same symptom elsewhere, not by any log.
+- **#254** (voice session outlives the foreground) — **added 2026-08-09; it
+  POSTDATES this audit** (filed 2026-08-05, four days after #220) and is the
+  first voice item that could be engine-named from the start, because the
+  `voice session starting on engine …` line (`VoiceEngineRouter.swift:225`)
+  already existed when it was filed. Owen's original OTA-2024 report named no
+  engine and could not have — **but every bar written for it since does.**
+  254-F quotes `engine native (relayPaired=false)`; **254-D (realtime, paired
+  + healthy relay) and 254-E (native, airplane mode) are pinned to opposite
+  engines by construction and are still OWED.** The FIX is engine-independent
+  (`TalkSessionRules` + `TalkStore` + `AppContainer`, no audio code), so the
+  unit bars 254-A/B/C carry no engine ambiguity at all — **the ambiguity lives
+  entirely in the two device bars, which is why they are two.** This is the
+  audit's rule applied PROSPECTIVELY rather than retroactively; #254 is on this
+  list because its evidence names its configuration, not because it is
+  engine-agnostic.
 
 ### THE PAYOFF — ✅ **CONFIRMED 2026-08-01, and the settlement method below was WRONG**
 

@@ -24,13 +24,44 @@ import Foundation
 //     (activation completes before engine start) are unchanged.
 
 enum TalkBackgroundRule {
-    /// True when a `didEnterBackground` event should end the voice session
-    /// through the user-end path. Both engines answer to this rule: the
-    /// realtime engine survives backgrounding (UIBackgroundModes `audio`
-    /// keeps WebRTC streaming), and the native pipeline's capture chain
-    /// outlives the scene — the mic indicator stays lit either way.
-    static func shouldEndSession(isSessionActive: Bool, routeHasCarAudio: Bool) -> Bool {
-        isSessionActive && !routeHasCarAudio
+    /// True when a `didEnterBackground` event should revoke the voice session.
+    /// Both engines answer to this rule: the realtime engine survives
+    /// backgrounding (UIBackgroundModes `audio` keeps WebRTC streaming), and
+    /// the native pipeline's capture chain outlives the scene — the mic
+    /// indicator stays lit either way.
+    ///
+    /// **#254 — why there are three inputs and not one.**
+    ///
+    /// `isSessionActive` is derived in `TalkStore.applySnapshot` from the
+    /// *engine's* published `connectionState`, so it is false for the prologue
+    /// of every start (brain gate, pairing check, #82 mic preflight) and false
+    /// AGAIN during the realtime→native fallback, where a start that landed
+    /// `.failed` opens a local microphone from a not-active state. Gating on it
+    /// alone made a start-in-flight invisible: backgrounding revoked nothing,
+    /// and the connect came up live, speaking, on a forced loudspeaker with no
+    /// UI and no owner.
+    ///
+    /// **`isStartingSession` is an ADDITION, not a replacement.** Revoking on
+    /// every backgrounding would reach
+    /// `AudioSessionOffMain.setActive(false, .notifyOthersOnDeactivation)`
+    /// with nothing live — the #84 shape, where a stray deactivation on the
+    /// shared session killed the live mic. The idle case must stay false.
+    ///
+    /// **CarPlay exempts BOTH arms** (#19): a start in flight in a car is
+    /// still a session CarPlay is driving, and the new input must not smuggle
+    /// a teardown past the exemption the live arm has always honoured.
+    ///
+    /// This rule is the ONLY backstop on the background path, and that is
+    /// measured rather than assumed — bar 254-F (2026-08-09) established that
+    /// `VoiceOverlayScreen.onDisappear` does **not** fire when the app
+    /// backgrounds a presented `fullScreenCover`, so #139's unguarded
+    /// `abandonSession()` never runs here.
+    static func shouldEndSession(
+        isSessionActive: Bool,
+        isStartingSession: Bool,
+        routeHasCarAudio: Bool
+    ) -> Bool {
+        (isSessionActive || isStartingSession) && !routeHasCarAudio
     }
 }
 

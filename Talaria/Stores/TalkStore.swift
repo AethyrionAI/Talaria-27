@@ -29,6 +29,23 @@ final class TalkStore {
     var sessionDuration: TimeInterval = 0
     var isMuted = false
     var isSessionActive = false
+    /// #254: **a start is in flight.** Published because `isSessionActive`
+    /// cannot answer the question the background observer needs to ask.
+    ///
+    /// `isSessionActive` is derived in `applySnapshot` from the *engine's*
+    /// published `connectionState`, so it stays false through the whole
+    /// prologue of a start — the brain gate, the pairing check, the #82 mic
+    /// preflight (which can sit on a permission dialog indefinitely) — and it
+    /// goes false AGAIN during the realtime→native fallback, where a start
+    /// that landed `.failed` opens a LOCAL microphone from a not-active state.
+    /// Backgrounding in either window used to revoke nothing, and the session
+    /// then landed live, speaking, with no UI and no owner.
+    ///
+    /// **Not `sessionGeneration`.** That counter is private and monotonic — it
+    /// records how many intents have been claimed, not whether one is
+    /// outstanding, and no external reader can compare it against anything.
+    /// This is the state; that is the tally.
+    private(set) var isStartingSession = false
     var blockedReason: String?
     var statusMessage: String?
     var canStartSession = true
@@ -84,6 +101,11 @@ final class TalkStore {
         voiceState = .thinking
         statusMessage = "Connecting..."
         let generation = beginSessionGeneration()
+        // #254: publish the intent BEFORE the first await — the whole point is
+        // to be visible during the window the awaited call occupies. `defer`
+        // clears it on every exit, including the abandoned-start return below.
+        isStartingSession = true
+        defer { isStartingSession = false }
         await voiceService.startSession()
         guard generation == sessionGeneration else {
             await discardAbandonedStart()
@@ -97,6 +119,10 @@ final class TalkStore {
 
     func startSession() async {
         let generation = beginSessionGeneration()
+        // #254: same publication as `startSessionDirectly` — both start doors
+        // must be visible to the background observer, not just the overlay's.
+        isStartingSession = true
+        defer { isStartingSession = false }
         await voiceService.startSession()
         guard generation == sessionGeneration else {
             await discardAbandonedStart()
@@ -139,6 +165,10 @@ final class TalkStore {
         // #139: an explicit end revokes any connect still in flight, so a slow
         // start cannot land live after the user hung up.
         sessionGeneration &+= 1
+        // #254: the start is no longer wanted. Clearing here as well as in the
+        // start's own `defer` means a second background event during the same
+        // (possibly 12-second, #247 B1) connect does not re-fire the revoke.
+        isStartingSession = false
         // Capture session metadata before the service resets
         let sessionId = voiceSessionID
         let duration = sessionDuration
@@ -203,6 +233,7 @@ final class TalkStore {
         sessionDuration = 0
         isMuted = false
         isSessionActive = false
+        isStartingSession = false
         blockedReason = nil
         statusMessage = nil
         canStartSession = true

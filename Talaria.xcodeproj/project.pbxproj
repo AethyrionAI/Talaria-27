@@ -517,6 +517,7 @@
 		F982F9F184E4EF8BEE65D3E1 /* TalariaShare.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		F99F9D950CC11DBA11C4D952 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 24EEEE38B93F07C69DCF30ED /* PrivacyInfo.xcprivacy */; };
 		F9D5CAB68163B1941D5CDECA /* Router.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5622374E497EE8642E4DEE /* Router.swift */; };
+		FACEA878EBB6CC89758CF2B5 /* TalkStoreBackgroundRevokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6352B23C71AAB6357D5E649F /* TalkStoreBackgroundRevokeTests.swift */; };
 		FB1882D00D708B61E19B7A37 /* LocalSessionHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B76EF12480785C00968B54 /* LocalSessionHistoryTests.swift */; };
 		FB2FB76BB9D8B63101ACFDF4 /* GenUISurfaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6DDD296EB3D124F59DAD98D /* GenUISurfaceView.swift */; };
 		FB320457FD3A51DBCEEE88FA /* LiveSpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDF7D4D1DE78C68978B73F6E /* LiveSpeechService.swift */; };
@@ -775,6 +776,7 @@
 		620742C177DDD76042D01179 /* PairingRedeemResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingRedeemResult.swift; sourceTree = "<group>"; };
 		6305D45975AE75D55E670E65 /* ProvisioningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvisioningService.swift; sourceTree = "<group>"; };
 		6347F95595858FADDEDE54DF /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
+		6352B23C71AAB6357D5E649F /* TalkStoreBackgroundRevokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkStoreBackgroundRevokeTests.swift; sourceTree = "<group>"; };
 		637B1A2DE6232361D4E695DD /* ServerSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettingsScreen.swift; sourceTree = "<group>"; };
 		639E35724ACC2C48AB542489 /* ThemeTextures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeTextures.swift; sourceTree = "<group>"; };
 		64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeVoicePipelineService.swift; sourceTree = "<group>"; };
@@ -1308,6 +1310,7 @@
 				A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */,
 				557346D0DB64E949DE47F8E2 /* TalkPreflightTests.swift */,
 				7B2AED870C806635A35329B5 /* TalkSessionRulesTests.swift */,
+				6352B23C71AAB6357D5E649F /* TalkStoreBackgroundRevokeTests.swift */,
 				55A40BBCFF31EA70CC924E54 /* TaskScheduleDraftTests.swift */,
 				F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */,
 				1C4B0DE180CF1E349DE0C137 /* ThemeCatalogTests.swift */,
@@ -2682,6 +2685,7 @@
 				073F514793203C57186558F6 /* TalariaPlatformLinkTests.swift in Sources */,
 				382AE4C2878C84116F806CFC /* TalkPreflightTests.swift in Sources */,
 				C353F3E90BF93E9741E06417 /* TalkSessionRulesTests.swift in Sources */,
+				FACEA878EBB6CC89758CF2B5 /* TalkStoreBackgroundRevokeTests.swift in Sources */,
 				8B3A2B61F4D2C285004C06BF /* TaskScheduleDraftTests.swift in Sources */,
 				8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */,
 				85DCD6F8A6E00520C5246486 /* ThemeCatalogTests.swift in Sources */,
