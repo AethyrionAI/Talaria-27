@@ -2689,6 +2689,39 @@ Logged 2026-07-17.
 > refusal text reads "limit 21 MB" (`ByteCountFormatter(.file)` is base-10)
 > — so a 20.5 MB file is refused by a limit the UI just told the user it was
 > under. One call site; honesty-family, alongside #180.
+>
+> > **✅ (b) FIXED 2026-08-09 — and it now has a NUMBER, which is the other
+> > half of what was wrong with it.** It sat as an unnumbered bullet inside
+> > a feature item for three days; per #268 ("a phase name is not a
+> > filing") a finding with no number is a finding nobody can be assigned.
+> > **It is now a member of #180's register, carrying bar 180-E**, and was
+> > fixed in lane 180-L.
+> >
+> > **The RED, on the unmodified tree:**
+> > `↳ the refusal announces a larger limit than the guard enforces — 21 MB
+> > vs 20971520 bytes` and `↳ refused at 21 MB against a stated limit of
+> > 21 MB — the number cannot explain the decision`.
+> >
+> > **The fix, and it is Owen's decision (dispatch §8.4):** the cap is now
+> > **base-10, `20_000_000`**, so the label and the guard share one
+> > arithmetic and it is the arithmetic Files and Photos show the user. The
+> > alternative — keep 20 MiB and render "20 MiB" with a base-2 formatter —
+> > is more precise and uglier; **bar 180-E is identical either way and the
+> > reversal is one constant.** `byteLabel` also moved from
+> > `ShareViewController.swift` (TalariaShare-only, unreachable from the
+> > suite) to `SharedInboxStore` (compiled into both targets), which is what
+> > makes the label assertable against the guard at all.
+> >
+> > **Stated, not hidden:** any rounded label keeps a boundary band
+> > (cap+1 … ~cap+499,999) that still renders as "20 MB". The systematic
+> > overstatement is gone; rounding is not.
+> >
+> > **Found in passing, NOT fixed, and it is the same family:** `blobItem`
+> > guards on the REMAINING budget across a multi-item share but the
+> > refusal always names the FULL cap — so a second file refused because
+> > the first consumed the budget is told "limit 20 MB" when the limit that
+> > actually applied was smaller. Same defect class, different fix, deferred
+> > rather than smuggled into this lane.
 > (c) **The "APPENDS to a draft (never destroys it)" cross-slot guarantee
 > was never exercised.** `consumeShareSeed` appends, but `consumeComposerSeed`
 > **replaces** (`ChatScreen.swift:1161`) — opposite contracts on two seed
