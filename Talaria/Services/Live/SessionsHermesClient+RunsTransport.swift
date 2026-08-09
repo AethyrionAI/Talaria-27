@@ -167,8 +167,8 @@ extension SessionsHermesClient {
     /// `jsonPayload` is the JSON text after `data: `. Returns `nil` for
     /// payloads that aren't a JSON object or carry no string `"event"` key;
     /// returns `.ignored(name)` for both known-but-unused event names
-    /// (`approval.request`, `approval.responded`, `subagent.start`,
-    /// `subagent.complete`) and any other event name this parser doesn't
+    /// (`subagent.start`, `subagent.complete` — `approval.*` graduated to
+    /// real cases in #304) and any other event name this parser doesn't
     /// otherwise recognize — forward-tolerant of new event types the way the
     /// rest of this client's SSE parsing is (see `decodeJSONString`,
     /// `thinkingDelta(fromToolProgress:)`).
@@ -197,10 +197,33 @@ extension SessionsHermesClient {
             return .runFailed(error: (payload["error"] as? String) ?? "")
         case "run.cancelled":
             return .runCancelled
+        case "approval.request":
+            // #304 (bar 304-A): the host's question, fields verbatim. The
+            // choice set is COMPUTED PER REQUEST host-side
+            // (`_approval_event_choices` — four-choice, three-choice, and
+            // smart_denied two-choice arms all exist), so it rides the frame
+            // as data. A frame offering NO choices cannot be rendered without
+            // inventing buttons — that stays `.ignored`, honest absence over
+            // fabrication.
+            guard let choices = payload["choices"] as? [String], !choices.isEmpty else {
+                return .ignored(name)
+            }
+            return .approvalRequest(
+                runID: (payload["run_id"] as? String) ?? "",
+                command: (payload["command"] as? String) ?? "",
+                description: payload["description"] as? String,
+                patternKey: payload["pattern_key"] as? String,
+                choices: choices
+            )
+        case "approval.responded":
+            // #304: pushed by `_handle_run_approval` when a stream is still
+            // registered — the idempotent teardown signal for a card someone
+            // (possibly this client) already resolved.
+            return .approvalResponded(choice: payload["choice"] as? String)
         default:
-            // Known-but-unused (approval.*, subagent.*) and any unrecognized
-            // future event name both land here — a valid frame the app
-            // chooses not to act on, distinct from an unparseable one.
+            // Known-but-unused (subagent.*) and any unrecognized future
+            // event name both land here — a valid frame the app chooses not
+            // to act on, distinct from an unparseable one.
             return .ignored(name)
         }
     }
