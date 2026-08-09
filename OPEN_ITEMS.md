@@ -6241,6 +6241,102 @@ id-fusion commit), and the decode-compatibility hazard — a
 (`UserDefaultsAppPersistenceStore.swift:355` returns a default on failure), so
 the reshape ships with a decode-compatibility test.
 
+> **Update 2026-08-09 — LANE EXECUTED (branch `t27-306-message-queuing`;
+> commits `620b41e` T1, `73f7378` T2–T4 + the #307 fix, `209d53f` T5). Bars
+> 306-A..J MET with observed RED each; 306-K (gate) and 306-L (device)
+> PENDING — controller runs the gate serially at merge; Owen runs the device
+> pass.** Targeted suites green on a dedicated CC-306 sim:
+> `MessageQueueTerminalsTests` (NEW, 16), `ContinuityFabricTests` 28→33,
+> `ChatStorePersistenceTests` 41→42 — 91/91; `MessageIdentityUITests` 1→2
+> XCUITests (249s, green). Counts MOVED at every step.
+>
+> **Per-bar evidence + observed RED (T6 protocol: revert the named line, run,
+> record, restore — every restore verified byte-identical by `git diff`):**
+> - **306-A** `holdWhileStreamingHoldsWithoutPosting` (+ depth-1 and
+>   not-busy-refusal tests). RED: `holdComposedTurn` short-circuited to
+>   `return false` (main's no-gesture behavior) → "Expectation failed:
+>   store.holdComposedTurn(…)" and the suite collapsed with 29 issues.
+> - **306-B** `heldTurnFiresExactlyOnceOnCompletion` — send COUNT asserted,
+>   two `.finished` frames, one post; row's `clientMessageID` fresh-minted and
+>   ≠ entry id. RED arm 1: the `.finished` arm's
+>   `resolveHeldTurn(after: .completed)` removed → "Expectation failed: fired"
+>   (count 0, held forever). RED arm 2 (the #237 shape): the fire's
+>   release/remove-before-send replaced with a direct `sendMessage` → count 2.
+>   **Deviation from the dispatch's predicted revert:** removing only the
+>   `!isTranscriptBusy` gate does NOT double-fire — the removal discipline
+>   already dedupes the second report; the operative line is the
+>   remove-before-send, and that is what was reverted to produce this RED.
+> - **306-C** `stopNeverFiresAndRestoresTextToTheComposer`. RED: `.stopped`
+>   wired to the fire ("any terminal") → the Stop arm posted and no restore
+>   seed was set. O2 verbatim: entry leaves the queue, text rides the #48
+>   composer seed (seed-only, never auto-send).
+> - **306-D** three arms (`completedTerminalFires…`, `stopTerminal…`,
+>   `unrecoverableExpiration…`) — all three leave the user row `.delivered`;
+>   only the first fires. RED: cancelStreaming's observed-terminal reports
+>   replaced with the status-shaped fire (`.delivered` ⇒ completed) → arms 2
+>   AND 3 posted. Also `recoverableExpirationHoldsWithoutSurfacing` pins row 9.
+> - **306-E / #307** `livePendingRunBlocksFireAndDrainUntilReconcileAdopts` —
+>   the #278 window (`streamingMessageID` nil, `pendingRun` live): health
+>   probe + drain post NOTHING; the reply `attemptReconcile` adopts is the
+>   dropped run's; resolution then fires parked-before-held, oldest-first.
+>   Plus `reconcileBudgetExpirySurfacesInsteadOfFiring` for row 3's tail. RED:
+>   all gates reverted to `!isStreaming` (the two #307 lines exactly as on
+>   `main`) → the outbox drained INTO the live run mid-window.
+> - **306-F** `noRowExistsThroughHoldEditAndCancel` +
+>   `heldTurnSurvivesRelaunch…`'s no-row half. RED: compose-time `.sending`
+>   row minted in `holdComposedTurn` → rows existed through hold/edit and the
+>   relaunch scrub ate them. NOTE: the poll-exhaustion sweep's half is covered
+>   by the no-row invariant (the sweep only touches `.sending` USER rows and a
+>   held message has none) — a live 60s poll-exhaustion drive was not run;
+>   the sweep site's own `.pollExhausted` report reuses the same surface path
+>   `outrightFailureSurfacesTheHold` pins.
+> - **306-G** `unreachableDemotesHeldTurnIntoTheSameOutboxBehindTheParkedTurn`
+>   — store order ["park me","turn two","held follow"], drain oldest-first.
+>   RED: demote no-op'd (the two-store behavior) → the held entry never joined
+>   the outbox and the drain stranded it.
+> - **306-H** `heldTurnIsThreadScopedAcrossSessionSwitches` — held in A:
+>   invisible in B, a completed turn in B fires nothing of A's, returning to A
+>   restores it surfaced (row 11). RED: thread matching short-circuited to
+>   `true` (queue on the STORE) → A's hold visible in B.
+> - **306-I** `heldTurnSurvivesRelaunchSurfacedWithoutAutoFiringOrMintingARow`
+>   — present after relaunch, surfaced, zero posts at launch. RED: cold-load
+>   surfacing replaced with `attemptHeldTurnFire()` → the entry was consumed
+>   by a launch-time fire.
+> - **306-J** unit `composerDoorIsExhaustiveAndNeverSaysSent` + XCUITest
+>   `testQueuedChipCancelRemovesHeldMessageWithNothingPosted` (chip renders,
+>   Cancel removes, nothing posts; rides a new DEBUG-only
+>   `UITEST_STREAM_DWELL_SECONDS` widening of the #120 synthetic turn). RED
+>   string half: `.queued` status hardcoded "Message sent" → string assertions
+>   failed. RED enum half: `case steered` deleted → compile refusal
+>   ("type 'ComposerDoor' has no member 'steered'", ComposerDoor.swift:26/:35)
+>   — C1 is compile-enforced; 3C fills the cases in, it cannot delete them.
+>
+> **Decisions made in-lane (recorded per the bars' "decide and TEST"):**
+> - **Stop-restore divergence (trap 7):** an EMPTY composer takes the held
+>   text back (entry removed; the composer is now the hold — O2's "one extra
+>   tap"); a composer the user has since typed into KEEPS the user's text and
+>   the held text stays SURFACED on the chip for explicit restore. Last
+>   writer never wins. Pinned by
+>   `stopWithDivergedComposerKeepsLiveTextAndSurfacesTheHold`.
+> - **Slash commands are refused at the queue door** (UI rule in
+>   `queueComposedMessage` + the commit control hides in slash mode): a held
+>   `/command` would post as plain prose at fire time, which would be a lie.
+> - **Thread keys:** entries stamp `activeSessionID ?? lastOpenedSessionID ??
+>   conversation.id`; matching accepts ANY of the current thread's identities,
+>   so a pre-hop hold still matches after its hop lands. Legacy nil-keyed
+>   entries mean "current thread", exactly as before. `clearConversation` now
+>   kills only the DEPARTING thread's entries (+legacy nil-keyed); `reset()`
+>   keeps the full cross-host nuke.
+> - **#240's drain-time adoption guard is scoped to `.unreachable` parks** —
+>   a held turn was never posted, so a server-side text match can only be a
+>   coincidence inside the skew window and must not eat the message.
+>
+> **Trap 1 (#292 overlap), noted not fixed:** the queue fires only at
+> `!isTranscriptBusy`, but an abandoned runs-plane producer can still be
+> polling (#292 is open); with two runs in flight #283's disclosed limitation
+> stands — Stop can address the wrong one. Nothing here worsens it; do not
+> rediscover.
+
 ## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
 
 **The mechanism, traced at HEAD:** `drainComposeOutboxIfPossible()` guards on
@@ -6258,6 +6354,16 @@ turn 2's.** Nothing errors; the transcript is plausible and wrong — the #278
 shape in the one place #278 did not sweep. **Fix: tighten both guards to
 `!isTranscriptBusy`** (one line each), inside #306's T4, cited against this
 number in the commit.
+
+> **✅ FIXED 2026-08-09 inside #306's lane — commit `73f7378` (branch
+> `t27-306-message-queuing`), cited against this number in its message.**
+> Both guards tightened to `!isTranscriptBusy` exactly as filed
+> (`drainComposeOutboxIfPossible` and `refreshDirectHealth`). Pinned by
+> bar 306-E's test
+> (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`), whose observed
+> RED was precisely this mechanism: with both lines reverted to
+> `!isStreaming`, the parked turn drained into the live run during the
+> reconcile window. Closes when #306's lane merges (gate 306-K pending).
 
 ## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
 
