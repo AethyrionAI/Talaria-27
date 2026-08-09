@@ -8922,6 +8922,43 @@ which encodes deliberate behaviour (fix your enrollment, come back, get a
 fresh attempt) and which **272-D forbids editing**. The fix needs an episode
 boundary that is something other than "any foreground."
 
+> **🎯 RULED 2026-08-09, same sitting as 272-C: Option B — one auto-prompt
+> per locked stretch.** The episode boundary is the STATE TRANSITION
+> (cover newly locks), not a flag's survival policy: `episodeAttempt` resets
+> when the cover newly locks and `autoAuthenticateIfNeeded` gains an
+> `episodeAttempt == 0` guard. **Owen's acceptance carries a recorded
+> reservation, verbatim:** *"I'm not entirely sure on my end, but i'll take
+> your recommendation. feels very 'whoosh'"* — so the ruling is REVERSIBLE
+> UNTIL THE LANE MERGES, the plain-behaviour statement was given and stands
+> ("cancel means cancel; one extra UNLOCK tap after a cancel, however long
+> ago"), and bar 272-H below exists precisely so the fixed build gets judged
+> in Owen's hand before this closes. Lane brief:
+> `dispatch/OPUS-T27-272-applock-fix.md`.
+>
+> **Bars 272-E…H — PRE-REGISTERED 2026-08-09, before any fix code:**
+> - **272-E — red-first repro through the PUBLIC surface.** A test that
+>   drives `scenePhaseChanged(to:)` (NOT `requestUnlock()` directly — the
+>   272-A result block records that every existing test bypasses the loop)
+>   with a gated authenticator: auto-prompt → cancel → `.inactive` →
+>   `.active` → **assert no second `authenticate` call fires without a
+>   tap.** MUST be RED against HEAD before the fix (today's build re-fires;
+>   the device ladder proves it).
+> - **272-F — the fix itself.** Reset on newly-locked + the `== 0` guard.
+>   Positive cases pinned alongside: a FRESH locked stretch still fires
+>   exactly ONE auto-prompt (cold launch and grace-expiry shapes), and the
+>   UNLOCK tap path still authenticates after a cancel (the tap bypasses the
+>   auto-guards by design).
+> - **272-G — 272-D holds.** Zero diff to `lockSurvivesRepeatedForegrounding`
+>   and `retryAfterFailureUsesNewEvaluation`, both green, plus a literal
+>   `GATE: PASS`.
+> - **272-H — device confirm, Owen's hand.** Repeat 272-C's EXACT trial on
+>   the fixed build — cancel at grace `Immediately` AND `After 1 min`.
+>   PASS: the sheet stays down, the in-app UNLOCK button is reachable and
+>   works, and the pulled log shows the new guard blocking where today's
+>   ladder shows `FIRED`. **This bar is also where Owen's reservation gets
+>   its honest exit: if the behaviour feels wrong in hand, the ruling is
+>   re-opened, not defended.**
+
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 
 **What it is, in #251's own words (the deferral that created this slice):**
