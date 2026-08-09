@@ -6320,6 +6320,23 @@ head). C2 (3B has no entry) is discharged by this filing.
 >   scoped-clear test left with its method; the voice test replaced 1:1);
 >   **full `TalariaTests` 1960 tests / 149 suites passed.**
 
+> **REVIEW ROUND 3 (2026-08-09) — the last surviving instance of the same
+> false-instruction family, on the SYNC path (bar 304-D(iii)'s copy).** The
+> T7 refusal still ended *"Open Talaria to answer it before the host's
+> approval window expires"* — but a sync-parked run has no stream and no
+> replay, so opening the app surfaces NO card (the chat consumer raises
+> only from a stream it drives). D(iii)'s required half (name the parked
+> approval, never the generic timeout) was met and stays; the instruction
+> tail was the surplus lie. **Copy aligned to the round-2 honest standard:**
+> *"The Hermes host paused this run — it is waiting for an approval this
+> path can't show or answer. If it isn't answered, the host denies it when
+> its approval window expires."* — no instruction to open anything. The
+> pinned test (`aSyncTurnParkedOnAnApprovalSaysSoRatherThanTimingOut`) now
+> also asserts the deny-on-expiry statement and the ABSENCE of any
+> "open Talaria"/"open the chat" instruction. (The AskHermes "Open Talaria
+> to watch it finish" family is untouched — those instructions are TRUE:
+> the answer does land in the app.)
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently

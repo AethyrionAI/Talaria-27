@@ -777,16 +777,19 @@ extension SessionsHermesClient {
         case "failed":
             throw SessionsClientError.requestFailed(Self.runFailureText(snapshot.error ?? ""))
         case "waiting_for_approval":
-            // #304 O5 / bar 304-D(iii): a sync turn (Siri, widgets — the
-            // `send(...)` path) has no surface to show the host's question,
-            // so it refuses HONESTLY, naming the parked approval — never the
-            // generic "did not answer in time" — and stops polling a run that
-            // will not answer without a human (`haltOnApprovalPark` above
-            // returned on the first parked read). The host's own approval
-            // window still governs the run; the chat transcript is where it
-            // can be answered.
+            // #304 O5 / bar 304-D(iii), copy aligned by review round 3: a
+            // sync turn (Siri, widgets — the `send(...)` path) has no surface
+            // to show the host's question, so it refuses HONESTLY, naming the
+            // parked approval — never the generic "did not answer in time" —
+            // and stops polling a run that will not answer without a human
+            // (`haltOnApprovalPark` above returned on the first parked read).
+            // Deliberately NO instruction to open anything: a sync-parked run
+            // has no stream and no replay, so opening the app surfaces no
+            // card — the chat consumer raises only from a stream it drives
+            // (the rounds-1/2 false-instruction family, one surface over).
+            // The host's own window governs from here: unanswered = denied.
             throw SessionsClientError.requestFailed(
-                "The Hermes host paused this run — it is waiting for an approval that this path can't show. Open Talaria to answer it before the host's approval window expires."
+                "The Hermes host paused this run — it is waiting for an approval this path can't show or answer. If it isn't answered, the host denies it when its approval window expires."
             )
         default:
             // `cancelled`, `stopped`, or a terminal name this build does not

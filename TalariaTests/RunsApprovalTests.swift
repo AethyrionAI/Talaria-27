@@ -587,6 +587,15 @@ struct RunsApprovalFlowTests {
                 "the refusal must NAME the parked approval — got: \(message.content)")
         #expect(!message.content.contains("did not answer in time"),
                 "bar 304-D(iii): the generic timeout string is the lie this bar exists to prevent")
+        // Review round 3 (the rounds-1/2 false-instruction family, one
+        // surface over): a sync-parked run has no stream and no replay, so
+        // opening the app surfaces NO card — the copy must state the host's
+        // deny-on-window-expiry and instruct NOTHING.
+        #expect(message.content.localizedCaseInsensitiveContains("window expires"),
+                "the refusal must state the host denies by its own timeout — got: \(message.content)")
+        #expect(!message.content.localizedCaseInsensitiveContains("open talaria"),
+                "no instruction to open an app that cannot show the approval — got: \(message.content)")
+        #expect(!message.content.localizedCaseInsensitiveContains("open the chat"))
         // The park is knowable on the FIRST read — burning the budget against
         // it would be the old behavior wearing a new message.
         #expect(ApprovalStubURLProtocol.count("/v1/runs/run-r1") == 1)
