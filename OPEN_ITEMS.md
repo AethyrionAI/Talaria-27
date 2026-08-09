@@ -8448,7 +8448,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. Unreproduced since; status unknown on the current build.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. THE FIX IS OWED and is the only thing left on this item.**
 
 **Owen, 2026-07-25** (quoted verbatim in
 `handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
@@ -8648,6 +8648,71 @@ so awaiting it never yields — the interleaving is **structurally
 inexpressible** in the current suite, exactly the shape #285's
 `GatedSecureStore` note describes. **A fully green `lane-gate.sh` says
 nothing about this bug, by construction.**
+
+**✅ 272-C — MET ON DEVICE 2026-08-09, on the FIRST attempt of the sitting.
+The antecedent 272-A could not settle is CONFIRMED: iOS 27 does deliver
+`.active` on Face ID sheet dismissal, so the conditional that lane
+established is a LIVE defect, not a hypothetical.** Build **2330** (`main`
+@ `6b71872`, Release OTA), `whoGoesThere`, corded, Owen driving the phone.
+
+**How the evidence was taken, because it constrains what it proves.** The
+app was hand-launched, so there was no Xcode launch session and
+`GetConsoleOutput` was unavailable. Evidence is a rooted
+`log collect --device-udid 00008150-…` pull read with
+`/usr/bin/log show --archive … --predicate 'eventMessage CONTAINS "AppLock"'`
+— which is **272-B's own stated acceptance test**, verbatim: *"a single
+`grep AppLock` over a Console pull making the mechanism legible without a
+live repro."* That test is now discharged against a real repro rather than
+a synthetic one.
+
+- **BOTH grace settings reproduce.** `Immediately`, then `After 1 min`.
+  Owen on the second arm: *"same repro, cancelled it and it came right
+  back."* ⚠️ **The timed arm counts only because it was run as a genuine
+  CANCEL.** An earlier pass through that setting let Face ID *succeed* and
+  unlocked normally; that is not this bar and is **not** counted as one.
+- **Highest `attempt=` reached: 4**, inside ~7 seconds
+  (12:35:55.318 → 12:36:02.289).
+- **Nothing bounds the loop — the user leaving is what ends it.** The ladder
+  terminates at `autoAuth BLOCKED guard=phase(background)`, 14s after the
+  last fire. Owen: *"I can't get it to sit at the screen that has the unlock
+  button in talaria."* That is the field-severity form of A-iv's "five
+  cancellations, zero taps, six prompts, cover never leaves `.locked`."
+- **The mechanism is caught in the act at millisecond resolution.** The
+  clear and the re-fire share a timestamp on **every** rung — `…55.318`
+  twice, `…57.374` twice, `…00.714` twice, `…02.289` twice. One
+  `scenePhaseChanged(to:)` call, wiping the flag at `:110` and re-firing
+  auth at `:114`. Each `FIRED` is followed by
+  `BLOCKED guard=phase(inactive)` — the sheet itself making the scene
+  inactive — which is what makes the cycle self-sustaining: sheet →
+  inactive → cancel → active → clear → fire → sheet.
+
+**Severity is NARROWER than this item's header wording implies, and saying
+so precisely is not a downgrade.** The success path is unaffected — Owen:
+*"Facelock has history worked very well."* Only a user who **dismisses** the
+sheet is trapped, and backgrounding frees them. Read it as "the retry
+surface is unreachable," never "App Lock is unusable."
+
+**Two things the code read against this log settles for the fix lane:**
+1. **The guard the fix wants ALREADY EXISTS and is already correct** —
+   `guard !didFailAuthentication` → *"retry button is showing"*
+   (`AppLockController.swift:210`), the fourth clause 272-B split out. It
+   never executes, because `:110` sets that flag `false` in the same call
+   ~0 ms earlier. **This is not a missing guard; it is a guard whose input
+   is destroyed upstream of it.**
+2. **`episodeAttempt` already survives the foreground.** It increments per
+   unlock request (`:146`) and resets only on success (`:157`) or when the
+   lock is disabled (`:122`) — `scenePhaseChanged` never touches it. So the
+   "track already-attempted-this-episode independently" option has its state
+   variable sitting there today.
+
+**So the fix decision is narrower than the one posed in
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`, and it should be re-asked
+in its narrowed form.** Both options in that handoff reduce to the same
+question: **what ends a lock episode?** Gating on `episodeAttempt > 0`
+outright is NOT free — it would kill `retryAfterFailureUsesNewEvaluation`,
+which encodes deliberate behaviour (fix your enrollment, come back, get a
+fresh attempt) and which **272-D forbids editing**. The fix needs an episode
+boundary that is something other than "any foreground."
 
 ## 271. 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there, retire the venv CLIs — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Named as a slice only in handoff prose since 2026-08-06; this is its first tracker entry. NOT STARTED — no lane, no bars.**
 

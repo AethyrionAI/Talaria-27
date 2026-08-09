@@ -693,8 +693,10 @@ this whole block, then re-pair.** Est. ~25 min.
 - [ ] #124 — Background then foreground with Face ID lock enabled. (PASS:
   the privacy overlay covers the scene root; unlocking offers passcode
   fallback, never biometry-only.)
-- [ ] #124 — attempt repro of the #272 App Lock re-prompt loop
-  (background/foreground churn while the unlock prompt is up).
+- [x] ~~#124 — attempt repro of the #272 App Lock re-prompt loop
+  (background/foreground churn while the unlock prompt is up).~~ **✅ DONE
+  2026-08-09 via §R4 — REPRODUCED, 272-C MET. Do not run this row; the churn
+  it asks for was never needed.**
 - [ ] #225 (confirmation re-run — see note above) — Standalone,
   hand-launched (NOT via Xcode), on-device brain, fresh chat: "what's the
   weather gonna be in Gulfport tomorrow." (PASS, all four required: B1 the
@@ -2189,7 +2191,37 @@ on the phone"* and **no verdict was ever recorded**. Next time the home screen i
 tinted / Focus appearance, look at the Talaria icon and say whether the glow reads as
 finished or as placeholder. Not a bar — a one-line judgement.
 
-### R4 · #272 — App Lock re-prompt loop, HARDER-THAN-ORDINARY repro
+### R4 · #272 — App Lock re-prompt loop, HARDER-THAN-ORDINARY repro · ~~queued~~ **✅ RAN 2026-08-09 — REPRODUCED ON BOTH GRACE SETTINGS. 272-C MET. DO NOT RE-RUN.**
+
+> **✅ VERDICT, 2026-08-09 — build 2330, corded, Owen driving.** It did not
+> need the "harder-than-ordinary" churn this row prescribes: a **plain cancel
+> at grace `Immediately` reproduced it on the first attempt**, and the
+> `After 1 min` arm reproduced identically (*"same repro, cancelled it and it
+> came right back"*). The shade / Control Center / app-switcher variants were
+> therefore never needed and are **not owed** — a bug that fires on the
+> simplest input does not need the harder ones to be believed.
+>
+> **Highest `attempt=` reached: 4** in ~7s, ending only at
+> `guard=phase(background)` — i.e. **the loop is unbounded and the user
+> escapes by leaving the app**, matching Owen's *"I can't get it to sit at
+> the screen that has the unlock button."* The clear and the re-fire share a
+> timestamp on every rung, so the mechanism is captured directly rather than
+> inferred.
+>
+> **Evidence route worth reusing:** the app was hand-launched, so there was no
+> Xcode session and `GetConsoleOutput` could not see it. A rooted
+> `sudo /usr/bin/log collect --device-udid <hardware UDID> --last 4h` (Owen
+> pastes; hardware UDID from `devicectl device info details`, NOT the
+> CoreDevice identifier) read back with `/usr/bin/log show --archive` recovers
+> app `Logger` lines **after the fact, from a self-launched build**. That is
+> the missing capability for every row on this page whose trigger forbids an
+> Xcode launch — including R6/R7 below.
+>
+> **Full numbers, the mechanism, the narrowed severity, and the two code
+> findings the fix lane needs: OPEN_ITEMS #272.** The fix is owed and is now
+> the only thing left on that item.
+
+*(original row text follows, kept for the record)*
 
 **Supersedes the bare "background/foreground churn" #272 line in Group 4. Do NOT
 schedule a sitting for this alone — ride whatever sitting already touches
