@@ -7113,6 +7113,77 @@ like `/retry` and `/undo` now are.
 >
 > Full pre-code analysis: `dispatch/OPUS-T27-279-retry-adoption.md`.
 
+> **📊 MEASURED — 2026-08-09, branch `claude/t27-279-retry-adoption`. Every
+> bar above met except 279-F, which is device-owed and NOT claimed by this
+> lane.**
+>
+> **279-A, the number, quoted from the run that produced it.** Written and run
+> GREEN against the UNMODIFIED tree first, asserting `userRows.count == 2`.
+> **The pre-fix merged user-row count is 2** — the mechanism above stands, so
+> the lane proceeded. Post-fix the same assertion is **1**. Both numbers live
+> in the test's own comment (`aRetriedFailedTurnsMergedUserRowCount`).
+> (Renamed from the dispatch's proposed
+> `aRetriedFailedTurnLeavesTheMirrorHoldingTheOldRow` — a characterization
+> bar's name has to stay true on both sides of a fix that moves its number.)
+>
+> **279-B/C/D watched RED against unmodified production**, verbatim from
+> `xcodebuild`:
+>
+> ```
+> 279-B  retried.count == 1 → false
+>          retried.count → 2
+>        retried.first?.id != failed.id → false
+>          retried.first?.id → 5B7F72A1-0F37-44CC-860C-A2C693F47CED
+>          failed.id        → 5B7F72A1-0F37-44CC-860C-A2C693F47CED
+>        !client.adoptedMessageCounts.isEmpty
+>          client.adoptedMessageCounts → []
+> 279-C  messages.map(\.content) → ["Same question", "generation failed"]
+> 279-D  messages.map(\.content) → ["Failed question", "Second question",
+>          "Second answer", "Third question", "Third answer",
+>          "Failed question", "Done."]
+> ```
+>
+> 279-D's array is the defect rendered: the removed "Failed question" is back
+> at index 0, *above* everything, with the retried copy beneath it.
+>
+> **279-E green on both sides**, as a fidelity pin should be. Recorded
+> honestly: its "RED" was that `MirroringReplyClient` could not fail a turn at
+> all — the capability did not exist — not that production was broken in a way
+> it could see.
+>
+> **THE FIX** (`ChatStore.swift`, `retryMessage`): `firstIndex` + `remove(at:)`
+> instead of `removeAll(where:)`, then **`adoptLocalTranscript()`** — the same
+> tail `truncateTranscript` exits through. **Deliberately NOT
+> `truncateTranscript(from:)`**, per correction 2. `sendMessage`'s `Bool` is
+> now read, and every early return restores the row via the existing
+> `restoreTruncatedRows(_:at:)` (new one-line wrapper `restoreRetriedRow`, so
+> the three return paths restore identically).
+>
+> **Not pinned to text the fix never touched — both halves re-probed
+> (2026-08-09).** The suite was re-run twice with one half of the fix reverted
+> at a time:
+> - adoption call removed, index refactor kept → **279-A and 279-B RED**
+>   (`retried.count → 2`, `adoptedMessageCounts → []`), **279-C stayed GREEN**;
+> - restore branch removed, adoption kept → **279-C alone RED**
+>   (`messages.map(\.content) → ["Same question", "generation failed"]`,
+>   `cached.messages.count → 2`), everything else green.
+>
+>   The two halves are therefore independently pinned; neither bar is riding
+>   on the other's change. `ChatStore.swift` was byte-diffed back to the fixed
+>   state after each probe.
+>
+> **CLOSE-OUT (same commit, at each claim's own home):**
+> - `ChatStore.swift` `truncateTranscript`'s doc said it was *"**The one way**
+>   to remove rows from the rendered transcript"* — **false when written**;
+>   `retryMessage` removed rows and never came through it. Corrected: it owns
+>   the RANGE case, and the invariant that actually holds is one level down —
+>   every removal exits through `adoptLocalTranscript()`.
+> - `TalariaTests/ChatStorePersistenceTests.swift` 275-C's doc comment now
+>   says it covers source SELECTION only and never saw the removal. Its
+>   assertions are byte-unmodified.
+>
+> **STILL OWED: 279-F, device, Owen.** Everything above is simulator-side.
+
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
 
 **What #261 established (2026-08-06, Owen's instruction):** *"Take that out of

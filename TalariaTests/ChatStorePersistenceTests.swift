@@ -728,6 +728,15 @@ struct ChatStorePersistenceTests {
 
     /// **275-C** — `retryMessage` shares the assumption: a failed reply whose
     /// producing turn was dictated re-sent the last TYPED turn instead.
+    ///
+    /// **#279 (2026-08-09): this bar covers the SOURCE SELECTION only, and
+    /// said nothing about the removal that precedes it.** At the time this
+    /// was written `retryMessage` deleted the failed row with a bare
+    /// `conversation.messages.removeAll` that never reached the backend's
+    /// mirror, so the retried turn's own post-turn merge resurrected it —
+    /// and this test's single `sentPrompts` assertion could not see that.
+    /// The removal now exits through `adoptLocalTranscript()`; the bars that
+    /// pin it are 279-A..E, below.
     @Test @MainActor
     func retryUsesADictatedProducingTurnAsItsSource() async throws {
         let rows = [
@@ -980,9 +989,11 @@ struct ChatStorePersistenceTests {
 
         let messages = try #require(store.conversation?.messages)
         let userRows = messages.filter { $0.sender == .user }
-        // BASELINE RUN, unmodified production: 2. The mirror re-served the
-        // removed row on the post-turn merge. Moves to 1 with the fix.
-        #expect(userRows.count == 2)
+        // **2 → 1.** The baseline run against unmodified production asserted
+        // `== 2` and was GREEN: the mirror re-served the removed row on the
+        // post-turn merge. The fix moves it to 1. Both numbers are recorded
+        // in `OPEN_ITEMS.md` #279.
+        #expect(userRows.count == 1)
     }
 
     /// **279-B** — the defect. `retryMessage` removed the failed row from
