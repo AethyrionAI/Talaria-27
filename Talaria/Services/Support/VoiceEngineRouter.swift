@@ -162,6 +162,11 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
 
     // MARK: - VoiceSessionServiceProtocol
 
+    /// #180 lane 180-L: deliberately NOT stamped with `activeEngine`. Before
+    /// anything has run, `activeEngine` is only the init GUESS (brain-permitted
+    /// ∧ relay-paired) — stamping it here would put that guess on the overlay
+    /// header as a selected engine, which is the exact defect 180-C removes.
+    /// `forward(from:engine:)` stamps what actually produced a snapshot.
     var snapshot: TalkSessionSnapshot { active.snapshot }
     var voiceState: VoiceState { active.voiceState }
     var connectionState: TalkConnectionState { active.connectionState }
@@ -308,7 +313,17 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         let task = Task { @MainActor [weak self] in
             for await event in stream {
                 guard let self, self.activeEngine == engine else { continue }
-                if case .snapshot(let snapshot) = event {
+                if case .snapshot(var snapshot) = event {
+                    // #180 lane 180-L: stamp the engine that PRODUCED this
+                    // snapshot. The router already knows — it is the loop's
+                    // own constant — and it was the value being left unwritten.
+                    // Only NativeVoicePipelineService stamped its own, so a
+                    // realtime snapshot arrived unstamped and every reader fell
+                    // back to `TalkSessionSnapshot.engine`'s default. This is a
+                    // FACT (a snapshot really did come out of this service),
+                    // not the router's provisional pick — see `snapshot` below,
+                    // which is deliberately left unstamped.
+                    snapshot.engine = engine
                     self.eventHub.publish(snapshot: snapshot)
                 }
             }
@@ -320,6 +335,9 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         guard activeEngine != engine else { return }
         activeEngine = engine
         Self.logger.notice("active voice engine → \(engine.rawValue, privacy: .public)")
-        eventHub.publish(snapshot: active.snapshot)
+        // A committed switch is a fact too — stamp it.
+        var snapshot = active.snapshot
+        snapshot.engine = engine
+        eventHub.publish(snapshot: snapshot)
     }
 }

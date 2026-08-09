@@ -749,7 +749,20 @@ struct NativeVoicePipelineTests {
 
     // MARK: - Snapshot / hand-off tagging
 
-    @Test func snapshotEngineDefaultsToRealtime() {
+    /// **INVERTED IN PLACE 2026-08-09 (#180 lane 180-L, bar 180-C).**
+    ///
+    /// This test used to read `snapshotEngineDefaultsToRealtime` and assert
+    /// `snapshot.engine == .realtime`. **It was a pin on the defect** — it
+    /// certified the optimistic default that made every unstamped snapshot
+    /// claim the Realtime engine, which is what put "VOICE LINK · CONNECTING"
+    /// on the overlay in states where nothing had selected an engine. Kept
+    /// here, inverted, rather than deleted: the assertion that changed sign is
+    /// the clearest record of what the lane actually changed.
+    ///
+    /// The live assertion lives at
+    /// `anUnstampedSnapshotDoesNotClaimTheRealtimeEngine`; this one pins the
+    /// stronger property — the default is *absent*, not merely different.
+    @Test func snapshotEngineIsUnknownUntilAProducerStampsIt() {
         let snapshot = TalkSessionSnapshot(
             voiceState: .idle,
             connectionState: .idle,
@@ -762,6 +775,6 @@ struct NativeVoicePipelineTests {
             latencyMetrics: TalkLatencyMetrics(),
             voiceSessionID: nil
         )
-        #expect(snapshot.engine == .realtime)
+        #expect(snapshot.engine == nil)
     }
 }

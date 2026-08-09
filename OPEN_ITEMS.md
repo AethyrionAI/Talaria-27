@@ -4627,13 +4627,47 @@ realtime->local fallback presenting a label lie).
 > **The residual #139 explicitly did NOT settle is umbrella-shaped:** the
 > reachable states where realtime is never attempted (`canStartSession`
 > false + the overlay skipping readiness) would still produce a label lie —
-> the app naming an engine it is not running. #139 flagged it unasserted
+> the app naming an engine it is not running. ~~#139 flagged it unasserted
 > because settling it needs a tethered run that quotes the
 > `voice session starting on engine …` line (`VoiceEngineRouter`), and
-> Owen's passing run was inferred-not-quoted from an office. It is recorded
+> Owen's passing run was inferred-not-quoted from an office.~~ It is recorded
 > here so it does not travel into the archive unattached: **it is the same
 > "the app hides its own degradation" default this umbrella exists for, and
 > it costs nothing extra on the next tethered voice sitting.**
+>
+> > **⚠️ CORRECTED 2026-08-09 — "it needs a tethered run" was FALSE, and
+> > that assumption is why this sat unsettled for two days. ✅ SETTLED by
+> > lane 180-L, bar 180-C, with a unit test and NO device.**
+> >
+> > The mechanism is not a runtime routing question at all. It is a **struct
+> > default**: `TalkSessionSnapshot.engine` defaulted to `.realtime`
+> > (`VoiceState.swift`), `TalkStore.voiceEngine` defaulted to `.realtime`
+> > and `reset()` returned it there, and
+> > `NativeVoicePipelineService.swift:71` is the ONLY producer that has ever
+> > stamped `engine:` — so the realtime path rode the default and
+> > `VoiceOverlayScreen.sessionHeaderLabel` rendered "VOICE LINK ·
+> > CONNECTING" for `.idle/.checking/.ready/.connecting`, i.e. in every
+> > state where nothing had chosen an engine.
+> >
+> > **The RED was watched, three levels deep, on the unmodified tree:**
+> > `Expectation failed: !label.contains("VOICE LINK")`,
+> > `Expectation failed: snapshot.engine != .realtime`, and
+> > `Expectation failed: store.voiceEngine != .realtime`. No log line was
+> > quoted and none was needed.
+> >
+> > **The fix:** the snapshot's engine is now `VoiceEngine?` with nil meaning
+> > *no engine selected*; `VoiceEngineRouter.forward(_:engine:)` stamps the
+> > engine that actually produced a snapshot (a fact it already had and was
+> > failing to write) while the router's `snapshot` accessor deliberately
+> > does NOT stamp `activeEngine`, because before anything runs that is only
+> > the init guess; and the header derivation was extracted as a
+> > `nonisolated static func` with three branches, the unknown one reading
+> > **"VOICE · CONNECTING"** — neutral, and deliberately not a third engine
+> > name (#18). **That copy is Owen's to approve.**
+> >
+> > **The finding worth keeping: a bar that assumed a device was needed cost
+> > more than the fix did.** #139 filed this as needing a quoted log line; it
+> > needed a unit test. Check the mechanism before pricing the verification.
 
 **Why this wants one lane rather than six patches.** Each individual fix is small and each
 existing behaviour is locally reasonable — keep-rows-on-failure IS right for a browser, and a

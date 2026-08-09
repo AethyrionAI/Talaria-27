@@ -175,9 +175,22 @@ struct TalkSessionSnapshot: Hashable, Sendable {
     var latencyMetrics: TalkLatencyMetrics
     var voiceSessionID: UUID?
     var readiness: TalkReadinessInfo = TalkReadinessInfo()
-    /// Defaults to `.realtime` — the historical engine — so existing snapshot
-    /// construction sites read unchanged (#18).
-    var engine: VoiceEngine = .realtime
+    /// #180 lane 180-L (bar 180-C) — **nil means NO ENGINE HAS BEEN SELECTED
+    /// YET, and that is a real state rather than a missing value.**
+    ///
+    /// ~~Defaults to `.realtime` — the historical engine — so existing snapshot
+    /// construction sites read unchanged (#18).~~ That default was the
+    /// optimistic-default form of `HostFedListPresentation`'s rule 5: a stored
+    /// property whose declared default is the affirmative value, corrected only
+    /// if a producer bothers to stamp it. `NativeVoicePipelineService` is the
+    /// ONLY producer that ever stamped it, so every realtime-path and
+    /// pre-session snapshot silently claimed the Realtime engine and the
+    /// overlay header printed "VOICE LINK · CONNECTING" in states where nothing
+    /// had chosen an engine at all — including the up-to-12s realtime start
+    /// budget that ends in a fallback to native. That is #139's unasserted
+    /// residual, and it turned out to be this line rather than a runtime
+    /// routing question.
+    var engine: VoiceEngine? = nil
     /// #84: non-fatal mic-health warning from the flatline tripwire — the
     /// session is connected but no speech evidence has arrived. nil = healthy
     /// or not yet evaluated.
