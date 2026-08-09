@@ -841,29 +841,23 @@ struct HostApprovalStoreTests {
         #expect(store.resolvedChoice == "once", "a duplicate resolution changes nothing")
     }
 
-    /// #304 review-1 fix: the SCOPED teardown a superseded consumer (voice
-    /// barge-in) uses — clears its OWN run's card, never a successor's.
-    @Test func scopedClearOnlyTearsDownItsOwnRun() {
-        let store = HostApprovalStore()
-        store.raise(Self.request(runID: "run-s1"))
-
-        store.clearForTurnEnd(runID: "run-other")
-        #expect(store.current != nil, "another run's exit must not tear this card down")
-
-        store.clearForTurnEnd(runID: "run-s1")
-        #expect(store.current == nil, "the owning run's exit tears it down (bar 304-E)")
-    }
 }
 
-// MARK: - #304 review-1 fix: the voice consumer raises the SHARED card
+// MARK: - #304 review-2 ruling: the voice consumer's HONEST REFUSAL
 
-/// Review round 1 finding: a voice turn on the runs transport consumes the
-/// `approval.request` frame in the VOICE pipeline's own stream, and the copy
-/// said "open the chat" while nothing raised the chat's card — a state where
-/// the feature lies (#180). The fix is the cross-store raise: the voice
-/// consumer raises the SAME `HostApprovalStore` the chat screen renders, so
-/// the instruction is true; the voice turn's exit tears it down SCOPED, so a
-/// barge-in successor's card survives a predecessor's teardown.
+/// Round 1 tried the cross-store raise ("open the chat" made true by raising
+/// the shared card from the voice consumer). The re-review traced it false:
+/// the ONLY route from Talk to chat is ending the session, whose teardown
+/// (`endSession` → `turnTask?.cancel()`) destroyed the card before the chat
+/// was reachable — and a second raiser made the chat's unscoped
+/// `clearForTurnEnd()` sites a cross-surface race. **Round 2's ruling is
+/// option (b): the voice surface states the honest refusal — it cannot show
+/// or answer the approval, the host denies by its own timeout — and
+/// instructs NOTHING false.** No card is raised (the pipeline no longer even
+/// holds a store reference — removed, not just unwired), which is what
+/// discharges the two-raiser race. A voice-surface ANSWER path is #305's
+/// scope. This suite pins the copy's honesty; the round-1 tests' refusal to
+/// compile against this code is the recorded inversion.
 @MainActor
 struct VoiceHostApprovalTests {
 
@@ -905,7 +899,7 @@ struct VoiceHostApprovalTests {
         func clearConversation() async throws -> Conversation { Conversation(title: "voice-test") }
     }
 
-    @Test func aVoiceTurnsApprovalRaisesTheSharedChatCardAndTearsItDownAtTurnEnd() async {
+    @Test func aVoiceTurnsApprovalProducesTheHonestRefusalAndInstructsNothingFalse() async {
         let request = RunApprovalRequest(
             runID: "run-v1",
             profileID: nil,
@@ -919,32 +913,39 @@ struct VoiceHostApprovalTests {
         )
         let backend = ScriptedVoiceBackend(
             beforeHold: [.approvalRequested(request)],
-            afterHold: [.finished(Message(sender: .hermes, content: "done", status: .delivered), nil, nil)]
+            afterHold: [
+                .approvalResolved(runID: "run-v1", choice: "deny"),
+                .finished(Message(sender: .hermes, content: "done", status: .delivered), nil, nil),
+            ]
         )
         let speech = SpeechOutputService()
         speech.managesAudioSession = false
         let voice = NativeVoicePipelineService(backendProvider: { backend }, speechOutput: speech)
-        let store = HostApprovalStore()
-        voice.hostApprovals = store
 
         voice.commitUserUtterance("clean the scratch build")
 
+        // Wait for the approval frame's status line to land mid-turn.
         var pumps = 0
-        while store.current == nil, pumps < 200 {
+        while voice.statusMessage?.localizedCaseInsensitiveContains("approval") != true, pumps < 200 {
             pumps += 1
             try? await Task.sleep(for: .milliseconds(10))
         }
-        #expect(store.current?.runID == "run-v1",
-                "the voice consumer must raise the SAME shared card the chat screen renders — 'open the chat' is a lie otherwise (#180)")
-        #expect(store.current?.question?.choices == ["once", "deny"])
+        let status = voice.statusMessage ?? ""
+        // The honest refusal: what is true, and only what is true.
+        #expect(status.localizedCaseInsensitiveContains("can't show"),
+                "the copy must state this surface cannot show the approval — got: \(status)")
+        #expect(status.localizedCaseInsensitiveContains("window expires"),
+                "the copy must state the host denies by its own timeout — got: \(status)")
+        // Round 2's whole point: NO instruction toward a surface that will
+        // not have the card (the re-review's endSession-teardown trace).
+        #expect(!status.localizedCaseInsensitiveContains("open the chat"),
+                "no instruction to open a chat that cannot answer — got: \(status)")
+        #expect(!status.localizedCaseInsensitiveContains("open talaria"))
 
+        // The turn itself survives the park and the resolution frame — the
+        // honest line is a status, not a failure.
         backend.release()
-        pumps = 0
-        while store.current != nil, pumps < 200 {
-            pumps += 1
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(store.current == nil,
-                "the VOICE turn's terminal must tear its card down (bar 304-E, scoped)")
+        try? await Task.sleep(for: .milliseconds(100))
+        #expect(voice.voiceState != .idle, "the approval frames must not kill the voice session")
     }
 }

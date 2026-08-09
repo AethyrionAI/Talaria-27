@@ -698,12 +698,6 @@ final class AppContainer {
             settingsStore.settings.readAloudRate
         }
         let voiceService: any VoiceSessionServiceProtocol
-        // #304 review-1 fix: held outside the branch so the post-container
-        // wiring below can hand the native pipeline the SAME
-        // HostApprovalStore the chat screen renders — a voice turn's
-        // approval frame lands in the VOICE consumer, and "open the chat"
-        // is only true if that consumer raises the shared card.
-        var nativeVoicePipeline: NativeVoicePipelineService?
         if usesMockPairingService {
             voiceService = MockVoiceSessionService()
         } else {
@@ -714,7 +708,6 @@ final class AppContainer {
                 backendProvider: { chatBackendRouter },
                 speechOutput: nativeSpeechOutput
             )
-            nativeVoicePipeline = nativeVoice
             voiceService = VoiceEngineRouter(
                 realtime: LiveVoiceSessionService(
                     apiClient: apiClient,
@@ -772,10 +765,13 @@ final class AppContainer {
             )
         }
         container.chatStore.hostApprovals = container.hostApprovalStore
-        // #304 review-1 fix: the voice pipeline consumes its own stream, so
-        // an approval frame on a voice turn must raise this SAME store or
-        // the pipeline's "open the chat" line points at an empty transcript.
-        nativeVoicePipeline?.hostApprovals = container.hostApprovalStore
+        // #304 review-2 ruling: the voice pipeline deliberately does NOT get
+        // this store. Its own consumer swallows a voice turn's approval
+        // frame, and the only route from Talk to chat (ending the session)
+        // tears the turn — and would tear a raised card — down before the
+        // chat is reachable, so a cross-store raise made a promise the
+        // teardown broke. Voice states the honest refusal instead (O5's
+        // shape); a voice-surface ANSWER path is #305's scope.
 
         // #113: repeated drain retry-exhaustion (the dead-connector shape)
         // surfaces as ONE deduped local inbox alert; the next successful

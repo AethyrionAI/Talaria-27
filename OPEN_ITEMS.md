@@ -6248,7 +6248,18 @@ head). C2 (3B has no entry) is discharged by this filing.
 > so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
 > that answer.
 
-> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED:
+> **⛔ REVIEW ROUND 1's FIX BELOW WAS FALSIFIED BY THE ROUND-2 RE-REVIEW
+> (2026-08-09, same day) — read the ROUND 2 note after it; the note below
+> stands as the record of what was tried, not of what shipped.** The
+> re-review's trace: the ONLY route from Talk to chat is ending the
+> session — End → `endSession()` → `teardownSessionResources()` →
+> `turnTask?.cancel()` → the round-1 post-loop scoped clear ran BEFORE the
+> overlay dismissed, so the user told to "open the chat" arrived at a chat
+> whose card was already gone. The plumbing was right; the promise was
+> still false. Round 1's "'open the chat' is now true" claim is STRUCK.
+>
+> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED
+> *(superseded — see above and ROUND 2 below)*:
 > the VOICE consumer was a state where the feature lied.** A voice turn
 > rides the same runs transport, so an `approval.request` frame lands in
 > `NativeVoicePipelineService`'s OWN stream consumer — which rendered "open
@@ -6275,6 +6286,40 @@ head). C2 (3B has no entry) is discharged by this filing.
 > teardown renders its 4xx nowhere — deliberate never-false-success)
 > PARKED by the controller, no action.
 
+> **REVIEW ROUND 2 (2026-08-09) — RULED: round 1 NOT ADDRESSED (the
+> endSession-teardown trace above), plus one NEW Important (with two
+> raisers, the chat's eight UNSCOPED `clearForTurnEnd()` sites could tear
+> down a voice-raised card for a different run — the same race round 1
+> scoped against, in the other direction). The controller ruled option (b):
+> the HONEST DOWNGRADE, and the voice raise removed.**
+> - The voice consumer's `.approvalRequested` arm now states only what is
+>   true — *"Hermes is waiting on a host approval this voice surface can't
+>   show or answer. If it isn't answered, the host denies it when its
+>   approval window expires."* — Owen's O5 honest-refusal ruling applied to
+>   the voice surface. **No instruction to open the chat.**
+>   `.approvalResolved` is a deliberate no-op on this surface.
+> - **REMOVED (dead plumbing is not kept "for later"):** the pipeline's
+>   `hostApprovals` reference, the AppContainer hoist + wiring, and
+>   `HostApprovalStore.clearForTurnEnd(runID:)`. With ONE raiser (the chat
+>   consumer) the unscoped clears revert to being correct — the originally
+>   reviewed 304-E design — which also discharges the new Important.
+>   **KEPT:** `commitUserUtterance`'s `// harness-visible` widening (drives
+>   the round-2 test) and the `ScriptedVoiceBackend` fixture.
+> - **Inversion recorded:** round 1's two tests REFUSE TO COMPILE against
+>   round-2 code (`clearForTurnEnd(runID:)` and `.hostApprovals` no longer
+>   exist — observed, log preserved in the lane report's scratchpad).
+>   Rewritten to pin the new truth:
+>   `aVoiceTurnsApprovalProducesTheHonestRefusalAndInstructsNothingFalse`
+>   (the copy names can't-show and the timeout deny, contains NO
+>   "open the chat"/"open Talaria", and the frames don't kill the voice
+>   session); the scoped-clear test deleted with its method. Chat-path
+>   teardown tests byte-unchanged.
+> - **A voice-surface ANSWER path is explicitly #305's scope** (pointer
+>   added to #305's entry).
+> - **Counts after round 2:** covering suites 67/67 in 5 (the deleted
+>   scoped-clear test left with its method; the voice test replaced 1:1);
+>   **full `TalariaTests` 1960 tests / 149 suites passed.**
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
@@ -6287,6 +6332,17 @@ whether a dangerous host command should be approvable from a lock screen at all.
 (`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
 one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
 silently drop it.**
+
+> **2026-08-09 (#304 review round 2, controller's ruling): the VOICE surface's
+> answer path is explicitly THIS item's scope too.** A voice turn's
+> `approval.request` lands in the voice pipeline's own stream consumer; #304
+> round 2 ruled that surface down to the honest refusal (it cannot show or
+> answer; the host denies on its own window) after the cross-store raise was
+> falsified — the only route from Talk to chat is ending the session, whose
+> teardown destroys the turn (and destroyed the raised card) before the chat
+> is reachable. Any real voice-reachable answer surface — like any
+> approval that outlives its screen — is designed here, with scoped teardown
+> as part of that design, not bolted onto #304.
 
 ## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
 

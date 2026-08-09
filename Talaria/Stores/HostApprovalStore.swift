@@ -197,20 +197,18 @@ final class HostApprovalStore {
         if resolvedChoice == nil { resolvedChoice = choice }
     }
 
-    /// #304 review-1 fix: the SCOPED teardown for a consumer that can be
-    /// superseded mid-turn (the voice pipeline — barge-in cancels its turn
-    /// and starts a successor) — clears only while the card still belongs to
-    /// the given run, so a predecessor turn's exit can never tear down a
-    /// successor's card. Same bar (304-E), narrower door.
-    func clearForTurnEnd(runID: String) {
-        guard current?.runID == runID else { return }
-        clearForTurnEnd()
-    }
-
     /// Bar 304-E: the turn is over, however it ended — an outstanding card is
     /// torn down, never left tappable against a run whose driver has exited.
     /// (An in-flight POST's completion still classifies via `post`'s
     /// `stillCurrent` guard; it just has no card left to mutate.)
+    ///
+    /// Unscoped on purpose, and safe BECAUSE the chat consumer is the only
+    /// raiser (#304 review-2 ruling — round 1 briefly added a voice raiser
+    /// plus a run-scoped overload; with two raisers the chat's unscoped
+    /// clears could tear down the other surface's card, so the second raiser
+    /// was removed rather than every clear site scoped). If a second raiser
+    /// ever returns (#305), scoping every teardown is part of its design,
+    /// not an afterthought.
     func clearForTurnEnd() {
         current = nil
         pendingConsequenceChoice = nil
