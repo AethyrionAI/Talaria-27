@@ -246,7 +246,6 @@ final class AppContainer {
         case inboxLoad
         case commandCatalogRefresh
         case gatewayModelSeed
-        case pushTokenRegistration
         case sensorForegroundRefresh
 
         /// Whether the step can touch the network. `validateRestoredIdentity`
@@ -263,7 +262,7 @@ final class AppContainer {
                  .validateRestoredIdentity:
                 false
             case .sessionBootstrap, .hostRefresh, .inboxLoad, .commandCatalogRefresh,
-                 .gatewayModelSeed, .pushTokenRegistration, .sensorForegroundRefresh:
+                 .gatewayModelSeed, .sensorForegroundRefresh:
                 true
             }
         }
@@ -280,8 +279,7 @@ final class AppContainer {
         /// these upgrade it as each lands.
         static let backgroundBootstrap: [LaunchInitStep] = [
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed, .pushTokenRegistration,
-            .sensorForegroundRefresh,
+            .commandCatalogRefresh, .gatewayModelSeed, .sensorForegroundRefresh,
         ]
     }
 
@@ -1404,7 +1402,7 @@ final class AppContainer {
             // launch splash: the direct chat path (:8642, API-key auth) is independent
             // of the relay session, so we continue into the app in a degraded state and
             // let the user reach Settings to re-pair / retry rather than being hard
-            // locked at launch. Relay-backed features (sensor upload, inbox, push) stay
+            // locked at launch. Relay-backed features (sensor upload, inbox) stay
             // degraded until a valid session is restored; re-pairing re-runs initialize().
             // (#136: the splash no longer waits for this path at all — this
             // hardening covers relays that ANSWER with a failure; the

@@ -2692,6 +2692,10 @@ final class ChatStore {
         // resetting the journal (dropping the hop and forcing a spurious
         // re-transplant) and orphaning per-conversation brain pins (#27).
         // The merged thread keeps the local id.
+        //
+        // #289: field-by-field rebuild — the same silent-drop shape as
+        // `mergeAttachments` below, and complete today (6 of 6). If you add a
+        // field to `Conversation`, add it here in the same commit.
         if refreshedConversation.id != localConversation.id {
             refreshedConversation = Conversation(
                 id: localConversation.id,

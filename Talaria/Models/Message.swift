@@ -368,6 +368,14 @@ extension MessageAttachment {
     /// A copy of this attachment with downloaded bytes staged locally — same
     /// identity, so the transcript row updates in place and the bubble becomes
     /// a normal Tier 1 bubble (preview + ShareLink).
+    ///
+    /// **#289: this rebuilds the value field by field — the #276 silent-drop
+    /// shape.** Every property has a default, so an omission compiles and
+    /// reads as `nil`. `anchorOffset` (#262) was omitted here from #262 until
+    /// #289 and cost nothing only because a Tier-2 chip's anchor is always nil
+    /// when this runs — an invariant this function does not enforce. Staging
+    /// may change `localStoragePath` and NOTHING else; if you add a field to
+    /// `MessageAttachment`, add it here in the same commit.
     func staged(atLocalPath path: String) -> MessageAttachment {
         MessageAttachment(
             id: id,
@@ -378,7 +386,8 @@ extension MessageAttachment {
             localStoragePath: path,
             voiceMemoAudioPath: voiceMemoAudioPath,
             remotePath: remotePath,
-            remoteProfileID: remoteProfileID
+            remoteProfileID: remoteProfileID,
+            anchorOffset: anchorOffset
         )
     }
 

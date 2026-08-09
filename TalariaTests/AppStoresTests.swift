@@ -4705,6 +4705,24 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
+    func backgroundBootstrapHasNoGhostSteps() {
+        // #287: the list must literal-match what `runBackgroundBootstrap`
+        // actually executes. `pushTokenRegistration` sat here for six days
+        // after #238 deleted push registration wholesale, and NOTHING caught
+        // it — the partition check above compares against `allCases`, which
+        // shrinks by exactly one when a ghost is removed, so it is true both
+        // with and without one. Only a literal pin can see this.
+        //
+        // Order is significant (#3/#46: identity validation strictly after
+        // bootstrap); do not loosen this to `Set` equality to make a future
+        // step's friction go away — that friction is the point.
+        #expect(AppContainer.LaunchInitStep.backgroundBootstrap == [
+            .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
+            .commandCatalogRefresh, .gatewayModelSeed, .sensorForegroundRefresh,
+        ])
+    }
+
+    @Test @MainActor
     func foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes() async throws {
         // #145 Part B — THE regression pin for the property that forced a phone
         // restart. `reconcileLiveActivities()` and `updateWidgetData()` were
