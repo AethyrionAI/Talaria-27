@@ -9015,9 +9015,9 @@ boundary that is something other than "any foreground."
 
 **✅ RESULT, 2026-08-09 — THE FIX LANE. 272-E MET (RED-FIRST), 272-F MET.
 Branch `t27-272-applock-fix` off `2a664f0`; no PR opened (the controller
-reads the diff and runs the gate). 272-G and 272-H are PENDING — the gate
-runs serially at merge time under the controller, and 272-H is Owen's hand
-on the phone. #272 STAYS OPEN until 272-H — and its device row is NOT YET
+reads the diff and runs the gate). ✅ 272-G MET 2026-08-09 — GATE: PASS
+(controller-run, CC-272-iPhone-Air): TEST SUCCEEDED, 1932 Swift Testing +
+12 XCUITest, Release build clean. 272-H is Owen's hand on the phone. #272 STAYS OPEN until 272-H — and its device row is NOT YET
 QUEUED: the controller adds it to `dispatch/DEVICE-PASS-RUNNING-LIST.md` at
 session close-out (the lane was told not to touch that file).** Recorded
 against the bars above:
