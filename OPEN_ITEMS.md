@@ -4344,7 +4344,122 @@ first is swallowed, the shape is established.
 Logged 2026-07-23.
 
 
-## 180. 🎨 UMBRELLA — the app hides its own degradation: four instances, one design default
+## 180. 🎨 UMBRELLA — the app hides its own degradation: one design default, and a register that is no longer four instances long
+
+> ## 🎯 BARS — LANE 180-L, PRE-REGISTERED 2026-08-09 BEFORE ANY CODE
+>
+> **Written first, per the convention** (bars live in the OPEN_ITEMS entry, not
+> only in a dispatch doc — CLAUDE.md, "Where the BARS live"). Lane 180-L is the
+> residue of this umbrella that nobody else owns: **three pure display-derivation
+> seams plus one convention line.** Derivation:
+> `dispatch/OPUS-T27-180-honesty-umbrella.md` §6.1/§7.2.
+>
+> **EXCLUDED BY NAME, and this lane must not touch them:** #296 (its own
+> dispatch), #280 (its own dispatch), #173 (a decision, §8.1), and the health
+> permission card (needs a `PermissionStatus` decision and a number first).
+>
+> **DEVICE: NONE. Every bar below is unit-testable.** That is itself a finding —
+> see the #139-residual correction further down this entry.
+>
+> **180-A — no session row prints the same string as its title and its
+> subtitle.** For every `HermesSessionInfo` the drawer can receive,
+> `ChatScreen.sessionSummary` returns `title != subtitle`.
+> *Evidence:* rows in `TalariaTests/LocalSessionHistoryTests.swift`, beside
+> `sessionSummaryMapsOriginAndUnresumableState`.
+> *RED, two rows, two causes:* (i) **#177's shape** — `title` and `preview` the
+> same non-empty string (what Hermes sends): the title branch takes `title`, the
+> subtitle ladder takes `preview`, and the assertion fails on two identical
+> strings. (ii) **#280's shape** — `title: nil`, `preview` non-empty: the title
+> branch substitutes the preview and the subtitle repeats it. **Neither row can
+> be satisfied by editing a string constant.**
+>
+> **180-B — a row with a genuinely distinct title keeps BOTH lines.** Distinct
+> `title` + distinct `preview` → title is the title, subtitle is the preview; and
+> the three ladder rungs #190 owns (`unresumableReason`, the message count,
+> `"No messages"`) are unchanged.
+> **GREEN TODAY BY CONSTRUCTION — this is a PIN, not a proof, and it is recorded
+> as one.** Its job is to fail if L1 over-reaches and "fixes" 180-A by deleting
+> the subtitle.
+>
+> **180-C — the overlay does not name an engine before one has been selected.**
+> The extracted `sessionHeaderLabel` derivation, given the initial state (no
+> snapshot applied, so no engine known), returns a label containing **neither**
+> "VOICE LINK" nor "LOCAL VOICE".
+> *Evidence:* rows in `TalariaTests/NativeVoicePipelineTests.swift`.
+> *RED:* the derivation reads `talkStore.voiceEngine == .native`, `voiceEngine`
+> defaults to `.realtime` (`TalkStore.swift:35`), and `.idle` falls to
+> `VoiceOverlayScreen.swift:162` → **"VOICE LINK · CONNECTING"**. The assertion
+> fails on the literal "VOICE LINK". **It cannot pass without the unknown state
+> existing**, so re-wording cannot satisfy it.
+> *Second RED, the one that proves the mechanism:* a `TalkSessionSnapshot`
+> constructed with no `engine:` argument must not report `.realtime`. Today
+> `VoiceState.swift:180`'s default makes it `.realtime` — the optimistic-default
+> form, caught directly.
+>
+> **180-D — a session that HAS selected an engine still names it.** A snapshot
+> carrying `.native` → "LOCAL VOICE"; carrying `.realtime` → "VOICE SESSION" /
+> "VOICE LINK" per `VoiceOverlayScreen.swift:158-166`; and the
+> `LOCAL VOICE · ON-DEVICE PIPELINE` badge still appears on native.
+> **GREEN TODAY BY CONSTRUCTION — a PIN, stated as one.** #18's rule is that
+> local voice is never silently substituted for the Realtime experience; an
+> unknown state must not erase the distinction it exists to draw.
+>
+> **180-E — the number in the size refusal explains the refusal.** The stated
+> limit and the sizes the extension shows answer to the **same arithmetic as the
+> guard** (`ShareInboxCore.swift`'s `maxEnvelopeBytes`):
+> (i) `byteLabel(maxEnvelopeBytes)` states the cap without rounding it **UP** —
+> today it renders 20,971,520 as "21 MB", a limit **28,480 bytes larger than the
+> one enforced**;
+> (ii) the largest byte count the guard ACCEPTS renders `≤` the stated limit;
+> (iii) a refused byte count the user's own file browser shows as larger than the
+> limit — the worked case is **20,999,999 bytes** — renders **strictly greater**
+> than the stated limit.
+> *RED:* today the limit renders "21 MB" and the 20,999,999-byte file the guard
+> REFUSES also renders "21 MB", so the refusal reads *"21 MB is too large —
+> limit 21 MB."* (iii) fails on two equal strings and (i) fails on the
+> rounding. **The defect is arithmetic, so no copy change can satisfy it.**
+> *Evidence:* `TalariaTests/ShareInboxCoreTests.swift`. The refusal's arithmetic
+> moves next to the guard it explains, so it is reachable from the app target's
+> tests at all — the share extension's own sources are not.
+> **Residual, stated rather than hidden:** any rounded label keeps a boundary
+> band (cap+1 … cap+~499,999) that still renders as the limit. This bar removes
+> the **systematic** overstatement, not rounding itself. Do not read it as
+> byte-exact honesty.
+>
+> **180-F — the convention is written down and names the four forms.**
+> `HostFedListPresentation.swift`'s doc comment carries the review rule as
+> **rule 5**, names the monotonic-latch / collapsing-`else` /
+> optimistic-default / substitution-fallback forms, states the
+> **narrow-never-substitute** corollary, and cites
+> `LocalIntelligenceService.swift:452-458` as the in-repo precedent.
+> *Evidence:* the file. **Not paperwork:** this umbrella's own recorded lesson is
+> that the convention is the deliverable, and the codebase has the counter-example
+> — `fallbackCard` solved "never print one line twice" on 2026-07-11, in one
+> file's doc comment, and the server-fed drawer row reproduced the same render
+> for a month because nobody generalized it.
+>
+> **Two decisions inside this lane are OWEN'S and are flagged, not guessed:**
+> the share-refusal direction (base-10 cap vs base-2 label — the lane takes the
+> base-10 cap, §8.4's option (a), reversible in one constant) and the HUD copy
+> for the unknown voice state (**"VOICE · CONNECTING"** — it must not read as a
+> third engine; approval owed before the PR is opened).
+>
+> **NO BARS are proposed for #173 or the health card** — a bar written before
+> Owen picks an approach pre-empts the decision. **No umbrella-wide "no surface
+> may claim…" bar** — unfalsifiable as written, and this entry's own instance
+> list is the standing evidence that a stated principle without a code seam holds
+> nothing.
+
+> **⚠️ CORRECTION 2026-08-09 (lane 180-L, close-out rule) — the "four instances"
+> in this entry's title and the list at the bottom are the AS-FILED count from
+> 2026-07-23, not the current one.** Since filing, **#296** was filed into this
+> family by name, **#139's residual** was routed here by the 2026-08-07 tidy pass
+> and never numbered, and the 2026-08-09 sweep identified **two more**: the
+> share-sheet size label (a note inside #123, corrected there) and the health
+> permission card (inside *archived* #181 — still unnumbered, §8.3/§8.6 of the
+> dispatch, and explicitly NOT lane 180-L's). The register that replaces the
+> four-item list is `dispatch/OPUS-T27-180-honesty-umbrella.md` §2, which states
+> each member's mechanism, its home, and whether it is live.
 
 > **➕ INSTANCE ADDED 2026-08-09 — inherited from #241, which closed as
 > RECLASSIFIED rather than fixed (Owen's ruling).**
@@ -4419,10 +4534,30 @@ Logged 2026-07-23.
 > appear, and switches happen in Settings, so the screen re-fetches on navigation in every
 > ordinary flow.
 >
-> **Still open under the umbrella — decisions, not mechanisms, all queued for Owen:**
+> ~~**Still open under the umbrella — decisions, not mechanisms, all queued for Owen:**
 > #173's detection approach (capability surfacing vs never-claim-unverifiable), instance 4's
 > app-wide disconnection indicator (chat has one; lists now have strips + stamps — is a
-> global signal still wanted?), #197's automatic retry, #187's `min_messages` param.
+> global signal still wanted?), #197's automatic retry, #187's `min_messages` param.~~
+>
+> **⚠️ CORRECTED 2026-08-09 (lane 180-L, close-out rule) — that list was stale in
+> THREE of its four entries, and in one place the entry contradicted itself.**
+> - **Instance 4 is SETTLED**, by Owen's own rejudgement recorded higher in this
+>   same entry (*"Now that I see the attempt to send, yes, I think that's
+>   enough."*). It should never have stayed in a still-open list.
+> - **#197 is CLOSED** (2026-08-04, `OPEN_ITEMS-ARCHIVE.md`). Its automatic-retry
+>   question went with it.
+> - **#187 is not an umbrella member at all** — the app asks for a filter, does
+>   not get it, and compensates *visibly* (it filters client-side and routes the
+>   header stat and the ⌘1…⌘9 ordinals through the filtered list), so no surface
+>   claims a count the shelf does not show. Owen decided it 2026-08-02
+>   (*"Keep, annotated"*) and **it has since CLOSED entirely** (2026-08-09). It was
+>   a host-contract item, not an honesty item.
+>
+> **The list reduces to ONE: #173's detection approach** (§8.1 recommends the
+> never-claim floor and demoting the capability half to a watch). Everything else
+> live under this umbrella now has its own home: #296 and #280 have dispatches,
+> the drawer row / voice header / share label are lane 180-L above, and the health
+> permission card needs a number before it can be worked.
 
 **Raised 2026-07-23 after four independent findings in a single session converged on one shape.**
 Each was filed or observed separately; together they look like a default rather than a run of
