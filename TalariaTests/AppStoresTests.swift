@@ -2181,6 +2181,99 @@ struct AppStoresTests {
         )
     }
 
+    /// #295 Task 3 (the ordering pin, carried from the fix re-review):
+    /// `cancelStreaming` reads `hermesClient.currentRunIsServerRecoverable` as
+    /// its FIRST statement — deliberately ahead of `streamingTask?.cancel()`,
+    /// `hardStopActiveRun()` and `abandonActiveRun()` — because
+    /// `abandonActiveRun()` is documented (`ChatBackendRouter`) to nil the
+    /// router's `runningBrain`, i.e. the very signal the real gate is built
+    /// from. Every OTHER double in this file answers
+    /// `currentRunIsServerRecoverable` with a constant, so none of them can
+    /// tell the difference between "read before the clear" and "read after
+    /// the clear" — a future refactor that moved the read line down past
+    /// `abandonActiveRun()` would leave the whole suite GREEN while every
+    /// production Hermes expiration silently fell to the `.delivered`
+    /// branch, bar 295-A dead with no test failing. `RecoverabilityFlipsOnAbandonClient`
+    /// closes that hole directly: it starts `true` (a live Hermes-plane
+    /// turn) and flips to `false` the instant `abandonActiveRun()` OR
+    /// `hardStopActiveRun()` is called on it, modeling the hazard without
+    /// going through the router. If `cancelStreaming` ever reads the flag
+    /// after either call, this test observes `false` and fails.
+    ///
+    /// RED evidence (task report): moving the
+    /// `let turnIsServerRecoverable = hermesClient.currentRunIsServerRecoverable`
+    /// line to just after `hermesClient.abandonActiveRun()` turns this test
+    /// red — `pendingRunSessionId` comes back nil and `hasActiveReconcileLoop`
+    /// false, i.e. the expiration path silently takes the non-recoverable
+    /// branch. Restored immediately after confirming.
+    @Test @MainActor
+    func expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt() async throws {
+        final class RecoverabilityFlipsOnAbandonClient: HermesClientProtocol {
+            var connectionStatus: ConnectionStatus = .connected
+            var currentConversation: Conversation?
+            /// Starts `true` (a live, server-recoverable Hermes turn) and
+            /// flips to `false` the moment either teardown call fires — the
+            /// exact shape `ChatBackendRouter.runningBrain` going nil takes
+            /// in production, modeled directly on the client so the test
+            /// doesn't need the router.
+            private(set) var currentRunIsServerRecoverable = true
+
+            func connect() async {}
+            func disconnect() async {}
+
+            func abandonActiveRun() {
+                currentRunIsServerRecoverable = false
+            }
+
+            func hardStopActiveRun() {
+                currentRunIsServerRecoverable = false
+            }
+
+            func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
+                Message(sender: .hermes, content: "unused", status: .delivered)
+            }
+
+            func sendStreaming(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) -> AsyncStream<StreamingUpdate> {
+                AsyncStream { continuation in
+                    continuation.yield(.textDelta("Half an ans"))
+                    // Never finishes — held open until cancelStreaming(hardStopHost: false),
+                    // same shape StoppableStreamingChatClient uses for an explicit Stop.
+                }
+            }
+
+            func loadConversation() async -> Conversation { currentConversation ?? Conversation(title: "Hermes") }
+            func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
+            func reconcileFromServer() async -> Conversation? { nil }
+        }
+
+        let suiteName = "chat-store-ordering-pin-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        let journal = ConversationJournalStore(persistence: persistence)
+        journal.beginHop(apiSessionId: "ordering-pin-session", primingUsage: nil)
+        let hermesClient = RecoverabilityFlipsOnAbandonClient()
+        let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence, journal: journal)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("pin the recoverability read order") }
+        let streamed = await pollUntil {
+            chatStore.conversation?.messages.contains { $0.sender == .hermes && !$0.content.isEmpty } == true
+        }
+        #expect(streamed, "the fixture must reach mid-answer before expiration fires")
+
+        chatStore.cancelStreaming(hardStopHost: false)
+        _ = await sendTask.value
+
+        #expect(
+            chatStore.pendingRunSessionId == "ordering-pin-session",
+            "295 ordering pin: cancelStreaming must read currentRunIsServerRecoverable BEFORE abandonActiveRun() clears it — a read taken after would see false and silently arm no recovery"
+        )
+        #expect(
+            chatStore.hasActiveReconcileLoop,
+            "295 ordering pin: the reconcile loop must still be armed — proves the gate saw `true`, not the post-clear `false`"
+        )
+    }
+
     @Test @MainActor
     func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
         let configuration = URLSessionConfiguration.ephemeral
