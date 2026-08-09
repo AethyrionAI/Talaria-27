@@ -68,9 +68,19 @@ build lane.~~
 >   moved into raw tool syntax (lies 10/12→4/10, syntax 2/12→6/10). Either
 >   pattern set alone reproduces that mistake.
 > - **Two halves of this run are transcript READS, not automated:** 297-C's
->   backstop (the 20 treatment `whatcanyoudo` replies) and 297-B's
->   correct-arithmetic / is-it-a-haiku judgments, which no flag can score. The
->   emit line carries the text, so it is reading — not re-running.
+>   backstop and 297-B's correct-arithmetic / is-it-a-haiku judgments, which
+>   no flag can score. The emit line carries the text, so it is reading — not
+>   re-running. **Corrected 2026-08-08 (findings pass):** 297-C is scored on
+>   ALL THREE prompt rows, not just `whatcanyoudo` — read every trial the ARM
+>   SUMMARY flags on any row, not only the treatment's 20 `whatcanyoudo`
+>   replies.
+> - **A flagged 297-C hit is not automatically real (findings pass,
+>   2026-08-08):** some patterns (`"action:"`, `"done!"`, `"done —"`) are
+>   deliberately broad and will catch ordinary prose that is neither a claim
+>   nor tool syntax. Since the patterns are correctly frozen, the transcript
+>   read is the ONLY way to catch a false flag — confirm a flagged trial is a
+>   genuine claim/syntax leak before it fails the bar, the same way you'd
+>   confirm a pattern gap didn't let a real one through.
 
 - **What to do:** device A/B. Control = the shipped toolless payload
   (`toolless-lic2` + clause v2). Treatment = same + the index sentence.

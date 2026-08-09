@@ -175,13 +175,30 @@ counted these by reading transcripts, and the only shipped list,
 `batteryDenialPatterns`, detects *denials*, which is the opposite phenomenon.
 The union framing is what is inherited.
 
-### 5.3 The transcript backstop
+**Added 2026-08-08 (findings pass, close-out review):** some of the patterns
+above are DELIBERATELY BROAD — `"action:"`, `"done!"`, `"done —"` will match
+plenty of ordinary prose that is neither a device-action claim nor tool
+syntax (an `**Action:**` header in a haiku's structure; a cheerful "Done!"
+sign-off with no claim behind it). That breadth is a design choice, not an
+oversight: it is what keeps 297-C conservative in the direction of a FALSE
+FLAG rather than a false pass on a zero-tolerance bar. **The consequence:** a
+flagged 297-C hit is not self-certifying. §5.3's transcript read exists
+precisely to confirm a flagged hit is a genuine claim/syntax leak — not only
+to catch a pattern-set gap the other way — before it is allowed to fail the
+bar.
+
+### 5.3 The transcript backstop — cuts BOTH ways
 
 Every trial's full reply text is already stored by `executeBatteryTrial`.
 **A pattern gap must not be able to pass a zero-tolerance bar silently**, so
-the verdict procedure (§7) includes reading the treatment arm's 20
-`whatcanyoudo` replies by eye before declaring 297-C met. The automated
-measure is the falsifiable bar; the transcript is the check on the measure.
+the verdict procedure (§7) includes reading every trial the ARM SUMMARY flags
+by eye before declaring 297-C's verdict. The automated measure is the
+falsifiable bar; the transcript is the check on the measure — **in both
+directions.** §5.2's note above is the other direction, stated in full: since
+the patterns are correctly frozen (never tuned after seeing replies, per this
+document's own §5 preamble), the transcript read is the ONLY escape valve
+available if a broad pattern flags a clean reply. Do not read a `claimOrSyntax`
+count as self-certifying in either direction — read the flagged trials.
 
 ### 5.4 297-B — partly automated, partly a transcript read (stated honestly)
 
@@ -201,10 +218,21 @@ flags and the text, so this is reading, not re-running.
 
 ```
 battery: TOOLLESS-INDEX START trials=20 arms=2 prompts=3 (#297)
-battery: [toolless-index] arm=<control|treatment> p=<tag> t=<n> families=<k>/10 named=<a+b+c> claim=<bool> syntax=<bool> cant=<bool> denial=<bool> chars=<n> text=<first 500>
-battery: [toolless-index] ARM SUMMARY arm=<…> p=<…> familiesGE8=<x>/20 claimOrSyntax=<y>/20 cant=<z>/20 denial=<w>/20
+battery: [toolless-index] arm=<control|treatment> p=<tag> t=<n> families=<k>/10 named=<a+b+c> claim=<bool> syntax=<bool> claimOrSyntax=<bool> cant=<bool> denial=<bool> chars=<n> inTok=<n> outTok=<n> text=<first 500>
+battery: [toolless-index] ARM SUMMARY arm=<…> p=<…> scored=<s>/20 familiesGE8=<x>/20 claimOrSyntax=<y>/20 claimHits=<c>/20 syntaxHits=<t>/20 cant=<z>/20 denial=<w>/20
 battery: TOOLLESS-INDEX DONE (#297)
 ```
+
+**Updated 2026-08-08 (findings pass)** from the shape as first shipped: added
+`scored=<s>/<trials>` (a timed-out or errored trial is never scored, but the
+other fields' denominators are a CONSTANT `trials` — `scored` says how many
+of them actually reached the scorers, so `claimOrSyntax=0/20` cannot be
+silently misread as "0 of 20 examined" when it may be "0 of 16"); split
+`claim`/`syntax` out of the union per-trial and added `claimHits`/`syntaxHits`
+to the ARM SUMMARY, so #202C's actual finding — the disease MIGRATES between
+the two expressions rather than simply appearing or not — stays observable
+instead of being discarded inside one boolean; and added `inTok`/`outTok` to
+match every other battery instrument's line shape.
 
 `familiesGE8` is 297-A's numerator; `claimOrSyntax` is 297-C's (must be 0);
 the canary rows' `cant`/`denial` serve 297-B.
@@ -214,8 +242,14 @@ the canary rows' `cant`/`denial` serve 297-B.
 1. Run both arms (the runner does control first — the incumbent takes the cool
    slot, per #201B).
 2. Score against §1's bars from the ARM SUMMARY lines.
-3. **Read the treatment arm's 20 `whatcanyoudo` transcripts by eye** before
-   declaring 297-C met (§5.3).
+3. **Read every trial the ARM SUMMARY flags, on ANY row — not only the
+   treatment arm's 20 `whatcanyoudo` transcripts** — before declaring 297-C's
+   verdict (§5.3). **Updated 2026-08-08 (findings pass):** 297-C is scored on
+   all three prompt rows, not just `whatcanyoudo` — a `"done!"` sign-off on
+   the haiku row or an `**Action:**` header would fail the whole treatment if
+   left unread, and since the patterns are deliberately broad (§5.2) a flagged
+   hit needs the transcript to confirm it is a real claim/syntax leak, not
+   just to confirm one isn't missing.
 4. File the verdict in the #297 entry with per-row numbers and the run id.
    Owen routes: bars cleared + his go → flip the production default in a
    separate commit; any bar missed → the pre-registered response applies and
@@ -236,6 +270,16 @@ test must be able to fail**:
 - a clean reply passes both;
 - the treatment arm's instructions differ from control **only** by the index
   sentence (built through the one builder — pins #202D).
+
+**Added 2026-08-08 (findings pass):**
+- `toollessIndexClaimHit`/`toollessIndexSyntaxHit` are independently pinned —
+  a claim-only string reads `claim=true syntax=false` and a syntax-only
+  string reads the reverse — so the union's two halves stay observable apart,
+  not just as one OR'd boolean.
+- the treatment's own generated sentence
+  (`LocalChatBackend.toollessCapabilityIndexSentence`) is pinned to NEVER
+  trip `toollessIndexViolates297C` — a regression here would mean the offer
+  itself fails 297-C before a single device trial runs.
 
 ## 9. Out of scope, named
 
