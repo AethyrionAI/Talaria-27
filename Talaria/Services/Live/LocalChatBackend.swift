@@ -1744,8 +1744,18 @@ final class LocalChatBackend: HermesClientProtocol {
     /// Vision is excluded outright (`hasImageTools: false`, not merely
     /// unlisted): it is image-gated (#176) and irrelevant here regardless,
     /// since a toolless turn was never given image tools either.
+    ///
+    /// **Frame is an em-dash appositive, not a fused possessive** — the
+    /// first cut fused the generated list straight onto "the user's" and
+    /// broke on the two `displayPhrase`s that already carry "their" (health,
+    /// location): "the user's their health and activity". `displayPhrase`
+    /// was designed for the ARMED sentence's own appositive shape ("Use the
+    /// tools for the user's own data — their health and activity, their
+    /// location, … — instead of guessing at it"), so this mirrors that
+    /// shape instead of re-deriving new phrasing — the phrases are correct,
+    /// the frame around them was not.
     nonisolated static let toollessCapabilityIndexSentence =
-        " You can also read the user's \(LocalChatBackend.armedEnumeration(families: CapabilityGroup.allCases, hasImageTools: false)) when asked — offer to, rather than saying you can't."
+        " You can also read the user's own device data when asked — \(LocalChatBackend.armedEnumeration(families: CapabilityGroup.allCases, hasImageTools: false)) — so offer to, rather than saying you can't."
 
     nonisolated static func instructionsText(
         deviceContext: String,
