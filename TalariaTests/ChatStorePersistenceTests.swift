@@ -374,6 +374,27 @@ struct ChatStorePersistenceTests {
         /// chat screen mid-run. The run stays live server-side.
         var interruptsInsteadOfFinishing = false
 
+        /// **#279 (bar 279-E): the capability this double did not have.** It
+        /// could interrupt a turn but not FAIL one, so the shape #279 lives
+        /// in — a turn that dies *after* its user row is already in the
+        /// mirror — was not expressible here at all.
+        ///
+        /// Models `LocalChatBackend`'s GENERATION failure specifically
+        /// (`LocalChatBackend.swift:646`, inside the streaming loop's
+        /// `catch`): `appendUserMessage` (`:525`) has already run, so the user
+        /// row IS mirrored, and the turn then dies before
+        /// `appendAssistantMessage` is ever reached, so no reply is. That
+        /// asymmetry is the whole defect. It deliberately does NOT model the
+        /// availability gate (`:493-497`), which yields `.failed` and returns
+        /// BEFORE `appendUserMessage` and therefore mirrors nothing.
+        ///
+        /// **One-shot: consumed by the turn it fails.** A retry of that turn
+        /// has to succeed or there is no second turn to merge against, which
+        /// is the entire scenario. (The dispatch proposed the plain name
+        /// `failsAfterMirroringTheUserRow`; renamed so the name says
+        /// "next turn" out loud rather than reading as a sticky mode.)
+        var failsNextTurnAfterMirroringTheUserRow = false
+
         init(mirroring conversation: Conversation? = nil) {
             currentConversation = conversation
         }
@@ -401,6 +422,21 @@ struct ChatStorePersistenceTests {
                     continuation.finish()
                 }
             }
+            // #279 (279-E): the generation-failure shape. The user row is
+            // mirrored — `appendUserMessage` has already run — and then the
+            // turn dies, so no reply is. No `.messageSent` first, because
+            // `LocalChatBackend` never yields one: that is what makes
+            // ChatStore's `acceptedJobID == nil` branch (`:995`) run, which
+            // is the branch that renders the failed user row plus a `.system`
+            // error row and offers retry.
+            if failsNextTurnAfterMirroringTheUserRow {
+                failsNextTurnAfterMirroringTheUserRow = false
+                mirror(message: message, attachments: attachments, clientMessageID: clientMessageID, reply: nil)
+                return AsyncStream { continuation in
+                    continuation.yield(.failed("generation failed"))
+                    continuation.finish()
+                }
+            }
             let reply = Message(sender: .hermes, content: replyText, status: .delivered)
             // Mirrored BEFORE `.finished` is yielded — exactly the order
             // `LocalChatBackend` uses, which is what lets a mid-stream poll
@@ -419,11 +455,16 @@ struct ChatStorePersistenceTests {
         /// **#281:** on `.hermesFetchCache` this is a NO-OP, because the real
         /// `SessionsHermesClient` does not append the turn it just sent —
         /// `currentConversation` there only changes on a fetch or an adopt.
+        ///
+        /// **#279:** `reply` is optional because the two halves are two
+        /// separate calls in production (`appendUserMessage` before the
+        /// generation, `appendAssistantMessage` after it) and a failed turn
+        /// makes only the first. Passing `nil` mirrors the user row alone.
         private func mirror(
             message: String,
             attachments: [PendingAttachment],
             clientMessageID: UUID,
-            reply: Message
+            reply: Message?
         ) {
             guard mirrorShape == .localBrain else { return }
             if currentConversation == nil {
@@ -441,7 +482,11 @@ struct ChatStorePersistenceTests {
                 status: .delivered,
                 attachments: attachments.map { MessageAttachment(from: $0) }
             ))
-            currentConversation?.messages.append(reply)
+            // #279: `appendAssistantMessage`'s half — skipped entirely on a
+            // failed turn, exactly as `LocalChatBackend` skips it.
+            if let reply {
+                currentConversation?.messages.append(reply)
+            }
         }
 
         func loadConversation() async -> Conversation {
@@ -843,6 +888,218 @@ struct ChatStorePersistenceTests {
         let fresh = try #require(userRows.last)
         #expect(!history.contains { $0.id == fresh.id })
         #expect(fresh.timestamp > history[2].timestamp)
+    }
+
+    // MARK: - #279: a retry's removal has to reach the backend mirror
+
+    /// A thread whose only turn failed *after* its user row was mirrored —
+    /// the one #279 shape. Returns the store, the double, and the failed user
+    /// row the retry affordance would be attached to.
+    ///
+    /// `history: []` on purpose: the merged user-row COUNT is what 279-A and
+    /// 279-B assert, so the fixture must contribute no user rows of its own.
+    @MainActor
+    private func makeFailedLocalBrainTurn(
+        prompt: String = "A question that fails"
+    ) async throws -> (ChatStore, MirroringReplyClient, Message) {
+        let (store, client, _, _) = makeMirroredStore(history: [])
+        await store.loadConversationIfNeeded()
+        client.failsNextTurnAfterMirroringTheUserRow = true
+
+        await store.sendMessage(prompt)
+
+        let failed = try #require(store.conversation?.messages.first)
+        #expect(failed.sender == .user)
+        #expect(failed.status == .failed)
+        return (store, client, failed)
+    }
+
+    /// **279-E** — fixture fidelity, pinned FIRST and for the same reason
+    /// 281-C is: two doubles in a row have now certified broken behaviour in
+    /// this seam by being unable to express the production shape at all.
+    ///
+    /// **Recorded honestly: this pin was never RED for a defect.** Its "RED"
+    /// was that `MirroringReplyClient` could not fail a turn — the capability
+    /// did not exist — so the shape #279 lives in was unreachable from this
+    /// file. It is green on both sides of the fix by construction; what it
+    /// buys is that 279-A/B are measuring `LocalChatBackend`'s real failure
+    /// shape rather than an invented one.
+    ///
+    /// Three claims, each traced to the production line it mirrors:
+    /// (i) the user row carries `id == clientMessageID` AND `clientMessageID`,
+    ///     `.delivered` — `LocalChatBackend.swift:1318-1338`;
+    /// (ii) a failed turn mirrors NO reply — the generation `catch` at `:646`
+    ///     returns before `appendAssistantMessage` (`:1340`) is reached;
+    /// (iii) every `adoptTruncatedConversation` call is recorded, so 279-B can
+    ///     prove the mirror was TOLD rather than that the count merely came
+    ///     out right.
+    @Test @MainActor
+    func theFailingLocalBrainMirrorMatchesTheRealAppendLog() async throws {
+        let (store, client, failed) = try await makeFailedLocalBrainTurn()
+
+        // (i)
+        let mirrored = try #require(client.currentConversation?.messages)
+        #expect(mirrored.count == 1)
+        let mirroredRow = try #require(mirrored.first)
+        #expect(mirroredRow.sender == .user)
+        #expect(mirroredRow.content == "A question that fails")
+        #expect(mirroredRow.clientMessageID == mirroredRow.id)
+        #expect(mirroredRow.status == .delivered)
+        // (ii)
+        #expect(!mirrored.contains { $0.sender == .hermes })
+        // (iii) — nothing has adopted yet; the removal is what should.
+        #expect(client.adoptedMessageCounts.isEmpty)
+
+        // And the rendered shape the retry affordance actually sees: the
+        // failed user row followed by the `.system` error row that replaced
+        // the streaming placeholder (`ChatStore.swift:995-1000`, `:1012`).
+        let local = try #require(store.conversation?.messages)
+        #expect(local.map(\.sender) == [.user, .system])
+        #expect(local.first?.id == failed.id)
+        #expect(local.last?.content == "generation failed")
+    }
+
+    /// **279-A** — the characterization baseline. Written and run GREEN
+    /// against UNMODIFIED production first, so 279-B's RED means something.
+    ///
+    /// The number it records is the merged transcript's user-row count after
+    /// a failed turn is retried and the retried turn settles. **Pre-fix: 2.**
+    /// Post-fix: 1. If the pre-fix number had been anything but 2, the
+    /// mechanism in #279 would have been wrong and the lane was to stop.
+    ///
+    /// (The dispatch proposed the name
+    /// `aRetriedFailedTurnLeavesTheMirrorHoldingTheOldRow`; renamed because
+    /// the name has to stay true on BOTH sides of a fix that deliberately
+    /// moves the number. The assertion below moves 2 → 1 with the fix and
+    /// both numbers are quoted, here and in `OPEN_ITEMS.md` #279.)
+    @Test @MainActor
+    func aRetriedFailedTurnsMergedUserRowCount() async throws {
+        let (store, _, failed) = try await makeFailedLocalBrainTurn()
+
+        await store.retryMessage(failed)
+
+        let messages = try #require(store.conversation?.messages)
+        let userRows = messages.filter { $0.sender == .user }
+        // BASELINE RUN, unmodified production: 2. The mirror re-served the
+        // removed row on the post-turn merge. Moves to 1 with the fix.
+        #expect(userRows.count == 2)
+    }
+
+    /// **279-B** — the defect. `retryMessage` removed the failed row from
+    /// `conversation.messages` directly and never told the backend's mirror,
+    /// so the post-turn merge — which takes that mirror as its BASE ordering
+    /// (`ChatStore.swift:886-889`) — put the removed turn straight back,
+    /// above the retried copy. Two identical user bubbles.
+    ///
+    /// The id assertion is the half that matters: the survivor must be the
+    /// row the RETRY minted, not the resurrected original wearing the same
+    /// text. The adopt assertion is the mechanism — a count that came out
+    /// right for some other reason is not this fix.
+    ///
+    /// **Scope (correction 4 on the entry):** this is total on the LOCAL
+    /// BRAIN only. `SessionsHermesClient`'s mirror is a fetch cache
+    /// (`SessionsHermesClient.swift:766-768`); on the Hermes path the fix
+    /// stops the CACHE re-serving the row and the gateway session still holds
+    /// the turn — the documented `/retry` caveat (`ChatStore.swift:1823-1829`).
+    @Test @MainActor
+    func aRetryLeavesExactlyOneUserRowForTheRetriedText() async throws {
+        let (store, client, failed) = try await makeFailedLocalBrainTurn()
+
+        await store.retryMessage(failed)
+
+        let messages = try #require(store.conversation?.messages)
+        let retried = messages.filter { $0.sender == .user && $0.content == "A question that fails" }
+        #expect(retried.count == 1)
+        #expect(retried.first?.id != failed.id)
+        // The mirror was TOLD — the removal ran through the adoption tail.
+        #expect(!client.adoptedMessageCounts.isEmpty)
+        #expect(!(client.currentConversation?.messages.contains { $0.id == failed.id } ?? true))
+    }
+
+    /// **279-C** — the second defect in the same eight lines, and the one the
+    /// tracker filing did not mention. The removal at `:1739` was
+    /// unconditional while the re-send at `:1757` discarded `sendMessage`'s
+    /// `Bool`. When the duplicate guard (`:2211`) swallowed the re-send — a
+    /// byte-identical turn still `.sending` or `.queued` elsewhere in the
+    /// thread — the failed row was deleted and **nothing was sent**.
+    ///
+    /// This is exactly the residual `regenerateReply` was given
+    /// `restoreTruncatedRows(_:at:)` for (`:1858-1864`) and `retryMessage`
+    /// never got. Same fixture shape as
+    /// `regenerateRestoresHistoryWhenTheResendIsSwallowed`.
+    @Test @MainActor
+    func aSwallowedRetryPutsTheFailedRowBack() async throws {
+        let base = Date(timeIntervalSince1970: 1_754_100_000)
+        let rows = [
+            // Still in flight — this is what `hasPendingDuplicateMessage`
+            // refuses on, and it is byte-identical to the failed row below.
+            Message(sender: .user, content: "Same question", timestamp: base, status: .sending),
+            Message(sender: .user, content: "Same question",
+                    timestamp: base.addingTimeInterval(1), status: .failed),
+            Message(sender: .system, content: "generation failed",
+                    timestamp: base.addingTimeInterval(2), status: .failed),
+        ]
+        let (store, client, history, persistence) = makeMirroredStore(history: rows)
+        // Adopted directly rather than through `loadConversationIfNeeded`:
+        // cold load finalizes a stale `.sending` row to `.failed` (#56), and
+        // the guard under test is about a row that IS in flight right now.
+        store.conversation = client.currentConversation
+        #expect(store.conversation?.messages.first?.status == .sending)
+
+        await store.retryMessage(history[1])
+
+        #expect(client.sentPrompts.isEmpty)
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.contains { $0.id == history[1].id })
+        #expect(messages.map(\.content) == ["Same question", "Same question", "generation failed"])
+        let cached = try #require(persistence.loadConversationCache())
+        #expect(cached.messages.count == 3)
+    }
+
+    /// **279-D** — no over-reach, and the bar that fails if #279's own filing
+    /// is implemented literally. Its "route it through the primitive" reads
+    /// as `truncateTranscript(from:)`, which removes `index...` **to the end
+    /// of the transcript** — that would delete every turn below the retried
+    /// one.
+    ///
+    /// A mid-transcript `.failed` row is a production shape, not a contrived
+    /// one: `finalizeStaleSendsFromCache` (`ChatStore.swift:502-511`, #56)
+    /// manufactures exactly this on every cold load after a mid-stream death,
+    /// and the retry affordance carries no "is it the last row" condition
+    /// (`MessageBubble.swift:211`).
+    @Test @MainActor
+    func retryingAMidTranscriptFailedRowKeepsEverythingBelowIt() async throws {
+        let base = Date(timeIntervalSince1970: 1_754_200_000)
+        let rows = [
+            Message(sender: .user, content: "Failed question", timestamp: base, status: .failed),
+            Message(sender: .user, content: "Second question",
+                    timestamp: base.addingTimeInterval(1), status: .delivered),
+            Message(sender: .hermes, content: "Second answer",
+                    timestamp: base.addingTimeInterval(2), status: .delivered),
+            Message(sender: .user, content: "Third question",
+                    timestamp: base.addingTimeInterval(3), status: .delivered),
+            Message(sender: .hermes, content: "Third answer",
+                    timestamp: base.addingTimeInterval(4), status: .delivered),
+        ]
+        let (store, client, history, _) = makeMirroredStore(history: rows)
+        await store.loadConversationIfNeeded()
+
+        await store.retryMessage(history[0])
+
+        #expect(client.sentPrompts == ["Failed question"])
+        let messages = try #require(store.conversation?.messages)
+        // Everything below the retried row survives, in order, and the
+        // retried turn lands at the tail where it was just sent.
+        #expect(messages.map(\.content) == [
+            "Second question", "Second answer", "Third question", "Third answer",
+            "Failed question", "Done.",
+        ])
+        #expect(messages[0].id == history[1].id)
+        #expect(messages[1].id == history[2].id)
+        #expect(messages[2].id == history[3].id)
+        #expect(messages[3].id == history[4].id)
+        // The resurrected original is gone — not merely outnumbered.
+        #expect(!messages.contains { $0.id == history[0].id })
     }
 
     // MARK: - #276: mergeAttachments drops nothing
