@@ -978,6 +978,31 @@ struct DeveloperSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
+    // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
+    // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
+    // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools
+    // registered, nothing created or reaped. If these route toolless the
+    // already-armed ConversationSearchTool never fires and Shape A is dead
+    // before any corpus work — which is why this runs first.
+    @ViewBuilder
+    private func crossChatRecallProbeButton(trials: Int, label: String) -> some View {
+        Button {
+            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            batteryRunning = true
+            UIApplication.shared.isIdleTimerDisabled = true
+            Task {
+                await backend.runCrossChatRecallProbe(trials: trials)
+                UIApplication.shared.isIdleTimerDisabled = false
+                batteryRunning = false
+            }
+        } label: {
+            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
+                      size: 10, tracking: Design.Tracking.mono,
+                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
+        }
+        .disabled(batteryRunning)
+    }
+
     // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
     @ViewBuilder
     private func motionRedirectBatteryButton(trials: Int, label: String) -> some View {
@@ -1977,6 +2002,12 @@ struct DeveloperSettingsScreen: View {
                 // no tools, nothing created.
                 HStack(spacing: Design.Spacing.sm) {
                     capabilityDetectionProbeButton(trials: 10, label: "Capability detection (#257) (350)")
+                }
+                // #101 bar 101-A1: does production's router ARM a turn whose
+                // answer lives in a past conversation? 10 pinned rows x 2 =
+                // n=20 classifications; no tools, nothing created.
+                HStack(spacing: Design.Spacing.sm) {
+                    crossChatRecallProbeButton(trials: 2, label: "Cross-chat recall routing A-1 (n=20)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton

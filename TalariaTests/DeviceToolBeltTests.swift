@@ -2841,6 +2841,89 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.routerProbeVariants == [.control, .ctxA, .ctxB])
     }
 
+    // MARK: - (#101 bar 101-A1) cross-chat recall routing probe
+
+    /// #101's list ships CLOSED at exactly ten rows, and the #205 closed
+    /// series gained nothing. Spot-pins the first and last rows verbatim so a
+    /// silent re-order or re-word fails loudly rather than quietly re-pointing
+    /// a series whose bar (≥90% armed, n=20) is already in writing.
+    @Test func crossChatRecallProbesAreAClosedTenRowSeries() {
+        #expect(LocalChatBackend.crossChatRecallProbes.count == 10)
+        #expect(LocalChatBackend.crossChatRecallProbes.first
+                == "What did we decide about the boat?")
+        #expect(LocalChatBackend.crossChatRecallProbes.last
+                == "What was the name of that restaurant I liked?")
+        // No duplicate rows — a repeated row would double-weight one phrasing
+        // inside a fixed n.
+        #expect(Set(LocalChatBackend.crossChatRecallProbes).count == 10)
+        // #205: the closed series stand exactly as filed, and #257's two
+        // lists are untouched by this lane.
+        #expect(LocalChatBackend.routerBaselineProbes.count == 10)
+        #expect(LocalChatBackend.intentProbeGrid.count == 19)
+        #expect(LocalChatBackend.vectorProbeGrid.count == 21)
+        #expect(LocalChatBackend.capabilityQuestionProbes.count == 10)
+        #expect(LocalChatBackend.capabilityControlProbes.count == 10)
+        // And no row is shared with any of them: a shared row would make two
+        // separate bars read the same classification.
+        let others = Set(LocalChatBackend.routerBaselineProbes.map(\.text))
+            .union(LocalChatBackend.intentProbeGrid.map(\.text))
+            .union(LocalChatBackend.vectorProbeGrid.map(\.text))
+            .union(LocalChatBackend.capabilityQuestionProbes)
+            .union(LocalChatBackend.capabilityControlProbes)
+        #expect(Set(LocalChatBackend.crossChatRecallProbes).isDisjoint(with: others))
+    }
+
+    /// The rows are PINNED LITERALS, not something derived from the belt or
+    /// the capability registry. Bar 101-A1 measures the ROUTER; a list that
+    /// moved with belt state would silently measure the belt instead, and the
+    /// verdict ("Shape A is dead / alive") would not be reproducible across
+    /// two devices with different permissions granted.
+    @Test func crossChatRecallProbesDoNotDependOnBeltOrRegistryState() {
+        let before = LocalChatBackend.crossChatRecallProbes
+        // Both extremes of belt state, plus both extremes of the registry's
+        // rendered surface. None of these may move the list.
+        _ = CapabilityRegistry(belt: [])
+        _ = CapabilityRegistry(belt: [SchemaGateProbeTool()])
+        _ = CapabilityRegistry.capabilityAnswerBlock(families: [])
+        let fullBlock = CapabilityRegistry.capabilityAnswerBlock()
+        #expect(LocalChatBackend.crossChatRecallProbes == before)
+        // And no row is quoted from the registry's own render — a row that
+        // was would score the registry's text, not the model's routing.
+        #expect(before.allSatisfy { !fullBlock.contains($0) })
+    }
+
+    /// The emission format, pinned on the SAME builders the probe emits
+    /// through (`reapTrialLine`'s shape — a copy in the test could drift and
+    /// then pass forever). Both bands must carry `scored=<n>/<trials>` AND
+    /// `errors=<n>`: a band with no error counter reports fail-safe noise as
+    /// data, and `routeTurn` fails safe to ARMED, which is this probe's
+    /// headline number.
+    @Test func crossChatRecallEmissionCarriesScoredAndErrors() {
+        // A row where one of two trials threw. The thrown trial is counted in
+        // errors and is NOT scored — armed stays 1, scored is 1 of 2.
+        let row = LocalChatBackend.crossChatRecallProbeLine(
+            probe: "What did we decide about the boat?",
+            armed: 1, toolless: 0, trials: 2, errors: 1)
+        #expect(row == "router: [crosschat] ROW armed=1/2 toolless=0/2 scored=1/2 errors=1 probe=What did we decide about the boat? (#101)")
+        #expect(row.contains("scored="))
+        #expect(row.contains("errors="))
+        // A clean row scores every trial.
+        let clean = LocalChatBackend.crossChatRecallProbeLine(
+            probe: "What did we talk about on Tuesday?",
+            armed: 2, toolless: 0, trials: 2, errors: 0)
+        #expect(clean.contains("scored=2/2"))
+        #expect(clean.contains("errors=0"))
+        // The summary band carries the run's REAL n as its denominator.
+        let summary = LocalChatBackend.crossChatRecallSummaryLine(
+            rows: 10, armed: 18, toolless: 1, trials: 20, errors: 1)
+        #expect(summary == "router: [crosschat] SUMMARY rows=10 armed=18/20 toolless=1/20 scored=19/20 errors=1 (#101)")
+        #expect(summary.contains("scored="))
+        #expect(summary.contains("errors="))
+        // The default trials value is the one the bar was written for:
+        // 10 rows x 2 = n=20. Pinned so the button and the bar cannot drift.
+        #expect(LocalChatBackend.crossChatRecallProbes.count * 2 == 20)
+    }
+
     // MARK: - (#202B) two-turn offer→accept battery
 
     /// The measured turn is turn 2, so the seeded conversation must place the
