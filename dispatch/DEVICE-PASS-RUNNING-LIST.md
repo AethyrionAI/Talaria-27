@@ -876,17 +876,35 @@ Est. ~15 min.
 **Group 6 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
 `approvals.mode` on the dashboard).** Est. ~25 min, plus however long F7d's
 stall takes (bounded by #145 to 20s/300s — it will not hang forever).
-- [ ] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
+- [x] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
   field in the confirm card before approving. (PASS: the written record
   matches the EDITED values, not the originally staged ones.)
-- [ ] F7c — Same, but background the phone while the card is waiting.
+  **✅ PASS 2026-08-09 evening (build 2418):** "water the plants" create,
+  title edited in-card to "Water the plants!!" before approving — the
+  Reminders app shows the EDITED title at the staged 9:00 PM slot
+  (screenshot). Edited values won.
+- [x] F7c — Same, but background the phone while the card is waiting.
   (PASS: the gate survives suspension — card still there and answerable on
   return, tool not silently resolved either way.)
-- [ ] F7d — Set the host's `approvals.mode` to `manual` (it is `off` today,
+  **✅ PASS 2026-08-09 evening:** calendar-event card held through a 30 s
+  background, still answerable on return, nothing self-resolved; approval
+  wrote tomorrow-3pm to the calendar, verified in the Calendar app.
+- [x] F7d — ~~Set the host's `approvals.mode` to `manual` (it is `off` today,
   dashboard `:9119` or `PUT /api/config`); ask the connected tier for
   something that needs approval; **restore `off` after.** (DISCOVERY, not
   pass/fail — record what actually shows: a hung run that fails cleanly at
-  #145's timeout, a silent stop, an inbox item, or nothing at all.)
+  #145's timeout, a silent stop, an inbox item, or nothing at all.)~~
+  **✅ RAN 2026-08-09 evening (build 2418, Mac, the R10/R11 manual window;
+  config edited directly, not via dashboard). The answer is a FIFTH shape
+  none of the four pre-registered options named: on the sessions plane the
+  tool returns in 0.16 s with structured `status: "pending_approval",
+  approval_pending: true`, the AGENT then narrates the park in prose
+  ("queued waiting on your approval decision — nothing executed yet") and
+  the turn ends normally. No hang, no #145 timeout, no inbox item, no
+  silent stop — but also NO answer channel on this plane (the approval
+  card is runs-plane 3B), so it is a narrated dead-end. Nothing executed.
+  Mode restored to `off` + listener verified after (one Errno-48 headless
+  respawn caught and second-kicked).**
 - [ ] F7e (optional) — Repeat F7d with `smart` instead of `manual`. (Record
   whether Smart prompts at all for ordinary agent work.)
 
@@ -2603,7 +2621,7 @@ device module on a forced loudspeaker; native speaks through `SpeechOutputServic
 `managesAudioSession == false`. Two different audio paths produce the ghost two different
 ways.
 
-### R8 · #292-C — abandoned runs turn stops polling · **[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]**
+### R8 · #292-C — abandoned runs turn stops polling · ~~[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]~~ **✅ RAN 2026-08-09 evening (build 2418) — MET with the INCONCLUSIVE guard satisfied: ~17 polls before the walk-away, ZERO after (cutoff on the walk-away second), zero /stop, host ran to completion, reconcile adopted on return. #292 CLOSED. Full sequence in OPEN_ITEMS #292. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #288's merge (`c2cc540`), runs transport
 switch ON (Developer → runs transport), host = the Mac (observable `agent.log`)
@@ -2625,7 +2643,7 @@ nothing (instrument the error path).
 never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
 shows the previous run's occupancy.
 
-### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · ~~[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]~~ **✅ RAN 2026-08-09 evening (build 2418) — BOTH ARMS PASS, all four contract clauses held, reservation offered and not taken. 272-H MET; #272 CLOSED. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
 repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
@@ -2649,7 +2667,7 @@ must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
 'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
 REOPENS — that is the bar working, not a failure of the lane.
 
-### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · **[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]**
+### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · ~~[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]~~ **✅ RAN 2026-08-09 evening (build 2418, Owen's go, mode restored after) — MET: card showed the host's choice set (ONCE/THIS RUN/ALWAYS/DENY + pattern label), one tap resumed the run, delete verifiably executed. #304 CLOSED (with R11). DO NOT RE-RUN.**
 
 **Prerequisites (each its own ask):** (1) Owen's explicit go for THIS experiment:
 set `approvals.mode: manual` on the **Mac** (`~/.hermes/config.yaml` — Owen's O3
@@ -2667,7 +2685,7 @@ host's `agent.log`, not the screen.** Also glance: the 155-char voice-status
 copy renders sanely if a voice turn is tried (it wraps, by design), and the
 second-confirm sheet on ALWAYS/THIS RUN names the consequence.
 
-### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · **[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]**
+### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · ~~[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]~~ **✅ RAN 2026-08-09 evening — MET both arms: deny delivered the host's BLOCKED text with no retry; Stop resolved the parked approval as a clean deny in 300 ms (`Approval wait interrupted by user signal`). §2.3 unknown OBSERVED: denied tool renders as a clean ✓ chip (#296-C1's parser drop), stopped tool as "Stopped". Full evidence in OPEN_ITEMS #304. DO NOT RE-RUN.**
 
 Same setup as R10. **Arm 1:** tap DENY → the host's own BLOCKED text arrives and
 the agent does NOT retry or rephrase (host log evidence). **Arm 2 (the escape
@@ -2718,7 +2736,7 @@ results screen has no error indicator). **The verdict decides Shape A:** ≥90%
 armed → the corpus-widening lane opens; a miss → Shape A is dead before any
 corpus work, and that is a RESULT.
 
-### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · **[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]**
+### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · ~~[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]~~ **✅ RAN 2026-08-09 evening (build 2418) — ALL THREE ARMS MET with host-log evidence (serial fire at +1s; zero POSTs after Stop; hold waited out a 7½-min background and fired only after the reconcile's GETs adopted). 306-L MET. DO NOT RE-RUN. Full sequence in OPEN_ITEMS #306.**
 
 **Prerequisite:** a build at or past PR #293's merge (`5029d22`) — the staged
 OTA covers it. A remote (Hermes) profile active.

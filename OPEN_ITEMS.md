@@ -6277,11 +6277,39 @@ head). C2 (3B has no entry) is discharged by this filing.
 >   SUCCEEDED, **1981 Swift Testing + 13 XCUITest**, Release build clean.
 >   (Lane-local evidence beneath it: the five affected suites 68/68
 >   post-change, 3A's `RunsPlaneTransportTests` 33/33 unregressed.)
-> - **304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
+> - ~~**304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
 >   per-experiment go still owed; Owen's O3 routes them to the Mac. The
 >   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
 >   the §2.3 unknown: what a DENIED tool call emits on the runs stream —
->   observe, don't guess (#296's family).
+>   observe, don't guess (#296's family).~~ **✅ 304-H AND 304-I MET
+>   2026-08-09 evening (build 2418, Mac, `approvals.mode: manual` under
+>   Owen's per-experiment go; mode restored + double-bounce verified after —
+>   the Errno-48 headless race fired on the restore bounce and was repaired
+>   by the documented second kick).**
+>   - **304-H:** `rm -rf ~/talaria-approval-scratch-A` parked the run; the
+>     phone showed the HOST APPROVAL card with the host's computed choice
+>     set (ONCE / THIS RUN / ALWAYS / DENY + `MATCHED recursive delete`);
+>     one ONCE tap → `POST /v1/runs/{id}/approval` 200 at 21:55:59 → tool
+>     executed (14.84s incl. the park) → dir verifiably deleted.
+>   - **304-I arm 1 (deny):** DENY tap → the host's own BLOCKED text
+>     (*"Do NOT retry… do NOT rephrase"*) reached the agent, which made no
+>     second attempt and replied honestly; target dir survived.
+>   - **304-I arm 2 (Stop escape):** with the card parked, Stop →
+>     `POST /stop` 200 at 22:02:53 → host logged **`tools.approval:
+>     Approval wait interrupted by user signal — returning deny`** 300 ms
+>     later; turn ended `interrupted_by_user`. No 60s hang.
+>   - **The §2.3 unknown, OBSERVED:** a DENIED tool renders on the phone as
+>     a **clean ✓ TERMINAL chip** — consistent with #296's reopened 296-C1
+>     (the wire's `error:true` Bool is dropped by the parser), while a
+>     STOPPED tool shows an honest orange "Stopped" from client-local
+>     knowledge (296-A). The deny's dishonest-clean chip is #296's fix to
+>     make, not this item's.
+>   - **Free finding, same window (Group 6 F7d, sessions plane):** with
+>     runs transport OFF the gated command does NOT hang — the tool returns
+>     in 0.16s with structured `status: "pending_approval"`, the agent
+>     narrates the park, and there is NO answer channel on that plane.
+>     Recorded in the device list's Group 6 row. **#304 CLOSED; sweep to
+>     the archive at sitting close-out.**
 >
 > **Owen's rulings applied as recorded:** O1 — all four choices render as
 > offered; `once`/`deny` one tap; `always`/`session` (and, fail-safe, any
@@ -6591,9 +6619,22 @@ the reshape ships with a decode-compatibility test.
 > 306-A..J MET with observed RED each; ✅ 306-K MET 2026-08-09 — GATE: PASS
 > (controller-run, CC-272-iPhone-Air, merged head `f3c8781`): TEST
 > SUCCEEDED, 2005 Swift Testing + 14 XCUITest, Release build clean;
-> 306-L (device)
+> ~~306-L (device)
 > PENDING — controller runs the gate serially at merge; Owen runs the device
-> pass.** Targeted suites green on a dedicated CC-306 sim:
+> pass.~~ **✅ 306-L MET 2026-08-09 evening (build 2418, Mac Mini profile,
+> corded sitting; host-log evidence for all three arms):** (i) queued
+> follow-up posted at 21:27:14 — one second after the first turn ended,
+> exactly once, chip read QUEUED throughout; (ii) after Stop, ZERO further
+> chat POSTs on the session (21:29:05 window) and the held text returned to
+> the composer; (iii) the held message survived a 7½-minute background past
+> the stall guard — the sleep-120 turn ended server-side at 21:33:10 with the
+> stream dead, and on return at 21:38:33 the reconcile's two `GET /messages`
+> fetches landed FIRST, adopted the turn, and only then did the held POST
+> fire (once, completed 21:38:42; the second turn's `api_calls=1` confirms a
+> fresh turn). No post into the reconcile window, no duplicate, no `/stop`.
+> Owen: *"The queued message waited for me to get back before sending."*
+> **#306 CLOSED pending only the O8 ratify question (NEEDS-OWEN §3.4), which
+> is a product ruling on shipped behavior, not a bar.** Targeted suites green on a dedicated CC-306 sim:
 > `MessageQueueTerminalsTests` (NEW, 16), `ContinuityFabricTests` 28→33,
 > `ChatStorePersistenceTests` 41→42 — 91/91; `MessageIdentityUITests` 1→2
 > XCUITests (249s, green). Counts MOVED at every step.
@@ -7712,6 +7753,22 @@ today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
 hook) rather than deleted, plus a reciprocal note at the hook naming its three
 customer comments.
 
+> **✅ 292-C MET 2026-08-09 evening (build 2418, Mac Mini profile, §R8 run
+> with the poll-loop-first refinement — the row's own INCONCLUSIVE guard
+> satisfied). Host-log evidence:** run `run_ab7b16d0…` posted 21:46:40
+> (`POST /v1/runs` 202); a 90s+ background killed the events stream
+> (21:47:24, `200 0`) and the return at 21:48:24 put the producer into the
+> status poll loop — **~17 `GET /v1/runs/{id}` polls at 2s cadence
+> (non-zero before-count)**; the walk-away (thread switch, no Stop) landed
+> 21:48:57 and the polls STOPPED on that second — **zero `GET` after, zero
+> `POST /stop` anywhere** (the sole "stop" grep hit is `finish_reason=stop`).
+> The host kept working — tool completed the full 240.28s at 21:50:54, turn
+> ended 21:50:59 — so the walk-away stayed network-free AND non-lethal
+> (3A-C half 2 preserved). On reopen at 21:51:10 one reconcile
+> `GET /messages` adopted the turn; the answer rendered on screen. The
+> Ruling-1 cost was observed live (CTX gauge holds the prior run).
+> **#292 CLOSED; sweep to the archive at sitting close-out.**
+>
 > **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
 > numeric RED evidence — MERGED same day, PR #288 (`c2cc540`). Bars 292-A
 > and 292-B MET; ✅ 292-C QUEUED as `DEVICE-PASS-RUNNING-LIST.md` **§R8**
@@ -9747,7 +9804,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — 272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.**
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — ~~272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.~~ ✅ MERGED (PR #289, `de435ee`), 272-G MET at merge · **272-H MET 2026-08-09 evening (build 2418, Owen's hand, BOTH grace settings; reservation offered and not taken) — CLOSED.**
 
 **Owen, 2026-07-25** (quoted verbatim in
 `handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
@@ -10140,6 +10197,22 @@ against the bars above:
   `autoAuth BLOCKED guard=episodeAttempt(1)` — the flag-wipe line still
   appears (the `:110` clear stays) and the NEW guard's line replaces
   `autoAuth FIRED`.
+- **272-H — ✅ MET 2026-08-09 evening (OTA build 2418 = merged `main`
+  `c4a1ca9`, Release; Owen's hand, corded sitting).** Both grace settings
+  (`Immediately`, `After 1 min`) ran §R4's exact trial on the fixed build,
+  and all four plain-behaviour clauses held on each: a fresh lock
+  auto-prompted once; Cancel held the sheet down with the in-app UNLOCK
+  button present and working (*"everything waited for me to tap unlock
+  then triggered face id"*); backgrounding and returning WITHIN the
+  cancelled stretch stayed quiet (*"it stayed there and waited"*); and a
+  successful unlock re-armed the next stretch's auto-prompt (*"locked
+  again, came back and it unlocked automatically"*). Arm 2 verbatim:
+  *"Both pass. Same song and dance for 1m and same result."* **The
+  reservation exit was offered twice and not taken — no "whoosh" complaint
+  in hand; the Option B ruling stands.** Evidence is the felt contract; no
+  log pull was needed (the broken build's signature was `attempt=4` in
+  ~7 s — unmissable by feel, and both arms stayed quiet). **#272 CLOSED;
+  sweep to the archive at sitting close-out.**
 - **Carry into the PR body (per the dispatch, for whoever opens it):** #302
   composes with this — 302-B's "locked interval held open" fixture gets
   harder after this merges, so #302's bars need a re-read then. #302 itself
