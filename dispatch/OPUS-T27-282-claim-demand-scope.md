@@ -8,6 +8,22 @@
 > PREDICTED-RED was written against the duplicating merge). Nothing else in
 > this dispatch changes.
 
+> **📅 2026-08-10, LATER THE SAME DAY — THE HOLD IS RELEASED: #299 LANDED**
+> (lane `claude/t27-299-adoption-identity`, `ChatStore.serverIdentityAdoptions`
+> — turn-anchored adoption; the claim tier byte-untouched). Corrections to
+> this dispatch's text, per the close-out rule:
+> - **A2 (§ ASSUMED) was CONFIRMED and is now FIXED.** Assistant rows still
+>   have no claim TIER — they are confirmed by #299's adoption pass instead,
+>   which consumes no claims, so the ruled guard cannot re-open #299.
+> - **282-B's baseline now reads the CLEAN array `["Q1","A1","Q2","A2"]`**
+>   (that test doubles as bar 299-A) — the STOP condition can no longer fire
+>   from assistant rows.
+> - Every `ChatStore.swift` line anchor in this dispatch (`:2737`, `:2751`,
+>   etc.) has churned; re-verify at HEAD.
+> - 282-D/E's USER-row predictions are unaffected; the #299 author's read on
+>   both — including the id-less ASSISTANT sibling #299 quietly bounded — is
+>   recorded in OPEN_ITEMS #282's entry, dated 2026-08-10.
+
 **Goal:** execute Owen's 2026-08-09 ruling — only a local user row where
 `!localRow.status.isSettled` may consume a content claim — and MEASURE, with
 bars written first, exactly which of the claim tier's jobs that scope drops on

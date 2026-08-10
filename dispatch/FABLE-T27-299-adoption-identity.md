@@ -1,5 +1,12 @@
 # FABLE T27-299 — the adoption merge duplicates in-app assistant rows
 
+> **✅ RAN 2026-08-10, ALL BARS MET** — lane `claude/t27-299-adoption-identity`,
+> `ChatStore.serverIdentityAdoptions` (turn-anchored adoption; §2's shape
+> confirmed, with a `Message.id`-is-`let` refinement recorded in the entry).
+> Results, verbatim REDs, and the 282-D/E read live in OPEN_ITEMS #299/#282.
+> §1's "RED test already in the tree" is resolved: the baseline now pins the
+> clean array. #282 is unblocked.
+
 **Item:** OPEN_ITEMS **#299**. **Sequencing (Owen's ruling, 2026-08-09 decision
 pass): this lane runs FIRST — #282's ruled guard lands only after this does,
 and bars 282-D/282-E get RE-READ against the fixed merge.** Written 2026-08-10.

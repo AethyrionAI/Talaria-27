@@ -65,6 +65,11 @@ the tracker.
   `ChatStore.swift:2751`), so they may already double on server-sourced
   merges. **Out of scope here** — but if 279-A's baseline shows it, file it
   rather than fixing it in this lane.
+  *(2026-08-10: A2's suspicion was REAL — #282's lane measured it, filed it
+  as tracker #299, and #299's lane fixed it the next day:
+  `ChatStore.serverIdentityAdoptions`, turn-anchored adoption at the merge.
+  Assistant rows still have no claim TIER; they are confirmed by adoption
+  instead. See OPEN_ITEMS #299.)*
 - **A3.** Which `.failed` sub-path Owen actually hit. The tracker filing
   doesn't say. The bars are written for the generation-failure path
   (`LocalChatBackend.swift:646`), which is the one that mirrors.
