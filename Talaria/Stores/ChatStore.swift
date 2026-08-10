@@ -3381,6 +3381,49 @@ final class ChatStore {
     /// older content-identical ask, still carrying its original timestamp
     /// (*"It didn't show the current time for when I actually regenerated
     /// it"* — Owen, the 78-F device failure).
+    ///
+    /// **#282 (Owen's ruling, 2026-08-09) — the DEMAND side is scoped to the
+    /// IN-FLIGHT turn: `!localRow.status.isSettled`.** #281 bounded who may
+    /// MINT a claim; the consumer was still any content-matching local user
+    /// row, chosen by LOCAL ORDER rather than by correspondence. So a
+    /// `.failed` row the host never stored, sitting above a later identical
+    /// prompt that succeeded, ate the successful turn's claim and was filtered
+    /// out of the merge — the one row the user can still see and still retry
+    /// left the transcript silently. `.failed` is SETTLED
+    /// (`MessageStatus.swift:19-24`, #278's predicate), so it can no longer
+    /// consume and the `.sending`/`.working` successor — the row the echo
+    /// actually corresponds to — takes the claim instead.
+    ///
+    /// **A survivor is APPENDED, not reinserted in place** (the call site
+    /// above), so a rescued `.failed` row returns at the TAIL rather than
+    /// above its retry. That placement is an accepted, pinned decision
+    /// (#282's bar 282-F), not an oversight; reinsertion-in-place is a
+    /// separate change no bar has measured.
+    ///
+    /// **WHAT THIS SCOPE DOES NOT REACH — measured, not assumed.** A SETTLED
+    /// local user row born in-app has no confirmation tier left at all: tier 1
+    /// misses (its id is a client `UUID()`; the host's copy carries
+    /// `stableMessageID`), tier 2 misses (the gateway transcript echoes no
+    /// `clientMessageID`), and tier 3 is now closed to it. Two populations are
+    /// affected and both DUPLICATE rather than vanish:
+    /// - a settled in-app turn that precedes a stalled one, on any
+    ///   `attemptReconcile` of the whole transcript;
+    /// - **#282 case (b)** — a stored row the host returns with **no `id`**
+    ///   takes `mapStoredMessage`'s honest fresh-`UUID()` fallback
+    ///   (`SessionsHermesClient.swift:1075`) and its twin is stamped
+    ///   `.delivered` (`:1079`), so it mints a claim on EVERY fetch that now
+    ///   nothing consumes. `Conversation.dedupingAdoptedEchoes` cannot collapse
+    ///   either pair: its key includes the timestamp, and a row with no server
+    ///   timestamp gets a fresh `.now` per fetch (`:1044`).
+    ///
+    /// Both are pinned RED-by-design as bars 282-D and 282-E — a measurement
+    /// handed to Owen as a decision, deliberately NOT patched by widening this
+    /// predicate. **#299's `serverIdentityAdoptions` is a different mechanism
+    /// and does not help here: it is turn-anchored, pairs ASSISTANT rows only,
+    /// and consumes no claims.** See tracker #282.
+    ///
+    /// `isSettled` is an exhaustive `switch`, so adding a `MessageStatus` case
+    /// now changes MERGE behaviour as well as the UI's — answer it deliberately.
     nonisolated static func unconfirmedLocalMessages(
         local: [Message], refreshed: [Message]
     ) -> [Message] {
@@ -3395,7 +3438,9 @@ final class ChatStore {
         return local.filter { localRow in
             if refreshedIDs.contains(localRow.id) { return false }
             if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
-            if localRow.sender == .user {
+            // #282: IN-FLIGHT rows only. A settled row is not the turn this
+            // echo corresponds to, and eating its claim silently removed it.
+            if localRow.sender == .user, !localRow.status.isSettled {
                 let key = localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
                 if let claimable = claimableUserContent[key], claimable > 0 {
                     claimableUserContent[key] = claimable - 1

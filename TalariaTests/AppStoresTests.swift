@@ -1287,15 +1287,21 @@ struct AppStoresTests {
     /// The returned id is the SUCCESSOR's, not the failed row's — the stated
     /// reason, not a compile error and not a different assertion.
     ///
-    /// **DISABLED, and the reason is the whole point of this lane.** The
-    /// one-line guard that turns this green was NOT written: 282-B's baseline
-    /// came back carrying assistant-row duplicates (tracker #299), which is
-    /// the dispatch's pre-registered STOP condition — the lane reports and
-    /// halts before touching `ChatStore.unconfirmedLocalMessages` rather than
-    /// landing a change on top of a freshly-found defect. The assertion below
-    /// is byte-unchanged from the run quoted above: delete the trait and it
-    /// reproduces. It is disabled rather than inverted because a missed bar is
-    /// a falsification, never a redefinition.
+    /// **RE-WATCHED RED 2026-08-10 at `25a713d`** (the 2026-08-09 lane had
+    /// halted on the tracker #299 STOP and committed this `.disabled`; #299
+    /// landed, so the trait came off and the RED was re-taken rather than
+    /// inherited). Same failure, same reason, fresh UUIDs:
+    /// `unconfirmed.map(\.id) → [67C3D393-…]`, `[failedID] → [A2CBE78A-…]`.
+    ///
+    /// **GREEN with the guard, and the guard OWNS the flip** — reverting the
+    /// one predicate turns it RED again. **Case (a) is real, reproduced, and
+    /// closed by Owen's ruled change.**
+    ///
+    /// ⚠️ **This bar passing is NOT the whole verdict.** The same guard turns
+    /// bars 282-B, 282-D and 282-E RED — a settled locally-born user row has
+    /// no confirmation tier left and duplicates instead of vanishing. See
+    /// tracker #282: the branch is a MEASUREMENT PR with a decision owed to
+    /// Owen, not a fix awaiting merge.
     @Test func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
         let failedID = UUID(), successID = UUID(), serverID = UUID()
         let local = [

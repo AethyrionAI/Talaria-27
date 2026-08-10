@@ -972,6 +972,20 @@ struct ChatStorePersistenceTests {
     /// precisely the mechanism tracker #282's ruling removes for settled
     /// rows (assistant rows do not depend on it; their turn anchoring is
     /// #299's own and consumes no claims).
+    ///
+    /// **🛑 MEASURED RED 2026-08-10 under tracker #282's guard — this bar is
+    /// the reason that branch does not merge.** It was pre-registered GREEN
+    /// before AND after, and it failed:
+    /// ```
+    /// ↳ messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "Q1", "Q2"]
+    /// ```
+    /// The two "A" rows #299 fixed stay single; the two "Q" rows now double,
+    /// because withdrawing the content claim from settled rows leaves a
+    /// locally-born user row with no confirmation tier at all. So the effect
+    /// is NOT confined to the exotic populations 282-D/282-E were written for
+    /// — it lands on the everyday in-app reconcile. Reverting the one
+    /// predicate turns this green again (the mirror proof). Full measurement
+    /// and the decision owed to Owen: tracker #282.
     @Test @MainActor
     func theHermesReconcileMergeBaselineBeforeScopingTheClaim() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
@@ -1006,6 +1020,15 @@ struct ChatStorePersistenceTests {
     /// (#237), so the re-fetch reproduces the same ids, the first merge's
     /// adopted rows confirm at tier 1, and #281's supply gate mints no
     /// claims at all.
+    ///
+    /// **MEASURED 2026-08-10 under tracker #282's guard: the `afterFirst`
+    /// literal goes RED (`["Q1","A1","Q2","A2","Q1","Q2"]` — the user-row
+    /// half of the same fixture as 282-B) but `afterSecond == afterFirst`
+    /// still PASSES.** That is a real finding and worth keeping: the new
+    /// user-row duplication is BOUNDED on the stable-id path — one extra
+    /// copy, then it converges — not #237's compounding shape. (Case (b),
+    /// bar 282-E, is the population that does NOT converge, because its ids
+    /// are fresh per fetch.)
     @Test @MainActor
     func theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
@@ -1109,6 +1132,12 @@ struct ChatStorePersistenceTests {
     /// Deliberately scoped to USER rows: assistant rows have no claim tier at
     /// all, so folding them in here would mix the guard's effect with the
     /// separate A2 question 282-B measures.
+    ///
+    /// **MEASURED RED 2026-08-10 under the guard, as predicted** (green
+    /// before it, green again when it is reverted):
+    /// `Set(userContents).count → 2`, `userContents.count → 3`. #248's exact
+    /// reported symptom, restored for a population its four pins do not
+    /// cover. Tracker #282 carries the decision.
     @Test @MainActor
     func aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
@@ -1164,6 +1193,16 @@ struct ChatStorePersistenceTests {
     /// `Conversation.dedupingAdoptedEchoes` cannot collapse the pair because
     /// their timestamps differ. **A silent swallow becomes a duplicate per
     /// fetch.**
+    ///
+    /// **MEASURED RED 2026-08-10 under the guard, as predicted** (green
+    /// before it, green again when it is reverted): `afterSecond → 2`,
+    /// `afterFirst → 1`. **This is the population that does NOT converge** —
+    /// unlike 282-B/299-B, the fresh `UUID()` per fetch means tier 1 can
+    /// never bind on a later pass, so it grows without bound. The ASSISTANT
+    /// row in this same fixture stays single: #299's turn anchoring adopts it
+    /// per fetch, which is the sibling case #299 quietly closed. Tracker
+    /// #282 carries the decision; assumption A3 (how often the live gateway
+    /// actually omits `id`) remains UNMEASURED and decides the severity.
     @Test @MainActor
     func anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches() async throws {
         let (store, client, _, _) = makeMirroredStore(history: [], shape: .hermesFetchCache)
@@ -1224,8 +1263,14 @@ struct ChatStorePersistenceTests {
     /// tail row moves. A content-only bar here would have been green for the
     /// wrong reason.
     ///
-    /// **DISABLED for the same reason as 282-A** — the guard was not written;
-    /// see tracker #299 and #282's entry. Assertions byte-unchanged.
+    /// **RE-WATCHED RED 2026-08-10 at `25a713d`** (the 2026-08-09 lane had
+    /// committed this `.disabled` on the tracker #299 STOP; #299 landed, the
+    /// trait came off, and the RED was re-taken): `tail.id → 2B11F380-…`
+    /// against `failedID → FA4BF254-…`, `tail.status → .working`. The content
+    /// assertion passed both times, again.
+    ///
+    /// **GREEN with the guard; RED again when the guard is reverted** — the
+    /// placement answer is pinned and the flip is owned by the one predicate.
     @Test @MainActor
     func theSurvivingFailedRowIsAppendedAtTheTail() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
