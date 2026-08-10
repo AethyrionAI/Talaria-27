@@ -699,8 +699,26 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
         let status = SFSpeechRecognizer.authorizationStatus()
         if status == .authorized { return true }
         guard status == .notDetermined else { return false }
+        // #301: the completion MUST be `@Sendable`. Without it, a closure
+        // formed in this `@MainActor` context inherits MainActor isolation;
+        // `SFSpeechRecognizer.requestAuthorization` invokes it on TCC's XPC
+        // reply queue (`com.apple.root.default-qos`), and the Swift 6 runtime's
+        // `_swift_task_checkIsolatedSwift` then traps `BUG IN CLIENT OF
+        // LIBDISPATCH: … expected to execute on queue [com.apple.main-thread]`
+        // the instant `continuation.resume` runs off-main — killing the app on
+        // the FIRST-EVER speech grant (the only path this closure runs; an
+        // already-authorized status returns above and never forms it, which is
+        // why existing installs never saw it). Reproduced deterministically on
+        // the iOS 27.0 simulator 2026-08-10, byte-identical to the #254 device
+        // corpus crash. `@Sendable` drops the isolation inheritance;
+        // `CheckedContinuation` is Sendable and `.resume` is thread-safe, so
+        // the resume is correct from any queue. This is the same remedy the
+        // archived EventKit `fetchReminders` trap used (`@Sendable` on the
+        // framework completion) — applied ONLY to this named site, no sweep.
         let requested: SFSpeechRecognizerAuthorizationStatus = await withCheckedContinuation { continuation in
-            SFSpeechRecognizer.requestAuthorization { continuation.resume(returning: $0) }
+            SFSpeechRecognizer.requestAuthorization { @Sendable status in
+                continuation.resume(returning: status)
+            }
         }
         return requested == .authorized
     }
@@ -974,6 +992,14 @@ private actor NativeVoiceCaptureController {
             options: [.defaultToSpeaker, .allowBluetoothHFP]
         )
         try session.setActive(true)
+        // #302-A: always-on capture-chain instrument. The App Lock question
+        // ("is the mic live behind the cover?") is answered by intersecting
+        // these timestamped transitions with AppLock's own `.notice` lines —
+        // so they must be `.notice` (Console hides `.info`), `privacy:
+        // .public` (or they redact), and NEVER gated behind Verbose Logging.
+        // This line marks the session going active; the chain is not hot
+        // until the HOT line below reports the ENGINE's own state.
+        Self.logger.notice("audio session activated for capture (#302-A)")
 
         // Prefer SpeechTranscriber (the full model); fall back to
         // DictationTranscriber when the model isn't available on-device.
@@ -999,8 +1025,15 @@ private actor NativeVoiceCaptureController {
     }
 
     func stop() {
+        // #302-A: read the engine's own state BEFORE tearing it down, so the
+        // COLD line can say whether this stop ended a hot chain (was=true)
+        // or was a defensive no-op (was=false — negative evidence that the
+        // chain never went hot, e.g. a start that died in permission checks).
+        let wasRunning = audioEngine.isRunning
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        let stillRunning = audioEngine.isRunning
+        Self.logger.notice("capture chain COLD — AVAudioEngine.isRunning was=\(wasRunning, privacy: .public) now=\(stillRunning, privacy: .public) inputTap=removed (#302-A)")
         inputContinuation?.finish()
         inputContinuation = nil
 
@@ -1127,6 +1160,13 @@ private actor NativeVoiceCaptureController {
 
         audioEngine.prepare()
         try audioEngine.start()
+        // #302-A: the honest instrument reads the ENGINE's own state, not a
+        // wrapper flag — the wrapper is the thing under suspicion. From this
+        // line until the matching COLD line, microphone buffers are flowing
+        // into the tap. A device pass intersects [HOT..COLD] with AppLock's
+        // locked interval to answer #302 (a)-vs-(b) by measurement.
+        let engineRunning = audioEngine.isRunning
+        Self.logger.notice("capture chain HOT — AVAudioEngine.isRunning=\(engineRunning, privacy: .public) inputTap=installed (#302-A)")
 
         let startedAnalyzer = analyzer
         analyzerTask = Task { [weak self] in
