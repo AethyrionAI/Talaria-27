@@ -11193,6 +11193,41 @@ executed-count check both times it appeared today.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-241-session-model-immunity.md`** — the immunity lane's brief (resolution rule: selection → catalog default → pin-after-first-turn fallback; bars 241-A..F proposed there; 241-E rides the OJAMD sitting). Joins Wave 1.
 
+> **🎯 BARS — WRITTEN FIRST, 2026-08-10, before any code (standing convention:
+> bars live in the entry, pre-registered, and a missed bar is a falsification,
+> not a redefinition). Lane branch `t27-241-session-model-immunity`.**
+>
+> **LANE-START VERIFICATION (the fork the brief demanded, answered before the
+> bars were fixed): the catalog DOES carry a default marker, and it is a REAL
+> provider-model id — so 241-B STANDS AS WRITTEN (catalog-default design,
+> path 2). It was NOT rewritten to pin-after-first-turn.** Evidence, two
+> independent sources:
+> - `Talaria/Services/Live/GatewayModelCatalog.swift:13-17` — `GatewayModelCatalog`
+>   decodes top-level `provider: String?` and `model: String?`, documented in
+>   place as *"the host's CURRENT default pair"*. The picker already renders it
+>   as the HOST DEFAULT row (`ModelsSettingsScreen.swift:114-115`).
+> - The live OJAMD `/api/model/options` capture
+>   (`handoffs/241-retest-2026-08-03/model-options-241.json`, v0.20.0) carries
+>   `provider: "kimi-coding"`, `model: "kimi-k3"` — a real provider and a real
+>   model id, **not** the alias. Corroborated independently by
+>   `handoffs/ojamd-findings-2026-08-03.md` §4.
+>
+> - **241-A (RED→GREEN, unit):** with a `ModelSelection` set, the
+>   `POST /api/sessions` body carries that model — and never `hermes-agent`.
+>   RED first (today's body is `EmptyBody()`, i.e. `{}`).
+> - **241-B (unit):** selection nil + catalog default available → the create
+>   body carries the catalog's real id (`kimi-k3` on the pinned fixture).
+> - **241-C (unit):** selection nil + catalog unavailable (throwing fetch) →
+>   create succeeds BARE, no thrown error, no blocked session, fallback logged.
+> - **241-D (guard, unit):** the literal `"hermes-agent"` never appears in any
+>   create or pin body the client builds — asserted as a test over every
+>   resolution source, not a review comment.
+> - **241-E (live, OWED — rides the queued OJAMD sitting,
+>   `handoffs/HANDOFF-2026-08-09-OJAMD-SESSION.md` §10):** one session created
+>   from the phone stores a real model id on the production host. **UNCLAIMED
+>   by this lane; not a merge blocker.**
+> - **241-F:** `GATE: PASS`, test counts MOVED.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **OPEN THE CLIENT-SIDE IMMUNITY LANE.** Talaria sends an explicit `model`
 > on `POST /api/sessions` so no session inherits the gateway's self-name.
@@ -11309,10 +11344,15 @@ executed-count check both times it appeared today.
 > 1. `_resolve_model_name` (`:1644`) resolves explicit override → active
 >    profile name → `"hermes-agent"`, cached as `self._model_name`.
 > 2. Session creation persists it whenever the client sends no model:
->    `model = body.get("model") or self._model_name` (`:3397`). **Talaria's
+>    `model = body.get("model") or self._model_name` (`:3397`). ~~**Talaria's
 >    `createBareSession` posts an empty body, so every session we create
->    stores that literal string** — this is the "walks into it by default"
->    finding, now with the mechanism visible.
+>    stores that literal string**~~ — this is the "walks into it by default"
+>    finding, now with the mechanism visible. **⚠️ CORRECTED 2026-08-10 by the
+>    immunity lane: `createBareSession` no longer posts an empty body.** It
+>    now resolves an explicit `model` and sends it, so NEW Talaria sessions do
+>    not walk into this. The upstream line at `:3397` is unchanged, and
+>    sessions created before that build still store the alias — see the
+>    RESULT block at the top of this entry.
 > 3. The routing gate: `if not route and model and model != self._model_name`
 >    (`:2345`). Match ⇒ `route_source: "global"`, correct. **Mismatch ⇒
 >    `route_source: "raw_request"` for a model literally named

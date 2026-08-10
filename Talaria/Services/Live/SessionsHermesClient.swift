@@ -346,6 +346,11 @@ final class SessionsHermesClient: HermesClientProtocol {
             body: ChatTurnBody.make(message: message, attachments: attachments, selection: modelSelection),
             profileID: profileID
         )
+        // #241 path 3: a bare-created session learns its real model from the
+        // turn that just ran.
+        if let runtime = response.runtime {
+            await pinSessionModelIfNeeded(sessionID: sessionId, runtime: runtime, profileID: profileID)
+        }
         return response.message?.content ?? response.content ?? ""
     }
 
@@ -516,6 +521,9 @@ final class SessionsHermesClient: HermesClientProtocol {
             // signal, so it's harvested from every tool payload and, at
             // finish, from the assistant's own prose.
             var announcedAgentPaths: [String] = []
+            // #241 path 3: the `runtime` block from `run.completed`, held for
+            // the post-loop pin (`dispatchEvent` is synchronous).
+            var servingRuntime: TurnRuntime?
 
             func dispatchEvent() {
                 defer {
@@ -599,6 +607,10 @@ final class SessionsHermesClient: HermesClientProtocol {
                     // header attribution. Tolerant — absent block yields nothing.
                     if let runtime = Self.decodeTurnRuntime(currentData) {
                         continuation.yield(.modelResolved(runtime))
+                        // #241 path 3: remember what actually served this turn.
+                        // `dispatchEvent` is NOT async, so the pin itself is
+                        // issued after the stream loop drains.
+                        servingRuntime = runtime
                     }
                     let usage = Self.decodeRunUsage(currentData)
                     // #25: persist the run's usage keyed by this hop's server
@@ -683,6 +695,18 @@ final class SessionsHermesClient: HermesClientProtocol {
 
             // Flush any pending event the server didn't terminate with a blank line.
             if !currentData.isEmpty { dispatchEvent() }
+
+            // #241 path 3: the turn is over and the answer already yielded, so
+            // a bare-created session can now be pinned to the model that
+            // actually served it. Deliberately AFTER delivery — a pin is
+            // bookkeeping and must never sit in front of the user's answer.
+            if let servingRuntime {
+                await pinSessionModelIfNeeded(
+                    sessionID: hop.sessionId,
+                    runtime: servingRuntime,
+                    profileID: hop.profileID
+                )
+            }
 
             if !finalMessageDelivered,
                Self.cleanCloseArmsRecovery(
@@ -1172,16 +1196,172 @@ final class SessionsHermesClient: HermesClientProtocol {
         return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage), profileID: targetProfileID)
     }
 
+    // MARK: - #241 — session-model immunity
+
+    /// The gateway's own advertised identity on `/v1/models`. It is a ROUTING
+    /// SENTINEL meaning *"use the gateway default"*, **not** a model any
+    /// provider serves — so it must never leave this client as a model id.
+    ///
+    /// Upstream persists `model = body.get("model") or self._model_name`
+    /// (`api_server.py:3397`), which is why a bare create stores this string
+    /// on every session we make. The routing gate then compares the stored
+    /// value against the live sentinel (`:2345`): while they match the session
+    /// routes to the host default and all is well, but any divergence — the
+    /// "API server model name" field, a profile rename, a different host —
+    /// turns the stored alias into a request for a nonexistent model, a
+    /// non-retryable 404 that reaches the client as HTTP 200.
+    nonisolated static let gatewaySelfAlias = "hermes-agent"
+
+    /// The one choke point every model id passes through before it can reach a
+    /// create or pin body (#241 bar 241-D). Returns a trimmed, non-empty id,
+    /// or nil when there is nothing safe to send — and nil always degrades to
+    /// today's bare body rather than blocking anything.
+    ///
+    /// The alias match is EXACT (case-insensitively), not a substring test: a
+    /// real model genuinely named `vendor/hermes-agent-v2` must still be
+    /// sendable. It is the sentinel itself that is unroutable, not the letters.
+    nonisolated static func wireSafeModelID(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty,
+              trimmed.caseInsensitiveCompare(gatewaySelfAlias) != .orderedSame
+        else { return nil }
+        return trimmed
+    }
+
+    /// The create body. A nil `model` encodes to `{}` — the synthesized
+    /// `Encodable` omits nil optionals — so the degraded path stays
+    /// byte-identical to the pre-#241 `EmptyBody()` shape.
+    ///
+    /// **Deliberately carries NO `require_model_lock`.** The lock trio is the
+    /// PER-TURN contract (`ChatTurnBody`); sending it here would make the
+    /// session's stored `browser_model_lock` *confirmed*, which changes turn
+    /// routing to `route_source: "session_model_lock"`. A bare `model` lands at
+    /// `api_server.py:3397` and fixes the stored id while leaving that lock
+    /// record unconfirmed — and
+    /// `_runtime_request_from_persisted_session_lock` returns nil outright for
+    /// an unconfirmed lock, so turn semantics are provably untouched.
+    private struct CreateSessionBody: Encodable {
+        let model: String?
+    }
+
+    /// #241: the host's default model id, resolved once per gateway per
+    /// process. A present key with a nil VALUE means "probed, nothing usable
+    /// came back" — cached so an unreachable or pre-0.20.0 host costs one
+    /// probe rather than one per session created.
+    ///
+    /// Keyed by resolved base URL, not by profile id: the active profile
+    /// collapses to a nil `profileID`, so a profile switch would otherwise
+    /// read the previous host's default out of the cache.
+    private var hostDefaultModelByBaseURL: [String: String?] = [:]
+
+    /// #241 resolution order at session creation:
+    /// 1. the profile's own `ModelSelection` — the user's explicit pick;
+    /// 2. the host's real default from `/api/model/options` (the catalog's
+    ///    top-level pair, e.g. `kimi-coding` / `kimi-k3`);
+    /// 3. nil — create bare, exactly as before.
+    ///
+    /// **Never throws.** Every failure degrades to nil, because a session that
+    /// cannot be created is strictly worse than a session that stores the
+    /// alias. `/v1/models` is deliberately NOT consulted: it advertises only
+    /// the alias, which is the very string this lane exists to keep off the
+    /// wire.
+    private func resolveCreateModel(profileID: UUID?) async -> String? {
+        if let picked = Self.wireSafeModelID(modelSelection?.modelID) { return picked }
+
+        let cacheKey = (try? resolveTurnEndpoint(profileID: profileID))?.baseURL ?? ""
+        if let cached = hostDefaultModelByBaseURL[cacheKey] { return cached }
+
+        var resolved: String?
+        do {
+            let catalog: GatewayModelCatalog = try await getJSON(
+                path: Self.modelOptionsPath,
+                profileID: profileID
+            )
+            resolved = Self.wireSafeModelID(catalog.model)
+            if resolved == nil {
+                Self.logger.notice("#241: host catalog names no usable default model — creating the session bare")
+            }
+        } catch {
+            Self.logger.notice("#241: host catalog unavailable (\(error.localizedDescription, privacy: .public)) — creating the session bare")
+        }
+        hostDefaultModelByBaseURL[cacheKey] = resolved
+        return resolved
+    }
+
     /// POST /api/sessions — a fresh, unprimed server session on the given
     /// profile's gateway. Hop registration and transplanting are the
     /// caller's business.
+    ///
+    /// #241: no longer bare by default. It sends an explicit `model` so the
+    /// gateway cannot fall through to `self._model_name` and persist its own
+    /// routing sentinel as this session's model.
     private func createBareSession(profileID: UUID? = nil) async throws -> String {
+        let model = await resolveCreateModel(profileID: profileID)
         let response: CreateSessionResponse = try await postJSON(
             path: Self.sessionsPath,
-            body: EmptyBody(),
+            body: CreateSessionBody(model: model),
             profileID: profileID
         )
+        if model == nil {
+            // Path 3: nothing resolved, so this session DID inherit the alias.
+            // The first turn's `runtime` block names the model that actually
+            // served it — pin that and the stored alias is replaced.
+            sessionsAwaitingModelPin.insert(response.session.id)
+        }
         return response.session.id
+    }
+
+    // MARK: - #241 path 3 — pin after the first turn
+
+    /// Sessions created BARE because neither a pick nor a host default
+    /// resolved: they carry the gateway's alias right now. In-memory and
+    /// one-shot by design — a failed pin is not retried in a loop, and the
+    /// set dies with the process.
+    private var sessionsAwaitingModelPin: Set<String> = []
+
+    /// `POST /api/sessions/{id}/model`. The route forces
+    /// `require_model_lock = true` server-side, and
+    /// `update_session_runtime_lock` writes `model = COALESCE(?, model)` —
+    /// which is what actually replaces the stored alias. (It also nulls the
+    /// session's `system_prompt`; a no-op here, since we never set one.)
+    private struct SessionModelPinBody: Encodable {
+        let provider: String?
+        let model: String?
+    }
+
+    private struct SessionModelPinResponse: Decodable {}
+
+    /// #241 path 3. Called from every turn driver's `run.completed`/response
+    /// handling; a no-op unless this session was created bare AND the turn
+    /// reported a real serving model.
+    ///
+    /// **The trade, which is the point:** a pinned session stops following
+    /// later host-default changes. That is what immunity means here — the
+    /// follows-the-default behaviour IS the fragile aliasing.
+    func pinSessionModelIfNeeded(sessionID: String, runtime: TurnRuntime, profileID: UUID?) async {
+        guard sessionsAwaitingModelPin.contains(sessionID),
+              let model = Self.wireSafeModelID(runtime.model)
+        else { return }
+        // Remove BEFORE the attempt: one shot per session, never a per-turn
+        // retry storm against a host that refuses the pin.
+        sessionsAwaitingModelPin.remove(sessionID)
+
+        let provider = runtime.provider?.trimmingCharacters(in: .whitespacesAndNewlines)
+        do {
+            let _: SessionModelPinResponse = try await postJSON(
+                path: "\(Self.sessionsPath)/\(sessionID)/model",
+                body: SessionModelPinBody(
+                    provider: (provider?.isEmpty == false) ? provider : nil,
+                    model: model
+                ),
+                profileID: profileID
+            )
+            Self.logger.notice("#241: pinned bare session to \(model, privacy: .public) from the first turn's runtime block")
+        } catch {
+            // Non-fatal by construction: the turn already succeeded, and the
+            // session simply keeps whatever the host stored at creation.
+            Self.logger.notice("#241: session model pin failed (\(error.localizedDescription, privacy: .public)) — session keeps the host's stored default")
+        }
     }
 
     /// Lane M: stamps a session's immutable birth profile into the index.
@@ -1749,7 +1929,8 @@ final class SessionsHermesClient: HermesClientProtocol {
 
     // MARK: - Wire types
 
-    private struct EmptyBody: Encodable {}
+    // (#241) `EmptyBody` retired with the bare create — `CreateSessionBody`
+    // with a nil `model` encodes to the same `{}` and is the only create body.
 
     /// Extracts token usage from a `run.completed` SSE payload. Hermes emits
     /// Anthropic-style keys (input/output/total); map onto TokenUsage's
@@ -2036,6 +2217,9 @@ final class SessionsHermesClient: HermesClientProtocol {
     private struct SyncChatResponse: Decodable {
         let message: AssistantMessage?
         let content: String?
+        /// #223 Lane 5 / #241: which provider+model actually served the turn.
+        /// Tolerant — an older gateway simply omits it.
+        let runtime: TurnRuntime?
         struct AssistantMessage: Decodable {
             let content: String
         }

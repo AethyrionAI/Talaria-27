@@ -6,13 +6,24 @@ OPUS** — a request-body change plus a resolution rule, with the evidence
 already gathered. Ruled OPEN at the 2026-08-09 decision pass: *"the highest-
 value unrouted work on the board."* Written 2026-08-10.
 
+> **✅ EXECUTED 2026-08-10 on branch `t27-241-session-model-immunity`.** The
+> lane-start fork in §2 resolved to **path 2 (catalog default) — bar 241-B
+> stands as written, NOT rewritten.** `GatewayModelCatalog` does carry the
+> default marker (`provider`/`model` at the top level) and the live OJAMD
+> payload's value is a real id (`kimi-coding` / `kimi-k3`), not the alias.
+> §1's first bullet below is now HISTORICAL — see its strike. Bars, evidence
+> and the close-out live in `OPEN_ITEMS.md` #241.
+
 ## 1. Verified state
 
-- **The vulnerable call, at HEAD:** `SessionsHermesClient.createBareSession`
+- ~~**The vulnerable call, at HEAD:** `SessionsHermesClient.createBareSession`
   (`SessionsHermesClient.swift:1178-1185`) posts **`EmptyBody()`** to
-  `POST /api/sessions`. Upstream persists
-  `model = body.get("model") or self._model_name` — so every session we
-  create stores the literal alias `"hermes-agent"`.
+  `POST /api/sessions`.~~ **FIXED 2026-08-10 — this is the state the lane
+  found, not the state it left.** `createBareSession` now resolves and sends
+  an explicit `model`; `EmptyBody` is deleted from the file. Upstream still
+  persists `model = body.get("model") or self._model_name` — that half is
+  unchanged and is why the ops rule holds — but Talaria no longer takes the
+  fall-through.
 - **Live blast radius (dossier, verified on OJAMD 2026-08-09):** every
   `source: api_server` session on the production host carries
   `"model": "hermes-agent"`, while `cron` carries `kimi-k3` and `desktop`
