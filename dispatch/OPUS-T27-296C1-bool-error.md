@@ -33,9 +33,29 @@ the work. Written 2026-08-10.
 Parse the union: `error` may be **Bool or String**. Bool `true` → a failure
 with a generic detail ("the host reported an error" — no fabricated text);
 String → carry it verbatim (the existing path); absent/`false`/unknown type →
-no failure (today's behaviour). Apply at BOTH sites (`:190`, `:288`), then
+no failure (today's behaviour). Apply at BOTH sites (`:190`, `:288`), ~~then
 re-land the ChatStore write that 296-C1 reverted (see #296's entry, "the
-`ChatStore` write reverted" block) so the failure reaches the chip.
+`ChatStore` write reverted" block) so the failure reaches the chip.~~
+
+> **🔴 CORRECTION 2026-08-10, from the executing lane — the struck clause is
+> FALSE, and there is nothing to re-land.** This brief misread #296's entry.
+> The block it cites, *"296-C1, the `ChatStore` write reverted"*, sits under
+> that entry's **"The RED steps, and what each failed ON"** heading: it records
+> a write reverted *temporarily, to witness a RED*, and restored inside the same
+> commit. It is not a record of a standing revert.
+>
+> **Verified at HEAD (`d004c82`):** the write is live at
+> `Talaria/Stores/ChatStore.swift:749-751` —
+> `if let failure = event.detail, !failure.isEmpty { conv.messages[idx]
+> .toolActivities[last].failure = failure }` — and
+> `git show 31563f6 -- Talaria/Stores/ChatStore.swift` shows the #296 fix commit
+> ADDING it, never removing it.
+>
+> **So the chain's only broken link is the two `as? String` reads.** Once the
+> union parse lands at `:190`, the existing transport mapping and the existing
+> ChatStore write carry the failure to the chip untouched. A lane that
+> "re-lands" the write would be re-adding code that is already there — and
+> would likely duplicate it.
 
 ## 3. Bars — copy into #296's entry before the run
 
