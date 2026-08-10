@@ -140,7 +140,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#124** ✨ Face ID app lock (free tier)
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
-- **#132** 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config …
 - **#137** 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE …
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
 - **#140** 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
@@ -2601,83 +2600,6 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ---
 
-## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
-
-> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
-
-> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
-> **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
-> A caption-less image turn gets an instruction line instead of a lone
-> `image_url` (small, independent — closes this entry's own second finding,
-> and it is WHY the host mints `[attachment]` itself). The auxiliary vision
-> path — device-proven on the 3-photo Z2 turn — is the configuration of
-> record, not a fallback awaiting a vision-capable main model. **#132 CLOSES
-> when the floor lands.**
-
-**2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
-app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
-`[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
-#177). Two different strings for one absent-text condition, both generated host-side — which
-suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
-this item's model-vision/config question should also account for where those strings are minted.
-
-> **⚠️ MECHANISM SUPERSEDED 2026-08-09 — the ownership verdict survives, the symptom's
-> cause does not.** `prepare image failed` / `failed to decode image` have **ZERO
-> occurrences** across `gateway/`, `agent/`, `hermes_cli/`, `providers/` at upstream
-> HEAD. The 07-17 probe's 400 came from a code path that no longer exists; at head,
-> `_normalize_multimodal_content` (`api_server.py:550-665`) passes image parts through
-> **verbatim**.
->
-> **The live mechanism is a ROUTING ASYMMETRY, not a drop.** `agent/image_routing.py`
-> (`decide_image_input_mode` → `vision_analyze` → prepend a description) has exactly
-> one caller, `gateway/run.py:16260`, inside the platform-adapter lane. **The Sessions
-> API lane the phone speaks has no equivalent** — a text-only host model gets raw
-> `image_url` parts with no fallback and no error. "Two of everything" in a third place.
->
-> **Ownership re-stated:** upstream owns routing parity · **config owns the immediate
-> cure and it is Owen's** (Mac is `kimi-coding`/`kimi-k3` with
-> `auxiliary.vision.provider: auto` — i.e. neither a vision model nor a configured text
-> fallback) · **we own the honesty floor, regardless of how the other two land.**
->
-> **App-side, re-verified at HEAD:** encoding is correct on both transports, and a
-> **caption-less image turn sends NO text part at all** — `ChatStore.swift:578-580`
-> synthesizes `[N attachment(s)]` for DISPLAY only, `:643` sends the trimmed (empty)
-> content, and `AttachmentInlining.swift:79` prepends a text part only when the message
-> is non-empty. That is why the host has to mint `[attachment]`/`[screenshot]` itself —
-> this entry's own second finding, now explained.
-
-> **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
-> with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
-> image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
-> and the model reports **'No image came through'**. Validated, then dropped before the model.
-> The app's wire encoding was also read end-to-end and is correct (`ChatTurnBody` → parts array
-> with `image_url` data-URLs; attachment-only display text is '[1 attachment]', so the stored
-> '[screenshot]' was likely Owen's typed caption — immaterial now). **Ownership: Hermes-side.**
-> Candidates: active model lacks vision and the gateway strips images post-validation without
-> surfacing it (worst kind of silent), or tonight's hermes update broke prepared-image →
-> model-call attachment. **Next (Owen/host):** check the active model's vision capability in the
-> hermes config; re-probe after pointing a session at a known-vision model. The 07-13 paste→send
-> pass suggests this worked pre-update — if a vision model was active then, tonight's update is
-> the regression window. App-side follow-up only if Hermes turns out to REQUIRE a different wire
-> shape than the OpenAI-style parts the app sends (nothing suggests so — the 400 proves the shape
-> parses).
-
-Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
-→ the model reported receiving only the literal text "[screenshot]" with no image attached. The
-streaming client DOES carry `attachments: [PendingAttachment]` end-to-end (verified in
-`SessionsHermesClient.sendStreaming`/`streamTurn` signatures), so the drop is either in the
-attachment→wire encoding, the gateway's handling of image parts, or an attachment-only-specific
-path (text+image may behave differently — discriminator owed: send image WITH text and ask what
-arrived). "[screenshot]" literal appears nowhere in the app source (grep verified) — determine
-who synthesizes it (app placeholder text vs gateway part-stringification); that answers which
-side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
-text+image also fails, the regression window is this week's merges; if only attachment-only
-fails, it may never have worked.
-
-Logged 2026-07-17.
-
----
-
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE, guarantee still untested (2026-07-25)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -3829,6 +3751,17 @@ fields from the first user message, so the card reads as a duplicate.
 capture the app sends no text part at all on those turns, so "[screenshot]" — like
 "[attachment]" — is materialized host-side. Two different placeholder strings for image content,
 both Hermes-generated. Carry into #132's host-side question.
+
+> **⚠️ UPDATED 2026-08-10 — the premise changed, the symptom may not have.** "The app
+> sends no text part at all on those turns" was true when written and is **no longer**:
+> #132's caption-less image floor shipped (`f63c6ee`), so an image-only turn now carries
+> a leading text part. **#132 is CLOSED and lives in `OPEN_ITEMS-ARCHIVE.md`** — there is
+> no longer a "#132 host-side question" to carry this into; the host-side routing
+> asymmetry is upstream's and the vision config is Owen's. What is UNVERIFIED is whether
+> the floor changes what the host derives for the title/preview: Hermes builds both from
+> the first user message, so these sessions may now title from the floor sentence instead
+> of "[screenshot]" — **not measured, and it would be a different cosmetic wart rather
+> than a fix.** Check on the next device pass before assuming either way.
 **Why it matters:** this is the session list the paid-tier user actually looks at, and it reads
 as broken even though the app is behaving correctly.
 ~~**Owner: Hermes-side, not app-side.**~~
@@ -11104,6 +11037,120 @@ lane opens.
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
+
+> **▶ TRIGGER LANE OPENED 2026-08-10 (`t27-250-debug-island-trigger`).
+> BARS 250T-A..D — written HERE, BEFORE the run**, per the 2026-08-01
+> convention (bars live in the OPEN_ITEMS entry; the dispatch doc proposed
+> them, this entry registers them). A missed bar is a falsification, not a
+> redefinition.
+>
+> - **250T-A (compile-level / Release):** the harness button and its action
+>   exist **only** under `#if DEBUG`, and the **Release build is green with
+>   them compiled out**. The gate's Release leg is the proof — a review read
+>   is not (the #218 corollary: a green Debug suite cannot see a mis-set
+>   gate).
+> - **250T-B (sim, unit):** tapping the trigger starts an activity through
+>   the **REAL `LiveActivityService`** path — asserted via the service's own
+>   state, not a parallel test double or the `LiveActivityPreviews`
+>   scaffolding — and it ends **both ways** (auto-end timeout **and** second
+>   tap), leaving **no zombie activity** behind on either route.
+> - **250T-C (device — §R2's actual run):** with the trigger in a Debug
+>   build on the phone, R2's check runs as written — the island's leading
+>   icon slot matches Settings → Appearance → App Icon, after a switch and
+>   on a cold launch. **OWED, not claimed by this lane, and not a merge
+>   blocker**; the verdict lands in R2's row in
+>   `dispatch/DEVICE-PASS-RUNNING-LIST.md` (one queue), cited from here.
+> - **250T-D:** `GATE: PASS`, unit count MOVED.
+>
+> **The auto-end is load-bearing, not polish** (dispatch §4): Live Activities
+> have a system budget, so a leaked throwaway would make the REAL run
+> activity flaky — a harness fault that would read as a #250 regression.
+
+> **✅ BUILT 2026-08-10 (`t27-250-debug-island-trigger`).**
+>
+> **What shipped:** `Talaria/Services/Live/ThrowawayLiveActivityHarness.swift`
+> (whole file inside `#if DEBUG`) + a panel in `DeveloperSettingsScreen`'s
+> already-`#if DEBUG` batteries section — **"Start throwaway Live Activity
+> (#250 R2)"**, toggling to **"End throwaway"**. The harness drives the
+> **production** `LiveActivityService.startToolCall` / `updateToolProgress` /
+> `endActivity` — no inlined `Activity.request`, no mock attributes type, and
+> nothing from `LiveActivityPreviews`. `HermesActivityAttributes` needed **no
+> change**, so the two-copies lockstep rule never came into play. One
+> production line was widened: `LiveActivityService.hasActiveActivity`, tagged
+> `// harness-visible` per #216 — it exposes the same `currentActivity` handle
+> production already sets and clears, so the bar reads production's own
+> bookkeeping rather than a counter added for the test.
+>
+> **The harness is `static let shared`, not a `@State` on the view, on
+> purpose:** the 60 s auto-end has to outlive the Developer screen. A
+> view-owned harness would drop its timer on dismissal and leak exactly the
+> activity the auto-end exists to prevent.
+>
+> **250T-B MET — 5 new Swift Testing units, and the bar was witnessed RED
+> before it was believed.** Disabling only the auto-end (`self.end(.timeout)`
+> removed, nothing else touched) turned
+> `theAutoEndWindowEndsAThrowawayNobodyTappedAgain` red with 7 issues —
+> including `service.hasActiveActivity → true` **and**
+> `Activity<HermesActivityAttributes>.activities.isEmpty → false`, i.e. the
+> test catches a genuinely leaked system-level activity, which is the budget
+> hazard itself and not a proxy for it. `aTapAfterTheAutoEndIsANoOp…` went red
+> too; the second-tap test correctly stayed green, since that route is
+> independent of the timeout. Restoring the one line returned all 5 to green.
+>
+> **A trap this lane had to disarm, worth keeping:** the start assertion is
+> written `#expect(service.hasActiveActivity == service.isAvailable)` rather
+> than `== true`, so it stays total on a host with Live Activities disabled.
+> That phrasing *could* have been vacuously satisfied by `false == false` —
+> a green result proving nothing. It was checked rather than assumed: a
+> throwaway probe printed **`isAvailable=true hasActive=true sysCount=1`** in
+> the sim test host, and the run log shows real activity UUIDs
+> (`[api] Updating content for activity …`). **The sim host really does vend
+> Live Activities, so the equality is asserting `true == true`.**
+>
+> **250T-C: OWED on device, and NOT claimed by this lane.** The sim bars prove
+> the trigger drives the real service and leaks nothing; **they verify no
+> icon.** What the island actually renders is
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §R2's to answer — that row was
+> updated in this same commit from "standing watch, do not schedule" to a
+> runnable, queued check, per the close-out rule.
+>
+> **✅ 250T-A AND 250T-D MET — `GATE: PASS` (2026-08-10, on `41a772e`).**
+> `GATE: PASS — logs in /var/folders/.../talaria-gate.fWsEcp5SYA`.
+> **Swift Testing 2010 · XCUITest 14 · Release build succeeded, no Swift
+> compile errors in Release.** The Release leg is what settles **250T-A** —
+> the button and the harness compile out cleanly, which a green Debug suite
+> could not have shown (#218 corollary).
+>
+> **Count MOVED, so the stale-`.xctest` trap is cleared:** the last gate on
+> `main` (`163dbf5`, #255) reported **2005** units; this run reports **2010**
+> — **exactly the 5 tests this lane added**. XCUITest stayed 14, as expected
+> for a lane that added no UI tests.
+>
+> *(An earlier note here said both bars were unrun. It was true when written —
+> the box hit fork exhaustion mid-lane and the gate could not start — and is
+> now superseded by this run.)*
+>
+> **⚠️ TWO OPERATIONAL FINDINGS FROM THIS RUN, neither caused by this lane:**
+> 1. **A fresh simulator hangs the suite, silently and indefinitely.** The
+>    first gate attempt sat **20 minutes** on
+>    `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime`
+>    with no output and no failure. Cause: that file's own header requires TCC
+>    to be pre-granted (`simctl privacy grant calendar/reminders
+>    org.aethyrion.talaria27`), and on a newly-created sim
+>    `requestFullAccessToEvents()` raises a prompt nobody can answer. It does
+>    **not** fail its `#require` "visibly" as the header claims — **it hangs**,
+>    which is worse than a failure because it looks like a slow suite. Any lane
+>    that creates a sim must pre-grant both before running the gate.
+> 2. **The gate under-reports skips (#183's own guarantee, half-kept).** This
+>    run printed `4 test(s) SKIPPED` but enumerated only **2**. The count regex
+>    is `➜ Test .* skipped`; the display regex requires a **quoted** name
+>    (`➜ Test "[^"]+" skipped`), so bare function-style names never print. The
+>    two invisible ones are
+>    `aFailedRowNoLongerEatsALaterIdenticalPromptsClaim()` and
+>    `theSurvivingFailedRowIsAppendedAtTheTail()` (`AppStoresTests.swift`,
+>    skipped pending #282/#299) — **pre-existing on `main` since `31563f6`,
+>    nothing to do with this lane.** #183 exists precisely so a skip cannot
+>    hide; half of them still can.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside

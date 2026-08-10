@@ -3354,6 +3354,169 @@ Logged 2026-07-17.
 
 ---
 
+## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); the app-side honesty floor SHIPPED 2026-08-10 ✅ CLOSED
+
+> **✅ CLOSED 2026-08-10 — the caption-less image floor landed; 132-A..F all MET.**
+> Per Owen's 2026-08-09 ruling ("ship the floor now; `auxiliary.vision` is the keeper;
+> #132 CLOSES when the floor lands"). Branch `t27-132-image-floor`, commits `8d67a59`
+> (bars, written first) → `f63c6ee` (the floor) → `f7aed66` (test hygiene).
+>
+> **What shipped.** A turn with images and no text of the user's own now carries one
+> neutral sentence instead of a lone `image_url` with no instruction:
+> `[Talaria: the user attached 1 image with no caption — examine it and respond to what
+> it shows.]` (plural: `N images` / `examine them` / `what they show`). **Owen approved
+> the wording as drafted, 2026-08-10.**
+>
+> **Where, and why there.** In `AttachmentInlining.assemble` — the single place BOTH
+> host planes build their parts (`ChatTurnBody`/sessions and `RunsTurnBody`/runs), so
+> one implementation covers both, and it sits inside the existing budget loop so the
+> floor's bytes are CHARGED against the 900 KB aggregate rather than riding on top of
+> it (132-B; #290's uncounted-history lesson).
+>
+> **Wire-only by construction:** `assemble` is called only from the two transport
+> encoders, never from `ChatStore`, so the floor cannot enter the stored `Message`,
+> render in the transcript, survive an edit, or ride a retry into doubled instructions.
+> `MessageBubble.swift:773` untouched. Any non-empty user text suppresses it entirely.
+>
+> **Bars:** 132-A/B (both planes + budget arithmetic, with a captioned control proving
+> the omission came from the floor's bytes) · 132-C (captioned turn unchanged) · 132-D
+> (count correct; a text-file-only turn gets no image floor) · 132-E (wire-vs-store) ·
+> **132-F `GATE: PASS`, Swift Testing 2015 (baseline 2005 + 10 new), XCUITest 14,
+> Release clean.** RED witnessed by revert: 7 of the 10 flip red without the floor; the
+> 3 that hold are the guards that should be insensitive to it.
+>
+> **VOICE PATH — verified UNREACHABLE in substance and deliberately untouched**
+> (the dispatch's lane-start check). `NativeVoicePipelineService.sendImage` returns
+> `false` outright; `LiveVoiceSessionService.swift:404` is reached only from
+> `VoiceOverlayScreen.swift:141` with `triggerResponse: false` — *"Send frames silently
+> — model responds when user speaks."* The realtime item is structurally text-less, but
+> the caption there is the live speech, arriving on the audio channel as its own
+> transcribed conversation item. The floor's premise (the model has no statement of
+> intent) does not hold, so injecting it would be a fabrication and would push a text
+> item into a live realtime conversation.
+>
+> **What this does NOT close:** the host-side routing asymmetry (upstream's) and the
+> host's own `[attachment]`/`[screenshot]` minting both still exist — the floor makes
+> the request honest regardless. **#173** (silent degradation on attachments the host
+> cannot see) is the adjacent live item and was deliberately NOT merged into this scope:
+> the floor states what was SENT; #173 is about what the host failed to READ.
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
+
+> **🎯 BARS — WRITTEN FIRST, before any code (2026-08-10, lane `t27-132-image-floor`).**
+> Pre-registered here per the #215-era convention (bars live in the OPEN_ITEMS entry,
+> not the dispatch doc). A missed bar is a falsification, not a redefinition.
+>
+> - **132-A (RED→GREEN, unit, sessions plane):** a caption-less single-image turn's
+>   encoded `ChatTurnBody` carries a `{type:"text"}` part with the floor sentence
+>   AND the `image_url` part. RED first — today the encoded input is the image part
+>   alone.
+> - **132-B (unit, runs plane):** the same assertion on `RunsTurnBody.make`'s encoded
+>   body, AND the floor's bytes COUNT inside the existing attachment/body budget
+>   arithmetic rather than riding on top of it (#290's uncounted-history lesson).
+> - **132-C (unit):** a CAPTIONED image turn encodes byte-identically to today —
+>   any non-empty user text suppresses the floor entirely, on both planes.
+> - **132-D (unit):** the multi-image count is right (N=3 → "3 images"), and a
+>   text-file-only attachment turn (no images) gets NO image floor.
+> - **132-E (wire-vs-store):** the local transcript is unchanged — the floor never
+>   enters the stored `Message`, so the bubble cannot render it. Asserted at the
+>   ChatStore seam: the stored user row keeps its `[N attachment(s)]` display text
+>   and the floor sentence appears in no stored field, while the wire body does
+>   carry it.
+> - **132-F:** `GATE: PASS` with test counts MOVED. **Then #132 CLOSES** per Owen's
+>   2026-08-09 ruling — close-out sweeps this entry's stale "host config question"
+>   framing (superseded by the `auxiliary.vision` keeper ruling) and the entry moves
+>   VERBATIM to `OPEN_ITEMS-ARCHIVE.md` per #261.
+>
+> **Scope fence:** #173 (silent degradation on attachments the host cannot see) is
+> adjacent and NOT this lane — the floor states what was SENT; #173 is about what the
+> host failed to READ. Cross-referenced, not merged. Host-side placeholder minting
+> (`[attachment]`/`[screenshot]`) is likewise out of scope — the floor makes it moot
+> for our turns without removing it.
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
+> A caption-less image turn gets an instruction line instead of a lone
+> `image_url` (small, independent — closes this entry's own second finding,
+> and it is WHY the host mints `[attachment]` itself). The auxiliary vision
+> path — device-proven on the 3-photo Z2 turn — is the configuration of
+> record, not a fallback awaiting a vision-capable main model. **#132 CLOSES
+> when the floor lands.**
+
+**2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
+app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
+`[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
+#177). Two different strings for one absent-text condition, both generated host-side — which
+suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
+this item's model-vision/config question should also account for where those strings are minted.
+
+> **⚠️ MECHANISM SUPERSEDED 2026-08-09 — the ownership verdict survives, the symptom's
+> cause does not.** `prepare image failed` / `failed to decode image` have **ZERO
+> occurrences** across `gateway/`, `agent/`, `hermes_cli/`, `providers/` at upstream
+> HEAD. The 07-17 probe's 400 came from a code path that no longer exists; at head,
+> `_normalize_multimodal_content` (`api_server.py:550-665`) passes image parts through
+> **verbatim**.
+>
+> **The live mechanism is a ROUTING ASYMMETRY, not a drop.** `agent/image_routing.py`
+> (`decide_image_input_mode` → `vision_analyze` → prepend a description) has exactly
+> one caller, `gateway/run.py:16260`, inside the platform-adapter lane. **The Sessions
+> API lane the phone speaks has no equivalent** — a text-only host model gets raw
+> `image_url` parts with no fallback and no error. "Two of everything" in a third place.
+>
+> **Ownership re-stated:** upstream owns routing parity · **config owns the immediate
+> cure and it is Owen's** (Mac is `kimi-coding`/`kimi-k3` with
+> `auxiliary.vision.provider: auto` — i.e. neither a vision model nor a configured text
+> fallback) · **we own the honesty floor, regardless of how the other two land.**
+>
+> **App-side, re-verified at HEAD:** encoding is correct on both transports, and a
+> ~~**caption-less image turn sends NO text part at all**~~ — `ChatStore.swift:578-580`
+> synthesizes `[N attachment(s)]` for DISPLAY only, `:643` sends the trimmed (empty)
+> content, and ~~`AttachmentInlining.swift:79` prepends a text part only when the message
+> is non-empty~~. That is why the host has to mint `[attachment]`/`[screenshot]` itself —
+> this entry's own second finding, now explained.
+>
+> > **✅ THE STRUCK TEXT ABOVE IS FALSIFIED AS OF 2026-08-10 — by this entry's own
+> > fix.** The floor landed (`f63c6ee`, branch `t27-132-image-floor`): a caption-less
+> > image turn now DOES send a text part. `AttachmentInlining.assemble` prepends the
+> > #132 floor when the message is blank and images are attached, so the "no text part
+> > at all" finding describes the pre-fix app only. `ChatStore`'s half is unchanged and
+> > still accurate — the display placeholder is still display-only, and the wire still
+> > gets the trimmed empty string; the floor is injected BELOW that, at encode time.
+> > The host's own minting is untouched and still exists — the floor makes it moot for
+> > our turns rather than removing it.
+
+> **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
+> with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
+> image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
+> and the model reports **'No image came through'**. Validated, then dropped before the model.
+> The app's wire encoding was also read end-to-end and is correct (`ChatTurnBody` → parts array
+> with `image_url` data-URLs; attachment-only display text is '[1 attachment]', so the stored
+> '[screenshot]' was likely Owen's typed caption — immaterial now). **Ownership: Hermes-side.**
+> Candidates: active model lacks vision and the gateway strips images post-validation without
+> surfacing it (worst kind of silent), or tonight's hermes update broke prepared-image →
+> model-call attachment. **Next (Owen/host):** check the active model's vision capability in the
+> hermes config; re-probe after pointing a session at a known-vision model. The 07-13 paste→send
+> pass suggests this worked pre-update — if a vision model was active then, tonight's update is
+> the regression window. App-side follow-up only if Hermes turns out to REQUIRE a different wire
+> shape than the OpenAI-style parts the app sends (nothing suggests so — the 400 proves the shape
+> parses).
+
+Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
+→ the model reported receiving only the literal text "[screenshot]" with no image attached. The
+streaming client DOES carry `attachments: [PendingAttachment]` end-to-end (verified in
+`SessionsHermesClient.sendStreaming`/`streamTurn` signatures), so the drop is either in the
+attachment→wire encoding, the gateway's handling of image parts, or an attachment-only-specific
+path (text+image may behave differently — discriminator owed: send image WITH text and ask what
+arrived). "[screenshot]" literal appears nowhere in the app source (grep verified) — determine
+who synthesizes it (app placeholder text vs gateway part-stringification); that answers which
+side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
+text+image also fails, the regression window is this week's merges; if only attachment-only
+fails, it may never have worked.
+
+Logged 2026-07-17.
+
+---
+
 ## 133. ✅ Dormant-relay push registration idempotency — ROOT CAUSE FOUND AND FIXED 2026-08-02: the installation identity was stored inside profile-scoped session state that unpair deletes. DEVICE PASS ✅ 2026-08-03.
 
 > **CLOSED — device pass verified 2026-08-03 (running list §F1, four-measurement protocol).**
