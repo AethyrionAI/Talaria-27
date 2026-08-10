@@ -1,5 +1,34 @@
 # OPUS T27 #250 — Icon identity: teal Talaria as default, island wears the selected icon
 
+> **⚠️ PARTIALLY SUPERSEDED 2026-08-10 — §5, §6 task 1, §6 task 6, §7 bullet 2
+> and §9 items 2/4 are DISCHARGED.** The Debug harness trigger this document
+> proposes-and-leaves-to-Owen was **ruled BUILD by Owen on 2026-08-09** and
+> **built on 2026-08-10** by lane `t27-250-debug-island-trigger`
+> (`dispatch/OPUS-T27-250-debug-island-trigger.md` is the live brief; bars
+> 250T-A..D live in OPEN_ITEMS #250).
+>
+> - **§5 "Why 250-E has been unrunnable so far" is now history, not state.**
+>   `ThrowawayLiveActivityHarness` + the Developer-screen button make the
+>   island triggerable on demand. §5's diagnosis was correct — it was an app
+>   testability gap, not a platform limit — and that is exactly what got fixed.
+> - **§6 task 1 is DONE**, with one deliberate departure: it suggested
+>   *"placeholder attributes/state."* The trigger instead starts the **REAL**
+>   `HermesActivityAttributes` through the production `LiveActivityService`,
+>   with synthetic *labels*. A placeholder attributes type would have rendered
+>   something other than what a real run renders, and 250-E's whole question is
+>   what the real activity puts in the island's icon slot.
+> - **§6 task 6 / §9 item 4 ("queue 250-E once a trigger exists") is DONE** —
+>   and the grep result quoted there is stale: the row was added 2026-08-09 as
+>   **§R2** of `dispatch/DEVICE-PASS-RUNNING-LIST.md`, and was updated by this
+>   lane from "standing watch, do not schedule" to a runnable, queued check.
+> - **§7 bullet 2 / §9 item 2 ("is a harness trigger worth building at all —
+>   Owen's call") is ANSWERED: yes, build it.** Do not re-raise it.
+>
+> **Still open and unchanged:** 250-E/250T-C itself — nobody has yet watched
+> the island on a device. The trigger makes the check runnable; it does not
+> perform it. §4's 250-F (assert the RIGHT icon is republished) and §7's
+> tinted-glow look are also still open, untouched by this lane.
+
 **Item:** #250 (`OPEN_ITEMS.md:8790`). **Goal of THIS dispatch, as assigned:**
 verify the feasibility claim, assess the two halves, propose bars, and plan
 remaining work — a normal "not yet scheduled" dispatch. **What the read at

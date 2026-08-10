@@ -10852,6 +10852,70 @@ lane opens.
 > have a system budget, so a leaked throwaway would make the REAL run
 > activity flaky — a harness fault that would read as a #250 regression.
 
+> **✅ BUILT 2026-08-10 (`t27-250-debug-island-trigger`).**
+>
+> **What shipped:** `Talaria/Services/Live/ThrowawayLiveActivityHarness.swift`
+> (whole file inside `#if DEBUG`) + a panel in `DeveloperSettingsScreen`'s
+> already-`#if DEBUG` batteries section — **"Start throwaway Live Activity
+> (#250 R2)"**, toggling to **"End throwaway"**. The harness drives the
+> **production** `LiveActivityService.startToolCall` / `updateToolProgress` /
+> `endActivity` — no inlined `Activity.request`, no mock attributes type, and
+> nothing from `LiveActivityPreviews`. `HermesActivityAttributes` needed **no
+> change**, so the two-copies lockstep rule never came into play. One
+> production line was widened: `LiveActivityService.hasActiveActivity`, tagged
+> `// harness-visible` per #216 — it exposes the same `currentActivity` handle
+> production already sets and clears, so the bar reads production's own
+> bookkeeping rather than a counter added for the test.
+>
+> **The harness is `static let shared`, not a `@State` on the view, on
+> purpose:** the 60 s auto-end has to outlive the Developer screen. A
+> view-owned harness would drop its timer on dismissal and leak exactly the
+> activity the auto-end exists to prevent.
+>
+> **250T-B MET — 5 new Swift Testing units, and the bar was witnessed RED
+> before it was believed.** Disabling only the auto-end (`self.end(.timeout)`
+> removed, nothing else touched) turned
+> `theAutoEndWindowEndsAThrowawayNobodyTappedAgain` red with 7 issues —
+> including `service.hasActiveActivity → true` **and**
+> `Activity<HermesActivityAttributes>.activities.isEmpty → false`, i.e. the
+> test catches a genuinely leaked system-level activity, which is the budget
+> hazard itself and not a proxy for it. `aTapAfterTheAutoEndIsANoOp…` went red
+> too; the second-tap test correctly stayed green, since that route is
+> independent of the timeout. Restoring the one line returned all 5 to green.
+>
+> **A trap this lane had to disarm, worth keeping:** the start assertion is
+> written `#expect(service.hasActiveActivity == service.isAvailable)` rather
+> than `== true`, so it stays total on a host with Live Activities disabled.
+> That phrasing *could* have been vacuously satisfied by `false == false` —
+> a green result proving nothing. It was checked rather than assumed: a
+> throwaway probe printed **`isAvailable=true hasActive=true sysCount=1`** in
+> the sim test host, and the run log shows real activity UUIDs
+> (`[api] Updating content for activity …`). **The sim host really does vend
+> Live Activities, so the equality is asserting `true == true`.**
+>
+> **250T-C: OWED on device, and NOT claimed by this lane.** The sim bars prove
+> the trigger drives the real service and leaks nothing; **they verify no
+> icon.** What the island actually renders is
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §R2's to answer — that row was
+> updated in this same commit from "standing watch, do not schedule" to a
+> runnable, queued check, per the close-out rule.
+>
+> **🔴 250T-A AND 250T-D ARE UNRUN — NOT MET, NOT FAILED (2026-08-10).** The
+> Mac hit **box-wide fork exhaustion** partway through this lane (~1,500
+> CoreSimulator processes across six parallel lanes; every process-spawning
+> tool — shell, Desktop Commander, the Xcode MCPs — returned a bare exit 1
+> machine-wide). **`scripts/mac/lane-gate.sh` never executed**: there is no
+> `GATE:` line of any kind, and `/tmp/lane-gate-250.log` was never created.
+> **So the Release leg that IS 250T-A's proof has not run.** A plain **Debug**
+> build did go green beforehand (`** BUILD SUCCEEDED **`,
+> `/tmp/t250-debug-build.log`) — and per the #218 corollary that is exactly
+> the evidence which *cannot* see a mis-set `#if DEBUG` gate, so it does not
+> stand in for 250T-A. Placement was verified by reading only
+> (`ThrowawayLiveActivityHarness.swift` is wrapped `#if DEBUG` at file scope;
+> the panel sits inside `DeveloperSettingsScreen`'s existing `#if DEBUG`
+> region), and **a review read is what 250T-A explicitly refuses to accept.**
+> Both bars carry forward to whoever runs the gate on this branch.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
 > the existing ones — `toollessIndexBatteryButton` is the pattern) starts a
