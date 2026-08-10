@@ -183,7 +183,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#311** 📝 #21's HOME — agent-generated file delivery is currently HOMELESS
 - **#315** 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun`
 - **#316** 🧹 The `///` doc block above `handleActiveProfileChanged` is ORPHANED from its own function
-- **#317** 📝 THE RULES CONTRADICTION: an archived lane can still be found to have left residue, and there is nowhere upstream to say so
+- **#317** 📝 THE RULES CONTRADICTION — **RULED 2026-08-09: option (a), append-only dated pointers; close-out rule RATIFIED (upstream = our docs, never external repos)**
+- **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
+- **#319** 🐛 XcodeGen derives the wrong product name on every regen — do NOT pin; NOT STARTED
+- **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix; NOT STARTED
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#296** 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
@@ -290,6 +293,12 @@ the Keychain (`talaria.modelsShimToken`) only. No token in git.
 ---
 
 ## 8. 📝 TestFlight (future gate)
+
+> **⚖️ ✅ CLOSED 2026-08-09 (Owen's ruling, decision pass): FOLDED INTO #166
+> as step 166g.** All four clauses below are falsified by events (the OTA
+> path replaced the TestFlight gate for device installs; HealthKit shipped
+> device-side long ago). TestFlight is a submission-runbook step now, not a
+> tracker item. **Sweep to the archive at the next pass.**
 
 On-device + HealthKit work is gated on a TestFlight build. Ties to item 1 (base URL) and
 the `tailscale serve` HTTPS work. Add Shelley as the second tester when ready.
@@ -752,6 +761,11 @@ Logged 2026-06-27.
 ---
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **FILE AFTER #74's SIM PASS** — the pass informs whether and how the
+> voice-conversational grant request is written. Sequenced, not stalled:
+> #74 is scheduled. (Confirmed: no grant request has ever been filed.)
 
 Working CarPlay voice scaffold exists in `Talaria/CarPlay/` (`CarPlaySceneDelegate` + `CarPlayVoiceManager` bridging `TalkStore` → `CPVoiceControlTemplate`); scene declared in `project.yml`, `audio` background mode present. Can't run on device without the CarPlay entitlement (managed capability; new **voice-based conversational apps** category, requestable from iOS 26.4). App Store distribution NOT required — a granted entitlement works on a development profile — but the grant is discretionary; only way to know is to file at `developer.apple.com/contact/carplay/`. Functional gap (sim-testable without grant): the manager only reflects `TalkStore`, never starts a session — needs auto-start on connect + WebRTC↔AVAudioSession routing. Depends on voice working on the phone first (→ #47) — **cleared: voice has worked since #82's fix, 2026-07-16.** ~~Full reference + weekend sim plan in `CARPLAY.md`.~~ **⚠️ Corrected 2026-08-09: `CARPLAY.md` has never existed in this repo's history** — `git log --all -- CARPLAY.md` is empty, an all-history `--diff-filter=A` sweep finds no CarPlay markdown, and it is not on disk. The pointer was aspirational from the filing. The live sim plan is #74's own text plus bars 74-A…F.
 
@@ -1359,6 +1373,14 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
 
 ## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **STATUS SETTLED — the two-way-readable record is disambiguated: the SBP
+> (small-business approval) IS SUBMITTED and is pending with Apple; the PCC
+> request CANNOT be filed until it clears.** Owen: *"I'm still waiting on
+> the small business approval. That's what's been submitted. Can't apply for
+> PCC until that's done."* This is the one item on the board genuinely
+> waiting on Apple. Nothing to do until the approval lands.
+
 > **Stopgap merged 2026-07-16 (PR #104):** `pccGrantConfirmed = false` gates every PCC surface,
 > so the SIGTRAP-on-send is unreachable and the tier picker honestly omits PCC. When the SBP →
 > capability-request pipeline grants the entitlement: flip the gate (or wire it to a real
@@ -1417,6 +1439,13 @@ degrades on-device with notice, no crash, no fabrication; add the
 entitlement to project.yml (surgical commit) only once Apple grants it.
 
 ## 74. 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **SCHEDULE THE SIM PASS** — next Mac sitting, Owen driving (74-A…E need a
+> human in the CarPlay scene). Claude preps: entitlement toggle staged, the
+> A…E checklist, and **74-F's restore (re-comment the entitlement +
+> `xcodegen generate`) as the EXIT GATE** so the next signed device build
+> cannot stall behind a forgotten entitlement.
 
 > **Audit 2026-07-13:** PR #40 (`claude/w5-19-carplay-voice`→main, merged) and GitHub #19 (closed) confirm the code landed; `Talaria/CarPlay/CarPlayVoiceManager.swift` (nonisolated `maxTranscriptTitleLength`/`blockedTitle`, matching the described compile fix) and `TalariaTests/CarPlayVoiceStateTests.swift` are on main, and `project.yml:61` shows the CarPlay entitlement commented out per the hotfix. The item's own Mac-session note already confirms xcodegen/build/tests done, so the trailing 'Needs Mac: xcodegen generate... CLI build + tests' text is stale; the genuinely open work is the CarPlay Simulator functional pass (entitlement currently disabled) and filing Apple's discretionary grant — keep 🔧, this item is effectively blocked on that external approval.
 
@@ -1686,6 +1715,13 @@ Both competitors render generated HTML/interactive content in-app; Talaria recon
 Logged 2026-07-11.
 
 ## 101. 📝 Cross-chat memory / durable-facts layer (post-#93 successor)
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **PRIVACY DEFAULT: EXCLUDE SENSITIVE TOOL OUTPUT.** Any extractor reads
+> conversation text but never HealthKit/location/contacts tool results.
+> Decided BEFORE any extractor exists, per this entry's own ask; a later
+> opt-in may widen it deliberately. (A2 and later bars are written against
+> this default.)
 
 Both competitors personalize across conversations; the continuity fabric (#93, merged) preserves context within a conversation but doesn't carry durable user facts into new chats. Shape: a lightweight durable-facts store extending the condenser/journal, priming fresh sessions. Direct extension of Lane A's merged work — dispatchable as its own lane once #93's device checklist verifies, to avoid reworking unverified foundations.
 
@@ -2527,6 +2563,15 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
+> A caption-less image turn gets an instruction line instead of a lone
+> `image_url` (small, independent — closes this entry's own second finding,
+> and it is WHY the host mints `[attachment]` itself). The auxiliary vision
+> path — device-proven on the 3-photo Z2 turn — is the configuration of
+> record, not a fallback awaiting a vision-capable main model. **#132 CLOSES
+> when the floor lands.**
+
 **2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
 app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
 `[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
@@ -2792,6 +2837,20 @@ Logged 2026-07-20 (Session V launch sweep).
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
 
+> **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the copy
+> questions, decided:**
+> - **"No cloud": QUALIFY THE COPY *AND* ADD THE INDICATOR.** The public line
+>   becomes "no Talaria-operated cloud; realtime voice uses your host's
+>   provider" (or equivalent), and the app shows a visible indicator when a
+>   voice session runs on the realtime engine. This answers archived #221's
+>   open product question in the same stroke — the app half is FILED as
+>   **#320** (one decision, two surfaces, both corrected).
+> - **140-D RUNS on device** (queued as device row §R15) — the ATS mechanism
+>   text stays as-is until the run settles the four-document contradiction;
+>   until then the disputed parenthetical is not re-published as verified.
+> - **Siri-in-the-hostless-column: RUN 56-U-H** (queued as device row §R16)
+>   rather than hedging the copy.
+
 **Accuracy half DONE 2026-07-20 (`3367626`).** README status table corrected: voice row now
 truthful (working, echo/connect hardening in progress — wedge claim removed); APNs row
 current (BYO .p8 on the relay, T6-armed); sensor row states the #137 opt-in default.
@@ -2983,6 +3042,15 @@ Logged 2026-07-20.
 ---
 
 ## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **DISCOVERY PASS, not a park and not a build** — Owen: *"Can we do any
+> discovery on this to see if it's a better fit now than when we filed it?"*
+> Scope: read-only re-assessment of MCP-client fit against TODAY's state —
+> the shipped `CapabilityRegistry` (#284 stages 1–2), the measured
+> `fullBelt=1648tok` budget, selective arming's 4.76% danger-bar failure, and
+> whether a Hermes-brain-only scope changes the context math. No build
+> without a separate go.
 
 **Owen, 2026-07-20 late: “Having mcp access on the app side could be a game changer.”**
 Separate idea from #149 (Claude↔Hermes bridge): the APP becomes an MCP client.
@@ -3348,6 +3416,24 @@ Correction to the item as filed: **no patent grant exists in the distributed pac
 Remaining optional follow-on, NOT blocking submission: an in-app acknowledgements screen (Settings → About → Licenses). Conventional but not required by App Review; the repo-level reproduction satisfies BSD-3 clause 2. Small speccable lane if ever wanted — render THIRD_PARTY_LICENSES.md (already in the repo) in a sheet — but it should not be built speculatively.
 
 ## 166. 🍎 App Store review-risk register — hermex's actual submission runbook mapped onto Talaria
+
+> **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the submission
+> cluster, decided as a set:**
+> - **Privacy policy lives at `docs/privacy.html` on the existing Pages site.**
+>   Claude drafts from the app's real data flows; Owen reads and publishes
+>   (the standing no-external-submissions gate covers the publish moment).
+>   This was 166a's hard stop; it is now unblocked.
+> - **iPad STAYS in v1.0.** The 2026-07-20 decision is re-confirmed; P-4 keeps
+>   both screenshot sets (6.9" + 13") and #109 stays on the pre-launch path.
+> - **Purpose strings: OPTION A — describe the use, no app name.** Satisfies
+>   bar 166-D by construction; the display-name question stays open but no
+>   longer blocks the strings.
+> - **The launch-blocking string subset moves NOW**, its own small change;
+>   #255's sweep picks up the remainder whenever it runs.
+> - **IAP: CREATE the product early (unblocks #127's sandbox round-trip);
+>   SUBMIT only at the flip** (early submission is the 2.3.1 risk).
+> - **#8 FOLDS IN as step 166g** — all four of #8's clauses are falsified;
+>   TestFlight is a runbook step, not an item. #8 archives at the next sweep.
 
 Source: hermex's `TESTFLIGHT.md` (741-line maintainer runbook from a shipped App Store app) + their `docs/agents/feature-gap-index.md`, read from a fresh shallow clone 2026-07-22, every claim below verified against their tree or ours, not summarized from memory.
 
@@ -4703,6 +4789,13 @@ from a work desk over the Tailscale OTA path. Airplane mode as ground truth for 
 
 ## 224. 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and it is a gateway config key
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **OWN SITTING; CLAUDE PREPS THE BRIEF.** The eight questions get a
+> one-page brief with the answered constraint baked in — approval-mode
+> SELECTION is dashboard-only (no `/api/config` on `:8642`, re-verified
+> 2026-08-09), so the app can DISPLAY and honor the mode, never SET it.
+> The sitting is eight rulings, not research. Brief owed before scheduling.
+
 **Filed 2026-08-02 from Owen's screenshot + direction ("Probably need to mirror the hermes
 side, just a thought").** Source-confirmed the same evening, so this is not filed on a
 screenshot alone.
@@ -5057,6 +5150,10 @@ future gate reading.
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
 
+> **⚖️ SEQUENCING RULING 2026-08-09 (decision pass): #299 ROUTES AHEAD of
+> #282's guard** — Owen's call on the sequencing question #282's halt raised.
+> This item is now the head of that chain; #282's lane resumes after it lands.
+
 **How it was found.** Tracker #282's dispatch pre-registered a baseline
 characterization (282-B) whose whole job was to be read before its
 production change, and named this in advance as ASSUMPTION **A2**: *"that
@@ -5208,6 +5305,12 @@ silently drop it.**
 > as part of that design, not bolted onto #304.
 
 ## 306. 🔧 Mid-turn message QUEUING — compose and commit the next message while a turn streams; hold it durably against the THREAD; send exactly once, and only on a terminal that makes a follow-up meaningful — **FILED 2026-08-09 (lane T0; #267's routed lane — the dispatch proposed #300, consumed in the marathon, reassigned here per `22ee09e`). Owen ruled STANDALONE and the Stop rule the same day. Executes from `dispatch/FABLE-T27-267-message-queuing.md`.**
+
+> **⚖️ ✅ O8 RATIFIED 2026-08-09 (Owen, decision pass): PARK-ON-DEPARTURE
+> STANDS on both non-destructive departures — New Chat AND Clear Conversation
+> preserve the hold; returns surface the chip; nothing ever auto-sends.
+> The last pending clause is resolved — #306 is fully CLOSED; sweep to the
+> archive at the next pass.**
 
 **Routing (plan §5 Q7, ANSWERED 2026-08-09):** standalone, now — under three
 binding constraints that neutralize the plan's designing-the-composer-twice
@@ -5634,6 +5737,24 @@ sibling finding from the same sweep — the *executable* form of this shape).
 
 ## 317. 📝 THE RULES CONTRADICTION: an archived lane can still be found to have left residue, and there is nowhere upstream to say so — **FILED 2026-08-09 at the archive sweep, per #268 ("a phase name is not a filing"). Carried out of #298, which recorded the tension but could not resolve it, and out of the backlog run's decisions 25 and 29. THIS IS A RULING, NOT A TASK — Owen decides between the options below. UNRESOLVED.**
 
+> **⚖️ RULED 2026-08-09 (Owen, decision pass): OPTION (a) — APPEND-ONLY DATED
+> POINTERS.** An archived entry may take an appended, dated pointer block
+> beneath its original text — never an edit to the text itself. Byte-identity
+> of the original block survives; THE CLOSE-OUT RULE gets a landing site in
+> the archive; discoverability works from both directions. **First
+> application, same commit:** pointers appended to archived #238 (naming its
+> three residue findings), #292, #295, #256, #242, and #221.
+>
+> **AND THE CLOSE-OUT RULE IS RATIFIED** — with one clarification Owen
+> attached: *"The only thing is corrections go upstream. I generally don't
+> like to do PRs upstream to hermes/nous. I do agree with the closeout."*
+> **"Upstream" in the rule means the stale claim's home in OUR OWN docs — a
+> tracker entry, a CLAUDE.md line — never an external repository.** External
+> submissions remain gated on Owen's explicit per-submission go (the standing
+> rule since #241's draft). CLAUDE.md is corrected in this commit to drop the
+> "pending ratification" hedge and carry both the clarification and the (a)
+> carve-out. **#317 is RESOLVED; sweep to the archive at the next pass.**
+
 **The contradiction, stated once:**
 
 - **THE CLOSE-OUT RULE** (2026-08-06, `CLAUDE.md`) says a correction goes
@@ -5678,6 +5799,69 @@ together — they are one decision, and the backlog run listed them as two
 **#261** (the archive split and its never-rewrite rule), **#268** (the filing
 rule this entry exists to satisfy), **#287** / **#189** (the other two findings
 against archived #238).
+
+---
+
+## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
+
+**Scope as inherited from the 1c/1b split:** a search affordance over the
+Settings surface — the nine subsystem channels plus their leaf toggles — so a
+user types "haptics" or "verbose" and lands on the owning card/deck page.
+Direction 1b was the search-first alternative that lost to 1c's grid/deck at
+the 2026-08-05 routing; it survives as the follow-on, not the replacement.
+
+**Constraints carried from #252 (closed):** the grid/deck is the shipped
+surface — 1b layers onto it rather than replacing it; the deck-entry
+nine-page build was accepted FINAL at the same decision pass, so search
+landing on a deck page inherits that behaviour as-is.
+
+**Cross-references:** **#252** (closed parent, archives next sweep), **#256**
+(archived; the strip this search would sit near).
+
+---
+
+## 319. 🐛 XcodeGen derives the WRONG PRODUCT NAME on every regen — `Talaria.xcscheme`'s `BuildableName` flips `"Talaria 27.app"` → `"Talaria.app"` each time the mandatory `xcodegen generate` runs — **FILED 2026-08-09 per #268 (named in `handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`'s xcodegen-churn diagnosis, never given a number). Every lane that adds a Swift file hits this; the #272 fix lane hit it and reverted by hand. NOT STARTED; bars pre-register here before any fix.**
+
+**The diagnosis, from the 2026-08-09 backlog run (verified, not speculated):**
+`PRODUCT_NAME` *is* `"Talaria 27"`, and `project.yml` already carries an
+explicit `TEST_HOST` override saying XcodeGen's derived name is wrong. The
+regen also bumps the scheme 1.3→1.7 and adds `parallelizable="NO"` to the
+UITest testable. **Do NOT pin the XcodeGen version — a pin would freeze the
+bug, not fix it** (Owen asked about pinning; this was the answer, and Xcode
+has been stable at beta 4 throughout, so version drift is refuted as the
+cause).
+
+**The fix direction:** make the regen idempotent — teach `project.yml` the
+correct product/buildable name for the scheme (or generate the scheme
+explicitly) so `xcodegen generate` stops rewriting it and hand-reverts stop
+being part of every lane's choreography.
+
+**Cross-references:** **#3** (the standing xcodegen-regen rule this friction
+rides on), **#272** (the lane that most recently hand-reverted it).
+
+---
+
+## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. NOT STARTED; bars pre-register here before any code.**
+
+**The ruling this implements:** the public copy (#140's lane) becomes "no
+Talaria-operated cloud; realtime voice uses your host's provider," and the
+app stops relying on copy alone: **a voice session running on the realtime
+engine shows a visible indicator** — the user can tell, in the moment, that
+audio is leaving the phone for the host's provider.
+
+**Design notes for the lane (constraints, not decisions):** the engine is
+already named at session start (`voice session starting on engine …`, the
+2026-08-01 instrument), so the signal source exists; #18's rule stands —
+local voice is never silently substituted, and this indicator is the
+complementary honesty in the other direction; #221's original fix (the brain
+GOVERNS the engine) is the gate this surface reports on, not something it
+changes; and #303 (no upgrade path) interacts — an indicator must track a
+mid-session engine change if one ever becomes possible.
+
+**Cross-references:** **#221** (archived; the question this closes), **#140**
+(the copy half, same ruling), **#18** (no-silent-substitution), **#303**
+(engine pinning defect, live), **#180** (the honest-degradation family this
+belongs to).
 
 ---
 
@@ -6207,6 +6391,13 @@ shape). **If it is judged not distinct from #185, drop it there rather than
 carrying a duplicate.**
 
 ## 290. 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync path — **FILED 2026-08-07 night from PR #279's independent review (findings 2 and 3). The HONEST-CLAIM halves of both were fixed on the branch; these are the halves that change BEHAVIOR and want a decision, not a patch.**
+
+> **⚖️ ✅ (a) RATIFIED 2026-08-09 (Owen, decision pass): NO TRIMMING.** The
+> Z2 measurement is the decision's evidence — 237 KB worst-realistic
+> transcript against the 900 KB budget, warning never fired with a positive
+> control. The one-shot warning log stays as the guard. With (b) already
+> ruled (no whole-`send()` deadline, 2026-08-08), **both halves are decided —
+> #290 is CLOSED; sweep to the archive at the next pass.**
 
 **(a) History is uncounted against the request-body budget.**
 `AttachmentInlining.aggregateAttachmentBudget` is 900 KB, sized explicitly
@@ -6896,6 +7087,13 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 >   and were corrected in the #304 lane.
 
 ## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **#299 FIRST.** The demand-side guard does not land into a merge that is
+> known to duplicate assistant rows. Sequence: #299's identity fix, then this
+> lane's ruled guard, with bars 282-D/E RE-READ against the fixed merge
+> (their PREDICTED-RED status was written against today's merge and may not
+> survive #299). The halt worked as designed; nothing here is un-ruled.
 
 **Why this has a number.** #281 closed the same day with every bar met and
 was archived; inside its closure it filed a sibling defect *"here and NOT
@@ -8173,6 +8371,16 @@ with a verifier in the #261 style proving nothing was lost.
 
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **BOTH HALVES GO.** (1) The ops rule upgrades: diagnose a headless gateway
+> by reading `gateway_state.json`, not the port check alone — it also catches
+> `api_server_key_invalid` (half-finished update, identical symptom, different
+> remedy) and works with the port dead. Runbook/docs change, no code. (2) The
+> one-banner-one-truth lane OPENS — with bar 264-C counting FOUR
+> `effectiveConnectionState` sites (`ChatScreen.swift:687` is the fourth, with
+> a different body; collapsing the wrong one silently changes chat-banner
+> behaviour). Bars pre-register here before code.
+
 Observed live: `kill` on the listener → the old process's shutdown logged
 "api_server disconnect timed out after 5.0s - forcing continue" → launchd
 respawned → the NEW process logged **"Could not bind 0.0.0.0:8642: address
@@ -8699,6 +8907,17 @@ other work in flight.
 > and is **not** filed as owed work.
 
 ## 257. 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt, so "what can you do?" gets an improvised 3-of-15 answer — **FILED 2026-08-05 night (Owen's device screenshots, build 2047: "btw I thought it could do more than that") → ROUTED 2026-08-09 (Owen: Lever 1b APPEND + 3a) → PHASES 1+2 BUILT same day on `t27-257-capability-lever`: 1-C MET (unit), 3a-A MET (unit), 3a-B MET (XCUITest), detection + append + probe shipped; 1-GATE/1-A/1-B/1-D QUEUED-DEVICE behind the tokenCount pre-flight; 3a-C Owen, 1-E controller**
+
+> **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the three
+> product questions from the lane's close-out:**
+> - **Voice: ACCEPTABLE AS SHIPPED.** The deterministic block is screen-only;
+>   voice replies keep compressing (~4 families aloud) while the sheet is one
+>   tap away. No voice-shaped answer is owed.
+> - **Vision: NAME IT, with the "when you attach a photo" caveat.** The
+>   sheet's exclusion was itself an under-claim — the thing this item exists
+>   to fix. Small follow-on change; rides the next lane touching the sheet.
+> - **Home: the chat sheet + fresh-chat chip STAYS.** No Settings page, no
+>   Skills-neighborhood move — discovery where the question arises.
 
 **Evidence (Owen, 9:04 PM, on-device brain, fresh conversation):**
 "do I have any new emails?" → *"I can't directly check your emails. Let
@@ -9479,6 +9698,15 @@ filed; re-open on next sighting with the how-was-it-closed detail.
 
 ## 253. 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it for later as a maybe"); no design, no lane**
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **RE-FILED AS THE DETERMINISTIC ROUTER; the MAYBE is resolved.** Route on
+> the four mechanical signals only — no classifier; the judgment-shaped case
+> is already served host-side by `talaria_phone_query`. **Fail-safe: LOCAL**
+> — an undecidable turn stays on-device and may under-serve; the hostless
+> default user is never surprised by egress. (Deliberate inversion of the
+> tool-router's fail-to-ARMED; a brain route has no free default and privacy
+> wins the tie.) Design/bars still owed before any lane.
+
 Surfaced inside Claude Design's settings prototype as an ON-DEVICE / AUTO /
 SERVER segmented control. AUTO = route each message by need (short toolless
 turns → local FM brain; tools/vision/long context → server). NOT a current
@@ -9510,6 +9738,15 @@ routed-production discipline. Nothing owed.
 > note).
 
 ## 252. 🎨 SETTINGS REDESIGN — "Subsystem Channels" (Claude Design direction 1c): grid of nine live-telemetry cards ↔ swipeable full-bleed subsystem deck — ~~**ROUTED 2026-08-05 (all four decisions), spec in progress**~~ → **✅ SHIPPED 2026-08-05 (bars 252-A..F MET, gate PASS, device pass build 2034). ~~STAYS OPEN for ONE residual: bar 252R-A below.~~ → RESIDUAL CLOSED 2026-08-09: 252R-A/B/C ALL MET (verdicts below). NO DEFECT REMAINS — the item stays open only for Owen's §7.3 routing call. Header corrected 2026-08-09 — it read "spec in progress" for four days after the code merged.**
+
+> **⚖️ ✅ CLOSED 2026-08-09 (Owen's §7.3 routing call, decision pass): CLOSE
+> OUTRIGHT; 1b files as its own number.** The settings-search follow-on is
+> now **#318** — a fresh item with its own scope, not a rider on a finished
+> redesign. Two ride-alongs resolved in the same pass: **the strip width is
+> accepted FINAL** (the 08-05 reservation expired after four days of real
+> use — archived #256 carries the pointer), and **the nine-page deck-entry
+> probe re-fire is accepted FINAL** ("revisit if Owen notices" resolved:
+> four days, never noticed). **Sweep to the archive at the next pass.**
 
 > **✅ BARS 252R-A / 252R-B / 252R-C — ALL MET 2026-08-09** (branch
 > `t27-252r-voice-accent`, commit `33319c4`). Verdicts at the end of this
@@ -10510,6 +10747,13 @@ lane opens.
 
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
+> the existing ones — `toollessIndexBatteryButton` is the pattern) starts a
+> throwaway Live Activity on demand, converting device row §R2's standing
+> watch into a runnable 2-minute check. Debug-only, reusable for any future
+> island work.
+
 > **⚠️ HEADER CORRECTED 2026-08-09 — it said "lane not yet scheduled" for four
 > days after the lane shipped.** Caught by the routing sweep, which had queued
 > this item as un-spec'd work on the strength of that header alone. Verified at
@@ -10869,6 +11113,14 @@ under `TEST SUCCEEDED` — suite-level selectors only; caught by the
 executed-count check both times it appeared today.
 
 ## 241. 🔭 **OPEN — TRACK-UPSTREAM (reopened 2026-08-09, and it STAYS live)** — 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — ~~**✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.**~~ **SUPERSEDED THE SAME DAY for half one — see the REOPENED block immediately below, which is the current state.**
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **OPEN THE CLIENT-SIDE IMMUNITY LANE.** Talaria sends an explicit `model`
+> on `POST /api/sessions` so no session inherits the gateway's self-name.
+> Decided with the live fact in hand: every `source: api_server` session on
+> OJAMD stores `"model": "hermes-agent"` today. Bars pre-register in this
+> entry before any code, per the standing convention. TRACK-UPSTREAM
+> (PR #72739) continues in parallel — the lane does not wait on it.
 
 > **⚠️ HEADER CORRECTED 2026-08-09 BY THE ARCHIVE SWEEP, and the correction is
 > the point: this header carried a struck `✅ CLOSED`, a REOPEN, and a live
@@ -11974,6 +12226,16 @@ lane runs, per the standing rule.
 
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass) — THE SENSOR
+> QUESTION IS SETTLED: residual loss ACCEPTABLE + ONE SWITCH.** With #242's
+> interactive half delivered (live phone queries via `talaria_phone_query`),
+> the pull model replaces the push plane; the passive-history gap between
+> queries is accepted. Egress gating: **one clearly-labelled switch governs
+> all sensor egress** — no per-category gates (they would outlive the plane
+> they were built for). Archived #242 carries an append-pointer to this
+> ruling. **Phase 4's remaining gates are the voice WebRTC bootstrap and
+> #21's file delivery (#311) — sensors no longer gate it.**
+
 > **✂️ PUSH LANES RETIRED BY THE PIVOT — 2026-08-03 evening (#238, Owen-routed).**
 > Notification removal ends the push leg of this plan: **Lane 1** (talaria-push
 > gateway hook — built, smoke-proven, now DISARMED: device file deleted, hook dir
@@ -12604,6 +12866,11 @@ conversation. Owen routes each lane.
 > as currently written.
 
 ## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **DEVICE ARM: OPPORTUNISTIC.** Rides whatever corded sitting has slack —
+> no dedicated run, no named row. (Not runnable on sim or the test host,
+> Code=5000.)
 
 > ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
 >

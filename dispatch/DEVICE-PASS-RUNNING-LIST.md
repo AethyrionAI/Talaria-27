@@ -2786,3 +2786,21 @@ Three arms, in order; evidence for (ii) and (iii) is the **host's `agent.log`**
 **Also worth one glance (feel, not a bar):** the chip's Edit/Cancel; a held
 message surviving New Chat and SURFACING on return from the drawer (the O8
 question you're ratifying rides this behavior).
+
+### R15 · #140-D — the ATS mechanism claim, settled on device · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than go silent on mechanism]**
+
+**Cheap; rides any corded sitting.** The disputed ATS parenthetical spans four
+documents including `CLAUDE.md`; this run settles it. Protocol per #140's entry
+(the device arm as pre-registered there). Until it runs, the disputed text is
+not re-published as verified fact in any public copy — that's the standing
+half of the same ruling.
+
+### R16 · 56-U-H — Siri in the HOSTLESS column · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than hedge the copy]**
+
+**One check:** on a standalone/unpaired install (§F2's state), invoke the Siri
+phrase and confirm the intent completes against the local brain. The public
+copy's hostless-column Siri claim then states what was verified. If it FAILS,
+the copy hedges and the failure files its own number — do not ship the claim
+on a miss.
+
+### §R15/R16 ride-along · #222 device arm — **OPPORTUNISTIC (ruled 2026-08-09): no dedicated run; fold into whatever corded sitting has slack. Not runnable on sim or test host (Code=5000).**

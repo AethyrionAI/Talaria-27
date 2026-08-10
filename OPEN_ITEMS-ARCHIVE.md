@@ -9055,6 +9055,12 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The open product question this entry carried into the archive (should a
+> realtime voice session show a visible indicator?) is ANSWERED (Owen,
+> 2026-08-09 decision pass): YES — filed as live **#320**, alongside the
+> "no cloud" copy qualification in #140's lane. One decision, two surfaces.
+
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
 > **⚠️ SUPERSEDED IN PART, 2026-08-07 — the third tier as built carried a
@@ -9826,6 +9832,14 @@ results live in the `Executed N` counters). The pre-registered claim that surviv
 untouched is the **−22 delta**, and 1570 − 22 = 1548 landed on the number. The two
 wrong absolute pins stay recorded above as what they are: mis-anchored, caught at
 verification.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> Three later findings identified residue of this teardown: **#287** (the
+> `LaunchInitStep.pushTokenRegistration` ghost — fixed 2026-08-09), **#189**
+> (the dead notifications surface — mooted by this deletion), and **#298**
+> (the `updateWidgetData` rationale that outlived its mechanism — verdict
+> DEAD, its orphaned-doc-comment residue re-filed as live **#316**). This
+> pointer is the upstream note #298 could not write at the time.
 
 ## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — **✅ CLOSED 2026-08-04: guide boundary + pass-through + dated line built (PR #256), 234-A/B sim-met, 234-C device-met on build 1955 (honest horizon answer, Owen's screenshot)** — *(was: mechanism confirmed — argument-time nearest-fit, trial-7 severity family)*
 
@@ -15870,6 +15884,13 @@ not walk — the doc half, being fixed now in the #291 lane.
 > Owen-overturnable: an abandoned runs turn's usage is never recorded, so
 > its session's CTX gauge goes stale rather than current.
 
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **Behavioral half RULED: HOLD (Owen, 2026-08-09 decision pass).** The
+> literal runs status-poll recovery (durable run_id) is NOT built — the
+> reconcile loop is the recovery path of record (device-proven in the 306-L
+> and 292-C runs). Revisit only if a real revocation is observed misbehaving
+> (device list Z4's screenshot standing order).
+
 ## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
 
 **The gap:** the cold-load scrubber that exists for exactly this shape only
@@ -16076,6 +16097,12 @@ customer comments.
 >   status read on cancellation is worth it.
 > - **CLAUDE.md: nothing owed** — no standing rule is falsified by this
 >   fix (stated explicitly per the dispatch's close-out).
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **Ruling 1's cost ACCEPTED (Owen, 2026-08-09 decision pass):** the stale
+> CTX gauge after an abandoned runs turn stands — no final status read on
+> cancellation; one would reopen exactly the network the fix closed. The
+> gauge self-corrects on the next completed turn.
 
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
@@ -17215,6 +17242,11 @@ device judge owed); 256-F MET (deck APP ICON row → gallery,
 Swift Testing units (1617 + 1, count moved) + 12 XCUITest, Release
 green.** 256-E (device) rides the next OTA.
 
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The strip-width reservation is resolved: ACCEPTED FINAL (Owen,
+> 2026-08-09 decision pass).** Four days of real use since 08-05, no
+> complaint in hand; the one-line size bump is not queued.
+
 ## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — ~~**FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**~~ → **✅ CLOSED 2026-08-09: SUBSTANTIALLY DELIVERED as #251 Slice 2A and device-proven 2026-08-06. The header read "no design yet" for three days after it shipped.**
 
 > **✅ CLOSE-OUT 2026-08-09 — this idea was built, and nobody told the entry.**
@@ -17271,4 +17303,10 @@ inline and skip Hermes for that turn; (3) the setting's name and default;
 "analyze my sleep trends while I'm away") — that half of the old sensor plane
 does not come back with this and should be said out loud when deciding #223's
 sensor question.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The gating-semantics question this entry left open is RULED (Owen,
+> 2026-08-09 decision pass): ONE SWITCH for all sensor egress, clearly
+> relabelled — no split gates. Recorded in live #223's entry (the sensor
+> posture ruling: residual loss acceptable, pull replaces push).
 

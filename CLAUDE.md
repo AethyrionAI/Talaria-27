@@ -501,14 +501,21 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes; closed items move verbatim to
   `OPEN_ITEMS-ARCHIVE.md` — see #261); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
-- **THE CLOSE-OUT RULE (2026-08-06, from the reconciliation audit; pending Owen's
-  ratification but follow it meanwhile):** a lane does not close until every entry,
+- **THE CLOSE-OUT RULE (2026-08-06, from the reconciliation audit; RATIFIED by
+  Owen 2026-08-09, tracker #317):** a lane does not close until every entry,
   doc, and CLAUDE.md line whose text its result FALSIFIES is corrected in the same
   commit — #218's promoted-clause discipline applied to prose. Corrections go
   UPSTREAM, to the stale claim's own home (a dated supersession note at minimum),
-  never only downstream of it. Routing decisions and named-but-unstarted work get
-  tracker numbers the day they are made — "a phase name is not a filing" (#268);
-  a handoff is where a decision happened, not where it lives.
+  never only downstream of it. **"Upstream" means the stale claim's home in OUR
+  OWN docs — a tracker entry, a CLAUDE.md line — never an external repository;
+  submissions to hermes/nous or any outside repo stay gated on Owen's explicit
+  per-submission go** (his clarification at ratification). Routing decisions and
+  named-but-unstarted work get tracker numbers the day they are made — "a phase
+  name is not a filing" (#268); a handoff is where a decision happened, not where
+  it lives. **Archive carve-out (#317 ruling (a), 2026-08-09):** when the stale
+  claim's home is in `OPEN_ITEMS-ARCHIVE.md`, the correction lands as an
+  **append-only dated pointer block** beneath the archived entry's original text
+  — the original bytes are never edited; that remains #261's promise.
 
 ## Measurement discipline (#215 — the rule that cost the most to learn)
 
