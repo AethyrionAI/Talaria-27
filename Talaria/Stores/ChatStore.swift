@@ -3244,7 +3244,7 @@ final class ChatStore {
             let remote = refreshedConversation.messages[index]
 
             // Prefer exact UUID match (works when the relay echoes back the same ID).
-            let local: Message?
+            var local: Message?
             if let byID = localConversation.messages.first(where: { $0.id == remote.id }) {
                 local = byID
             } else if let remoteClientMessageID = remote.clientMessageID {
@@ -3261,13 +3261,17 @@ final class ChatStore {
                         && $0.sender == .hermes
                         && (!$0.toolActivities.isEmpty || $0.codeDiff != nil)
                 })
-            } else if let adoptedID = identityAdoptions[remote.id] {
+            }
+            if local == nil, let adoptedID = identityAdoptions[remote.id] {
                 // #299: the host row's locally-born twin, paired by turn —
                 // its client-only fields (reasoning, receipts, activities)
-                // ride the host row exactly as a tier-1 match's would.
+                // ride the host row exactly as a tier-1 match's would. A
+                // FALLBACK after every existing arm rather than a fourth
+                // `else if`, so an adopted row's fields can never be dropped
+                // by an arm that fired and then failed to match (the jobID
+                // arm can): whenever the adopted row is excluded from the
+                // unconfirmed re-append below, its fields ride here.
                 local = localConversation.messages.first(where: { $0.id == adoptedID })
-            } else {
-                local = nil
             }
 
             guard let local else { continue }
