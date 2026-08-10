@@ -181,7 +181,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#300** 🐛 `lane-gate.sh`'s failure advice misdiagnoses a Swift Testing failure WITH assertion text as an XCUITest flake WITHOUT one, and cites **#164, which is CLOSED** — following it literally reopens a closed item under a wrong diagnosis and re-rolls a real failure as noise. The discriminator it needs (presence of assertion text) is already in its own text
 - **#298** 🧹 #238 teardown residue in `updateWidgetData`'s comments — **VERDICT: DEAD.** The push-wake path really did order `loadInbox(force:)` before it and #238 T4 really did delete that, but it was 1 of only 3 orderers among 9 callers, `stampBriefing` guard-returns rather than wiping, and #126's briefing is producerless — so **#126's dependence is REFUTED** and no ordering fix is owed. Comments corrected; no bars (no run) …
 - **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — NOT STARTED, scope is Owen's call …
-- **#280** 📝 A dictated-only thread gets a blank conversation-card title — bars pre-register before any code …
+- **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** …
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — bars pre-register …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
 - **#272** 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode …
@@ -9447,6 +9447,114 @@ transcript text?) are a product question, not a mechanical one.
 >
 > Full diagnosis and six proposed bars:
 > `dispatch/OPUS-T27-280-dictated-thread-title.md`.
+
+> **📏 BARS PRE-REGISTERED 2026-08-10, BEFORE ANY CODE OF THIS LANE** — written
+> into this entry per CLAUDE.md's *"Where the BARS live"*, in a commit that
+> lands before the first line of implementation. Wording refined from the
+> dispatch's §5 proposals; strictness unchanged. **A missed bar is a
+> falsification, not a redefinition.**
+>
+> **280-A — a voice-only thread ends up with a real title.** After
+> `appendVoiceTranscript` settles a session carrying ≥1 spoken user turn and
+> ≥1 spoken reply, `chatStore.conversation?.title != Conversation.defaultTitle`.
+> *Evidence:* a unit test on the `ChatStore` path with the real
+> `LocalIntelligenceService` wired, polling to a non-default title.
+> **Assert non-default, NEVER exact text** — the model either generates
+> (device, nondeterministic) or throws `Code=5000` no-assets and the
+> deterministic truncation fallback runs (test host); both must clear the same
+> bar, and `pollUntil` gets a budget that tolerates a real generation.
+> *Device needed:* no. **This is the bar that catches the no-op** — it is RED
+> under B1 alone, so the `isUserAuthored`-only fix this entry suggested cannot
+> satisfy it.
+>
+> **280-B — the title is derived from what was SPOKEN.** The extracted input
+> function returns the spoken user line as `userText` and the spoken reply as
+> `assistantText` for a voice-only conversation — not `("", reply)` and not
+> nil. *Evidence:* pure-function unit test on
+> `ChatStore.conversationCardInputs(for:)`. *Device needed:* no. This is the
+> bar `isUserAuthored` actually earns; without it the predicate change is
+> unmeasured.
+>
+> **280-C — a mixed thread titles from its FIRST exchange, and a spoken
+> exchange counts as one.** A conversation whose first exchange is spoken and
+> whose second is typed yields inputs from the **spoken** pair. *Evidence:*
+> pure-function unit test. *Device needed:* no. Pre-registered because it is a
+> **behavior change** on threads that title fine today: it makes
+> `generateConversationCardIfNeeded`'s own doc comment (*"the conversation's
+> first completed exchange"*) true again. If Owen would rather a mixed thread
+> keep titling from the typed turn, that is a legitimate call — but it has to
+> be made before the code, not discovered after.
+>
+> **280-D — typed threads do not move.** A typed-only conversation yields the
+> same inputs and the same title as before the change, and a first user row
+> carrying only the `"[N attachment(s)]"` placeholder still normalizes to `""`.
+> *Evidence:* new pure-function rows plus the existing suite staying green.
+> *Device needed:* no. The attachment-placeholder row is the one that must
+> **not** be "fixed" — it is deliberate.
+>
+> **280-E — the generator still never overwrites a human title, and still runs
+> once.** A conversation retitled by hand before the voice append keeps its
+> title; two `appendVoiceTranscript` calls do not produce two generations.
+> *Evidence:* a unit test setting a title first; a second asserting the
+> `isGeneratingConversationCard` re-entrancy guard still holds. *Device
+> needed:* no. The async re-check inside the generation Task already guards
+> this; the bar pins that the new call site does not route around it.
+>
+> **280-F — the device confirmation, ROUTED not restated. OWED ON DEVICE; NOT
+> A MERGE BLOCKER.** One clause appended to the **existing** `#61` row in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F2** — *"…including a session whose
+> only user turns were spoken."* **Do NOT open a second device row** (#61's own
+> rule: *"One queue — a check that lives in two places drifts"*). *Evidence:*
+> the standalone drawer, phone in hand. A–E are unit-testable and are what the
+> gate proves; F is confirmation on the real surface and rides an existing
+> sitting.
+
+> **🔁 ANCHORS RE-VERIFIED AT HEAD `c4a1ca9`, 2026-08-10 — the mechanism read
+> above HOLDS; only its LINE NUMBERS are stale.** The diagnosis note was
+> written at `04af0a7` and PRs #288–#294 have merged since. Every claim
+> re-checked and confirmed; the current anchors are:
+>
+> | Claim | Note says | HEAD `c4a1ca9` |
+> |---|---|---|
+> | `appendVoiceTranscript`, no `finalizeOnDeviceIntelligence()` | `:1550-1596` | **`ChatStore.swift:1736-1785`** — confirmed, still absent |
+> | `finalizeOnDeviceIntelligence` call sites (exactly two) | `:1073`, `:2474` | **`:1166`, `:3056`** (function at `:3070-3073`) — still two, neither on the voice path |
+> | the `.hermes` eligibility guard | `:2501-2505` | **`:3086-3090`** — still `$0.sender == .hermes` |
+> | the `== .user` title source | `:2513` | **`:3097-3099`** |
+> | the comment that says an empty user side is designed for | `:2508-2511` | **`:3093-3096`** |
+> | `normalizedRetryContent` (touches no instance state) | `:2815-2821` | **`:3404-3410`** |
+> | `fallbackCard` | `LocalIntelligenceService.swift:448-466` | **unchanged, `:448-466`** |
+> | title → nil mapping | `LocalChatBackend.swift:1976` | **`:2038`** (and `:2053` for the stored-summary row) |
+> | preview-as-title fallback | `ChatScreen.swift:555-557` / `:562` | **`:583-586`** |
+> | `recordLocalOriginAfterSettledTurn` counts `.hermes` | `:1088-1100` | **`:1181-1193`** — untouched by this lane (#190B born-local semantics) |
+>
+> **Do not re-derive from the old numbers.** Line numbers are the first thing
+> a merge invalidates and the last thing anyone re-checks.
+
+> **✏️ TWO WORDS IN THE ORIGINAL PARAGRAPH, CORRECTED 2026-08-10 (CLOSE-OUT
+> RULE — upstream, at the stale claim's own home).**
+> - **"Cosmetic" is retired; the word is "minor".** It is minor and it is not
+>   a blocker — but the rendered result is the drawer row printing **the same
+>   string as both its title and its subtitle**, the exact shape #61's
+>   `fallbackCard` comment records as a 2026-07-11 **device-pass FAIL**
+>   (*"repeats the first line on both lines"*). We fixed that shape once,
+>   deliberately, and this path reintroduces it through a different door.
+> - **"Fix is presumably the same `isUserAuthored` predicate"** stands
+>   superseded by the NO-OP finding above and is left in place only as the
+>   record of what was believed. The predicate change is necessary for 280-B
+>   and 280-C and is **not sufficient for anything** on its own.
+
+> **↔️ ONE UPSTREAM CORRECTION THIS LANE OWES OUTSIDE THIS ENTRY.**
+> `AgentAttachmentSidecar.swift:153-155` justifies keeping its private
+> `isAgentAuthored` with *"#275's `isUserAuthored` exists because FOUR sites
+> needed one answer; this question has exactly one asker."* The moment this
+> lane promotes `isAgentAuthored` to `MessageSender`, that comment is false —
+> it is corrected in the implementation commit, at its own home, not only
+> noted here.
+>
+> **And one thing that is NOT owed:** #61's surface correction (*"#61 can only
+> be verified in standalone mode"*) is **still true at HEAD** —
+> `LocalChatBackend.sessionInfo` (`:2036-2046`) remains the sole reader of
+> `conversation.title`. Named here so the next lane does not re-derive it.
 
 ## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FILED 2026-08-07 from #78's lane; pre-existing. Bars pre-register here before any code.**
 
