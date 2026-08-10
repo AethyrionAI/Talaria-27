@@ -974,6 +974,14 @@ private actor NativeVoiceCaptureController {
             options: [.defaultToSpeaker, .allowBluetoothHFP]
         )
         try session.setActive(true)
+        // #302-A: always-on capture-chain instrument. The App Lock question
+        // ("is the mic live behind the cover?") is answered by intersecting
+        // these timestamped transitions with AppLock's own `.notice` lines —
+        // so they must be `.notice` (Console hides `.info`), `privacy:
+        // .public` (or they redact), and NEVER gated behind Verbose Logging.
+        // This line marks the session going active; the chain is not hot
+        // until the HOT line below reports the ENGINE's own state.
+        Self.logger.notice("audio session activated for capture (#302-A)")
 
         // Prefer SpeechTranscriber (the full model); fall back to
         // DictationTranscriber when the model isn't available on-device.
@@ -999,8 +1007,15 @@ private actor NativeVoiceCaptureController {
     }
 
     func stop() {
+        // #302-A: read the engine's own state BEFORE tearing it down, so the
+        // COLD line can say whether this stop ended a hot chain (was=true)
+        // or was a defensive no-op (was=false — negative evidence that the
+        // chain never went hot, e.g. a start that died in permission checks).
+        let wasRunning = audioEngine.isRunning
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
+        let stillRunning = audioEngine.isRunning
+        Self.logger.notice("capture chain COLD — AVAudioEngine.isRunning was=\(wasRunning, privacy: .public) now=\(stillRunning, privacy: .public) inputTap=removed (#302-A)")
         inputContinuation?.finish()
         inputContinuation = nil
 
@@ -1127,6 +1142,13 @@ private actor NativeVoiceCaptureController {
 
         audioEngine.prepare()
         try audioEngine.start()
+        // #302-A: the honest instrument reads the ENGINE's own state, not a
+        // wrapper flag — the wrapper is the thing under suspicion. From this
+        // line until the matching COLD line, microphone buffers are flowing
+        // into the tap. A device pass intersects [HOT..COLD] with AppLock's
+        // locked interval to answer #302 (a)-vs-(b) by measurement.
+        let engineRunning = audioEngine.isRunning
+        Self.logger.notice("capture chain HOT — AVAudioEngine.isRunning=\(engineRunning, privacy: .public) inputTap=installed (#302-A)")
 
         let startedAnalyzer = analyzer
         analyzerTask = Task { [weak self] in

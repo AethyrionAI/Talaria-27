@@ -5078,6 +5078,52 @@ next reader does not re-file it.
 (the run that surfaced it), #180-L (the overlay's engine copy), #18 (no silent
 local substitution — cited here to note this is *not* an instance of it).
 
+> **📝 EXECUTION NOTE 2026-08-10 (voice-triage lane, Lane 2 — code read only,
+> per the dispatch's stop-gate: NO FIX BUILT before 303-A runs).**
+>
+> **Source re-verified at HEAD (`d004c82`):** the `:238` one-direction
+> re-check is confirmed verbatim — `if activeEngine == .realtime,
+> !Self.realtimeIsPermitted(for: activeBrain())` is at exactly line 238, and
+> `startSession()` contains no upgrade branch. Three sharpenings from the read:
+>
+> 1. **The upgrade direction already EXISTS in the router — in
+>    `refreshReadiness()`** (`setActive(.realtime)`, line 217, after brain
+>    gate → pairing → probe). The defect is precisely that the cold Control
+>    Center path reaches `startSession()` with no `refreshReadiness()` in
+>    between (the entry's log shows none). So any fix is "make the cold start
+>    consult the decision that already exists," not "invent an upgrade."
+> 2. **Fix-shape constraint, recorded here because this is where the fix will
+>    be built (303-C):** a startSession-entry re-route evaluates BOTH
+>    directions from the CURRENT brain; the downgrade branch at `:238` stays
+>    first and untouched; the upgrade check must be conjunctive —
+>    `realtimeIsPermitted(for: activeBrain()) && isRelayPaired()` — so
+>    pairing or a healthy probe can never re-admit realtime against a
+>    forbidding brain. That keeps #221's gate provably un-weakened. An
+>    upgraded cold start then flows into the existing #247 B1 belt (12 s) +
+>    `shouldFallBackToNative`, so an unconfigured/unreachable realtime
+>    self-heals to native for that session.
+> 3. **A cost asymmetry the fix design must weigh (this is 303-C design
+>    space, parked with it):** `startSession()` consults only brain+pairing —
+>    no readiness probe — so an attempt-first upgrade would send a cold CC
+>    launch on a paired-but-unconfigured host (the Mac Mini shape,
+>    `configured:false`) into a doomed realtime bootstrap, up to the 12 s
+>    belt, before falling back — where today it starts native in ~23 ms.
+>    Probe-first instead adds probe latency to every cold start. Neither is
+>    obviously right; 303-A's result decides whether the question is even
+>    live.
+>
+> **#320 cross-reference (not built here):** `forward(from:engine:)` stamps
+> the engine that actually PRODUCED each snapshot, and the router's
+> `snapshot` property is deliberately unstamped (`:170`) — so an indicator
+> built on snapshots tracks the engine that actually starts, which is #320's
+> requirement. If this item's fix changes cold-start routing, #320's lane
+> must re-verify against the post-fix routing.
+>
+> **303-A/B remain PARKED on the OJAMD sitting** (realtime-configured host —
+> `handoffs/HANDOFF-2026-08-09-OJAMD-SESSION.md` §11 pairs it with R6/#138).
+> Until 303-A runs, the fail-safe reading stays live and nothing above is a
+> defect confirmation.
+
 ## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING, NOT INVESTIGATED. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is the whole question. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 1 = this item, runs FIRST).** Note recorded there: bar 302-B's "trivially arranged while #272 is unfixed" fixture is STALE — #272 closed 2026-08-09; the locked interval is now held open via the fixed Cancel-then-UNLOCK-button state.
@@ -5145,6 +5191,55 @@ outranks the remaining #254 device bars.
 **Related:** #124 (App Lock, whose seven original checks would not catch this —
 the same blind spot that hid #272 for 12 days), #272 (unbounded locked interval),
 #254 (the run that surfaced it), #118 (background revoke).
+
+> **📝 EXECUTION NOTE 2026-08-10 (voice-triage lane, Lane 1 — instrument
+> BUILT; measurement NOT run; nothing built past the measurement, per the
+> dispatch's stop-gate).**
+>
+> **302-A instrument shipped this lane** — three always-on `.notice` lines
+> (every interpolation `privacy: .public`; never behind Verbose Logging) in
+> `NativeVoicePipelineService.swift`'s `NativeVoiceCaptureController`:
+> - `audio session activated for capture (#302-A)` — after
+>   `AVAudioSession.setActive(true)` in `start(muted:)`;
+> - `capture chain HOT — AVAudioEngine.isRunning=… inputTap=installed
+>   (#302-A)` — immediately after `audioEngine.start()`, reading the
+>   ENGINE's own `isRunning` back, not a wrapper flag (the wrapper is the
+>   thing under suspicion);
+> - `capture chain COLD — AVAudioEngine.isRunning was=… now=…
+>   inputTap=removed (#302-A)` — in `stop()`, with the state read BEFORE
+>   teardown, so `was=false` is usable negative evidence (a start that died
+>   in permission checks never went hot).
+>
+> **Read protocol for the device pass:** the mic was live behind the lock
+> iff a HOT line lands before the unlock resolves AND no COLD line falls in
+> [HOT, unlock] — intersect with AppLock's existing `.notice` lines
+> (`scenePhase … | pre: cover=locked`, `requestUnlock EXIT`), same corpus,
+> millisecond timestamps on both sides. That distinguishes (a) from (b)
+> directly; (c) is 302-B's arm.
+>
+> **Scope boundary, explicit:** this instruments the NATIVE capture chain
+> only. The realtime engine captures via WebRTC's audio unit
+> (`LiveVoiceSessionService` — no `AVAudioEngine`), which is NOT
+> instrumented here; both observed trials ran native (per #220, quoted from
+> the corpus: `voice session starting on engine native (relayPaired=true)`).
+> If 302 recurs on a realtime-configured host, the WebRTC chain needs its
+> own instrument.
+>
+> **302-B fixture RE-ARRANGED (the bar's parenthetical "trivially arranged
+> while #272 is unfixed" is STALE as of 2026-08-09 — #272 was FIXED and
+> CLOSED that day, PR #289):** the locked interval is now held open
+> legitimately — Cancel the biometric sheet, and the fixed behaviour leaves
+> the cover down with the in-app UNLOCK button waiting (one auto-prompt per
+> lock episode), so the interval stays open until UNLOCK is tapped. Same
+> interval, different arrangement; the bar itself is unchanged.
+>
+> **Parked, and on whom:** the 302-A/302-B measurement rides the next
+> device sitting (Control Center cold launch + App Lock is a device
+> arrangement; the OJAMD voice sitting covers all three of this dispatch's
+> lanes). **302-C — the locked-launch contract (refuse / defer-until-unlock
+> / proceed) — is OWEN'S, and comes BEFORE any fix.** The pre-registered
+> response stands: both-cold ⇒ closes NOT A DEFECT with the ordering
+> documented.
 
 ## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — **FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**
 
