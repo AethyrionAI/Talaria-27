@@ -9299,6 +9299,43 @@ microphone audio somewhere the UI says it is not going.
 > fix is retracted; the four pins here (248-A..D) remain green and
 > byte-unmodified under it.
 
+> ### 📌 APPEND-ONLY POINTER BLOCK — 2026-08-10, filed by tracker #282's lane
+>
+> Per #317 ruling (a): original bytes untouched. **Nothing here is retracted
+> and this item stays closed** — the note is a measurement that bears on how
+> durable its closure is.
+>
+> **What the dupe-kill actually rests on.** This item's four pins all use
+> `.working`/`.sending` local rows, so they measure the content claim
+> confirming an **in-flight** row. #282's lane has now measured what the
+> claim does for **SETTLED** locally-born user rows, and the answer is that
+> it is their **only** confirmation tier: tier 1 misses (client `UUID()` vs
+> the host's `stableMessageID`) and tier 2 misses (the gateway transcript
+> echoes no `clientMessageID`). **So "the dupe this item existed to kill is
+> dead" is true today precisely BECAUSE tier 3 is unscoped.**
+>
+> **Measured, on branch `claude/t27-282-claim-demand-scope` (a MEASUREMENT
+> PR that does NOT merge — `main` is unaffected and every pin here is green
+> on `main` today).** With the in-flight guard applied, the four pins here
+> stay green — Owen's ruling was right about that — but three other fixtures
+> go red, and **all three reproduce THIS item's reported symptom**
+> (*"one at the top where I started, and one below the response"*) for
+> populations these pins do not cover:
+> - an ordinary two-turn in-app thread reconciled against the host:
+>   `["Q1","A1","Q2","A2"]` → `["Q1","A1","Q2","A2","Q1","Q2"]` (bounded —
+>   one extra copy, then it converges);
+> - a settled first turn beneath a mid-recovery second turn (bounded);
+> - an id-less server row across two fetches — **unbounded**, because
+>   `mapStoredMessage` mints a fresh `UUID()` and a fresh timestamp per
+>   fetch so tier 1 can never bind later.
+>
+> **Consequence for anyone reading this closure:** if a #282 successor ever
+> lands a demand-side scope, this closure's claim needs re-reading as
+> "scoped to in-flight rows", and the settled population's behaviour has to
+> be stated. **That has NOT happened** — no scope change has merged. Live
+> board: **#282**, which carries the full measurement, the mirror proof, and
+> a decision owed to Owen.
+
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
 > that started on the mac on talaria, and asked a follow up question that
 > will need research and tools - Question not duplicated. Response below
@@ -14290,6 +14327,47 @@ re-sends one clean turn. The repair path is the feature.
 > came out of exactly that gap.** Tier 3 cannot simply be deleted (that
 > re-opens #248 for as long as the gateway echoes no `clientMessageID`,
 > which is not ours to change), so the question is scope, not existence.
+
+> ### 📌 APPEND-ONLY POINTER BLOCK — 2026-08-10, filed by tracker #282's lane
+>
+> Per #317 ruling (a): the entry's original bytes above are untouched; this
+> block is the correction. **Two sentences in the text above are FALSE, and
+> they are the same borrowed claim in two places** — the in-lane scope note
+> (*"That would have made #281 impossible by construction (a `.delivered`
+> historical row could never eat anything)"*) and the closure's
+> SIBLING-DEFECT paragraph (*"That would have made #281 impossible by
+> construction, and all four #248 pins already satisfy it"*).
+>
+> **#281 was a SUPPLY-side bug. The in-flight guard is a DEMAND-side change.
+> They do not intersect.** The parenthetical names the wrong actor: in #281
+> the `.delivered` historical row was the claim's **SUPPLIER**, not its
+> consumer. Traced against 281-A's own fixture
+> (`TalariaTests/AppStoresTests.swift:1253-1264`) — the row that ATE the
+> surplus claim was the fresh **`.sending`** one, which is IN-FLIGHT and
+> which the guard leaves eligible. **#281 would have happened anyway.**
+>
+> **Live confirmation, not just a trace:** tracker #282's lane built the
+> guard on `claude/t27-282-claim-demand-scope` and ran 281-A
+> (`anAlreadyIDConfirmedRefreshedRowMintsNoContentClaim`) with it and without
+> it. **Green both times** — the guard does not touch this item's shape at
+> all. Nothing in #281's fix is retracted and its bars all still hold; only
+> this one forward-looking justification is withdrawn.
+>
+> **The OTHER half of the same sentence is TRUE and stays:** all four #248
+> pins do already satisfy the guard (every local row in them is `.working` or
+> `.sending`), re-verified green under it as bar 282-C.
+>
+> **Why this correction matters beyond tidiness.** The false clause was
+> quoted forward into `OPEN_ITEMS.md` #282's body AND into Owen's 2026-08-09
+> ruling block as one of the ruling's two stated supports — four homes for
+> one unchecked borrowed claim, the same propagation shape as the ATS lines
+> and the model-switching section. All four are now corrected. **Owen's
+> ruling itself STANDS**: it rests on case (a), which tracker #282's lane
+> has since reproduced (bar 282-A, watched RED) and closed with the guard.
+>
+> **Live board:** the scope question this entry handed forward is **#282**,
+> which as of 2026-08-10 has MEASURED the guard's cost and carries a decision
+> owed to Owen. Read #282 for the current state.
 
 ## 278. 🐛 Edit & Resend is offered on a LIVE run — the in-flight gate excludes `.sending`, but a stream that dropped leaves the row `.working` while the run keeps going — **FILED 2026-08-07 from Owen's device pass; PRE-EXISTING; truncates under a live run and can post a SECOND run to the same session** — **✅ CLOSED 2026-08-07: 278-D MET on device (OTA 2145)**
 

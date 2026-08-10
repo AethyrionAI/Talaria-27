@@ -5612,6 +5612,43 @@ testable in a second instead of behind a 20-minute suite):
 > voice-thread reconcile ever shows this doubling, that is a NEW filing, not
 > a reopened #299.
 
+> **📌 UPSTREAM NOTE 2026-08-10, filed by tracker #282's lane (close-out
+> rule) — this item's FIX is intact, but two of its bars' pinned ARRAYS are
+> falsified on branch `claude/t27-282-claim-demand-scope`, and the
+> distinction is the whole point.**
+>
+> **The prediction recorded in #282's unblock note — *"the guard will NOT
+> re-open #299"* — is CONFIRMED TRUE.** #282's demand-side guard was built
+> and measured, and **assistant rows stay single in every fixture**:
+> `serverIdentityAdoptions` is byte-untouched, consumes no claims, and bars
+> **299-C and 299-D are GREEN with the guard in place**. Turn-anchored
+> adoption and the content claim are separable exactly as the
+> one-lane-per-mechanism sequencing intended.
+>
+> **What IS falsified is narrower and is a USER-row fact.** 299-A and 299-B
+> share their fixture with #282's baseline bar 282-B — a two-turn thread born
+> in-app, reconciled against the host — and under #282's guard that array
+> becomes:
+> ```
+> messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "Q1", "Q2"]
+> ```
+> **The two "A" rows this item fixed are still single; the two "Q" rows now
+> double**, because the content claim is the only confirmation a settled
+> locally-born USER row has and #282's guard withdraws it. 299-B's
+> boundedness assertion (`afterSecond == afterFirst`) still PASSES, so the
+> new user-row duplication converges after one extra copy on the stable-id
+> path — same shape as the assistant duplication this item measured, not
+> #237's compounding one.
+>
+> **No action is owed here and nothing is retracted:** #282's branch is a
+> **MEASUREMENT PR that does not merge**, so `main` is unaffected and
+> 299-A/299-B are green on `main` today. This note exists so that whoever
+> reads #299 next — or reads a RED 299-A in a future #282-descended lane —
+> knows the cause is the demand-side guard and not a regression in this
+> item's fix. **If any #282 successor lands, 299-A/299-B's pinned literals
+> are text that lane must correct in its own commit.** Full measurement,
+> mirror proof and the decision owed: **#282**.
+
 > **⚖️ SEQUENCING RULING 2026-08-09 (decision pass): #299 ROUTES AHEAD of
 > #282's guard** — Owen's call on the sequencing question #282's halt raised.
 > This item is now the head of that chain; #282's lane resumes after it lands.
@@ -8054,13 +8091,46 @@ content match wins, not the row the refreshed row actually corresponds to.
 only an IN-FLIGHT local row consume a claim — `!localRow.status.isSettled`,
 the predicate #278 already added, covering exactly
 `.sending`/`.working`/`.queued`. #281 records two facts that make this
-attractive and one that makes it a decision rather than a chore: it *"would
-have made #281 impossible by construction"*; all four #248 pins already
+attractive and one that makes it a decision rather than a chore: it ~~*"would
+have made #281 impossible by construction"*~~ **← FALSE; see the correction
+immediately below**; all four #248 pins already
 satisfy it (every one of their local rows is `.working` or `.sending`); and
 deleting the tier outright is NOT an option, because that re-opens #248 for
 as long as the gateway transcript carries no `clientMessageID` — which is
 not ours to change and is on #223's deletion path anyway. **So the question
 is scope, not existence.**
+
+> **⚠️ CORRECTION 2026-08-10 (tracker #282's lane, close-out rule) — the
+> first of those two "facts" is FALSE, and this paragraph is its THIRD home.**
+> *"Would have made #281 impossible by construction"* was borrowed verbatim
+> from #281's own closure and quoted forward here as a reason. **#281 was a
+> SUPPLY-side bug; the in-flight guard is a DEMAND-side change; they do not
+> intersect.** Traced against 281-A's own fixture
+> (`AppStoresTests.swift:1253-1264`): the `.delivered` historical row MINTED
+> the surplus claim (tier 1 returns without decrementing), and the consumer
+> that ate it was the **`.sending`** fresh row — which is IN-FLIGHT, so the
+> guard would have left it eligible and #281 would have happened anyway.
+> #281's parenthetical (*"a `.delivered` historical row could never eat
+> anything"*) names the wrong actor: that row was the claim's SUPPLIER.
+> **Live confirmation from this lane:** bar 281-A
+> (`anAlreadyIDConfirmedRefreshedRowMintsNoContentClaim`) is GREEN both with
+> and without the guard — the guard does not touch it at all.
+> **The second "fact" — all four #248 pins already satisfy it — is TRUE**
+> and verified row-by-row, and re-verified green by this lane's 282-C.
+> Corrected at all four homes: this paragraph, Owen's ruling block below
+> (already corrected 2026-08-09), and both places in
+> `OPEN_ITEMS-ARCHIVE.md` #281 (append-only pointer block, per #317's
+> archive carve-out).
+
+> **⚠️ THE FIXTURE TRAP, recorded here because it will bite the next writer
+> (correction 4.2).** **`Message.status` DEFAULTS TO `.sent`**
+> (`Talaria/Models/Message.swift:138`), and `.sent` is SETTLED
+> (`MessageStatus.swift:19-24`). So a fixture row written
+> `Message(sender: .user, content: "X")` is silently INELIGIBLE to consume a
+> content claim under the ruled guard. Every bar in this item states its
+> statuses explicitly for exactly this reason; several pre-existing pins get
+> away with omitting them only because they happen to set statuses anyway.
+> A bar that omits a status is not testing what its author thinks.
 
 **The framing worth keeping, quoted from #281:** *"a whole-transcript,
 order-free content map is solving a problem that is one row wide and a few
@@ -8326,6 +8396,403 @@ are now on the table where the dispatch expected two:
    at adoption would close #299 *and* remove case (b)'s root cause (the
    dispatch's option 2) with one mechanism. **That is a recommendation, not a
    build.**
+
+### BARS — RESUMED LANE, re-pre-registered 2026-08-10, BEFORE ANY CODE
+
+Lane `claude/t27-282-claim-demand-scope`, re-branched off `main` at
+**`25a713d`** (the tracker #299 merge, PR #303). **Owen's final order runs
+this lane BEFORE tracker #279's successor work** — the dispatch's §6/§8
+"branch off main after #279 has merged" is SUPERSEDED; #279 merged as
+`12ed25b` and is already in this base anyway. **Tracker #282 is NOT GitHub
+PR #282.**
+
+**What carries forward unchanged from the 2026-08-09 halt.** The bars are the
+same seven, with the same assertions, and the tests for all seven are already
+in the tree — the halted lane wrote them and they merged with #299's PR.
+282-A and 282-F are committed `.disabled` with their watched-RED text in their
+doc comments; this lane deletes those traits and re-watches. **A missed bar is
+still a falsification, never a redefinition.**
+
+**Three things this resumed lane changes, and they are adjustments to the
+MEASUREMENT, not to the bars:**
+
+1. **282-B's baseline is now the CLEAN array.** #299's fix landed, so
+   `theHermesReconcileMergeBaselineBeforeScopingTheClaim` pins
+   `["Q1","A1","Q2","A2"]` and doubles as bar 299-A. The assistant-row STOP
+   condition that halted the 2026-08-09 lane **can no longer fire from that
+   source**. 282-B's job here is narrower and explicit: **confirm the clean
+   baseline holds PRE-change, and re-run it POST-change.** If it shows
+   duplicates pre-change that is a new finding and this lane stops again.
+2. **282-D and 282-E are RE-READ against the fixed merge before running**, per
+   the sequencing ruling. This lane's own read is recorded below, before the
+   run.
+3. **Every `ChatStore.swift` anchor has churned twice** (two waves since the
+   dispatch's `35c6234` read). Re-verified at `25a713d` and recorded below.
+
+**ANCHORS RE-VERIFIED AT `25a713d`** (the dispatch's numbers are all stale;
+mechanism unchanged at every one):
+
+| what | dispatch said | **at `25a713d`** |
+|---|---|---|
+| `unconfirmedLocalMessages` | `ChatStore.swift:2737` | **`:3384`** (doc comment `:3360-3383`) |
+| **the DEMAND predicate this lane changes** | `:2751` | **`:3398`** — `if localRow.sender == .user {` |
+| tier 1 (exact id) / tier 2 (`clientMessageID`) | `:2749` / `:2750` | **`:3396` / `:3397`** |
+| the SUPPLY side (#281's gate) | `:2744-2747` | **`:3391-3393`** |
+| the append site (survivors go to the TAIL) | `:2684` | **`:3327-3330`** — and its input is now `.filter { !adoptedLocalIDs.contains($0.id) }`, #299's wire-in |
+| `serverIdentityAdoptions` (#299, new) | — | **`:3444`** (doc `:3409-3443`) |
+| `mergeConversationMetadata` | — | **`:3198`**; adoptions computed `:3219` |
+| `attemptReconcile` | `:2420` | **`:2989`** |
+| `openSession`'s deliberate bypass | `:2092` | **`:2675`** |
+| `finalizeStaleSendsFromCache` (#56, T-4) | `:502-511` | **`:511`** |
+| `isSettled` | `MessageStatus.swift:19-24` | **unchanged, `:19-24`** — `.sending`/`.working`/`.queued` false; `.sent`/`.delivered`/`.failed` true |
+| **`.sent` is the DEFAULT** | `Message.swift:138` | **unchanged, `:138`** — correction 4.2's trap |
+| `mapStoredMessage`'s id fallback (case (b)) | `SessionsHermesClient.swift:1029-1035` | **`:1036` (func), `:1075` (`id: stableID ?? UUID()`), `:1079` (`status: .delivered`)** |
+| `mapStoredMessage`'s timestamp fallback | `:1000` | **`:1044`** — `?? .now`, a fresh clock per fetch |
+| `stableMessageID` | `:1045-1049` | **`:1089`** |
+| `dedupingAdoptedEchoes`' key | `Conversation.swift:50-60` | **unchanged, `:50-56`** — `timeIntervalSince1970` still in the key, untouched per the #237 trap |
+| the five pins | `AppStoresTests.swift:1202/1215/1228/1239/1253` | **unchanged, same five lines** |
+
+**THIS LANE'S OWN RE-READ OF 282-D AND 282-E AGAINST THE FIXED MERGE,
+recorded BEFORE the run (the sequencing ruling requires it; the #299 author's
+prediction is quoted in the unblock note above and this is an independent
+trace, not a restatement):**
+
+- **282-D — still predicts RED, and #299 is provably not the cause.** Traced
+  through `serverIdentityAdoptions` at `:3444` on 282-D's own fixture: remote
+  turn 1 anchors on "Q1", pairs local turn 1, and adopts the local `A1` onto
+  the host's `A1` — so `adoptedLocalIDs == {A1}` and the ASSISTANT half is
+  clean. The filter at `:3328` then hands `unconfirmedLocalMessages` the two
+  USER rows only. `U1` is `.delivered`: tier 1 misses (client id vs
+  `stableMessageID`), tier 2 misses (the host echoes no `clientMessageID`),
+  and under the guard tier 3 is closed to it — **so `U1` survives, appends at
+  `:3327`, and `dedupingAdoptedEchoes` cannot collapse it against the host's
+  "Q1" because their timestamps are a phone clock and a host clock.** Merged
+  user contents `["Q1","Q2","Q1"]`. **#299's adoption map consumes no claims
+  and touches no user row**, exactly as its author said — the guard neither
+  re-opens #299 nor is rescued by it.
+- **282-E — still predicts RED for the USER row, and the ASSISTANT sibling is
+  now bounded, which this lane expects to SEE rather than assume.** Second
+  fetch: the id-less host rows carry fresh `UUID()`s (`:1075`) and a fresh
+  `.now` (`:1044`). `serverIdentityAdoptions` anchors the turn by trimmed
+  content and adopts the local `A1` onto the new host `A1` — so the assistant
+  row does **not** grow, which is the half #299 quietly closed. The user row
+  gets no such pass: its local twin is `.delivered` (`:1079` stamped it),
+  the guard closes tier 3, nothing else can confirm it, and the user-row count
+  goes 1 → 2. **Case (b) inverts from a silent swallow into a per-fetch
+  duplicate, as the ruling's own correction block predicts.**
+
+**The bars, verbatim in assertion from the 2026-08-09 pre-registration:**
+
+- **282-A — unit, must go RED → GREEN. Case (a), the ruling's target.**
+  `local = [Failed(id: F, clientMessageID: F, .user, "X", status: .failed),
+  Success(id: S, clientMessageID: S, .user, "X", status: .sending)]`;
+  `refreshed = [Server(id: R, .user, "X", clientMessageID: nil)]`, `R ∉ {F,S}`.
+  Assert `unconfirmedLocalMessages` returns **`[Failed]`**. Statuses EXPLICIT
+  on every fixture row. **Watched RED verbatim at `25a713d` before the
+  change.** No device.
+- **282-B — unit, BASELINE, GREEN before AND after.** The clean array
+  `["Q1","A1","Q2","A2"]`. If it shows duplicates pre-change, the lane STOPS
+  and reports — that is a new finding, not this lane's to fix. No device.
+- **282-C — unit, REGRESSION, non-negotiable.** The five pins
+  (`AppStoresTests.swift:1202/1215/1228/1239/1253`) pass **byte-unmodified**;
+  the diff on their region is purely additive. If the change forces an edit to
+  any of them the change is wrong. No device.
+- **282-D — unit, PREDICTED RED under the ruling.** Assert no user row's
+  content appears twice in the merged transcript. GREEN pre-change first, then
+  the post-change result recorded VERBATIM whatever it is. No device.
+- **282-E — unit, PREDICTED RED under the ruling.** Assert the user-row count
+  is flat across two fetches of an id-less transcript. GREEN pre-change first,
+  then recorded verbatim. **No OJAMD probe — A3 stays unmeasured; this is a
+  unit bar.** No device.
+- **282-F — unit, PLACEMENT, and the lane states its answer.** **The answer
+  this lane pins: TAIL PLACEMENT IS ACCEPTED AND DOCUMENTED.** A survivor is
+  appended at `:3327`, so a rescued `.failed` row returns at the BOTTOM of the
+  transcript rather than above its retry. Reinsertion-in-place is a second
+  production edit the ruling does not authorise and that no bar has measured;
+  it is explicitly NOT built here. Assert the tail row's `id` and `status`, not
+  only the content array — the content array is identical either way, which is
+  what the 2026-08-09 run taught. No device.
+- **282-G — device, Owen. ONLY IF 282-D and 282-E come back GREEN
+  post-change.** Never run by this lane. If either is RED, **this run is not
+  requested** and parks.
+
+**Falsification, unchanged and binding.** If 282-A goes green and 282-D/282-E
+go RED, the ruling is correct for case (a) and insufficient as a whole change
+— **STOP after the mirror proof; do not widen scope, do not redefine a bar,
+do not build the dispatch's §7 options.** The deliverable becomes a
+MEASUREMENT PR. If 282-D/E come back GREEN, the code read is wrong and the
+ruling ships as written.
+
+### 🛑 RESULT 2026-08-10 — THE GUARD WAS WRITTEN, MEASURED, AND IT COSTS MORE THAN PREDICTED. **MEASUREMENT PR — DO NOT MERGE; DECISION OWED.**
+
+**The pre-registered falsification path fired.** 282-A and 282-F went
+RED→GREEN — **the ruling closes case (a) exactly as Owen intended** — and
+282-D and 282-E both came back **RED**, as this lane and #299's author each
+predicted independently. Per the bars above and the dispatch's §5, that is
+STOP-and-report: the scope is not widened, no bar is redefined, and neither
+§7 option is built.
+
+**And one bar failed that was NOT predicted to, which is the headline.**
+**282-B — the BASELINE, which the bars require GREEN before AND after — went
+RED.** It is the same fixture as #299's bars 299-A/299-B: an ordinary
+two-turn thread born in-app, reconciled against the host. So the finding is
+not confined to the exotic populations 282-D and 282-E were written for.
+
+**One production line changed** (`ChatStore.swift:3443` on this branch — it
+was `:3398` at the base `25a713d`; the doc-comment extension above it moved
+it), plus comments:
+
+```
+-            if localRow.sender == .user {
++            if localRow.sender == .user, !localRow.status.isSettled {
+```
+
+**Everything measured, sim `CC-300-iPhone-Air` (UDID
+`F58EADE2-…0716BF0484C3`), 168 tests in 2 suites, base `25a713d`.**
+
+- **282-A — MET, RED → GREEN.** Watched RED against unmodified production,
+  verbatim:
+  ```
+  ✘ Test aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() recorded an issue at
+    AppStoresTests.swift:1310:9: Expectation failed: unconfirmed.map(\.id) == [failedID]
+  ↳ unconfirmed.map(\.id) == [failedID] → false
+  ↳   unconfirmed.map(\.id) → [67C3D393-6C79-416B-A237-4D7C569E4984]
+  ↳   [failedID] → [A2CBE78A-1B71-405F-A999-1DD6648FCC3D]
+  ```
+  The returned id is the SUCCESSOR's — the stated reason, not a compile
+  error and not a different assertion. GREEN with the guard.
+  **Case (a) is real, reproduced, and CLOSED by the ruled change.**
+
+- **282-B — 🛑 FAILED. RED post-change, and it was required GREEN both
+  sides.** Verbatim:
+  ```
+  ✘ Test theHermesReconcileMergeBaselineBeforeScopingTheClaim() recorded an issue at
+    ChatStorePersistenceTests.swift:994:9: Expectation failed:
+    messages.map(\.content) == ["Q1", "A1", "Q2", "A2"]
+  ↳ messages.map(\.content) == ["Q1", "A1", "Q2", "A2"] → false
+  ↳   messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "Q1", "Q2"]
+  ```
+  GREEN pre-change (the clean array #299 delivered), so the 2026-08-09 STOP
+  did not re-fire and this is a NEW effect of the guard alone. **BOTH user
+  rows duplicate; both assistant rows stay single.** Read against the
+  2026-08-09 measurement on the identical fixture
+  (`["Q1","A1","Q2","A2","A1","A2"]`), the merge has **traded an
+  assistant-row duplication for a user-row duplication on the very same
+  everyday shape** — an in-app thread, several turns deep, that stalls once
+  and reconciles.
+
+- **299-B — RED, same cause, and its boundedness half SURVIVED.**
+  `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`, verbatim:
+  ```
+  ✘ ... recorded an issue at ChatStorePersistenceTests.swift:1034:9:
+    Expectation failed: afterFirst == ["Q1", "A1", "Q2", "A2"]
+  ↳   afterFirst → ["Q1", "A1", "Q2", "A2", "Q1", "Q2"]
+  ```
+  Only the `afterFirst` literal failed. **`#expect(afterSecond == afterFirst)`
+  (`:1035`) PASSED**, so on the STABLE-id path the new user-row duplication
+  is **BOUNDED** — one extra copy, then it converges, because the re-fetch
+  reproduces the same `stableMessageID` and the first merge's rows confirm at
+  tier 1. Measured, not assumed, for the same reason #299 measured it: this
+  is NOT #237's compounding 32→128 shape.
+
+- **282-C — MET, GREEN, byte-unmodified.** All five pins passed with the
+  guard in place: `adoptedServerCopyConfirmsTheLocalUserRowByContent` (248-A),
+  `contentClaimConfirmsAtMostOneLocalPerServerRow` (248-B),
+  `echoedClientMessageIDStillConfirms` (248-C),
+  `inFlightSendSurvivesAnEmptyRefresh` (248-D),
+  `anAlreadyIDConfirmedRefreshedRowMintsNoContentClaim` (281-A). The diff on
+  `AppStoresTests.swift`'s #248/#281 region is purely additive (the only edit
+  is the removal of 282-A's `.disabled` trait). **Owen's ruling was right
+  about the pins** — no pin needed touching.
+
+- **282-D — RED, as predicted by BOTH independent reads.** Verbatim:
+  ```
+  ✘ Test aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge() recorded an issue at
+    ChatStorePersistenceTests.swift:1139:9: Expectation failed:
+    Set(userContents).count == userContents.count
+  ↳ Set(userContents).count == userContents.count → false
+  ↳   Set(userContents).count → 2
+  ↳   userContents.count → 3
+  ```
+  GREEN pre-change. The settled `.delivered` user row loses its only
+  confirmation tier, survives, and is appended — **#248's exact reported
+  symptom, restored for a population its four pins do not cover.**
+
+- **282-E — RED, as predicted, and this one is UNBOUNDED.** Verbatim:
+  ```
+  ✘ Test anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches() recorded an issue at
+    ChatStorePersistenceTests.swift:1194:9: Expectation failed: afterSecond == afterFirst
+  ↳ afterSecond == afterFirst → false
+  ↳   afterSecond → 2
+  ↳   afterFirst → 1
+  ```
+  GREEN pre-change. Case (b) **inverts** exactly as the ruling's own
+  correction block warned: a silent swallow becomes a **per-fetch** duplicate.
+  Unlike 282-B/299-B this does NOT converge — the id-less row takes a fresh
+  `UUID()` (`SessionsHermesClient.swift:1075`) and a fresh `.now` (`:1044`) on
+  every fetch, so tier 1 can never bind on the next pass and
+  `dedupingAdoptedEchoes` can never collapse the pair. **No OJAMD probe was
+  run — assumption A3 (how often the live gateway omits `id`) stays
+  UNMEASURED, and it is what decides whether 282-E is a live-user problem or
+  a tolerance-path one.**
+
+- **282-F — MET, RED → GREEN, and the placement answer is PINNED.**
+  Watched RED against unmodified production, verbatim:
+  ```
+  ✘ Test theSurvivingFailedRowIsAppendedAtTheTail() recorded an issue at
+    ChatStorePersistenceTests.swift:1255:9: Expectation failed: tail.id == failedID
+  ↳ tail.id → 2B11F380-6EFF-401E-A0DA-BAD9B67AAD87
+  ↳ failedID → FA4BF254-38AE-4352-9DC4-B19B3FE755F0
+  ✘ ... :1256:9: Expectation failed: tail.status == .failed
+  ↳ tail.status → .working
+  ```
+  Note the content assertion `["X","reply","X"]` PASSED both times — the
+  array is identical either way and only the tail row's identity moves, so a
+  content-only bar would have been green for the wrong reason.
+  **THE ANSWER THIS LANE PINS: TAIL PLACEMENT IS ACCEPTED AND DOCUMENTED.**
+  A rescued `.failed` row comes back at the BOTTOM of the transcript, not
+  above its retry. Reinsertion-in-place is a second production edit the
+  ruling does not authorise and no bar has measured; it is explicitly NOT
+  built here. Stated plainly rather than discovered on device.
+
+- **282-G — NOT REQUESTED.** Its precondition was 282-D **and** 282-E coming
+  back GREEN post-change. Both are RED. **No device pass is owed or wanted on
+  this build** — its own units predict a duplicate. It parks.
+
+**THE MIRROR PROOF — the REDs belong to the guard, not to the fixtures.**
+The one production line was reverted (tests untouched) and the suite re-run:
+**282-B, 299-B, 282-D and 282-E all went GREEN again, and 282-F went RED
+again.** The flip is clean in both directions on that single predicate, so
+every result above is attributable to the guard and nothing else. (Restored
+before commit; the branch carries the guard.)
+
+### GATE: FAIL (4 checks) — RUN, and the verdict is part of the measurement
+
+**`scripts/mac/lane-gate.sh` was RUN on this branch** (sim
+`CC-300-iPhone-Air`, logs `/tmp/gate-282`), unlike the 2026-08-09 attempt
+which deliberately omitted it because there was no production change to
+certify. There is one now, so the gate ran — and it **cannot pass**, because
+four tests are RED in tree BY DESIGN and **not one of them was doctored to
+green**. That is the instruction and it is also the point: a green gate here
+would mean the bars had been rewritten to match the result.
+
+```
+  FAIL  Test run — xcodebuild exited 65
+  FAIL  Test run reported ** TEST FAILED **
+  FAIL  Test run reported TEST SUCCEEDED — success marker not found
+  FAIL  Swift Testing tests run — no count line found
+  PASS  XCUITest tests run — 14
+  ...
+  PASS  Release build succeeded
+  PASS  no Swift compile errors in Release
+GATE: FAIL (4 check(s))
+```
+
+**What the gate proves in spite of failing, and it is worth having:**
+- **The RELEASE build is CLEAN** — `xcodebuild exit=0`, positive marker, no
+  Swift compile errors. #218's check passes, so the change is not a
+  Debug-only illusion.
+- **XCUITest: 14, all passing.** No UI regression.
+- **The unit failures are EXACTLY the four predicted ones and nothing else,
+  across the whole 2056-test suite** — the gate's own failing-test list names
+  `theHermesReconcileMergeBaselineBeforeScopingTheClaim`,
+  `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`,
+  `aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge`, and
+  `anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches`. No collateral
+  breakage anywhere in the project.
+- **The #300 classifier called it correctly** — *"ASSERTION TEXT PRESENT —
+  treat this as a REAL failure. Do NOT re-roll it."* These are real
+  failures, not flakes, and the tooling says so unprompted.
+- The two `CondenserFidelityTests` skips are the known-permanent
+  Apple-Intelligence-hardware pair, unchanged.
+
+**UNIT COUNT: 2056 — and it deliberately did NOT move.** The suite line reads
+`Test run with 2056 tests in 156 suites failed`, the same 2056 #299 recorded.
+**This is correct, not a stale `.xctest`:** this lane added no test — it
+removed two `.disabled` traits from tests that already existed and were
+already counted. The proof that fresh code ran is that the four failures are
+new and the mirror proof flips them. Stated explicitly because "confirm the
+count MOVED" is the standing rule and this is the one shape where not moving
+is the honest answer.
+
+**THE MEASUREMENT, IN ONE SENTENCE.** The ruled guard does exactly what Owen
+ruled it should — a `.failed` row stops being eaten (282-A), and it costs no
+pin (282-C) — but the tier it narrows is the **only** confirmation a
+settled, locally-born user row has, so narrowing it converts three
+populations from a silent swallow into a visible duplicate: the everyday
+in-app reconcile (282-B/299-B, bounded), the settled-historical turn (282-D),
+and id-less server rows (282-E, unbounded). **The demand side cannot be
+scoped by a status predicate alone.**
+
+### DECISION OWED — Owen's call. Neither option is built; neither gets built without a per-change go.
+
+Both are the dispatch's §7 options, restated against what was actually
+measured rather than what was predicted.
+
+1. **RANK the consumers instead of BANNING them.** In-flight rows take a
+   claim first; a settled row may still consume one that no in-flight row
+   wants. **What the measurement now says about this option:** it would keep
+   282-B, 282-D and 282-E green (a settled row still confirms when nothing
+   else claims), and it is a partial for case (a) — a `.failed` row is still
+   first in local order among settled candidates, so 282-A only goes green
+   when the successor is genuinely in flight at merge time, which is the
+   common shape but not all of it. Contained: same function, no new file.
+2. **Remove case (b) at its SOURCE** — give `mapStoredMessage` a
+   deterministic fallback id (a hash over `(sessionId, index, role, content)`
+   in `stableMessageID`'s shape, `SessionsHermesClient.swift:1089`) so an
+   id-less row is stable across fetches and confirms at tier 1 with no claim
+   needed. **This closes 282-E only** — 282-B and 282-D's rows have real
+   server ids and are untouched by it. Second file, different lane's surface;
+   caveat unchanged: index-derived identity assumes the host transcript is
+   append-only in a stable order.
+
+**A third possibility this lane surfaced but did NOT design and is not
+recommending from measurement alone:** 282-B/282-D are the USER-row twin of
+exactly the defect #299 just fixed for assistant rows, and #299's
+`serverIdentityAdoptions` (`ChatStore.swift:3444`) is turn-anchored and
+consumes no claims. Whether its anchoring could confirm settled user rows
+directly — making the content claim unnecessary for them rather than
+merely forbidden — is a design question with its own bars, not an
+extrapolation this lane is entitled to make.
+
+**What is now known that was not known on 2026-08-09:** case (a) is real and
+the guard closes it; the pins survive; and the guard's cost is measured on
+three fixtures instead of argued. **The ruling is not refuted — it is
+priced.**
+
+**Interactions recorded.** **#299:** its author's prediction that *"the guard
+will NOT re-open #299"* is **CONFIRMED TRUE for assistant rows** — they stay
+single in every fixture above, adoption is untouched, and 299-C/299-D are
+green. But 299-A/299-B's pinned ARRAYS are falsified on this branch by the
+user-row half, which is recorded at #299's own home per the close-out rule.
+**#248:** its closure text needs the note that its dupe-kill is now scoped to
+in-flight rows if this ever lands — **not written yet, because nothing has
+landed**; see the pointer in `OPEN_ITEMS-ARCHIVE.md` #248. **#237:**
+`dedupingAdoptedEchoes`' timestamp key was NOT loosened and must not be — it
+is why none of these duplicates collapse, and `Conversation.swift:47-49`
+records that loosening it would delete genuinely repeated user messages.
+**#277:** `openSession`'s deliberate bypass (`ChatStore.swift:2675`) is
+untouched. **#223:** the whole tier exists because the gateway echoes no
+`clientMessageID`, and that plane is on the deletion path — which is context
+for how much to invest here, not a reason to defer.
+
+**Correction 4.3 — case (b)'s severity, as filed, was understated, and the
+measurement confirms it.** The entry filed (b) as a supply-side annoyance
+(*"mints a fresh claim on EVERY fetch, forever"*). Measured: under the guard
+it is the **only** confirmation an id-less row's local twin has, so it
+inverts into a per-fetch DUPLICATE that does not converge (282-E:
+`afterSecond → 2`, `afterFirst → 1`), and `dedupingAdoptedEchoes` cannot
+collapse it because `:1044`'s `?? .now` gives the row a new timestamp on
+every fetch. **Adjusted for what #299 now bounds:** the ASSISTANT half of
+this population re-adopts per fetch via turn anchoring and is bounded — this
+lane SAW that (the assistant rows do not grow in 282-E's fixture, only the
+user rows do), which is exactly what #299's author predicted. **The USER-row
+half stands unbounded.**
+
+**Correction 4.4 — verified, no action.** `OPEN_ITEMS-ARCHIVE.md` #248's two
+update notes point at #281 "in THIS file" and forward the scope question to
+#282 on the live board. Re-checked at `25a713d`: **accurate.** Recorded so
+the next reader does not re-check it.
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
