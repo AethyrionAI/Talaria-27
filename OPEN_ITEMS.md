@@ -875,7 +875,30 @@ Logged 2026-07-06.
 
 ---
 
-## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25
+## 58. 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — ~~`.main` execution BUILT 2026-07-27 (cloud, NOT compiled); controls DEAD on device 2026-07-25~~ **✅ CONTROL CENTER ARM WORKS ON DEVICE — Owen's report 2026-08-10: "command center controls now work, so yay." See the dated note below for what that discharges and the two residuals.**
+
+> **⚖️ 2026-08-10 — OWEN'S DEVICE REPORT, recorded the day it was made.** The
+> owed check was exactly this ("tap Ask Hermes from Control Center → Talaria
+> opens on the Chat tab; then Talk to Hermes → voice surface") and Owen
+> reports the controls now work in real use. Presumed build: **2418** (the
+> 2026-08-09 evening OTA, the newest installed) — correct here if that's
+> wrong. After three straight device FAILs (07-20, 07-23, 07-25), this is the
+> first working report, on a build that post-dates the `.main` execution
+> change compiled into every build since ~07-27 plus two iOS beta cycles —
+> **which of those fixed it is NOT established, and this note does not
+> claim to know.**
+>
+> **Discharged:** the core device verify (both controls, Control Center arm).
+> **Residuals, and then this item can close:**
+> 1. **#179's discriminator** — with the extension COLD (force-quit, or
+>    freshly rebooted), was the FIRST tap swallowed? If Owen's working taps
+>    included a cold first tap, #179 closes with this; 30 seconds next
+>    sitting.
+> 2. **The Lock Screen / Action-button arm** of the checklist (needs the
+>    controls assigned there; Action-button test needs an Action-button
+>    iPhone). Opportunistic, not a dedicated run.
+> The extra-large-portrait layout question stays a cosmetic decision, not a
+> bar.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
@@ -3830,6 +3853,8 @@ Logged 2026-07-23.
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
+> **2026-08-10:** Owen reports the Control Center controls now WORK (#58's note). This item's cold-first-tap discriminator is the ONLY thing left open here — one 30-second check next sitting (force-quit, tap the same control twice; if only the first is swallowed, the shape is established; if neither, close with #58).
+
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F6**, written as a
 > runnable check. **One queue** — do not restate it here; a check that lives in two
@@ -4280,6 +4305,8 @@ Logged 2026-07-24 (review of PR #144).
 
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`** — the 07-26 fix branch (`claude/t27-184-185-chatstore-integrity`) is confirmed UNMERGED; the lane rebases-or-rederives at HEAD with the teardown matrix EXTENDED to #306-era state (held turns per the ratified O8 ruling, compose outbox, drain flag).
+
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
 > runnable check. **One queue** — do not restate it here; a check that lives in two
@@ -4365,6 +4392,8 @@ it). NOT device-verified — sim suite only.
 > switch no longer exists to flip.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`** (shared lane with #184) — re-land the branch fix at HEAD; #293(d)'s distinct-or-fold judgment is made in that lane, on the code as re-landed.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -4955,6 +4984,8 @@ Manual/Off app lane).**
 
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
+
 **The asymmetry, from source.** `startSession()` carries an explicit
 *"last line of defence"* re-check (`VoiceEngineRouter.swift:238`) —
 but it fires in **one direction only**:
@@ -5027,6 +5058,8 @@ local substitution — cited here to note this is *not* an instance of it).
 
 ## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING, NOT INVESTIGATED. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is the whole question. NOT STARTED; bars pre-register here before any code.**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 1 = this item, runs FIRST).** Note recorded there: bar 302-B's "trivially arranged while #272 is unfixed" fixture is STALE — #272 closed 2026-08-09; the locked interval is now held open via the fixed Cancel-then-UNLOCK-button state.
+
 **Observed** on build 2330 (`main` @ `6b71872`, Release OTA), `whoGoesThere`,
 iOS 27.0, while running #254's native arm. App Lock was enabled with grace
 `Immediately`; the launch came from Control Center → "Talk to Hermes" on a
@@ -5093,6 +5126,8 @@ the same blind spot that hid #272 for 12 days), #272 (unbounded locked interval)
 
 ## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — **FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 3).** Repro attempt (n≥5) then site-naming before any code; no-repro ⇒ park as a watch.
+
 **Observed** by #254's lane while executing bar 254-F, on `CC-272-iPhone-Air`
 (iOS 27.0, Xcode-beta4, Debug). After granting microphone + speech
 permissions, the app died with:
@@ -5124,6 +5159,8 @@ annotation sweep would hide rather than settle it.
 
 ## 300. 🐛 `lane-gate.sh`'s failure-advice text misdiagnoses Swift Testing failures and routes them to a CLOSED item — **FILED 2026-08-09 by #254's lane. NOT STARTED; bars pre-register here before any code.**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-300-319-tooling-bucket.md` (Half 1)** — bars 300-A..D proposed there, including the no-hardcoded-item-numbers rule for advice text.
+
 **The defect.** The gate's advice text classified a **Swift Testing** unit
 failure that carried real assertion text as *"an XCUITest harness flake (NO
 assertion text)"* and pointed the reader at **#164** — which is **CLOSED**
@@ -5149,6 +5186,8 @@ future gate reading.
 ---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-299-adoption-identity.md`** — bars 299-A..E proposed there; copy into this entry at lane open, per the convention.
 
 > **⚖️ SEQUENCING RULING 2026-08-09 (decision pass): #299 ROUTES AHEAD of
 > #282's guard** — Owen's call on the sequencing question #282's halt raised.
@@ -5697,6 +5736,8 @@ accepted limitation) when the host sitting scopes Phase 3's later slices.
 
 ## 315. 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun` — **FILED 2026-08-09 by #306's whole-lane review (pre-existing on `main`, observed not introduced). #306 closed the QUEUE door on this class and #307 closed the DRAIN door; this is the one remaining door. NOT STARTED; bars pre-register here before any code.**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-315-manual-send-door.md`** — bars 315-A..D proposed there; copy into this entry at lane open.
+
 During the reconcile window (`streamingMessageID == nil`, `pendingRun` live —
 the #278 state, which can last minutes), the composer's queue door renders only
 on `isStreaming` — so it offers **plain Send**. A manual send there posts into
@@ -5821,6 +5862,8 @@ landing on a deck page inherits that behaviour as-is.
 ---
 
 ## 319. 🐛 XcodeGen derives the WRONG PRODUCT NAME on every regen — `Talaria.xcscheme`'s `BuildableName` flips `"Talaria 27.app"` → `"Talaria.app"` each time the mandatory `xcodegen generate` runs — **FILED 2026-08-09 per #268 (named in `handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`'s xcodegen-churn diagnosis, never given a number). Every lane that adds a Swift file hits this; the #272 fix lane hit it and reverted by hand. NOT STARTED; bars pre-register here before any fix.**
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-300-319-tooling-bucket.md` (Half 2)** — the idempotency bar (regen twice → empty diff) is the close condition.
 
 **The diagnosis, from the 2026-08-09 backlog run (verified, not speculated):**
 `PRODUCT_NAME` *is* `"Talaria 27"`, and `project.yml` already carries an
@@ -6063,6 +6106,8 @@ belongs to).
 > gitignored — reference it, do not commit it).
 
 ## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family. → ✅ FIX LANDED 2026-08-09 — 296-A/B/C1/D/E MET, gate PASS. 296-C2 is DEVICE-OWED and is NOT claimed.**
+
+> **📋 DISPATCH FILED 2026-08-10 for the reopened 296-C1: `dispatch/OPUS-T27-296C1-bool-error.md`** — the Bool/String union fix + the mapping-test gap; bars C1-A..F proposed there.
 
 **Seen on device (OTA 2191, 2026-08-07 23:59):** Owen sent
 `sleep 30; echo STOPTEST` and tapped Stop after a few seconds. The stopped
@@ -6334,6 +6379,8 @@ data: {"event": "tool.completed", "run_id": "run_f916c984163f4d51…", "timestam
 capture in the device list's R5 row for what a mid-flight stop emits.)*
 
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
+
+> **2026-08-10:** (d)'s distinct-or-fold judgment is routed into the #184/#185 re-land lane (`dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`), which is where the insurance clause gets rewritten or kept; (b) remains the Z6 watch. (a)/(c) were fixed in #291's lane.
 
 **(a) ✅ FIXED 2026-08-07 night (same lane as #291):** generation tokens now
 guard both teardowns, matching `bootstrapGeneration` / `finishRun(_:)`.
