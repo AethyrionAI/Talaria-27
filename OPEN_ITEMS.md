@@ -10824,6 +10824,34 @@ lane opens.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
 
+> **▶ TRIGGER LANE OPENED 2026-08-10 (`t27-250-debug-island-trigger`).
+> BARS 250T-A..D — written HERE, BEFORE the run**, per the 2026-08-01
+> convention (bars live in the OPEN_ITEMS entry; the dispatch doc proposed
+> them, this entry registers them). A missed bar is a falsification, not a
+> redefinition.
+>
+> - **250T-A (compile-level / Release):** the harness button and its action
+>   exist **only** under `#if DEBUG`, and the **Release build is green with
+>   them compiled out**. The gate's Release leg is the proof — a review read
+>   is not (the #218 corollary: a green Debug suite cannot see a mis-set
+>   gate).
+> - **250T-B (sim, unit):** tapping the trigger starts an activity through
+>   the **REAL `LiveActivityService`** path — asserted via the service's own
+>   state, not a parallel test double or the `LiveActivityPreviews`
+>   scaffolding — and it ends **both ways** (auto-end timeout **and** second
+>   tap), leaving **no zombie activity** behind on either route.
+> - **250T-C (device — §R2's actual run):** with the trigger in a Debug
+>   build on the phone, R2's check runs as written — the island's leading
+>   icon slot matches Settings → Appearance → App Icon, after a switch and
+>   on a cold launch. **OWED, not claimed by this lane, and not a merge
+>   blocker**; the verdict lands in R2's row in
+>   `dispatch/DEVICE-PASS-RUNNING-LIST.md` (one queue), cited from here.
+> - **250T-D:** `GATE: PASS`, unit count MOVED.
+>
+> **The auto-end is load-bearing, not polish** (dispatch §4): Live Activities
+> have a system budget, so a leaked throwaway would make the REAL run
+> activity flaky — a harness fault that would read as a #250 regression.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
 > the existing ones — `toollessIndexBatteryButton` is the pattern) starts a
