@@ -5506,6 +5506,61 @@ testable in a second instead of behind a 20-minute suite):
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-299-adoption-identity.md`** — bars 299-A..E proposed there; copy into this entry at lane open, per the convention.
 
+> **🔨 LANE OPEN 2026-08-10 — bars pre-registered (in the entry, before any
+> code, per the convention), anchors re-verified at HEAD `6095d0c`:**
+> - **299-A (RED→GREEN):** the baseline test
+>   `theHermesReconcileMergeBaselineBeforeScopingTheClaim` flips — merged
+>   `map(\.content)` == `["Q1","A1","Q2","A2"]`, no duplicates. The RED half
+>   is already proven (it is the filing measurement); the FLIPPED assertion's
+>   RED still gets watched and recorded verbatim at HEAD before any fix.
+> - **299-B:** `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`
+>   stays green — boundedness (`afterSecond == afterFirst`) survives the fix.
+>   **Recorded BEFORE the run:** that test's `afterFirst` pin is a verbatim
+>   copy of the duplicating baseline array, so "stays green" REQUIRES that one
+>   pinned literal to flip to the clean array alongside 299-A — the same
+>   falsified text, flipped in the same commit, pre-registered here rather
+>   than discovered mid-lane. The boundedness assertion itself is untouched.
+> - **299-C:** a drawer-reopened thread (rows already carrying stable ids)
+>   merges identically before/after — tier 1's path untouched. New pin
+>   (verified green against UNMODIFIED production first, then again after).
+> - **299-D:** adopted identity survives persistence — save → cold load →
+>   re-reconcile: still no duplicates (the #277/#278 family's standard
+>   round-trip check).
+> - **299-E:** `GATE: PASS` (units + XCUITest + Release), unit count MOVED
+>   (baseline 2054 after #315).
+>
+> **Anchors at HEAD `6095d0c` (the filed lines had churned; mechanism
+> unchanged, re-read at HEAD):** append site `ChatStore.swift:3304` (filed
+> `:2741`); `unconfirmedLocalMessages` `:3361` with the tier-3 `.user` guard
+> at `:3375`; `attemptReconcile` `:2989` (filed `:2476`);
+> `mergeConversationMetadata` `:3198`; `dedupingAdoptedEchoes` key
+> `Conversation.swift:54` — timestamp still in the key, untouched per the
+> trap; `stableMessageID` `SessionsHermesClient.swift:1089`;
+> `mapStoredMessage` `:1036`. Tier misses re-verified as filed: tier 1
+> client-`UUID()` vs `stableMessageID`, tier 2 no `clientMessageID` on the
+> gateway transcript, tier 3 `.user`-only.
+>
+> **Fix shape CONFIRMED (the entry's own; the ruled-out alternative stays
+> ruled out — no reason arose to extend a content claim to `.hermes` rows),
+> with one refinement the code forces:** `Message.id` is `let`, and rebuilding
+> a `Message` field-by-field is the #276/#289 silent-drop family, so the local
+> row does not literally mutate its id. Instead the merge computes
+> turn-anchored ADOPTIONS — host stable id → locally-born settled `.hermes`
+> row — consumed twice: the field-carry loop reads them as a fourth,
+> LAST-precedence lookup arm (after id / clientMessageID / jobID, none of
+> whose precedence moves), and adopted local rows count as confirmed before
+> `unconfirmedLocalMessages` runs (its code and signature untouched; adopted
+> rows are simply no longer in its input, exactly as a tier-1 hit would leave
+> them). Net effect is the dispatch's shape verbatim: the surviving merged row
+> carries the host's `stableMessageID` PLUS the local row's client-only fields
+> (reasoning, receipts, activities) — the same row a drawer reopen would
+> produce, tier-1-confirmable on every later reconcile. Turn anchoring pairs
+> USER rows by id / `clientMessageID` linkage / trimmed content, monotonic and
+> in order (tier 3's dequeue semantics), then zips settled, non-streaming,
+> non-empty locally-born assistant rows against unclaimed non-empty host
+> assistant rows in order — no content comparison between assistant rows, by
+> design: a stall-truncated partial must still adopt its full host twin.
+
 > **⚖️ SEQUENCING RULING 2026-08-09 (decision pass): #299 ROUTES AHEAD of
 > #282's guard** — Owen's call on the sequencing question #282's halt raised.
 > This item is now the head of that chain; #282's lane resumes after it lands.
