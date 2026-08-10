@@ -3212,6 +3212,16 @@ final class ChatStore {
 
         guard let localConversation else { return refreshedConversation }
 
+        // #299: locally-born assistant rows adopt the host's identity at the
+        // merge — see `serverIdentityAdoptions`. Consumed twice below: as the
+        // field-carry loop's last lookup arm, and as pre-confirmation before
+        // `unconfirmedLocalMessages` (whose tiers are untouched).
+        let identityAdoptions = Self.serverIdentityAdoptions(
+            local: localConversation.messages,
+            refreshed: refreshedConversation.messages
+        )
+        let adoptedLocalIDs = Set(identityAdoptions.values)
+
         if refreshedConversation.latestUsage == nil {
             refreshedConversation.latestUsage = localConversation.latestUsage
         }
@@ -3234,7 +3244,7 @@ final class ChatStore {
             let remote = refreshedConversation.messages[index]
 
             // Prefer exact UUID match (works when the relay echoes back the same ID).
-            let local: Message?
+            var local: Message?
             if let byID = localConversation.messages.first(where: { $0.id == remote.id }) {
                 local = byID
             } else if let remoteClientMessageID = remote.clientMessageID {
@@ -3251,8 +3261,17 @@ final class ChatStore {
                         && $0.sender == .hermes
                         && (!$0.toolActivities.isEmpty || $0.codeDiff != nil)
                 })
-            } else {
-                local = nil
+            }
+            if local == nil, let adoptedID = identityAdoptions[remote.id] {
+                // #299: the host row's locally-born twin, paired by turn —
+                // its client-only fields (reasoning, receipts, activities)
+                // ride the host row exactly as a tier-1 match's would. A
+                // FALLBACK after every existing arm rather than a fourth
+                // `else if`, so an adopted row's fields can never be dropped
+                // by an arm that fired and then failed to match (the jobID
+                // arm can): whenever the adopted row is excluded from the
+                // unconfirmed re-append below, its fields ride here.
+                local = localConversation.messages.first(where: { $0.id == adoptedID })
             }
 
             guard let local else { continue }
@@ -3301,8 +3320,12 @@ final class ChatStore {
         // only if the refreshed conversation contains it by id OR by clientMessageID.
         // Anything unconfirmed must survive the merge, otherwise a sent message
         // vanishes the instant the first poll/refresh returns without it.
+        // #299: a local row whose identity was adopted above IS confirmed —
+        // its host twin carries its fields and its stable id — so it is not
+        // in the unconfirmed filter's input, exactly as a tier-1 hit would
+        // leave it. The tiers themselves are untouched.
         refreshedConversation.messages.append(contentsOf: Self.unconfirmedLocalMessages(
-            local: localConversation.messages,
+            local: localConversation.messages.filter { !adoptedLocalIDs.contains($0.id) },
             refreshed: refreshedConversation.messages
         ))
 
@@ -3381,6 +3404,109 @@ final class ChatStore {
             }
             return true
         }
+    }
+
+    /// #299: server-derived identity at adoption for locally-born ASSISTANT
+    /// rows. A `.hermes` row born in-app has NO confirmation tier — tier 1
+    /// misses (its id is a client `UUID()` from the streaming assembly, the
+    /// host's copy carries `stableMessageID`, #237), tier 2 misses (the
+    /// gateway transcript echoes no `clientMessageID`, #248), and tier 3 is
+    /// `.user`-only by construction — so every reconcile of an in-app thread
+    /// re-appended each settled assistant row, and `dedupingAdoptedEchoes`
+    /// could not collapse the pair because its key includes the timestamp and
+    /// the phone's clock is not the host's.
+    ///
+    /// Returns host-row id → locally-born assistant row id: when the merge
+    /// confirms a turn, the host's copy of its reply is paired with the local
+    /// row so the local row counts as confirmed (exactly as a tier-1 hit
+    /// would leave it) and its client-only fields ride the host row. The
+    /// surviving merged row is the same row a drawer reopen would produce —
+    /// stable id, host content — and confirms at tier 1 on every later
+    /// reconcile, which is what keeps the fix convergent rather than a
+    /// per-merge patch.
+    ///
+    /// Pairing is TURN-anchored, deliberately not a content claim for
+    /// `.hermes` rows (that alternative re-imports the demand-side hazards
+    /// #282 exists to narrow — and would fail exactly when adoption matters
+    /// most, a stall-truncated partial whose host twin carries the full
+    /// text). A turn anchors on its USER row — by id, by `clientMessageID`
+    /// linkage, or by trimmed content, monotonic and in order (tier 3's
+    /// dequeue semantics) — and the turn's settled, non-streaming, non-empty
+    /// locally-born `.hermes` rows then zip in order against the turn's
+    /// unclaimed non-empty host assistant rows. Everything ineligible fails
+    /// OPEN: an unpaired local row keeps its client id and survives the merge
+    /// as unconfirmed, which is the pre-#299 behaviour and never loses data.
+    /// Voice rows neither anchor nor adopt (`.voiceHermes` renders as a
+    /// transcript, not a streamed reply — swapping in the host's `.hermes`
+    /// twin would change what the thread IS); a dictated turn still starts a
+    /// turn (`isUserAuthored`, #275) so its replies never leak into the
+    /// previous turn's candidates.
+    nonisolated static func serverIdentityAdoptions(
+        local: [Message], refreshed: [Message]
+    ) -> [UUID: UUID] {
+        let refreshedIDs = Set(refreshed.map(\.id))
+        let refreshedClientIDs = Set(refreshed.compactMap(\.clientMessageID))
+        let localIDs = Set(local.map(\.id))
+
+        // A transcript as turns: every user-authored row starts one; rows
+        // before the first user row form an anchorless preamble (no adoption).
+        func turns(_ messages: [Message]) -> [(anchor: Message?, replies: [Message])] {
+            var result: [(anchor: Message?, replies: [Message])] = []
+            var current: (anchor: Message?, replies: [Message])?
+            for row in messages {
+                if row.sender.isUserAuthored {
+                    if let finished = current { result.append(finished) }
+                    current = (anchor: row.sender == .user ? row : nil, replies: [])
+                } else {
+                    if current == nil { current = (anchor: nil, replies: []) }
+                    if row.sender == .hermes { current?.replies.append(row) }
+                }
+            }
+            if let finished = current { result.append(finished) }
+            return result
+        }
+
+        func anchors(_ localRow: Message, _ remoteRow: Message) -> Bool {
+            if localRow.id == remoteRow.id { return true }
+            if let remoteClientID = remoteRow.clientMessageID,
+               localRow.id == remoteClientID || localRow.clientMessageID == remoteClientID {
+                return true
+            }
+            return localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                == remoteRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        var adoptions: [UUID: UUID] = [:]
+        let localTurns = turns(local)
+        var nextLocalTurn = localTurns.startIndex
+        for remoteTurn in turns(refreshed) {
+            guard let remoteAnchor = remoteTurn.anchor else { continue }
+            // Monotonic: each local turn pairs at most once, in order; the
+            // cursor only advances on a match, so a host-only turn (another
+            // client's exchange) never consumes a local one.
+            guard let matched = localTurns[nextLocalTurn...].firstIndex(where: { localTurn in
+                guard let localAnchor = localTurn.anchor else { return false }
+                return anchors(localAnchor, remoteAnchor)
+            }) else { continue }
+            nextLocalTurn = matched + 1
+
+            let hostRows = remoteTurn.replies.filter { row in
+                !localIDs.contains(row.id)
+                    && !row.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            let locallyBorn = localTurns[matched].replies.filter { row in
+                guard !refreshedIDs.contains(row.id) else { return false }
+                if let clientID = row.clientMessageID, refreshedClientIDs.contains(clientID) {
+                    return false   // tier 2's row — not this pass's to pair
+                }
+                return row.status.isSettled && !row.isStreaming
+                    && !row.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            for (hostRow, localRow) in zip(hostRows, locallyBorn) {
+                adoptions[hostRow.id] = localRow.id
+            }
+        }
+        return adoptions
     }
 
     /// Pairs a refresh source's attachments with the local ones and carries

@@ -5506,6 +5506,112 @@ testable in a second instead of behind a 20-minute suite):
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-299-adoption-identity.md`** — bars 299-A..E proposed there; copy into this entry at lane open, per the convention.
 
+> **🔨 LANE OPEN 2026-08-10 — bars pre-registered (in the entry, before any
+> code, per the convention), anchors re-verified at HEAD `6095d0c`:**
+> - **299-A (RED→GREEN):** the baseline test
+>   `theHermesReconcileMergeBaselineBeforeScopingTheClaim` flips — merged
+>   `map(\.content)` == `["Q1","A1","Q2","A2"]`, no duplicates. The RED half
+>   is already proven (it is the filing measurement); the FLIPPED assertion's
+>   RED still gets watched and recorded verbatim at HEAD before any fix.
+> - **299-B:** `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`
+>   stays green — boundedness (`afterSecond == afterFirst`) survives the fix.
+>   **Recorded BEFORE the run:** that test's `afterFirst` pin is a verbatim
+>   copy of the duplicating baseline array, so "stays green" REQUIRES that one
+>   pinned literal to flip to the clean array alongside 299-A — the same
+>   falsified text, flipped in the same commit, pre-registered here rather
+>   than discovered mid-lane. The boundedness assertion itself is untouched.
+> - **299-C:** a drawer-reopened thread (rows already carrying stable ids)
+>   merges identically before/after — tier 1's path untouched. New pin
+>   (verified green against UNMODIFIED production first, then again after).
+> - **299-D:** adopted identity survives persistence — save → cold load →
+>   re-reconcile: still no duplicates (the #277/#278 family's standard
+>   round-trip check).
+> - **299-E:** `GATE: PASS` (units + XCUITest + Release), unit count MOVED
+>   (baseline 2054 after #315).
+>
+> **Anchors at HEAD `6095d0c` (the filed lines had churned; mechanism
+> unchanged, re-read at HEAD):** append site `ChatStore.swift:3304` (filed
+> `:2741`); `unconfirmedLocalMessages` `:3361` with the tier-3 `.user` guard
+> at `:3375`; `attemptReconcile` `:2989` (filed `:2476`);
+> `mergeConversationMetadata` `:3198`; `dedupingAdoptedEchoes` key
+> `Conversation.swift:54` — timestamp still in the key, untouched per the
+> trap; `stableMessageID` `SessionsHermesClient.swift:1089`;
+> `mapStoredMessage` `:1036`. Tier misses re-verified as filed: tier 1
+> client-`UUID()` vs `stableMessageID`, tier 2 no `clientMessageID` on the
+> gateway transcript, tier 3 `.user`-only.
+>
+> **Fix shape CONFIRMED (the entry's own; the ruled-out alternative stays
+> ruled out — no reason arose to extend a content claim to `.hermes` rows),
+> with one refinement the code forces:** `Message.id` is `let`, and rebuilding
+> a `Message` field-by-field is the #276/#289 silent-drop family, so the local
+> row does not literally mutate its id. Instead the merge computes
+> turn-anchored ADOPTIONS — host stable id → locally-born settled `.hermes`
+> row — consumed twice: the field-carry loop reads them as a fourth,
+> LAST-precedence lookup arm (after id / clientMessageID / jobID, none of
+> whose precedence moves), and adopted local rows count as confirmed before
+> `unconfirmedLocalMessages` runs (its code and signature untouched; adopted
+> rows are simply no longer in its input, exactly as a tier-1 hit would leave
+> them). Net effect is the dispatch's shape verbatim: the surviving merged row
+> carries the host's `stableMessageID` PLUS the local row's client-only fields
+> (reasoning, receipts, activities) — the same row a drawer reopen would
+> produce, tier-1-confirmable on every later reconcile. Turn anchoring pairs
+> USER rows by id / `clientMessageID` linkage / trimmed content, monotonic and
+> in order (tier 3's dequeue semantics), then zips settled, non-streaming,
+> non-empty locally-born assistant rows against unclaimed non-empty host
+> assistant rows in order — no content comparison between assistant rows, by
+> design: a stall-truncated partial must still adopt its full host twin.
+
+> **✅ RESULT 2026-08-10 — FIXED. Lane `claude/t27-299-adoption-identity`
+> (Fable), all bars MET. The sequencing ruling's precondition for #282 is
+> satisfied — see the dated unblock note in #282's entry.**
+>
+> **As landed:** `ChatStore.serverIdentityAdoptions(local:refreshed:)` (new,
+> beside `unconfirmedLocalMessages`) plus two wire-ins in
+> `mergeConversationMetadata` — the adoptions map is the field-carry loop's
+> fourth, LAST-precedence lookup arm, and adopted local rows are excluded
+> from `unconfirmedLocalMessages`' input exactly as a tier-1 hit would leave
+> them. The tiers' code, `unconfirmedLocalMessages`' signature, the fixture,
+> and `dedupingAdoptedEchoes`' timestamp key are all byte-untouched. The
+> ruled-out alternative (a content claim for `.hermes` rows) was never
+> needed — no written-reason exception exercised.
+>
+> - **299-A MET — watched RED→GREEN→RED→GREEN.** Flipped assertion RED at
+>   HEAD against unmodified production, verbatim:
+>   ```
+>   ✘ Test theHermesReconcileMergeBaselineBeforeScopingTheClaim() recorded an
+>     issue at ChatStorePersistenceTests.swift:990:9: Expectation failed:
+>     messages.map(\.content) == ["Q1", "A1", "Q2", "A2"]
+>   ↳ messages.map(\.content) → ["Q1", "A1", "Q2", "A2", "A1", "A2"]
+>   ```
+>   GREEN with the fix. Then the fix proven to OWN the flip: production
+>   change reverted (tests kept) → RED again with the identical duplicated
+>   array; restored → GREEN.
+> - **299-B MET.** `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`
+>   green; its `afterFirst` literal flipped alongside 299-A exactly as
+>   pre-registered in the bars block above (its RED against unmodified
+>   production recorded: `afterFirst → ["Q1", "A1", "Q2", "A2", "A1", "A2"]`);
+>   the boundedness assertion (`afterSecond == afterFirst`) untouched.
+> - **299-C MET.** New pin `aDrawerReopenedThreadMergesIdenticallyWithNothingToAdopt`
+>   — content AND ids pinned to the host rows. Green against unmodified
+>   production (run in the bug-restored build) and green with the fix:
+>   tier 1's path is unchanged.
+> - **299-D MET.** New pin `adoptedIdentitySurvivesAColdLoadAndAReReconcile`
+>   — merge → persist → fresh ChatStore over the same persistence → cold
+>   load → re-reconcile: still `["Q1","A1","Q2","A2"]`, still the host's
+>   stable ids.
+> - **299-E MET — GATE: PASS**, units 2056 (+2 vs 2054 — count moved),
+>   XCUITest 14, Release build positive marker, sim `CC-300-iPhone-Air`.
+>
+> **Edges recorded honestly, all fail-OPEN (unpaired rows keep today's
+> behaviour — they survive the merge unconfirmed; nothing is ever lost):**
+> a turn whose user row can no longer content-match (edited prompt, e.g.)
+> does not anchor and its assistant rows still duplicate as before; preamble
+> assistant rows (before the first user row) never adopt; VOICE rows neither
+> anchor nor adopt on purpose — a `.voiceHermes` transcript row swapped for
+> its host `.hermes` twin would change what the thread renders as. If a
+> voice-thread reconcile ever shows this doubling, that is a NEW filing, not
+> a reopened #299.
+
 > **⚖️ SEQUENCING RULING 2026-08-09 (decision pass): #299 ROUTES AHEAD of
 > #282's guard** — Owen's call on the sequencing question #282's halt raised.
 > This item is now the head of that chain; #282's lane resumes after it lands.
@@ -7886,6 +7992,38 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 > lane's ruled guard, with bars 282-D/E RE-READ against the fixed merge
 > (their PREDICTED-RED status was written against today's merge and may not
 > survive #299). The halt worked as designed; nothing here is un-ruled.
+
+> **🔓 UNBLOCKED 2026-08-10 — #299's fix LANDED (lane
+> `claude/t27-299-adoption-identity`; `ChatStore.serverIdentityAdoptions`,
+> turn-anchored adoption; the claim tier byte-untouched). The sequencing
+> ruling's precondition is met; this lane may resume.** Two mechanical
+> consequences for this entry's own text: 282-B's baseline now measures the
+> CLEAN array `["Q1","A1","Q2","A2"]` (the same test is bar 299-A), so the
+> STOP condition that halted this lane can no longer fire from assistant
+> rows; and every `ChatStore.swift` line anchor here has churned again —
+> re-verify at HEAD.
+>
+> **The #299 author's read on 282-D/282-E's PREDICTED-RED status — recorded
+> per that lane's dispatch; this lane re-verifies at its own start:**
+> - **282-D still predicts RED.** #299 changed nothing on the claim tier's
+>   demand side: a settled in-app USER row still has only the content claim,
+>   and under the ruled guard it loses that, survives, and appends. #299
+>   neither causes nor prevents it. **One interaction now in writing: the
+>   guard will NOT re-open #299.** The assistant rows' turn anchoring is
+>   #299's own match on the turn's USER row — it CONSUMES NO CLAIMS — so on
+>   282-D's fixture the assistant rows keep adopting cleanly even while the
+>   settled user row duplicates. The two mechanisms stay separable, which is
+>   what the one-lane-per-mechanism sequencing was for.
+> - **282-E still predicts RED for USER rows — and #299 has quietly closed
+>   its ASSISTANT-row sibling.** An id-less server row (fresh `UUID()` per
+>   fetch, `mapStoredMessage`'s honest fallback) still mints a claim per
+>   fetch, and the ruled guard still converts that swallow into a per-fetch
+>   user-row duplicate — unchanged. But the same population's assistant rows,
+>   which pre-#299 re-appended on EVERY fetch with no tier at all (unbounded
+>   growth no bar ever measured), now re-adopt per fetch via turn anchoring:
+>   the turn's user row matches by content, the assistant rows zip in order,
+>   and the prior fetch's copy is confirmed and dropped. This lane should
+>   expect to find the id-less ASSISTANT case bounded when it measures.
 
 **Why this has a number.** #281 closed the same day with every bar met and
 was archived; inside its closure it filed a sibling defect *"here and NOT
