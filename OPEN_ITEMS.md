@@ -5234,6 +5234,120 @@ harness so the bars stay runnable after `/tmp` is swept:
 - **300-D.** A clean run still passes the gate and a seeded failure still fails
   it — the #218 re-injection precedent, applied to this change.
 
+### ✅ FIXED 2026-08-10 — all four bars MET, `GATE: PASS` — and the defect was worse than filed
+
+**The entry says the classifier misdiagnosed one failure. It did not
+discriminate AT ALL.** Extracting the pre-fix conditional verbatim out of
+`lane-gate.sh` (`sed -n '230,246p'`, so it is the shipped bytes and not a
+retyping) and running it over both surviving 2026-08-09 logs returns the
+**identical** verdict for each:
+
+```
+########## Swift Testing failure WITH assertion text ##########
+        HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()
+        ^ NO assertion text — likely an XCUITest harness flake
+########## XCUITest runner death, NO assertion text ##########
+        TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+        ^ NO assertion text — likely an XCUITest harness flake
+```
+
+**Why.** The discriminator was `grep -qE '\.swift:[0-9]+: error:'`, which
+matches only the **XCTest** diagnostic shape. Swift Testing prints
+`recorded an issue at File.swift:LINE:COL:` — line AND column, and **no
+`error:` token** — so the match count in the #254 log was **zero**. Every
+Swift Testing failure in this project's history was announced as a UI-test
+harness flake; 2026-08-09 is simply the first time someone read the advice
+closely enough to notice.
+
+**And it was three dead item numbers, not one.** Besides #164 the same advice
+printed **#183** and **#93** at the reader; both are also in
+`OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** and **#313**.
+
+**The fix.** `scripts/mac/lane-gate-classify.sh` (sourced by the gate, so it is
+testable in a second instead of behind a 20-minute suite):
+- recognises **both** frameworks' locus shapes;
+- attributes loci **per failing test**, matching structurally
+  (`Test <name>(…) recorded an issue at …`, `error: -[Suite <name>]`) so
+  `testFoo` cannot inherit `testFooBar`'s failure;
+- **fails SAFE** — a log that carries loci none of which can be attributed to a
+  named test (a `@Test("display name")`, an unparsed shape) is reported REAL,
+  never as a flake. The safe direction of error is to call a flake real; a real
+  failure dressed as noise gets re-rolled until it hides;
+- ignores bare `: error:` deliberately — the #254 log holds **884** such lines,
+  all simulator CoreData chatter. That is the gate header's own sim-noise trap
+  one level in;
+- prints **no item number**. It names a search string, and
+  `lane-gate-classify-test.sh` **executes every pointer against
+  `OPEN_ITEMS.md`** and fails if one matches nothing — so a pointer cannot rot
+  unnoticed the way these three did. The gate runs that self-test in
+  **preflight**.
+
+**BARS:**
+- **300-A — MET, RED witnessed first.** RED: the verbatim pre-fix block on
+  `/tmp/gate-254-run2/suite.log` (quoted above). GREEN: `assertion`, with the
+  advice quoting `HTMLArtifactSandboxTests.swift:157:9: Expectation failed:
+  landed` back at the reader. Confirmed against the **original log**, not only
+  the transcription.
+- **300-B — MET.** `/tmp/gate-279-run2/suite.log` → `runner-flake`, re-run
+  protocol preserved. Also holds with 40 lines of CoreData `: error:` noise
+  injected.
+- **300-C — MET.** Emitted `#[0-9]+` across both scripts = **0** (checked
+  mechanically, and the check is itself one of the self-test's assertions).
+  Residue, as pre-registered and reported rather than driven to zero: **1**
+  occurrence, in a header comment, citing archived item 218 as provenance —
+  the archive keeps entries verbatim, so that citation cannot rot. Entry state
+  was 8.
+- **300-D — MET, both halves.** *Seeded:* a four-line `@Test` with
+  `#expect(false)` in `MarkdownTableTests` → **`GATE: FAIL (4 check(s))`**, and
+  the advice read:
+  ```
+  failing tests:
+        MarkdownTableTests.seededFailureFor300D()
+          ASSERTION  Test seededFailureFor300D() recorded an issue at
+                     MarkdownTableTests.swift:37:9: Expectation failed: landed
+        ^ ASSERTION TEXT PRESENT — treat this as a REAL failure.
+  ```
+  That is 300-A proven **end-to-end inside the real gate on a freshly generated
+  log**, not just against a recorded fixture — the exact input the old script
+  called an XCUITest harness flake. *Clean:* seed removed, `MarkdownTableTests.swift`
+  byte-restored (`git status` clean for that path), → **`GATE: PASS`**.
+
+> **📋 THE GATE RUN — `GATE: PASS`, 2026-08-10, `/tmp/gate-300-319-final2`:**
+> **Swift Testing 2005 · XCUITest 14 · Release build PASS · 4 skips**, on
+> `CC-300-iPhone-Air` (`F58EADE2-CE63-4F92-BC27-0716BF0484C3`). Verbatim:
+> `GATE: PASS — logs in /tmp/gate-300-319-final2`.
+
+> **🔻 FOUR RUNS WERE NEEDED, and three of the failures were environment, not
+> code. All three are reusable findings.**
+>
+> | run | died on | cause |
+> |---|---|---|
+> | 1 | `Simulator device failed to launch …uitests.xctrunner` — "Application failed preflight checks" (**Busy**) | shared `iPhone 17 Pro Max`, contended by six concurrent lanes |
+> | 2 | `Failed to launch app …` — *"did not return a process handle nor launch error"* (`NSPOSIXErrorDomain Code=3`) | host process-table exhaustion; the session simultaneously lost the ability to spawn `echo` at all |
+> | 3 | **hung ~20 min** inside `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime()` | brand-new sim, no calendar/reminders TCC — EventKit blocks forever |
+> | 4 | `Expectation failed: granted` in the same test | the TCC grant did **not** survive the rebuild/reinstall |
+>
+> **① The gate's default simulator is a contention trap.** It defaults to the
+> shared `iPhone 17 Pro Max`; every recent lane has quietly been passing a
+> dedicated `CC-<item>-iPhone-Air`, and that convention is why they passed.
+> Recorded in CLAUDE.md.
+>
+> **② "The machine is working" and "I can start a process" are different
+> facts.** During run 2 the already-running xcodebuild kept appending to its log
+> while nothing new could be forked. If a gate run dies at app launch, check
+> host load before suspecting the diff.
+>
+> **③ A fresh simulator HANGS the suite rather than failing it, and the grant
+> is not durable.** `BatteryReapEventKitProbeTests`'s own docstring states the
+> precondition — *"TCC must be pre-granted (`simctl privacy grant
+> calendar/reminders org.aethyrion.talaria27`); without access the probes fail
+> their #require visibly rather than fake-passing."* They fail visibly only once
+> a decision exists; with **no** TCC record at all, `requestFullAccessToEvents()`
+> blocks indefinitely and the suite simply stops with no failure and no marker —
+> the gate's founding sin, arriving as a hang. And run 4 shows the grant is
+> dropped by a rebuild/reinstall, matching #254's note that a sim reboot dropped
+> it too. **Re-grant immediately before each gate run on a fresh sim.**
+
 ---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
@@ -5730,6 +5844,15 @@ generability. **Run the full suite on `whoGoesThere` corded; the suite must
 RUN, not skip.** If the condenser fails fidelity/pruning, that is #89's
 residual risk firing: tune `condensedContextBrief`'s instructions — do not
 weaken the tests.
+
+> **⚠️ LOAD-BEARING NAME, 2026-08-10 (#300's fix).** When the gate reports the
+> two expected skips it used to print "#183" and "#93" at the reader — both
+> closed, and this entry (successor B of #93's split) is the live home. The
+> advice now says `grep -n CondenserFidelityTests OPEN_ITEMS.md` instead, so
+> **the suite name in this entry is referenced by tooling.** Keep it greppable
+> here for as long as those skips exist;
+> `scripts/mac/lane-gate-classify-test.sh` fails if the pointer stops
+> resolving.
 
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
@@ -9692,6 +9815,29 @@ deferred (b)/(c) verdicts per the 2026-08-05 routing.
 > allocating one touches the numbering sequence and the INDEX and is outside
 > this lane's scope.
 
+> **↪ RESOLVED 2026-08-10 — this finding got its number (#300) and the fix has
+> landed. Two corrections to the reading above, both found by the fix lane:**
+>
+> **1. The classifier was not merely wrong here — it had NO discriminating
+> power at all.** Extracting the pre-fix conditional verbatim and running it
+> over both surviving logs returns the identical *"NO assertion text — likely
+> an XCUITest harness flake"* verdict for each: `/tmp/gate-254-run2/suite.log`
+> (this run's real Swift Testing failure) and `/tmp/gate-279-run2/suite.log`
+> (a genuine runner death, same week). The regex `\.swift:[0-9]+: error:`
+> recognises only the XCTest diagnostic shape; Swift Testing prints
+> `recorded an issue at File.swift:LINE:COL:` with no `error:` token at all, so
+> its match count in this very log was **zero**. Every Swift Testing failure in
+> the project's history was announced as a UI-test harness flake — this run is
+> simply the first time anyone read the advice closely enough to notice.
+>
+> **2. It was not one dead item number — it was all three.** Alongside #164 the
+> same advice printed **#183** and **#93** at the reader, and both of those are
+> also in `OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** (the
+> runner-flake family) and **#313** (the CondenserFidelityTests skips). Advice
+> text now carries no item number at all; it names a search string, and a
+> self-test executes each one against `OPEN_ITEMS.md` so a pointer cannot rot
+> unnoticed the way these three did.
+
 > **📱 DEVICE RUN 2026-08-09 — build 2330, corded, airplane mode, Owen
 > driving. 254-E is UNRUNNABLE AS WRITTEN. The native `LIVE` arm was verified
 > in its place, and that substitution is LABELLED, not folded into the bar.**
@@ -13471,6 +13617,17 @@ sessions. **Do not simply trust it** — it has now been observed never to run.
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
 sequences. The five lanes below use sub-letters precisely to stop minting more
 collisions; `#217B` is the precedent.)*
+
+> **⚠️ LOAD-BEARING TITLE STRING, 2026-08-10 (#300's fix).** `lane-gate.sh`'s
+> failure advice no longer prints an item number — it cannot keep one live, and
+> the three it used to print (#164, #183, #93) had all been closed by the time
+> anyone followed one. Instead it tells the reader to run
+> `grep -n 'runner dies mid-bundle' OPEN_ITEMS.md`, so **the phrase "runner
+> dies mid-bundle" in this header is now referenced by tooling.** If this entry
+> is retitled, moved, or archived, update the string the gate prints in the
+> same commit. `scripts/mac/lane-gate-classify-test.sh` executes every such
+> pointer against `OPEN_ITEMS.md` and fails if it matches nothing, so the
+> breakage surfaces in about a second rather than in five days.
 
 **Occurrence 1.** During the first real `lane-gate.sh` run against `main`:
 

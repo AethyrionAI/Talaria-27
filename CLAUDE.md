@@ -426,6 +426,60 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   there because #218: `main` could not build in Release for two days and every check
   we had was Debug, so 1461 green tests proved nothing. **The gate is verified to
   fail** — the #218 bug was re-injected and it caught all three errors.
+  - **Read the gate's FAILURE ADVICE, but know what it is now (#300, fixed
+    2026-08-10).** Until that fix it could not tell a real failure from a flake at
+    all: its discriminator was `grep '\.swift:[0-9]+: error:'`, which matches only
+    the **XCTest** diagnostic shape, while **Swift Testing prints
+    `recorded an issue at File.swift:LINE:COL:` with no `error:` token** — so
+    *every* Swift Testing failure in the project's history was announced as an
+    "XCUITest harness flake (NO assertion text)" and the reader was sent to a
+    CLOSED item. Verified by extracting the old conditional and running it over
+    two real logs: identical wrong verdict on both.
+  - The classifier now lives in **`scripts/mac/lane-gate-classify.sh`**, reads
+    both frameworks' shapes, attributes loci **per failing test**, and fails
+    SAFE — anything it cannot attribute is reported REAL, never as noise.
+    **`scripts/mac/lane-gate-classify-test.sh` exercises it in ~1 s** against
+    recorded fixtures; run that after touching the advice, not a 20-minute suite.
+  - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
+    one live, and all three it used to print (#164, #183, #93) were closed by the
+    time someone followed one. Advice names a **search string**; the self-test
+    executes each pointer against `OPEN_ITEMS.md` and fails if it finds nothing.
+    Consequence: a few tracker headers are now load-bearing text (#219's "runner
+    dies mid-bundle", #313's "CondenserFidelityTests") and say so in place.
+  - **⚠️ ALWAYS pass `TALARIA_SIM_NAME` when lanes run in parallel — the
+    default is a contention trap.** The gate defaults to the shared
+    `iPhone 17 Pro Max`, but recent lanes have each been quietly using a
+    dedicated `CC-<item>-iPhone-Air`, and that convention is why they passed.
+    Sharing one booted sim across concurrent lanes fails as
+    `Simulator device failed to launch …xctrunner` / *"Application failed
+    preflight checks"* (**Busy**) — which looks like a product failure and is
+    not. Make one: `xcrun simctl create "CC-<item>-iPhone-Air"
+    com.apple.CoreSimulator.SimDeviceType.iPhone-Air
+    com.apple.CoreSimulator.SimRuntime.iOS-27-0`.
+  - **And a dedicated sim does not buy you a free host.** With six lanes
+    building at once the Mac ran out of process capacity: the test host failed
+    to launch with *"did not return a process handle nor launch error"*
+    (`NSPOSIXErrorDomain Code=3`) and, in the same minute, the session could no
+    longer spawn `echo`. Already-running builds kept writing logs throughout,
+    so **"the machine is working" and "I can start a process" are different
+    facts** — if a gate run dies at app launch, check host load before
+    suspecting the diff (#300's lane, 2026-08-10).
+  - **🔴 GRANT CALENDAR + REMINDERS TCC BEFORE EVERY GATE RUN — a fresh sim
+    HANGS the suite instead of failing it.**
+    ```bash
+    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
+    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
+    ```
+    `BatteryReapEventKitProbeTests` calls `requestFullAccessToEvents()`. With a
+    *denied* record it fails visibly, which is what its docstring promises — but
+    on a **brand-new simulator there is no record at all**, so the call blocks
+    forever: the suite stalls mid-run with no failure, no marker and no verdict.
+    Measured 2026-08-10 — ~20 minutes parked on one test, and the only tell was
+    a log that had stopped growing. That is the gate's founding sin ("absence of
+    a failure marker is not success") arriving as a hang rather than a pass.
+    **And the grant does not survive a rebuild/reinstall** (nor, per #254, a sim
+    reboot) — a run that passed does not mean the next one is set up. Re-grant
+    immediately before each run; it is idempotent and costs nothing.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded
