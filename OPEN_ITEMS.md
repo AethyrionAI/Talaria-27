@@ -8666,6 +8666,55 @@ again.** The flip is clean in both directions on that single predicate, so
 every result above is attributable to the guard and nothing else. (Restored
 before commit; the branch carries the guard.)
 
+### GATE: FAIL (4 checks) — RUN, and the verdict is part of the measurement
+
+**`scripts/mac/lane-gate.sh` was RUN on this branch** (sim
+`CC-300-iPhone-Air`, logs `/tmp/gate-282`), unlike the 2026-08-09 attempt
+which deliberately omitted it because there was no production change to
+certify. There is one now, so the gate ran — and it **cannot pass**, because
+four tests are RED in tree BY DESIGN and **not one of them was doctored to
+green**. That is the instruction and it is also the point: a green gate here
+would mean the bars had been rewritten to match the result.
+
+```
+  FAIL  Test run — xcodebuild exited 65
+  FAIL  Test run reported ** TEST FAILED **
+  FAIL  Test run reported TEST SUCCEEDED — success marker not found
+  FAIL  Swift Testing tests run — no count line found
+  PASS  XCUITest tests run — 14
+  ...
+  PASS  Release build succeeded
+  PASS  no Swift compile errors in Release
+GATE: FAIL (4 check(s))
+```
+
+**What the gate proves in spite of failing, and it is worth having:**
+- **The RELEASE build is CLEAN** — `xcodebuild exit=0`, positive marker, no
+  Swift compile errors. #218's check passes, so the change is not a
+  Debug-only illusion.
+- **XCUITest: 14, all passing.** No UI regression.
+- **The unit failures are EXACTLY the four predicted ones and nothing else,
+  across the whole 2056-test suite** — the gate's own failing-test list names
+  `theHermesReconcileMergeBaselineBeforeScopingTheClaim`,
+  `theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch`,
+  `aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge`, and
+  `anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches`. No collateral
+  breakage anywhere in the project.
+- **The #300 classifier called it correctly** — *"ASSERTION TEXT PRESENT —
+  treat this as a REAL failure. Do NOT re-roll it."* These are real
+  failures, not flakes, and the tooling says so unprompted.
+- The two `CondenserFidelityTests` skips are the known-permanent
+  Apple-Intelligence-hardware pair, unchanged.
+
+**UNIT COUNT: 2056 — and it deliberately did NOT move.** The suite line reads
+`Test run with 2056 tests in 156 suites failed`, the same 2056 #299 recorded.
+**This is correct, not a stale `.xctest`:** this lane added no test — it
+removed two `.disabled` traits from tests that already existed and were
+already counted. The proof that fresh code ran is that the four failures are
+new and the mirror proof flips them. Stated explicitly because "confirm the
+count MOVED" is the standing rule and this is the one shape where not moving
+is the honest answer.
+
 **THE MEASUREMENT, IN ONE SENTENCE.** The ruled guard does exactly what Owen
 ruled it should — a `.failed` row stops being eaten (282-A), and it costs no
 pin (282-C) — but the tier it narrows is the **only** confirmation a
