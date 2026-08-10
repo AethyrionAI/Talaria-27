@@ -89,7 +89,10 @@ struct CaptionLessImageFloorTests {
         // …and it is no longer alone: the floor states what was sent.
         #expect(textParts(parts) == [Self.floorOneImage])
         // Floor leads, image follows — the same shape a captioned turn has.
-        #expect(parts.count == 2)
+        // `#require` on the count, not `#expect`: without the floor there is
+        // only ONE part, and a bare `parts[1]` would trap on index-out-of-range
+        // and abort the whole suite instead of reporting a failure.
+        try #require(parts.count == 2)
         #expect(parts[0]["type"] as? String == "text")
         #expect(parts[1]["type"] as? String == "image_url")
     }
