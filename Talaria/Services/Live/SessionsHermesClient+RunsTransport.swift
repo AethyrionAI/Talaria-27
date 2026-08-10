@@ -181,7 +181,7 @@ extension SessionsHermesClient {
     /// wrong* — so this reports that bit and **invents no reason**. A
     /// fabricated `exit_code 1` would be worse than the ✓ it replaces: the
     /// real-data-only rule, and #296's own thesis.
-    static let unspecifiedHostError = "The host reported an error."
+    nonisolated static let unspecifiedHostError = "The host reported an error."
 
     /// Reads `error` from a `tool.completed` frame or a run-status body, where
     /// it is a **union** on the wire.
