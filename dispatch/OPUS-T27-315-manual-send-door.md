@@ -32,6 +32,18 @@ adopts (row 3 of #306's matrix) already shipped. Written 2026-08-10.
   sits beside an `isTranscriptBusy:` pass-through — the door's condition is
   the sibling that still reads `isStreaming`). Grep `isStreaming` in
   `ChatScreen.swift` and name the line in the entry before editing.
+  - **🔴 CORRECTED 2026-08-10 AT THE LANE — the bracketed guess above is
+    FALSE, and the verify step is what caught it.** `ChatScreen.swift:1095-1099`
+    is the **MessageBubble menu's** `isTranscriptBusy:` pass-through, already
+    correct since #278; it has no `isStreaming` sibling. **The door is not in
+    `ChatScreen.swift` at all** — it lives in
+    `Talaria/Features/Chat/ChatInputBar.swift` at **two** sites, `actionButton`
+    (`:479`) and the hardware-keyboard `.onKeyPress` (`:152`), both reading the
+    `isStreaming` **prop** fed at `ChatScreen.swift:291`. Grepping only
+    `ChatScreen.swift` (as this line instructs) cannot find either. See #315's
+    entry for the full verified anchor list; the other line numbers in §1/§4
+    had drifted too (`:2076-2078`/`:2267` → `ChatStore.swift:2285`;
+    `:2172-2178` → `:2188-2199`).
 
 ## 2. Fix shape (the entry's own, one clause)
 

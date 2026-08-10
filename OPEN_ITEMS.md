@@ -6077,6 +6077,62 @@ the composer's door condition, plus the matrix's row-3 semantics already
 shipped by #306. Evidence chain: #306's independent whole-lane review
 (2026-08-09), which traced the door predicate while verifying C2.
 
+**2026-08-10 — LANE OPEN. Anchors re-verified at HEAD `7467e96`, and the
+dispatch's guess at the door's home was WRONG.** Bars below are written
+BEFORE any code, per the #215 convention.
+
+**Where the door actually lives (verified, not inherited):** the dispatch
+(`dispatch/OPUS-T27-315-manual-send-door.md` §1) pointed at
+`ChatScreen.swift:1095-1099` — "the door's condition is the sibling that still
+reads `isStreaming`". It is not there. Those lines are the **MessageBubble
+menu's** `isTranscriptBusy:` pass-through, already correct since #278; the
+`isStreaming` hits in that file (`:123` stall hint, `:182-184` a `.task(id:)`,
+`:291` the ChatInputBar feed) are none of them the door. **The door has TWO
+render/commit sites, both inside `Talaria/Features/Chat/ChatInputBar.swift`,
+both keyed on the same `isStreaming` prop fed at `ChatScreen.swift:291`:**
+
+1. **`ChatInputBar.swift:479`** — `actionButton`'s `if isStreaming { queue-commit
+   + Stop } else if canSend { plain Send }`. The on-screen door.
+2. **`ChatInputBar.swift:152`** — the hardware-keyboard door (Lane J J-4):
+   `.onKeyPress(keys: [.return])` branches `if isStreaming` to
+   `handleQueueAction()`, else `handlePrimaryAction()`.
+
+Per Owen's pre-approval (2026-08-10) the same one-predicate swap applies to
+every send-commit door, so both sites move together. Nothing else in the app
+commits from the composer: `handlePrimaryAction`/`handleQueueAction` have no
+third caller, the chip's Send-now is already store-gated
+(`sendHeldTurnNow`, `guard !isTranscriptBusy`), and `AskHermesIntent` (Siri)
+is a different surface entirely, out of this lane.
+
+**Other anchors as verified at HEAD (the dispatch's line numbers had drifted):**
+`isTranscriptBusy` `ChatStore.swift:139` ✅ (dispatch right); the drain guard
+`ChatStore.swift:2285` (dispatch said `:2076-2078`/`:2267`); the fire gate
+`fireHeldTurnIfReady` `:2507` and `holdComposedTurn`'s `guard isTranscriptBusy`
+`:2397`; `queueComposedMessage`'s fallback `ChatScreen.swift:1529` ✅;
+`refreshDirectHealth`'s deliberate `!isStreaming` `ChatStore.swift:2188-2199`
+(dispatch said `:2172-2178`) — **untouched by this lane, per #307's amended
+resolution.**
+
+**BARS (written first, 2026-08-10):**
+
+- **315-A (unit, RED→GREEN):** with the store driven into the real reconcile
+  window (`streamingMessageID == nil`, `pendingRun` live), the composer's door
+  resolves to the QUEUE/HOLD path, not plain Send. Must be watched RED against
+  unmodified production first, with the failure text recorded verbatim here.
+- **315-B (unit):** a turn committed through the DOOR during the window fires
+  exactly once and only after `attemptReconcile` adopts — bar 306-E's fixture
+  (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`) extended to enter
+  through the door rather than by calling `holdComposedTurn` directly.
+- **315-C (no-regression):** idle transcript → plain Send unchanged; streaming
+  → the door unchanged (queue-commit + Stop, and the commit control still
+  suppressed for a slash draft / a taken depth-1 slot).
+- **315-D:** `GATE: PASS`, unit count MOVED (baseline 2051 from #241).
+
+**Traps honoured (from the dispatch §4):** `refreshDirectHealth` stays
+`!isStreaming`; `queueComposedMessage`'s slash/empty guard is untouched;
+the attachment path is left exactly as found and its behaviour in the window
+is RECORDED below, not redesigned.
+
 ## 316. 🧹 The `///` doc block above `handleActiveProfileChanged` is ORPHANED from its own function — **RE-FILED 2026-08-09 out of #298 at the archive sweep, as the precondition of archiving it (Owen's call: "archive now, re-file the orphan"). Found in passing by the #298 lane and deliberately left as found; #298 is now in `OPEN_ITEMS-ARCHIVE.md`, so this entry is the finding's live home. NOT STARTED; no bars — a relocation, not a behaviour change.**
 
 **The finding, carried out of #298 verbatim in substance:** `d10b136` (#114,
