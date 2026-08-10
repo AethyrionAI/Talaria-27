@@ -202,10 +202,16 @@ struct ToolActivityRail: View {
                         .truncationMode(.middle)
                 }
 
-                // #296: WHY it did not finish — the user's Stop, or the host's
-                // own error text (296-C1). Rendered BESIDE `detail`, never
-                // over it: `detail` is what the call touched, and that stays
-                // the more useful of the two.
+                // #296: WHY it did not finish — the user's Stop, or a
+                // host-reported failure (296-C1). Rendered BESIDE `detail`,
+                // never over it: `detail` is what the call touched, and that
+                // stays the more useful of the two.
+                //
+                // Corrected 2026-08-10: this said "the host's own error text",
+                // which the wire does not provide — the runs host sends a bare
+                // `error: true`, so what renders here is usually the generic
+                // "The host reported an error." A short, honest line rather
+                // than an invented reason.
                 if let failure = activity.failure, !failure.isEmpty {
                     Text(failure)
                         .font(Design.Typography.monoSmall)

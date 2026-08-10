@@ -1246,11 +1246,45 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Next:** inspect the generated `TalariaTests` build settings (actual TEST_HOST/BUNDLE_LOADER values) and whether the app target is built as a dependency of the test action; compare against a known-good xcodegen unit-test setup. Until fixed, PR reviews use the app-build + diff bar and Owen runs the suite in Xcode.
 
+> **↪ APPEND-ONLY POINTER 2026-08-10 (tracker #319's lane; append-only per
+> #317 ruling (a) — nothing above this line was edited).**
+> **The "downstream of that" this entry could not name has a name.** XcodeGen
+> derives the test host from the app target's *product* filename, and its model
+> of the product name is the target's `productName` — which defaults to the
+> TARGET name (`Talaria`) and is **not** read from the `PRODUCT_NAME` build
+> setting. `PRODUCT_NAME: "Talaria 27"` therefore renamed the real product
+> without XcodeGen ever knowing, so the derivation produced
+> `Talaria.app/Talaria` exactly as this entry reported. The 2026-07-04 reading
+> — *"xcodegen should auto-wire TEST_HOST/BUNDLE_LOADER"* — was right; the
+> missing input was one line of spec.
+> **Fixed at the root 2026-08-10:** `project.yml` now declares
+> `productName: "Talaria 27"` on the app target, and the compensating
+> `TEST_HOST` override this entry's audit note pointed at has been **removed**.
+> Proof it was redundant: generating with and without the override produced
+> **byte-identical** `project.pbxproj` files, both carrying
+> `TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27"`.
+
 ## 52. ✅ Committed `Talaria.xcscheme` is stale vs `xcodegen generate`
 
 > **CLOSED — header flipped 2026-08-01 (Hermes audit Part 1A).** Commit `3090c00` committed xcodegen's canonical scheme; later regens commit it as practice (`8902d2e`).
 
 **Found 2026-07-04** (Mac). On clean `main`, `xcodegen generate` rewrites `Talaria.xcodeproj/xcshareddata/xcschemes/Talaria.xcscheme` (the pbxproj itself was already current), so the committed scheme has drifted from `project.yml`. Minor hygiene; did not resolve #51. **Fix:** regenerate and commit the scheme (or fold into the standing post-checkout xcodegen step), file-scoped.
+
+> **↪ APPEND-ONLY POINTER 2026-08-10 (tracker #319's lane; append-only per
+> #317 ruling (a) — nothing above this line was edited).**
+> **"Later regens commit it as practice" stopped being true for this one file,
+> and the closure quietly came undone.** Because every regen also rewrote
+> `BuildableName` to a product that does not exist, lanes reverted
+> `Talaria.xcscheme` **as a whole file** to undo the damage — dragging its
+> `version` and its newer default attributes back with it. Measured 2026-08-10:
+> `TalariaShare.xcscheme` and `TalariaWidgets.xcscheme` were both already at
+> `version = "1.7"`, and `Talaria.xcscheme` — the only one anybody ever
+> hand-reverted — was still at `"1.3"`. The drift this entry closed had been
+> re-opened by the workaround for a different bug.
+> **Both halves are fixed under #319:** the name is correct at the source, so
+> the regenerated scheme (1.7, explicit defaults, empty `CommandLineArguments`
+> elements — all semantically inert) is committed once and `xcodegen generate`
+> is now byte-for-byte idempotent.
 
 ## 53. ✅ Sensor drain — location/health outboxes decoupled (fix merged 2026-07-06; device verification owed)
 

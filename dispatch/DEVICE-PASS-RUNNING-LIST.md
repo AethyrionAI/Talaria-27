@@ -2523,7 +2523,8 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > **The answer is the option nobody pre-registered: `error` ARRIVES, as a JSON
 > BOOLEAN, with no failure text — and 296-C1's parser drops it on a type
 > mismatch** (`payload["error"] as? String` is `nil` for a `Bool`,
-> `SessionsHermesClient+RunsTransport.swift:179`). So on the runs plane a
+> `SessionsHermesClient+RunsTransport.swift:179` as cited that night — the line
+> is **`:190`** at `d004c82`, re-resolved 2026-08-10). So on the runs plane a
 > failed OR stopped tool renders as a clean completion — the exact lie #296
 > exists to remove, reintroduced by its own plumbing's type guess. Failed and
 > stopped are **indistinguishable on the wire** (both `error:true`, no reason);
@@ -2535,7 +2536,15 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > capture and source don't already prove. Frames archived at
 > `scratchpad/r5-trial{1,2}-frames.txt` (session-local). **Fix filed in
 > OPEN_ITEMS #296 (296-C1 reopened by the wire) — parser must accept Bool OR
-> String, `false`/absent must stay clean. Not built tonight.**
+> String, `false`/absent must stay clean. ~~Not built tonight.~~**
+>
+> **2026-08-10 — the fix is now WRITTEN on `t27-296c1-bool-error` but NOT
+> VERIFIED.** The union reader (`hostErrorDetail`) is applied at both drop
+> sites; the RED was never witnessed and the gate never ran, because the build
+> host went into box-wide fork exhaustion mid-lane. Scored honestly as all-OWED
+> in #296's "296-C1 re-land" block. **This row stays ANSWERED and still DO NOT
+> RUN** — the phone trial is moot for the reason above, and none of that
+> changed.
 
 > **Superseded context — the earlier partial answer from Z8's trial:** the host can go FURTHER than omitting the error field — a
 > process killed by the gateway's own shutdown cleanup came back
