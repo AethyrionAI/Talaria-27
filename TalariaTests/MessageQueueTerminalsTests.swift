@@ -564,4 +564,206 @@ struct MessageQueueTerminalsTests {
         #expect(!waiting.statusLine.localizedCaseInsensitiveContains("sent"))
         #expect(!surfaced.statusLine.localizedCaseInsensitiveContains("sent"))
     }
+
+    // MARK: - #315: the composer's DOOR during the reconcile window
+
+    /// Drives the store into the real #278 window: a turn goes out, its
+    /// stream is `.interrupted` (committed server-side, connection lost), and
+    /// what is left is `streamingMessageID == nil` with a live `pendingRun`.
+    /// The reconcile budget is kept patient so the window does not close
+    /// underneath the assertions.
+    @MainActor
+    private func enterReconcileWindow(
+        turn: String = "dropped turn",
+        store: ChatStore,
+        client: ManualStreamClient
+    ) async throws {
+        store.reconcileWallClockBudget = .seconds(30)
+        store.reconcilePollInterval = .seconds(30)
+        let sendTask = await startTurn(turn, store: store, client: client)
+        client.continuations.last?.yield(.interrupted(sessionId: "S315", runId: "R315"))
+        client.continuations.last?.finish()
+        _ = await sendTask.value
+        #expect(store.isStreaming == false, "the window's first half: no stream")
+        #expect(store.isTranscriptBusy, "the window's other half: the run is live")
+    }
+
+    /// The composer's commit, entered THROUGH the door — the door decides,
+    /// then `ChatScreen.queueComposedMessage()`'s body runs (hold; fall
+    /// through to a post only when the transcript is genuinely idle).
+    ///
+    /// The post arms REPORT rather than perform. Performing one against the
+    /// manual-drive client parks the caller on a stream nothing will finish,
+    /// so the pre-fix run HANGS instead of failing — and a hang carries no
+    /// verdict at all. What the bar asks is which door the composer chose;
+    /// `"posted"` is that answer, and it is the answer #315 forbids here.
+    @MainActor
+    private func commitThroughTheDoor(_ text: String, store: ChatStore) -> String {
+        let door = ChatInputBar.resolveDoor(
+            store: store,
+            canSend: !text.isEmpty,
+            canQueueMessage: store.currentThreadHeldTurn == nil,
+            isSlashMode: text.hasPrefix("/"),
+            sendBlockedByAttachments: false
+        )
+        switch door {
+        case .queueCommit:
+            if store.holdComposedTurn(text) { return "held" }
+            return store.isTranscriptBusy ? "refused" : "posted"
+        case .send:
+            return "posted"
+        case .busyNoCommit, .blockedByAttachments, .inert:
+            return "refused"
+        }
+    }
+
+    // MARK: - 315-A: the door itself
+
+    /// **315-A.** In the reconcile window the composer must offer the
+    /// QUEUE/HOLD path, never plain Send — a plain Send there posts into the
+    /// live `pendingRun`, and `attemptReconcile` can then pair the dropped
+    /// run's recovery with the manual turn's reply (#307's mechanism,
+    /// user-driven). RED before the fix: the door read `isStreaming`, which
+    /// is false for this entire window.
+    @Test @MainActor
+    func reconcileWindowDoorOffersTheQueueNeverPlainSend() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        try await enterReconcileWindow(store: store, client: client)
+
+        #expect(
+            ChatInputBar.resolveDoor(
+                store: store, canSend: true, canQueueMessage: true,
+                isSlashMode: false, sendBlockedByAttachments: false
+            ) == .queueCommit,
+            "#315: the composer offered plain Send into a live pendingRun"
+        )
+        // The two arms that must NOT re-open plain Send by falling through:
+        // the thread's single hold slot is taken, and a slash draft (which
+        // is never held — #306's own refusal).
+        #expect(
+            ChatInputBar.resolveDoor(
+                store: store, canSend: true, canQueueMessage: false,
+                isSlashMode: false, sendBlockedByAttachments: false
+            ) == .busyNoCommit,
+            "#315: a taken hold slot re-opened plain Send inside the window"
+        )
+        #expect(
+            ChatInputBar.resolveDoor(
+                store: store, canSend: true, canQueueMessage: true,
+                isSlashMode: true, sendBlockedByAttachments: false
+            ) == .busyNoCommit,
+            "#315: a slash draft posted into a live run"
+        )
+    }
+
+    // MARK: - 315-B: a turn committed THROUGH the door fires once, after adoption
+
+    /// **315-B.** Bar 306-E's fixture, entered through the door and with the
+    /// commit made DURING the window rather than while streaming. The held
+    /// turn must not post until `attemptReconcile` adopts the dropped run's
+    /// reply, and then exactly once — the #307 mechanism must not find a new
+    /// way in through the door #315 opens.
+    @Test @MainActor
+    func turnCommittedThroughTheDoorFiresOnceAfterReconcileAdopts() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        let sentBefore = Date.now
+        try await enterReconcileWindow(turn: "turn two", store: store, client: client)
+
+        // The manual send #315 is about: composed and committed mid-window.
+        let outcome = commitThroughTheDoor("manual mid-window turn", store: store)
+        #expect(outcome == "held", "#315: the mid-window commit was posted, not held")
+        #expect(
+            !client.sentMessages.contains("manual mid-window turn"),
+            "#315: the manual turn reached the wire while a run was live"
+        )
+        #expect(store.currentThreadHeldTurn?.phase == .held)
+
+        // Reachability alone must not shake it loose (#307's guard).
+        client.autoFinishSends = true
+        await store.refreshDirectHealth()
+        await store.drainComposeOutboxIfPossible()
+        #expect(client.sentMessages == ["turn two"])
+
+        // The dropped run's reply lands server-side; the reconcile adopts it.
+        var serverConvo = Conversation(title: Conversation.defaultTitle)
+        serverConvo.messages = [
+            Message(sender: .user, content: "turn two",
+                    timestamp: sentBefore.addingTimeInterval(1), status: .delivered),
+            Message(sender: .hermes, content: "the dropped run's answer",
+                    timestamp: sentBefore.addingTimeInterval(30), status: .delivered),
+        ]
+        client.reconcileConversation = serverConvo
+        await store.reconcilePendingRuns()
+
+        #expect(store.conversation?.messages.contains {
+            $0.sender == .hermes && $0.content == "the dropped run's answer"
+        } == true, "the adopted reply must be the DROPPED run's, not the manual turn's")
+
+        let fired = await pollUntil { client.sentMessages.contains("manual mid-window turn") }
+        #expect(fired, "the held turn fires once the reconcile resolves")
+        // Exactly once — a second fire would be the duplicate #306's release
+        // discipline exists to prevent.
+        try? await Task.sleep(for: .milliseconds(150))
+        #expect(
+            client.sentMessages.filter { $0 == "manual mid-window turn" }.count == 1,
+            "#315/306: the held turn fired more than once"
+        )
+    }
+
+    // MARK: - 315-C: no regression on the doors #315 does not touch
+
+    /// **315-C.** An idle transcript still offers plain Send (and the #8
+    /// blocked/inert arms are untouched); a STREAMING transcript still offers
+    /// exactly what #306 T5 shipped — the queue-commit control beside Stop,
+    /// suppressed for a slash draft or a taken hold slot.
+    @Test @MainActor
+    func idleAndStreamingDoorsAreUnchanged() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        await store.loadConversationIfNeeded()
+
+        #expect(store.isTranscriptBusy == false)
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: true, canQueueMessage: true,
+            isSlashMode: false, sendBlockedByAttachments: false
+        ) == .send, "idle: plain Send, unchanged")
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: true, canQueueMessage: true,
+            isSlashMode: true, sendBlockedByAttachments: false
+        ) == .send, "idle: a slash draft still posts — the door never held those")
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: false, canQueueMessage: true,
+            isSlashMode: false, sendBlockedByAttachments: true
+        ) == .blockedByAttachments, "#8's dimmed arrow, unchanged")
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: false, canQueueMessage: true,
+            isSlashMode: false, sendBlockedByAttachments: false
+        ) == .inert, "idle with an empty composer: no commit control")
+
+        let sendTask = await startTurn("streaming turn", store: store, client: client)
+        #expect(store.isStreaming)
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: true, canQueueMessage: true,
+            isSlashMode: false, sendBlockedByAttachments: false
+        ) == .queueCommit, "streaming: #306 T5's third state, unchanged")
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: true, canQueueMessage: true,
+            isSlashMode: true, sendBlockedByAttachments: false
+        ) == .busyNoCommit, "streaming: a slash draft is still refused, not held")
+        #expect(ChatInputBar.resolveDoor(
+            store: store, canSend: true, canQueueMessage: false,
+            isSlashMode: false, sendBlockedByAttachments: false
+        ) == .busyNoCommit, "streaming: depth 1 — a taken slot offers Stop only")
+
+        client.continuations.last?.yield(.finished(
+            Message(sender: .hermes, content: "done", status: .delivered), nil, nil
+        ))
+        client.continuations.last?.finish()
+        _ = await sendTask.value
+    }
 }

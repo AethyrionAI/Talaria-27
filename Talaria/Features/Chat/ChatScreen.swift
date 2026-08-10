@@ -288,6 +288,11 @@ struct ChatScreen: View {
                 ChatInputBar(
                     text: $messageText,
                     pendingAttachments: $pendingAttachments,
+                    // #315: this prop no longer decides the commit DOOR — that
+                    // reads `isTranscriptBusy` off the store itself
+                    // (`ChatInputBar.resolveDoor`). What is left here are the
+                    // affordances that genuinely track a live STREAM: the
+                    // paste, dictation and voice controls.
                     isStreaming: chatStore.isStreaming,
                     isFocused: $isComposerFocused,
                     onSend: sendMessage,
