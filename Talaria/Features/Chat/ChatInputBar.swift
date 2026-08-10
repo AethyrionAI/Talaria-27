@@ -61,6 +61,77 @@ struct ChatInputBar: View {
         text.hasPrefix("/")
     }
 
+    /// #315: THE composer door — which commit path the composer OFFERS for the
+    /// draft as it stands. It had been decided twice, independently, in two
+    /// places (`actionButton` and the hardware-keyboard Return handler), which
+    /// is how a door predicate can be right on one and wrong on the other.
+    /// One resolution, two call sites, and a unit can watch it.
+    ///
+    /// Not to be confused with #306's `ComposerDoor` (`ComposerDoor.swift`),
+    /// which is the door's NAME on the chip once a commit has been made
+    /// (`QUEUED` / `STEERED` / `INTERRUPTED`). This one is the question
+    /// asked one step earlier: which door is even open.
+    enum CommitDoor: Equatable {
+        /// A turn is in flight and this draft can be HELD: the queue-commit
+        /// control alongside Stop. Committing never posts (#306).
+        case queueCommit
+        /// A turn is in flight and this draft cannot be held (slash draft, the
+        /// thread's single hold slot taken, or nothing to commit): Stop only.
+        /// **Never plain Send** — that is the door #315 closed.
+        case busyNoCommit
+        /// Idle transcript, sendable draft: plain Send, posts now.
+        case send
+        /// Idle, content staged but not transmittable (#8): the dimmed inert
+        /// arrow beside the forge hint.
+        case blockedByAttachments
+        /// Idle with nothing to commit — no control.
+        case inert
+    }
+
+    /// The door's resolution, from the STORE's own predicate plus the draft's
+    /// facts. Taking the store rather than a mirrored flag is deliberate:
+    /// #278's ruling is that the surface and the store must read the same
+    /// predicate, and a copy passed down as a prop is exactly where the two
+    /// drift apart.
+    ///
+    /// **#315: `isTranscriptBusy`, not `isStreaming`.** A dropped stream
+    /// leaves `streamingMessageID` nil with `pendingRun` very much alive —
+    /// the #278 window, minutes long — and on `isStreaming` the composer
+    /// offered plain Send for all of it. That send posts into the live run,
+    /// and `attemptReconcile`'s `timestamp > pending.sentAt` adoption can
+    /// then pair the dropped run's recovery with the manual turn's reply:
+    /// someone else's reasoning re-attached, a fabricated duration, the old
+    /// prompt re-paired, nothing erroring. #307's mechanism exactly, driven
+    /// by the user instead of by the drain. This is the same predicate the
+    /// fire gate (`fireHeldTurnIfReady`), the drain
+    /// (`drainComposeOutboxIfPossible`) and the bubble menu already read —
+    /// the door was the last surface still asking the weaker question.
+    @MainActor
+    static func resolveDoor(
+        store: ChatStore,
+        canSend: Bool,
+        canQueueMessage: Bool,
+        isSlashMode: Bool,
+        sendBlockedByAttachments: Bool
+    ) -> CommitDoor {
+        if store.isTranscriptBusy {
+            return canQueueMessage && canSend && !isSlashMode ? .queueCommit : .busyNoCommit
+        }
+        if canSend { return .send }
+        if sendBlockedByAttachments { return .blockedByAttachments }
+        return .inert
+    }
+
+    private var door: CommitDoor {
+        Self.resolveDoor(
+            store: chatStore,
+            canSend: canSend,
+            canQueueMessage: canQueueMessage,
+            isSlashMode: isSlashMode,
+            sendBlockedByAttachments: sendBlockedByAttachments
+        )
+    }
+
     /// Parses the command and any trailing argument from the text field.
     private var parsedSlashInput: (command: String, argument: String?) {
         let raw = String(text.dropFirst()).lowercased()
@@ -149,14 +220,18 @@ struct ChatInputBar: View {
                             // #306: mid-turn, Return routes to the HOLD —
                             // the same door the on-screen queue-commit
                             // control offers — instead of refusing.
-                            if isStreaming {
-                                guard canQueueMessage, canSend, !isSlashMode else { return .ignored }
+                            // #315: and it is now literally the same door —
+                            // one resolution, read here and by `actionButton`.
+                            switch door {
+                            case .queueCommit:
                                 handleQueueAction()
                                 return .handled
+                            case .send:
+                                handlePrimaryAction()
+                                return .handled
+                            case .busyNoCommit, .blockedByAttachments, .inert:
+                                return .ignored
                             }
-                            guard canSend else { return .ignored }
-                            handlePrimaryAction()
-                            return .handled
                         }
                         .scrollContentBackground(.hidden)
                         .background(.clear)
@@ -280,6 +355,10 @@ struct ChatInputBar: View {
         }
         .animation(Design.Motion.quickResponse, value: isSlashMode)
         .animation(Design.Motion.quickResponse, value: isStreaming)
+        // #315: the door can now change without `isStreaming` changing — the
+        // reconcile window opens and closes on `pendingRun` alone. Without
+        // this the control set would swap in a hard cut at both edges.
+        .animation(Design.Motion.quickResponse, value: door)
         .animation(Design.Motion.quickResponse, value: canSend)
         .animation(Design.Motion.quickResponse, value: queuedChip)
         .onAppear {
@@ -476,20 +555,27 @@ struct ChatInputBar: View {
 
     @ViewBuilder
     private var actionButton: some View {
-        if isStreaming {
-            // #306 T5: the third state — during a turn the composer offers
-            // BOTH the queue-commit control and Stop, not one replacing the
-            // other. The commit control appears only when there is text to
-            // commit, the thread's single hold slot is free (depth 1), and
-            // the draft isn't a slash command (a held slash turn would post
-            // as plain prose at fire time — refuse it honestly).
+        switch door {
+        case .queueCommit:
+            // #306 T5: the third state — while a run is in flight the composer
+            // offers BOTH the queue-commit control and Stop, not one replacing
+            // the other. Which of the two `busy` doors applies (commit
+            // available or not) is `resolveDoor`'s decision, not this view's:
+            // there is text to commit, the thread's single hold slot is free
+            // (depth 1), and the draft isn't a slash command (a held slash
+            // turn would post as plain prose at fire time — refuse it
+            // honestly).
             HStack(spacing: Design.Spacing.xs) {
-                if canQueueMessage && canSend && !isSlashMode {
-                    queueCommitButton
-                }
+                queueCommitButton
                 stopButton
             }
-        } else if canSend {
+        case .busyNoCommit:
+            // #315: nothing this draft can commit while a run is live — Stop
+            // and nothing else. Note what is NOT here: the plain Send arrow.
+            HStack(spacing: Design.Spacing.xs) {
+                stopButton
+            }
+        case .send:
             Button(action: handlePrimaryAction) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 16, weight: .bold))
@@ -514,7 +600,7 @@ struct ChatInputBar: View {
             .hoverEffect(.highlight)
             .accessibilityLabel("Send message")
             .transition(.scale.combined(with: .opacity))
-        } else if sendBlockedByAttachments {
+        case .blockedByAttachments:
             // Dimmed, inert send arrow: content is staged but not yet
             // transmittable (un-extracted PDF, or OCR in flight). Paired with
             // the forge hint banner so the held state is self-explanatory (#8).
@@ -530,6 +616,8 @@ struct ChatInputBar: View {
                 .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                 .accessibilityLabel("Send unavailable — extract text from or remove the attachment")
                 .transition(.scale.combined(with: .opacity))
+        case .inert:
+            EmptyView()
         }
     }
 

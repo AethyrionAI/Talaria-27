@@ -180,12 +180,13 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
 - **#310** 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no …
 - **#311** 📝 #21's HOME — agent-generated file delivery is currently HOMELESS
-- **#315** 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun`
+- **#315** 🐛 The #278 window's LAST corruption-class occupant: a MANUAL send during the reconcile window posts into a live `pendingRun` — **FIXED 2026-08-10 (branch `claude/t27-315-manual-send-door`): the door renders on `isTranscriptBusy`; bars A–D MET. Awaiting review/merge.**
 - **#316** 🧹 The `///` doc block above `handleActiveProfileChanged` is ORPHANED from its own function
 - **#317** 📝 THE RULES CONTRADICTION — **RULED 2026-08-09: option (a), append-only dated pointers; close-out rule RATIFIED (upstream = our docs, never external repos)**
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
 - **#319** 🐛 XcodeGen derives the wrong product name on every regen — do NOT pin; NOT STARTED
 - **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix; NOT STARTED
+- **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; NOT STARTED
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#296** 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
@@ -6077,6 +6078,168 @@ the composer's door condition, plus the matrix's row-3 semantics already
 shipped by #306. Evidence chain: #306's independent whole-lane review
 (2026-08-09), which traced the door predicate while verifying C2.
 
+**2026-08-10 — LANE OPEN. Anchors re-verified at HEAD `7467e96`, and the
+dispatch's guess at the door's home was WRONG.** Bars below are written
+BEFORE any code, per the #215 convention.
+
+**Where the door actually lives (verified, not inherited):** the dispatch
+(`dispatch/OPUS-T27-315-manual-send-door.md` §1) pointed at
+`ChatScreen.swift:1095-1099` — "the door's condition is the sibling that still
+reads `isStreaming`". It is not there. Those lines are the **MessageBubble
+menu's** `isTranscriptBusy:` pass-through, already correct since #278; the
+`isStreaming` hits in that file (`:123` stall hint, `:182-184` a `.task(id:)`,
+`:291` the ChatInputBar feed) are none of them the door. **The door has TWO
+render/commit sites, both inside `Talaria/Features/Chat/ChatInputBar.swift`,
+both keyed on the same `isStreaming` prop fed at `ChatScreen.swift:291`:**
+
+1. **`ChatInputBar.swift:479`** — `actionButton`'s `if isStreaming { queue-commit
+   + Stop } else if canSend { plain Send }`. The on-screen door.
+2. **`ChatInputBar.swift:152`** — the hardware-keyboard door (Lane J J-4):
+   `.onKeyPress(keys: [.return])` branches `if isStreaming` to
+   `handleQueueAction()`, else `handlePrimaryAction()`.
+
+Per Owen's pre-approval (2026-08-10) the same one-predicate swap applies to
+every send-commit door, so both sites move together. Nothing else in the app
+commits from the composer: `handlePrimaryAction`/`handleQueueAction` have no
+third caller, the chip's Send-now is already store-gated
+(`sendHeldTurnNow`, `guard !isTranscriptBusy`), and `AskHermesIntent` (Siri)
+is a different surface entirely, out of this lane.
+
+**Other anchors as verified at HEAD (the dispatch's line numbers had drifted):**
+`isTranscriptBusy` `ChatStore.swift:139` ✅ (dispatch right); the drain guard
+`ChatStore.swift:2285` (dispatch said `:2076-2078`/`:2267`); the fire gate
+`fireHeldTurnIfReady` `:2507` and `holdComposedTurn`'s `guard isTranscriptBusy`
+`:2397`; `queueComposedMessage`'s fallback `ChatScreen.swift:1529` ✅;
+`refreshDirectHealth`'s deliberate `!isStreaming` `ChatStore.swift:2188-2199`
+(dispatch said `:2172-2178`) — **untouched by this lane, per #307's amended
+resolution.**
+
+**BARS (written first, 2026-08-10):**
+
+- **315-A (unit, RED→GREEN):** with the store driven into the real reconcile
+  window (`streamingMessageID == nil`, `pendingRun` live), the composer's door
+  resolves to the QUEUE/HOLD path, not plain Send. Must be watched RED against
+  unmodified production first, with the failure text recorded verbatim here.
+- **315-B (unit):** a turn committed through the DOOR during the window fires
+  exactly once and only after `attemptReconcile` adopts — bar 306-E's fixture
+  (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`) extended to enter
+  through the door rather than by calling `holdComposedTurn` directly.
+- **315-C (no-regression):** idle transcript → plain Send unchanged; streaming
+  → the door unchanged (queue-commit + Stop, and the commit control still
+  suppressed for a slash draft / a taken depth-1 slot).
+- **315-D:** `GATE: PASS`, unit count MOVED (baseline 2051 from #241).
+
+**Traps honoured (from the dispatch §4):** `refreshDirectHealth` stays
+`!isStreaming`; `queueComposedMessage`'s slash/empty guard is untouched;
+the attachment path is left exactly as found and its behaviour in the window
+is RECORDED below, not redesigned.
+
+**2026-08-10 — RESULT: bars 315-A..D all MET. Branch
+`claude/t27-315-manual-send-door`.**
+
+**The fix is one predicate**, `ChatInputBar.resolveDoor`:
+`if store.isStreaming` → `if store.isTranscriptBusy`. Everything else in the
+diff is the seam that makes that one token testable: the door, which had been
+decided TWICE and independently (`actionButton` and the hardware-keyboard
+Return handler), is now resolved ONCE — `ChatInputBar.CommitDoor` +
+`resolveDoor(store:canSend:canQueueMessage:isSlashMode:sendBlockedByAttachments:)`
+— and both sites read it. **The extraction was committed first, keyed on the
+OLD predicate, precisely so 315-A could be watched RED against production
+wiring** rather than against a function that did not exist yet. The resolver
+takes the STORE rather than a mirrored Bool on purpose: #278's ruling is that
+the surface and the store must read the same predicate, and a copy passed down
+as a prop is exactly where the two drift apart — which is how this bug existed.
+
+**315-A — watched RED, verbatim** (`/tmp/red2-315.log`, unmodified predicate):
+
+```
+✘ Test reconcileWindowDoorOffersTheQueueNeverPlainSend() recorded an issue at
+  MessageQueueTerminalsTests.swift:632:9: Expectation failed:
+  ChatInputBar.resolveDoor(store: store, canSend: true, canQueueMessage: true,
+  isSlashMode: false, sendBlockedByAttachments: false) == .queueCommit
+↳ #315: the composer offered plain Send into a live pendingRun
+↳   ChatInputBar.resolveDoor(…) → .send
+✘ … failed after 0.020 seconds with 3 issues.
+```
+
+The other two issues are the arms that must not re-open plain Send by falling
+through — a taken depth-1 hold slot, and a slash draft — both `→ .send`
+pre-fix. **GREEN after the swap.**
+
+**315-B — MET.** Bar 306-E's fixture, extended: the commit is made DURING the
+window and entered through the door. Pre-fix, 4 issues (`outcome == "held"` →
+`"posted"`; `currentThreadHeldTurn?.phase` → `nil`; never fired; count 0).
+Post-fix it holds, survives a `refreshDirectHealth` + drain without reaching
+the wire (`client.sentMessages == ["turn two"]`), and fires **exactly once**
+after `attemptReconcile` adopts the dropped run's reply — the adopted reply is
+still the DROPPED run's, not the manual turn's.
+- **One honest note on this test:** its post arms REPORT rather than perform.
+  Performing a post against the manual-drive client parks the caller on a
+  stream nothing finishes, so the first pre-fix run **HUNG instead of failing**
+  — observed live, killed, and rewritten. A hang carries no verdict, which is
+  the gate's founding sin in miniature; the bar asks which door the composer
+  chose, and `"posted"` is that answer.
+
+**315-C — MET, and it was green before AND after**, which is the point: idle →
+`.send` (slash drafts included — the door never held those); `#8`'s dimmed arm
+and the empty-composer inert arm unchanged; streaming → `.queueCommit`, with
+`.busyNoCommit` still covering a slash draft and a taken slot. #306 T5 is
+byte-for-byte the behaviour it always was.
+
+**The restore-the-bug proof (process step 5).** After the fix, the predicate
+was re-injected (`isTranscriptBusy` → `isStreaming`), `ChatInputBar.swift`
+provably recompiled, and the suite run again:
+
+```
+✘ Suite MessageQueueTerminalsTests failed after 6.601 seconds with 7 issues.
+✘ Test run with 19 tests in 1 suite failed after 6.601 seconds with 7 issues.
+```
+
+The same 3 + 4 issues, and **the other 17 tests — all of #306's — still
+passed**, so the new bars are pinned to the token the fix touched and to
+nothing else. Restored → the full 19-test suite passes.
+
+**Recorded, not redesigned — what else changes inside the window:**
+- **Attachments (#314's v1 limit, trap 3).** Unchanged in substance and
+  identical to what the STREAMING case already did: a text+attachment draft
+  commits the TEXT and leaves the chips staged in the composer; an
+  attachment-ONLY draft renders the queue-commit control whose tap is a no-op
+  (`queueComposedMessage` returns on empty content). Pre-existing shape,
+  now reachable in one more window. Not touched.
+- **Slash drafts.** During the window they resolve to `.busyNoCommit`: no
+  commit control on screen, and hardware Return returns `.ignored`. They are
+  REFUSED, never swallowed into a hold — which is what trap 2 asks for. Before
+  this lane they plain-sent into the live run.
+- **⚠️ Stop now renders during the window, and it is only half a Stop.** Both
+  busy doors carry `stopButton`, so for the first time the reconcile window has
+  one. `cancelStreaming` there does real work — `hardStopActiveRun()`,
+  `abandonActiveRun()`, the routing lock, the Live Activity — but it **never
+  touches `pendingRun`** (only `abandonPendingRun` does, and no Stop path calls
+  it), so the composer stays busy until the reconcile resolves or its budget
+  expires. Strictly better than the plain Send it replaces, and #203's stall
+  hint already tells users to "tap Stop"; but it is a control that does not
+  fully do what it looks like it does. **Filed as #321** rather than fixed
+  here — widening `cancelStreaming` is a #295/#306 terminal-matrix question,
+  not a door question, and a number the day it was found is #268's rule.
+
+**315-D — `GATE: PASS`, and the count MOVED.** Full run on the already-booted
+`CC-300-iPhone-Air` (none created, booted or shut down; Calendar + Reminders
+TCC re-granted immediately before the run):
+
+```
+  PASS  Test run reported TEST SUCCEEDED
+  PASS  Swift Testing tests run — 2054
+  PASS  XCUITest tests run — 14
+  PASS  Release build succeeded
+  PASS  no Swift compile errors in Release
+GATE: PASS
+```
+
+**Units 2051 → 2054 (+3 — exactly the three bars added, so the count moved and
+the `.xctest` was not stale).** Release is in there because #218: this lane
+adds a nested type and a `switch` in a `@ViewBuilder`, which a green Debug
+suite cannot vouch for.
+
 ## 316. 🧹 The `///` doc block above `handleActiveProfileChanged` is ORPHANED from its own function — **RE-FILED 2026-08-09 out of #298 at the archive sweep, as the precondition of archiving it (Owen's call: "archive now, re-file the orphan"). Found in passing by the #298 lane and deliberately left as found; #298 is now in `OPEN_ITEMS-ARCHIVE.md`, so this entry is the finding's live home. NOT STARTED; no bars — a relocation, not a behaviour change.**
 
 **The finding, carried out of #298 verbatim in substance:** `d10b136` (#114,
@@ -6313,6 +6476,55 @@ mid-session engine change if one ever becomes possible.
 (the copy half, same ruling), **#18** (no-silent-substitution), **#303**
 (engine pinning defect, live), **#180** (the honest-degradation family this
 belongs to).
+
+---
+
+## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). NOT STARTED; bars pre-register here before any code.**
+
+**What changed to make this reachable.** #315 moved the composer's commit door
+onto `isTranscriptBusy`, so both busy doors (`.queueCommit`, `.busyNoCommit`)
+now carry `stopButton`. For the first time the **reconcile window** — the #278
+state, `streamingMessageID == nil` with a live `pendingRun`, up to ~120s — has
+a Stop control on screen. #315 shipped it deliberately: it replaces a plain
+Send that posted into the live run, and #203's stall hint already tells the
+user to "tap Stop to cancel". This entry is the half it does not do.
+
+**The finding, verified by code read at `7467e96`.** `cancelStreaming`
+(`ChatStore.swift:1388`) does real work on this path — `hardStopActiveRun()`,
+`abandonActiveRun()` (the router's routing lock), `hostApprovals`,
+the Live Activity, `speechOutput` — but it **never touches `pendingRun`**. The
+only writer that clears it is `abandonPendingRun` (`:1247`, `pendingRun = nil`
+at `:1254`), and its callers are the walk-away paths only —
+`clearConversation` (`:1301`), `openSession`/`reset` (`:2685`, `:2766`). No
+Stop path calls it. `cancelStreaming` also opens with
+`terminatedALiveTurn = streamingMessageID != nil`, which is **false** for this
+entire window, so the held-turn restore/surface machinery correctly declines to
+run — the store's own code already knows this call is not terminating a live
+stream.
+
+**Consequence:** the user taps Stop, the host run really is stopped, and the
+composer keeps showing the busy door until `attemptReconcile` resolves or its
+budget expires. A control that does not fully do what it looks like it does —
+#180's honest-degradation family.
+
+**Why #315 did not fix it:** widening `cancelStreaming` to clear `pendingRun`
+is a **terminal-matrix** question (#295's recovery arming, #306's T3 twelve
+rows), not a door question. Stopping the reconcile also throws away a recovery
+that may be seconds from adopting a real answer — which is the exact trade
+#295 exists to reason about. It wants its own lane and its own bars, not a
+line smuggled into a one-predicate fix.
+
+**Open questions for that lane:** (a) should Stop in the window abandon the
+pendingRun, or mark it user-abandoned and let the reconcile finish quietly?
+(b) whichever it is, what does the transcript say — the window's whole point is
+that an answer may still be coming; (c) what happens to a mid-window HOLD
+committed through #315's new door (today `performStopRestoreOfHeldTurn` is
+skipped, because `terminatedALiveTurn` is false).
+
+**Cross-references:** **#315** (the lane that surfaced it and put the button
+there), **#295** (recovery arming / `PendingRun`), **#306** (T3's terminal
+matrix, rows 2 and 3), **#278** (the window itself), **#203** (the stall hint
+that names Stop), **#180** (honest degradation).
 
 ---
 
