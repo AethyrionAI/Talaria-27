@@ -13,6 +13,17 @@ struct ChatInputBar: View {
     let onAttach: () -> Void
     let onSlashCommand: (SlashCommand, String?) -> Void
     let onPasteImage: (UIImage) -> Void
+    /// #306: the composer-attached chip for a held mid-turn message (nil =
+    /// nothing held for this thread). A chip, never a transcript bubble —
+    /// the identity ruling.
+    let queuedChip: QueuedTurnChipModel?
+    /// #306: whether a queue-commit is available (a turn in flight, depth 1
+    /// free). The commit control renders only while this is true.
+    let canQueueMessage: Bool
+    let onQueueMessage: () -> Void
+    let onChipSendNow: () -> Void
+    let onChipEdit: () -> Void
+    let onChipCancel: () -> Void
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
@@ -102,6 +113,13 @@ struct ChatInputBar: View {
 
             // Composer container
             VStack(spacing: 0) {
+                // #306: the held-message chip — composer-attached, above the
+                // input, so the queued text is visible, editable and
+                // cancellable for as long as it is held.
+                if let queuedChip {
+                    queuedTurnChip(queuedChip)
+                }
+
                 // Attachment preview strip
                 if !pendingAttachments.isEmpty {
                     attachmentPreviewStrip
@@ -128,7 +146,15 @@ struct ChatInputBar: View {
                             guard press.modifiers.isDisjoint(with: [.shift, .option, .control, .command]) else {
                                 return .ignored
                             }
-                            guard !isStreaming, canSend else { return .ignored }
+                            // #306: mid-turn, Return routes to the HOLD —
+                            // the same door the on-screen queue-commit
+                            // control offers — instead of refusing.
+                            if isStreaming {
+                                guard canQueueMessage, canSend, !isSlashMode else { return .ignored }
+                                handleQueueAction()
+                                return .handled
+                            }
+                            guard canSend else { return .ignored }
                             handlePrimaryAction()
                             return .handled
                         }
@@ -255,6 +281,7 @@ struct ChatInputBar: View {
         .animation(Design.Motion.quickResponse, value: isSlashMode)
         .animation(Design.Motion.quickResponse, value: isStreaming)
         .animation(Design.Motion.quickResponse, value: canSend)
+        .animation(Design.Motion.quickResponse, value: queuedChip)
         .onAppear {
             speechService.onTranscriptChange = { partialTranscript in
                 text = mergedDictationText(partialTranscript)
@@ -450,21 +477,18 @@ struct ChatInputBar: View {
     @ViewBuilder
     private var actionButton: some View {
         if isStreaming {
-            Button(action: onStop) {
-                Image(systemName: "stop.fill")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(Design.Colors.foregroundBright)
-                    .frame(width: 38, height: 38)
-                    .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                            .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
-                    }
-                    .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
-                    .contentShape(Rectangle())
+            // #306 T5: the third state — during a turn the composer offers
+            // BOTH the queue-commit control and Stop, not one replacing the
+            // other. The commit control appears only when there is text to
+            // commit, the thread's single hold slot is free (depth 1), and
+            // the draft isn't a slash command (a held slash turn would post
+            // as plain prose at fire time — refuse it honestly).
+            HStack(spacing: Design.Spacing.xs) {
+                if canQueueMessage && canSend && !isSlashMode {
+                    queueCommitButton
+                }
+                stopButton
             }
-            .hoverEffect(.highlight)
-            .accessibilityLabel("Stop generating")
         } else if canSend {
             Button(action: handlePrimaryAction) {
                 Image(systemName: "arrow.up")
@@ -507,6 +531,129 @@ struct ChatInputBar: View {
                 .accessibilityLabel("Send unavailable — extract text from or remove the attachment")
                 .transition(.scale.combined(with: .opacity))
         }
+    }
+
+    /// The Stop control, exactly as it has always rendered (#306 moved it
+    /// into the third-state HStack without restyling it).
+    private var stopButton: some View {
+        Button(action: onStop) {
+            Image(systemName: "stop.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(Design.Colors.foregroundBright)
+                .frame(width: 38, height: 38)
+                .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.strongBorder, lineWidth: 1)
+                }
+                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Stop generating")
+    }
+
+    /// #306: the queue-commit control — the send arrow wearing a queue
+    /// badge. Committing HOLDS the message against this thread; it posts
+    /// only after the running turn actually completes. The label never says
+    /// "sent" (C1).
+    private var queueCommitButton: some View {
+        Button(action: handleQueueAction) {
+            Image(systemName: "arrow.up")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(Design.Colors.foregroundBright)
+                .frame(width: 38, height: 38)
+                .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
+                }
+                .overlay(alignment: .topTrailing) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Design.Brand.accentBright)
+                        .padding(2)
+                        .background(Circle().fill(Design.Colors.surface))
+                        .offset(x: 4, y: -4)
+                }
+                .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                .contentShape(Rectangle())
+        }
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Queue message")
+        .transition(.scale.combined(with: .opacity))
+    }
+
+    /// #306: the held-message chip — the door name, the text, its status,
+    /// and the affordances: Edit and Cancel while waiting; Send now, Edit
+    /// and Discard once surfaced (the turn it waited on produced no answer).
+    private func queuedTurnChip(_ chip: QueuedTurnChipModel) -> some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            HStack(spacing: Design.Spacing.xs) {
+                MonoLabel(
+                    chip.door.displayName,
+                    size: 9,
+                    tracking: Design.Tracking.mono,
+                    color: chip.isSurfaced ? Design.Brand.forge : Design.Brand.accentBright
+                )
+                Spacer()
+                if chip.isSurfaced {
+                    Button(action: onChipSendNow) {
+                        Image(systemName: "arrow.up.circle")
+                            .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                            .foregroundStyle(Design.Brand.accentBright)
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
+                    }
+                    .hoverEffect(.highlight)
+                    .accessibilityLabel("Send queued message now")
+                    .accessibilityIdentifier("chat.queuedChip.sendNow")
+                }
+                Button(action: onChipEdit) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .hoverEffect(.highlight)
+                .accessibilityLabel("Edit queued message")
+                .accessibilityIdentifier("chat.queuedChip.edit")
+                Button(action: onChipCancel) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: Design.Size.iconSmall, weight: .medium))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                        .frame(width: 30, height: 30)
+                        .contentShape(Rectangle())
+                }
+                .hoverEffect(.highlight)
+                .accessibilityLabel(chip.isSurfaced ? "Discard queued message" : "Cancel queued message")
+                .accessibilityIdentifier("chat.queuedChip.cancel")
+            }
+            Text(chip.text)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.foreground)
+                .lineLimit(2)
+            Text(chip.statusLine)
+                .font(Design.Typography.caption2)
+                .foregroundStyle(chip.isSurfaced ? Design.Brand.forge : Design.Colors.mutedForeground)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.sm)
+        .padding(.bottom, Design.Spacing.xxs)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.queuedChip")
+    }
+
+    /// #306: the queue gesture — same dictation settling as the send
+    /// gesture, then the hold instead of the post.
+    private func handleQueueAction() {
+        if speechService.isListening {
+            speechService.stopListening()
+            text = mergedDictationText(speechService.transcript)
+            dictationBaseText = ""
+        }
+        onQueueMessage()
     }
 
     // MARK: - Clipboard

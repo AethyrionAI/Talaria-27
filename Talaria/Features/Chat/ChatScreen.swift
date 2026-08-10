@@ -294,7 +294,20 @@ struct ChatScreen: View {
                     onStop: { chatStore.cancelStreaming() },
                     onAttach: { showAttachmentPicker = true },
                     onSlashCommand: handleSlashCommand,
-                    onPasteImage: { handleAttachmentResult(.image($0)) }
+                    onPasteImage: { handleAttachmentResult(.image($0)) },
+                    // #306: the mid-turn queue — chip + commit control.
+                    queuedChip: chatStore.currentThreadHeldTurn.map {
+                        QueuedTurnChipModel(
+                            text: $0.text,
+                            door: .queued,
+                            isSurfaced: $0.phase == .surfaced
+                        )
+                    },
+                    canQueueMessage: chatStore.currentThreadHeldTurn == nil,
+                    onQueueMessage: queueComposedMessage,
+                    onChipSendNow: { Task { await chatStore.sendHeldTurnNow() } },
+                    onChipEdit: editQueuedMessage,
+                    onChipCancel: { chatStore.cancelHeldTurn() }
                 )
                 // Lane J (J-3): same readable measure as the transcript —
                 // the composer card (attachment strip included) must not
@@ -456,6 +469,12 @@ struct ChatScreen: View {
     /// Sessions API (model list + switch, session list + open).
     private func configureChatSeams() {
         modelModel.activeModelNameOverride = displayedModelName
+        // #306 (O2/trap 7): the Stop-restore reads the composer's LIVE text
+        // through this seam — an empty composer takes the held text back; a
+        // diverged one keeps the user's typing and the hold surfaces on the
+        // chip. `@State` storage is reference-backed, so the closure reads
+        // the current value, not a capture.
+        chatStore.composerLiveText = { messageText }
         // M-15: New Chat just starts one — archiving is non-destructive (the
         // conversation stays in the drawer), so the old "cannot be undone"
         // dialog was wrong on its face and is retired.
@@ -1490,6 +1509,35 @@ struct ChatScreen: View {
         guard let turn = chatStore.extractTurnForEditing(userMessage) else { return }
         messageText = turn.text
         pendingAttachments = turn.attachments
+        isComposerFocused = true
+    }
+
+    /// #306: the queue-commit gesture — hold the composed text against this
+    /// thread; it posts only after the running turn completes (the matrix).
+    /// Text-only (O5) and never a slash command (a held one would post as
+    /// plain prose at fire time). If the turn ended between render and tap,
+    /// there is nothing to wait on — fall through to a normal send, which is
+    /// what an immediate fire would have done anyway.
+    private func queueComposedMessage() {
+        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty, !content.hasPrefix("/") else { return }
+        if chatStore.holdComposedTurn(content) {
+            messageText = ""
+            if settingsStore.settings.hapticFeedbackEnabled {
+                HapticEngine.messageSent()
+            }
+        } else if !chatStore.isTranscriptBusy {
+            sendMessage()
+        }
+        // A depth-1 refusal while the turn still runs leaves the text in the
+        // composer — nothing is lost, nothing silently replaced.
+    }
+
+    /// #306: chip Edit — the held text comes back to the composer for the
+    /// user to rework and re-commit (or send, once the turn is over).
+    private func editQueuedMessage() {
+        guard let text = chatStore.editHeldTurn() else { return }
+        messageText = text
         isComposerFocused = true
     }
 
