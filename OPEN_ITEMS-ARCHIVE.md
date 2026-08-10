@@ -6604,6 +6604,22 @@ cleanest dose-response #196/#200 has produced. NEXT: Owen runs Action battery n=
 on `4d419a9` for the fileable table; multi-turn absorbing-state instrument still
 deliberately unbuilt pending those numbers.
 
+> **📌 APPEND-ONLY POINTER 2026-08-10 (#301 voice-triage lane; #317(a) — the
+> original bytes above are UNCHANGED, this block is added beneath them).** The
+> Run-5 gotcha above — *"on 27b4, closures handed to framework completion APIs
+> from MainActor contexts trap ONLY on device — sim green proves nothing for
+> this class; mark framework completions `@Sendable`"* — is **PARTLY
+> FALSIFIED as of the iOS 27.0 sim runtime.** #301 reproduced this exact trap
+> family DETERMINISTICALLY **on the simulator** (2026-08-10, `CC-301-iPhone-Air`,
+> iOS 27.0): `SFSpeechRecognizer.requestAuthorization`'s MainActor-formed
+> completion, invoked by TCC on `com.apple.root.default-qos`, tripped
+> `_swift_task_checkIsolatedSwift` — byte-identical stack to the EventKit
+> device crash recorded here. **The "ONLY on device" clause no longer holds:
+> the iOS 27.0 sim enforces the isolation check.** What survives intact and is
+> now doubly confirmed: *the remedy is `@Sendable` on the framework
+> completion.* See live tracker **#301** for the full investigation and the
+> `ensureSpeechAuthorization()` fix.
+
 **#200 MEASUREMENT FILED, 2026-07-28 evening — Action battery n=20 (60 trials), build
 `4d419a9` Debug, armed production construction, auto-accept armed, permissions granted,
 run sealed clean (`reminders=0 events=3 alarms=19 failures=0` — created == reaped

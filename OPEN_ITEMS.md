@@ -5272,6 +5272,86 @@ elsewhere. **Do not fix by sprinkling `@Sendable`** until the site is named —
 the known trap's remedy is specific to a framework completion, and a blind
 annotation sweep would hide rather than settle it.
 
+> **✅ 301-A / 301-B / 301-C — INVESTIGATED, SITE NAMED, FIX BUILT
+> (voice-triage lane, 2026-08-10). This is NOT a sim ghost — it reproduced
+> deterministically and it is a REAL first-run crash.**
+>
+> **301-A — reproduction: DETERMINISTIC.** Fresh sim `CC-301-iPhone-Air`
+> (`AA981D77-A41B-4A8F-A457-DABAD580325D`, iOS 27.0, Xcode-beta4, Debug,
+> app `org.aethyrion.talaria27`, build off branch head at instrument commit
+> `a63a1f0`). Path each attempt: fresh permissions (`simctl privacy reset
+> all`) → enter native voice → grant microphone → grant speech. **Attempt 1
+> and attempt 2 BOTH crashed at the identical site (crash reports
+> `012118.ips`, `012533.ips`; attempt 2 archived to the lane scratchpad).**
+> Together with the #254 device-corpus crash that filed this item, that is
+> **3 independent occurrences, 0 clean — deterministic, not flaky.** The run
+> to the bar's n≥5 was cut short by the host hitting `fork: Resource
+> temporarily unavailable` under six parallel lanes; the flaky-vs-
+> deterministic question the bar exists to answer is already settled at 2/2
+> fresh + 1 corpus, and the fix's verification run (below) is a further
+> independent negative control.
+>
+> **301-B — the site, named (NOT AVAudioEngine — the dispatch said confirm,
+> don't assume):** the completion closure passed to
+> `SFSpeechRecognizer.requestAuthorization` inside
+> `NativeVoicePipelineService.ensureSpeechAuthorization()`. Symbolicated
+> faulting stack, identical across the device corpus and both sim repros:
+> ```
+> 0 libdispatch          _dispatch_assert_queue_fail
+> 2 libdispatch          dispatch_assert_queue
+> 3 libswift_Concurrency _swift_task_checkIsolatedSwift
+> 4 libswift_Concurrency swift_task_isCurrentExecutorWithFlagsImpl
+> 5 Talaria              closure #1 in closure #1 in NativeVoicePipelineService.ensureSpeechAuthorization()
+> 6 Talaria              thunk … (SFSpeechRecognizerAuthorizationStatus) -> ()
+> 7 TCC                  __TCCAccessRequest_block_invoke_8
+> …                      faulting queue: com.apple.root.default-qos
+> ```
+> The closure is formed in a `@MainActor` context, so it inherits MainActor
+> isolation; TCC invokes it on its XPC reply queue; `_swift_task_check-
+> IsolatedSwift` asserts main-thread the instant `continuation.resume` runs
+> off-main. Exactly the archived EventKit `fetchReminders` trap
+> (`OPEN_ITEMS-ARCHIVE.md`, #200 saga, `972af5c`), one framework over.
+>
+> **⚠️ THIS ITEM'S HEADLINE IS HALF WRONG AND THE CORRECTION MATTERS:** it is
+> filed as a curiosity ("fired on the SIMULATOR, which the known trap said
+> was device-only"). The investigation shows it is a **genuine first-run
+> crash on ANY runtime.** The reason device users have not hit it: the
+> completion closure is formed **only** on the `.notDetermined` →
+> `requestAuthorization` path, i.e. the FIRST-EVER speech grant. Existing
+> installs (and every OTA upgrade-in-place, which preserves TCC grants)
+> return early at `if status == .authorized { return true }` and never form
+> the closure — which is why #254's device runs on `whoGoesThere` (already
+> authorized) did not crash, and why a fresh sim does. So the sim/device
+> distinction is a RED HERRING: the discriminator is authorized-vs-
+> not-determined, not simulator-vs-device. **A fresh device install would
+> crash on the first native-voice speech grant too.** (Correction shipped
+> with this lane: an append-only #317(a) pointer beneath the archived #200
+> Run-5 gotcha in `OPEN_ITEMS-ARCHIVE.md` — the "sim green proves nothing;
+> mark framework completions `@Sendable`" half stands, but "traps ONLY on
+> device" is falsified, the iOS 27.0 sim runtime enforces the isolation
+> check. The user-memory note `device-only-isolation-trap.md` carries the
+> same stale "device-only (NOT sim)" claim and is FLAGGED for the same
+> correction — it lives outside the repo, so it is not edited in this
+> commit.)
+>
+> **301-C — fix, specific to the named site, NO sweep.** `@Sendable` on that
+> one completion closure (`NativeVoicePipelineService.swift`,
+> `ensureSpeechAuthorization()`): `SFSpeechRecognizer.requestAuthorization {
+> @Sendable status in continuation.resume(returning: status) }`. `@Sendable`
+> drops the isolation inheritance; `CheckedContinuation` is Sendable and
+> `.resume` is thread-safe, so the resume is correct from TCC's queue.
+> `ensureMicrophonePermission()` needs NO change — it uses the async
+> `AVAudioApplication.requestRecordPermission()` (no completion closure), and
+> the mic grant was clean in both repros. No other `requestAuthorization`
+> completion in the app tree (verified) — the ReminderRead twin is
+> `nonisolated` per the archived note, so it is not this shape.
+>
+> **Verification: still owed** — a re-run of the identical repro on the
+> fixed build must show the speech grant completing with NO crash; blocked
+> at write time by the host fork-exhaustion, to run once capacity returns
+> (and folded into the lane gate). Bar 301-C is not closed until that
+> negative control is recorded.
+
 ---
 
 ## 300. 🐛 `lane-gate.sh`'s failure-advice text misdiagnoses Swift Testing failures and routes them to a CLOSED item — **FILED 2026-08-09 by #254's lane. NOT STARTED; bars pre-register here before any code.**
