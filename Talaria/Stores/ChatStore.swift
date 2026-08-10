@@ -1755,6 +1755,24 @@ final class ChatStore {
             journal?.sync(with: conversation)
         }
 
+        // #280: THE fix. This was the outermost of three blockers — the card
+        // generator was never invoked on the voice path at all, so a thread
+        // whose only user turns were spoken kept `Conversation.defaultTitle`
+        // forever and the drawer rendered its own preview on both lines.
+        //
+        // Placement is load-bearing, not incidental:
+        //   * AFTER the append + persist above, so the transcript the
+        //     generator reads is the settled one;
+        //   * BEFORE the `postToHermes` guard, so it runs on BOTH branches —
+        //     a local-only voice session gets a title too;
+        //   * OUTSIDE the Task below. `conversationCard` can reach
+        //     `model.tokenCount(...)`, and a `tokenCount()` concurrent with a
+        //     live FoundationModels streaming turn kills that turn on device
+        //     (ModelManagerError 1001 -> "error -1"). Both pre-existing call
+        //     sites run after a turn settles, which is why this has never
+        //     bitten; this one stays on the same side of that line.
+        finalizeOnDeviceIntelligence()
+
         guard postToHermes else { return }
         let contextTurn = Self.voiceTranscriptTurnText(from: session)
         guard !contextTurn.isEmpty else { return }
@@ -1964,7 +1982,7 @@ final class ChatStore {
             return
         }
         let attachments = sourceMessage.attachments.compactMap(PendingAttachment.restore)
-        let content = normalizedRetryContent(for: sourceMessage)
+        let content = Self.normalizedRetryContent(for: sourceMessage)
         guard !content.isEmpty || !attachments.isEmpty else {
             restoreRetriedRow(removedRow, at: removedIndex, why: "the turn has nothing re-sendable")
             return
@@ -2092,7 +2110,7 @@ final class ChatStore {
 
         let userMessage = conv.messages[userIdx]
         let attachments = userMessage.attachments.compactMap(PendingAttachment.restore)
-        let content = normalizedRetryContent(for: userMessage)
+        let content = Self.normalizedRetryContent(for: userMessage)
         guard !content.isEmpty || !attachments.isEmpty else {
             chatLog.notice("regenerate: the producing turn has nothing re-sendable — nothing truncated (#78)")
             return
@@ -2145,7 +2163,7 @@ final class ChatStore {
         else { return nil }
 
         let attachments = message.attachments.compactMap(PendingAttachment.restore)
-        let text = normalizedRetryContent(for: message)
+        let text = Self.normalizedRetryContent(for: message)
         truncateTranscript(from: idx, reason: "edit-and-resend")
         return EditableTurn(text: text, attachments: attachments)
     }
@@ -2777,7 +2795,7 @@ final class ChatStore {
         conversation?.messages.contains(where: {
             $0.sender == .user
                 && ($0.status == .sending || $0.status == .queued)
-                && normalizedRetryContent(for: $0) == content
+                && Self.normalizedRetryContent(for: $0) == content
                 && attachmentSignature(for: $0.attachments) == attachmentSignature(for: attachments.map { MessageAttachment(from: $0) })
         }) == true
     }
@@ -3078,32 +3096,49 @@ final class ChatStore {
     /// overwritten. When the on-device model is unavailable the service
     /// falls back to truncation internally — the conversation still gets a
     /// real label.
-    private func generateConversationCardIfNeeded() {
-        guard let intelligence = localIntelligence,
-              let conversation,
-              conversation.title == Conversation.defaultTitle,
-              !isGeneratingConversationCard,
-              let firstReply = conversation.messages.first(where: {
-                  $0.sender == .hermes
-                      && $0.status == .delivered
-                      && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-              })
-        else { return }
+    /// The `{userText, assistantText}` the card generator runs on, or nil when
+    /// the conversation has no completed exchange to label yet.
+    ///
+    /// #280: extracted from `generateConversationCardIfNeeded` so the
+    /// selection is a pure function with a test of its own — the predicates
+    /// here are exactly what decides whether a thread is titled at all, and
+    /// they were previously reachable only through a store with a live
+    /// `LocalIntelligenceService` wired.
+    nonisolated static func conversationCardInputs(
+        for conversation: Conversation
+    ) -> (userText: String, assistantText: String)? {
+        guard let firstReply = conversation.messages.first(where: {
+            $0.sender.isAgentAuthored
+                && $0.status == .delivered
+                && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        })
+        else { return nil }
 
         // The user side of the exchange. normalizedRetryContent maps the
         // synthetic "[N attachment(s)]" display placeholder to "" — it's not
         // user words and must never become the title; with it empty, the card
         // (and the truncation fallback) derives everything from the reply.
         let firstUserText = conversation.messages
-            .first(where: { $0.sender == .user })
+            .first(where: { $0.sender.isUserAuthored })
             .map { normalizedRetryContent(for: $0) } ?? ""
+
+        return (userText: firstUserText, assistantText: firstReply.content)
+    }
+
+    private func generateConversationCardIfNeeded() {
+        guard let intelligence = localIntelligence,
+              let conversation,
+              conversation.title == Conversation.defaultTitle,
+              !isGeneratingConversationCard,
+              let inputs = Self.conversationCardInputs(for: conversation)
+        else { return }
 
         let conversationID = conversation.id
         isGeneratingConversationCard = true
         Task { [weak self] in
             let card = await intelligence.conversationCard(
-                userText: firstUserText,
-                assistantText: firstReply.content
+                userText: inputs.userText,
+                assistantText: inputs.assistantText
             )
             guard let self else { return }
             self.isGeneratingConversationCard = false
@@ -3401,7 +3436,10 @@ final class ChatStore {
         }
     }
 
-    private func normalizedRetryContent(for message: Message) -> String {
+    /// #280: `nonisolated static` because it reads no instance state, and
+    /// `conversationCardInputs(for:)` — a pure function testable without a
+    /// store — needs it. Instance callers reach it through `Self.`.
+    nonisolated static func normalizedRetryContent(for message: Message) -> String {
         if !message.attachments.isEmpty,
            message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil {
             return ""
