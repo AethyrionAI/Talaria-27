@@ -21,7 +21,13 @@ struct ToolActivity: Codable, Identifiable, Hashable, Sendable {
     var anchorOffset: Int
     /// #296: why this call did NOT complete. `nil` = it completed, or is still
     /// running (`isActive`). Non-nil = the user's Stop, the system revoking a
-    /// turn nothing is coming back for, or the host's own error text.
+    /// turn nothing is coming back for, or a host-reported failure.
+    ///
+    /// On that last one, corrected 2026-08-10 (296-C1): the runs host reports
+    /// failure as a bare `"error": true` with **no words**, so this usually
+    /// holds `SessionsHermesClient.unspecifiedHostError` rather than "the
+    /// host's own error text" as this line used to promise. A real message is
+    /// carried verbatim if one ever arrives.
     ///
     /// Distinct from ``detail`` on purpose: `detail` is the call's INPUT
     /// summary (what it touched), and overwriting it with a reason would trade

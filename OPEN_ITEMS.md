@@ -6312,7 +6312,7 @@ belongs to).
 > `handoffs/evidence/t297-ab-A04154D7.log` (2.9 MB; `handoffs/evidence/` is
 > gitignored — reference it, do not commit it).
 
-## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family. → ✅ FIX LANDED 2026-08-09 — 296-A/B/C1/D/E MET, gate PASS. 296-C2 is DEVICE-OWED and is NOT claimed.**
+## 296. 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed — **FILED 2026-08-08 from Owen's 291-D device run; his screenshots are the evidence. Minor, PRE-EXISTING, squarely in #180's honest-degradation family. → ✅ FIX LANDED 2026-08-09 — 296-A/B/C1/D/E MET, gate PASS. ~~296-C2 is DEVICE-OWED and is NOT claimed.~~ → ⚠️ HEADER CORRECTED 2026-08-10 ON BOTH COUNTS: 296-C2 is ANSWERED (wire probe, no phone needed — the host sends `error` as a BOOLEAN), and that answer REOPENED 296-C1, whose parser dropped the Bool on a type mismatch. The C1 re-land is IN FLIGHT on `t27-296c1-bool-error` and is NOT yet verified — see the result block at the end of this entry.**
 
 > **📋 DISPATCH FILED 2026-08-10 for the reopened 296-C1: `dispatch/OPUS-T27-296C1-bool-error.md`** — the Bool/String union fix + the mapping-test gap; bars C1-A..F proposed there.
 
@@ -6566,7 +6566,8 @@ data: {"event": "tool.completed", "run_id": "run_f916c984163f4d51…", "timestam
   event. So the C2 question splits: *presence* YES, *the host's own words* NO.
 - **Consequence — 296-C1's parser silently drops it.** The parser reads
   `payload["error"] as? String`
-  (`SessionsHermesClient+RunsTransport.swift:179`), and `as? String` on a
+  (`SessionsHermesClient+RunsTransport.swift:179` as cited that night; the line
+  is **`:190`** at `d004c82` — re-resolved 2026-08-10, drift, not a move), and `as? String` on a
   `Bool` is `nil`. **A failed tool on the runs plane renders as a clean
   completion — the exact lie #296 exists to remove, arriving through the fix's
   own plumbing.** Behind the OFF-by-default Phase 3 switch, so no production
@@ -6584,6 +6585,124 @@ data: {"event": "tool.completed", "run_id": "run_f916c984163f4d51…", "timestam
 
 *(The stopped-tool half of the probe ran the same sitting — see the frames
 capture in the device list's R5 row for what a mid-flight stop emits.)*
+
+### Bars for the REOPENED 296-C1 — WRITTEN FIRST, before any code (2026-08-10)
+
+Carried from `dispatch/OPUS-T27-296C1-bool-error.md` §3 into the entry, per the
+convention recorded in CLAUDE.md ("Where the BARS live"): the dispatch doc is the
+hand-off, this entry is where the bars are pre-registered and scored.
+
+- **C1-A (RED→GREEN) — a Boolean `error` is a failure, not a clean ✓.** A
+  `tool.completed` frame carrying `error: true` (a JSON **boolean**, the fixture
+  matching the 2026-08-09 wire capture's byte-shape) yields a chip with
+  `failure != nil`, rendered failed. **RED first on unmodified HEAD.**
+  *Two rows, because the claim spans two seams:* **(i)** the parser returns a
+  non-nil error for the Boolean frame; **(ii)** that failure reaches the chip —
+  which is C1-D's end-to-end row and is scored there rather than twice.
+- **C1-B — a String `error` still carries its text verbatim.**
+  `RunsFrameParserTests.toolCompletedCarriesTheHostError` stays green,
+  unmodified. A future host build may legitimately upgrade the flag to a
+  message, and the union must not trade one arm for the other.
+- **C1-C — the no-key and `error: false` cases stay clean-✓.** No-regression on
+  honest completions, at BOTH levels: the parser returns nil for each, and an
+  `error: false` frame driven end-to-end leaves the chip `.completed`.
+  `anEmptyHostErrorDoesNotMarkACompletedToolInterrupted` also stays green.
+- **C1-D (the mapping test — the gap the first lane could not close).** The
+  parser→consumer handoff is pinned **end-to-end**: real SSE bytes → the real
+  `parseRunsFrame` → the real transport mapping → a real `ChatStore`, asserted
+  on the chip's `failure` and on `ToolActivityRail.state(of:)`. **Not via each
+  half's own mock** — a `ScriptedStreamChatClient` fed a hand-made
+  `ToolCallEvent` would restate the consumer test and prove nothing about the
+  one line between them.
+- **C1-E — legacy decode.** `ChatStorePersistenceTests.legacyToolActivityJSONStillDecodes`
+  stays green: a pre-#296 persisted blob with no `failure` key still round-trips.
+- **C1-F — `GATE: PASS`, and the reported test counts MOVED** (the stale-`.xctest`
+  trap: a green suite at the old count proves nothing about new tests).
+
+**Traps carried into the run, verbatim from the dispatch §4:** do **not** invent
+error text for the Bool case (the wire carries no message — the chip says
+"failed", not a fabricated reason); the STOPPED path (296-A, client-local) is
+correct and **separate**, not to be unified with this; the deny arm's BLOCKED
+prose arrives as ordinary content, so this lane touches **only** the tool-chip
+channel; and 296-C2's device row is **ANSWERED** — do not re-queue it.
+
+### ⚠️ 296-C1 re-land — WRITTEN, NOT VERIFIED (2026-08-10, `t27-296c1-bool-error`)
+
+**Every bar below is OWED. Nothing here is claimed MET.** The machine went into
+box-wide **fork exhaustion** mid-lane (a sibling lane measured ~1,500
+CoreSimulator processes across six parallel lanes; `echo` failed from every
+session on the box), so the verification half could not run. The code is on
+disk; the evidence is not. **Do not read the diff as a passing lane.**
+
+**The shape written.** `SessionsHermesClient.hostErrorDetail(_:)` — one
+`nonisolated static` union reader — plus the constant
+`unspecifiedHostError = "The host reported an error."`. Applied at BOTH drop
+sites: `parseRunsFrame`'s `tool.completed` arm and `RunStatusSnapshot.init`.
+String → verbatim (empty included — the "empty means fine" rule keeps its
+existing tested home in `ChatStore`); Bool `true` → the generic; Bool `false`,
+absent, or any other type → nil.
+
+- **No fabricated text.** The wire sends `"error": true` and no message, so the
+  chip reports *that something failed* and never *why*. Anything else would be
+  the real-data-only violation this item exists to remove.
+- **`ChatStore` needed NO change** — see the correction in the dispatch doc: the
+  write the brief asked to "re-land" was never reverted (it is live at
+  `ChatStore.swift:749-751`, added by `31563f6`). The brief misread a RED-step
+  note as a standing revert.
+- **Bridging verified rather than assumed** (`swift` one-shot on the beta-4
+  toolchain, the one thing that did run): `JSONSerialization` + `as? Bool` gives
+  `true`/`false` for JSON booleans, `true`/`false` for `1`/`0`, and **nil** for
+  `7`, for objects, and for an absent key. The tolerant tail is real.
+- **A deliberate, recorded consequence at the second site:** a `failed` run
+  whose `error` is Boolean now surfaces "The host reported an error." where it
+  previously surfaced `runFailureText("")` = "The Hermes run failed." Both are
+  honest; the new one reports what the wire actually said. Flagged because it is
+  a user-visible copy change that no bar asked for.
+
+| bar | verdict | why |
+|---|---|---|
+| **C1-A** | ⛔ **OWED — the RED was never witnessed** | Attempt 1 died on simulator infra, not on an assertion: `Early unexpected exit, operation never finished bootstrapping … test runner exited with code 0 before establishing connection`, `** TEST FAILED **`, exit 65 — on the shared stock `iPhone 17 Pro Max`, which is also the documented "stock iPhone 17 sims aren't scheme-compatible" trap. Attempt 2, on a purpose-made `CC-296-iPhone-Air` (matching the sibling lanes' per-lane sim convention), built clean off incrementals and reached the test phase — then the box wedged before it produced a verdict. **The tests are written to fail on the VALUE, not on a missing symbol** (they pin the literal `"The host reported an error."`, so they compile against unmodified HEAD) — but that property is by construction, not yet observed. |
+| **C1-B** | ⛔ OWED | `toolCompletedCarriesTheHostError` left green and unmodified; not re-run. |
+| **C1-C** | ⛔ OWED | `error: false` / no-key / unknown-type arms written at parser level and end-to-end; not run. |
+| **C1-D** | ⛔ OWED (written) | `booleanToolErrorReachesTheChipThroughTheRealStore` in `RunsPlaneTransportTests` — real SSE bytes → real `parseRunsFrame` → real transport → real `ChatStore`, asserting the chip's `failure` and `ToolActivityRail.state(of:)`. Uses the suite's existing `RunsStubURLProtocol` + `makeChatStore`, so neither half is mocked. **This closes the gap the first lane named** ("the one-line mapping BETWEEN them is not pinned") — once it runs. |
+| **C1-E** | ⛔ OWED | `legacyToolActivityJSONStillDecodes` untouched; not re-run. |
+| **C1-F** | ⛔ OWED | Gate never started. No `GATE:` line exists for this lane. |
+
+**Fixture note worth keeping:** the Boolean fixtures reproduce the 2026-08-09
+capture's byte-shape — spaces after colons, float `timestamp`, the `duration`
+key, unquoted `true` — with only `run_id` shortened to the stub's. A compactly
+re-typed fixture would still have caught this bug, but a wire-capture test that
+drifts from the wire stops being one.
+
+> **✅ 2026-08-10, orchestrator verification pass — every ⛔ in the table above
+> is now MET.** The lane's agent was stopped mid-run (host fork exhaustion,
+> then a UI stop); the work was salvaged verbatim from its worktree and
+> verified by the orchestrating session on `t27-296c1-bool-error`.
+>
+> - **C1-A MET — RED witnessed by revert** (both `hostErrorDetail` call sites
+>   → `as? String`, helper left in place): exit 65,
+>   `toolCompletedBooleanErrorIsAFailureNotACleanCompletion` failed on
+>   `error != nil` + the pinned constant;
+>   `runStatusSnapshotBooleanErrorIsCarriedNotDropped` failed on the
+>   status-body site. Failures on the VALUE, exactly as constructed.
+> - **C1-D MET — the mapping RED:**
+>   `booleanToolErrorReachesTheChipThroughTheRealStore` failed on
+>   `activity.failure != nil` and `ToolActivityRail.state(of:) ==
+>   .interrupted` through the real `ChatStore`. GREEN with the fix restored.
+> - **C1-B / C1-C / C1-E MET:** String-verbatim, no-key/`false`, and legacy
+>   decode all stayed green during the RED arm (insensitive by design) and in
+>   the gate.
+> - **C1-F MET:** `GATE: PASS — logs in /var/folders/…/talaria-gate.khOnq5rlNH`;
+>   Swift Testing **2028** (2020 post-merges + exactly the 8 added — count
+>   moved), XCUITest 14, Release build PASS.
+> - **One compile defect found in the salvage** (never-compiled code):
+>   `unspecifiedHostError` inherited MainActor isolation while its reader is
+>   `nonisolated` — fixed with `nonisolated` on the constant (`4bf21cc`).
+> - **RED-witness hazard for the record:** two earlier "RED" attempts were
+>   invalid — one compile failure, one green run that turned out to have built
+>   the MAIN repo because a backgrounded shell reset its cwd (now memory
+>   catalog form #10). The witnessed RED above is from a run whose log names
+>   the worktree path and the new tests by name.
 
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
