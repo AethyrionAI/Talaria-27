@@ -16,11 +16,16 @@ struct ToolCallEvent: Sendable {
     ///
     /// - `.started`: the compact key-INPUT summary (server `preview`, else a
     ///   condensed args line) — what the call touched.
-    /// - `.completed`: the host's error text when the frame carries one
-    ///   (runs plane only), i.e. why the call did not finish. `ChatStore`
-    ///   writes it to `ToolActivity.failure`, never over `ToolActivity.detail`
-    ///   — the started event's input summary is the more useful of the two and
-    ///   must survive.
+    /// - `.completed`: why the call did not finish (runs plane only).
+    ///   `ChatStore` writes it to `ToolActivity.failure`, never over
+    ///   `ToolActivity.detail` — the started event's input summary is the more
+    ///   useful of the two and must survive.
+    ///   **What this actually contains, corrected 2026-08-10 (296-C1):** the
+    ///   host's own error TEXT if it ever sends one, but on every frame
+    ///   observed so far it is `SessionsHermesClient.unspecifiedHostError` —
+    ///   the wire sends a bare `"error": true` with no message, so the honest
+    ///   rendering is "something failed", not a reason. Never a fabricated
+    ///   cause.
     let detail: String?
 
     init(name: String, phase: Phase = .started, detail: String? = nil) {

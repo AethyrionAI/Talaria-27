@@ -1888,7 +1888,7 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
-| **#61** | Create local sessions, read the drawer | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here |
+| **#61** | Create local sessions, read the drawer — **including one whose only user turns were SPOKEN** (start a voice session, say something, let it reply, end it; #280 clause added 2026-08-10) | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here. **280-F:** the spoken-only session's row must show a real title, and **the title line must not be the same string as the subtitle** — that duplicate is the 2026-07-11 device-pass FAIL shape, and #280's fix is what stops the row falling back to its own preview for a title |
 | **#190** | (a) switch sessions during read-aloud; (b) force a session-open failure | (a) read-aloud stops; (b) failure banner appears. **The only two unexercised checks left on #190** — everything else cleared 2026-07-27 |
 | **#123** | Share into the app from Safari (URL) and Photos (image) | composer receives it, focused, works unpaired on the on-device brain |
 | **#124** | Background → foreground with Face ID lock on | overlay covers the scene root; passcode fallback offered (never biometry-only) |
@@ -2523,7 +2523,8 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > **The answer is the option nobody pre-registered: `error` ARRIVES, as a JSON
 > BOOLEAN, with no failure text — and 296-C1's parser drops it on a type
 > mismatch** (`payload["error"] as? String` is `nil` for a `Bool`,
-> `SessionsHermesClient+RunsTransport.swift:179`). So on the runs plane a
+> `SessionsHermesClient+RunsTransport.swift:179` as cited that night — the line
+> is **`:190`** at `d004c82`, re-resolved 2026-08-10). So on the runs plane a
 > failed OR stopped tool renders as a clean completion — the exact lie #296
 > exists to remove, reintroduced by its own plumbing's type guess. Failed and
 > stopped are **indistinguishable on the wire** (both `error:true`, no reason);
@@ -2535,7 +2536,15 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > capture and source don't already prove. Frames archived at
 > `scratchpad/r5-trial{1,2}-frames.txt` (session-local). **Fix filed in
 > OPEN_ITEMS #296 (296-C1 reopened by the wire) — parser must accept Bool OR
-> String, `false`/absent must stay clean. Not built tonight.**
+> String, `false`/absent must stay clean. ~~Not built tonight.~~**
+>
+> **2026-08-10 — the fix is now WRITTEN on `t27-296c1-bool-error` but NOT
+> VERIFIED.** The union reader (`hostErrorDetail`) is applied at both drop
+> sites; the RED was never witnessed and the gate never ran, because the build
+> host went into box-wide fork exhaustion mid-lane. Scored honestly as all-OWED
+> in #296's "296-C1 re-land" block. **This row stays ANSWERED and still DO NOT
+> RUN** — the phone trial is moot for the reason above, and none of that
+> changed.
 
 > **Superseded context — the earlier partial answer from Z8's trial:** the host can go FURTHER than omitting the error field — a
 > process killed by the gateway's own shutdown cleanup came back

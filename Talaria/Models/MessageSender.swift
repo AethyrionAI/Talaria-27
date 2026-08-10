@@ -25,4 +25,24 @@ enum MessageSender: String, Codable, Hashable, Sendable {
     var isUserAuthored: Bool {
         self == .user || self == .voiceUser
     }
+
+    /// #280: the senders that represent a turn the ASSISTANT produced —
+    /// streamed (`.hermes`) and SPOKEN (`.voiceHermes`).
+    ///
+    /// The mirror of `isUserAuthored`, and it exists for the same reason. A
+    /// voice-only thread's replies are `.voiceHermes`, so the card
+    /// generator's `== .hermes` eligibility test rejected the whole thread —
+    /// it early-returned at its own guard and the conversation kept the
+    /// `"Hermes"` placeholder forever, which the drawer then rendered as its
+    /// own preview printed on both lines.
+    ///
+    /// **Not the same question as "did this reply stream".** `.voiceHermes`
+    /// rows never streamed and carry no reasoning, so
+    /// `condensePendingReasoning` stays `.hermes`-only by decision (#280) —
+    /// as does `recordLocalOriginAfterSettledTurn`, whose `.hermes` count is
+    /// #190B's born-local semantics and not an assistant-authorship test.
+    /// A sixth sender case has to answer THIS question explicitly.
+    var isAgentAuthored: Bool {
+        self == .hermes || self == .voiceHermes
+    }
 }

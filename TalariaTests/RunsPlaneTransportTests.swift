@@ -1535,6 +1535,105 @@ struct RunsPlaneTransportTests {
         #expect(stop.authorization == "Bearer test-key")
     }
 
+    // MARK: - #296-C1 (REOPENED 2026-08-10): the Boolean `error`, end to end
+
+    /// **Bar C1-D — the mapping test, and the gap #296's first lane could not
+    /// close.** That lane pinned the parser (`RunsFrameParserTests`) and the
+    /// consumer (`AppStoresTests`) each against its own fixture, and left the
+    /// ONE line between them — the transport's
+    /// `ToolCallEvent(name:phase:.completed, detail: error)` — unpinned,
+    /// because it lived outside the lane's file allowlist. A parser test and a
+    /// store test can both be green while nothing joins them up.
+    ///
+    /// So nothing here is mocked on either side of that line: real SSE bytes go
+    /// through the real `parseRunsFrame`, the real `streamTurnViaRuns` mapping,
+    /// and a real `ChatStore`, and the assertion is on the CHIP. A
+    /// `ScriptedStreamChatClient` fed a hand-built `ToolCallEvent` — the shape
+    /// `aHostReportedToolErrorLandsOnFailureAndLeavesDetailAlone` uses, rightly,
+    /// for its own purpose — would restate the consumer test and prove nothing
+    /// about the handoff.
+    ///
+    /// **Bar C1-A's second row rides here too**: the frame is the 2026-08-09
+    /// wire capture's byte-shape (`"error": true`, `duration`, float timestamp;
+    /// only `run_id` shortened to the stub's), and what it must produce is a
+    /// chip that reads FAILED. On unmodified HEAD it produced a clean ✓.
+    @Test @MainActor
+    func booleanToolErrorReachesTheChipThroughTheRealStore() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
+            #"{"event":"tool.started","run_id":"run-r1","timestamp":1.0,"tool":"terminal","preview":"cat /nope/missing.txt"}"#,
+            #"{"event": "tool.completed", "run_id": "run-r1", "timestamp": 1786304648.615377, "tool": "terminal", "duration": 0.13, "error": true}"#,
+            #"{"event":"run.completed","run_id":"run-r1","timestamp":1.2,"output":"That file is not there.","usage":{"input_tokens":3,"output_tokens":3,"total_tokens":6}}"#,
+        ]))
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "bool-tool-error")
+        let chatStore = makeChatStore(hermesClient: client)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("cat /nope/missing.txt") }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            sendTask.cancel()
+        }
+        await sendTask.value
+        belt.cancel()
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        #expect(reply.content == "That file is not there.")
+        let activity = try #require(reply.toolActivities.first)
+        #expect(
+            activity.failure != nil,
+            "296-C1: the host said `error: true` — a chip that shows nothing is the #296 lie arriving through #296's own fix"
+        )
+        // The wire carries no message, so the detail reports the failure and
+        // invents no reason for it (dispatch §4, trap 1).
+        #expect(activity.failure == "The host reported an error.")
+        #expect(
+            ToolActivityRail.state(of: activity) == .interrupted,
+            "296-C1: stated against the derivation that drives the glyph, not just the field"
+        )
+        // …and the `tool.started` preview — the call's INPUT summary — is still
+        // there. `failure` and `detail` answer different questions.
+        #expect(activity.detail == "cat /nope/missing.txt")
+        #expect(activity.isActive == false)
+    }
+
+    /// **Bar C1-C, end to end.** The same path with `error: false` — a host
+    /// saying the call was fine — must leave an honest ✓. This is the
+    /// regression bar for the fix itself: the cheapest wrong way to read the
+    /// union is "any `Bool` present means failure", which would repaint every
+    /// clean completion on this plane as interrupted.
+    @Test @MainActor
+    func errorFalseLeavesTheChipCompletedThroughTheRealStore() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
+            #"{"event":"tool.started","run_id":"run-r1","timestamp":1.0,"tool":"terminal","preview":"echo hi"}"#,
+            #"{"event": "tool.completed", "run_id": "run-r1", "timestamp": 1786304648.615377, "tool": "terminal", "duration": 0.02, "error": false}"#,
+            #"{"event":"run.completed","run_id":"run-r1","timestamp":1.2,"output":"hi","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#,
+        ]))
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "false-tool-error")
+        let chatStore = makeChatStore(hermesClient: client)
+
+        let sendTask = Task { @MainActor in await chatStore.sendMessage("echo hi") }
+        let belt = Task {
+            try? await Task.sleep(for: .seconds(10))
+            sendTask.cancel()
+        }
+        await sendTask.value
+        belt.cancel()
+
+        let reply = try #require(chatStore.conversation?.messages.last { $0.sender == .hermes })
+        let activity = try #require(reply.toolActivities.first)
+        #expect(
+            activity.failure == nil,
+            "296-C1/C: `error: false` is the host reporting success — the ✓ stays where the ✓ is earned"
+        )
+        #expect(ToolActivityRail.state(of: activity) == .completed)
+        #expect(ToolActivityRail.summaryState(of: reply.toolActivities) == .completed)
+    }
+
     // MARK: - Task 7 review finding 1: the poll's nil-terminal door
 
     /// Review finding 1: `deliverPolledTerminal`'s terminal-SNAPSHOT arm
