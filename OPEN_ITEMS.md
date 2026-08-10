@@ -10757,6 +10757,120 @@ lane opens.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
 
+> **▶ TRIGGER LANE OPENED 2026-08-10 (`t27-250-debug-island-trigger`).
+> BARS 250T-A..D — written HERE, BEFORE the run**, per the 2026-08-01
+> convention (bars live in the OPEN_ITEMS entry; the dispatch doc proposed
+> them, this entry registers them). A missed bar is a falsification, not a
+> redefinition.
+>
+> - **250T-A (compile-level / Release):** the harness button and its action
+>   exist **only** under `#if DEBUG`, and the **Release build is green with
+>   them compiled out**. The gate's Release leg is the proof — a review read
+>   is not (the #218 corollary: a green Debug suite cannot see a mis-set
+>   gate).
+> - **250T-B (sim, unit):** tapping the trigger starts an activity through
+>   the **REAL `LiveActivityService`** path — asserted via the service's own
+>   state, not a parallel test double or the `LiveActivityPreviews`
+>   scaffolding — and it ends **both ways** (auto-end timeout **and** second
+>   tap), leaving **no zombie activity** behind on either route.
+> - **250T-C (device — §R2's actual run):** with the trigger in a Debug
+>   build on the phone, R2's check runs as written — the island's leading
+>   icon slot matches Settings → Appearance → App Icon, after a switch and
+>   on a cold launch. **OWED, not claimed by this lane, and not a merge
+>   blocker**; the verdict lands in R2's row in
+>   `dispatch/DEVICE-PASS-RUNNING-LIST.md` (one queue), cited from here.
+> - **250T-D:** `GATE: PASS`, unit count MOVED.
+>
+> **The auto-end is load-bearing, not polish** (dispatch §4): Live Activities
+> have a system budget, so a leaked throwaway would make the REAL run
+> activity flaky — a harness fault that would read as a #250 regression.
+
+> **✅ BUILT 2026-08-10 (`t27-250-debug-island-trigger`).**
+>
+> **What shipped:** `Talaria/Services/Live/ThrowawayLiveActivityHarness.swift`
+> (whole file inside `#if DEBUG`) + a panel in `DeveloperSettingsScreen`'s
+> already-`#if DEBUG` batteries section — **"Start throwaway Live Activity
+> (#250 R2)"**, toggling to **"End throwaway"**. The harness drives the
+> **production** `LiveActivityService.startToolCall` / `updateToolProgress` /
+> `endActivity` — no inlined `Activity.request`, no mock attributes type, and
+> nothing from `LiveActivityPreviews`. `HermesActivityAttributes` needed **no
+> change**, so the two-copies lockstep rule never came into play. One
+> production line was widened: `LiveActivityService.hasActiveActivity`, tagged
+> `// harness-visible` per #216 — it exposes the same `currentActivity` handle
+> production already sets and clears, so the bar reads production's own
+> bookkeeping rather than a counter added for the test.
+>
+> **The harness is `static let shared`, not a `@State` on the view, on
+> purpose:** the 60 s auto-end has to outlive the Developer screen. A
+> view-owned harness would drop its timer on dismissal and leak exactly the
+> activity the auto-end exists to prevent.
+>
+> **250T-B MET — 5 new Swift Testing units, and the bar was witnessed RED
+> before it was believed.** Disabling only the auto-end (`self.end(.timeout)`
+> removed, nothing else touched) turned
+> `theAutoEndWindowEndsAThrowawayNobodyTappedAgain` red with 7 issues —
+> including `service.hasActiveActivity → true` **and**
+> `Activity<HermesActivityAttributes>.activities.isEmpty → false`, i.e. the
+> test catches a genuinely leaked system-level activity, which is the budget
+> hazard itself and not a proxy for it. `aTapAfterTheAutoEndIsANoOp…` went red
+> too; the second-tap test correctly stayed green, since that route is
+> independent of the timeout. Restoring the one line returned all 5 to green.
+>
+> **A trap this lane had to disarm, worth keeping:** the start assertion is
+> written `#expect(service.hasActiveActivity == service.isAvailable)` rather
+> than `== true`, so it stays total on a host with Live Activities disabled.
+> That phrasing *could* have been vacuously satisfied by `false == false` —
+> a green result proving nothing. It was checked rather than assumed: a
+> throwaway probe printed **`isAvailable=true hasActive=true sysCount=1`** in
+> the sim test host, and the run log shows real activity UUIDs
+> (`[api] Updating content for activity …`). **The sim host really does vend
+> Live Activities, so the equality is asserting `true == true`.**
+>
+> **250T-C: OWED on device, and NOT claimed by this lane.** The sim bars prove
+> the trigger drives the real service and leaks nothing; **they verify no
+> icon.** What the island actually renders is
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §R2's to answer — that row was
+> updated in this same commit from "standing watch, do not schedule" to a
+> runnable, queued check, per the close-out rule.
+>
+> **✅ 250T-A AND 250T-D MET — `GATE: PASS` (2026-08-10, on `41a772e`).**
+> `GATE: PASS — logs in /var/folders/.../talaria-gate.fWsEcp5SYA`.
+> **Swift Testing 2010 · XCUITest 14 · Release build succeeded, no Swift
+> compile errors in Release.** The Release leg is what settles **250T-A** —
+> the button and the harness compile out cleanly, which a green Debug suite
+> could not have shown (#218 corollary).
+>
+> **Count MOVED, so the stale-`.xctest` trap is cleared:** the last gate on
+> `main` (`163dbf5`, #255) reported **2005** units; this run reports **2010**
+> — **exactly the 5 tests this lane added**. XCUITest stayed 14, as expected
+> for a lane that added no UI tests.
+>
+> *(An earlier note here said both bars were unrun. It was true when written —
+> the box hit fork exhaustion mid-lane and the gate could not start — and is
+> now superseded by this run.)*
+>
+> **⚠️ TWO OPERATIONAL FINDINGS FROM THIS RUN, neither caused by this lane:**
+> 1. **A fresh simulator hangs the suite, silently and indefinitely.** The
+>    first gate attempt sat **20 minutes** on
+>    `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime`
+>    with no output and no failure. Cause: that file's own header requires TCC
+>    to be pre-granted (`simctl privacy grant calendar/reminders
+>    org.aethyrion.talaria27`), and on a newly-created sim
+>    `requestFullAccessToEvents()` raises a prompt nobody can answer. It does
+>    **not** fail its `#require` "visibly" as the header claims — **it hangs**,
+>    which is worse than a failure because it looks like a slow suite. Any lane
+>    that creates a sim must pre-grant both before running the gate.
+> 2. **The gate under-reports skips (#183's own guarantee, half-kept).** This
+>    run printed `4 test(s) SKIPPED` but enumerated only **2**. The count regex
+>    is `➜ Test .* skipped`; the display regex requires a **quoted** name
+>    (`➜ Test "[^"]+" skipped`), so bare function-style names never print. The
+>    two invisible ones are
+>    `aFailedRowNoLongerEatsALaterIdenticalPromptsClaim()` and
+>    `theSurvivingFailedRowIsAppendedAtTheTail()` (`AppStoresTests.swift`,
+>    skipped pending #282/#299) — **pre-existing on `main` since `31563f6`,
+>    nothing to do with this lane.** #183 exists precisely so a skip cannot
+>    hide; half of them still can.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
 > the existing ones — `toollessIndexBatteryButton` is the pattern) starts a

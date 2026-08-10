@@ -12,6 +12,13 @@ final class LiveActivityService {
         ActivityAuthorizationInfo().areActivitiesEnabled
     }
 
+    // harness-visible (#250 R2, 2026-08-10) — private in spirit; widened only
+    // so the throwaway-activity trigger's bar (250T-B) can assert against the
+    // SERVICE'S OWN handle instead of a parallel test double. This is the same
+    // `currentActivity` the production start paths set and `endActivity()`
+    // clears, so a zombie check here is a check on production's bookkeeping.
+    var hasActiveActivity: Bool { currentActivity != nil }
+
     // MARK: - Voice Session
 
     func startVoiceSession() {
