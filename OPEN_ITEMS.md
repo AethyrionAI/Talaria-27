@@ -7537,6 +7537,16 @@ transcript text?) are a product question, not a mechanical one.
 >
 > **Do not re-derive from the old numbers.** Line numbers are the first thing
 > a merge invalidates and the last thing anyone re-checks.
+>
+> **↑ AND THAT TABLE IS NOW ITSELF HISTORICAL (2026-08-10, post-fix).** It
+> describes the code as it stood at `c4a1ca9`, BEFORE the fix and before this
+> branch merged the #250/#132 lanes — the numbers moved again in that weave
+> (`conversationCardInputs` now sits at `ChatStore.swift:3105`, the spoken-path
+> invocation at `:1774`). **Read the table as a record of where the three
+> blockers WERE, not as a map of the current file.** Kept rather than rewritten
+> because it is the evidence that the diagnosis was verified at HEAD before any
+> code was written; the lesson it teaches is the reason it is being annotated
+> instead of edited.
 
 > **✏️ TWO WORDS IN THE ORIGINAL PARAGRAPH, CORRECTED 2026-08-10 (CLOSE-OUT
 > RULE — upstream, at the stale claim's own home).**
