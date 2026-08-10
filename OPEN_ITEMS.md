@@ -11793,7 +11793,43 @@ executed-count check both times it appeared today.
 >   by this lane; not a merge blocker.**
 > - **241-F:** `GATE: PASS`, test counts MOVED.
 
-> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **✅ 2026-08-10, LANE RUN (Wave 1) — bars A–D and F MET; E rides the OJAMD
+> sitting.** Implementation salvaged verbatim from the stopped lane agent's
+> worktree (host fork exhaustion), woven, RED-witnessed and gated by the
+> orchestrating session on `t27-241-session-model-immunity`.
+>
+> - **Lane-start verification (the 241-B question):** the catalog DOES carry a
+>   usable default — `GatewayModelCatalog.model` — so 241-B stands as written;
+>   no rewrite to pin-after-first-turn needed. Path 3 is built anyway as the
+>   nil-resolution fallback (pin from the first turn's `runtime` block, both
+>   drivers, after answer delivery, one-shot).
+> - **241-A/B MET — RED witnessed** (`resolveCreateModel` short-circuited to
+>   nil = the pre-#241 bare create): exit 65, failures on `body["model"]`
+>   content in both tests. GREEN restored.
+> - **241-C MET:** catalog-unavailable and catalog-throws arms green.
+> - **241-D MET:** three alias-rejection tests, including alias-as-persisted-
+>   selection and alias-as-host-default.
+> - **241-F MET:** `GATE: PASS — logs in /var/folders/…/talaria-gate.YUNMKQlWLP`,
+>   Swift Testing **2051** (2041 + exactly the 10 added — count moved),
+>   XCUITest 14, Release clean.
+> - **First gate attempt FAILED, honestly, and the new #300 classifier called
+>   it right** ("ASSERTION TEXT PRESENT — treat this as a REAL failure"): two
+>   pre-existing fixtures didn't know about the create-path catalog probe —
+>   `ZombieSSEProtocol`'s catch-all fed it a never-closing socket (stalling the
+>   create before the zombie scenario was ever met) and the M-16 routing test
+>   pinned `requests.count == 2`. Both taught the probe (`c086e30`); the
+>   routing test's untouched host/key `allSatisfy` rows are the proof the probe
+>   honours the override profile. **No production change came out of the
+>   failure** — and note for posterity: the probe means one extra GET per
+>   host per process before the first create; a pathological host that hangs
+>   (rather than errors) on `/api/model/options` would delay first session
+>   creation by the URLSession request timeout before degrading. Same-origin
+>   as the create itself, so judged acceptable; recorded rather than hidden.
+> - **241-E OWED** — one session created from the phone stores a real model id
+>   on OJAMD; rides the queued OJAMD sitting (handoff §10). **Out of scope,
+>   named per the brief:** retro-pinning pre-#241 sessions (host-side data,
+>   Owen's decision); `postPrimingTurn` verified to compose without
+>   double-applying the selection.
 > **OPEN THE CLIENT-SIDE IMMUNITY LANE.** Talaria sends an explicit `model`
 > on `POST /api/sessions` so no session inherits the gateway's self-name.
 > Decided with the live fact in hand: every `source: api_server` session on
