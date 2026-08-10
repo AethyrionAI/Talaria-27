@@ -5301,6 +5301,19 @@ annotation sweep would hide rather than settle it.
 > at write time by the host fork-exhaustion, to run once capacity returns
 > (and folded into the lane gate). Bar 301-C is not closed until that
 > negative control is recorded.
+>
+> **2026-08-10, orchestrator verification pass:** lane gate on the fixed
+> build — `GATE: PASS` (Swift Testing 2041 · XCUITest 14 · Release clean,
+> log names this worktree @ `171ff22`). The gate proves compile + no
+> regression; it does NOT exercise the first-grant TCC path, so the
+> **negative control above remains OWED** — it needs a permissions-reset
+> run (`simctl privacy reset`) plus a driven grant flow, queued behind
+> tonight's sim-budget freeze (no boots until Owen is back; a reset on a
+> BOOTED sim is possible but would strip the gate's calendar/reminders
+> grants mid-wave, so it runs after the wave's last gate). The fix ships
+> with the control owed, stated plainly — the crash mechanism is
+> symbolicated, deterministic, and matches the archived EventKit trap
+> one framework over.
 
 ---
 
