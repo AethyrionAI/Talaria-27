@@ -2586,6 +2586,8 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
 > A caption-less image turn gets an instruction line instead of a lone
@@ -10794,6 +10796,8 @@ lane opens.
 
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
 
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
 > the existing ones — `toollessIndexBatteryButton` is the pattern) starts a
@@ -11160,6 +11164,8 @@ under `TEST SUCCEEDED` — suite-level selectors only; caught by the
 executed-count check both times it appeared today.
 
 ## 241. 🔭 **OPEN — TRACK-UPSTREAM (reopened 2026-08-09, and it STAYS live)** — 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — ~~**✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.**~~ **SUPERSEDED THE SAME DAY for half one — see the REOPENED block immediately below, which is the current state.**
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-241-session-model-immunity.md`** — the immunity lane's brief (resolution rule: selection → catalog default → pin-after-first-turn fallback; bars 241-A..F proposed there; 241-E rides the OJAMD sitting). Joins Wave 1.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **OPEN THE CLIENT-SIDE IMMUNITY LANE.** Talaria sends an explicit `model`
