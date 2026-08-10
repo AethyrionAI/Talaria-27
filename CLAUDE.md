@@ -129,8 +129,18 @@ a falsified mechanism while the tracker was right.)
     profile name → `"hermes-agent"`, and caches it as `self._model_name`. Session
     creation persists it when the client sends no model —
     `model = body.get("model") or self._model_name` (`:3397`) — and Talaria's
-    `createBareSession` posts an empty body, so **every session we create stores
-    that literal string.** The routing gate then tests
+    `createBareSession` posts an empty body, so ~~**every session we create stores
+    that literal string.**~~ **CORRECTED 2026-08-10 (#241 immunity lane): the app
+    half of this is FIXED. `createBareSession` no longer posts an empty body — it
+    resolves an explicit `model` (the profile's `ModelSelection` → the host's real
+    `/api/model/options` default → bare, then pinned from the first turn's
+    `runtime` block) and every candidate passes
+    `SessionsHermesClient.wireSafeModelID`, which rejects the alias outright.
+    Sessions Talaria creates from this build forward store a real model id.
+    Two things this does NOT change:** the UPSTREAM behaviour at `:3397` is
+    untouched (a bare create still persists the sentinel, so the ops rule below
+    stands unchanged), and **sessions created BEFORE this build still store the
+    alias** — retro-pinning them was ruled out of scope. The routing gate then tests
     `if not route and model and model != self._model_name` (`:2345`): match ⇒
     `route_source: "global"` (the default, correct); **mismatch ⇒
     `route_source: "raw_request"` for a model literally named `hermes-agent`,

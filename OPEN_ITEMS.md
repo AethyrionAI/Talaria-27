@@ -11946,7 +11946,78 @@ executed-count check both times it appeared today.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-241-session-model-immunity.md`** — the immunity lane's brief (resolution rule: selection → catalog default → pin-after-first-turn fallback; bars 241-A..F proposed there; 241-E rides the OJAMD sitting). Joins Wave 1.
 
-> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **🎯 BARS — WRITTEN FIRST, 2026-08-10, before any code (standing convention:
+> bars live in the entry, pre-registered, and a missed bar is a falsification,
+> not a redefinition). Lane branch `t27-241-session-model-immunity`.**
+>
+> **LANE-START VERIFICATION (the fork the brief demanded, answered before the
+> bars were fixed): the catalog DOES carry a default marker, and it is a REAL
+> provider-model id — so 241-B STANDS AS WRITTEN (catalog-default design,
+> path 2). It was NOT rewritten to pin-after-first-turn.** Evidence, two
+> independent sources:
+> - `Talaria/Services/Live/GatewayModelCatalog.swift:13-17` — `GatewayModelCatalog`
+>   decodes top-level `provider: String?` and `model: String?`, documented in
+>   place as *"the host's CURRENT default pair"*. The picker already renders it
+>   as the HOST DEFAULT row (`ModelsSettingsScreen.swift:114-115`).
+> - The live OJAMD `/api/model/options` capture
+>   (`handoffs/241-retest-2026-08-03/model-options-241.json`, v0.20.0) carries
+>   `provider: "kimi-coding"`, `model: "kimi-k3"` — a real provider and a real
+>   model id, **not** the alias. Corroborated independently by
+>   `handoffs/ojamd-findings-2026-08-03.md` §4.
+>
+> - **241-A (RED→GREEN, unit):** with a `ModelSelection` set, the
+>   `POST /api/sessions` body carries that model — and never `hermes-agent`.
+>   RED first (today's body is `EmptyBody()`, i.e. `{}`).
+> - **241-B (unit):** selection nil + catalog default available → the create
+>   body carries the catalog's real id (`kimi-k3` on the pinned fixture).
+> - **241-C (unit):** selection nil + catalog unavailable (throwing fetch) →
+>   create succeeds BARE, no thrown error, no blocked session, fallback logged.
+> - **241-D (guard, unit):** the literal `"hermes-agent"` never appears in any
+>   create or pin body the client builds — asserted as a test over every
+>   resolution source, not a review comment.
+> - **241-E (live, OWED — rides the queued OJAMD sitting,
+>   `handoffs/HANDOFF-2026-08-09-OJAMD-SESSION.md` §10):** one session created
+>   from the phone stores a real model id on the production host. **UNCLAIMED
+>   by this lane; not a merge blocker.**
+> - **241-F:** `GATE: PASS`, test counts MOVED.
+
+> **✅ 2026-08-10, LANE RUN (Wave 1) — bars A–D and F MET; E rides the OJAMD
+> sitting.** Implementation salvaged verbatim from the stopped lane agent's
+> worktree (host fork exhaustion), woven, RED-witnessed and gated by the
+> orchestrating session on `t27-241-session-model-immunity`.
+>
+> - **Lane-start verification (the 241-B question):** the catalog DOES carry a
+>   usable default — `GatewayModelCatalog.model` — so 241-B stands as written;
+>   no rewrite to pin-after-first-turn needed. Path 3 is built anyway as the
+>   nil-resolution fallback (pin from the first turn's `runtime` block, both
+>   drivers, after answer delivery, one-shot).
+> - **241-A/B MET — RED witnessed** (`resolveCreateModel` short-circuited to
+>   nil = the pre-#241 bare create): exit 65, failures on `body["model"]`
+>   content in both tests. GREEN restored.
+> - **241-C MET:** catalog-unavailable and catalog-throws arms green.
+> - **241-D MET:** three alias-rejection tests, including alias-as-persisted-
+>   selection and alias-as-host-default.
+> - **241-F MET:** `GATE: PASS — logs in /var/folders/…/talaria-gate.YUNMKQlWLP`,
+>   Swift Testing **2051** (2041 + exactly the 10 added — count moved),
+>   XCUITest 14, Release clean.
+> - **First gate attempt FAILED, honestly, and the new #300 classifier called
+>   it right** ("ASSERTION TEXT PRESENT — treat this as a REAL failure"): two
+>   pre-existing fixtures didn't know about the create-path catalog probe —
+>   `ZombieSSEProtocol`'s catch-all fed it a never-closing socket (stalling the
+>   create before the zombie scenario was ever met) and the M-16 routing test
+>   pinned `requests.count == 2`. Both taught the probe (`c086e30`); the
+>   routing test's untouched host/key `allSatisfy` rows are the proof the probe
+>   honours the override profile. **No production change came out of the
+>   failure** — and note for posterity: the probe means one extra GET per
+>   host per process before the first create; a pathological host that hangs
+>   (rather than errors) on `/api/model/options` would delay first session
+>   creation by the URLSession request timeout before degrading. Same-origin
+>   as the create itself, so judged acceptable; recorded rather than hidden.
+> - **241-E OWED** — one session created from the phone stores a real model id
+>   on OJAMD; rides the queued OJAMD sitting (handoff §10). **Out of scope,
+>   named per the brief:** retro-pinning pre-#241 sessions (host-side data,
+>   Owen's decision); `postPrimingTurn` verified to compose without
+>   double-applying the selection.
 > **OPEN THE CLIENT-SIDE IMMUNITY LANE.** Talaria sends an explicit `model`
 > on `POST /api/sessions` so no session inherits the gateway's self-name.
 > Decided with the live fact in hand: every `source: api_server` session on
@@ -12062,10 +12133,15 @@ executed-count check both times it appeared today.
 > 1. `_resolve_model_name` (`:1644`) resolves explicit override → active
 >    profile name → `"hermes-agent"`, cached as `self._model_name`.
 > 2. Session creation persists it whenever the client sends no model:
->    `model = body.get("model") or self._model_name` (`:3397`). **Talaria's
+>    `model = body.get("model") or self._model_name` (`:3397`). ~~**Talaria's
 >    `createBareSession` posts an empty body, so every session we create
->    stores that literal string** — this is the "walks into it by default"
->    finding, now with the mechanism visible.
+>    stores that literal string**~~ — this is the "walks into it by default"
+>    finding, now with the mechanism visible. **⚠️ CORRECTED 2026-08-10 by the
+>    immunity lane: `createBareSession` no longer posts an empty body.** It
+>    now resolves an explicit `model` and sends it, so NEW Talaria sessions do
+>    not walk into this. The upstream line at `:3397` is unchanged, and
+>    sessions created before that build still store the alias — see the
+>    RESULT block at the top of this entry.
 > 3. The routing gate: `if not route and model and model != self._model_name`
 >    (`:2345`). Match ⇒ `route_source: "global"`, correct. **Mismatch ⇒
 >    `route_source: "raw_request"` for a model literally named
