@@ -1528,6 +1528,12 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > Apple-blocked for an unknown number of beta cycles, does #45 stay parked,
 > or does the filing move ahead of the pass? Not answered here — it changes
 > an 08-09 ruling and is Owen's call.
+> **→ ANSWERED same day (Owen, 2026-08-10): #45 STAYS SEQUENCED behind the
+> sim pass — the 08-09 ruling is re-affirmed with the blocker in view.**
+> His reasoning, verbatim in substance: it has to be right first; Apple
+> reviewers are impressionable and we don't submit an incomplete product —
+> the scene gets actually tested before the grant is requested. So #45's
+> clock now runs on Apple's beta cadence, knowingly.
 > **Incidental cost, disclosed:** quitting Simulator.app mid-diagnosis shut
 > down all booted sims including the preserved CC-250; it was re-booted and
 > its installed build verified intact (`get_app_container` returns the

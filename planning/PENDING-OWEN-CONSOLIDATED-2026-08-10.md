@@ -147,6 +147,19 @@ ruled ACCEPTED on 08-09 — this index carried it as an open survivor in error;
 the conflict was surfaced and Owen chose the final read anyway, filed as
 **#322**) · #295 poll → skip for now.
 
+## §5 RESOLVED — same-day addendum (2026-08-10 evening)
+
+Both §5 lines are settled, one of them was stale when this index was
+assembled: **304-H/I were ALREADY MET 2026-08-09 evening** (archived #304
+records both arms + the restore; no 🔐 go was outstanding — this index
+carried a stale request). **#74's sim pass was attempted and is BLOCKED by
+the iOS 27.0 beta-4 sim runtime** (CarPlay display never comes up; 26.5 A/B
+proves the runtime is the variable; app-side config verified correct).
+**74-F exit gate MET** — entitlement re-commented, signed device build
+green, tree clean. 74-A…E re-run when a newer runtime lands. **#45 stays
+sequenced behind the pass — Owen re-affirmed 2026-08-10 with the blocker in
+view.** Full record at #74's entry.
+
 ## 8 · Two documented gaps (flagged, not fixed here)
 
 1. **#301/#302/#303's device rows exist only as prose** inside R6/R7's
