@@ -10900,21 +10900,43 @@ lane opens.
 > updated in this same commit from "standing watch, do not schedule" to a
 > runnable, queued check, per the close-out rule.
 >
-> **🔴 250T-A AND 250T-D ARE UNRUN — NOT MET, NOT FAILED (2026-08-10).** The
-> Mac hit **box-wide fork exhaustion** partway through this lane (~1,500
-> CoreSimulator processes across six parallel lanes; every process-spawning
-> tool — shell, Desktop Commander, the Xcode MCPs — returned a bare exit 1
-> machine-wide). **`scripts/mac/lane-gate.sh` never executed**: there is no
-> `GATE:` line of any kind, and `/tmp/lane-gate-250.log` was never created.
-> **So the Release leg that IS 250T-A's proof has not run.** A plain **Debug**
-> build did go green beforehand (`** BUILD SUCCEEDED **`,
-> `/tmp/t250-debug-build.log`) — and per the #218 corollary that is exactly
-> the evidence which *cannot* see a mis-set `#if DEBUG` gate, so it does not
-> stand in for 250T-A. Placement was verified by reading only
-> (`ThrowawayLiveActivityHarness.swift` is wrapped `#if DEBUG` at file scope;
-> the panel sits inside `DeveloperSettingsScreen`'s existing `#if DEBUG`
-> region), and **a review read is what 250T-A explicitly refuses to accept.**
-> Both bars carry forward to whoever runs the gate on this branch.
+> **✅ 250T-A AND 250T-D MET — `GATE: PASS` (2026-08-10, on `41a772e`).**
+> `GATE: PASS — logs in /var/folders/.../talaria-gate.fWsEcp5SYA`.
+> **Swift Testing 2010 · XCUITest 14 · Release build succeeded, no Swift
+> compile errors in Release.** The Release leg is what settles **250T-A** —
+> the button and the harness compile out cleanly, which a green Debug suite
+> could not have shown (#218 corollary).
+>
+> **Count MOVED, so the stale-`.xctest` trap is cleared:** the last gate on
+> `main` (`163dbf5`, #255) reported **2005** units; this run reports **2010**
+> — **exactly the 5 tests this lane added**. XCUITest stayed 14, as expected
+> for a lane that added no UI tests.
+>
+> *(An earlier note here said both bars were unrun. It was true when written —
+> the box hit fork exhaustion mid-lane and the gate could not start — and is
+> now superseded by this run.)*
+>
+> **⚠️ TWO OPERATIONAL FINDINGS FROM THIS RUN, neither caused by this lane:**
+> 1. **A fresh simulator hangs the suite, silently and indefinitely.** The
+>    first gate attempt sat **20 minutes** on
+>    `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime`
+>    with no output and no failure. Cause: that file's own header requires TCC
+>    to be pre-granted (`simctl privacy grant calendar/reminders
+>    org.aethyrion.talaria27`), and on a newly-created sim
+>    `requestFullAccessToEvents()` raises a prompt nobody can answer. It does
+>    **not** fail its `#require` "visibly" as the header claims — **it hangs**,
+>    which is worse than a failure because it looks like a slow suite. Any lane
+>    that creates a sim must pre-grant both before running the gate.
+> 2. **The gate under-reports skips (#183's own guarantee, half-kept).** This
+>    run printed `4 test(s) SKIPPED` but enumerated only **2**. The count regex
+>    is `➜ Test .* skipped`; the display regex requires a **quoted** name
+>    (`➜ Test "[^"]+" skipped`), so bare function-style names never print. The
+>    two invisible ones are
+>    `aFailedRowNoLongerEatsALaterIdenticalPromptsClaim()` and
+>    `theSurvivingFailedRowIsAppendedAtTheTail()` (`AppStoresTests.swift`,
+>    skipped pending #282/#299) — **pre-existing on `main` since `31563f6`,
+>    nothing to do with this lane.** #183 exists precisely so a skip cannot
+>    hide; half of them still can.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
