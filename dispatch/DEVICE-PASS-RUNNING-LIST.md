@@ -1392,7 +1392,28 @@ leaving the device. Note whether the absence of any indicator feels wrong.
 
 ## B · #130 — the half-duplex A/B, owed since 2026-07-20
 
-### B1 · Half-duplex gate vs talk-over barge-in · **PARKED 2026-08-01 — kept as a REMINDER**
+> **⚰️ RETIRED 2026-08-09 BY THE ARCHIVE SWEEP — Owen's call, on being shown
+> that this row IS the half-duplex A/B probe: *"Isn't that the half duplex a/b
+> probe? If so that can be archived."* #130 moved to `OPEN_ITEMS-ARCHIVE.md`
+> in the same commit. DO NOT RUN B1; it is no longer owed by anything.**
+>
+> **Why it needed a ruling rather than a deletion:** #130 was closed by Owen on
+> 2026-07-31 (*"drop this, it's fine as is"*), but the day after he parked THIS
+> row as a reminder (*"we need to get to the bottom of it"*) — so the tracker
+> said closed while the device queue said, in so many words, *"DO NOT DELETE —
+> #130 is open."* **That contradiction is what this note resolves.** The *it*
+> he wanted to get to the bottom of was the **engine-identification gap**, and
+> that was fixed 2026-08-01 (the `voice session starting on engine …` log line)
+> — so the reminder's own subject is discharged, and what remains below is a
+> preference judgement Owen has already declined.
+>
+> **The probe branch `probe/t27-130-halfduplex` is NOT deleted** (origin and
+> local) — retiring a row is not a reason to destroy its artifact, and #105/#141
+> may still want the gate at the realtime engine's transcription ingest.
+> **Kept below verbatim, annotated rather than removed**, per this file's
+> standing convention.
+
+### B1 · Half-duplex gate vs talk-over barge-in · ~~**PARKED 2026-08-01 — kept as a REMINDER**~~ **⚰️ RETIRED 2026-08-09 — #130 ARCHIVED, DO NOT RUN**
 
 > **Owen 2026-08-01: the original trigger for #130 is no longer a concern, but
 > keep this parked — "we need to get to the bottom of it."** The *it* is the
@@ -2347,6 +2368,12 @@ Three rows the tracker had queued nowhere. Verified absent before adding:
 matches across 2,130 lines. **One queue — these are not restated in `OPEN_ITEMS.md`.**
 
 ### R1 · #256-E (2nd half) + #249F-D — reminder phrasing, PASSIVE
+
+> **Ownership note, 2026-08-09 (archive sweep): #256 is now in
+> `OPEN_ITEMS-ARCHIVE.md`. This row's live owner is #249F-D** — which is where
+> 256-E's second half was folded when #256 closed, and #249 stays on the live
+> board. The `#256-E` label is kept because that is what the observation was
+> pre-registered as; read the bar against #249F-D.
 
 **Prerequisite:** a build at or past `ca895f2` (#249F, PR #273). OTA 2250 and anything
 staged after it qualifies; **confirm the build before counting a reading** — an
