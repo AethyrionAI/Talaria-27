@@ -9,7 +9,7 @@ import XCTest
 ///
 /// The mock scaffolding survives from the template: `UITEST_PAIRING_MODE=mock`
 /// routes `PairingStore` at `MockPairingService` (any well-formed code
-/// redeems), and `/tmp/hermesmobile-uitest-config.json` can inject a live
+/// redeems), and `/tmp/talariamobile-uitest-config.json` can inject a live
 /// setup code + pairing mode for an end-to-end run against a real relay.
 final class TalariaUITests: XCTestCase {
     private struct UITestLaunchContext {
@@ -18,7 +18,7 @@ final class TalariaUITests: XCTestCase {
             let pairingMode: String?
         }
 
-        private static let configurationPath = "/tmp/hermesmobile-uitest-config.json"
+        private static let configurationPath = "/tmp/talariamobile-uitest-config.json"
 
         let defaultsSuite = "uitest.defaults.\(UUID().uuidString)"
         let keychainService = "uitest.keychain.\(UUID().uuidString)"

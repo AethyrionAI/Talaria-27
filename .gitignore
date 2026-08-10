@@ -54,7 +54,7 @@ __pycache__/
 *.db
 
 # Internal planning docs (contain personal paths)
-hermes-mobile-plans/
+talaria-mobile-plans/
 build-log.md
 build-evidence.json
 AuthKey_*.p8
