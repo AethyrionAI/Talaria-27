@@ -2588,6 +2588,37 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
 
+> **🎯 BARS — WRITTEN FIRST, before any code (2026-08-10, lane `t27-132-image-floor`).**
+> Pre-registered here per the #215-era convention (bars live in the OPEN_ITEMS entry,
+> not the dispatch doc). A missed bar is a falsification, not a redefinition.
+>
+> - **132-A (RED→GREEN, unit, sessions plane):** a caption-less single-image turn's
+>   encoded `ChatTurnBody` carries a `{type:"text"}` part with the floor sentence
+>   AND the `image_url` part. RED first — today the encoded input is the image part
+>   alone.
+> - **132-B (unit, runs plane):** the same assertion on `RunsTurnBody.make`'s encoded
+>   body, AND the floor's bytes COUNT inside the existing attachment/body budget
+>   arithmetic rather than riding on top of it (#290's uncounted-history lesson).
+> - **132-C (unit):** a CAPTIONED image turn encodes byte-identically to today —
+>   any non-empty user text suppresses the floor entirely, on both planes.
+> - **132-D (unit):** the multi-image count is right (N=3 → "3 images"), and a
+>   text-file-only attachment turn (no images) gets NO image floor.
+> - **132-E (wire-vs-store):** the local transcript is unchanged — the floor never
+>   enters the stored `Message`, so the bubble cannot render it. Asserted at the
+>   ChatStore seam: the stored user row keeps its `[N attachment(s)]` display text
+>   and the floor sentence appears in no stored field, while the wire body does
+>   carry it.
+> - **132-F:** `GATE: PASS` with test counts MOVED. **Then #132 CLOSES** per Owen's
+>   2026-08-09 ruling — close-out sweeps this entry's stale "host config question"
+>   framing (superseded by the `auxiliary.vision` keeper ruling) and the entry moves
+>   VERBATIM to `OPEN_ITEMS-ARCHIVE.md` per #261.
+>
+> **Scope fence:** #173 (silent degradation on attachments the host cannot see) is
+> adjacent and NOT this lane — the floor states what was SENT; #173 is about what the
+> host failed to READ. Cross-referenced, not merged. Host-side placeholder minting
+> (`[attachment]`/`[screenshot]`) is likewise out of scope — the floor makes it moot
+> for our turns without removing it.
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
 > A caption-less image turn gets an instruction line instead of a lone
