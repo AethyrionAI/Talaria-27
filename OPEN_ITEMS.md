@@ -124,7 +124,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
-- **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19)
+- **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 SIM PASS ATTEMPTED 2026-08-10: BLOCKED BY THE iOS 27.0 BETA-4 SIM RUNTIME (CarPlay display never comes up; 26.5 A/B proves it), app-side config verified correct; 74-F exit gate MET (signed device build green). 74-A…E re-run when a newer runtime lands; #45 sequencing question raised**
 - **#75** 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#82** 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) …
@@ -1486,6 +1486,53 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > A…E checklist, and **74-F's restore (re-comment the entitlement +
 > `xcodegen generate`) as the EXIT GATE** so the next signed device build
 > cannot stall behind a forgotten entitlement.
+
+> **🛑 2026-08-10 — THE PASS WAS ATTEMPTED AND IS BLOCKED BY THE BETA
+> RUNTIME, NOT BY THE PRODUCT. 74-A…E NOT RUN; 74-F EXECUTED AND MET.**
+> The Mac sitting ran: entitlement enabled in `project.yml`, `xcodegen
+> generate` (idempotent per #319), Debug sim build SUCCEEDED, install +
+> launch on a fresh `CC-74-iPhone-Air` (iOS 27.0), mic pre-granted. App-side
+> config was POSITIVELY verified in the built product before any blame was
+> assigned: the CarPlay entitlement is embedded in the sim binary's
+> `__TEXT,__entitlements` section (note: `codesign -d --entitlements` reads
+> the ad-hoc SIGNATURE, which is legitimately empty on sim — wrong
+> instrument for this check), and Info.plist carries the
+> `CPTemplateApplicationSceneSessionRoleApplication` manifest →
+> `CarPlaySceneDelegate`.
+> **The blocker: the iOS 27.0 beta-4 simulator runtime (24A5390f) never
+> brings up the CarPlay external display.** I/O → External Displays →
+> CarPlay sets the pref (verified checked in the menu) but no window is
+> created and no surface exists device-side (`simctl io … screenshot
+> --display external` finds nothing). Reproduced on TWO 27.0 devices
+> (CC-74, CC-300) across: initial toggle, off/on cycle, a fresh
+> Simulator.app process, and a fresh device boot. **Controlled A/B, same
+> host / same Simulator.app / same iPhone Air device type:** a throwaway
+> iOS 26.5 (23F77) device brought up its "– CarPlay" window INSTANTLY on
+> first toggle, rendering the car home screen, external surface
+> screenshot-able (evidence:
+> `…/scratchpad/carplay-265-probe.png`, session 2026-08-10; probe deleted
+> after capture). The only variable was the runtime. Running the pass on
+> 26.5 is not an out: `project.yml` floors at iOS 27.0 and the app is
+> 27-only API throughout.
+> **74-F (exit gate) MET:** entitlement re-commented, regenerated (carplay
+> key verified GONE from `Talaria.entitlements`), signed
+> `generic/platform=iOS` Debug build → `** BUILD SUCCEEDED **`, working
+> tree back to byte-clean. CC-300's incidentally-set CarPlay pref reverted
+> to Disabled.
+> **What remains owed: 74-A…E, unchanged, when a newer beta runtime lands**
+> — the prep procedure above is proven and takes ~10 min to re-stage.
+> Check the runtime first next time: toggle CarPlay on any 27.x sim and
+> look for the window before staging anything.
+> **Sequencing question this raises for Owen (#45):** the CarPlay grant
+> filing was ruled 08-09 to sit BEHIND this sim pass; with the pass now
+> Apple-blocked for an unknown number of beta cycles, does #45 stay parked,
+> or does the filing move ahead of the pass? Not answered here — it changes
+> an 08-09 ruling and is Owen's call.
+> **Incidental cost, disclosed:** quitting Simulator.app mid-diagnosis shut
+> down all booted sims including the preserved CC-250; it was re-booted and
+> its installed build verified intact (`get_app_container` returns the
+> Talaria 27 bundle), but per #254 its TCC grants are gone — re-grant
+> before any suite run on that sim.
 
 > **Audit 2026-07-13:** PR #40 (`claude/w5-19-carplay-voice`→main, merged) and GitHub #19 (closed) confirm the code landed; `Talaria/CarPlay/CarPlayVoiceManager.swift` (nonisolated `maxTranscriptTitleLength`/`blockedTitle`, matching the described compile fix) and `TalariaTests/CarPlayVoiceStateTests.swift` are on main, and `project.yml:61` shows the CarPlay entitlement commented out per the hotfix. The item's own Mac-session note already confirms xcodegen/build/tests done, so the trailing 'Needs Mac: xcodegen generate... CLI build + tests' text is stale; the genuinely open work is the CarPlay Simulator functional pass (entitlement currently disabled) and filing Apple's discretionary grant — keep 🔧, this item is effectively blocked on that external approval.
 
