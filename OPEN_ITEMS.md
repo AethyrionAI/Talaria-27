@@ -6674,6 +6674,36 @@ key, unquoted `true` — with only `run_id` shortened to the stub's. A compactly
 re-typed fixture would still have caught this bug, but a wire-capture test that
 drifts from the wire stops being one.
 
+> **✅ 2026-08-10, orchestrator verification pass — every ⛔ in the table above
+> is now MET.** The lane's agent was stopped mid-run (host fork exhaustion,
+> then a UI stop); the work was salvaged verbatim from its worktree and
+> verified by the orchestrating session on `t27-296c1-bool-error`.
+>
+> - **C1-A MET — RED witnessed by revert** (both `hostErrorDetail` call sites
+>   → `as? String`, helper left in place): exit 65,
+>   `toolCompletedBooleanErrorIsAFailureNotACleanCompletion` failed on
+>   `error != nil` + the pinned constant;
+>   `runStatusSnapshotBooleanErrorIsCarriedNotDropped` failed on the
+>   status-body site. Failures on the VALUE, exactly as constructed.
+> - **C1-D MET — the mapping RED:**
+>   `booleanToolErrorReachesTheChipThroughTheRealStore` failed on
+>   `activity.failure != nil` and `ToolActivityRail.state(of:) ==
+>   .interrupted` through the real `ChatStore`. GREEN with the fix restored.
+> - **C1-B / C1-C / C1-E MET:** String-verbatim, no-key/`false`, and legacy
+>   decode all stayed green during the RED arm (insensitive by design) and in
+>   the gate.
+> - **C1-F MET:** `GATE: PASS — logs in /var/folders/…/talaria-gate.khOnq5rlNH`;
+>   Swift Testing **2028** (2020 post-merges + exactly the 8 added — count
+>   moved), XCUITest 14, Release build PASS.
+> - **One compile defect found in the salvage** (never-compiled code):
+>   `unspecifiedHostError` inherited MainActor isolation while its reader is
+>   `nonisolated` — fixed with `nonisolated` on the constant (`4bf21cc`).
+> - **RED-witness hazard for the record:** two earlier "RED" attempts were
+>   invalid — one compile failure, one green run that turned out to have built
+>   the MAIN repo because a backgrounded shell reset its cwd (now memory
+>   catalog form #10). The witnessed RED above is from a run whose log names
+>   the worktree path and the new tests by name.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
