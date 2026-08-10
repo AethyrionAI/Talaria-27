@@ -1,5 +1,13 @@
 # OPUS-T27-184 + 185 — one teardown primitive, and attachments that match themselves
 
+> **⛔ SUPERSEDED 2026-08-10 — DO NOT RUN THIS DISPATCH.** Its fix WAS built
+> from this brief on 2026-07-26 (branch `claude/t27-184-185-chatstore-integrity`,
+> suite-green) and never merged; ChatStore has since absorbed #278/#296/#306/#307.
+> The live brief is `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`
+> (rebase-or-rederive, teardown matrix EXTENDED to #306-era state). This file
+> stays as the original derivation record only.
+
+
 **Items:** OPEN_ITEMS #184 + #185 (touches #136, #9, #21, #38) · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
 **Branch:** `claude/t27-184-185-chatstore-integrity` · **Toolchain:** Xcode-beta4, pinned sim
 **Baseline:** confirm the current green count before you start · `export GH_PAGER=cat` first
