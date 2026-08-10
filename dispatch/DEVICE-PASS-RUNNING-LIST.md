@@ -1888,7 +1888,7 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
-| **#61** | Create local sessions, read the drawer | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here |
+| **#61** | Create local sessions, read the drawer — **including one whose only user turns were SPOKEN** (start a voice session, say something, let it reply, end it; #280 clause added 2026-08-10) | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here. **280-F:** the spoken-only session's row must show a real title, and **the title line must not be the same string as the subtitle** — that duplicate is the 2026-07-11 device-pass FAIL shape, and #280's fix is what stops the row falling back to its own preview for a title |
 | **#190** | (a) switch sessions during read-aloud; (b) force a session-open failure | (a) read-aloud stops; (b) failure banner appears. **The only two unexercised checks left on #190** — everything else cleared 2026-07-27 |
 | **#123** | Share into the app from Safari (URL) and Photos (image) | composer receives it, focused, works unpaired on the on-device brain |
 | **#124** | Background → foreground with Face ID lock on | overlay covers the scene root; passcode fallback offered (never biometry-only) |

@@ -1755,6 +1755,24 @@ final class ChatStore {
             journal?.sync(with: conversation)
         }
 
+        // #280: THE fix. This was the outermost of three blockers — the card
+        // generator was never invoked on the voice path at all, so a thread
+        // whose only user turns were spoken kept `Conversation.defaultTitle`
+        // forever and the drawer rendered its own preview on both lines.
+        //
+        // Placement is load-bearing, not incidental:
+        //   * AFTER the append + persist above, so the transcript the
+        //     generator reads is the settled one;
+        //   * BEFORE the `postToHermes` guard, so it runs on BOTH branches —
+        //     a local-only voice session gets a title too;
+        //   * OUTSIDE the Task below. `conversationCard` can reach
+        //     `model.tokenCount(...)`, and a `tokenCount()` concurrent with a
+        //     live FoundationModels streaming turn kills that turn on device
+        //     (ModelManagerError 1001 -> "error -1"). Both pre-existing call
+        //     sites run after a turn settles, which is why this has never
+        //     bitten; this one stays on the same side of that line.
+        finalizeOnDeviceIntelligence()
+
         guard postToHermes else { return }
         let contextTurn = Self.voiceTranscriptTurnText(from: session)
         guard !contextTurn.isEmpty else { return }
@@ -3090,7 +3108,7 @@ final class ChatStore {
         for conversation: Conversation
     ) -> (userText: String, assistantText: String)? {
         guard let firstReply = conversation.messages.first(where: {
-            $0.sender == .hermes
+            $0.sender.isAgentAuthored
                 && $0.status == .delivered
                 && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         })
@@ -3101,7 +3119,7 @@ final class ChatStore {
         // user words and must never become the title; with it empty, the card
         // (and the truncation fallback) derives everything from the reply.
         let firstUserText = conversation.messages
-            .first(where: { $0.sender == .user })
+            .first(where: { $0.sender.isUserAuthored })
             .map { normalizedRetryContent(for: $0) } ?? ""
 
         return (userText: firstUserText, assistantText: firstReply.content)
