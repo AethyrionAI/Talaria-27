@@ -2019,7 +2019,12 @@ final class ChatStore {
     /// the mirror kept it and the retried turn's own merge put it back — the
     /// exact failure the paragraph below describes, live in the one path #78
     /// did not touch. The invariant that actually holds is one level down:
-    /// **every removal exits through `adoptLocalTranscript()`.** This
+    /// **every removal of a row the mirror may hold exits through
+    /// `adoptLocalTranscript()`.** (Scoped that narrowly on purpose — #279's
+    /// re-verify, 2026-08-10: several sites still prune rows with bare
+    /// mutations, but every one removes rows the mirror never held — empty
+    /// `.hermes` placeholders, never-posted `.queued` rows — which cannot
+    /// resurrect. A removal that CAN meet the mirror goes through here.) This
     /// primitive owns the range case; `retryMessage` removes its single row
     /// and calls that tail directly, because truncating-to-the-end on a
     /// mid-transcript `.failed` row would delete every turn below it.
