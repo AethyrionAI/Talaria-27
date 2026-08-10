@@ -197,7 +197,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#283** 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch)
 - **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — NOT STARTED, scope is Owen's call …
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** …
-- **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — bars pre-register …
+- **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
 - **#271** 🖥️ #251 SLICE 2D — OJAMD rollout: install the talaria plugin on the production host, re-run the 2A bars there …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
@@ -8963,7 +8963,7 @@ transcript text?) are a product question, not a mechanical one.
 > `LocalChatBackend.sessionInfo` (`:2036-2046`) remains the sole reader of
 > `conversation.title`. Named here so the next lane does not re-derive it.
 
-## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FILED 2026-08-07 from #78's lane; pre-existing. Bars pre-register here before any code.**
+## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **✅ FIXED AND MERGED 2026-08-09 as `12ed25b` (branch `claude/t27-279-retry-adoption`, commits `c4411cc` + `13e4049`). Bars 279-A..E MET, `GATE: PASS`. OPEN ONLY for 279-F, the device bar, which is Owen's.** *(Header corrected 2026-08-10 — it still read "FILED … Bars pre-register here before any code" for a full day after the fix merged, and that is what got this lane dispatched a second time. See the RE-DISPATCH note at the end of this entry.)*
 
 `ChatStore.retryMessage` does `messages.removeAll { $0.id == message.id }`
 OUTSIDE the new `truncateTranscript` primitive, so the backend mirror is
@@ -9179,6 +9179,60 @@ like `/retry` and `/undo` now are.
 > **no TCC grants**, which is what cost run 1.
 >
 > **STILL OWED: 279-F, device, Owen.** Everything above is simulator-side.
+
+> **🔁 RE-DISPATCHED IN ERROR AND RETIRED UNRUN — 2026-08-10.** This lane was
+> dispatched a second time, with a full TDD task list, against a defect that
+> had already been fixed and merged the previous day. The second lane stopped
+> at verification and wrote nothing but this correction. **No production line
+> moved; nothing above is re-measured or superseded.**
+>
+> **What the code read showed, at `main` = `e3d8616`:**
+> - `12ed25b` (*"Merge tracker #279"*, 2026-08-09 05:29) **is an ancestor of
+>   HEAD** — a real merge commit, not a squash, so even `--contains` could
+>   have seen it.
+> - `ChatStore.retryMessage` carries the fix verbatim: `firstIndex` +
+>   `remove(at:)` + `adoptLocalTranscript()`, and `restoreRetriedRow` on all
+>   **three** early returns, with the #90 outbox removal still FIRST.
+> - All five bars are in `ChatStorePersistenceTests.swift`
+>   (`theFailingLocalBrainMirrorMatchesTheRealAppendLog`,
+>   `aRetriedFailedTurnsMergedUserRowCount`,
+>   `aRetryLeavesExactlyOneUserRowForTheRetriedText`,
+>   `aSwallowedRetryPutsTheFailedRowBack`,
+>   `retryingAMidTranscriptFailedRowKeepsEverythingBelowIt`), and both
+>   close-out edits are in place (`truncateTranscript`'s corrected doc, 275-C's
+>   pointer).
+>
+> **The bars are still green at HEAD, and it did not cost a suite run to know
+> it.** `12ed25b` is an ancestor of `c011acd` — #299's gated tip, `GATE: PASS`,
+> 2056 units — so the five bars ran green *with* `serverIdentityAdoptions` in
+> the tree; and `25a713d..HEAD` touches **only** `OPEN_ITEMS.md` and
+> `OPEN_ITEMS-ARCHIVE.md`. A green gate you are already downstream of is
+> evidence; re-running it would only have re-bought the same fact for twenty
+> minutes.
+>
+> **Where the false premise came from, and it is worth the sting.** The
+> re-dispatch inherited *"the ChatStore serial queue shrinks to four:
+> #315 → #299 → #282 → #279"* — written in `8bf4046` on 2026-08-10 00:44,
+> **nineteen hours after #279 merged**, in the commit message of the lane whose
+> entire job was retiring #184/#185 for having already landed. **The same
+> failure mode, in the correction for that failure mode.** The tracker was not
+> uniformly wrong: #282's entry says *"#279 merged as `12ed25b`"* in three
+> places. **What was wrong was the one line anyone actually reads first** — this
+> entry's own header, which still opened *"FILED … Bars pre-register here before
+> any code"* while the MEASURED block sat two hundred lines below it.
+> **A `📊 MEASURED` block does not close an item; the header is the instrument,
+> and a stale header outranks a correct body every time.**
+>
+> **One observation, filed as an observation and deliberately NOT a new item.**
+> The corrected `truncateTranscript` doc now asserts *"every removal exits
+> through `adoptLocalTranscript()`"*, and read strictly at HEAD that is an
+> overstatement: six other sites mutate `conversation.messages` directly
+> (`:538`, `:919`, `:973`, `:1033`, `:1087`, `:1217`, `:2305`). Every one of
+> them removes a row the backend mirror **never held** — empty `.hermes`
+> streaming placeholders, and `.queued` rows that were by definition never
+> posted — so none can be resurrected by a merge and none is a #279. The
+> sentence is loose; the invariant is sound. Tightening it is free-bucket
+> prose, not a lane.
 
 ## 273. 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup — **✅ SWEPT 2026-08-07. One category found, four places, all the same #21 example. Rule written down here so it is not rediscovered a third time.**
 
