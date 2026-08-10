@@ -1908,6 +1908,15 @@ four times total.
 > to run — its only other row, #137, was already "not runnable as filed."
 | **#137** | ⚠️ **NOT RUNNABLE AS FILED — needs a rewritten check first.** The 2026-07-25 pass scored UNRUNNABLE, and the spec's "revoke/disconnect FIRST" setup is actively wrong: disconnect no longer produces a re-migratable device and neither does deleting the app. **Do not attempt until someone writes a sequence that can actually reach the un-stamped state.** Queued as a WRITING task, not a device task | — |
 
+> ➡️ **"§F3 has nothing left to run" IS NO LONGER TRUE as of 2026-08-10 — one
+> row moved back in.** **§V2 (#301's first-grant negative control) needs exactly
+> this setup and nothing cheaper can substitute:** the crash it verifies is
+> reachable only on the `.notDetermined` → `requestAuthorization` path, and an
+> OTA upgrade-in-place preserves TCC grants, so **only a delete-and-reinstall
+> reaches it.** The two rows above stay MOOT / not-runnable-as-filed — this
+> annotation adds to the section, it does not revive them. Run §V2 under §F3's
+> standing rule: fresh install goes LAST, ever.
+
 ### F4 · LOCKED DEVICE
 
 | # | check | pass |
@@ -2629,6 +2638,13 @@ client-side counterpart at all.
 > background, Hermes brain selected this time; the earlier two were 13:32 and
 > 13:49 — the 13:21 trial produced no revoke at all, which is what made it
 > void).
+>
+> ➡️ **2026-08-10: #303's half of this trial is now a runnable row — §V3.**
+> The joint-scoring instruction above ("one cold Control Center launch scores
+> 303-A and 254-D from the same trial") is unchanged; §V3 spells out the three
+> preconditions that voided both attempts, and the warm 303-B contrast that
+> must run in the same sitting. Run §V3 and this row together; they are one
+> launch.
 
 *(original row text follows, kept for the record)*
 
@@ -2684,6 +2700,11 @@ not exercise the race** — retry, do not record it as a pass.
 > before App Lock evaluates its cover, so a Control Center launch begins on a
 > locked app. Mic state during that interval is UNDETERMINED. Full detail and
 > bars: OPEN_ITEMS #254 (device-run block) and #302.
+>
+> ➡️ **2026-08-10: #302's measurement is now a runnable row — §V1.** The
+> instrument it needed shipped that day (PR #300, `179d506`), 302-C was RULED
+> (defer-until-unlock), and 302-B's fixture was re-arranged around the FIXED
+> #272. "UNDETERMINED" above is still the state — §V1 is what determines it.
 
 *(original row text follows, kept for the record)*
 
@@ -2854,3 +2875,243 @@ the copy hedges and the failure files its own number — do not ship the claim
 on a miss.
 
 ### §R15/R16 ride-along · #222 device arm — **OPPORTUNISTIC (ruled 2026-08-09): no dedicated run; fold into whatever corded sitting has slack. Not runnable on sim or test host (Code=5000).**
+
+---
+
+## §V · Added 2026-08-10 — the voice-triage lane's three device rows (#301 · #302 · #303)
+
+**Why this section exists.** `planning/PENDING-OWEN-CONSOLIDATED-2026-08-10.md`
+§8 flagged it as gap 1: these three items' device work existed **only as prose**
+— inside §R6's and §R7's verdict blocks above, and inside their `OPEN_ITEMS.md`
+entries — and had never been written as runnable rows here. This section is that
+prose turned into rows. **One queue: the BARS still live in `OPEN_ITEMS.md`
+#301/#302/#303 and are not restated here as this file's own authority** — each
+row names the bar it scores and sends the verdict to that entry.
+
+**⚑ PREREQUISITE FOR ALL THREE ROWS: a build at or past PR #300 (`179d506`,
+merged 2026-08-10).** That one merge carries **both** the #302-A capture-chain
+instrument and the #301 `@Sendable` fix. **OTA 2484 (`main` @ `75e5e08`)
+qualifies** — verified ancestor 2026-08-10. **An older build is not a miss, it
+is a VOID trial:** without the instrument V1 has nothing to read, and without
+the fix V2 measures the defect instead of the fix — and both failures present as
+ordinary-looking runs.
+
+**⚠️ TWO SUBSYSTEMS, ONE INTERSECTION — read this before capturing any log for
+V1 or V3.** These rows straddle a seam in the app's own logging:
+
+| line | subsystem | category |
+|---|---|---|
+| `capture chain HOT/COLD … (#302-A)` · `audio session activated for capture (#302-A)` | `org.aethyrion.talaria` | `NativeVoiceCapture` |
+| `voice session starting on engine …` · `active voice engine → …` | `org.aethyrion.talaria` | `VoiceEngineRouter` |
+| `scenePhase … \| pre: cover=…` · `requestUnlock EXIT …` | **`org.aethyrion.talaria27`** | `AppLock` |
+
+Verified at HEAD 2026-08-10 (`NativeVoicePipelineService.swift:909`,
+`VoiceEngineRouter.swift:24`, `AppLockController.swift:42` → `TalariaLog.subsystem`
+= the bundle id, `org.aethyrion.talaria27`). **A runner who filters on ONE
+subsystem captures half the intersection and cannot score V1 at all** — this is
+§F6's false-FAIL trap (corrected 2026-08-09) one row over. **Capture the whole
+corpus, filter afterwards.**
+
+**Log route for all three rows.** Corded → Xcode bridge `GetConsoleOutput` with
+`oslogSeverity: ["default"]` (its `pattern:` argument silently returns zero units
+for text that IS present). Hand-launched / uncorded → after the fact,
+`sudo /usr/bin/log collect --device-udid 00008150-000E794C3C47801C` (hardware
+UDID; Owen pastes), then grep. Read once at `oslogSeverity: ["all"]` — #198B's
+`fault` hides under `default`.
+
+### V1 · #302-A/B — is the microphone live behind App Lock? · **[Group 8 shape (Control Center, leaving the app); flip App Lock on during Group 3's Settings trip]**
+
+**This is a CONTRACT-COMPLIANCE measurement, not an exploration.** 302-C was
+**RULED by Owen 2026-08-10: defer-until-unlock**, and it is today's felt flow
+(*"if you press the control center button, it unlocks and launches the app"*).
+So the launch is accepted and the unlock prompt is part of the flow — which
+makes **"the capture chain is provably COLD until unlock succeeds"** a stated
+requirement rather than one of three defensible options. 302-A/B now measure
+compliance with it.
+
+- [ ] **V1 pre-flight (setup, do once).** Settings → App Lock **ON**, grace
+  **Immediately** (the configuration both observed trials ran under). Brain =
+  **On-Device** — this is what PINS the native engine on a live network
+  (#221's gate forbids realtime outright there; §R7's 13:49 trial got native in
+  22 ms with the network up). **Do not use airplane mode as the fixture** — it
+  also pins native, but it drops the network for everything else in the sitting.
+- [ ] **V1-a — the SUCCEEDING unlock (bar 302-A).** Force-quit the app for a
+  genuinely cold launch. Control Center → **"Talk to Hermes"**. Unlock normally
+  when the biometric sheet appears. Let the session run a beat, then dismiss.
+- [ ] **V1-b — the CANCELLED unlock (bar 302-B).** Force-quit again. Control
+  Center → **"Talk to Hermes"**. **Cancel** the biometric sheet → the cover
+  stays down with the in-app **UNLOCK** button waiting. **Hold the locked
+  interval open ≥30 s**, then tap UNLOCK.
+  - ⚠️ **The bar's own fixture text is STALE — use the arrangement above.**
+    302-B says the interval is *"trivially arranged while #272 is unfixed"*;
+    **#272 was FIXED and CLOSED 2026-08-09 (PR #289)**, so the interval is now
+    held open legitimately by the fixed Cancel-then-UNLOCK-button state. Same
+    interval, different arrangement; the bar itself is unchanged.
+
+**PASS (both arms) = no `capture chain HOT …` line falls inside the locked
+interval** — i.e. between `voice session starting on engine …` and the
+`requestUnlock EXIT attempt=… result=SUCCESS` that ends the episode (in V1-b
+that interval spans the cancelled attempt's
+`result=FAILED_OR_CANCELLED` line and the whole hold). A
+`capture chain COLD — … was=false …` line inside the interval is **usable
+positive evidence**: it says a start died before the engine ever ran.
+
+**FAIL = a `capture chain HOT …` line inside that interval, in either arm.**
+That is a defect against the ruled contract, it **outranks the remaining #254
+device bars**, and the fix defers session start behind the unlock. Stop and file
+rather than continuing the sitting. **302-B is the arm that can still
+surprise** — cold in 302-A and hot here is exactly the shape the bar exists for.
+
+**VOID — neither pass nor fail — if the engine line names `realtime`.** The
+#302-A instrument covers the **native** capture chain only; the realtime engine
+captures through WebRTC's audio unit (`LiveVoiceSessionService`, no
+`AVAudioEngine`) and is **uninstrumented**. Per #220 a verdict that cannot name
+its own engine tested nothing: re-run with the brain pinned On-Device. (If #302
+ever recurs on a realtime-configured host, the WebRTC chain needs its own
+instrument — that is not this row.)
+
+**Evidence to capture — quote all six, with millisecond timestamps, per arm:**
+1. `voice session starting on engine … (relayPaired=…)`
+2. `audio session activated for capture (#302-A)` — if present
+3. `capture chain HOT — AVAudioEngine.isRunning=… inputTap=installed (#302-A)`
+   — if present, and its exact time relative to 1 and 6
+4. `capture chain COLD — AVAudioEngine.isRunning was=… now=… inputTap=removed (#302-A)`
+5. `scenePhase background -> active | pre: cover=locked locked=true …`
+6. `requestUnlock EXIT attempt=… result=…` (both the cancel and the success in V1-b)
+
+**Do NOT read the `audio deactivated by app — not an interruption (#198)` line
+as an answer.** It is emitted by BOTH pipelines on every audio-session teardown
+and appears throughout these logs in contexts unrelated to the lock; treating it
+as proof the mic was never hot is reading a general-purpose line as a specific
+guarantee. That reading is the reason this item is a question rather than a
+finding.
+
+**Verdict goes to `OPEN_ITEMS.md` #302.** Pre-registered response: both arms
+cold ⇒ closes **NOT A DEFECT** with the ordering documented.
+
+### V2 · #301 — the negative control: a first-ever speech grant must not kill the app · **[§F3 FRESH INSTALL — the app is DELETED; runs LAST in any sitting]**
+
+**⚠️ THE INDEX'S FRAMING OF THIS ROW IS STALE and this row does not inherit
+it.** `planning/PENDING-OWEN-CONSOLIDATED-2026-08-10.md` §2 lists *"#301 device
+repro attempt (n≥5, native voice; sim-only so far)"*. **That was true when the
+index was assembled and is not true now** — #301's entry records the
+voice-triage lane's result the same day: the crash reproduced
+**deterministically** (2/2 fresh sim + the original #254 device-corpus crash =
+3 occurrences, 0 clean), the site is **named and symbolicated**
+(`SFSpeechRecognizer.requestAuthorization`'s completion closure in
+`NativeVoicePipelineService.ensureSpeechAuthorization()` — MainActor-formed,
+invoked on TCC's XPC reply queue), and the **fix is built and merged**
+(`@Sendable` on that one closure, PR #300). **No repro attempt is owed. What is
+owed is the negative control**, and that is what this row runs.
+
+**The sim-vs-device distinction is a RED HERRING, and that is precisely why this
+row must be a fresh install.** The discriminator is **authorized vs.
+notDetermined**: the crashing closure is formed only on the `.notDetermined` →
+`requestAuthorization` path — the **first-ever speech grant**. `whoGoesThere`
+has speech already authorized, which is exactly why #254's device runs never
+crashed. **An OTA upgrade-in-place preserves TCC grants and therefore CANNOT
+reach the crashing path — a "pass" from an upgrade install proves nothing.** The
+app must be deleted and reinstalled.
+
+**Cost, stated plainly:** delete-and-reinstall loses the pairing and the app's
+local data. §F3 is expensive for exactly this reason and the sitting plan's
+*"F3 goes LAST, ever"* applies unchanged.
+
+- [ ] **V2 pre-flight.** Confirm the build about to be installed is at or past
+  `179d506` (OTA 2484 or later). Installing an OLDER build here reproduces the
+  crash and says nothing about the fix.
+- [ ] **V2 — the control.** Delete Talaria from the phone. Reinstall (OTA from
+  Safari). Launch and enter the **voice** path — from inside the app is fine;
+  the crash is in the permission grant, not the launch route, and a fresh
+  install is unpaired so native is the only engine available anyway. Grant
+  **microphone** at the first prompt, then grant **speech recognition** at the
+  first prompt.
+
+**PASS = the speech grant completes and the app is still running** — the voice
+session proceeds, no `BUG IN CLIENT OF LIBDISPATCH` anywhere in the log, and no
+new crash report for `org.aethyrion.talaria27`.
+
+**FAIL = the app dies at the speech grant** with
+`BUG IN CLIENT OF LIBDISPATCH: Assertion failed: Block was expected to execute
+on queue [com.apple.main-thread]`.
+
+**Evidence to capture:** the mic-grant and speech-grant moments in the log; and
+on a FAIL, the `.ips` crash report (Settings → Privacy & Security → Analytics &
+Improvements → Analytics Data, or the Xcode Devices window) — compare its
+faulting stack frame-for-frame against the symbolicated one in #301's entry
+(`_dispatch_assert_queue_fail` → `_swift_task_checkIsolatedSwift` → `closure #1
+in closure #1 in …ensureSpeechAuthorization()` → `__TCCAccessRequest_block_invoke_8`,
+faulting queue `com.apple.root.default-qos`). A crash with a DIFFERENT stack is
+a second defect, not this one.
+
+**What this scores, honestly.** It satisfies **bar 301-C's owed negative control
+on the runtime that actually ships**. It does **not** re-run the identical sim
+fixture — #301's entry queues a `simctl privacy reset` re-run behind the
+sim-budget freeze, and that one is the direct repeat of the exact failing trial.
+Either can produce the control; **record which one did.** Until one is recorded,
+301-C is not closed and the fix ships with its control owed — which is how the
+entry states it.
+
+### V3 · #303-A/B — does a COLD launch reach realtime on a realtime-configured host? · **[OJAMD SITTING ONLY — unrunnable anywhere else; scores §R6/#254-D from the same trial]**
+
+**Setup group: OJAMD profile · gateway UP · brain = HERMES.** Three
+preconditions, each of which has already voided one attempt:
+
+1. **The OJAMD gateway must be running.** Owen has it deliberately OFF (*"to
+   prevent confusion"*). This row waits on that host's next uptime; nothing else
+   blocks it.
+2. **Brain = Hermes, NOT On-Device.** §R6's attempt 1 (2026-08-09 13:49) was
+   VOID for exactly this: #221's brain gate is checked BEFORE pairing, the
+   on-device brain forbids realtime outright, and `relayPaired=true` on the
+   engine line means nothing once the brain has already said no. **A runner who
+   does not set the brain to Hermes has not run this row** — "paired + relay
+   healthy" is necessary and NOT sufficient.
+3. **Realtime must actually be CONFIGURED on the host — pre-flight this.**
+   §R6's attempt 2 died here: `readiness routed voice to the native engine
+   (configured=Optional(false), state=blocked)` on the Mac profile. **The
+   realtime plane is relay + connector, both on OJAMD**; an OpenAI key in the
+   Mac's `~/.hermes/.env` does not change that (verified 2026-08-09 — the relay
+   RPCs the connector, and the connector holds the key). **Confirm
+   `talk/readiness` reports `configured:true` before running either arm** — a
+   `configured:false` host routes native regardless and the trial measures
+   nothing.
+
+- [ ] **V3-a — bar 303-A, the COLD arm. This is also §R6/#254-D's trial.**
+  Force-quit for a genuinely cold launch. Control Center → **"Talk to Hermes"**.
+  **Read the engine line FIRST, before anything else in the trial:**
+  - engine = **`realtime`** ⇒ **303-A REFUTED.** Per the pre-registered
+    response, #303 closes as **NOT A DEFECT** (the `init` guess would have been
+    right whenever it mattered) with the log ordering documented so the next
+    reader does not re-file it. Then continue straight into §R6's own arm —
+    background the phone **before the header leaves `ESTABLISHING LINK`**, wait
+    60 s.
+  - engine = **`native`** ⇒ **303-A CONFIRMS the defect** on a host where
+    realtime WAS available, and **§R6's ghost bar stays blocked behind it** (a
+    native session cannot test the realtime ghost).
+- [ ] **V3-b — bar 303-B, the WARM contrast. Same sitting, same configuration —
+  not optional, and it cannot be run later.** Open voice from **inside** the app
+  (the path that does run `refreshReadiness()`). **If warm reaches `realtime`
+  and cold does not, that difference IS the defect, isolated** — which is why
+  the two arms are one row.
+
+**Evidence to capture — all four, with timestamps, per arm:**
+1. `active voice engine → … (initial; relayPaired=…)` — the `init` decision
+2. `activeBrain … → …  initiator=…` — the sticky-default restore, and whether
+   it lands AFTER line 1 (35 ms was the measured gap on build 2330)
+3. `voice session starting on engine … (relayPaired=…)` — the decision that
+   actually shipped
+4. **whether any `refreshReadiness` activity appears between 1 and 3** — its
+   absence on the cold path is the mechanism, and the entry's whole claim
+5. plus the host's `talk/readiness` `configured:` value, captured in the same
+   sitting (it is what makes the trial admissible at all)
+
+**Do NOT build the fix from this row.** The dispatch's stop-gate is explicit:
+no fix before 303-A runs. 303-C is a fix constraint, not a device check — any
+upgrade path must keep #221's downgrade direction intact and be **conjunctive**
+(`realtimeIsPermitted(for: activeBrain()) && isRelayPaired()`), so pairing or a
+healthy probe can never re-admit realtime against a forbidding brain. **A fix
+that makes 303-A pass by loosening the gate is a FAILURE, not a pass.** If cold
+routing changes, **#320**'s realtime-indicator lane must re-verify against the
+post-fix routing.
+
+**Verdict goes to `OPEN_ITEMS.md` #303** (and §R6's block for the #254-D half).

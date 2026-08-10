@@ -75,7 +75,17 @@ through: ~3.5–4.5 h; Group 8 is the big block.
   question appears exactly once; needs the forced-trip harness, not
   Airplane mode) · **302-A/B** (mic provably cold until unlock, both arms —
   the 302-C contract is ruled, this is its compliance measurement) ·
-  **#301** device repro attempt (n≥5, native voice; sim-only so far).
+  ~~**#301** device repro attempt (n≥5, native voice; sim-only so far)~~
+  **#301 — CORRECTED 2026-08-10, this bullet was stale when written: the
+  repro is SETTLED (deterministic, 3 occurrences / 0 clean), the site is
+  symbolicated, and the fix is merged (PR #300). No repro attempt is owed.
+  What the device owes is 301-C's NEGATIVE CONTROL, and it requires a
+  FRESH INSTALL** — the discriminator is authorized-vs-notDetermined, not
+  sim-vs-device, and an OTA upgrade-in-place preserves TCC grants so it can
+  never reach the crashing path.
+- **All three of the above now have checkbox rows** —
+  `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§V** (added 2026-08-10; §V1 =
+  #302-A/B, §V2 = #301, §V3 = #303-A/B). §8's gap 1 is closed.
 - **Debug-build-only:** **R2 / 250T-C** — island icon via the throwaway
   Live Activity button (~2 min). Needs a Debug stage, or I drive it on the
   preserved CC-250 sim whenever you say.
@@ -162,9 +172,19 @@ view.** Full record at #74's entry.
 
 ## 8 · Two documented gaps (flagged, not fixed here)
 
-1. **#301/#302/#303's device rows exist only as prose** inside R6/R7's
+1. ~~**#301/#302/#303's device rows exist only as prose** inside R6/R7's
    write-ups and their OPEN_ITEMS entries — not yet checkbox rows in the
    device list. Whoever opens the next sitting should fold them in (§2's
-   "new this wave" bullets are the content).
+   "new this wave" bullets are the content).~~
+   **✅ CLOSED 2026-08-10 — folded in as `dispatch/DEVICE-PASS-RUNNING-LIST.md`
+   §V** (§V1 #302-A/B · §V2 #301 · §V3 #303-A/B), with pointers added at §R6,
+   §R7 and §F3 so a runner arriving at the old prose finds the rows. **Two
+   things the fold-in found that this index had wrong**, both corrected
+   upstream and noted in §2: **#301's bullet was stale** (repro settled, fix
+   merged — what's owed is the negative control, on a FRESH INSTALL), and
+   the #302/#303 evidence **straddles two log subsystems**
+   (`org.aethyrion.talaria` for the capture/router lines,
+   `org.aethyrion.talaria27` for AppLock), so a single-subsystem log filter
+   cannot score §V1 at all.
 2. `/tmp/gate-282/` logs are deliberately preserved as PR #304's evidence —
    confirm before anyone deletes them.
