@@ -2717,3 +2717,27 @@ the emitted `router: CROSSCHAT` lines are the authoritative artifact (the
 results screen has no error indicator). **The verdict decides Shape A:** ≥90%
 armed → the corpus-widening lane opens; a miss → Shape A is dead before any
 corpus work, and that is a RESULT.
+
+### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · **[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]**
+
+**Prerequisite:** a build at or past PR #293's merge (`5029d22`) — the staged
+OTA covers it. A remote (Hermes) profile active.
+
+Three arms, in order; evidence for (ii) and (iii) is the **host's `agent.log`**
+(no POST for the held message), not the phone's screen:
+
+1. **(i) The feature:** send a turn; while it streams, commit a follow-up via
+   the queue control beside Stop (the chip shows "QUEUED", never "sent");
+   watch it fire exactly once after the answer lands.
+2. **(ii) The defining negative (Owen's O2):** compose mid-turn, press
+   **Stop** → NOTHING posts (host log), and the text is back in the composer
+   (one extra tap is the deliberate price — "Stop means stop").
+3. **(iii) The recovery hold:** compose mid-turn, background the app past the
+   stall guard so recovery arms → the message WAITS for the reconcile rather
+   than posting into it (the #307 corruption scenario, live); after the
+   reconcile adopts, the queued message fires (or surfaces, if the turn
+   failed).
+
+**Also worth one glance (feel, not a bar):** the chip's Edit/Cancel; a held
+message surviving New Chat and SURFACING on return from the drawer (the O8
+question you're ratifying rides this behavior).
