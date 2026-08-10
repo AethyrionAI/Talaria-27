@@ -1226,8 +1226,7 @@ struct ChatStorePersistenceTests {
     ///
     /// **DISABLED for the same reason as 282-A** — the guard was not written;
     /// see tracker #299 and #282's entry. Assertions byte-unchanged.
-    @Test(.disabled("tracker #282: awaits Owen's decision — see tracker #299, the STOP this lane hit"))
-    @MainActor
+    @Test @MainActor
     func theSurvivingFailedRowIsAppendedAtTheTail() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
         let failedID = UUID(), retryID = UUID()

@@ -1296,8 +1296,7 @@ struct AppStoresTests {
     /// is byte-unchanged from the run quoted above: delete the trait and it
     /// reproduces. It is disabled rather than inverted because a missed bar is
     /// a falsification, never a redefinition.
-    @Test(.disabled("tracker #282: awaits Owen's decision — see tracker #299, the STOP this lane hit"))
-    func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
+    @Test func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
         let failedID = UUID(), successID = UUID(), serverID = UUID()
         let local = [
             Message(id: failedID, clientMessageID: failedID, sender: .user,
