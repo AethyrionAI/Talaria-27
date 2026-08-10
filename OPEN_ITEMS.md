@@ -273,6 +273,23 @@ or removing** files requires `xcodegen generate` + committing the regenerated
 needed since project setup: no files had been added since.)
 **Optional improvement:** enable synchronized folder groups so new files auto-include.
 
+> **↪ UPDATE 2026-08-10 (#319's lane): the regen is now IDEMPOTENT, and the
+> hand-revert step is GONE.** Until today `xcodegen generate` also rewrote
+> `Talaria.xcscheme`'s four `BuildableName` attributes to `"Talaria.app"` — a
+> product that does not exist — so "run xcodegen and commit it" carried an
+> unwritten second step: revert the scheme by hand. Every lane that added a
+> Swift file paid it (#257's note records doing exactly that), and reverting
+> the whole file also dragged the scheme's `version` backwards, silently
+> re-opening archived #52.
+> **Root cause:** XcodeGen's model of a product name is the target's
+> `productName` (default: the TARGET name), never the `PRODUCT_NAME` build
+> setting. `project.yml` now declares `productName: "Talaria 27"` on the app
+> target. **Verified:** two consecutive `xcodegen generate` runs produce
+> byte-identical output, and the compensating `TEST_HOST` override that
+> existed for the same reason has been removed as provably redundant.
+> **So the standing rule is now exactly what it says** — regenerate, commit
+> the result, nothing else.
+
 ---
 
 ## 6. 📝 config.yaml provider normalization (acknowledged)
@@ -6079,6 +6096,66 @@ also rewrites, so a working tree mid-test is not a valid baseline.
 touches the display-name / Siri-phrase decision Owen deferred at the
 2026-08-09 decision pass.
 
+### ✅ FIXED 2026-08-10 — all three bars MET, `GATE: PASS` — one line of spec, and the hard stop was never reached
+
+**The root cause, and why "pin the version" would never have worked.**
+XcodeGen has its own model of a target's product name: the spec key
+`productName`, which **defaults to the TARGET name** and is **never read from
+the `PRODUCT_NAME` build setting**. So `PRODUCT_NAME: "Talaria 27"` renamed the
+real product while XcodeGen went on believing it was building `Talaria.app`,
+and every generate re-asserted that belief into the scheme. **A version pin
+would have frozen the wrong belief in place**, exactly as the entry predicted;
+this is a spec omission, not a regression, and it has been wrong since the
+product was renamed.
+
+**The fix** is `productName: "Talaria 27"` on the app target in `project.yml`
+— nothing else. **`PRODUCT_NAME` was NOT touched, so the deferred display-name
+decision is untouched and the pre-registered hard stop never fired.**
+
+**It fixed the `TEST_HOST` derivation at the same time**, because that
+derivation reads the same property. The compensating override — and the comment
+saying *"XcodeGen's auto-derived TEST_HOST (Talaria.app/Talaria) is wrong"* —
+is **removed**: generating with and without it produced **byte-identical**
+`project.pbxproj`, both carrying
+`TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27"`.
+
+**BARS:**
+- **319-A — MET.** Baseline captured first, on a tree Xcode had never opened
+  (`git status` clean, no `xcuserdata`): one `xcodegen generate` produced the
+  filed damage exactly — four `BuildableName` flips to `"Talaria.app"`, the
+  scheme `version` 1.3 → 1.7, `parallelizable = "NO"` added to the UITest
+  testable, plus `runPostActionsOnFailure`, `onlyGenerateCoverageForSpecified‑
+  Targets` and three empty `<CommandLineArguments>` elements.
+  **After the fix:** `diff -r` between the whole `.xcodeproj` after run N and
+  after run N+1 is **empty — byte-identical**;
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  = **0**, and `"Talaria 27.app"` = **4**, unchanged from the committed scheme.
+- **319-B — MET.** The regenerated project builds `Talaria 27.app` and both
+  test bundles, and the suite RAN: **2005 Swift Testing tests + 14 XCUITest**,
+  `** TEST SUCCEEDED **`. The removed `TEST_HOST` override is not merely
+  unnecessary on paper — the tests actually load into the host without it.
+- **319-C — MET.** `GATE: PASS — logs in /tmp/gate-300-319-final2`, on the
+  regenerated project, with a clean Release build alongside. The gate and the
+  regen agree about the product name.
+
+**The 1.3→1.7 and `parallelizable` churn: same root, and now explained.**
+It was never a second bug. `TalariaShare.xcscheme` and
+`TalariaWidgets.xcscheme` were **already** at `version = "1.7"` in the committed
+tree; only `Talaria.xcscheme` sat at `"1.3"` — and it is the only one anyone
+ever hand-reverted. Reverting the file to undo the name damage dragged the
+version and the newer default attributes back with it, so the next regen
+re-applied them, forever. All of it is semantically inert (explicit defaults
+and empty elements), it is committed once here, and the regen is now stable.
+**Archived #52, which closed this very drift in August, had been quietly
+re-opened by the workaround for #319** — an append-only pointer records that
+under its entry.
+
+**A residual worth knowing:** the generated `PBXNativeTarget` still carries
+`productName = Talaria` as its own attribute while its `productReference` is
+now correctly `Talaria 27.app`. That is XcodeGen's internal bookkeeping, it
+matches the target name, and nothing reads it for a path — noted so the next
+person greps it and does not think the fix is half-applied.
+
 ---
 
 ## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. NOT STARTED; bars pre-register here before any code.**
@@ -9408,6 +9485,12 @@ full battery.
 >   chip) for the concurrent ChatScreen lane's rebase. New files went
 >   through `xcodegen generate`; the known Talaria.xcscheme BuildableName
 >   churn was reverted by hand ("Talaria 27.app" stands).
+>   **↪ 2026-08-10 (#319): that hand-revert is no longer needed by anyone.**
+>   The churn's root cause — XcodeGen deriving the product name from the
+>   TARGET name rather than `PRODUCT_NAME` — is fixed in `project.yml`
+>   (`productName: "Talaria 27"`), and the regen is now byte-for-byte
+>   idempotent. This note stays as the record of what the lane actually did;
+>   do not copy the procedure.
 >
 > **BAR STATUS after phase 2 (evidence beside each):**
 > - **257-1-C: MET** (unit, phase 1 — above).

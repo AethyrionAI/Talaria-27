@@ -226,7 +226,23 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 ## Hard-won gotchas (do not relitigate)
 
 - **`xcodegen generate` is mandatory** after adding/removing Swift files (explicit source
-  listings, not synchronized folder groups).
+  listings, not synchronized folder groups). **It is also, since #319
+  (2026-08-10), IDEMPOTENT — regenerate, commit the result, and that is the
+  whole procedure.** There used to be an unwritten second step: every regen
+  rewrote `Talaria.xcscheme`'s four `BuildableName` attributes to
+  `"Talaria.app"`, a product that does not exist, and each lane reverted the
+  file by hand. **The cause was never a version drift and pinning XcodeGen was
+  never the fix** — XcodeGen's model of a product name is the target's
+  `productName`, which defaults to the TARGET name and is **not** read from the
+  `PRODUCT_NAME` build setting, so `PRODUCT_NAME: "Talaria 27"` renamed the real
+  product without XcodeGen ever knowing. `project.yml` now declares
+  `productName: "Talaria 27"` on the app target; two consecutive runs are
+  byte-identical. The same one line fixed the derived `TEST_HOST`, so the
+  compensating override is **removed** — generating with and without it produced
+  byte-identical `project.pbxproj`. **If you ever see a hand-revert of a
+  generated file in a procedure, that is a root cause with a workaround stapled
+  over it**: this one also dragged the scheme's `version` backwards each time and
+  silently re-opened archived #52.
 - **NEVER claim a `:8642` route from a `web_server.py` grep — read
   `gateway/platforms/api_server.py`'s `_http_route_table()`, which is the whole list.**
   **This rule exists because it was learned the hard way on 2026-08-02** (the #21
