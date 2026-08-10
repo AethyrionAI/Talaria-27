@@ -946,28 +946,32 @@ struct ChatStorePersistenceTests {
         ]
     }
 
-    /// **282-B — THE BASELINE.** A characterization, not a defect pin: it
-    /// records what the Hermes-path reconcile merge produces TODAY, before
-    /// the demand-side guard exists, so that every other tracker #282 result
-    /// is read against a measured array rather than an assumed one.
+    /// **282-B — THE BASELINE, and since 2026-08-10 also bar 299-A.** A
+    /// characterization: it records what the Hermes-path reconcile merge
+    /// produces, so that every other tracker #282 result is read against a
+    /// measured array rather than an assumed one.
     ///
-    /// The shape is `attemptReconcile`'s (`ChatStore.swift:2476`): the WHOLE
-    /// local transcript merged onto the WHOLE server transcript. Rows born
-    /// in-app carry client ids, so tiers 1 and 2 both miss them and the
-    /// content claim is the only confirmation a user row has.
+    /// The shape is `attemptReconcile`'s: the WHOLE local transcript merged
+    /// onto the WHOLE server transcript. Rows born in-app carry client ids,
+    /// so tiers 1 and 2 both miss them and the content claim is the only
+    /// confirmation a user row has.
     ///
-    /// **🔴 THE MEASURED BASELINE ALREADY CONTAINS DUPLICATES, and they are
-    /// ASSISTANT rows — `["Q1", "A1", "Q2", "A2", "A1", "A2"]`.** This is
-    /// tracker #299, filed from this run, and it is NOT tracker #282's to fix.
-    /// The claim tier is restricted to `.user`, so a `.hermes` row born in-app
-    /// has NO confirmation tier at all: it fails tier 1 (client id ≠ the
-    /// host's `stableMessageID`), fails tier 2 (the gateway echoes no
-    /// `clientMessageID`), is not eligible for tier 3, survives, and is
-    /// appended. `Conversation.dedupingAdoptedEchoes` cannot collapse the
-    /// pair because the phone's clock and the host's are different clocks.
-    /// The two user rows are single ONLY because the content claim absorbs
-    /// them — which is precisely the mechanism tracker #282's ruling removes
-    /// for settled rows.
+    /// **HISTORY (superseded 2026-08-10 by tracker #299's fix): as measured
+    /// at `12ed25b` this baseline contained ASSISTANT duplicates —
+    /// `["Q1", "A1", "Q2", "A2", "A1", "A2"]`.** A `.hermes` row born in-app
+    /// had NO confirmation tier at all: it failed tier 1 (client id ≠ the
+    /// host's `stableMessageID`), failed tier 2 (the gateway echoes no
+    /// `clientMessageID`), was not eligible for tier 3, survived, and was
+    /// appended — and `Conversation.dedupingAdoptedEchoes` cannot collapse
+    /// the pair because the phone's clock and the host's are different
+    /// clocks. That finding was filed as tracker #299, and #299's
+    /// adoption-time identity (`ChatStore.serverIdentityAdoptions`) now
+    /// confirms those rows by turn structure, so the assertion below pins the
+    /// CLEAN array. The claim-tier half of the story is unchanged: the two
+    /// user rows are single ONLY because the content claim absorbs them —
+    /// precisely the mechanism tracker #282's ruling removes for settled
+    /// rows (assistant rows do not depend on it; their turn anchoring is
+    /// #299's own and consumes no claims).
     @Test @MainActor
     func theHermesReconcileMergeBaselineBeforeScopingTheClaim() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
@@ -987,20 +991,21 @@ struct ChatStorePersistenceTests {
         await store.loadConversation()
 
         let messages = try #require(store.conversation?.messages)
-        #expect(messages.map(\.content) == ["Q1", "A1", "Q2", "A2", "A1", "A2"])
+        #expect(messages.map(\.content) == ["Q1", "A1", "Q2", "A2"])
     }
 
-    /// **tracker #299 evidence — is the assistant duplication BOUNDED?** The
-    /// question 282-B's baseline immediately raises: #237's corruption
-    /// COMPOUNDED (32 → 128), and a defect that doubles the transcript on
-    /// every reconcile is a different severity from one that adds a single
-    /// extra copy and then stops.
-    ///
-    /// Measured here rather than argued: a SECOND reconcile against the same
-    /// host transcript. `stableMessageID` is deterministic (#237), so the
-    /// re-fetch reproduces the same ids, the first merge's adopted rows now
-    /// confirm at tier 1, and #281's supply gate mints no claims at all. The
-    /// only rows without a tier are the same two client-id assistant rows.
+    /// **tracker #299 evidence, then bar 299-B — the merge is IDEMPOTENT
+    /// across a second fetch.** As filed this test measured whether the
+    /// assistant duplication was BOUNDED (#237's corruption COMPOUNDED,
+    /// 32 → 128, so severity turned on it): one extra copy per row, then
+    /// stable. **Superseded 2026-08-10 by #299's fix** — the first merge now
+    /// adopts the host's identity for the in-app assistant rows too, so
+    /// `afterFirst` pins the CLEAN array and this test's remaining job is
+    /// the boundedness half: a second reconcile against the same host
+    /// transcript changes nothing. `stableMessageID` is deterministic
+    /// (#237), so the re-fetch reproduces the same ids, the first merge's
+    /// adopted rows confirm at tier 1, and #281's supply gate mints no
+    /// claims at all.
     @Test @MainActor
     func theHermesReconcileMergeDoesNotCompoundAcrossASecondFetch() async throws {
         let localBase = Date(timeIntervalSince1970: 1_754_000_000)
@@ -1026,8 +1031,70 @@ struct ChatStorePersistenceTests {
         await store.loadConversation()
         let afterSecond = try #require(store.conversation?.messages).map(\.content)
 
-        #expect(afterFirst == ["Q1", "A1", "Q2", "A2", "A1", "A2"])
+        #expect(afterFirst == ["Q1", "A1", "Q2", "A2"])
         #expect(afterSecond == afterFirst)
+    }
+
+    /// **299-C** — a drawer-reopened thread (every row already carrying the
+    /// host's `stableMessageID`) merges IDENTICALLY before and after the #299
+    /// adoption pass: everything confirms at tier 1, so there is nothing
+    /// locally born for the adoption to pair, and the merged rows keep the
+    /// exact ids the host minted. Verified green against unmodified
+    /// production first, then again with the fix — the pin is "no change on
+    /// tier 1's path", not a new behaviour.
+    @Test @MainActor
+    func aDrawerReopenedThreadMergesIdenticallyWithNothingToAdopt() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let hostRows = serverTranscript(
+            [(.user, "Q1"), (.hermes, "A1"), (.user, "Q2"), (.hermes, "A2")],
+            base: localBase
+        )
+        let (store, client, _, _) = makeMirroredStore(history: hostRows, shape: .hermesFetchCache)
+        await store.loadConversationIfNeeded()
+
+        client.currentConversation = Conversation(
+            title: Conversation.defaultTitle, messages: hostRows
+        )
+        await store.loadConversation()
+
+        let messages = try #require(store.conversation?.messages)
+        #expect(messages.map(\.content) == ["Q1", "A1", "Q2", "A2"])
+        #expect(messages.map(\.id) == hostRows.map(\.id))
+    }
+
+    /// **299-D** — adopted identity survives persistence: save → cold load →
+    /// re-reconcile, still no duplicates (the #277/#278 corruption family's
+    /// standard round-trip check). The merge's output rows carry the host's
+    /// stable ids, so a process death between reconciles must not resurrect
+    /// the client ids and re-open the seam — the reborn store's re-reconcile
+    /// has to confirm everything at tier 1 with nothing left to adopt.
+    @Test @MainActor
+    func adoptedIdentitySurvivesAColdLoadAndAReReconcile() async throws {
+        let localBase = Date(timeIntervalSince1970: 1_754_000_000)
+        let (store, client, _, persistence) = makeMirroredStore(
+            history: inAppHermesHistory(base: localBase), shape: .hermesFetchCache
+        )
+        await store.loadConversationIfNeeded()
+
+        let hostView = Conversation(
+            title: Conversation.defaultTitle,
+            messages: serverTranscript(
+                [(.user, "Q1"), (.hermes, "A1"), (.user, "Q2"), (.hermes, "A2")],
+                base: localBase.addingTimeInterval(0.5)
+            )
+        )
+        client.currentConversation = hostView
+        await store.loadConversation()   // adopts + persists the merged rows
+
+        // Cold load: a fresh store over the same persistence and client.
+        let reborn = ChatStore(hermesClient: client, persistence: persistence)
+        await reborn.loadConversationIfNeeded()
+        client.currentConversation = hostView
+        await reborn.loadConversation()  // re-reconcile after the cold start
+
+        let messages = try #require(reborn.conversation?.messages)
+        #expect(messages.map(\.content) == ["Q1", "A1", "Q2", "A2"])
+        #expect(messages.map(\.id) == hostView.messages.map(\.id))
     }
 
     /// **282-D — the settled-historical hole. PREDICTED RED under the
