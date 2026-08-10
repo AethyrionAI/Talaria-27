@@ -251,6 +251,18 @@ struct StreamStallGuardTests {
                 client?.urlProtocolDidFinishLoading(self)
                 return
             }
+            if url.path == "/api/model/options" {
+                // #241: the create path probes the catalog before POSTing the
+                // session. This fixture is about stream loss, not model
+                // resolution — 404 it and FINISH, so the client takes its
+                // designed degrade-to-bare path instead of inheriting the
+                // zombie stream's never-closing socket (which stalls the
+                // create and cancels the turn before the zombie is ever met).
+                let notFound = HTTPURLResponse(url: url, statusCode: 404, httpVersion: nil, headerFields: nil)!
+                client?.urlProtocol(self, didReceive: notFound, cacheStoragePolicy: .notAllowed)
+                client?.urlProtocolDidFinishLoading(self)
+                return
+            }
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: Self.streamBody ?? Data())
             // Deliberately NOTHING else: the connection stays open forever.
