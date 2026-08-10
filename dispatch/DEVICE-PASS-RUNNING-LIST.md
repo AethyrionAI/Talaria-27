@@ -2367,6 +2367,12 @@ Three rows the tracker had queued nowhere. Verified absent before adding:
 `grep -n "#256\|#252\|#249\|#250\|island\|Island"` over this file returned zero
 matches across 2,130 lines. **One queue — these are not restated in `OPEN_ITEMS.md`.**
 
+> **⚠️ HEADING NO LONGER COVERS ALL THREE (2026-08-10).** **R2 is no longer a
+> standing watch — it is a runnable, queueable check**, because the
+> `t27-250-debug-island-trigger` lane built the Debug trigger Owen ruled for on
+> 2026-08-09. R1 and R3 are still passive. Read this heading as "…and standing
+> watches, minus R2."
+
 ### R1 · #256-E (2nd half) + #249F-D — reminder phrasing, PASSIVE
 
 > **Ownership note, 2026-08-09 (archive sweep): #256 is now in
@@ -2391,20 +2397,55 @@ settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening)
 **Record the model's exact words.** Both are text bars, and the failure mode they guard
 against is a *mined phrase*, not a wrong time.
 
-### R2 · #250-E — the Dynamic Island wears the selected icon, STANDING WATCH
+### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ **✅ NOW RUNNABLE — QUEUE IT (2026-08-10)**
 
-**Currently UNTRIGGERABLE on demand** — Owen's own words: he cannot consistently bring
-the island up. No Debug harness trigger exists (it would live beside the other harness
-buttons — `grep "toollessIndexBatteryButton"` for the pattern). **Do not schedule this;
-it is a watch, not a runnable check.**
+> **▶ THE TRIGGER EXISTS AS OF 2026-08-10** (`t27-250-debug-island-trigger`,
+> bars 250T-A/B in OPEN_ITEMS #250). The "untriggerable" preamble below is
+> **superseded** — it was true from filing until this lane landed, and is kept
+> for the record rather than deleted.
+>
+> **How to run it now, on a DEBUG build:** Settings → Developer →
+> *Batteries (#200 harness)* → the **`// Live Activity — #250 R2`** panel →
+> **"Start throwaway Live Activity (#250 R2)"**. That starts a labelled
+> throwaway through the REAL `LiveActivityService` — the same
+> `Activity.request` and the same `HermesActivityAttributes` a real run uses,
+> so the island's leading icon slot renders exactly what a real run would put
+> there. It **ends itself after 60 s**, and a second tap ("End throwaway")
+> ends it early.
+>
+> **Three things to know before running it:**
+> - **DEBUG builds only.** The button is compiled out of Release, so an
+>   OTA/TestFlight Release build will not have it.
+> - **If the panel warns that Live Activities are disabled**, turn them on in
+>   Settings → Talaria → Live Activities first — nothing will appear otherwise,
+>   and that is the OS, not a #250 failure.
+> - **Let it end.** Live Activities draw on a system budget; the auto-end is
+>   there so repeated harness taps cannot starve the REAL run activity. If the
+>   island starts behaving oddly after many taps, wait the window out before
+>   concluding anything about #250.
+>
+> **This row is now a ~2-minute check, and 250T-C is the bar it settles.** The
+> sim bars did NOT verify any icon — 250T-B proves the trigger drives the real
+> service and leaks nothing; **what the island actually renders is unverified
+> and is this row's to answer.**
 
-When an island does appear during real use: its leading icon slot must match the icon
+*(original row text follows, kept for the record — its first paragraph is the
+superseded part)*
+
+**~~Currently UNTRIGGERABLE on demand~~** — Owen's own words: he cannot consistently bring
+the island up. ~~No Debug harness trigger exists (it would live beside the other harness
+buttons — `grep "toollessIndexBatteryButton"` for the pattern).~~ ~~**Do not schedule this;
+it is a watch, not a runnable check.**~~
+
+When an island does appear ~~during real use~~ **(now: on demand, per the trigger above)**: its
+leading icon slot must match the icon
 selected in Settings → Appearance → App Icon — both right after a switch, and on a
 fresh cold-launch island. Bars 250-A/B/C are MET and the home-screen half is already
 confirmed; this is the only unverified half.
 
-*(Whether to build the Debug trigger and make this runnable is Owen's call — see
-`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.)*
+*(~~Whether to build the Debug trigger and make this runnable is Owen's call — see
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.~~ **Owen ruled BUILD on 2026-08-09;
+built 2026-08-10.**)*
 
 ### R3 · #250-A tinted variant — one look, no setup
 

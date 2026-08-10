@@ -1,5 +1,20 @@
 # OPUS T27-132 — the honesty floor: a caption-less image turn ships an explicit instruction, not a lone `image_url`
 
+> **✅ EXECUTED AND CLOSED 2026-08-10 — this brief is HISTORY, not a live lane.**
+> Branch `t27-132-image-floor`: `8d67a59` (bars) → `f63c6ee` (the floor) → `f7aed66`
+> (test hygiene). `GATE: PASS`, Swift Testing 2015 / XCUITest 14 / Release clean.
+> **#132 is CLOSED and its entry now lives in `OPEN_ITEMS-ARCHIVE.md`** — read that for
+> the result; read this only for the reasoning that produced it.
+>
+> **Two things this brief got right that are worth keeping:** the floor belongs in
+> `AttachmentInlining.assemble` (the one place both planes build parts, and where the
+> budget arithmetic already lives), and the §1 voice-path check was worth demanding —
+> the answer was **UNREACHABLE in substance**, so `LiveVoiceSessionService.swift:404`
+> was left alone. **One thing to correct:** §2's sketch "examine and describe/act on
+> them" was tightened to a single fixed template, and the shipped wording is
+> `[Talaria: the user attached N image(s) with no caption — examine it/them and respond
+> to what it shows/they show.]` — Owen approved it as drafted, 2026-08-10.
+
 **Item:** OPEN_ITEMS **#132**. **Difficulty: OPUS** — a bounded request-body
 change at known build sites. Ruled at the 2026-08-09 decision pass: *"ship the
 floor now; `auxiliary.vision` is the keeper; #132 CLOSES when the floor
