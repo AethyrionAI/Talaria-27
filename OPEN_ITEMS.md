@@ -5076,6 +5076,19 @@ local substitution — cited here to note this is *not* an instance of it).
 
 ## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING, NOT INVESTIGATED. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is the whole question. NOT STARTED; bars pre-register here before any code.**
 
+> **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
+> is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
+> you press the control center button, it unlocks and launches the app."* So:
+> the launch is ACCEPTED, the unlock prompt is part of the flow, and the voice
+> session proceeds only after unlock resolves — which means **the capture
+> chain must be provably COLD until unlock succeeds.** 302-A/B (the instrument
+> shipped in PR #300) now measure COMPLIANCE with a stated contract rather
+> than informing a choice: cold in both arms ⇒ the ordering is benign and the
+> item closes as NOT A DEFECT with the contract on record; hot in either ⇒ a
+> defect against this ruling, and the fix defers session start behind the
+> unlock. The cancelled-unlock arm (302-B, fixture updated post-#272) is the
+> one that can still surprise.
+
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 1 = this item, runs FIRST).** Note recorded there: bar 302-B's "trivially arranged while #272 is unfixed" fixture is STALE — #272 closed 2026-08-09; the locked interval is now held open via the fixed Cancel-then-UNLOCK-button state.
 
 **Observed** on build 2330 (`main` @ `6b71872`, Release OTA), `whoGoesThere`,
@@ -11943,6 +11956,15 @@ under `TEST SUCCEEDED` — suite-level selectors only; caught by the
 executed-count check both times it appeared today.
 
 ## 241. 🔭 **OPEN — TRACK-UPSTREAM (reopened 2026-08-09, and it STAYS live)** — 🐛 HERMES CORE (upstream): gateway sends its OWN self-name as the upstream model id on the nous provider, and reports the resulting non-retryable 404 to the client as HTTP 200 — ~~**✅ CLOSED 2026-08-09 (RECLASSIFIED, Owen's ruling). NOT an upstream bug: half is documented-by-design, half is OURS and moved to #180. The park is DISSOLVED — there was never anything to submit.**~~ **SUPERSEDED THE SAME DAY for half one — see the REOPENED block immediately below, which is the current state.**
+
+> **⚖️ RETRO-PIN RULED 2026-08-10 (Owen): LEAVE THE OLD SESSIONS.** Pre-fix
+> sessions on OJAMD keep the stored alias; no host-side pass will rewrite
+> them. Consequence, on record: those threads remain one host-config change
+> away from the 404-as-200 shape, and the standing ops rule (leave "API
+> server model name" EMPTY) is their only guard. New sessions are immune from
+> the #241 fix onward (`wireSafeModelID`). This closes the last named
+> decision on the immunity lane; the item stays open only as TRACK-UPSTREAM
+> (PR #72739) + bar 241-E on the OJAMD sitting.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-241-session-model-immunity.md`** — the immunity lane's brief (resolution rule: selection → catalog default → pin-after-first-turn fallback; bars 241-A..F proposed there; 241-E rides the OJAMD sitting). Joins Wave 1.
 
