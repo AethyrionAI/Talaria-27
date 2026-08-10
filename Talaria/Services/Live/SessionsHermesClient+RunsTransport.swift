@@ -172,6 +172,52 @@ extension SessionsHermesClient {
     /// otherwise recognize — forward-tolerant of new event types the way the
     /// rest of this client's SSE parsing is (see `decodeJSONString`,
     /// `thinkingDelta(fromToolProgress:)`).
+    // MARK: - The wire's `error` field is a UNION (296-C1, reopened 2026-08-10)
+
+    /// What a failure detail says when the host reports one and gives no words
+    /// for it.
+    ///
+    /// The wire's `error: true` carries exactly one bit — *something went
+    /// wrong* — so this reports that bit and **invents no reason**. A
+    /// fabricated `exit_code 1` would be worse than the ✓ it replaces: the
+    /// real-data-only rule, and #296's own thesis.
+    nonisolated static let unspecifiedHostError = "The host reported an error."
+
+    /// Reads `error` from a `tool.completed` frame or a run-status body, where
+    /// it is a **union** on the wire.
+    ///
+    /// **This function exists because `as? String` on a `Bool` is `nil`.** The
+    /// 2026-08-09 probe on the Mac's `:8642` caught the host sending
+    /// `"error": true` — a JSON boolean — so the parser returned no error, the
+    /// transport yielded no detail, and a failed (or DENIED) tool rendered a
+    /// clean ✓: #296's defect delivered through #296's own fix. Both readers
+    /// had guessed `String` because a string was the design guess; the wire
+    /// disagreed.
+    ///
+    /// - `String` → **verbatim**, including empty. A future host build may
+    ///   legitimately upgrade the flag to a message, and that must arrive
+    ///   intact. Empty stays empty rather than being normalized here: the
+    ///   "empty means nothing went wrong" decision already has a tested home
+    ///   in `ChatStore`'s `.completed` arm, and moving it would split one rule
+    ///   across two files.
+    /// - `Bool` `true` → ``unspecifiedHostError``.
+    /// - `Bool` `false`, absent, or any other type → `nil`. `false` is the host
+    ///   saying nothing went wrong; treating any present `Bool` as a failure
+    ///   would repaint every clean completion as interrupted — #296 inverted,
+    ///   which is exactly what 296-B guards.
+    ///
+    /// Numeric bridging, verified on the beta-4 toolchain rather than assumed:
+    /// `JSONSerialization` gives `__NSCFBoolean` for `true`/`false` and
+    /// `__NSCFNumber` for numbers, and Swift's `as? Bool` is value-preserving —
+    /// `1`/`0` bridge to `true`/`false` (harmless: a host that switches the
+    /// flag to 1/0 keeps working), while `7` and any object bridge to `nil`
+    /// and land in the tolerant tail.
+    nonisolated static func hostErrorDetail(_ value: Any?) -> String? {
+        if let text = value as? String { return text }
+        if let flag = value as? Bool { return flag ? unspecifiedHostError : nil }
+        return nil
+    }
+
     nonisolated static func parseRunsFrame(_ jsonPayload: String) -> RunsEvent? {
         guard let data = jsonPayload.data(using: .utf8),
               let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -187,7 +233,10 @@ extension SessionsHermesClient {
             return .toolStarted(name: toolName, preview: payload["preview"] as? String)
         case "tool.completed":
             guard let toolName = payload["tool"] as? String else { return nil }
-            return .toolCompleted(name: toolName, error: payload["error"] as? String)
+            // 296-C1: `hostErrorDetail`, NOT `as? String` — the host sends a
+            // Bool here and `as? String` drops it to nil (a clean ✓ on a
+            // failed tool).
+            return .toolCompleted(name: toolName, error: hostErrorDetail(payload["error"]))
         case "reasoning.available":
             guard let text = payload["text"] as? String else { return nil }
             return .reasoning(text)
@@ -285,7 +334,15 @@ extension SessionsHermesClient {
             else { return nil }
             self.status = status
             self.output = payload["output"] as? String
-            self.error = payload["error"] as? String
+            // 296-C1, the SECOND site with the same type bug. Quieter than
+            // the tool-chip one — a dropped value here produced
+            // `runFailureText("")`, an honest generic rather than a lie — but
+            // a host that only ever says `true` must not read as "reported
+            // nothing". Consequence, recorded deliberately: a `failed` run
+            // whose `error` is Boolean now surfaces
+            // `unspecifiedHostError` instead of "The Hermes run failed."
+            // Both are honest; this one reports what the wire actually said.
+            self.error = SessionsHermesClient.hostErrorDetail(payload["error"])
             self.rawJSON = String(decoding: data, as: UTF8.self)
         }
     }
@@ -531,13 +588,22 @@ extension SessionsHermesClient {
                     // on `.started`; `ChatStore` routes it to
                     // `ToolActivity.failure` and never over `detail`.
                     //
-                    // ⚠️ 296-C2 is NOT settled by this line. Whether the host
-                    // ever populates `error` on `tool.completed` is
-                    // unverified on the wire — the `exit_code 130` capture
-                    // everyone cites is a HOST LOG line, not an observed
-                    // frame. Plumbing a field is not evidence the field
-                    // arrives. If it never does, this costs nothing and is
-                    // still the honest home for the value.
+                    // ✅ 296-C2 IS SETTLED — corrected 2026-08-10, and the
+                    // answer falsified the paragraph that stood here (which
+                    // said the field's arrival was "unverified on the wire").
+                    // A direct probe on the Mac's `:8642` (2026-08-09) caught
+                    // the frame: the host DOES populate `error`, as a JSON
+                    // **boolean** (`"error": true`), on both a failed tool and
+                    // a stopped one — and it carries no failure text at all,
+                    // so the host's own WORDS never ride this event. See
+                    // `hostErrorDetail`, which is what stops the Bool being
+                    // dropped on a type mismatch.
+                    //
+                    // Consequence worth keeping in view: failed and stopped
+                    // are INDISTINGUISHABLE on this wire (both `error: true`,
+                    // no reason). Only the client's own local knowledge tells
+                    // them apart — which is 296-A, and why that path stays
+                    // separate from this one.
                     continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed, detail: error)))
                 case .runCompleted(let output, let rawJSON):
                     let usage = Self.decodeRunUsage(rawJSON)
