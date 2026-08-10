@@ -69,6 +69,73 @@ final class MessageIdentityUITests: XCTestCase {
         }
     }
 
+    /// #306 bar 306-J (XCUITest half): while a turn streams, the composer
+    /// offers a queue-commit control; committing renders the chip (door
+    /// name, text, cancel affordance) and posts NOTHING; Cancel removes it
+    /// with nothing posted — before, during, or after the turn.
+    ///
+    /// Rides the same deterministic on-device synthetic turn as the #120
+    /// probe, with `UITEST_STREAM_DWELL_SECONDS` widening the stream window
+    /// so typing + committing can happen inside it.
+    @MainActor
+    func testQueuedChipCancelRemovesHeldMessageWithNothingPosted() throws {
+        let context = Context()
+        let app = makeApp(context: context)
+        // Generous window: every XCUI query below must land inside it — if
+        // the turn completes with the hold still committed, the hold FIRES
+        // (correct app behavior, wrong test premise) and the cancel arm is
+        // unreachable.
+        app.launchEnvironment["UITEST_STREAM_DWELL_SECONDS"] = "20"
+        app.launch()
+
+        guard let composer = waitForComposer(in: app, timeout: 15) else {
+            XCTFail("chat composer should be reachable on launch")
+            return
+        }
+
+        // Start a turn.
+        composer.tap()
+        composer.typeText("first")
+        let send = app.buttons["Send message"]
+        XCTAssertTrue(send.waitForExistence(timeout: 5))
+        send.tap()
+
+        // Mid-turn: type the follow-up and commit it through the queue door.
+        composer.tap()
+        composer.typeText("q2")
+        let queueButton = app.buttons["Queue message"]
+        XCTAssertTrue(
+            queueButton.waitForExistence(timeout: 8),
+            "306-J: the queue-commit control must appear while a turn streams with text composed"
+        )
+        queueButton.tap()
+
+        // The chip renders — with a cancel affordance.
+        let chip = app.otherElements["chat.queuedChip"]
+        XCTAssertTrue(chip.waitForExistence(timeout: 5), "306-J: the held message renders as a composer chip")
+        let cancel = app.buttons["chat.queuedChip.cancel"]
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5), "306-J: the chip carries a cancel affordance")
+
+        // Cancel removes it…
+        cancel.tap()
+        let deadline = Date(timeIntervalSinceNow: 5)
+        while chip.exists, Date() < deadline {
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.25))
+        }
+        XCTAssertFalse(chip.exists, "306-J: Cancel must remove the chip")
+
+        // …and nothing was posted: the running turn answers, the cancelled
+        // text never does — no reply for it, no user bubble of it.
+        let firstReply = app.staticTexts["Acknowledged first"]
+        XCTAssertTrue(firstReply.waitForExistence(timeout: 40),
+                      "the original turn should still complete normally")
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 2))
+        XCTAssertFalse(app.staticTexts["Acknowledged q2"].exists,
+                       "306-J: a cancelled held message must never post")
+        XCTAssertFalse(app.staticTexts["q2"].exists,
+                       "306-J: a cancelled held message must leave no transcript row")
+    }
+
     // MARK: - Helpers
 
     @MainActor

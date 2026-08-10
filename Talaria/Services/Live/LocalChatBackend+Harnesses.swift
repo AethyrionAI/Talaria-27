@@ -156,7 +156,18 @@ extension LocalChatBackend {
     /// Dwell strictly longer than one poll interval (2s) so at least one
     /// `loadConversation()` merge is guaranteed to land after the reply is
     /// appended but before `.finished` is yielded.
-    private static var uiTestIdentityDwell: Duration { .seconds(2.6) }
+    ///
+    /// #306: `UITEST_STREAM_DWELL_SECONDS` widens the window for tests that
+    /// need time to INTERACT with a live stream (typing + committing a
+    /// mid-turn hold) rather than merely observe one. DEBUG-only like the
+    /// rest of this harness; absent = the #120 default.
+    private static var uiTestIdentityDwell: Duration {
+        if let raw = ProcessInfo.processInfo.environment["UITEST_STREAM_DWELL_SECONDS"],
+           let seconds = Double(raw), seconds > 0 {
+            return .seconds(seconds)
+        }
+        return .seconds(2.6)
+    }
 
     // harness-entry: called from the production send path in
     // LocalChatBackend.swift behind a UITest/forced-trip flag. `fileprivate`
