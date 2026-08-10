@@ -8327,6 +8327,132 @@ are now on the table where the dispatch expected two:
    dispatch's option 2) with one mechanism. **That is a recommendation, not a
    build.**
 
+### BARS — RESUMED LANE, re-pre-registered 2026-08-10, BEFORE ANY CODE
+
+Lane `claude/t27-282-claim-demand-scope`, re-branched off `main` at
+**`25a713d`** (the tracker #299 merge, PR #303). **Owen's final order runs
+this lane BEFORE tracker #279's successor work** — the dispatch's §6/§8
+"branch off main after #279 has merged" is SUPERSEDED; #279 merged as
+`12ed25b` and is already in this base anyway. **Tracker #282 is NOT GitHub
+PR #282.**
+
+**What carries forward unchanged from the 2026-08-09 halt.** The bars are the
+same seven, with the same assertions, and the tests for all seven are already
+in the tree — the halted lane wrote them and they merged with #299's PR.
+282-A and 282-F are committed `.disabled` with their watched-RED text in their
+doc comments; this lane deletes those traits and re-watches. **A missed bar is
+still a falsification, never a redefinition.**
+
+**Three things this resumed lane changes, and they are adjustments to the
+MEASUREMENT, not to the bars:**
+
+1. **282-B's baseline is now the CLEAN array.** #299's fix landed, so
+   `theHermesReconcileMergeBaselineBeforeScopingTheClaim` pins
+   `["Q1","A1","Q2","A2"]` and doubles as bar 299-A. The assistant-row STOP
+   condition that halted the 2026-08-09 lane **can no longer fire from that
+   source**. 282-B's job here is narrower and explicit: **confirm the clean
+   baseline holds PRE-change, and re-run it POST-change.** If it shows
+   duplicates pre-change that is a new finding and this lane stops again.
+2. **282-D and 282-E are RE-READ against the fixed merge before running**, per
+   the sequencing ruling. This lane's own read is recorded below, before the
+   run.
+3. **Every `ChatStore.swift` anchor has churned twice** (two waves since the
+   dispatch's `35c6234` read). Re-verified at `25a713d` and recorded below.
+
+**ANCHORS RE-VERIFIED AT `25a713d`** (the dispatch's numbers are all stale;
+mechanism unchanged at every one):
+
+| what | dispatch said | **at `25a713d`** |
+|---|---|---|
+| `unconfirmedLocalMessages` | `ChatStore.swift:2737` | **`:3384`** (doc comment `:3360-3383`) |
+| **the DEMAND predicate this lane changes** | `:2751` | **`:3398`** — `if localRow.sender == .user {` |
+| tier 1 (exact id) / tier 2 (`clientMessageID`) | `:2749` / `:2750` | **`:3396` / `:3397`** |
+| the SUPPLY side (#281's gate) | `:2744-2747` | **`:3391-3393`** |
+| the append site (survivors go to the TAIL) | `:2684` | **`:3327-3330`** — and its input is now `.filter { !adoptedLocalIDs.contains($0.id) }`, #299's wire-in |
+| `serverIdentityAdoptions` (#299, new) | — | **`:3444`** (doc `:3409-3443`) |
+| `mergeConversationMetadata` | — | **`:3198`**; adoptions computed `:3219` |
+| `attemptReconcile` | `:2420` | **`:2989`** |
+| `openSession`'s deliberate bypass | `:2092` | **`:2675`** |
+| `finalizeStaleSendsFromCache` (#56, T-4) | `:502-511` | **`:511`** |
+| `isSettled` | `MessageStatus.swift:19-24` | **unchanged, `:19-24`** — `.sending`/`.working`/`.queued` false; `.sent`/`.delivered`/`.failed` true |
+| **`.sent` is the DEFAULT** | `Message.swift:138` | **unchanged, `:138`** — correction 4.2's trap |
+| `mapStoredMessage`'s id fallback (case (b)) | `SessionsHermesClient.swift:1029-1035` | **`:1036` (func), `:1075` (`id: stableID ?? UUID()`), `:1079` (`status: .delivered`)** |
+| `mapStoredMessage`'s timestamp fallback | `:1000` | **`:1044`** — `?? .now`, a fresh clock per fetch |
+| `stableMessageID` | `:1045-1049` | **`:1089`** |
+| `dedupingAdoptedEchoes`' key | `Conversation.swift:50-60` | **unchanged, `:50-56`** — `timeIntervalSince1970` still in the key, untouched per the #237 trap |
+| the five pins | `AppStoresTests.swift:1202/1215/1228/1239/1253` | **unchanged, same five lines** |
+
+**THIS LANE'S OWN RE-READ OF 282-D AND 282-E AGAINST THE FIXED MERGE,
+recorded BEFORE the run (the sequencing ruling requires it; the #299 author's
+prediction is quoted in the unblock note above and this is an independent
+trace, not a restatement):**
+
+- **282-D — still predicts RED, and #299 is provably not the cause.** Traced
+  through `serverIdentityAdoptions` at `:3444` on 282-D's own fixture: remote
+  turn 1 anchors on "Q1", pairs local turn 1, and adopts the local `A1` onto
+  the host's `A1` — so `adoptedLocalIDs == {A1}` and the ASSISTANT half is
+  clean. The filter at `:3328` then hands `unconfirmedLocalMessages` the two
+  USER rows only. `U1` is `.delivered`: tier 1 misses (client id vs
+  `stableMessageID`), tier 2 misses (the host echoes no `clientMessageID`),
+  and under the guard tier 3 is closed to it — **so `U1` survives, appends at
+  `:3327`, and `dedupingAdoptedEchoes` cannot collapse it against the host's
+  "Q1" because their timestamps are a phone clock and a host clock.** Merged
+  user contents `["Q1","Q2","Q1"]`. **#299's adoption map consumes no claims
+  and touches no user row**, exactly as its author said — the guard neither
+  re-opens #299 nor is rescued by it.
+- **282-E — still predicts RED for the USER row, and the ASSISTANT sibling is
+  now bounded, which this lane expects to SEE rather than assume.** Second
+  fetch: the id-less host rows carry fresh `UUID()`s (`:1075`) and a fresh
+  `.now` (`:1044`). `serverIdentityAdoptions` anchors the turn by trimmed
+  content and adopts the local `A1` onto the new host `A1` — so the assistant
+  row does **not** grow, which is the half #299 quietly closed. The user row
+  gets no such pass: its local twin is `.delivered` (`:1079` stamped it),
+  the guard closes tier 3, nothing else can confirm it, and the user-row count
+  goes 1 → 2. **Case (b) inverts from a silent swallow into a per-fetch
+  duplicate, as the ruling's own correction block predicts.**
+
+**The bars, verbatim in assertion from the 2026-08-09 pre-registration:**
+
+- **282-A — unit, must go RED → GREEN. Case (a), the ruling's target.**
+  `local = [Failed(id: F, clientMessageID: F, .user, "X", status: .failed),
+  Success(id: S, clientMessageID: S, .user, "X", status: .sending)]`;
+  `refreshed = [Server(id: R, .user, "X", clientMessageID: nil)]`, `R ∉ {F,S}`.
+  Assert `unconfirmedLocalMessages` returns **`[Failed]`**. Statuses EXPLICIT
+  on every fixture row. **Watched RED verbatim at `25a713d` before the
+  change.** No device.
+- **282-B — unit, BASELINE, GREEN before AND after.** The clean array
+  `["Q1","A1","Q2","A2"]`. If it shows duplicates pre-change, the lane STOPS
+  and reports — that is a new finding, not this lane's to fix. No device.
+- **282-C — unit, REGRESSION, non-negotiable.** The five pins
+  (`AppStoresTests.swift:1202/1215/1228/1239/1253`) pass **byte-unmodified**;
+  the diff on their region is purely additive. If the change forces an edit to
+  any of them the change is wrong. No device.
+- **282-D — unit, PREDICTED RED under the ruling.** Assert no user row's
+  content appears twice in the merged transcript. GREEN pre-change first, then
+  the post-change result recorded VERBATIM whatever it is. No device.
+- **282-E — unit, PREDICTED RED under the ruling.** Assert the user-row count
+  is flat across two fetches of an id-less transcript. GREEN pre-change first,
+  then recorded verbatim. **No OJAMD probe — A3 stays unmeasured; this is a
+  unit bar.** No device.
+- **282-F — unit, PLACEMENT, and the lane states its answer.** **The answer
+  this lane pins: TAIL PLACEMENT IS ACCEPTED AND DOCUMENTED.** A survivor is
+  appended at `:3327`, so a rescued `.failed` row returns at the BOTTOM of the
+  transcript rather than above its retry. Reinsertion-in-place is a second
+  production edit the ruling does not authorise and that no bar has measured;
+  it is explicitly NOT built here. Assert the tail row's `id` and `status`, not
+  only the content array — the content array is identical either way, which is
+  what the 2026-08-09 run taught. No device.
+- **282-G — device, Owen. ONLY IF 282-D and 282-E come back GREEN
+  post-change.** Never run by this lane. If either is RED, **this run is not
+  requested** and parks.
+
+**Falsification, unchanged and binding.** If 282-A goes green and 282-D/282-E
+go RED, the ruling is correct for case (a) and insufficient as a whole change
+— **STOP after the mirror proof; do not widen scope, do not redefine a bar,
+do not build the dispatch's §7 options.** The deliverable becomes a
+MEASUREMENT PR. If 282-D/E come back GREEN, the code read is wrong and the
+ruling ships as written.
+
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
 `ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
