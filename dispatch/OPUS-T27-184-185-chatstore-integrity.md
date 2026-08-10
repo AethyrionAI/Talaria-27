@@ -1,11 +1,13 @@
 # OPUS-T27-184 + 185 — one teardown primitive, and attachments that match themselves
 
-> **⛔ SUPERSEDED 2026-08-10 — DO NOT RUN THIS DISPATCH.** Its fix WAS built
-> from this brief on 2026-07-26 (branch `claude/t27-184-185-chatstore-integrity`,
-> suite-green) and never merged; ChatStore has since absorbed #278/#296/#306/#307.
-> The live brief is `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`
-> (rebase-or-rederive, teardown matrix EXTENDED to #306-era state). This file
-> stays as the original derivation record only.
+> **✅ EXECUTED AND LANDED — nothing to run (corrected 2026-08-10, same day as
+> a wrong "never merged" banner briefly stood here).** The fix from this brief
+> landed on `main` as `5a185ba` (#184's teardown primitive) + `dab0172`-shape
+> (#185's unclaimed-pool dequeue, verified at HEAD `ChatStore.swift:3364-3402`),
+> and later lanes maintained the primitive (`5f98c0a`, `73f7378`). The earlier
+> banner trusted `git branch --contains`, which is blind to squash-merges — the
+> code read is the instrument. Remaining: the §F1 device row + #293(d)'s
+> insurance-clause residue. This file stays as the derivation record.
 
 
 **Items:** OPEN_ITEMS #184 + #185 (touches #136, #9, #21, #38) · **Repo:** AethyrionAI/Talaria-27 · **Base:** main

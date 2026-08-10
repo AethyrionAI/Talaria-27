@@ -4307,7 +4307,18 @@ Logged 2026-07-24 (review of PR #144).
 
 ## 184. 🐛 ChatStore has three teardown paths and each clears a different subset
 
-> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`** — the 07-26 fix branch (`claude/t27-184-185-chatstore-integrity`) is confirmed UNMERGED; the lane rebases-or-rederives at HEAD with the teardown matrix EXTENDED to #306-era state (held turns per the ratified O8 ruling, compose outbox, drain flag).
+> **✅ THE FIX IS ON MAIN — verified by code read 2026-08-10, on Owen's
+> "is this still necessary?" challenge.** `fix(#184)` landed as `5a185ba`
+> ("one teardown primitive — clear, openSession, and reset all call it") and
+> the primitive was MAINTAINED by every later lane: `5f98c0a` (#190 walk-away
+> persist), `73f7378` (#306 — hold parking per O8, approval-card exit, #295
+> capture release, #192 router-lock release). All three paths call
+> `abandonPendingRun(stopSpeech: true)` at HEAD (`ChatStore.swift:2667`,
+> `:2748`, plus `clearConversation`). **A 2026-08-10 dispatch
+> ("…chatstore-integrity-reland") briefly claimed the branch never merged —
+> RETIRED same day; `git branch --contains` is blind to squash-merges and the
+> code read is the instrument. Remaining on this item: the §F1 device row
+> ONLY.** Header correction rides the next sweep.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -4395,7 +4406,16 @@ it). NOT device-verified — sim suite only.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 
-> **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`** (shared lane with #184) — re-land the branch fix at HEAD; #293(d)'s distinct-or-fold judgment is made in that lane, on the code as re-landed.
+> **✅ THE FIX IS ON MAIN — verified by code read 2026-08-10 (same check as
+> #184's).** `mergeAttachments` at HEAD (`ChatStore.swift:3364-3402`) carries
+> the specced fix verbatim under its own `// #185:` comment — id-first,
+> dequeue from an `unclaimed` pool, same-index insurance. The 2026-08-10
+> reland dispatch is RETIRED unrun. **Remaining: the §F1 device row, and
+> #293(d)'s residue** — the insurance clause (`:3379`) reads
+> `localAttachments[safe: index]`, not `unclaimed`, so an already-claimed
+> entry can be handed again positionally (~15% reachable per the auditor).
+> (d) stays filed in #293 as free-bucket material; it no longer routes
+> through any #184/#185 lane.
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
@@ -6382,7 +6402,13 @@ capture in the device list's R5 row for what a mid-flight stop emits.)*
 
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
-> **2026-08-10:** (d)'s distinct-or-fold judgment is routed into the #184/#185 re-land lane (`dispatch/FABLE-T27-184-185-chatstore-integrity-reland.md`), which is where the insurance clause gets rewritten or kept; (b) remains the Z6 watch. (a)/(c) were fixed in #291's lane.
+> **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
+> into is RETIRED — #184/#185's fixes turned out to already be on main. **(d)
+> stands on its own as the ONLY #185 residue** (`ChatStore.swift:3379` at
+> HEAD: the insurance clause reads `localAttachments[safe: index]`, not the
+> `unclaimed` pool — ~15% reachable). Two-line change + one test; free-bucket
+> material, not a lane. (b) remains the Z6 watch. (a)/(c) were fixed in
+> #291's lane.
 
 **(a) ✅ FIXED 2026-08-07 night (same lane as #291):** generation tokens now
 guard both teardowns, matching `bootstrapGeneration` / `finishRun(_:)`.

@@ -1,5 +1,21 @@
 # FABLE T27-184/185 — the STRANDED ChatStore-integrity fix: rebase or re-derive, then land
 
+> **⛔ RETIRED 2026-08-10, BEFORE EVER RUNNING — THE LANE IS UNNECESSARY.**
+> Owen asked whether it was still needed; a code read at HEAD answered: **both
+> fixes are ON MAIN.** `fix(#184)` landed as `5a185ba` ("one teardown
+> primitive — clear, openSession, and reset all call it"), and the primitive
+> was MAINTAINED through the churn this dispatch feared — `5f98c0a` (#190
+> walk-away persist) and `73f7378` (#306 T2-T4: hold parking, approval-card
+> exit, #295 capture, #192 router lock) each extended it. `mergeAttachments`
+> at HEAD carries the #185 fix verbatim (unclaimed-pool dequeue, `:3364-3402`).
+> **This dispatch's §1 'never merged' premise was FALSE** — `git branch
+> --contains` cannot see a squash-merge; the code read is the instrument.
+> **What actually remains:** the §F1 device row (unrun, in the queue) and
+> #293(d)'s insurance-clause residue (`?? localAttachments[safe: index]` at
+> `:3379` reads the original array, not `unclaimed` — ~15% reachable; stays
+> filed as free-bucket material). Neither needs this lane.
+
+
 **Items:** OPEN_ITEMS **#184** (three teardown paths, each clears a different
 subset) + **#185** (`mergeAttachments` duplicate-filename aliasing), folding
 **#293(d)**'s judgment call. **Difficulty: FABLE** — not because the original
