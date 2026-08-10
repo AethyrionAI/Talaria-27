@@ -272,6 +272,23 @@ or removing** files requires `xcodegen generate` + committing the regenerated
 needed since project setup: no files had been added since.)
 **Optional improvement:** enable synchronized folder groups so new files auto-include.
 
+> **↪ UPDATE 2026-08-10 (#319's lane): the regen is now IDEMPOTENT, and the
+> hand-revert step is GONE.** Until today `xcodegen generate` also rewrote
+> `Talaria.xcscheme`'s four `BuildableName` attributes to `"Talaria.app"` — a
+> product that does not exist — so "run xcodegen and commit it" carried an
+> unwritten second step: revert the scheme by hand. Every lane that added a
+> Swift file paid it (#257's note records doing exactly that), and reverting
+> the whole file also dragged the scheme's `version` backwards, silently
+> re-opening archived #52.
+> **Root cause:** XcodeGen's model of a product name is the target's
+> `productName` (default: the TARGET name), never the `PRODUCT_NAME` build
+> setting. `project.yml` now declares `productName: "Talaria 27"` on the app
+> target. **Verified:** two consecutive `xcodegen generate` runs produce
+> byte-identical output, and the compensating `TEST_HOST` override that
+> existed for the same reason has been removed as provably redundant.
+> **So the standing rule is now exactly what it says** — regenerate, commit
+> the result, nothing else.
+
 ---
 
 ## 6. 📝 config.yaml provider normalization (acknowledged)
@@ -5138,6 +5155,149 @@ checking it is live.
 lane's verdict depends on, so a wrong "fix" here silently degrades every
 future gate reading.
 
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 1, written into this entry
+BEFORE any edit to the script.** Two REAL gate logs from 2026-08-09 survive on
+disk and are the fixtures; both are reproduced byte-exactly inside the test
+harness so the bars stay runnable after `/tmp` is swept:
+
+| fixture | log | shape |
+|---|---|---|
+| the misclassified one | `/tmp/gate-254-run2/suite.log` | Swift Testing, `✘ Test controlArmWithoutRulesLeaksToTheListener() recorded an issue at HTMLArtifactSandboxTests.swift:157:9: Expectation failed: landed` |
+| the true positive | `/tmp/gate-279-run2/suite.log` | XCUITest, `TalariaUITests.testPairedRelaunchSkipsPairingEntry()` in `Failing tests:` and **no locus line anywhere** |
+
+- **300-A (RED first).** Feed the classifier the exact #254-lane failure text
+  (a Swift Testing failure WITH assertion text) → it names an **assertion
+  failure**, not a flake. **Must be RED on today's script before the fix** —
+  witnessed, not assumed.
+- **300-B.** Feed it a genuine no-assertion-text XCUITest bundle death → still
+  classified as the runner-flake family. No regression on the true positive.
+- **300-C.** Zero hardcoded tracker numbers remain in **advice text**.
+  *Operationalization, registered here before the edit so it cannot be
+  retrofitted:* the mechanical check is `#[0-9]+` over every string the script
+  **EMITS at runtime** (the `echo`/`printf` argument text), and it must be
+  **0**. Numbers that survive only in **header comments** are provenance
+  citations to history, not instructions a reader acts on, and history does not
+  go stale — those are OUT of the bar and their residual count is REPORTED
+  rather than driven to zero. Entry state: 8 occurrences total (`#218`×3,
+  `#93`×2, `#183`×2, `#164`×1), of which 4 are emitted.
+- **300-D.** A clean run still passes the gate and a seeded failure still fails
+  it — the #218 re-injection precedent, applied to this change.
+
+### ✅ FIXED 2026-08-10 — all four bars MET, `GATE: PASS` — and the defect was worse than filed
+
+**The entry says the classifier misdiagnosed one failure. It did not
+discriminate AT ALL.** Extracting the pre-fix conditional verbatim out of
+`lane-gate.sh` (`sed -n '230,246p'`, so it is the shipped bytes and not a
+retyping) and running it over both surviving 2026-08-09 logs returns the
+**identical** verdict for each:
+
+```
+########## Swift Testing failure WITH assertion text ##########
+        HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()
+        ^ NO assertion text — likely an XCUITest harness flake
+########## XCUITest runner death, NO assertion text ##########
+        TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+        ^ NO assertion text — likely an XCUITest harness flake
+```
+
+**Why.** The discriminator was `grep -qE '\.swift:[0-9]+: error:'`, which
+matches only the **XCTest** diagnostic shape. Swift Testing prints
+`recorded an issue at File.swift:LINE:COL:` — line AND column, and **no
+`error:` token** — so the match count in the #254 log was **zero**. Every
+Swift Testing failure in this project's history was announced as a UI-test
+harness flake; 2026-08-09 is simply the first time someone read the advice
+closely enough to notice.
+
+**And it was three dead item numbers, not one.** Besides #164 the same advice
+printed **#183** and **#93** at the reader; both are also in
+`OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** and **#313**.
+
+**The fix.** `scripts/mac/lane-gate-classify.sh` (sourced by the gate, so it is
+testable in a second instead of behind a 20-minute suite):
+- recognises **both** frameworks' locus shapes;
+- attributes loci **per failing test**, matching structurally
+  (`Test <name>(…) recorded an issue at …`, `error: -[Suite <name>]`) so
+  `testFoo` cannot inherit `testFooBar`'s failure;
+- **fails SAFE** — a log that carries loci none of which can be attributed to a
+  named test (a `@Test("display name")`, an unparsed shape) is reported REAL,
+  never as a flake. The safe direction of error is to call a flake real; a real
+  failure dressed as noise gets re-rolled until it hides;
+- ignores bare `: error:` deliberately — the #254 log holds **884** such lines,
+  all simulator CoreData chatter. That is the gate header's own sim-noise trap
+  one level in;
+- prints **no item number**. It names a search string, and
+  `lane-gate-classify-test.sh` **executes every pointer against
+  `OPEN_ITEMS.md`** and fails if one matches nothing — so a pointer cannot rot
+  unnoticed the way these three did. The gate runs that self-test in
+  **preflight**.
+
+**BARS:**
+- **300-A — MET, RED witnessed first.** RED: the verbatim pre-fix block on
+  `/tmp/gate-254-run2/suite.log` (quoted above). GREEN: `assertion`, with the
+  advice quoting `HTMLArtifactSandboxTests.swift:157:9: Expectation failed:
+  landed` back at the reader. Confirmed against the **original log**, not only
+  the transcription.
+- **300-B — MET.** `/tmp/gate-279-run2/suite.log` → `runner-flake`, re-run
+  protocol preserved. Also holds with 40 lines of CoreData `: error:` noise
+  injected.
+- **300-C — MET.** Emitted `#[0-9]+` across both scripts = **0** (checked
+  mechanically, and the check is itself one of the self-test's assertions).
+  Residue, as pre-registered and reported rather than driven to zero: **1**
+  occurrence, in a header comment, citing archived item 218 as provenance —
+  the archive keeps entries verbatim, so that citation cannot rot. Entry state
+  was 8.
+- **300-D — MET, both halves.** *Seeded:* a four-line `@Test` with
+  `#expect(false)` in `MarkdownTableTests` → **`GATE: FAIL (4 check(s))`**, and
+  the advice read:
+  ```
+  failing tests:
+        MarkdownTableTests.seededFailureFor300D()
+          ASSERTION  Test seededFailureFor300D() recorded an issue at
+                     MarkdownTableTests.swift:37:9: Expectation failed: landed
+        ^ ASSERTION TEXT PRESENT — treat this as a REAL failure.
+  ```
+  That is 300-A proven **end-to-end inside the real gate on a freshly generated
+  log**, not just against a recorded fixture — the exact input the old script
+  called an XCUITest harness flake. *Clean:* seed removed, `MarkdownTableTests.swift`
+  byte-restored (`git status` clean for that path), → **`GATE: PASS`**.
+
+> **📋 THE GATE RUN — `GATE: PASS`, 2026-08-10, `/tmp/gate-300-319-final2`:**
+> **Swift Testing 2005 · XCUITest 14 · Release build PASS · 4 skips**, on
+> `CC-300-iPhone-Air` (`F58EADE2-CE63-4F92-BC27-0716BF0484C3`). Verbatim:
+> `GATE: PASS — logs in /tmp/gate-300-319-final2`.
+
+> **🔻 FOUR RUNS WERE NEEDED, and three of the failures were environment, not
+> code. All three are reusable findings.**
+>
+> | run | died on | cause |
+> |---|---|---|
+> | 1 | `Simulator device failed to launch …uitests.xctrunner` — "Application failed preflight checks" (**Busy**) | shared `iPhone 17 Pro Max`, contended by six concurrent lanes |
+> | 2 | `Failed to launch app …` — *"did not return a process handle nor launch error"* (`NSPOSIXErrorDomain Code=3`) | host process-table exhaustion; the session simultaneously lost the ability to spawn `echo` at all |
+> | 3 | **hung ~20 min** inside `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime()` | brand-new sim, no calendar/reminders TCC — EventKit blocks forever |
+> | 4 | `Expectation failed: granted` in the same test | the TCC grant did **not** survive the rebuild/reinstall |
+>
+> **① The gate's default simulator is a contention trap.** It defaults to the
+> shared `iPhone 17 Pro Max`; every recent lane has quietly been passing a
+> dedicated `CC-<item>-iPhone-Air`, and that convention is why they passed.
+> Recorded in CLAUDE.md.
+>
+> **② "The machine is working" and "I can start a process" are different
+> facts.** During run 2 the already-running xcodebuild kept appending to its log
+> while nothing new could be forked. If a gate run dies at app launch, check
+> host load before suspecting the diff.
+>
+> **③ A fresh simulator HANGS the suite rather than failing it, and the grant
+> is not durable.** `BatteryReapEventKitProbeTests`'s own docstring states the
+> precondition — *"TCC must be pre-granted (`simctl privacy grant
+> calendar/reminders org.aethyrion.talaria27`); without access the probes fail
+> their #require visibly rather than fake-passing."* They fail visibly only once
+> a decision exists; with **no** TCC record at all, `requestFullAccessToEvents()`
+> blocks indefinitely and the suite simply stops with no failure and no marker —
+> the gate's founding sin, arriving as a hang. And run 4 shows the grant is
+> dropped by a rebuild/reinstall, matching #254's note that a sim reboot dropped
+> it too. **Re-grant immediately before each gate run on a fresh sim.**
+
 ---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
@@ -5635,6 +5795,15 @@ RUN, not skip.** If the condenser fails fidelity/pruning, that is #89's
 residual risk firing: tune `condensedContextBrief`'s instructions — do not
 weaken the tests.
 
+> **⚠️ LOAD-BEARING NAME, 2026-08-10 (#300's fix).** When the gate reports the
+> two expected skips it used to print "#183" and "#93" at the reader — both
+> closed, and this entry (successor B of #93's split) is the live home. The
+> advice now says `grep -n CondenserFidelityTests OPEN_ITEMS.md` instead, so
+> **the suite name in this entry is referenced by tooling.** Keep it greppable
+> here for as long as those skips exist;
+> `scripts/mac/lane-gate-classify-test.sh` fails if the pointer stops
+> resolving.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
@@ -5836,6 +6005,89 @@ being part of every lane's choreography.
 
 **Cross-references:** **#3** (the standing xcodegen-regen rule this friction
 rides on), **#272** (the lane that most recently hand-reverted it).
+
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 2, written into this entry
+BEFORE any edit to `project.yml`.** Verified from a tree Xcode has **not**
+touched (no `xcuserdata`, `git status` clean) — scheme files are XML the IDE
+also rewrites, so a working tree mid-test is not a valid baseline.
+
+- **319-A (the idempotency bar).** `xcodegen generate` twice from a clean tree
+  → `git diff` is **EMPTY** after the second run; and after the **first** run
+  `BuildableName` still reads `"Talaria 27.app"` everywhere. The grep is
+  written to exclude the legitimate substring:
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  must be **0**, and the count of `"Talaria 27.app"` must be unchanged from the
+  committed scheme.
+- **319-B.** The suite still builds and runs post-regen — the `TEST_HOST`
+  override still resolves. Units + at least one XCUITest, both counts > 0.
+- **319-C.** `GATE: PASS` on the regenerated project — proof the gate and the
+  regen agree about the product name.
+
+**HARD STOP registered in advance:** if the fix turns out to require renaming
+`PRODUCT_NAME` itself, this half STOPS and comes back as a question — that
+touches the display-name / Siri-phrase decision Owen deferred at the
+2026-08-09 decision pass.
+
+### ✅ FIXED 2026-08-10 — all three bars MET, `GATE: PASS` — one line of spec, and the hard stop was never reached
+
+**The root cause, and why "pin the version" would never have worked.**
+XcodeGen has its own model of a target's product name: the spec key
+`productName`, which **defaults to the TARGET name** and is **never read from
+the `PRODUCT_NAME` build setting**. So `PRODUCT_NAME: "Talaria 27"` renamed the
+real product while XcodeGen went on believing it was building `Talaria.app`,
+and every generate re-asserted that belief into the scheme. **A version pin
+would have frozen the wrong belief in place**, exactly as the entry predicted;
+this is a spec omission, not a regression, and it has been wrong since the
+product was renamed.
+
+**The fix** is `productName: "Talaria 27"` on the app target in `project.yml`
+— nothing else. **`PRODUCT_NAME` was NOT touched, so the deferred display-name
+decision is untouched and the pre-registered hard stop never fired.**
+
+**It fixed the `TEST_HOST` derivation at the same time**, because that
+derivation reads the same property. The compensating override — and the comment
+saying *"XcodeGen's auto-derived TEST_HOST (Talaria.app/Talaria) is wrong"* —
+is **removed**: generating with and without it produced **byte-identical**
+`project.pbxproj`, both carrying
+`TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27"`.
+
+**BARS:**
+- **319-A — MET.** Baseline captured first, on a tree Xcode had never opened
+  (`git status` clean, no `xcuserdata`): one `xcodegen generate` produced the
+  filed damage exactly — four `BuildableName` flips to `"Talaria.app"`, the
+  scheme `version` 1.3 → 1.7, `parallelizable = "NO"` added to the UITest
+  testable, plus `runPostActionsOnFailure`, `onlyGenerateCoverageForSpecified‑
+  Targets` and three empty `<CommandLineArguments>` elements.
+  **After the fix:** `diff -r` between the whole `.xcodeproj` after run N and
+  after run N+1 is **empty — byte-identical**;
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  = **0**, and `"Talaria 27.app"` = **4**, unchanged from the committed scheme.
+- **319-B — MET.** The regenerated project builds `Talaria 27.app` and both
+  test bundles, and the suite RAN: **2005 Swift Testing tests + 14 XCUITest**,
+  `** TEST SUCCEEDED **`. The removed `TEST_HOST` override is not merely
+  unnecessary on paper — the tests actually load into the host without it.
+- **319-C — MET.** `GATE: PASS — logs in /tmp/gate-300-319-final2`, on the
+  regenerated project, with a clean Release build alongside. The gate and the
+  regen agree about the product name.
+
+**The 1.3→1.7 and `parallelizable` churn: same root, and now explained.**
+It was never a second bug. `TalariaShare.xcscheme` and
+`TalariaWidgets.xcscheme` were **already** at `version = "1.7"` in the committed
+tree; only `Talaria.xcscheme` sat at `"1.3"` — and it is the only one anyone
+ever hand-reverted. Reverting the file to undo the name damage dragged the
+version and the newer default attributes back with it, so the next regen
+re-applied them, forever. All of it is semantically inert (explicit defaults
+and empty elements), it is committed once here, and the regen is now stable.
+**Archived #52, which closed this very drift in August, had been quietly
+re-opened by the workaround for #319** — an append-only pointer records that
+under its entry.
+
+**A residual worth knowing:** the generated `PBXNativeTarget` still carries
+`productName = Talaria` as its own attribute while its `productReference` is
+now correctly `Talaria 27.app`. That is XcodeGen's internal bookkeeping, it
+matches the target name, and nothing reads it for a path — noted so the next
+person greps it and does not think the fix is half-applied.
 
 ---
 
@@ -9166,6 +9418,12 @@ full battery.
 >   chip) for the concurrent ChatScreen lane's rebase. New files went
 >   through `xcodegen generate`; the known Talaria.xcscheme BuildableName
 >   churn was reverted by hand ("Talaria 27.app" stands).
+>   **↪ 2026-08-10 (#319): that hand-revert is no longer needed by anyone.**
+>   The churn's root cause — XcodeGen deriving the product name from the
+>   TARGET name rather than `PRODUCT_NAME` — is fixed in `project.yml`
+>   (`productName: "Talaria 27"`), and the regen is now byte-for-byte
+>   idempotent. This note stays as the record of what the lane actually did;
+>   do not copy the procedure.
 >
 > **BAR STATUS after phase 2 (evidence beside each):**
 > - **257-1-C: MET** (unit, phase 1 — above).
@@ -9572,6 +9830,29 @@ deferred (b)/(c) verdicts per the 2026-08-05 routing.
 > recorded here instead and needs its own number — Owen's call**, since
 > allocating one touches the numbering sequence and the INDEX and is outside
 > this lane's scope.
+
+> **↪ RESOLVED 2026-08-10 — this finding got its number (#300) and the fix has
+> landed. Two corrections to the reading above, both found by the fix lane:**
+>
+> **1. The classifier was not merely wrong here — it had NO discriminating
+> power at all.** Extracting the pre-fix conditional verbatim and running it
+> over both surviving logs returns the identical *"NO assertion text — likely
+> an XCUITest harness flake"* verdict for each: `/tmp/gate-254-run2/suite.log`
+> (this run's real Swift Testing failure) and `/tmp/gate-279-run2/suite.log`
+> (a genuine runner death, same week). The regex `\.swift:[0-9]+: error:`
+> recognises only the XCTest diagnostic shape; Swift Testing prints
+> `recorded an issue at File.swift:LINE:COL:` with no `error:` token at all, so
+> its match count in this very log was **zero**. Every Swift Testing failure in
+> the project's history was announced as a UI-test harness flake — this run is
+> simply the first time anyone read the advice closely enough to notice.
+>
+> **2. It was not one dead item number — it was all three.** Alongside #164 the
+> same advice printed **#183** and **#93** at the reader, and both of those are
+> also in `OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** (the
+> runner-flake family) and **#313** (the CondenserFidelityTests skips). Advice
+> text now carries no item number at all; it names a search string, and a
+> self-test executes each one against `OPEN_ITEMS.md` so a pointer cannot rot
+> unnoticed the way these three did.
 
 > **📱 DEVICE RUN 2026-08-09 — build 2330, corded, airplane mode, Owen
 > driving. 254-E is UNRUNNABLE AS WRITTEN. The native `LIVE` arm was verified
@@ -13466,6 +13747,17 @@ sessions. **Do not simply trust it** — it has now been observed never to run.
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
 sequences. The five lanes below use sub-letters precisely to stop minting more
 collisions; `#217B` is the precedent.)*
+
+> **⚠️ LOAD-BEARING TITLE STRING, 2026-08-10 (#300's fix).** `lane-gate.sh`'s
+> failure advice no longer prints an item number — it cannot keep one live, and
+> the three it used to print (#164, #183, #93) had all been closed by the time
+> anyone followed one. Instead it tells the reader to run
+> `grep -n 'runner dies mid-bundle' OPEN_ITEMS.md`, so **the phrase "runner
+> dies mid-bundle" in this header is now referenced by tooling.** If this entry
+> is retitled, moved, or archived, update the string the gate prints in the
+> same commit. `scripts/mac/lane-gate-classify-test.sh` executes every such
+> pointer against `OPEN_ITEMS.md` and fails if it matches nothing, so the
+> breakage surfaces in about a second rather than in five days.
 
 **Occurrence 1.** During the first real `lane-gate.sh` run against `main`:
 
