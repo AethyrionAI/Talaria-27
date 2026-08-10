@@ -1,24 +1,4 @@
 <!DOCTYPE html>
-<!-- ✅ RESOLVED 2026-08-10 (interactive pending review) — all four OWEN items
-     answered; THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
-     UNCOMMITTED). Edit there, not here.
-     (1) Data-practice claims CONFIRMED by Owen (no iCloud/CloudKit sync;
-         zero analytics/ad/crash SDKs; local-only notifications) — and
-         verified against the tree the same day: cloudKitDatabase .none is
-         the only CloudKit reference, no APNs registration survives #238,
-         and the sole SPM dependency is stasel/WebRTC (realtime voice
-         engine, not an analytics SDK).
-     (2) Developer of record: James Jones (personal legal name, Owen's call
-         over "Aethyrion").
-     (3) Contact: j.owen.jones@live.com.
-     (4) Effective date: 2026-08-10.
-     ✅ PUBLISHED 2026-08-10 on Owen's explicit go — live at
-        https://aethyrionai.github.io/Talaria-27/privacy.html (the URL 404'd
-        beforehand; nothing was overwritten). Footer link added to
-        docs/index.html so the page is not an orphan.
-     Still gated elsewhere: the permissions table re-syncs against the final
-     Info.plist when the 166-D strings lane lands; the realtime-voice
-     sentence ties to #320's indicator. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -47,7 +27,7 @@
 <body>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="date">Talaria for iOS · Effective: <!-- OWEN: set the publish date --> 2026-08-__</p>
+  <p class="date">Talaria for iOS · Effective: 2026-08-10</p>
 
   <div class="tldr">
     <p><strong>The short version:</strong> Talaria has no servers. We — the app's
@@ -60,8 +40,7 @@
 
   <h2>Who we are</h2>
   <p>Talaria is an iOS client for a personal AI assistant. It is developed by
-  <!-- OWEN: legal/entity name as it will appear on the App Store -->
-  Aethyrion. This policy covers the Talaria iOS app and this website.</p>
+  James Jones. This policy covers the Talaria iOS app and this website.</p>
 
   <h2>The two ways Talaria works</h2>
   <p><strong>On-device (the default).</strong> Out of the box, Talaria's
@@ -82,18 +61,15 @@
   <p>Conversation history, attachments you add, settings, and pairing
   credentials (kept in the iOS Keychain) are stored locally on your iPhone.
   Deleting the app deletes this local data. Talaria does not sync your data to
-  iCloud or to any cloud service of ours.
-  <!-- OWEN confirm: no CloudKit/iCloud sync anywhere; widgets use the shared
-       app group locally only. --></p>
+  iCloud or to any cloud service of ours.</p>
 
   <h2>Voice</h2>
   <p>Talaria's default voice mode uses Apple's on-device speech recognition and
   synthesis. When paired with your own server, you can optionally use a
   realtime voice engine: in that mode your audio is streamed through your
   server to the voice provider <em>you</em> configured there (for example,
-  OpenAI's realtime API under your own API key). The app indicates when a
-  realtime session is active.
-  <!-- Ties to #320; ship the indicator before or with this sentence. --></p>
+  OpenAI's realtime API under your own API key). This is off unless you
+  configure it yourself on your own server.</p>
 
   <h2>Permissions, and why each is asked for</h2>
   <table>
@@ -109,19 +85,14 @@
   </table>
   <p class="muted">Permissions are optional; each feature degrades gracefully
   without its grant. Sensor sharing to a paired server is governed by a single
-  explicit switch, off by default.
-  <!-- OWEN: sync this table against the final Info.plist NS*UsageDescription
-       set when the 166-D strings lane lands — the policy must mirror the
-       shipping plist exactly. --></p>
+  explicit switch, off by default.</p>
 
   <h2>What we receive: nothing</h2>
   <p>The app contains no analytics, advertising, or crash-reporting SDKs, and
   makes no network connections to infrastructure we operate — because we
   operate none. If you choose to share diagnostics with developers via iOS
   settings, Apple may provide us aggregate crash reports through App Store
-  Connect under Apple's privacy terms.
-  <!-- OWEN confirm: zero third-party SDKs; no remote push (the #238 teardown
-       removed APNs registration — notifications are local-only). --></p>
+  Connect under Apple's privacy terms.</p>
 
   <h2>Third parties, exhaustively</h2>
   <ul>
@@ -151,8 +122,7 @@
   before the change ships, with the effective date above revised.</p>
 
   <h2>Contact</h2>
-  <p><!-- OWEN: choose the published contact address -->
-  <code>privacy@—</code></p>
+  <p><code>j.owen.jones@live.com</code></p>
 </main>
 </body>
 </html>

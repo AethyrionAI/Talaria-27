@@ -3466,11 +3466,29 @@ Remaining optional follow-on, NOT blocking submission: an in-app acknowledgement
 > effective date is a marked SET-AT-PUSH field. The publishable file is
 > STAGED at `docs/privacy.html`, **deliberately uncommitted** — the
 > COMMIT+PUSH is the publish moment and stays Owen's per the standing
-> no-external-submissions gate. Once pushed, 166a's public
-> privacy-policy-URL hard stop is satisfied; the manifests half of 166a is
-> unchanged. Two forward gates recorded in the file itself: the permissions
-> table re-syncs against the final Info.plist when the 166-D strings lane
-> lands, and the realtime-voice sentence ties to #320's indicator.
+> no-external-submissions gate. Two forward gates recorded in the file
+> itself: the permissions table re-syncs against the final Info.plist when
+> the 166-D strings lane lands, and the realtime-voice sentence ties to
+> #320's indicator.
+>
+> **✅ PUBLISHED 2026-08-10 (Owen's explicit go, same evening): effective
+> date 2026-08-10, live at
+> `https://aethyrionai.github.io/Talaria-27/privacy.html`** (Pages serves
+> `main` `/docs`; the URL 404'd before this push, so nothing was
+> overwritten). A `Privacy` link was added to the site footer so the page is
+> not an orphan. **166a's public privacy-policy-URL hard stop is
+> SATISFIED.**
+>
+> **⚠️ AND A FALSE CLAIM IN THIS BLOCK IS CORRECTED IN THE SAME COMMIT.**
+> This note originally ended *"the manifests half of 166a is unchanged"* —
+> **false.** The manifests landed 2026-07-22 (`6d1515e`), ship in the built
+> bundle, and were recorded RESOLVED in the archive that day. The claim was
+> borrowed from this entry's own stale 166a paragraph without checking the
+> tree — the exact failure mode CLAUDE.md's ATS line warns about, repeated
+> inside the correction culture that exists to prevent it. Owen caught it by
+> recognising the work sounded familiar. The 166a paragraph now carries its
+> own correction block; **what actually remains of 166a is the App Privacy
+> questionnaire answers only.**
 
 Source: hermex's `TESTFLIGHT.md` (741-line maintainer runbook from a shipped App Store app) + their `docs/agents/feature-gap-index.md`, read from a fresh shallow clone 2026-07-22, every claim below verified against their tree or ours, not summarized from memory.
 
@@ -3478,6 +3496,26 @@ Source: hermex's `TESTFLIGHT.md` (741-line maintainer runbook from a shipped App
 hermex's highest-flagged review risk is their share extension's dynamic `UIApplication`/`openURL:` auto-launch workaround (responder-chain hacks to open the containing app). **Talaria's share extension has zero dynamic-launch code** — recursive grep of `TalariaShare/` for `openURL`/`UIApplication.shared`/responder finds nothing. Our App-Group-staging flow is already the "review-safer alternative" their runbook describes. Do not add auto-launch later without reading their Step 6.
 
 ### What WILL hit us, in severity order
+
+> **⚠️ CORRECTION 2026-08-10 — 166a's MANIFEST HALF IS DONE, AND THIS
+> PARAGRAPH HAS BEEN STALE SINCE 2026-07-22.** The paragraph below says
+> *"Talaria has **none** for any target"*; `PrivacyInfo.xcprivacy` landed for
+> all three bundle targets that same day in commit `6d1515e` and **ships in
+> the built product today** — verified by `find` inside the built `.app`:
+> `<app>/PrivacyInfo.xcprivacy`, `PlugIns/TalariaWidgets.appex/…`,
+> `PlugIns/TalariaShare.appex/…`, plus WebRTC's own. The outcome was recorded
+> correctly at the time in `OPEN_ITEMS-ARCHIVE.md` (#166a — privacy
+> manifests: RESOLVED), so this register's copy simply never caught up.
+> **The "highest-probability rejection" framing no longer describes reality
+> and must not be quoted as live risk.** What remains of 166a is the
+> Owen-side half only: the App Privacy questionnaire answers and the public
+> privacy-policy URL (published 2026-08-10, see the ruling block above).
+> **Caught by Owen's instinct that the privacy work "sounded familiar" —
+> and the same session had already repeated the stale claim once** (the
+> 2026-08-10 policy note originally read "the manifests half of 166a is
+> unchanged", corrected in the same commit as this block). Two independent
+> readers took this paragraph at face value; that is what a stale register
+> line costs.
 
 **166a — Privacy manifests are missing entirely (highest-probability rejection).** hermex ships `PrivacyInfo.xcprivacy` for both app and share-extension targets (theirs: UserDefaults/CA92.1 required-reason, zero collected data types, tracking=false). Talaria has **none** for any target (app, TalariaWidgets, TalariaShare — verified by find). We indisputably touch required-reason APIs (the sensor outbox rewrites UserDefaults on every tick, #104), so uploads will draw ITMS-91053 rejections. Good news verified: the WebRTC xcframework ships its own per-slice manifests, so the SDK side is covered — only our targets need files. **Speccable, small: three manifest files + project.yml wiring.** HealthKit/location App-Privacy posture: data goes only to the user's own host, never to any developer-accessible endpoint — hermex's "zero collected data types" declaration is the same posture we can defend, but the App Privacy questionnaire answers and a public privacy-policy URL (their hard stop condition) are Owen-side work.
 
@@ -6469,6 +6507,21 @@ Talaria-operated cloud; realtime voice uses your host's provider," and the
 app stops relying on copy alone: **a voice session running on the realtime
 engine shows a visible indicator** — the user can tell, in the moment, that
 audio is leaving the phone for the host's provider.
+
+> **📌 2026-08-10 — THE PUBLISHED PRIVACY POLICY IS NOW A CONSUMER OF THIS
+> ITEM, and a false sentence was caught on its way out the door.** The
+> policy draft's Voice section read *"The app indicates when a realtime
+> session is active"* — describing THIS unbuilt indicator as shipped. It was
+> caught in the pre-publish read (this entry's own index line says NOT
+> STARTED) and **replaced with a claim that is true today**: *"This is off
+> unless you configure it yourself on your own server."* The live page at
+> `https://aethyrionai.github.io/Talaria-27/privacy.html` therefore makes NO
+> indicator claim. **When this lane ships, the policy sentence may be
+> restored — and updating the published page is part of that lane's
+> close-out**, since a privacy policy that under-describes a safety signal
+> is merely conservative, while one that over-describes it is false. Noted
+> because the near-miss shape is worth keeping: a doc written from an
+> item's *intent* rather than its *state*.
 
 **Design notes for the lane (constraints, not decisions):** the engine is
 already named at session start (`voice session starting on engine …`, the
