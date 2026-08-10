@@ -123,6 +123,10 @@ struct AttachmentInliningTests {
 
     // MARK: Ordering
 
+    /// #132 shifted the indices here: this turn is caption-less and carries
+    /// images, so the floor now leads the parts array. The ORDER of the
+    /// attachments after it is what this test is actually about, and that is
+    /// unchanged.
     @Test func stagedOrderIsPreserved() {
         let assembly = AttachmentInlining.assemble(
             message: "",
@@ -132,10 +136,11 @@ struct AttachmentInliningTests {
                 image(named: "c.jpg"),
             ]
         )
-        #expect(assembly.parts.count == 3)
-        guard case .imageDataURL = assembly.parts[0],
-              case .text = assembly.parts[1],
-              case .imageDataURL = assembly.parts[2] else {
+        #expect(assembly.parts.count == 4)
+        guard case .text = assembly.parts[0],        // #132 floor
+              case .imageDataURL = assembly.parts[1],
+              case .text = assembly.parts[2],
+              case .imageDataURL = assembly.parts[3] else {
             Issue.record("staged order was not preserved across mixed part kinds")
             return
         }
@@ -144,7 +149,8 @@ struct AttachmentInliningTests {
     @Test func imagePartIsDataURL() {
         let attachment = image(byteCount: 3)
         let assembly = AttachmentInlining.assemble(message: "", attachments: [attachment])
-        guard case .imageDataURL(let url) = assembly.parts.first else {
+        // #132: parts[0] is the caption-less floor; the image follows it.
+        guard case .imageDataURL(let url) = assembly.parts.last else {
             Issue.record("expected an image data-URL part")
             return
         }
@@ -191,12 +197,18 @@ struct AttachmentInliningTests {
         )
 
         #expect(assembly.omittedForBudget == ["second.jpg"])
-        #expect(assembly.parts.count == 2)
-        guard case .imageDataURL = assembly.parts[0] else {
+        // #132: the caption-less floor leads, then the image that fit, then
+        // the stub for the one that did not.
+        #expect(assembly.parts.count == 3)
+        guard case .text = assembly.parts[0] else {
+            Issue.record("expected the #132 caption-less floor to lead")
+            return
+        }
+        guard case .imageDataURL = assembly.parts[1] else {
             Issue.record("expected the first image to transmit")
             return
         }
-        guard case .text(let stub) = assembly.parts[1] else {
+        guard case .text(let stub) = assembly.parts[2] else {
             Issue.record("expected an omission stub for the second image")
             return
         }

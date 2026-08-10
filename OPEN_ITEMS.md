@@ -140,7 +140,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#124** ✨ Face ID app lock (free tier)
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
-- **#132** 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config …
 - **#137** 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE …
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
 - **#140** 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
@@ -272,6 +271,23 @@ or removing** files requires `xcodegen generate` + committing the regenerated
 `project.pbxproj` — otherwise new files don't compile in. (This is why it hadn't been
 needed since project setup: no files had been added since.)
 **Optional improvement:** enable synchronized folder groups so new files auto-include.
+
+> **↪ UPDATE 2026-08-10 (#319's lane): the regen is now IDEMPOTENT, and the
+> hand-revert step is GONE.** Until today `xcodegen generate` also rewrote
+> `Talaria.xcscheme`'s four `BuildableName` attributes to `"Talaria.app"` — a
+> product that does not exist — so "run xcodegen and commit it" carried an
+> unwritten second step: revert the scheme by hand. Every lane that added a
+> Swift file paid it (#257's note records doing exactly that), and reverting
+> the whole file also dragged the scheme's `version` backwards, silently
+> re-opening archived #52.
+> **Root cause:** XcodeGen's model of a product name is the target's
+> `productName` (default: the TARGET name), never the `PRODUCT_NAME` build
+> setting. `project.yml` now declares `productName: "Talaria 27"` on the app
+> target. **Verified:** two consecutive `xcodegen generate` runs produce
+> byte-identical output, and the compensating `TEST_HOST` override that
+> existed for the same reason has been removed as provably redundant.
+> **So the standing rule is now exactly what it says** — regenerate, commit
+> the result, nothing else.
 
 ---
 
@@ -2584,83 +2600,6 @@ crash, session keeps running, mic live after; outside a session, full-fidelity p
 
 ---
 
-## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); host model-vision/config question for Owen
-
-> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
-
-> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
-> **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
-> A caption-less image turn gets an instruction line instead of a lone
-> `image_url` (small, independent — closes this entry's own second finding,
-> and it is WHY the host mints `[attachment]` itself). The auxiliary vision
-> path — device-proven on the 3-photo Z2 turn — is the configuration of
-> record, not a fallback awaiting a vision-capable main model. **#132 CLOSES
-> when the floor lands.**
-
-**2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
-app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
-`[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
-#177). Two different strings for one absent-text condition, both generated host-side — which
-suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
-this item's model-vision/config question should also account for where those strings are minted.
-
-> **⚠️ MECHANISM SUPERSEDED 2026-08-09 — the ownership verdict survives, the symptom's
-> cause does not.** `prepare image failed` / `failed to decode image` have **ZERO
-> occurrences** across `gateway/`, `agent/`, `hermes_cli/`, `providers/` at upstream
-> HEAD. The 07-17 probe's 400 came from a code path that no longer exists; at head,
-> `_normalize_multimodal_content` (`api_server.py:550-665`) passes image parts through
-> **verbatim**.
->
-> **The live mechanism is a ROUTING ASYMMETRY, not a drop.** `agent/image_routing.py`
-> (`decide_image_input_mode` → `vision_analyze` → prepend a description) has exactly
-> one caller, `gateway/run.py:16260`, inside the platform-adapter lane. **The Sessions
-> API lane the phone speaks has no equivalent** — a text-only host model gets raw
-> `image_url` parts with no fallback and no error. "Two of everything" in a third place.
->
-> **Ownership re-stated:** upstream owns routing parity · **config owns the immediate
-> cure and it is Owen's** (Mac is `kimi-coding`/`kimi-k3` with
-> `auxiliary.vision.provider: auto` — i.e. neither a vision model nor a configured text
-> fallback) · **we own the honesty floor, regardless of how the other two land.**
->
-> **App-side, re-verified at HEAD:** encoding is correct on both transports, and a
-> **caption-less image turn sends NO text part at all** — `ChatStore.swift:578-580`
-> synthesizes `[N attachment(s)]` for DISPLAY only, `:643` sends the trimmed (empty)
-> content, and `AttachmentInlining.swift:79` prepends a text part only when the message
-> is non-empty. That is why the host has to mint `[attachment]`/`[screenshot]` itself —
-> this entry's own second finding, now explained.
-
-> **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
-> with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
-> image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
-> and the model reports **'No image came through'**. Validated, then dropped before the model.
-> The app's wire encoding was also read end-to-end and is correct (`ChatTurnBody` → parts array
-> with `image_url` data-URLs; attachment-only display text is '[1 attachment]', so the stored
-> '[screenshot]' was likely Owen's typed caption — immaterial now). **Ownership: Hermes-side.**
-> Candidates: active model lacks vision and the gateway strips images post-validation without
-> surfacing it (worst kind of silent), or tonight's hermes update broke prepared-image →
-> model-call attachment. **Next (Owen/host):** check the active model's vision capability in the
-> hermes config; re-probe after pointing a session at a known-vision model. The 07-13 paste→send
-> pass suggests this worked pre-update — if a vision model was active then, tonight's update is
-> the regression window. App-side follow-up only if Hermes turns out to REQUIRE a different wire
-> shape than the OpenAI-style parts the app sends (nothing suggests so — the 400 proves the shape
-> parses).
-
-Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
-→ the model reported receiving only the literal text "[screenshot]" with no image attached. The
-streaming client DOES carry `attachments: [PendingAttachment]` end-to-end (verified in
-`SessionsHermesClient.sendStreaming`/`streamTurn` signatures), so the drop is either in the
-attachment→wire encoding, the gateway's handling of image parts, or an attachment-only-specific
-path (text+image may behave differently — discriminator owed: send image WITH text and ask what
-arrived). "[screenshot]" literal appears nowhere in the app source (grep verified) — determine
-who synthesizes it (app placeholder text vs gateway part-stringification); that answers which
-side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
-text+image also fails, the regression window is this week's merges; if only attachment-only
-fails, it may never have worked.
-
-Logged 2026-07-17.
-
----
-
 ## 137. 🔧 Sensor opt-in redesign — MERGED (PR #125, `db52a22`, 2026-07-20); prior device check was UNRUNNABLE, guarantee still untested (2026-07-25)
 
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
@@ -3812,6 +3751,17 @@ fields from the first user message, so the card reads as a duplicate.
 capture the app sends no text part at all on those turns, so "[screenshot]" — like
 "[attachment]" — is materialized host-side. Two different placeholder strings for image content,
 both Hermes-generated. Carry into #132's host-side question.
+
+> **⚠️ UPDATED 2026-08-10 — the premise changed, the symptom may not have.** "The app
+> sends no text part at all on those turns" was true when written and is **no longer**:
+> #132's caption-less image floor shipped (`f63c6ee`), so an image-only turn now carries
+> a leading text part. **#132 is CLOSED and lives in `OPEN_ITEMS-ARCHIVE.md`** — there is
+> no longer a "#132 host-side question" to carry this into; the host-side routing
+> asymmetry is upstream's and the vision config is Owen's. What is UNVERIFIED is whether
+> the floor changes what the host derives for the title/preview: Hermes builds both from
+> the first user message, so these sessions may now title from the floor sentence instead
+> of "[screenshot]" — **not measured, and it would be a different cosmetic wart rather
+> than a fix.** Check on the next device pass before assuming either way.
 **Why it matters:** this is the session list the paid-tier user actually looks at, and it reads
 as broken even though the app is behaving correctly.
 ~~**Owner: Hermes-side, not app-side.**~~
@@ -5380,6 +5330,149 @@ checking it is live.
 lane's verdict depends on, so a wrong "fix" here silently degrades every
 future gate reading.
 
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 1, written into this entry
+BEFORE any edit to the script.** Two REAL gate logs from 2026-08-09 survive on
+disk and are the fixtures; both are reproduced byte-exactly inside the test
+harness so the bars stay runnable after `/tmp` is swept:
+
+| fixture | log | shape |
+|---|---|---|
+| the misclassified one | `/tmp/gate-254-run2/suite.log` | Swift Testing, `✘ Test controlArmWithoutRulesLeaksToTheListener() recorded an issue at HTMLArtifactSandboxTests.swift:157:9: Expectation failed: landed` |
+| the true positive | `/tmp/gate-279-run2/suite.log` | XCUITest, `TalariaUITests.testPairedRelaunchSkipsPairingEntry()` in `Failing tests:` and **no locus line anywhere** |
+
+- **300-A (RED first).** Feed the classifier the exact #254-lane failure text
+  (a Swift Testing failure WITH assertion text) → it names an **assertion
+  failure**, not a flake. **Must be RED on today's script before the fix** —
+  witnessed, not assumed.
+- **300-B.** Feed it a genuine no-assertion-text XCUITest bundle death → still
+  classified as the runner-flake family. No regression on the true positive.
+- **300-C.** Zero hardcoded tracker numbers remain in **advice text**.
+  *Operationalization, registered here before the edit so it cannot be
+  retrofitted:* the mechanical check is `#[0-9]+` over every string the script
+  **EMITS at runtime** (the `echo`/`printf` argument text), and it must be
+  **0**. Numbers that survive only in **header comments** are provenance
+  citations to history, not instructions a reader acts on, and history does not
+  go stale — those are OUT of the bar and their residual count is REPORTED
+  rather than driven to zero. Entry state: 8 occurrences total (`#218`×3,
+  `#93`×2, `#183`×2, `#164`×1), of which 4 are emitted.
+- **300-D.** A clean run still passes the gate and a seeded failure still fails
+  it — the #218 re-injection precedent, applied to this change.
+
+### ✅ FIXED 2026-08-10 — all four bars MET, `GATE: PASS` — and the defect was worse than filed
+
+**The entry says the classifier misdiagnosed one failure. It did not
+discriminate AT ALL.** Extracting the pre-fix conditional verbatim out of
+`lane-gate.sh` (`sed -n '230,246p'`, so it is the shipped bytes and not a
+retyping) and running it over both surviving 2026-08-09 logs returns the
+**identical** verdict for each:
+
+```
+########## Swift Testing failure WITH assertion text ##########
+        HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()
+        ^ NO assertion text — likely an XCUITest harness flake
+########## XCUITest runner death, NO assertion text ##########
+        TalariaUITests.testPairedRelaunchSkipsPairingEntry()
+        ^ NO assertion text — likely an XCUITest harness flake
+```
+
+**Why.** The discriminator was `grep -qE '\.swift:[0-9]+: error:'`, which
+matches only the **XCTest** diagnostic shape. Swift Testing prints
+`recorded an issue at File.swift:LINE:COL:` — line AND column, and **no
+`error:` token** — so the match count in the #254 log was **zero**. Every
+Swift Testing failure in this project's history was announced as a UI-test
+harness flake; 2026-08-09 is simply the first time someone read the advice
+closely enough to notice.
+
+**And it was three dead item numbers, not one.** Besides #164 the same advice
+printed **#183** and **#93** at the reader; both are also in
+`OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** and **#313**.
+
+**The fix.** `scripts/mac/lane-gate-classify.sh` (sourced by the gate, so it is
+testable in a second instead of behind a 20-minute suite):
+- recognises **both** frameworks' locus shapes;
+- attributes loci **per failing test**, matching structurally
+  (`Test <name>(…) recorded an issue at …`, `error: -[Suite <name>]`) so
+  `testFoo` cannot inherit `testFooBar`'s failure;
+- **fails SAFE** — a log that carries loci none of which can be attributed to a
+  named test (a `@Test("display name")`, an unparsed shape) is reported REAL,
+  never as a flake. The safe direction of error is to call a flake real; a real
+  failure dressed as noise gets re-rolled until it hides;
+- ignores bare `: error:` deliberately — the #254 log holds **884** such lines,
+  all simulator CoreData chatter. That is the gate header's own sim-noise trap
+  one level in;
+- prints **no item number**. It names a search string, and
+  `lane-gate-classify-test.sh` **executes every pointer against
+  `OPEN_ITEMS.md`** and fails if one matches nothing — so a pointer cannot rot
+  unnoticed the way these three did. The gate runs that self-test in
+  **preflight**.
+
+**BARS:**
+- **300-A — MET, RED witnessed first.** RED: the verbatim pre-fix block on
+  `/tmp/gate-254-run2/suite.log` (quoted above). GREEN: `assertion`, with the
+  advice quoting `HTMLArtifactSandboxTests.swift:157:9: Expectation failed:
+  landed` back at the reader. Confirmed against the **original log**, not only
+  the transcription.
+- **300-B — MET.** `/tmp/gate-279-run2/suite.log` → `runner-flake`, re-run
+  protocol preserved. Also holds with 40 lines of CoreData `: error:` noise
+  injected.
+- **300-C — MET.** Emitted `#[0-9]+` across both scripts = **0** (checked
+  mechanically, and the check is itself one of the self-test's assertions).
+  Residue, as pre-registered and reported rather than driven to zero: **1**
+  occurrence, in a header comment, citing archived item 218 as provenance —
+  the archive keeps entries verbatim, so that citation cannot rot. Entry state
+  was 8.
+- **300-D — MET, both halves.** *Seeded:* a four-line `@Test` with
+  `#expect(false)` in `MarkdownTableTests` → **`GATE: FAIL (4 check(s))`**, and
+  the advice read:
+  ```
+  failing tests:
+        MarkdownTableTests.seededFailureFor300D()
+          ASSERTION  Test seededFailureFor300D() recorded an issue at
+                     MarkdownTableTests.swift:37:9: Expectation failed: landed
+        ^ ASSERTION TEXT PRESENT — treat this as a REAL failure.
+  ```
+  That is 300-A proven **end-to-end inside the real gate on a freshly generated
+  log**, not just against a recorded fixture — the exact input the old script
+  called an XCUITest harness flake. *Clean:* seed removed, `MarkdownTableTests.swift`
+  byte-restored (`git status` clean for that path), → **`GATE: PASS`**.
+
+> **📋 THE GATE RUN — `GATE: PASS`, 2026-08-10, `/tmp/gate-300-319-final2`:**
+> **Swift Testing 2005 · XCUITest 14 · Release build PASS · 4 skips**, on
+> `CC-300-iPhone-Air` (`F58EADE2-CE63-4F92-BC27-0716BF0484C3`). Verbatim:
+> `GATE: PASS — logs in /tmp/gate-300-319-final2`.
+
+> **🔻 FOUR RUNS WERE NEEDED, and three of the failures were environment, not
+> code. All three are reusable findings.**
+>
+> | run | died on | cause |
+> |---|---|---|
+> | 1 | `Simulator device failed to launch …uitests.xctrunner` — "Application failed preflight checks" (**Busy**) | shared `iPhone 17 Pro Max`, contended by six concurrent lanes |
+> | 2 | `Failed to launch app …` — *"did not return a process handle nor launch error"* (`NSPOSIXErrorDomain Code=3`) | host process-table exhaustion; the session simultaneously lost the ability to spawn `echo` at all |
+> | 3 | **hung ~20 min** inside `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime()` | brand-new sim, no calendar/reminders TCC — EventKit blocks forever |
+> | 4 | `Expectation failed: granted` in the same test | the TCC grant did **not** survive the rebuild/reinstall |
+>
+> **① The gate's default simulator is a contention trap.** It defaults to the
+> shared `iPhone 17 Pro Max`; every recent lane has quietly been passing a
+> dedicated `CC-<item>-iPhone-Air`, and that convention is why they passed.
+> Recorded in CLAUDE.md.
+>
+> **② "The machine is working" and "I can start a process" are different
+> facts.** During run 2 the already-running xcodebuild kept appending to its log
+> while nothing new could be forked. If a gate run dies at app launch, check
+> host load before suspecting the diff.
+>
+> **③ A fresh simulator HANGS the suite rather than failing it, and the grant
+> is not durable.** `BatteryReapEventKitProbeTests`'s own docstring states the
+> precondition — *"TCC must be pre-granted (`simctl privacy grant
+> calendar/reminders org.aethyrion.talaria27`); without access the probes fail
+> their #require visibly rather than fake-passing."* They fail visibly only once
+> a decision exists; with **no** TCC record at all, `requestFullAccessToEvents()`
+> blocks indefinitely and the suite simply stops with no failure and no marker —
+> the gate's founding sin, arriving as a hang. And run 4 shows the grant is
+> dropped by a rebuild/reinstall, matching #254's note that a sim reboot dropped
+> it too. **Re-grant immediately before each gate run on a fresh sim.**
+
 ---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
@@ -5877,6 +5970,15 @@ RUN, not skip.** If the condenser fails fidelity/pruning, that is #89's
 residual risk firing: tune `condensedContextBrief`'s instructions — do not
 weaken the tests.
 
+> **⚠️ LOAD-BEARING NAME, 2026-08-10 (#300's fix).** When the gate reports the
+> two expected skips it used to print "#183" and "#93" at the reader — both
+> closed, and this entry (successor B of #93's split) is the live home. The
+> advice now says `grep -n CondenserFidelityTests OPEN_ITEMS.md` instead, so
+> **the suite name in this entry is referenced by tooling.** Keep it greppable
+> here for as long as those skips exist;
+> `scripts/mac/lane-gate-classify-test.sh` fails if the pointer stops
+> resolving.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
@@ -6078,6 +6180,89 @@ being part of every lane's choreography.
 
 **Cross-references:** **#3** (the standing xcodegen-regen rule this friction
 rides on), **#272** (the lane that most recently hand-reverted it).
+
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 2, written into this entry
+BEFORE any edit to `project.yml`.** Verified from a tree Xcode has **not**
+touched (no `xcuserdata`, `git status` clean) — scheme files are XML the IDE
+also rewrites, so a working tree mid-test is not a valid baseline.
+
+- **319-A (the idempotency bar).** `xcodegen generate` twice from a clean tree
+  → `git diff` is **EMPTY** after the second run; and after the **first** run
+  `BuildableName` still reads `"Talaria 27.app"` everywhere. The grep is
+  written to exclude the legitimate substring:
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  must be **0**, and the count of `"Talaria 27.app"` must be unchanged from the
+  committed scheme.
+- **319-B.** The suite still builds and runs post-regen — the `TEST_HOST`
+  override still resolves. Units + at least one XCUITest, both counts > 0.
+- **319-C.** `GATE: PASS` on the regenerated project — proof the gate and the
+  regen agree about the product name.
+
+**HARD STOP registered in advance:** if the fix turns out to require renaming
+`PRODUCT_NAME` itself, this half STOPS and comes back as a question — that
+touches the display-name / Siri-phrase decision Owen deferred at the
+2026-08-09 decision pass.
+
+### ✅ FIXED 2026-08-10 — all three bars MET, `GATE: PASS` — one line of spec, and the hard stop was never reached
+
+**The root cause, and why "pin the version" would never have worked.**
+XcodeGen has its own model of a target's product name: the spec key
+`productName`, which **defaults to the TARGET name** and is **never read from
+the `PRODUCT_NAME` build setting**. So `PRODUCT_NAME: "Talaria 27"` renamed the
+real product while XcodeGen went on believing it was building `Talaria.app`,
+and every generate re-asserted that belief into the scheme. **A version pin
+would have frozen the wrong belief in place**, exactly as the entry predicted;
+this is a spec omission, not a regression, and it has been wrong since the
+product was renamed.
+
+**The fix** is `productName: "Talaria 27"` on the app target in `project.yml`
+— nothing else. **`PRODUCT_NAME` was NOT touched, so the deferred display-name
+decision is untouched and the pre-registered hard stop never fired.**
+
+**It fixed the `TEST_HOST` derivation at the same time**, because that
+derivation reads the same property. The compensating override — and the comment
+saying *"XcodeGen's auto-derived TEST_HOST (Talaria.app/Talaria) is wrong"* —
+is **removed**: generating with and without it produced **byte-identical**
+`project.pbxproj`, both carrying
+`TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27"`.
+
+**BARS:**
+- **319-A — MET.** Baseline captured first, on a tree Xcode had never opened
+  (`git status` clean, no `xcuserdata`): one `xcodegen generate` produced the
+  filed damage exactly — four `BuildableName` flips to `"Talaria.app"`, the
+  scheme `version` 1.3 → 1.7, `parallelizable = "NO"` added to the UITest
+  testable, plus `runPostActionsOnFailure`, `onlyGenerateCoverageForSpecified‑
+  Targets` and three empty `<CommandLineArguments>` elements.
+  **After the fix:** `diff -r` between the whole `.xcodeproj` after run N and
+  after run N+1 is **empty — byte-identical**;
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  = **0**, and `"Talaria 27.app"` = **4**, unchanged from the committed scheme.
+- **319-B — MET.** The regenerated project builds `Talaria 27.app` and both
+  test bundles, and the suite RAN: **2005 Swift Testing tests + 14 XCUITest**,
+  `** TEST SUCCEEDED **`. The removed `TEST_HOST` override is not merely
+  unnecessary on paper — the tests actually load into the host without it.
+- **319-C — MET.** `GATE: PASS — logs in /tmp/gate-300-319-final2`, on the
+  regenerated project, with a clean Release build alongside. The gate and the
+  regen agree about the product name.
+
+**The 1.3→1.7 and `parallelizable` churn: same root, and now explained.**
+It was never a second bug. `TalariaShare.xcscheme` and
+`TalariaWidgets.xcscheme` were **already** at `version = "1.7"` in the committed
+tree; only `Talaria.xcscheme` sat at `"1.3"` — and it is the only one anyone
+ever hand-reverted. Reverting the file to undo the name damage dragged the
+version and the newer default attributes back with it, so the next regen
+re-applied them, forever. All of it is semantically inert (explicit defaults
+and empty elements), it is committed once here, and the regen is now stable.
+**Archived #52, which closed this very drift in August, had been quietly
+re-opened by the workaround for #319** — an append-only pointer records that
+under its entry.
+
+**A residual worth knowing:** the generated `PBXNativeTarget` still carries
+`productName = Talaria` as its own attribute while its `productReference` is
+now correctly `Talaria 27.app`. That is XcodeGen's internal bookkeeping, it
+matches the target name, and nothing reads it for a path — noted so the next
+person greps it and does not think the fix is half-applied.
 
 ---
 
@@ -9408,6 +9593,12 @@ full battery.
 >   chip) for the concurrent ChatScreen lane's rebase. New files went
 >   through `xcodegen generate`; the known Talaria.xcscheme BuildableName
 >   churn was reverted by hand ("Talaria 27.app" stands).
+>   **↪ 2026-08-10 (#319): that hand-revert is no longer needed by anyone.**
+>   The churn's root cause — XcodeGen deriving the product name from the
+>   TARGET name rather than `PRODUCT_NAME` — is fixed in `project.yml`
+>   (`productName: "Talaria 27"`), and the regen is now byte-for-byte
+>   idempotent. This note stays as the record of what the lane actually did;
+>   do not copy the procedure.
 >
 > **BAR STATUS after phase 2 (evidence beside each):**
 > - **257-1-C: MET** (unit, phase 1 — above).
@@ -9814,6 +10005,29 @@ deferred (b)/(c) verdicts per the 2026-08-05 routing.
 > recorded here instead and needs its own number — Owen's call**, since
 > allocating one touches the numbering sequence and the INDEX and is outside
 > this lane's scope.
+
+> **↪ RESOLVED 2026-08-10 — this finding got its number (#300) and the fix has
+> landed. Two corrections to the reading above, both found by the fix lane:**
+>
+> **1. The classifier was not merely wrong here — it had NO discriminating
+> power at all.** Extracting the pre-fix conditional verbatim and running it
+> over both surviving logs returns the identical *"NO assertion text — likely
+> an XCUITest harness flake"* verdict for each: `/tmp/gate-254-run2/suite.log`
+> (this run's real Swift Testing failure) and `/tmp/gate-279-run2/suite.log`
+> (a genuine runner death, same week). The regex `\.swift:[0-9]+: error:`
+> recognises only the XCTest diagnostic shape; Swift Testing prints
+> `recorded an issue at File.swift:LINE:COL:` with no `error:` token at all, so
+> its match count in this very log was **zero**. Every Swift Testing failure in
+> the project's history was announced as a UI-test harness flake — this run is
+> simply the first time anyone read the advice closely enough to notice.
+>
+> **2. It was not one dead item number — it was all three.** Alongside #164 the
+> same advice printed **#183** and **#93** at the reader, and both of those are
+> also in `OPEN_ITEMS-ARCHIVE.md`. The live homes are **#219** (the
+> runner-flake family) and **#313** (the CondenserFidelityTests skips). Advice
+> text now carries no item number at all; it names a search string, and a
+> self-test executes each one against `OPEN_ITEMS.md` so a pointer cannot rot
+> unnoticed the way these three did.
 
 > **📱 DEVICE RUN 2026-08-09 — build 2330, corded, airplane mode, Owen
 > driving. 254-E is UNRUNNABLE AS WRITTEN. The native `LIVE` arm was verified
@@ -10998,6 +11212,120 @@ lane opens.
 ## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
+
+> **▶ TRIGGER LANE OPENED 2026-08-10 (`t27-250-debug-island-trigger`).
+> BARS 250T-A..D — written HERE, BEFORE the run**, per the 2026-08-01
+> convention (bars live in the OPEN_ITEMS entry; the dispatch doc proposed
+> them, this entry registers them). A missed bar is a falsification, not a
+> redefinition.
+>
+> - **250T-A (compile-level / Release):** the harness button and its action
+>   exist **only** under `#if DEBUG`, and the **Release build is green with
+>   them compiled out**. The gate's Release leg is the proof — a review read
+>   is not (the #218 corollary: a green Debug suite cannot see a mis-set
+>   gate).
+> - **250T-B (sim, unit):** tapping the trigger starts an activity through
+>   the **REAL `LiveActivityService`** path — asserted via the service's own
+>   state, not a parallel test double or the `LiveActivityPreviews`
+>   scaffolding — and it ends **both ways** (auto-end timeout **and** second
+>   tap), leaving **no zombie activity** behind on either route.
+> - **250T-C (device — §R2's actual run):** with the trigger in a Debug
+>   build on the phone, R2's check runs as written — the island's leading
+>   icon slot matches Settings → Appearance → App Icon, after a switch and
+>   on a cold launch. **OWED, not claimed by this lane, and not a merge
+>   blocker**; the verdict lands in R2's row in
+>   `dispatch/DEVICE-PASS-RUNNING-LIST.md` (one queue), cited from here.
+> - **250T-D:** `GATE: PASS`, unit count MOVED.
+>
+> **The auto-end is load-bearing, not polish** (dispatch §4): Live Activities
+> have a system budget, so a leaked throwaway would make the REAL run
+> activity flaky — a harness fault that would read as a #250 regression.
+
+> **✅ BUILT 2026-08-10 (`t27-250-debug-island-trigger`).**
+>
+> **What shipped:** `Talaria/Services/Live/ThrowawayLiveActivityHarness.swift`
+> (whole file inside `#if DEBUG`) + a panel in `DeveloperSettingsScreen`'s
+> already-`#if DEBUG` batteries section — **"Start throwaway Live Activity
+> (#250 R2)"**, toggling to **"End throwaway"**. The harness drives the
+> **production** `LiveActivityService.startToolCall` / `updateToolProgress` /
+> `endActivity` — no inlined `Activity.request`, no mock attributes type, and
+> nothing from `LiveActivityPreviews`. `HermesActivityAttributes` needed **no
+> change**, so the two-copies lockstep rule never came into play. One
+> production line was widened: `LiveActivityService.hasActiveActivity`, tagged
+> `// harness-visible` per #216 — it exposes the same `currentActivity` handle
+> production already sets and clears, so the bar reads production's own
+> bookkeeping rather than a counter added for the test.
+>
+> **The harness is `static let shared`, not a `@State` on the view, on
+> purpose:** the 60 s auto-end has to outlive the Developer screen. A
+> view-owned harness would drop its timer on dismissal and leak exactly the
+> activity the auto-end exists to prevent.
+>
+> **250T-B MET — 5 new Swift Testing units, and the bar was witnessed RED
+> before it was believed.** Disabling only the auto-end (`self.end(.timeout)`
+> removed, nothing else touched) turned
+> `theAutoEndWindowEndsAThrowawayNobodyTappedAgain` red with 7 issues —
+> including `service.hasActiveActivity → true` **and**
+> `Activity<HermesActivityAttributes>.activities.isEmpty → false`, i.e. the
+> test catches a genuinely leaked system-level activity, which is the budget
+> hazard itself and not a proxy for it. `aTapAfterTheAutoEndIsANoOp…` went red
+> too; the second-tap test correctly stayed green, since that route is
+> independent of the timeout. Restoring the one line returned all 5 to green.
+>
+> **A trap this lane had to disarm, worth keeping:** the start assertion is
+> written `#expect(service.hasActiveActivity == service.isAvailable)` rather
+> than `== true`, so it stays total on a host with Live Activities disabled.
+> That phrasing *could* have been vacuously satisfied by `false == false` —
+> a green result proving nothing. It was checked rather than assumed: a
+> throwaway probe printed **`isAvailable=true hasActive=true sysCount=1`** in
+> the sim test host, and the run log shows real activity UUIDs
+> (`[api] Updating content for activity …`). **The sim host really does vend
+> Live Activities, so the equality is asserting `true == true`.**
+>
+> **250T-C: OWED on device, and NOT claimed by this lane.** The sim bars prove
+> the trigger drives the real service and leaks nothing; **they verify no
+> icon.** What the island actually renders is
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §R2's to answer — that row was
+> updated in this same commit from "standing watch, do not schedule" to a
+> runnable, queued check, per the close-out rule.
+>
+> **✅ 250T-A AND 250T-D MET — `GATE: PASS` (2026-08-10, on `41a772e`).**
+> `GATE: PASS — logs in /var/folders/.../talaria-gate.fWsEcp5SYA`.
+> **Swift Testing 2010 · XCUITest 14 · Release build succeeded, no Swift
+> compile errors in Release.** The Release leg is what settles **250T-A** —
+> the button and the harness compile out cleanly, which a green Debug suite
+> could not have shown (#218 corollary).
+>
+> **Count MOVED, so the stale-`.xctest` trap is cleared:** the last gate on
+> `main` (`163dbf5`, #255) reported **2005** units; this run reports **2010**
+> — **exactly the 5 tests this lane added**. XCUITest stayed 14, as expected
+> for a lane that added no UI tests.
+>
+> *(An earlier note here said both bars were unrun. It was true when written —
+> the box hit fork exhaustion mid-lane and the gate could not start — and is
+> now superseded by this run.)*
+>
+> **⚠️ TWO OPERATIONAL FINDINGS FROM THIS RUN, neither caused by this lane:**
+> 1. **A fresh simulator hangs the suite, silently and indefinitely.** The
+>    first gate attempt sat **20 minutes** on
+>    `BatteryReapEventKitProbeTests.reapEventOperationsSurviveOnThisRuntime`
+>    with no output and no failure. Cause: that file's own header requires TCC
+>    to be pre-granted (`simctl privacy grant calendar/reminders
+>    org.aethyrion.talaria27`), and on a newly-created sim
+>    `requestFullAccessToEvents()` raises a prompt nobody can answer. It does
+>    **not** fail its `#require` "visibly" as the header claims — **it hangs**,
+>    which is worse than a failure because it looks like a slow suite. Any lane
+>    that creates a sim must pre-grant both before running the gate.
+> 2. **The gate under-reports skips (#183's own guarantee, half-kept).** This
+>    run printed `4 test(s) SKIPPED` but enumerated only **2**. The count regex
+>    is `➜ Test .* skipped`; the display regex requires a **quoted** name
+>    (`➜ Test "[^"]+" skipped`), so bare function-style names never print. The
+>    two invisible ones are
+>    `aFailedRowNoLongerEatsALaterIdenticalPromptsClaim()` and
+>    `theSurvivingFailedRowIsAppendedAtTheTail()` (`AppStoresTests.swift`,
+>    skipped pending #282/#299) — **pre-existing on `main` since `31563f6`,
+>    nothing to do with this lane.** #183 exists precisely so a skip cannot
+>    hide; half of them still can.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **BUILD THE DEBUG-ONLY LIVE ACTIVITY TRIGGER.** A harness button (beside
@@ -13594,6 +13922,17 @@ sessions. **Do not simply trust it** — it has now been observed never to run.
 **FILED 2026-08-01.** *(OPEN_ITEMS #219. **Not** GitHub PR #219 — separate
 sequences. The five lanes below use sub-letters precisely to stop minting more
 collisions; `#217B` is the precedent.)*
+
+> **⚠️ LOAD-BEARING TITLE STRING, 2026-08-10 (#300's fix).** `lane-gate.sh`'s
+> failure advice no longer prints an item number — it cannot keep one live, and
+> the three it used to print (#164, #183, #93) had all been closed by the time
+> anyone followed one. Instead it tells the reader to run
+> `grep -n 'runner dies mid-bundle' OPEN_ITEMS.md`, so **the phrase "runner
+> dies mid-bundle" in this header is now referenced by tooling.** If this entry
+> is retitled, moved, or archived, update the string the gate prints in the
+> same commit. `scripts/mac/lane-gate-classify-test.sh` executes every such
+> pointer against `OPEN_ITEMS.md` and fails if it matches nothing, so the
+> breakage surfaces in about a second rather than in five days.
 
 **Occurrence 1.** During the first real `lane-gate.sh` run against `main`:
 
