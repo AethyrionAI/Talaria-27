@@ -1,4 +1,22 @@
 <!DOCTYPE html>
+<!-- ✅ RESOLVED 2026-08-10 (interactive pending review) — all four OWEN items
+     answered; THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
+     UNCOMMITTED). Edit there, not here.
+     (1) Data-practice claims CONFIRMED by Owen (no iCloud/CloudKit sync;
+         zero analytics/ad/crash SDKs; local-only notifications) — and
+         verified against the tree the same day: cloudKitDatabase .none is
+         the only CloudKit reference, no APNs registration survives #238,
+         and the sole SPM dependency is stasel/WebRTC (realtime voice
+         engine, not an analytics SDK).
+     (2) Developer of record: James Jones (personal legal name, Owen's call
+         over "Aethyrion").
+     (3) Contact: j.owen.jones@live.com.
+     (4) Effective date: set at push — docs/privacy.html carries a marked
+         SET-AT-PUSH field; the COMMIT+PUSH is the publish moment and is
+         Owen's alone.
+     Still gated elsewhere: the permissions table re-syncs against the final
+     Info.plist when the 166-D strings lane lands; the realtime-voice
+     sentence ties to #320's indicator. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">

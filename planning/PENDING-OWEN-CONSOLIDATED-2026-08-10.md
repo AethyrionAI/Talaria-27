@@ -132,6 +132,21 @@ carve-out (a)) · #161, #273, #101 (both halves), #45, #72 (routed) · #306
 O8 (ratified) · wave-1's seven lanes · wave-2: #315 fixed, #299 fixed,
 #282 measured (→ §1), #279 already-landed discovered + header corrected.
 
+## §1 CLEARED — 2026-08-10, same-day interactive review (addendum to the snapshot)
+
+All five decisions and all five product questions were ruled in the
+interactive session; **verdicts live at the owning entries**, per this doc's
+own rule. In one line each: #282 §7 → RANK consumers (option 1 alone, the
+per-change go) · #224 → APPROVED, all eight (Phase 0 dispatch owed) · privacy
+policy → confirmed and STAGED at `docs/privacy.html`, uncommitted, publish
+moment Owen's · #321 → abandon outright / live-stream-Stop transcript /
+restore the HOLD · #299 → SWEPT to archive · #257 voice → screen-only stands ·
+#257 vision → ADD with attach-caveat (work owed in #257) · #257 home → chat
+sheet permanent · #292 R1 → **superseded knowingly** (it turned out already
+ruled ACCEPTED on 08-09 — this index carried it as an open survivor in error;
+the conflict was surfaced and Owen chose the final read anyway, filed as
+**#322**) · #295 poll → skip for now.
+
 ## 8 · Two documented gaps (flagged, not fixed here)
 
 1. **#301/#302/#303's device rows exist only as prose** inside R6/R7's
