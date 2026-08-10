@@ -6400,6 +6400,46 @@ data: {"event": "tool.completed", "run_id": "run_f916c984163f4d51…", "timestam
 *(The stopped-tool half of the probe ran the same sitting — see the frames
 capture in the device list's R5 row for what a mid-flight stop emits.)*
 
+### Bars for the REOPENED 296-C1 — WRITTEN FIRST, before any code (2026-08-10)
+
+Carried from `dispatch/OPUS-T27-296C1-bool-error.md` §3 into the entry, per the
+convention recorded in CLAUDE.md ("Where the BARS live"): the dispatch doc is the
+hand-off, this entry is where the bars are pre-registered and scored.
+
+- **C1-A (RED→GREEN) — a Boolean `error` is a failure, not a clean ✓.** A
+  `tool.completed` frame carrying `error: true` (a JSON **boolean**, the fixture
+  matching the 2026-08-09 wire capture's byte-shape) yields a chip with
+  `failure != nil`, rendered failed. **RED first on unmodified HEAD.**
+  *Two rows, because the claim spans two seams:* **(i)** the parser returns a
+  non-nil error for the Boolean frame; **(ii)** that failure reaches the chip —
+  which is C1-D's end-to-end row and is scored there rather than twice.
+- **C1-B — a String `error` still carries its text verbatim.**
+  `RunsFrameParserTests.toolCompletedCarriesTheHostError` stays green,
+  unmodified. A future host build may legitimately upgrade the flag to a
+  message, and the union must not trade one arm for the other.
+- **C1-C — the no-key and `error: false` cases stay clean-✓.** No-regression on
+  honest completions, at BOTH levels: the parser returns nil for each, and an
+  `error: false` frame driven end-to-end leaves the chip `.completed`.
+  `anEmptyHostErrorDoesNotMarkACompletedToolInterrupted` also stays green.
+- **C1-D (the mapping test — the gap the first lane could not close).** The
+  parser→consumer handoff is pinned **end-to-end**: real SSE bytes → the real
+  `parseRunsFrame` → the real transport mapping → a real `ChatStore`, asserted
+  on the chip's `failure` and on `ToolActivityRail.state(of:)`. **Not via each
+  half's own mock** — a `ScriptedStreamChatClient` fed a hand-made
+  `ToolCallEvent` would restate the consumer test and prove nothing about the
+  one line between them.
+- **C1-E — legacy decode.** `ChatStorePersistenceTests.legacyToolActivityJSONStillDecodes`
+  stays green: a pre-#296 persisted blob with no `failure` key still round-trips.
+- **C1-F — `GATE: PASS`, and the reported test counts MOVED** (the stale-`.xctest`
+  trap: a green suite at the old count proves nothing about new tests).
+
+**Traps carried into the run, verbatim from the dispatch §4:** do **not** invent
+error text for the Bool case (the wire carries no message — the chip says
+"failed", not a fabricated reason); the STOPPED path (296-A, client-local) is
+correct and **separate**, not to be unified with this; the deny arm's BLOCKED
+prose arrives as ordinary content, so this lane touches **only** the tool-chip
+channel; and 296-C2's device row is **ANSWERED** — do not re-queue it.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
