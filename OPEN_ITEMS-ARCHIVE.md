@@ -9299,6 +9299,43 @@ microphone audio somewhere the UI says it is not going.
 > fix is retracted; the four pins here (248-A..D) remain green and
 > byte-unmodified under it.
 
+> ### 📌 APPEND-ONLY POINTER BLOCK — 2026-08-10, filed by tracker #282's lane
+>
+> Per #317 ruling (a): original bytes untouched. **Nothing here is retracted
+> and this item stays closed** — the note is a measurement that bears on how
+> durable its closure is.
+>
+> **What the dupe-kill actually rests on.** This item's four pins all use
+> `.working`/`.sending` local rows, so they measure the content claim
+> confirming an **in-flight** row. #282's lane has now measured what the
+> claim does for **SETTLED** locally-born user rows, and the answer is that
+> it is their **only** confirmation tier: tier 1 misses (client `UUID()` vs
+> the host's `stableMessageID`) and tier 2 misses (the gateway transcript
+> echoes no `clientMessageID`). **So "the dupe this item existed to kill is
+> dead" is true today precisely BECAUSE tier 3 is unscoped.**
+>
+> **Measured, on branch `claude/t27-282-claim-demand-scope` (a MEASUREMENT
+> PR that does NOT merge — `main` is unaffected and every pin here is green
+> on `main` today).** With the in-flight guard applied, the four pins here
+> stay green — Owen's ruling was right about that — but three other fixtures
+> go red, and **all three reproduce THIS item's reported symptom**
+> (*"one at the top where I started, and one below the response"*) for
+> populations these pins do not cover:
+> - an ordinary two-turn in-app thread reconciled against the host:
+>   `["Q1","A1","Q2","A2"]` → `["Q1","A1","Q2","A2","Q1","Q2"]` (bounded —
+>   one extra copy, then it converges);
+> - a settled first turn beneath a mid-recovery second turn (bounded);
+> - an id-less server row across two fetches — **unbounded**, because
+>   `mapStoredMessage` mints a fresh `UUID()` and a fresh timestamp per
+>   fetch so tier 1 can never bind later.
+>
+> **Consequence for anyone reading this closure:** if a #282 successor ever
+> lands a demand-side scope, this closure's claim needs re-reading as
+> "scoped to in-flight rows", and the settled population's behaviour has to
+> be stated. **That has NOT happened** — no scope change has merged. Live
+> board: **#282**, which carries the full measurement, the mirror proof, and
+> a decision owed to Owen.
+
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
 > that started on the mac on talaria, and asked a follow up question that
 > will need research and tools - Question not duplicated. Response below
