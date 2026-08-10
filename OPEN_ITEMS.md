@@ -5205,6 +5205,35 @@ checking it is live.
 lane's verdict depends on, so a wrong "fix" here silently degrades every
 future gate reading.
 
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 1, written into this entry
+BEFORE any edit to the script.** Two REAL gate logs from 2026-08-09 survive on
+disk and are the fixtures; both are reproduced byte-exactly inside the test
+harness so the bars stay runnable after `/tmp` is swept:
+
+| fixture | log | shape |
+|---|---|---|
+| the misclassified one | `/tmp/gate-254-run2/suite.log` | Swift Testing, `✘ Test controlArmWithoutRulesLeaksToTheListener() recorded an issue at HTMLArtifactSandboxTests.swift:157:9: Expectation failed: landed` |
+| the true positive | `/tmp/gate-279-run2/suite.log` | XCUITest, `TalariaUITests.testPairedRelaunchSkipsPairingEntry()` in `Failing tests:` and **no locus line anywhere** |
+
+- **300-A (RED first).** Feed the classifier the exact #254-lane failure text
+  (a Swift Testing failure WITH assertion text) → it names an **assertion
+  failure**, not a flake. **Must be RED on today's script before the fix** —
+  witnessed, not assumed.
+- **300-B.** Feed it a genuine no-assertion-text XCUITest bundle death → still
+  classified as the runner-flake family. No regression on the true positive.
+- **300-C.** Zero hardcoded tracker numbers remain in **advice text**.
+  *Operationalization, registered here before the edit so it cannot be
+  retrofitted:* the mechanical check is `#[0-9]+` over every string the script
+  **EMITS at runtime** (the `echo`/`printf` argument text), and it must be
+  **0**. Numbers that survive only in **header comments** are provenance
+  citations to history, not instructions a reader acts on, and history does not
+  go stale — those are OUT of the bar and their residual count is REPORTED
+  rather than driven to zero. Entry state: 8 occurrences total (`#218`×3,
+  `#93`×2, `#183`×2, `#164`×1), of which 4 are emitted.
+- **300-D.** A clean run still passes the gate and a seeded failure still fails
+  it — the #218 re-injection precedent, applied to this change.
+
 ---
 
 ## 299. 🐛 The adoption merge duplicates every ASSISTANT row born in-app — a `.hermes` row has NO confirmation tier at all — **FILED 2026-08-09 by tracker #282's lane, from its own pre-registered baseline (bar 282-B). MEASURED, not inferred. This is the STOP condition #282's dispatch wrote in advance, and #282 halted on it. NOT STARTED — no fix, no scope decision; bars pre-register here before any code.**
@@ -5903,6 +5932,29 @@ being part of every lane's choreography.
 
 **Cross-references:** **#3** (the standing xcodegen-regen rule this friction
 rides on), **#272** (the lane that most recently hand-reverted it).
+
+**BARS — pre-registered 2026-08-10, copied from
+`dispatch/OPUS-T27-300-319-tooling-bucket.md` Half 2, written into this entry
+BEFORE any edit to `project.yml`.** Verified from a tree Xcode has **not**
+touched (no `xcuserdata`, `git status` clean) — scheme files are XML the IDE
+also rewrites, so a working tree mid-test is not a valid baseline.
+
+- **319-A (the idempotency bar).** `xcodegen generate` twice from a clean tree
+  → `git diff` is **EMPTY** after the second run; and after the **first** run
+  `BuildableName` still reads `"Talaria 27.app"` everywhere. The grep is
+  written to exclude the legitimate substring:
+  `grep -o 'BuildableName = "[^"]*"' *.xcscheme | grep -c '"Talaria\.app"'`
+  must be **0**, and the count of `"Talaria 27.app"` must be unchanged from the
+  committed scheme.
+- **319-B.** The suite still builds and runs post-regen — the `TEST_HOST`
+  override still resolves. Units + at least one XCUITest, both counts > 0.
+- **319-C.** `GATE: PASS` on the regenerated project — proof the gate and the
+  regen agree about the product name.
+
+**HARD STOP registered in advance:** if the fix turns out to require renaming
+`PRODUCT_NAME` itself, this half STOPS and comes back as a question — that
+touches the display-name / Siri-phrase decision Owen deferred at the
+2026-08-09 decision pass.
 
 ---
 
