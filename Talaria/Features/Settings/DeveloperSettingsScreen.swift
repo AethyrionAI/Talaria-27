@@ -523,7 +523,64 @@ struct DeveloperSettingsScreen: View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
             groupLabel("// Batteries (#200 harness)")
             localBrainPanel
+            throwawayLiveActivityPanel
         }
+    }
+
+    // MARK: Throwaway Live Activity (#250 R2, DEBUG builds only)
+    //
+    // Device row §R2 — "the Dynamic Island wears the selected icon" — was a
+    // standing watch because the island is untriggerable on demand. This starts
+    // a THROWAWAY instance of the REAL activity through the production
+    // `LiveActivityService`, so what the island renders is what a real run
+    // renders. Tap, look at the island's leading icon slot, compare against
+    // Settings → Appearance → App Icon.
+    //
+    // The harness is `ThrowawayLiveActivityHarness.shared`, not a `@State` on
+    // this view, precisely so the auto-end outlives the screen.
+
+    private var throwawayLiveActivityPanel: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Live Activity — #250 R2", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+            MonoLabel("Starts a labelled THROWAWAY activity through the real LiveActivityService. Compare the island's leading icon against Settings → Appearance → App Icon. Ends itself after \(throwawayAutoEndSeconds)s, or tap again.",
+                      size: 9, tracking: Design.Tracking.mono,
+                      color: Design.Colors.secondaryForeground)
+            GhostButton(
+                title: throwawayHarness.isRunning
+                    ? "End throwaway"
+                    : "Start throwaway Live Activity (#250 R2)",
+                systemImage: throwawayHarness.isRunning ? "stop.circle" : "bolt.fill",
+                height: 40
+            ) {
+                throwawayHarness.toggle()
+            }
+            if !throwawayHarness.service.isAvailable {
+                MonoLabel("Live Activities are disabled for Talaria — enable them in Settings → Talaria → Live Activities, or nothing will appear.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Brand.forge)
+            } else if throwawayHarness.isRunning {
+                MonoLabel("Running — long-press the island to expand it. Auto-ends in ≤\(throwawayAutoEndSeconds)s.",
+                          size: 9, tracking: Design.Tracking.mono,
+                          color: Design.Brand.accent)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Design.Spacing.md)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+    }
+
+    private var throwawayHarness: ThrowawayLiveActivityHarness {
+        ThrowawayLiveActivityHarness.shared
+    }
+
+    private var throwawayAutoEndSeconds: Int {
+        Int(throwawayHarness.autoEndAfter.components.seconds)
     }
 
     private func groupLabel(_ text: String) -> some View {

@@ -145,6 +145,16 @@ needs no upstream anything.
 - **The app already does the honest thing on the OTHER plane.** `LocalChatBackend.swift:1622`
   injects, in band: *"[Attached image … — the on-device model cannot view images. If the image
   matters to the request, say honestly that you can't see it.]"* The host plane has no analogue.
+> **✅ SUPERSEDED 2026-08-10 for the bullet immediately below — the floor SHIPPED.**
+> `#132`'s honesty floor landed (`f63c6ee`, branch `t27-132-image-floor`) and **#132 is
+> CLOSED** (now in `OPEN_ITEMS-ARCHIVE.md`). A caption-less image turn no longer ships a
+> lone `image_url`: `AttachmentInlining.assemble` prepends
+> `[Talaria: the user attached N image(s) with no caption — …]` on BOTH host planes,
+> wire-only. The `ChatStore` mechanics described below are still accurate — the display
+> placeholder is display-only and the wire still gets the trimmed empty string; the floor
+> is injected below that, at encode time. The `LocalChatBackend` "other plane" bullet
+> above is also no longer a contrast: the host plane now has its analogue.
+
 - **A caption-less image turn sends NO text part at all.** `ChatStore.swift:579-581` synthesizes
   `[N attachment(s)]` for **display only**; the wire call at `ChatStore.swift:643` passes the
   *trimmed* (empty) content, and `AttachmentInlining` only prepends a text part when the message

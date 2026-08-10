@@ -876,17 +876,35 @@ Est. ~15 min.
 **Group 6 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
 `approvals.mode` on the dashboard).** Est. ~25 min, plus however long F7d's
 stall takes (bounded by #145 to 20s/300s — it will not hang forever).
-- [ ] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
+- [x] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
   field in the confirm card before approving. (PASS: the written record
   matches the EDITED values, not the originally staged ones.)
-- [ ] F7c — Same, but background the phone while the card is waiting.
+  **✅ PASS 2026-08-09 evening (build 2418):** "water the plants" create,
+  title edited in-card to "Water the plants!!" before approving — the
+  Reminders app shows the EDITED title at the staged 9:00 PM slot
+  (screenshot). Edited values won.
+- [x] F7c — Same, but background the phone while the card is waiting.
   (PASS: the gate survives suspension — card still there and answerable on
   return, tool not silently resolved either way.)
-- [ ] F7d — Set the host's `approvals.mode` to `manual` (it is `off` today,
+  **✅ PASS 2026-08-09 evening:** calendar-event card held through a 30 s
+  background, still answerable on return, nothing self-resolved; approval
+  wrote tomorrow-3pm to the calendar, verified in the Calendar app.
+- [x] F7d — ~~Set the host's `approvals.mode` to `manual` (it is `off` today,
   dashboard `:9119` or `PUT /api/config`); ask the connected tier for
   something that needs approval; **restore `off` after.** (DISCOVERY, not
   pass/fail — record what actually shows: a hung run that fails cleanly at
-  #145's timeout, a silent stop, an inbox item, or nothing at all.)
+  #145's timeout, a silent stop, an inbox item, or nothing at all.)~~
+  **✅ RAN 2026-08-09 evening (build 2418, Mac, the R10/R11 manual window;
+  config edited directly, not via dashboard). The answer is a FIFTH shape
+  none of the four pre-registered options named: on the sessions plane the
+  tool returns in 0.16 s with structured `status: "pending_approval",
+  approval_pending: true`, the AGENT then narrates the park in prose
+  ("queued waiting on your approval decision — nothing executed yet") and
+  the turn ends normally. No hang, no #145 timeout, no inbox item, no
+  silent stop — but also NO answer channel on this plane (the approval
+  card is runs-plane 3B), so it is a narrated dead-end. Nothing executed.
+  Mode restored to `off` + listener verified after (one Errno-48 headless
+  respawn caught and second-kicked).**
 - [ ] F7e (optional) — Repeat F7d with `smart` instead of `manual`. (Record
   whether Smart prompts at all for ordinary agent work.)
 
@@ -1374,7 +1392,28 @@ leaving the device. Note whether the absence of any indicator feels wrong.
 
 ## B · #130 — the half-duplex A/B, owed since 2026-07-20
 
-### B1 · Half-duplex gate vs talk-over barge-in · **PARKED 2026-08-01 — kept as a REMINDER**
+> **⚰️ RETIRED 2026-08-09 BY THE ARCHIVE SWEEP — Owen's call, on being shown
+> that this row IS the half-duplex A/B probe: *"Isn't that the half duplex a/b
+> probe? If so that can be archived."* #130 moved to `OPEN_ITEMS-ARCHIVE.md`
+> in the same commit. DO NOT RUN B1; it is no longer owed by anything.**
+>
+> **Why it needed a ruling rather than a deletion:** #130 was closed by Owen on
+> 2026-07-31 (*"drop this, it's fine as is"*), but the day after he parked THIS
+> row as a reminder (*"we need to get to the bottom of it"*) — so the tracker
+> said closed while the device queue said, in so many words, *"DO NOT DELETE —
+> #130 is open."* **That contradiction is what this note resolves.** The *it*
+> he wanted to get to the bottom of was the **engine-identification gap**, and
+> that was fixed 2026-08-01 (the `voice session starting on engine …` log line)
+> — so the reminder's own subject is discharged, and what remains below is a
+> preference judgement Owen has already declined.
+>
+> **The probe branch `probe/t27-130-halfduplex` is NOT deleted** (origin and
+> local) — retiring a row is not a reason to destroy its artifact, and #105/#141
+> may still want the gate at the realtime engine's transcription ingest.
+> **Kept below verbatim, annotated rather than removed**, per this file's
+> standing convention.
+
+### B1 · Half-duplex gate vs talk-over barge-in · ~~**PARKED 2026-08-01 — kept as a REMINDER**~~ **⚰️ RETIRED 2026-08-09 — #130 ARCHIVED, DO NOT RUN**
 
 > **Owen 2026-08-01: the original trigger for #130 is no longer a concern, but
 > keep this parked — "we need to get to the bottom of it."** The *it* is the
@@ -2328,7 +2367,19 @@ Three rows the tracker had queued nowhere. Verified absent before adding:
 `grep -n "#256\|#252\|#249\|#250\|island\|Island"` over this file returned zero
 matches across 2,130 lines. **One queue — these are not restated in `OPEN_ITEMS.md`.**
 
+> **⚠️ HEADING NO LONGER COVERS ALL THREE (2026-08-10).** **R2 is no longer a
+> standing watch — it is a runnable, queueable check**, because the
+> `t27-250-debug-island-trigger` lane built the Debug trigger Owen ruled for on
+> 2026-08-09. R1 and R3 are still passive. Read this heading as "…and standing
+> watches, minus R2."
+
 ### R1 · #256-E (2nd half) + #249F-D — reminder phrasing, PASSIVE
+
+> **Ownership note, 2026-08-09 (archive sweep): #256 is now in
+> `OPEN_ITEMS-ARCHIVE.md`. This row's live owner is #249F-D** — which is where
+> 256-E's second half was folded when #256 closed, and #249 stays on the live
+> board. The `#256-E` label is kept because that is what the observation was
+> pre-registered as; read the bar against #249F-D.
 
 **Prerequisite:** a build at or past `ca895f2` (#249F, PR #273). OTA 2250 and anything
 staged after it qualifies; **confirm the build before counting a reading** — an
@@ -2346,20 +2397,55 @@ settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening)
 **Record the model's exact words.** Both are text bars, and the failure mode they guard
 against is a *mined phrase*, not a wrong time.
 
-### R2 · #250-E — the Dynamic Island wears the selected icon, STANDING WATCH
+### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ **✅ NOW RUNNABLE — QUEUE IT (2026-08-10)**
 
-**Currently UNTRIGGERABLE on demand** — Owen's own words: he cannot consistently bring
-the island up. No Debug harness trigger exists (it would live beside the other harness
-buttons — `grep "toollessIndexBatteryButton"` for the pattern). **Do not schedule this;
-it is a watch, not a runnable check.**
+> **▶ THE TRIGGER EXISTS AS OF 2026-08-10** (`t27-250-debug-island-trigger`,
+> bars 250T-A/B in OPEN_ITEMS #250). The "untriggerable" preamble below is
+> **superseded** — it was true from filing until this lane landed, and is kept
+> for the record rather than deleted.
+>
+> **How to run it now, on a DEBUG build:** Settings → Developer →
+> *Batteries (#200 harness)* → the **`// Live Activity — #250 R2`** panel →
+> **"Start throwaway Live Activity (#250 R2)"**. That starts a labelled
+> throwaway through the REAL `LiveActivityService` — the same
+> `Activity.request` and the same `HermesActivityAttributes` a real run uses,
+> so the island's leading icon slot renders exactly what a real run would put
+> there. It **ends itself after 60 s**, and a second tap ("End throwaway")
+> ends it early.
+>
+> **Three things to know before running it:**
+> - **DEBUG builds only.** The button is compiled out of Release, so an
+>   OTA/TestFlight Release build will not have it.
+> - **If the panel warns that Live Activities are disabled**, turn them on in
+>   Settings → Talaria → Live Activities first — nothing will appear otherwise,
+>   and that is the OS, not a #250 failure.
+> - **Let it end.** Live Activities draw on a system budget; the auto-end is
+>   there so repeated harness taps cannot starve the REAL run activity. If the
+>   island starts behaving oddly after many taps, wait the window out before
+>   concluding anything about #250.
+>
+> **This row is now a ~2-minute check, and 250T-C is the bar it settles.** The
+> sim bars did NOT verify any icon — 250T-B proves the trigger drives the real
+> service and leaks nothing; **what the island actually renders is unverified
+> and is this row's to answer.**
 
-When an island does appear during real use: its leading icon slot must match the icon
+*(original row text follows, kept for the record — its first paragraph is the
+superseded part)*
+
+**~~Currently UNTRIGGERABLE on demand~~** — Owen's own words: he cannot consistently bring
+the island up. ~~No Debug harness trigger exists (it would live beside the other harness
+buttons — `grep "toollessIndexBatteryButton"` for the pattern).~~ ~~**Do not schedule this;
+it is a watch, not a runnable check.**~~
+
+When an island does appear ~~during real use~~ **(now: on demand, per the trigger above)**: its
+leading icon slot must match the icon
 selected in Settings → Appearance → App Icon — both right after a switch, and on a
 fresh cold-launch island. Bars 250-A/B/C are MET and the home-screen half is already
 confirmed; this is the only unverified half.
 
-*(Whether to build the Debug trigger and make this runnable is Owen's call — see
-`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.)*
+*(~~Whether to build the Debug trigger and make this runnable is Owen's call — see
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.~~ **Owen ruled BUILD on 2026-08-09;
+built 2026-08-10.**)*
 
 ### R3 · #250-A tinted variant — one look, no setup
 
@@ -2603,7 +2689,7 @@ device module on a forced loudspeaker; native speaks through `SpeechOutputServic
 `managesAudioSession == false`. Two different audio paths produce the ghost two different
 ways.
 
-### R8 · #292-C — abandoned runs turn stops polling · **[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]**
+### R8 · #292-C — abandoned runs turn stops polling · ~~[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]~~ **✅ RAN 2026-08-09 evening (build 2418) — MET with the INCONCLUSIVE guard satisfied: ~17 polls before the walk-away, ZERO after (cutoff on the walk-away second), zero /stop, host ran to completion, reconcile adopted on return. #292 CLOSED. Full sequence in OPEN_ITEMS #292. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #288's merge (`c2cc540`), runs transport
 switch ON (Developer → runs transport), host = the Mac (observable `agent.log`)
@@ -2625,7 +2711,7 @@ nothing (instrument the error path).
 never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
 shows the previous run's occupancy.
 
-### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · ~~[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]~~ **✅ RAN 2026-08-09 evening (build 2418) — BOTH ARMS PASS, all four contract clauses held, reservation offered and not taken. 272-H MET; #272 CLOSED. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
 repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
@@ -2649,7 +2735,7 @@ must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
 'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
 REOPENS — that is the bar working, not a failure of the lane.
 
-### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · **[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]**
+### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · ~~[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]~~ **✅ RAN 2026-08-09 evening (build 2418, Owen's go, mode restored after) — MET: card showed the host's choice set (ONCE/THIS RUN/ALWAYS/DENY + pattern label), one tap resumed the run, delete verifiably executed. #304 CLOSED (with R11). DO NOT RE-RUN.**
 
 **Prerequisites (each its own ask):** (1) Owen's explicit go for THIS experiment:
 set `approvals.mode: manual` on the **Mac** (`~/.hermes/config.yaml` — Owen's O3
@@ -2667,7 +2753,7 @@ host's `agent.log`, not the screen.** Also glance: the 155-char voice-status
 copy renders sanely if a voice turn is tried (it wraps, by design), and the
 second-confirm sheet on ALWAYS/THIS RUN names the consequence.
 
-### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · **[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]**
+### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · ~~[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]~~ **✅ RAN 2026-08-09 evening — MET both arms: deny delivered the host's BLOCKED text with no retry; Stop resolved the parked approval as a clean deny in 300 ms (`Approval wait interrupted by user signal`). §2.3 unknown OBSERVED: denied tool renders as a clean ✓ chip (#296-C1's parser drop), stopped tool as "Stopped". Full evidence in OPEN_ITEMS #304. DO NOT RE-RUN.**
 
 Same setup as R10. **Arm 1:** tap DENY → the host's own BLOCKED text arrives and
 the agent does NOT retry or rephrase (host log evidence). **Arm 2 (the escape
@@ -2718,7 +2804,7 @@ results screen has no error indicator). **The verdict decides Shape A:** ≥90%
 armed → the corpus-widening lane opens; a miss → Shape A is dead before any
 corpus work, and that is a RESULT.
 
-### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · **[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]**
+### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · ~~[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]~~ **✅ RAN 2026-08-09 evening (build 2418) — ALL THREE ARMS MET with host-log evidence (serial fire at +1s; zero POSTs after Stop; hold waited out a 7½-min background and fired only after the reconcile's GETs adopted). 306-L MET. DO NOT RE-RUN. Full sequence in OPEN_ITEMS #306.**
 
 **Prerequisite:** a build at or past PR #293's merge (`5029d22`) — the staged
 OTA covers it. A remote (Hermes) profile active.
@@ -2741,3 +2827,21 @@ Three arms, in order; evidence for (ii) and (iii) is the **host's `agent.log`**
 **Also worth one glance (feel, not a bar):** the chip's Edit/Cancel; a held
 message surviving New Chat and SURFACING on return from the drawer (the O8
 question you're ratifying rides this behavior).
+
+### R15 · #140-D — the ATS mechanism claim, settled on device · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than go silent on mechanism]**
+
+**Cheap; rides any corded sitting.** The disputed ATS parenthetical spans four
+documents including `CLAUDE.md`; this run settles it. Protocol per #140's entry
+(the device arm as pre-registered there). Until it runs, the disputed text is
+not re-published as verified fact in any public copy — that's the standing
+half of the same ruling.
+
+### R16 · 56-U-H — Siri in the HOSTLESS column · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than hedge the copy]**
+
+**One check:** on a standalone/unpaired install (§F2's state), invoke the Siri
+phrase and confirm the intent completes against the local brain. The public
+copy's hostless-column Siri claim then states what was verified. If it FAILS,
+the copy hedges and the failure files its own number — do not ship the claim
+on a miss.
+
+### §R15/R16 ride-along · #222 device arm — **OPPORTUNISTIC (ruled 2026-08-09): no dedicated run; fold into whatever corded sitting has slack. Not runnable on sim or test host (Code=5000).**

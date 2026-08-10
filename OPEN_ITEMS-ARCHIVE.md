@@ -3320,6 +3320,169 @@ Logged 2026-07-17.
 
 ---
 
+## 132. 🐛 Image attachments dropped HERMES-SIDE — app exonerated by wire probe (2026-07-17); the app-side honesty floor SHIPPED 2026-08-10 ✅ CLOSED
+
+> **✅ CLOSED 2026-08-10 — the caption-less image floor landed; 132-A..F all MET.**
+> Per Owen's 2026-08-09 ruling ("ship the floor now; `auxiliary.vision` is the keeper;
+> #132 CLOSES when the floor lands"). Branch `t27-132-image-floor`, commits `8d67a59`
+> (bars, written first) → `f63c6ee` (the floor) → `f7aed66` (test hygiene).
+>
+> **What shipped.** A turn with images and no text of the user's own now carries one
+> neutral sentence instead of a lone `image_url` with no instruction:
+> `[Talaria: the user attached 1 image with no caption — examine it and respond to what
+> it shows.]` (plural: `N images` / `examine them` / `what they show`). **Owen approved
+> the wording as drafted, 2026-08-10.**
+>
+> **Where, and why there.** In `AttachmentInlining.assemble` — the single place BOTH
+> host planes build their parts (`ChatTurnBody`/sessions and `RunsTurnBody`/runs), so
+> one implementation covers both, and it sits inside the existing budget loop so the
+> floor's bytes are CHARGED against the 900 KB aggregate rather than riding on top of
+> it (132-B; #290's uncounted-history lesson).
+>
+> **Wire-only by construction:** `assemble` is called only from the two transport
+> encoders, never from `ChatStore`, so the floor cannot enter the stored `Message`,
+> render in the transcript, survive an edit, or ride a retry into doubled instructions.
+> `MessageBubble.swift:773` untouched. Any non-empty user text suppresses it entirely.
+>
+> **Bars:** 132-A/B (both planes + budget arithmetic, with a captioned control proving
+> the omission came from the floor's bytes) · 132-C (captioned turn unchanged) · 132-D
+> (count correct; a text-file-only turn gets no image floor) · 132-E (wire-vs-store) ·
+> **132-F `GATE: PASS`, Swift Testing 2015 (baseline 2005 + 10 new), XCUITest 14,
+> Release clean.** RED witnessed by revert: 7 of the 10 flip red without the floor; the
+> 3 that hold are the guards that should be insensitive to it.
+>
+> **VOICE PATH — verified UNREACHABLE in substance and deliberately untouched**
+> (the dispatch's lane-start check). `NativeVoicePipelineService.sendImage` returns
+> `false` outright; `LiveVoiceSessionService.swift:404` is reached only from
+> `VoiceOverlayScreen.swift:141` with `triggerResponse: false` — *"Send frames silently
+> — model responds when user speaks."* The realtime item is structurally text-less, but
+> the caption there is the live speech, arriving on the audio channel as its own
+> transcribed conversation item. The floor's premise (the model has no statement of
+> intent) does not hold, so injecting it would be a fabrication and would push a text
+> item into a live realtime conversation.
+>
+> **What this does NOT close:** the host-side routing asymmetry (upstream's) and the
+> host's own `[attachment]`/`[screenshot]` minting both still exist — the floor makes
+> the request honest regardless. **#173** (silent degradation on attachments the host
+> cannot see) is the adjacent live item and was deliberately NOT merged into this scope:
+> the floor states what was SENT; #173 is about what the host failed to READ.
+
+> **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-132-caption-less-image-floor.md`** — the floor covers BOTH planes (ChatTurnBody + RunsTurnBody), wire-only, captioned turns untouched; bars 132-A..F proposed there. #132 closes when the floor lands, per the ruling. Joins Wave 1.
+
+> **🎯 BARS — WRITTEN FIRST, before any code (2026-08-10, lane `t27-132-image-floor`).**
+> Pre-registered here per the #215-era convention (bars live in the OPEN_ITEMS entry,
+> not the dispatch doc). A missed bar is a falsification, not a redefinition.
+>
+> - **132-A (RED→GREEN, unit, sessions plane):** a caption-less single-image turn's
+>   encoded `ChatTurnBody` carries a `{type:"text"}` part with the floor sentence
+>   AND the `image_url` part. RED first — today the encoded input is the image part
+>   alone.
+> - **132-B (unit, runs plane):** the same assertion on `RunsTurnBody.make`'s encoded
+>   body, AND the floor's bytes COUNT inside the existing attachment/body budget
+>   arithmetic rather than riding on top of it (#290's uncounted-history lesson).
+> - **132-C (unit):** a CAPTIONED image turn encodes byte-identically to today —
+>   any non-empty user text suppresses the floor entirely, on both planes.
+> - **132-D (unit):** the multi-image count is right (N=3 → "3 images"), and a
+>   text-file-only attachment turn (no images) gets NO image floor.
+> - **132-E (wire-vs-store):** the local transcript is unchanged — the floor never
+>   enters the stored `Message`, so the bubble cannot render it. Asserted at the
+>   ChatStore seam: the stored user row keeps its `[N attachment(s)]` display text
+>   and the floor sentence appears in no stored field, while the wire body does
+>   carry it.
+> - **132-F:** `GATE: PASS` with test counts MOVED. **Then #132 CLOSES** per Owen's
+>   2026-08-09 ruling — close-out sweeps this entry's stale "host config question"
+>   framing (superseded by the `auxiliary.vision` keeper ruling) and the entry moves
+>   VERBATIM to `OPEN_ITEMS-ARCHIVE.md` per #261.
+>
+> **Scope fence:** #173 (silent degradation on attachments the host cannot see) is
+> adjacent and NOT this lane — the floor states what was SENT; #173 is about what the
+> host failed to READ. Cross-referenced, not merged. Host-side placeholder minting
+> (`[attachment]`/`[screenshot]`) is likewise out of scope — the floor makes it moot
+> for our turns without removing it.
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **SHIP THE HONESTY FLOOR NOW, and `auxiliary.vision` IS THE KEEPER.**
+> A caption-less image turn gets an instruction line instead of a lone
+> `image_url` (small, independent — closes this entry's own second finding,
+> and it is WHY the host mints `[attachment]` itself). The auxiliary vision
+> path — device-proven on the 3-photo Z2 turn — is the configuration of
+> record, not a fallback awaiting a vision-capable main model. **#132 CLOSES
+> when the floor lands.**
+
+**2026-07-23 — a SECOND host-side placeholder string, same family.** #142's wire capture proved the
+app sends no text part at all for image-only turns, yet Hermes materialises a placeholder anyway:
+`[attachment]` in chat, and `[screenshot]` as the session title/preview for those same turns (see
+#177). Two different strings for one absent-text condition, both generated host-side — which
+suggests deliberate, string-varying substitution rather than one stray constant. Whatever answers
+this item's model-vision/config question should also account for where those strings are minted.
+
+> **⚠️ MECHANISM SUPERSEDED 2026-08-09 — the ownership verdict survives, the symptom's
+> cause does not.** `prepare image failed` / `failed to decode image` have **ZERO
+> occurrences** across `gateway/`, `agent/`, `hermes_cli/`, `providers/` at upstream
+> HEAD. The 07-17 probe's 400 came from a code path that no longer exists; at head,
+> `_normalize_multimodal_content` (`api_server.py:550-665`) passes image parts through
+> **verbatim**.
+>
+> **The live mechanism is a ROUTING ASYMMETRY, not a drop.** `agent/image_routing.py`
+> (`decide_image_input_mode` → `vision_analyze` → prepend a description) has exactly
+> one caller, `gateway/run.py:16260`, inside the platform-adapter lane. **The Sessions
+> API lane the phone speaks has no equivalent** — a text-only host model gets raw
+> `image_url` parts with no fallback and no error. "Two of everything" in a third place.
+>
+> **Ownership re-stated:** upstream owns routing parity · **config owns the immediate
+> cure and it is Owen's** (Mac is `kimi-coding`/`kimi-k3` with
+> `auxiliary.vision.provider: auto` — i.e. neither a vision model nor a configured text
+> fallback) · **we own the honesty floor, regardless of how the other two land.**
+>
+> **App-side, re-verified at HEAD:** encoding is correct on both transports, and a
+> ~~**caption-less image turn sends NO text part at all**~~ — `ChatStore.swift:578-580`
+> synthesizes `[N attachment(s)]` for DISPLAY only, `:643` sends the trimmed (empty)
+> content, and ~~`AttachmentInlining.swift:79` prepends a text part only when the message
+> is non-empty~~. That is why the host has to mint `[attachment]`/`[screenshot]` itself —
+> this entry's own second finding, now explained.
+>
+> > **✅ THE STRUCK TEXT ABOVE IS FALSIFIED AS OF 2026-08-10 — by this entry's own
+> > fix.** The floor landed (`f63c6ee`, branch `t27-132-image-floor`): a caption-less
+> > image turn now DOES send a text part. `AttachmentInlining.assemble` prepends the
+> > #132 floor when the message is blank and images are attached, so the "no text part
+> > at all" finding describes the pre-fix app only. `ChatStore`'s half is unchanged and
+> > still accurate — the display placeholder is still display-only, and the wire still
+> > gets the trimmed empty string; the floor is injected BELOW that, at encode time.
+> > The host's own minting is untouched and still exists — the floor makes it moot for
+> > our turns rather than removing it.
+
+> **Wire probe 2026-07-17 (curl direct to OJAMD `:8642`, zero app involvement):** (1) parts array
+> with an INVALID image → HTTP 400 'prepare image failed: failed to decode image' — the gateway is
+> image-aware and validates; (2) parts array with a VALID 1×1 PNG → request accepted, turn ran,
+> and the model reports **'No image came through'**. Validated, then dropped before the model.
+> The app's wire encoding was also read end-to-end and is correct (`ChatTurnBody` → parts array
+> with `image_url` data-URLs; attachment-only display text is '[1 attachment]', so the stored
+> '[screenshot]' was likely Owen's typed caption — immaterial now). **Ownership: Hermes-side.**
+> Candidates: active model lacks vision and the gateway strips images post-validation without
+> surfacing it (worst kind of silent), or tonight's hermes update broke prepared-image →
+> model-call attachment. **Next (Owen/host):** check the active model's vision capability in the
+> hermes config; re-probe after pointing a session at a known-vision model. The 07-13 paste→send
+> pass suggests this worked pre-update — if a vision model was active then, tonight's update is
+> the regression window. App-side follow-up only if Hermes turns out to REQUIRE a different wire
+> shape than the OpenAI-style parts the app sends (nothing suggests so — the 400 proves the shape
+> parses).
+
+Device 2026-07-17 (blocked the #61 card re-verify): attachment-only send (screenshot, no text)
+→ the model reported receiving only the literal text "[screenshot]" with no image attached. The
+streaming client DOES carry `attachments: [PendingAttachment]` end-to-end (verified in
+`SessionsHermesClient.sendStreaming`/`streamTurn` signatures), so the drop is either in the
+attachment→wire encoding, the gateway's handling of image parts, or an attachment-only-specific
+path (text+image may behave differently — discriminator owed: send image WITH text and ask what
+arrived). "[screenshot]" literal appears nowhere in the app source (grep verified) — determine
+who synthesizes it (app placeholder text vs gateway part-stringification); that answers which
+side owns the fix. History note: paste→send round-trip passed device verify 2026-07-13, so if
+text+image also fails, the regression window is this week's merges; if only attachment-only
+fails, it may never have worked.
+
+Logged 2026-07-17.
+
+---
+
 ## 133. ✅ Dormant-relay push registration idempotency — ROOT CAUSE FOUND AND FIXED 2026-08-02: the installation identity was stored inside profile-scoped session state that unpair deletes. DEVICE PASS ✅ 2026-08-03.
 
 > **CLOSED — device pass verified 2026-08-03 (running list §F1, four-measurement protocol).**
@@ -9055,6 +9218,12 @@ its sibling has: a brain provider alongside `isRelayPaired`, and
 blocker: it spends the user's money against an explicit setting and sends
 microphone audio somewhere the UI says it is not going.
 
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The open product question this entry carried into the archive (should a
+> realtime voice session show a visible indicator?) is ANSWERED (Owen,
+> 2026-08-09 decision pass): YES — filed as live **#320**, alongside the
+> "no cloud" copy qualification in #140's lane. One decision, two surfaces.
+
 ## 248. 🐛 Stall-recovery adoption briefly DUPES the user's sent message; a session re-open heals it — F3's tail placement is the suspect neighborhood — **✅ CLOSED 2026-08-04 night: device bar MET on the corded `b94fc27` build — no dupe, answer below the question, in the HARDER cross-device shape**
 
 > **⚠️ SUPERSEDED IN PART, 2026-08-07 — the third tier as built carried a
@@ -9826,6 +9995,14 @@ results live in the `Executed N` counters). The pre-registered claim that surviv
 untouched is the **−22 delta**, and 1570 − 22 = 1548 landed on the number. The two
 wrong absolute pins stay recorded above as what they are: mis-anchored, caught at
 verification.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> Three later findings identified residue of this teardown: **#287** (the
+> `LaunchInitStep.pushTokenRegistration` ghost — fixed 2026-08-09), **#189**
+> (the dead notifications surface — mooted by this deletion), and **#298**
+> (the `updateWidgetData` rationale that outlived its mechanism — verdict
+> DEAD, its orphaned-doc-comment residue re-filed as live **#316**). This
+> pointer is the upstream note #298 could not write at the time.
 
 ## 234. 🐛 "Day after tomorrow" received TOMORROW'S forecast — **✅ CLOSED 2026-08-04: guide boundary + pass-through + dated line built (PR #256), 234-A/B sim-met, 234-C device-met on build 1955 (honest horizon answer, Owen's screenshot)** — *(was: mechanism confirmed — argument-time nearest-fit, trial-7 severity family)*
 
@@ -14366,3 +14543,2933 @@ code.**
 > implementations to one and gives `/undo` the cache persistence it never
 > had. Both View paths therefore no longer carry #78's resurrection
 > defect.
+
+---
+
+## 78. 🔧 Message context menu — copy/share/select/regenerate/edit (GitHub #44) — **✅ CLOSED 2026-08-07 evening — 78-F2 MET ON THE LOCAL BRAIN (OTA 2171), the last owed bar. Every bar 78-A..G plus 78-F2 is now met; ready for the archive sweep.** *(History, kept because it is the lesson: an earlier header read "✅ CLOSED … all bars MET" while 78-F2 was outstanding — that bar was added after #281's diagnosis showed the passing 78-F run had used a Hermes-hosted model, not the local brain the bar named. Owen ruled 2026-08-07 morning: "keep 78 live, 78-F2 still needs the local brain run." It got that run the same evening. See the final note.)*
+
+> **Audit 2026-07-13:** PR #52 merged to main (GitHub #44 closed); code confirmed on main (`MessageBubble.swift` `.contextMenu`/`SelectableTextSheet`, `ChatStore.regenerateReply`/`extractTurnForEditing`/`EditableTurn`). The 'not compiled'/'Needs Mac: CLI build + tests' wording above is stale, but 🔧 correctly stands since no device-verification note has been added.
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-44-message-context-menu`):**
+BUILT IN CLOUD, not compiled or device-verified. You previously couldn't get
+a Hermes answer out of the app — no `.contextMenu` on bubbles, no
+`.textSelection` on prose.
+- **Long-press menu on settled user/Hermes bubbles** (`MessageBubble`):
+  Copy (raw content via `UIPasteboard`), Share (`ShareLink`), Select Text
+  (new private `SelectableTextSheet` — plain text + `.textSelection`;
+  in-bubble selection can't coexist with the long-press menu), Regenerate,
+  Edit & Resend. System/compaction rows and the synthetic "[N attachment(s)]"
+  placeholder are excluded; voice-transcript rows get Copy/Share/Select only.
+- **Streaming guards (decided semantics):** a streaming bubble gets NO menu;
+  while ANY run streams (`isTranscriptBusy`), the history-mutating items
+  (Regenerate / Edit & Resend) are hidden — they truncate the transcript and
+  must not race an in-flight run. Copy/Share/Select stay available on
+  settled bubbles during a stream.
+- **`ChatStore.regenerateReply(_:)`** — per-turn re-roll for ANY successful
+  reply (not just the last): truncates from the producing user turn (nearest
+  user message above the reply), restores its attachments, re-sends through
+  the full pipeline. **`ChatStore.extractTurnForEditing(_:)`** — the `/undo`
+  truncation plus composer restore (`EditableTurn`); ChatScreen seeds
+  `messageText`/`pendingAttachments` + focuses. Nothing sends until the user
+  taps send. Failed Hermes replies keep the existing inline Regenerate.
+- **Honest limitation (same as `/retry`/`/undo`):** truncation is
+  client-side; the server session retains the old turns as context. A true
+  server-side fork would need a new session seeded with the truncated
+  history — out of scope here.
+- 5 tests appended to `ChatStorePersistenceTests` (existing file — no regen).
+
+**Needs Mac:** CLI build + tests (**no new files → no xcodegen**), then
+device: long-press each bubble type; copy/share/select prose; regenerate a
+mid-history reply (verify truncate-from-that-turn); edit-and-resend with and
+without attachments; confirm no menu on a streaming bubble and no
+Regenerate/Edit while another run streams.
+
+> **Update 2026-08-07 — DEVICE FAIL on the regenerate bar (OTA 2120), and
+> the diagnosis is worse than the symptom. LANE OPENED.** Owen, running the
+> consolidated pass: *"I regnerated the 10:50pm, and it never showed that I
+> did anything today until I responded to that regeneration. And it put it
+> below the previous answer I regenerated."* Also, on edit-and-resend:
+> *"was weird. worked technically."*
+>
+> **Mechanism (source-read, not inferred).** The truncation is PRESENT and
+> CORRECT — `ChatStore.regenerateReply` does `messages.removeSubrange(userIdx...)`
+> with sound index math, unconditional on last-ness, unchanged since
+> `a31cbe9` (2026-07-08). **It is then undone.** `ChatStore` treats the
+> backend's own `currentConversation` as an authoritative refresh source and
+> merges it back over the local transcript at the end of every turn, again
+> every 2s while a row is `.sending`, and once more on the fallback path —
+> and **no truncation ever touches that mirror**
+> (`LocalChatBackend.currentConversation` is appended per turn;
+> `SessionsHermesClient`'s is the last server fetch). `mergeConversationMetadata`
+> takes the refresh source as the BASE ordering, so the removed reply is
+> restored IN PLACE and the regenerated one is appended at the TAIL —
+> dedupe keys on sender+content+timestamp, so both survive. That is symptom
+> one exactly. Symptom two is the same cause seen from the viewport: the
+> region Owen was watching reverts to byte-identical pre-regenerate state
+> within one poll tick, the new reply is off-screen at the bottom, and the
+> scroll-to-bottom is suppressed for the whole streaming window — his next
+> send is what finally scrolled it into view. **Not a publish/observation
+> bug; the view faithfully rendered a store whose content was put back.**
+>
+> **Edit-and-resend has the SAME defect with a crueller shape:** it
+> truncates, nothing sends at that moment so no merge runs, it LOOKS
+> correct — and the truncation is wiped the moment the user taps send.
+> "Worked technically" is precisely that.
+>
+> **The bar was never satisfiable as written.** The merge predates #44 by
+> the whole project (it rides the original fork rename). #44 was built on a
+> store that structurally re-adopts the backend's copy of the transcript
+> and nobody closed the loop. The entry's existing caveat — "the server
+> session retains the old turns as CONTEXT" — understates it: the old turns
+> come back into the RENDERED TRANSCRIPT.
+>
+> **Why the suite is green:** `ChatStorePersistenceTests` asserts exactly
+> the right thing and passes, because its double never populates
+> `currentConversation`, so the merge returns the local truncated
+> conversation untouched. The resurrection path is structurally absent from
+> the fixture. **The test is correct; the double is the lie** — the
+> green-certifies-broken family again (#258, #259).
+>
+> **Fix shape (routed):** one truncation primitive the backends adopt —
+> a defaulted `adoptTruncatedConversation(_:)` on `HermesClientProtocol`
+> (no new files → no xcodegen), implemented by `LocalChatBackend` (which
+> must ALSO nil its `LanguageModelSession` — the live session holds its own
+> transcript, so without that the "re-roll" re-asks with the original
+> answer still in context) and by `SessionsHermesClient`; the router
+> forwards to BOTH backends (truncation is a property of the thread, not a
+> brain — #192 can flip brains mid-thread); `ChatStore` calls it right
+> after each `removeSubrange` and gains the cache save `regenerateReply`
+> is missing. **Honest limit to keep, not overstate:** on the Hermes path
+> this fixes our mirror but cannot survive an `openSession` re-fetch — the
+> server transcript is authoritative and still holds the turns.
+>
+> **BARS — written 2026-08-07 BEFORE any code. The unit pins MUST use a new
+> double that mirrors the transcript; reusing the existing one would
+> re-certify the bug.**
+> - **78-A (unit, fails today):** with a mirroring double, regenerate a
+>   mid-history reply of a 4-turn history → `messages.count == 2`.
+> - **78-B (unit, fails today):** same setup — the original reply row is
+>   ABSENT and `messages.last` is the new reply.
+> - **78-C (unit, fails today):** poll-tick pin — one `loadConversation()`
+>   merge after a truncation leaves the truncated rows gone.
+> - **78-D (unit, fails today):** edit-and-resend durability — after the
+>   resend settles, the extracted turn and everything after it stay absent.
+> - **78-E (unit, fails today):** mechanism pin — after a truncation the
+>   backend's mirror equals the truncated list AND its session is nil.
+> - **78-F (device, Owen):** on the local brain, regenerate a previous-day
+>   mid-history reply: it and everything below vanish AT THE TAP; the new
+>   reply appears AT THAT POSITION; 10s later (two poll ticks) and after a
+>   background/foreground, the removed turns have NOT reappeared; force-quit
+>   + relaunch — still absent. Any reappearance falsifies.
+>   *(REVISED 2026-08-07 — see the revision note at the end of this entry.
+>   The wording above was satisfiable without the assertion that exposed
+>   #281, and the brain it names was not the brain that ran it.)*
+>
+> Adjacent findings spun out rather than folded in: **#274** (three
+> implementations of one truncation primitive, two of them in the View,
+> `/undo` never persisting) and **#275** (`.voiceUser` invisible to the
+> producing-turn search — a data-destruction path, not cosmetic). Two
+> smaller residuals stay here for the fix to absorb: `regenerateReply` can
+> truncate and then return without sending if `sendMessage`'s duplicate
+> guard swallows the byte-identical re-send (history destroyed in memory,
+> nothing sent, nothing persisted), and `regenerateReply` emits no log line
+> at all — one `chatLog.notice` would have settled this diagnosis in a
+> minute instead of a file-by-file trace.
+
+> **BUILT + GATED + MERGED 2026-08-07 (`claude/t27-78-truncation-durability`,
+> merge `fad619a`).** GATE: PASS — 1739 Swift Testing units (up from 1721)
+> + 12 XCUITest, Release clean, 2 expected `CondenserFidelityTests` skips.
+> TDD throughout; every RED witnessed. Bars 78-A through 78-E MET;
+> **78-F (device, Owen) still owed** — item stays OPEN pending that.
+>
+> RED evidence, verbatim: 78-A `messages.count` came back 6 when 2 was
+> wanted (all four original rows restored plus the new pair); 78-B the
+> original reply and both later rows still present, in the cache too;
+> 78-C one `loadConversation()` merge after a truncation took the count to
+> 4 when 2 was wanted; 78-D the edit-and-resend truncation wiped by the
+> follow-up send; 78-E client half — the mirror kept all 4 ids and the
+> session was not invalidated; backend half against the real
+> `LocalChatBackend` — mirror unchanged (4 ids vs 2) and `session`
+> non-nil. The fix introduced a shared
+> `ChatStore.truncateTranscript(from:reason:)` primitive that persists,
+> syncs the journal, notifies, and hands the truncated thread to the
+> backend. A new `MirroringReplyClient` test double was required because
+> the existing `ImmediateReplyClient` never populates
+> `currentConversation` — the resurrection path is structurally absent
+> from it; that double is now labelled in-file as unfit for durability
+> pins.
+>
+> **Honest limit.** On the Hermes path this fixes our mirror, not the
+> host. `SessionsHermesClient.currentConversation` is a fetch cache;
+> adopting the truncation stops the end-of-turn merge, the 2s poll tick,
+> and the fallback path from restoring the removed rows, and the
+> truncated thread is what gets persisted — so the truncation survives
+> every merge, backgrounding, and force-quit + relaunch (cold load
+> restores from the conversation cache, never from the server, which is
+> why 78-F's relaunch clause is satisfiable). It does NOT survive a
+> server re-fetch: the gateway session still holds every turn, so
+> `openSession` (reopening the thread from the drawer) and
+> `reconcileFromServer` (a dropped-run reconcile) legitimately re-import
+> the full server history, and the agent's own context is unchanged. On
+> the local brain there is no gap: the mirror and the
+> `LanguageModelSession` transcript both drop the removed turns, so the
+> re-roll genuinely re-asks without the original answer in context.
+
+> **Update 2026-08-07 — 78-F MET on device (OTA 2145). ALL BARS MET.**
+> Owen, fresh chat on Deepseek flash, three turns sent, MIDDLE reply
+> regenerated: *"did 3, regnerated the middle, the 3rd disappeared."* Then
+> the durability clause — the half that actually broke before: *"Backgrounded
+> and returned - no change. Force quit and returned - no change."* The
+> truncation held across two poll ticks, a background cycle, and a cold
+> relaunch.
+>
+> **A first attempt FAILED and the failure was diagnostic, not a defect.**
+> He first ran the bar against a thread the PRE-FIX bug had already
+> corrupted — one user turn carrying two stacked replies — and regenerated
+> the second of the two. The user row survived with its ORIGINAL timestamp
+> (Owen caught this: *"It didn't show the current time for when I actually
+> regenerated it"*), and the older reply survived with it. Ruled out at the
+> time by live evidence, not inference: the gateway access log showed only
+> the `chat/stream` POST and no session re-fetch, so the rows were never
+> removed rather than restored. The clean-thread re-test then passed, which
+> is what established the first result as legacy damage meeting the fix
+> rather than the fix failing. **What that leaves open is not #78: it is
+> whether already-damaged threads should be repaired, and whether any unit
+> fixture covers the two-replies-one-user-turn shape** — that shape occurs
+> in real transcripts because the old bug produced it. Under separate
+> diagnosis; will be filed on its own if it warrants a lane.
+>
+> **Cost consequence worth recording, seen live:** the corrupted-thread
+> attempt re-sent into a server session holding `history=29` and cost 35,557
+> input tokens, because truncation does not propagate to the host. On the
+> Hermes path a regenerate is locally-truncated and remotely-complete — it
+> does not shrink context, it re-asks against the whole session. The model
+> even says so out loud: Owen's clean re-roll answered *"Still 4"*, knowing
+> it had already answered. Correctness caveat AND a spend caveat.
+>
+> **Bar-quality note:** 78-F as written was satisfiable without the
+> assertion that actually exposed the problem. The revised wording (under
+> diagnosis) must name a CLEAN thread, say which reply is regenerated
+> relative to the transcript, and assert the producing user row carries a
+> FRESH timestamp.
+
+> **Update 2026-08-07 (later) — BAR REVISION + a factual correction to the
+> closure above. #78's fix and closure STAND; the bar text did not.** The
+> device failure that preceded the passing run turned out not to be #78 at
+> all — it is **#281** (an already-id-confirmed refreshed row mints a
+> surplus content claim and the re-sent user row consumes it and vanishes),
+> now built and merged. Two consequences for this entry:
+>
+> **(1) The closure above says 78-F was met; it was — but 78-F's own text
+> says "on the local brain", and Owen's passing run was a fresh chat on
+> DEEPSEEK FLASH, a Hermes-hosted model.** The bar's substance held on the
+> path it actually ran; the brain it names was never exercised. Recorded as
+> a correction rather than left to read as a full pass, and covered by the
+> new 78-F2 below.
+>
+> **78-F — REVISED:** on a CLEAN thread created for the run (no user turn
+> carrying more than one reply — a pre-#78 thread's stacked replies make
+> the result unreadable), send at least three turns, then regenerate the
+> reply to the MIDDLE user turn so the truncation has rows below it to
+> remove. Assert: (a) at the tap that reply and every row below it vanish;
+> (b) **the producing user row is a FRESH row carrying the regenerate-time
+> timestamp** — a bubble still stamped with the original ask's time means
+> the re-sent row was filtered out of the merge, not that the turn was left
+> alone (#281); (c) the new reply appears at that position; (d) 10s later
+> and after a background/foreground the removed turns have NOT reappeared;
+> (e) force-quit + relaunch — still absent. Record which brain served it.
+>
+> **78-F2 — NEW: 78-F on the LOCAL BRAIN**, which the original bar named
+> but no recorded run used. Two clauses 78-F cannot reach, both from 78-E's
+> backend half: the re-roll must genuinely re-ask WITHOUT the original
+> answer in context (`LocalChatBackend` nils its `LanguageModelSession`, so
+> the new reply must not refer back to having already answered — on the
+> Hermes path the model DOES know and said so: Owen's re-roll answered
+> *"Still 4"*), and the truncated mirror must be what a relaunch restores.
+> Falsified by a reply that acknowledges its own previous answer, or by any
+> removed turn returning.
+>
+> **78-G — NEW: the REPEATED-PROMPT case, which is what actually failed the
+> first attempt.** On a thread where the same prompt text has been sent more
+> than once (send it twice deliberately; a thread reopened from the drawer
+> is the harder and more faithful setup, since every row then carries no
+> `clientMessageID`), regenerate the reply to the SECOND of the two
+> identical asks. The fresh user row must be present and stamped at
+> regenerate time, sitting below the earlier identical ask which keeps its
+> older timestamp — two visibly distinct bubbles with the same text. A
+> single bubble, or a bubble carrying the old time, is #281 unfixed.
+> **Same run as 281-E; one device pass satisfies both and they mark
+> together.**
+
+> **Update 2026-08-07 (tracker tidy pass) — 78-G MET; 78-F2 OWED; THIS ITEM
+> STAYS LIVE and its ✅ header suffix is qualified above rather than
+> deleted.** Reasoning, written out because the header and the bar list now
+> disagree and the next reader deserves the arithmetic:
+>
+> - **78-G MET.** It was pre-registered to mark on the same run as 281-E,
+> and #281's closure note records that run verbatim: Owen sent the same
+> prompt twice on OTA 2154 and regenerated the second reply — *"regenerated
+> text has new timestamp and removed the old"*, two visibly distinct bubbles
+> with identical text at 10:37 and 10:39 — followed by *"Same run satisfied
+> 78-G."* Nothing further is owed on the repeated-prompt case.
+> - **78-F2 is genuinely OWED.** It was written precisely because no
+> recorded run has exercised the LOCAL BRAIN, and its two clauses are ones
+> 78-F structurally cannot reach (the re-roll must re-ask without the
+> original answer in context; the truncated mirror must be what a relaunch
+> restores). Owen's passing 78-F run was Deepseek Flash — a Hermes-hosted
+> model — which is the correction recorded in the note above. A bar that
+> names a configuration nobody ran is owed, not met.
+> - **Therefore the item is NOT sweepable — and this is Owen's ruling, not
+> the tidy pass's inference:** *"keep 78 live, 78-F2 still needs the local
+> brain run."* Under #261 an item moves to `OPEN_ITEMS-ARCHIVE.md` when it
+> is closed with every bar met; #78 has one outstanding. The ✅ suffix is
+> left in place (it was true of 78-A..F when written, and rewriting it would
+> erase that) and qualified inline instead.
+> **78-F2 is the front of the device queue** — see
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md`, Group 1. **It requires the
+> ON-DEVICE brain selected in Settings; repeating it on a Hermes-hosted
+> model is not a run of this bar.**
+>
+> One sub-check from the original device row is also still unrun and is not
+> a bar: **Edit & Resend on a turn that HAD an attachment** — does the
+> attachment return to the composer. It sits in the same running-list row.
+
+> **✅ 78-F2 MET 2026-08-07 ~17:51 (OTA 2171) — THE ITEM CLOSES.** Run on
+> the **ON-DEVICE brain** (screenshot confirms the ON-DEVICE pill on both
+> the header and the thread selector), clean thread, three turns, the
+> MIDDLE reply regenerated. Owen's report, all clauses met: the regenerated
+> reply and everything below it vanished at the tap; the producing user row
+> carried a fresh timestamp; the new reply appeared at that position; the
+> removed turns did NOT return after 10s, after a background/foreground, or
+> after a force-quit + relaunch.
+>
+> **The clause only the local brain could ever reach — MET, and it is the
+> whole reason this bar existed.** The re-roll genuinely re-asked without
+> the original answer in context: the new reply read **"2 + 2 is 4."** On
+> the Hermes path the model *knew* it had already answered and said so
+> (*"Still 4"*), which is exactly the falsification 78-F2 was written to
+> catch. A local-brain run was therefore not a formality — it tested a
+> different code path's context assembly, and it passed.
+>
+> **One honest evidence note (recorded, not glossed):** the screenshot
+> cannot *independently* prove the timestamp moved, because the original
+> send and the regenerate both landed within the 5:51 PM minute. That
+> clause rests on Owen's direct observation ("New timestamp"), watched
+> live. Every other clause is artifact-visible. Flagged because this
+> project has twice been burned by evidence that looked stronger than it
+> was.
+>
+> **Consequence:** every bar 78-A..G plus 78-F2 is met. #78 is CLOSED and
+> should move VERBATIM to `OPEN_ITEMS-ARCHIVE.md` on the next tidy pass
+> (deliberately not moved tonight — a late-night sweep is how counts get
+> broken). The device-queue front-of-line entry for 78-F2 is retired.
+
+---
+
+## 80. 🔧 Inbox wired + agent-initiated producer tools (GitHub #45) — **✅ CLOSED 2026-08-09 (SUPERSEDED): the relay-based foundation this item describes was DELETED by #251 Slice 2A and replaced. The feature lives; the mechanism does not.**
+
+> **✅ CLOSE-OUT 2026-08-09 — superseded, not abandoned.** The inbox still
+> works; it is served by **`TalariaPlatformInboxService`** (`Talaria/Stores/InboxStore.swift`)
+> over the plugin transport. What this entry describes — `LiveInboxService`
+> and `RelayInboxItem`, the relay-backed pair — was removed by #251 Slice 2A
+> on 2026-08-06. **`RelayInboxItem` has zero references in the tree; the only
+> surviving mention of `LiveInboxService` is its own tombstone comment** at
+> `Talaria/Stores/AppContainer.swift:499` (*"`LiveInboxService` and its
+> 401-recovery ladder went with the relay"*).
+>
+> This entry's device-pass row describes the same removed mechanism and is
+> moot with it. **Any residual want for agent-initiated producer tools is a
+> NEW item against the plugin transport, not a continuation of this one** —
+> per #268, that gets its own number the day it is named.
+>
+> *Found by the 2026-08-09 board sweep (`dispatch/OPUS-T27-wave-leftovers-triage.md`),
+> which was commissioned to spec this as fresh work.*
+
+> **Audit 2026-07-13:** The 2026-07-10 note's claims 'gh#58 app-side hardening BUILT, not compiled' and 'xcodegen regen owed' are stale — Lane C (PR #59, `claude/lane-c-dispatch-5bbw9k`) has since merged to main (commit `80b534a` and docs commit `3607bdd` both present in `git log origin/main`; `TalariaTests/InboxDecodingTests.swift` confirmed in the working tree). The decoder hardening is compiled and on main, not merely cloud-written. Still correctly 🔧/merged-unverified, not ✅: the original #45 device checklist (silent-push wake, verdict readback, alert push) remains unchecked, the gh#58 client fix's own device re-check is unconfirmed, and GitHub #58's server-side `kind`-validation half is still OPEN (ISSUE_INDEX).
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-45-inbox-wiring`):**
+iOS half BUILT IN CLOUD (not compiled/device-verified); connector half
+**tested green here** (`connector/tests` — 101 passed incl. 10 new).
+- **Entry point:** tray button in the Chat toolbar (forge unread pip — real
+  data, only when unread items exist) → `Route.inbox` → `InboxScreen`. The
+  screen's `toolbarVisibility(.hidden)` removed (predates any call site —
+  back button needed now); loads on appear, pull-to-refresh from the list
+  AND the empty/unreachable states.
+- **Mock gutted:** `InboxStore` fallback to `DemoData.sampleInboxItems`
+  removed → honest "INBOX UNREACHABLE — PULL TO RETRY" state.
+  `ResilientInboxService` **deleted** (only call site was the fallback);
+  `MockInboxService`/`DemoData` survive as test doubles + the UITest-mode
+  wiring only. Orphan-audit `--self-test` re-run: still green.
+  (`LiveHermesClient.allowDemoFallback` is a separate legacy-relay-path
+  fallback — untouched, out of #45 scope.)
+- **Silent push → item surfaces:** `handleRemoteNotificationWake` now calls
+  `inboxStore.loadInbox(force: true)`.
+- **Producer tools** (`connector … mcp_server.py`): `send_inbox_item(title,
+  body, kind, priority, notify)` → `POST /internal/inbox/create`, then
+  best-effort `POST /v1/push/send` (silent default / alert / none — the
+  push/send route's first programmatic caller); `get_inbox_verdict(item_id)`
+  → `GET /internal/inbox/{id}/actions` (empty = pending). Auth = the
+  relay's INTERNAL_API_KEY via new `ConnectorSecrets.internal_api_key`
+  (secrets.json, hand-editable) or `HERMES_MOBILE_INTERNAL_API_KEY` env.
+  Relay untouched — routes were already live on OJAMD.
+- **New files:** `connector/tests/test_inbox_producer.py` (no Xcode impact);
+  iOS deletes 1 file → **xcodegen regen owed** (with the entitlement
+  re-verify, stacking on #46's).
+
+**OPS (Owen, box-side):** confirm OJAMD's relay env doesn't still ship
+`INTERNAL_API_KEY="replace-me"` (`config.py:60`); put the real key in
+`~/.hermes-mobile/secrets.json` as `internal_api_key` so the tools can auth.
+**Device checklist:** tray opens Inbox; relay stopped → UNREACHABLE (never
+demo rows); agent `send_inbox_item` (silent) → item present on next open
+without manual refresh; approve → `get_inbox_verdict` reads it back;
+`notify="alert"` → visible push.
+
+**✅ VERIFIED END-TO-END 2026-07-08 (evening).** Full chain live: Hermes agent →
+gateway → hermes_mobile MCP → connector `send_inbox_item` → relay
+`/internal/inbox/create` + `/v1/push/send` (its first programmatic caller) → item
+in DB → rendered in the device tray (Owen: two items visible). Along the way:
+- **OPS done:** relay `.env` had a real `INTERNAL_API_KEY` (len 43) and `config.py`
+  `load_dotenv`s it; the key was injected into `~/.hermes-mobile/secrets.json` as
+  `internal_api_key` (backup taken). Gateway `tools.include` allowlist had to be
+  extended + gateway process cycled (→ #55 update for the recipe).
+- **Gap found & fixed:** `LiveInboxService` was the only relay consumer without
+  the #15 401-recovery refresher → a stale access token rendered as "Inbox
+  Unreachable" while every other surface silently refreshed. Fixed `17a7b0f`
+  (gh#56, closed): same `performAuthorizedRequest` ladder + refresher injection
+  as `LiveHermesHostService`, construction moved below the refresher in
+  `AppContainer`.
+- **Poison-row incident:** a smoke-test item posted straight to
+  `/internal/inbox/create` with `kind='note'` (outside the app enum
+  alert/approval/notification/reminder/suggestion — the raw route doesn't
+  validate; the connector tool does) made the strict iOS decoder fail the WHOLE
+  feed → hours of phantom "unreachable". Row re-kinded in DB. Hardening filed
+  **open** as gh#58: decode items individually, skip+log bad rows; optionally
+  validate `kind` at the relay route.
+**Still unchecked from the device checklist:** silent-push wake populating
+without manual refresh; approve → verdict readback; `notify="alert"` visible push.
+
+**Update 2026-07-10 (Lane C item 4, cloud session, branch
+`claude/lane-c-dispatch-5bbw9k`):** gh#58 app-side hardening BUILT, not compiled.
+`LiveInboxService.InboxResponse` now decodes row-by-row: a bad row is skipped via a
+never-throwing best-effort probe that salvages its raw `id`/`kind` for an always-on
+per-row os_log line (plus a kept/skipped summary) — the poison row is nameable in the
+relay DB instead of anonymous. Good rows survive in order; an all-bad payload decodes
+to an EMPTY inbox, not "unreachable". `InboxDecodingTests` (new file — xcodegen regen
+owed) covers mixed payloads, all five kinds, non-object rows, and id/kind capture.
+The optional relay-route `kind` validation half of gh#58 remains open (server-side).
+Device re-check once merged: re-insert a bad-kind row → tray shows the good rows +
+Console names the skipped one.
+
+> **Update 2026-08-06 late night — the server-side half is formally DECLINED (Owen's call, oldest-20 triage sweep).** 'Optionally validate `kind` at the relay route' is a relay-hardening change, and the standing 2026-08-02 rule declines that family outright (see CLAUDE.md: '⛔ DO NOT HARDEN THE RELAY OR THE CONNECTOR'). Declined ≠ refuted — the finding stays recorded, the build does not happen (same disposition as #188's watchdog half and #133's partial index). The app-side row-decode hardening already merged is unaffected; the device checklist half of this item remains live.
+
+---
+
+## 81. 🔧 Lock-screen reply to Hermes — UNTextInputNotificationAction (GitHub #47) — **✅ CLOSED 2026-08-09 (DEAD): built, then deliberately DELETED 2026-08-03 by #238 as named, accepted collateral of the notification-surface removal.**
+
+> **✅ CLOSE-OUT 2026-08-09.** `UNTextInputNotificationAction` has **zero
+> occurrences** anywhere in `Talaria/` or `TalariaWidgets/`. The feature was
+> removed on purpose — #238 named it as accepted collateral when the whole
+> notification surface came out — so this is a **completed cut, not
+> abandoned work.**
+>
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` already annotated its check MOOT on
+> 2026-08-06. **Only this entry's header was still describing it as pending**,
+> which is the close-out rule's exact failure mode: the correction was made
+> downstream and never brought home.
+>
+> *Found by the 2026-08-09 board sweep. Reviving lock-screen reply would be a
+> new item against whatever notification surface replaces #238's, not a
+> reopening of this one.*
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F4**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+> **MERGED (branch `claude/t27-47-lockscreen-reply` is an ancestor of main — verified 2026-07-16).** Device checklist owed (long-press push → Reply → headless post → next push carries Reply). Note for the checklist: with #114 profiles, verify the headless reply posts to the push's SESSION birth profile.
+
+**Update 2026-07-08 (cloud session, branch `claude/t27-47-lockscreen-reply`):**
+Relay half **tested green here** (72 passed); iOS half BUILT IN CLOUD, not
+compiled or device-verified. Completion pushes (#38) were tap-to-open only —
+now a push is a conversation: long-press → Reply → type → the reply posts
+into that session headless, and the resulting completion push again carries
+Reply (the loop closes).
+- **Relay:** `send_run_completion_push` now passes
+  `category="HERMES_RUN_COMPLETED"` into `send_alert_push`'s previously
+  unused `category:` param. Test updated (stub records category + lockstep
+  assertion).
+- **iOS:** `NotificationReplyAction` (AppEntry) — category id lockstep with
+  the relay, `UNTextInputNotificationAction` id `HERMES_REPLY`, registered
+  every launch incl. scene-less; `didReceive` routes
+  `UNTextInputNotificationResponse` → new
+  `AppContainer.handleNotificationReply(_:sessionID:)`:
+  `UIBackgroundTask` assertion + completionHandler deferred until the send
+  finishes; bounded 2s Keychain key-restore wait (AskHermesIntent pattern);
+  busy guard (one run at a time); `openSession(sessionID)` adopts the
+  pushed thread; `sendMessage` full pipeline; then the **explicit
+  `postPushWatch`** the issue called out (scene-less launches never trip
+  `watchPendingRunIfNeeded`). Watch armed only on
+  `.answered`/`.pending` outcomes (reusing `AskHermesIntent.resolveOutcome`)
+  — the relay watcher's completion check is positional
+  (assistant-after-last-user), so arming after a FAILED send would
+  insta-push a stale reply; on `.answered` the insta-fire is deliberate
+  (it's what announces the finished answer to the locked phone, with Reply).
+  `.failed` → new `LocalNotificationService.notifyReplyFailed` — the typed
+  text never vanishes silently.
+- No new iOS files (no regen owed by this branch; the stack still owes one
+  from #46/#45).
+
+**Device checklist:** run finishes while locked → push has Reply on
+long-press; typed reply lands in the right session (verify in-app
+transcript); the NEXT completion push also has Reply; reply while relay
+watch TTL expired; reply with wrong/expired API key → "Reply not sent"
+notice; reply while another run streams → busy notice. NOTE the
+"Approve/Deny slash commands" claim from discovery was refuted — nothing
+here pretends they exist.
+
+**Update 2026-07-08:** merged to main via PR #55 (carrying two build fixes: `import UIKit`
+in AppContainer for the background-task API, and the completion-handler `didReceive`
+delegate converted to the **async** variant — Swift 6 wouldn't send the non-Sendable
+handler into the `@MainActor` send; the async form preserves the await-before-return
+ordering, with the minor side effect that the tap path now awaits `handleNotificationTap`).
+**Relay half is DEPLOYED on OJAMD** (`ojamd-deploy`; `HERMES_RUN_COMPLETED` live at
+`main.py:390`). The device checklist above has NOT been run — the evening went to the
+#83 letterbox chase and #82 voice regression instead.
+
+---
+
+## 130. 🎧 In-session TTS fidelity — voiceChat downlink processing makes voices muddy vs previews; VPIO render-err flood — **✅ CLOSED 2026-07-31 by Owen; header corrected 2026-08-09 (it read open for nine days after his call).**
+
+> **✅ HEADER CORRECTED 2026-08-09.** The close is not new — **Owen closed
+> this on 2026-07-31**: *"drop this, it's fine as is. We can readdress it down
+> the road if it surfaces again organically."* Status quo (option b) accepted;
+> the probe branch was deleted with its SHA recorded in the body for
+> restoration.
+>
+> **What was stale was this header and the INDEX line**, both of which still
+> read as live work for nine days — long enough that the 2026-08-09 sweep
+> commissioned a voice lane on the premise of "three live voice defects,"
+> which was wrong on two of the three (this and #254). Corrected at both homes
+> per THE CLOSE-OUT RULE.
+>
+> **Consequence worth keeping:** #220's engine-ambiguity audit classifies this
+> item's evidence AMBIGUOUS — moot while closed, but if it ever resurfaces
+> organically, **re-measure with the engine pinned** before trusting the old
+> reading. Airplane mode pins the native engine for free.
+
+> **PROBE BUILT 2026-07-20 (PR #128, `probe/t27-130-halfduplex`, DO-NOT-MERGE + probe labels).**
+> Option (a) as dispatched, all inside `NativeVoicePipelineService.swift`: session mode
+> `.default` (category/options unchanged), `setVoiceProcessingEnabled` never called, and a
+> software half-duplex gate — recognition results discarded while the native TTS instance's
+> `isSpeaking` is true plus a 300ms hangover (`halfDuplexHangover`), so the assistant's audio
+> tail can't self-transcribe; tap/engine/#105/#106/#128 machinery untouched. Discard decision
+> is a pure function (`shouldDiscardTranscription`), TDD'd red-first, 6 new tests; suite
+> 937/84 green on the probe branch (baseline ≥800/67). Talk-over barge-in deliberately does
+> NOT work on the branch (thinking-phase barge-in + stop button survive) — that's the trade
+> under A/B. **Owed: Owen's device A/B vs main** (TTS crispness / render-err flood gone /
+> barge-in cost / mic sensitivity post-#106) → verdict = productionize or close as
+> status-quo-accepted.
+
+> **Dispatch spec 2026-07-17:** `dispatch/FABLE-T27-130-halfduplex-probe.md` — SENT (built
+> above; A/B probe branch, DO-NOT-MERGE label; Owen's on-device verdict decides #130).
+
+> **PROBE BRANCH DELETED 2026-07-30** (Owen: "128 is a do not merge probe that can be
+> safely deleted now"). PR #128 closed, `probe/t27-130-halfduplex` removed from origin.
+> **#130 itself stays OPEN**, so the probe is recorded rather than lost — tip
+> `a0bc0595a9fd65f32eb6a07c22430a0345a256b0`, restorable with
+> `git fetch origin a0bc059… && git branch probe/t27-130-halfduplex FETCH_HEAD`.
+> The same pointer is in the PR's closing comment.
+>
+> **VERIFIED 2026-08-01 — the branch IS on origin and the restore instruction
+> above WORKS.** `git ls-remote --heads origin refs/heads/probe/t27-130-halfduplex`
+> returns `a0bc0595…`, the exact SHA recorded above; it fetches both by name and
+> by bare SHA. The "removed from origin" line in the 2026-07-30 note is the part
+> that is inaccurate — whatever happened, the ref is there now. **Two independent
+> copies exist** (origin + the Mac Mini local branch).
+>
+> **DO NOT DELETE IT ANYWAY** — for the reason that actually applies: **#130 is
+> open and its on-device A/B verdict is still owed**, and per the #105/#141 note
+> below that verdict now "carries double weight" because the realtime engine may
+> need the identical gate. The branch holds `shouldDiscardTranscription` + its 6
+> tests. Survived a 2026-08-01 branch cleanup on those grounds.
+>
+> **A first pass at this correction claimed the opposite** — that origin had no
+> such ref and the local branch was the last copy. That was wrong, and the way it
+> went wrong is worth more than the fact: the check was
+> `git ls-remote origin | grep -i 130-halfduplex || echo "NOT on origin"`. When
+> `ls-remote` produces no output for any reason, `grep` matches nothing and the
+> `||` branch fires — **an empty result is indistinguishable from a negative
+> result.** Same family as `grep -c "error:"` counting sim runtime noise and the
+> difflib pass that reported 2,892 phantom differences. **Assert absence only from
+> a command whose exit status you checked**: `git ls-remote --heads origin <ref>`
+> exits 0 with output, or 0 with none — so test the output explicitly, and prefer
+> proving presence (fetch it) over inferring absence.
+
+Device observation 2026-07-17 (post-#128, conversation working): in-session TTS is noticeably
+less crisp than the settings previews. Cause is structural, not a bug: previews play on a
+`.playback` session (full fidelity); session TTS rides `.playAndRecord` + `.voiceChat`, whose
+voice-processing chain telephony-tunes the DOWNLINK (AGC, bandwidth shaping, receiver EQ) so
+echo cancellation has a reference. Same log shows a continuous `auou/vpio render err: -1` flood
+— nonfatal now (#106 keeps the session alive) but CPU-noisy and plausibly part of the quality
+loss; `mBuffers dataByteSize (0)` interleaved.
+
+Options (design decision, prototype before choosing):
+(a) **Half-duplex + `.default` mode** — the vpio-bypass probe PROVED raw capture works on this
+    seed; drop VP entirely, gate transcription while TTS speaks (pipeline already tracks
+    speaking state for barge-in). Crisp TTS, quieter logs; trade: talk-over barge-in degrades to
+    tap-or-gap interruption. Sensitivity note from the probe run ("very sensitive") predates
+    #106 — re-evaluate on the fixed session.
+(b) Keep `.voiceChat`, accept telephony TTS (status quo; every voice-chat app sounds like this).
+(c) Hybrid: `.videoChat` mode or VP-with-ducking-config tuning — marginal gains, same chain.
+
+Owen's call after an (a) prototype run. Dispatchable as a small probe branch first.
+
+**CLOSED 2026-07-31 (Owen): "drop this, it's fine as is. We can readdress it down the
+road if it surfaces again organically."** Status quo — option (b) — accepted. The
+probe branch is deleted; its SHA is recorded above for restoration if the issue ever
+resurfaces on its own.
+
+Logged 2026-07-17.
+
+---
+
+## 149. ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly (parked idea) — **✅ CLOSED 2026-08-09: ALREADY SATISFIED. It exists, it is connected, and it was used this session to run live read-only diagnostics on OJAMD.**
+
+> **✅ CLOSE-OUT 2026-08-09 — satisfied, and demonstrated rather than argued.**
+> Two MCP servers are live in-session, `hermes-mac` and `hermes-ojamd`, each
+> exposing exactly the surface this entry asked for: create a session, chat,
+> read messages, list sessions, gateway health. Both gateways answered
+> `status: ok`, version 0.20.0.
+>
+> **The proof is a result this item made possible:** the 2026-08-09 sweep used
+> `hermes-ojamd` to probe the production host read-only and caught two live
+> facts nothing in the repo knew — that `TalariaModelsShim` is **stopped but
+> not disabled** (`StartType: Automatic`, so a reboot restarts it; CLAUDE.md
+> corrected), and that **`C:\Users\Owen\.hermes\plugins` does not exist** on
+> OJAMD, so #271's stated target path was the Mac's, not the production host's.
+>
+> **The only residue is a nice-to-have**, and it is not work: a line recording
+> the first in-anger use. This is it.
+
+**Owen, 2026-07-20: “we should make you an MCP to talk to Hermes. Lets do that sometime.”**
+Shape TBD — plausibly an MCP server exposing the Hermes Sessions API (and/or hermes_mobile
+tools) so Claude sessions can query/task Hermes without Owen relaying, enabling
+Claude↔Hermes↔Fable three-way workflows (e.g. Claude drives a test conversation against a
+host and reads the transcript back directly). Note 0.19’s webhook/route-script surface
+(#148) as a possible transport. Parked until Owen schedules it.
+
+**BRIDGE BUILT 2026-07-20 late (Owen un-parked it: "Yup. Lets do it").** Shape settled by
+0.19 source read + live proof, in two pieces:
+(1) **Tasking bridge — BUILT, commit `6f1e665`:** `tools/hermes-sessions-mcp/` — stdio
+FastMCP wrapper over the Sessions API. 5 tools: `hermes_gateway_health`,
+`hermes_list_sessions`, `hermes_create_session`, `hermes_chat`, `hermes_read_messages`.
+Host via `HERMES_BASE_URL`; key auto-resolved (env → `~/.hermes/.env` → config.yaml —
+never in Desktop config). 8 unit tests green (transport stubbed) + live selftest green vs
+BOTH 0.19 gateways. Registered in `claude_desktop_config.json` as separate named servers
+`hermes-mac` + `hermes-ojamd` (backup taken) — explicit host selection is the posture:
+tasking a host's Hermes executes tools on that host; no SSH anywhere (Owen clarified the
+standing-access rule was about SSH keys specifically — bearer-token HTTP is fine).
+Live proof preceding the build: Mac → OJAMD session create → chat → "BRIDGE-OK k3"
+(fresh-session input_tokens 55,695 — corroborates the #145 ~55k context datum).
+(2) **Channel-bridge companion — config-only, NOT enabled:** upstream `hermes mcp serve`
+(0.19, `mcp_serve.py`, 10-tool OpenClaw-parity surface) exposes platform conversations,
+outbound send, live events, approval respond — but CANNOT task Hermes (`messages_send`
+is outbound via `send_message_tool`, stdio, local-host only). Ready-to-paste block in the
+tool README if wanted. Webhook/route-script transport idea: not needed — Sessions API is
+cleaner and contract-verified.
+**RELOCATED out of the app repo 2026-07-20 late (Owen: it's a tool for US, not for
+Talaria — nothing in the app touches it, unlike the models shim which is runtime
+infrastructure).** Now lives at `~/Documents/Claude/HermesMCP` under its own local git
+(initial commit `c100e73`); removed from Talaria-27 in `f222ef5` (added in `6f1e665`,
+same night). Venv rebuilt at the new path; 8/8 tests + both-host selftests re-verified
+green post-move; `claude_desktop_config.json` repointed (backed up).
+**SMOKE PASS 2026-07-20 late (native MCP, post-restart):** health both hosts (0.19.0) ->
+OJAMD session create -> chat -> transcript read-back, zero shell. Bonus observations:
+reasoning/reasoning_content present PER-ROW on /messages (same source #121 reads);
+token_count null on all rows (third-client corroboration for #25); warm-gateway turn
+~12.4s (vs #145 cold ~21s). **Owed:** first in-anger use (e.g. drive a test
+conversation for a device pass and read the transcript back).
+
+Logged 2026-07-20.
+
+## 161. ❌ 156e Projects — NOT VIABLE. **Re-checked against LIVE Hermes 0.19.0 on 2026-08-01 — the verdict HOLDS.** And a no-new-services constraint for the whole #156 arc. — **✅ CLOSE ACTIONED 2026-08-09 (Owen's go). Terminal ❌, a completed cut.**
+
+> **✅ CLOSE-OUT 2026-08-09.** This entry has said *"NOT VIABLE, recommend
+> closing"* since 2026-08-01 and the close was **never actioned** — the
+> counting rules at the top of this file even call it out by name: *"#161 says
+> 'NOT VIABLE, recommend closing' and the close was never actioned — Owen's
+> call."* He made it on 2026-08-09 as part of the free-wins sweep.
+>
+> **A ❌ cut is terminal, not open work** — it counts with #125 and #126, not
+> against the backlog. The verdict itself is unchanged and stays verbatim:
+> hermes-agent has no `project_id`, grouping is derived from `cwd`, and
+> "move to project" would mean re-anchoring a working directory — a
+> deliberate act, never a side effect.
+>
+> **The no-new-services constraint on the whole #156 arc survives this close**
+> and is the part worth not losing: it governs #162/#163/#165 and anything
+> else that lands in that arc later.
+
+> ## RE-CHECK 2026-08-01 — verdict unchanged, and the question was the right one to ask
+>
+> **Owen, 2026-08-01:** *"unless something has changed, we couldn't do it then.
+> However, hermes updates **constantly** and has its own projects that can be
+> created."*
+>
+> **Exactly the right challenge:** this verdict was written 2026-07-22 against a
+> fast-moving upstream, and its fatal finding is *mechanical* — a missing request
+> parameter — which is precisely the kind of thing a release can change. **The
+> entry's own revisit condition says "revisit only if upstream…".** So it was
+> re-checked against the live host rather than re-argued.
+>
+> **Method (read-only, re-runnable, ~2 minutes, no phone):**
+>
+> | check | result |
+> |---|---|
+> | Gateway version (`hermes_gateway_health`, Mac) | **0.19.0** — the "Quicksilver" line #148 tracks |
+> | `GET /api/projects`, `/v1/projects`, `/api/sessions/projects`, `/projects` | **all 404** |
+> | Auth controls — with key / without | **200 / 401**, so those 404s are real routing 404s, not auth failures |
+> | `cwd` in `gateway/platforms/api_server.py` (6,955 lines) | **zero occurrences** |
+> | `workdir`, `project` in the same file | **zero, zero** |
+> | `_handle_create_session` (line 3108) accepted body keys | `id`/`session_id`, `model`, `system_prompt`, **`source`**, `provider`, `model_options` — **still no `cwd`** |
+>
+> **Where `cwd` DOES live is the point:** `gateway/session_context.py:212` and
+> `agent.runtime_cwd.set_session_cwd` — a **server-side** concept pinned per
+> context. It is not absent, it is **not client-settable**, which is the same wall
+> #161 hit in July.
+>
+> **So finding 2 — "we cannot fix that from the client" — is confirmed on 0.19.0,
+> and findings 1 and 3 follow from it unchanged. The recommendation stands.**
+>
+> **The create surface HAS grown, just not in the direction Projects needs.** July's
+> recorded parameter list was `id`/`session_id`, `model`, `system_prompt`, `title`.
+> 0.19.0 adds `source` and a runtime/model-lock request. **That drift is real and it
+> is why this re-check was worth running even though the answer was "no" —** a
+> verdict that survives a re-check against a moving target is worth more than one
+> that was never re-run, and this one now carries the version it survived.
+>
+> **⚠️ But the re-check found something for a DIFFERENT item — see #170 below.**
+
+Owen 2026-07-22: Projects do not exist in Talaria at all today (host-only), and **no new shims** — the Models Shim is being phased out and adding another installable service is a cost we are not paying.
+
+**Projects verdict: don't build it.** Three findings compound, and the third is fatal.
+
+1. **Phone sessions cannot join a project.** Grouping is derived from session `cwd` (#159). Verified against the live Mac `state.db`: `api_server` sessions — the ones Talaria creates — are **28 with `cwd` NULL and 8 at `/Users/owenjones`**. Zero have ever landed in a project path. Only `desktop` (2) and `tui` (7) sessions carry project paths.
+2. **We cannot fix that from the client.** `POST /api/sessions` (`api_server.py:2275`) accepts exactly `id`/`session_id`, `model`, `system_prompt`, `title`. There is **no `cwd`/`workdir` parameter**. Adding one is an upstream change, and Owen has ruled out PRs against hermes-agent (#159).
+3. **So the feature reduces to read-only browsing of other clients' sessions.** On real data that is 2 projects covering ~9 sessions, against 238+ sessions with null/home `cwd` — roughly 4% coverage, and none of the phone's own work. Plus we already knew "move to project" cannot port because it would mean re-anchoring a working directory (#160).
+
+A sidebar filter that groups 4% of sessions, none of which the app itself created, is not worth a relay route, a connector handler, and two DB reads. **Recommend closing 156e.** Revisit only if upstream ever accepts `cwd` on session create — at that point the feature becomes "start a session in project X", which is genuinely valuable and would justify the plumbing.
+
+**No-new-services constraint — and the good news.** Worth stating plainly because it reshapes the arc: a **new route on the existing relay is not a shim**. The relay ships and is installed with Talaria already; the Models Shim is a separate process on `:8765` with its own install and service registration, which is what makes it a burden. Those are different costs.
+
+But it turns out we barely need even that. Re-checked against #158:
+
+- **156a Tasks — ZERO new infrastructure.** Full CRUD is already on `:8642` at `/api/jobs`, the same gateway Talaria already authenticates to for chat. Pure client work.
+- **156b Skills — ZERO new infrastructure.** `GET /v1/skills` is on `:8642` already. Read-only, which matches the scope hermex independently landed on (#160).
+- **156d Insights — ZERO new infrastructure**, provided we scope to session totals plus live per-turn usage from `run.completed`. Per-message history stays impossible (#158) regardless of what we build.
+- 156c Memory — the only remaining lane that would need host-side file access, and it is further complicated by Owen's shared Honcho instance (#159). Defer.
+- 156e Projects — closing per above.
+- 156f Steering — parked per #159.
+
+**Net: the three features worth building need no new services, no new installs, and no upstream changes.** They are client work against endpoints the app already talks to. That is a much better position than the arc looked like when #156 was opened.
+
+Logged 2026-07-22.
+
+> **⛔ SUPERSEDED 2026-08-06 — the "156f Steering — parked per #159" bullet above.**
+> 156f is parked for the **bare Sessions API only**. Steering was PROVEN reachable
+> on the **runs plane** 2026-08-06 (tui `session.steer`; runs plane BANANA→PLUM via
+> `APIServerAdapter._active_run_agents`) and rides the Phase 3 runs migration — see
+> #267's CORRECTION, #159's own supersession note, and
+> `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.
+> *(Note added 2026-08-06 late night; the bullet above is left standing verbatim.)*
+
+## 187. 🐛 Gateway ignores `min_messages` — empty sessions reach the app on every fetch — **✅ CLOSED 2026-08-09: NOT OURS AND NOTHING OF OURS REMAINS. Code-verified against the real handler, not probed.**
+
+> **✅ CLOSE-OUT 2026-08-09 — code-verified, and the finding is sharper than
+> the filing.** `_handle_list_sessions` in `gateway/platforms/api_server.py`
+> reads exactly four parameters: `limit`, `offset`, `source`,
+> `include_children`. **`min_messages` is not ignored — it is not in the
+> handler at all.** Neither is `order`, which nothing had noticed.
+>
+> **Upstream's fix is one kwarg**, because the DB layer beneath it already
+> accepts `min_message_count`. That is a Hermes change, not a Talaria one, and
+> it falls under the standing no-upstream-PRs posture (see #241's park).
+>
+> **Nothing of ours remains** — there is no client-side workaround worth
+> building for a few empty session rows, and the watch this entry asked for is
+> now a four-line code read anyone can repeat. Closed as **upstream, not our
+> work**; reopen only if empty sessions start causing a user-visible problem
+> rather than an aesthetic one.
+
+`SessionsHermesClient.fetchSessionList` requests
+`/api/sessions?limit=50&order=recent&min_messages=1`. **The gateway does not honor the
+parameter.** Verified against the live Mini gateway (`127.0.0.1:8642`) on 2026-07-26:
+identical payloads with and without `min_messages=1`, including rows with
+`message_count: 0`.
+
+The app is already asking for exactly what it wants and not getting it. The
+"Untitled session · 0 messages" rows in the session shelf — the thing the shelf
+redesign has been designing around — exist because a server-side filter silently
+no-ops.
+
+**What the list payload actually carries** (recorded because it has been unclear):
+23 fields per row, including `message_count`, `preview`, `title` (null for empty
+sessions — "Untitled" is the app's word, not the server's), `last_active`, `model`,
+`source`, `parent_session_id`, and the token/cost set. `preview` being real means
+two-line session rows with subtitles are backed by live data, not invented.
+
+**Fix options:**
+1. **Client-side filter** on `message_count == 0` in the pane. Zero API work,
+   non-destructive, consistent on every device. **Decided (Owen, 2026-07-26) as the
+   shipping default.** Accepted consequence: the app's visible count diverges from
+   the gateway's, since the sessions still exist on the host.
+2. **Gateway-side** — honor `min_messages`, or drop the param from the client so it
+   stops implying a contract that is not kept. Worth doing regardless of (1) so the
+   request stops lying.
+
+**Related host capability, recorded while probing:** `/api/sessions/{id}` responds
+`Allow: DELETE,GET,PATCH`. There is no `/archive` route, so archive stays a
+device-local overlay via `ConversationListStateStore`. DELETE and PATCH exist if a
+future lane wants host-side removal or retitling.
+
+**Update 2026-07-26 — option (1) shipped; this item now owns only the gateway half.**
+The client-side filter landed with the 2b sessions shelf. `SessionSummary` gained
+`messageCount` (the drawer's view model never carried it — only `HermesSessionInfo`
+did), and `SessionsDrawerModel.grouped` drops `messageCount == 0` rows with **three**
+exemptions *(corrected 2026-08-09 — this said "two"; `SessionsDrawer.swift:194-196`
+has three)*: the **active** session — non-negotiable, since New Chat creates a
+zero-message session that would otherwise be invisible in the shelf that just opened —
+any session whose **row** carries `isPinned`, **and** membership in the **`pinnedIDs`
+overlay** (the device-local pin store, a separate source from the row flag). The last
+two are both "an explicit user act outranks a heuristic," arriving by two different
+doors. **Trap for anyone writing a test here:** the **static** `grouped(...)` defaults
+`showEmptySessions: true` (`SessionsDrawer.swift:175`) while the model property
+defaults `false` (`:88`), so the static entry point does NOT reproduce shipping
+behaviour unless you pass the flag. The
+header stat and the ⌘1…⌘9 jump ordinals both read the filtered list, so neither can
+claim a count the shelf does not show. `UserSettings.showEmptySessions` (default OFF)
+is the escape hatch, in Settings → Sessions → Shelf.
+
+`min_messages=1` **stays on the request** — deliberately. It is harmless, and dropping
+it belongs to option (2) below, which is still open: the gateway should either honor
+the parameter or the client should stop implying a contract that is not kept.
+
+> **DECIDED 2026-08-02 (Owen): "Keep, annotated."** The param stays on the request as a
+> standing bid — Hermes updates constantly, and if a release starts honoring it the
+> server-side filter arrives free with the client-side filter demoted to belt. The
+> gateway half of this item is now a **watch**, not work: re-probe after notable gateway
+> updates, close when a release honors it. No code change in either direction.
+>
+> **WATCH FIRED 2026-08-04 — v0.20.0 STILL IGNORES IT.** OJAMD self-updated to
+> 0.20.0 on 2026-08-03; per the watch, re-probed read-only against the live
+> OJAMD gateway (`100.110.102.59:8642`, `GET /api/sessions?limit=50&order=recent`
+> with and without `min_messages=1`): **identical 50-row id sets, 13 rows with
+> `message_count == 0` in both.** Client-side filter stays load-bearing; the
+> watch stays armed for the next notable update.
+
+**Update 2026-07-26 — the empties have a single source, and it is not Talaria.**
+
+Measured against the Mini gateway: **200 sessions, 116 with `message_count == 0`.**
+Every one of the 116 carries **`source: "acp"`** — Open Design (Owen, 2026-07-26),
+which speaks ACP to Hermes. `createBareSession` is not leaking; Talaria's own
+`api_server` sessions are all non-empty.
+
+Non-empty sessions by source: `api_server` 32, `acp` 20, `tui` 19, `desktop` 11,
+`cron` 2. So ACP does produce real sessions — it also abandons bare ones in bursts:
+54 on 07-06, 25 on 07-16, 19 on 07-25, against a steady 3–14/day of real traffic.
+Abandoned rows have `end_reason: null` — never closed, just dropped. Three on 07-25
+opened within 90 seconds of each other, which reads as per-connection or per-reconnect
+session creation rather than anything a person did.
+
+**Every `acp` session has `title: null`**, empty and non-empty alike. That is the
+link to the drawer's row defects: with no server title the row falls back to
+`preview`, so Open Design's raw instruction block becomes the visible title —
+hence `# Instructions (read first)  # Open D…` on both lines of the row.
+
+**Practical cost of leaving the gateway half open:** the client fetches `limit=50`
+per host, and 19 of the Mini's most recent 50 are empty. ~38% of the page is spent
+on rows the client then discards, so the shelf shows less history than it could.
+
+**Sharpened fix, gateway side.** Not merely "honor `min_messages`". Either:
+- ACP should not register a session until it has a first message, **or**
+- the list endpoint should not return zero-message sessions.
+
+The first is the real fix; the second is the cheap one and helps every client at once.
+
+Logged 2026-07-26.
+
+---
+
+## 298. 🧹 #238 teardown residue in `updateWidgetData`'s comments — a RATIONALE that outlived its mechanism, and an "ordering guarantee" that turns out never to have been one — **FILED 2026-08-09 from the #287 lane's deliberately-deferred finding. VERDICT: DEAD. Comments corrected in the filing commit; no ordering fix owed, NO BARS (there is no run to bar).**
+
+**The finding as handed over:** two comments in `Talaria/Stores/AppContainer.swift` still describe notification machinery that #238 removed wholesale on 2026-08-03. One of them (in `updateWidgetData`) makes what reads like a load-bearing **ORDERING** claim, so the question routed here was deliberately NOT "these are stale, delete them" but **"did deleting the push-wake path silently delete a *guarantee*?"** — because if it did, deleting the comment loses the guarantee rather than a dead note. **#126's widget briefing was named as the thing leaning on it. It does not.** Both halves are refuted below.
+
+### VERIFIED — what was read, not inferred
+
+1. **The teardown is total.** `grep -rn` over `Talaria/` for `registerForRemoteNotifications`, `UNUserNotificationCenter`, `apnsToken`, `UNTextInputNotificationAction`, `HERMES_REPLY`, `handleNotificationReply` returns **zero hits**.
+2. **The comment was TRUE when written.** `git log -S "the push-wake path already" -- Talaria/Stores/AppContainer.swift` returns exactly one commit: `b1edbcc` *"feat(#126): local markRead + widget stamp in the updateWidgetData funnel."*
+3. **#238 falsified it, and the diff is unambiguous.** The path the comment names is `AppContainer.handleRemoteNotificationWake()`, deleted whole by `4f6ea16` (**#238 T4**). Its deleted body contains, verbatim, `await inboxStore.loadInbox(force: true)` and — ten lines later — `updateWidgetData()`. So the ordering the comment asserts really did exist, and really was removed. **This much of the hypothesis holds.**
+4. **But it was NEVER a global invariant — and that is what settles the item.** `updateWidgetData()` has **nine live call sites**. Only **two** order a `loadInbox` before it, and **both survive #238**:
+   - `runBackgroundBootstrap` — `await inboxStore.loadInbox()` (`:1417`) → `updateWidgetData()` (`:1435`). The cold-launch path. Non-forced, but `loadInbox`'s early return is `if isLoading || (!force && !items.isEmpty)` and a cold container's `items` is empty, so it does fetch.
+   - `handleActiveProfileChanged` — `await inboxStore.loadInbox(force: true)` (`:2283`) → `updateWidgetData()` (`:2305`).
+
+   **Seven never ordered one, before OR after #238:** `initialize()` `:1329`; `runForegroundActivation` `:1599` *and* `:1645`; `handleBackgroundRefresh` `:1707`; the three `makeDefault` callbacks (`:1250` conversation-changed, `:1269` talk-state, `:1288` host-changed); and `AppEntry.swift:149` (appearance change). The push-wake path was the **third orderer of nine callers** — not the only one, and never a funnel-wide contract.
+5. **The failure mode is a DESIGNED no-op.** `HermesWidgetData.stampBriefing(from:)` (`Talaria/Models/InboxBriefing.swift:63`) opens with `guard let briefing = InboxItem.latestBriefing(in: items) else { return }`, and its own doc says existing values are KEPT so *"a failed or empty mid-day fetch must not wipe the morning briefing off the widget."* An unordered call therefore **cannot blank the briefing fields.** The worst a missing `loadInbox` buys is **staleness** — which #126 explicitly chose over wiping.
+6. **And the feature is inert anyway.** **#126 was DROPPED 2026-07-23** (Owen: *"the daily cron — lets drop that"*): *"the app half is merged and inert without a host sending `category: "briefing"` payloads."* No producer exists on any host, so `stampBriefing` guard-returns on **every** production call today, ordering or no ordering.
+
+### VERDICT — the guarantee is DEAD, three times over
+
+**This is not a lost guarantee. It is a lost RATIONALE for a decision that never depended on it.**
+
+- Its named mechanism is gone (#238 T4) — but
+- it was never universal (2 of 9 callers established it; 7 never did), and
+- its worst case is a designed no-op (`stampBriefing`'s guard), on
+- a feature with no producer (#126, dropped).
+
+**#126's widget briefing does NOT lean on the ordering — REFUTED**, on two independent grounds, (5) and (6). The hypothesis was worth testing and did not survive the test.
+
+**Is this the #287 shape? Only partly, and the difference is worth keeping.** #287 is **executable** residue — a live `LaunchInitStep` case sitting in real dispatch lists that nothing performs. This is **comment-only** residue: the property the comment worries about is enforced by a guard in the code, not by the ordering it cites. Call it *a rationale that outlived its mechanism*, which is a weaker and more common thing than *a contract that outlived its enforcement*. Filing them as the same shape would overstate this one.
+
+### BARS: none, deliberately
+
+A verdict of DEAD makes the fix a comment correction. **Bars pre-register before a RUN, and there is no run here** — nothing behavioural changes and nothing is measurable; inventing a bar for a comment edit would be theatre. Had the verdict come back REAL this entry would have **stopped** and pre-registered bars for re-establishing the order, per the dispatch. It did not.
+
+### DONE in the filing commit — comments only
+
+- **`updateWidgetData`** — the push-wake sentence replaced with what is actually true (order-independent by construction), plus a pointer to the two callers that *do* order a load, and to this item.
+- **`handleActiveProfileChanged`'s doc** — *"push watch arming"* struck from the re-resolve list (#238 deleted that surface; same dead surface as **#226**, retired MOOT for the same reason), recorded as a dated strike rather than a silent deletion.
+
+### 🔎 SEPARATE RESIDUE FOUND IN PASSING — NOT fixed here, and it is not #238's
+
+The `///` block describing `handleActiveProfileChanged` is **ORPHANED from its own function.** `d10b136` (#114, M-5..M-10) added it directly above the function; `29a9812` (#247/#248) then inserted `// MARK: - #247 B2` **plus ~66 lines of other declarations** between the doc comment and the thing it documents, which now sits at `:2185`. Swift attaches it to nothing, and the next reader finds a doc comment floating above a MARK. **Left as found** — relocating it is a judgement call outside this lane's scope, and it is collateral of a *different* lane than the one this item is about. Whoever next touches that region should move it back onto `handleActiveProfileChanged`. Noted in-source so the next reader is not surprised.
+
+### ⚠️ CLOSE-OUT RULE, partially discharged — one pointer could not be written
+
+THE CLOSE-OUT RULE wants the upstream correction filed at the stale claim's own home, which here means a pointer in **#238's entry**. **#238 lives in `OPEN_ITEMS-ARCHIVE.md`**, and both this lane's constraints and #261's archive rule (closed items move *verbatim*, never rewritten) forbid editing it. The tension is real and standing, not specific to this item: **an archived lane can still be discovered to have left residue, and there is currently nowhere upstream to say so.** Recorded here for Owen; the cross-references below carry the link in the one direction that was available.
+
+### Cross-references
+
+**#238** (the teardown that left this residue), **#126** (the dropped briefing whose comment this is, and whose dependence on the ordering is refuted above), **#287** (the sibling finding from the same sweep — the *stronger* form of this shape), **#226** (the push-watch surface, already retired MOOT by #238; "push watch arming" was the same dead surface surviving in prose).
+
+
+## 304. 🔧 Phase 3 slice 3B — answer host `approval.request` from the phone (`POST /v1/runs/{run_id}/approval`) — **FILED 2026-08-09 (lane T0). The dispatch proposed #298; that number was consumed during the marathon — this is the reassigned home (`22ee09e`). Owen routed it into the 2026-08-09 backlog run and ruled the blocking questions the same day. Size L (the plan's "M" is falsified — dispatch §4 C3). Executes from `dispatch/FABLE-T27-283-3B-approvals.md`.**
+
+**Goal:** when the Hermes host gates a dangerous action mid-turn, the phone shows
+the host's own question with the host's own choice set and resolves it over
+`POST /v1/runs/{run_id}/approval` — and in every state where the question cannot
+be shown, says so honestly instead of inventing one (#180 applied to a surface
+that has never existed).
+
+**Scope ruling (dispatch §5):** ONE lane ships (this one); ONE more is
+filed-not-built (**#305**); and mode SELECTION is **NOT a slice** —
+`approvals.mode` is dashboard-plane (`:9119`) config, `:8642` has no
+`/api/config` (re-verified 2026-08-09 at Mac head `3dcbe9001`), and the app never
+displays, mirrors, or claims to know the host's mode. Deferred *within* the lane,
+each for a stated reason: the deny REASON (no wire slot — `_handle_run_approval`
+never forwards it; upstream ask ruled out); `resolve_all` (no UI story, no
+observed case of two pending in one run); the `smart_denied` two-choice arm
+(handled by construction — choices render from the frame — but unprobed, so no
+bar claims it); reusing `ToolConfirmationCenter` (rejected — different actor,
+different lifetime, single-slot auto-decline would drop a host approval; build a
+sibling). Everything rides the `useRunsTransport` Developer switch.
+
+**OWEN'S RULINGS, 2026-08-09 (pre-lane):**
+- **O1 (the card):** render **all four** choices exactly as the host offers them;
+  `once`/`deny` are one tap; **`always` and `session` get a second confirm naming
+  the consequence** ("permanently allowlists this pattern on <host>" /
+  "applies to this one run" — `session` scopes to `approval_session_key`, which
+  IS the run id, so the button must not imply conversation scope).
+- **O3 (device-bar host):** the **Mac** (observable — `agent.log`, launchd; 3A's
+  device-pass host). OJAMD untouched by this lane.
+- **O5 (sync/Siri path):** honest refusal — the sync turn names the parked
+  approval it cannot show; the host times out on its own 300s window. Matches
+  bar 304-D(iii).
+- **O6 (default):** `useRunsTransport` default stays **OFF** — 3B ships
+  unreachable to anyone who never opens Developer; cutover remains 3E's decision.
+- **O2 (the live-install go)** is still owed **per-experiment at device-bar
+  time**: 304-H/I need `approvals.mode: manual` on the Mac plus a gateway
+  bounce. **Do not set it — ask, name the experiment, wait for the word.**
+
+**BARS — pre-registered 2026-08-09, before any code (renumbered from the
+dispatch's 298-\*; a missed bar is a falsification, not a redefinition):**
+
+- **304-A** `approval.request` decodes to a typed value carrying `run_id`,
+  `command`, `description`, `pattern_key`, and **the `choices` array exactly as
+  received**. Three fixtures: four-choice; `smart_denied` `["once","deny"]`; the
+  MCP-elicitation shape (`pattern_key:"mcp_elicitation"`, no `allow_permanent` —
+  where `command` is a MESSAGE, not a command). **A hardcoded four-button card is
+  a bar FAILURE.** [unit]
+- **304-B** `once` and `deny` each POST `/v1/runs/{id}/approval` with exactly
+  `{"choice": …}`, to the run's **frozen** endpoint, **at most once per card**
+  regardless of tap count. [unit]
+- **304-C** Every 4xx renders distinctly and **none renders as success**:
+  409 `approval_not_pending` → "the window closed, the host denied it";
+  409 `approval_not_active` → distinct; 404 `run_not_found` → distinct.
+  [unit, three arms]
+- **304-D** The three unanswerable states, each honest, each inventing nothing:
+  **(i)** stream lost + status `waiting_for_approval` + no question → the app
+  offers Deny, says it cannot show what it would deny, **and the Deny POST is
+  still issued and lands** (the stream-independent answer channel);
+  **(ii)** `runsPollBudget` expires while the run is legitimately parked →
+  `.interrupted`, **never** a failure claim; **(iii)** `syncTurnViaRuns` meets
+  `waiting_for_approval` → a message naming the parked approval, **never** "did
+  not answer in time." [unit, three arms]
+- **304-E** Answering does not disturb terminal discipline: `.finished` still
+  yields **exactly once** (#237 shape pinned absent); a card outstanding when the
+  driver exits is torn down, not left tappable against a cleared
+  `activeRunContext`; a duplicate `approval.responded` is idempotent. [unit]
+- **304-F** **Status is not an oracle.** After a simulated timeout the status
+  object still reads `waiting_for_approval`; the app must NOT raise a card from
+  status alone — only a stream frame raises a question. [unit]
+- **304-G** `scripts/mac/lane-gate.sh` → literal **`GATE: PASS`** — units AND
+  XCUITest AND a green Release build, unit count MOVED from the baseline the lane
+  measures on its own base commit. [Mac]
+- **304-H** Device + live host: a real remote turn hits a gated command; the run
+  parks; the phone shows the card **with the host's own choice set**; `once`
+  resumes it and the command executes. **Evidence is the host's `agent.log`, not
+  the screen.** [device + 🔐 LIVE-INSTALL GATE]
+- **304-I** Device + live host, the deny arm and the escape hatch: `deny`
+  produces the host's BLOCKED text and the agent does **not** retry or rephrase;
+  separately, tapping **Stop** on a parked run resolves it as a deny
+  (`tools/approval.py:3695-3703`) rather than hanging for the window. Also
+  **observe what a DENIED tool call renders as on the runs event stream and
+  record it** (the dispatch §2.3 open unknown — #296's family; do not guess).
+  [device + 🔐 LIVE-INSTALL GATE]
+
+**304-A…G need no live host and no device — build and land them first. 304-H/I
+are device debt in the 3A pattern, queued in
+`dispatch/DEVICE-PASS-RUNNING-LIST.md`.**
+
+**#224 triage (dispatch §8):** NONE of #224's eight questions blocks 3B —
+different actors (they govern OUR on-device gate; this governs the HOST's). Q7
+(receipts for auto-approved actions) and Q6 (Privacy-screen home) are
+coupled-not-blocking: 3B ships no persisted preference and deliberately leaves no
+receipt unless Q7 decides otherwise — recorded so the drift is deliberate rather
+than accidental.
+
+**Corrections this lane owes at close (dispatch §10, upstream per THE CLOSE-OUT
+RULE):** C1 (file:line drift across the Phase-3 corpus — both design docs, #283,
+#224, and `SessionsHermesClient+RunsTransport.swift`'s own doc comments), C3
+(plan §3's size row M→L), C4 (N6 understated — the answer channel survives a
+dropped stream), C5 (status keeps reading `waiting_for_approval` after a
+timeout), C6 (`/stop` on a parked run = deny; plan §2.5 + CLAUDE.md's `:8642`
+paragraph), C7 (promote the approval family's three behaviours into CLAUDE.md's
+`:8642` section), C8 (#224's head-matter shelving note gets the pointer at the
+head). C2 (3B has no entry) is discharged by this filing.
+
+> **UPDATE 2026-08-09 (lane executed — branch `t27-304-3b-host-approvals`,
+> based on #292's tip `b2265cd` + `main` merged for the filings): 304-A..F
+> BUILT AND MET at the unit level, TDD with observed REDs throughout; 304-G
+> PENDING (controller runs the gate); 304-H/I QUEUED behind the 🔐
+> live-install go (O2 still owed — nothing on any live install was touched).**
+>
+> **Pre-lane baseline, measured on the lane's own base (`e87de11`): 1927
+> tests / 145 suites** (full `TalariaTests`, gate sim 47F68496). **Post-lane
+> full-unit run: 1953 tests / 148 suites passed** — the count MOVED by
+> exactly the lane's 26 new tests / 3 new suites (fresh `test`, not
+> `test-without-building`; the stale-`.xctest` tell checked). **#292
+> (PR #288) and #272 (PR #289) merged to `main` while this lane ran; `main`
+> was re-merged into the branch at `235e369` (auto-merge, no conflicts,
+> `oi-split-verify.py` PASS) and the full suite re-run on the merged head:
+> 1959 tests / 148 suites passed** (1953 + #272's 6).
+>
+> **Per-bar evidence (every RED observed on the gate sim before its GREEN;
+> RED log preserved in the lane report):**
+> - **304-A MET.** RED `bf6d08b`: 4 failed / 17 — `approval.request` still
+>   decoded to `.ignored("approval.request")`, the exact discard
+>   `RunsFrameParserTests:37` pinned. GREEN `a4295f7`: 17/17. Three producer
+>   fixtures (four-choice, `smart_denied` `["once","deny"]`, MCP elicitation
+>   with `pattern_key:"mcp_elicitation"` and command-as-MESSAGE) decode with
+>   `choices` verbatim; a no-choices frame stays `.ignored` (honest absence
+>   over invented buttons); the inverted test narrowed IN PLACE to
+>   `subagentFramesAreIgnoredNotDropped`. Buttons build from
+>   `request.question.choices` — nothing hardcodes four.
+> - **304-B MET.** RED `1895b88`: `answerApproval` resolved to the protocol
+>   default (`.unsupported`), zero POSTs recorded. GREEN `606ce16`:
+>   `onceAnswerPostsExactlyOneChoiceBodyToTheRunsPath` pins body ==
+>   `{"choice":"once"}`, one POST, Bearer auth;
+>   `answerRidesTheGivenEndpointNotTheLiveProviders` flips the live base URL
+>   before answering and the POST still hits the birth host (the endpoint
+>   rides the `RunApprovalRequest` VALUE — never `activeRunContext`, whose
+>   doc now says so);
+>   `HostApprovalStoreTests.atMostOnePostPerCardRegardlessOfTapCount` pins
+>   the tap-count half with a gated sender (in-flight double-tap no-ops;
+>   resolved card never posts again; `.unreachable` is the sole re-entry).
+> - **304-C MET.** RED: all arms classified `.unsupported`. GREEN: 409
+>   `approval_not_pending` → `.windowClosed` ("window closed — the host
+>   already denied this"), 409 `approval_not_active` → `.notActive`
+>   (distinct, no expiry claim), 404 → `.runGone`, 400 → `.rejected` with
+>   the host's words, transport failure → `.unreachable` (card stays LIVE,
+>   #264's rule) — and the store renders the three terminal arms as three
+>   DISTINCT notices with `resolvedChoice` nil
+>   (`theFourXXArmsRenderDistinctlyAndNeverAsSuccess`).
+> - **304-D MET, all three arms.** (i) `statusAloneRaisesOnly…`: events 404
+>   + status `waiting_for_approval` → exactly one degraded
+>   `.approvalRequested` with `question == nil`, and the store's degraded
+>   Deny SENDS (`degradedDenySendsAndARealQuestionIsNeverDowngraded`) — the
+>   stream-independent channel. (ii) same fixture: poll-budget expiry on the
+>   parked run yields one `.interrupted`, zero `.failed`. (iii) RED: the
+>   sync path threw the generic "did not answer in time" after 13 polls;
+>   GREEN: `pollRunToTerminal(haltOnApprovalPark:)` returns on the FIRST
+>   parked read (poll count == 1) and `syncTurnViaRuns` throws the honest
+>   refusal naming the parked approval (O5).
+> - **304-E MET.** Exactly one `.finished` with an approval frame in the
+>   turn; duplicate `approval.responded` frames idempotent at the store
+>   (`markResolvedIsIdempotentAndScopedToTheRun`); card torn down on EVERY
+>   driver exit — `.finished`/`.failed`/`.unreachable`/`.interrupted` (both
+>   arms), `cancelStreaming` (Stop AND revoked-budget), `abandonPendingRun`
+>   (thread switch/clear/reset) — proven end-to-end through a real
+>   `ChatStore` (`chatStoreRaisesTheCardMidTurnAndTearsItDownAtTurnEnd`).
+> - **304-F MET.** A question is only ever minted from a stream frame; the
+>   degraded raise carries `question: nil` by construction, pinned by the
+>   D(i) fixture's `request.question == nil` assertion, and
+>   `RunStatusSnapshot.liveStatuses`' doc now carries the C5 warning.
+> - **304-G ✅ MET 2026-08-09** — GATE: PASS (controller-run,
+>   CC-272-iPhone-Air, on the branch merged with main @ `21d2b94`): TEST
+>   SUCCEEDED, **1981 Swift Testing + 13 XCUITest**, Release build clean.
+>   (Lane-local evidence beneath it: the five affected suites 68/68
+>   post-change, 3A's `RunsPlaneTransportTests` 33/33 unregressed.)
+> - ~~**304-H / 304-I QUEUED** — device + live host, behind the 🔐 gate; O2's
+>   per-experiment go still owed; Owen's O3 routes them to the Mac. The
+>   controller queues them in `DEVICE-PASS-RUNNING-LIST.md`. 304-I also owes
+>   the §2.3 unknown: what a DENIED tool call emits on the runs stream —
+>   observe, don't guess (#296's family).~~ **✅ 304-H AND 304-I MET
+>   2026-08-09 evening (build 2418, Mac, `approvals.mode: manual` under
+>   Owen's per-experiment go; mode restored + double-bounce verified after —
+>   the Errno-48 headless race fired on the restore bounce and was repaired
+>   by the documented second kick).**
+>   - **304-H:** `rm -rf ~/talaria-approval-scratch-A` parked the run; the
+>     phone showed the HOST APPROVAL card with the host's computed choice
+>     set (ONCE / THIS RUN / ALWAYS / DENY + `MATCHED recursive delete`);
+>     one ONCE tap → `POST /v1/runs/{id}/approval` 200 at 21:55:59 → tool
+>     executed (14.84s incl. the park) → dir verifiably deleted.
+>   - **304-I arm 1 (deny):** DENY tap → the host's own BLOCKED text
+>     (*"Do NOT retry… do NOT rephrase"*) reached the agent, which made no
+>     second attempt and replied honestly; target dir survived.
+>   - **304-I arm 2 (Stop escape):** with the card parked, Stop →
+>     `POST /stop` 200 at 22:02:53 → host logged **`tools.approval:
+>     Approval wait interrupted by user signal — returning deny`** 300 ms
+>     later; turn ended `interrupted_by_user`. No 60s hang.
+>   - **The §2.3 unknown, OBSERVED:** a DENIED tool renders on the phone as
+>     a **clean ✓ TERMINAL chip** — consistent with #296's reopened 296-C1
+>     (the wire's `error:true` Bool is dropped by the parser), while a
+>     STOPPED tool shows an honest orange "Stopped" from client-local
+>     knowledge (296-A). The deny's dishonest-clean chip is #296's fix to
+>     make, not this item's.
+>   - **Free finding, same window (Group 6 F7d, sessions plane):** with
+>     runs transport OFF the gated command does NOT hang — the tool returns
+>     in 0.16s with structured `status: "pending_approval"`, the agent
+>     narrates the park, and there is NO answer channel on that plane.
+>     Recorded in the device list's Group 6 row. **#304 CLOSED; sweep to
+>     the archive at sitting close-out.**
+>
+> **Owen's rulings applied as recorded:** O1 — all four choices render as
+> offered; `once`/`deny` one tap; `always`/`session` (and, fail-safe, any
+> unknown choice) behind a second confirm naming the consequence
+> ("Permanently allowlists this pattern on <host>…" / "Applies to this one
+> run only — not this conversation"); the `session` button reads **THIS
+> RUN**, pinned by `sessionChoiceRendersAsThisRunNeverAsSession`. O5 — the
+> sync path's honest refusal (above). O6 — `useRunsTransport` default
+> untouched (OFF); nothing is reachable outside Developer.
+>
+> **The card (`Talaria/Features/Chat/HostApprovalCard.swift`):** a SIBLING of
+> `ToolConfirmationCard`, rendered beside it in `ChatScreen` (both can be on
+> screen at once); distinguishable at a glance — "HOST APPROVAL" + antenna
+> glyph + the actor named (birth profile's name, else the frozen endpoint's
+> host) vs. the device card's "Confirm" + hand glyph; `command` rendered
+> VERBATIM (monospaced for commands, prose for the MCP-elicitation consent
+> MESSAGE — never presented as something the host would "run"), never
+> truncated, never a file-reconstruction surface (3A-D); degraded shape =
+> Deny + "this connection can't show you what it is"; terminal 4xx notices
+> render in the card's place; every color a `Design` token (forge header
+> family), so all four themes incl. Paper Tape resolve from the palette;
+> VoiceOver labels state the CONSEQUENCE (224-1D). `ToolConfirmationCenter`
+> untouched (dispatch §5's rejected-reuse ruling).
+>
+> **T9 (XCUITest): NOT SHIPPED, deliberately.** The UITest suite has no
+> fixture host for the chat plane (mock PAIRING exists; UITest chat runs on
+> the local brain), so the card is not genuinely reachable behind the
+> Developer switch in that harness — reaching it would mean an app-side mock
+> emitter, i.e. exactly the "test that exercises a mock and reads as
+> coverage" the dispatch's T9 forbids. The card's logic is store-level
+> unit-tested; its real reachability is 304-H's device bar.
+>
+> **Corrections LANDED (commit `be2d6cd` before any code, per §10):** C1 in
+> both design docs (dated head-notes), #224, #283, and the Swift doc
+> comments themselves (six stale `api_server.py:NNNN` re-resolved to
+> `3dcbe9001` values from the dispatch's measured table, plus the two
+> falsified "(and a future `/approval`)" comments — the approval does NOT
+> ride `activeRunContext`, and both docs now say so); C3 plan §3 (M→L,
+> dated); C4 plan §2.2 + #224's update; C5 plan §2.2 + #283 + the
+> `liveStatuses` doc; C6 plan §2.5 + CLAUDE.md `:8642`; C7 CLAUDE.md `:8642`
+> (choices ride the frame / command not always a command / status never
+> carries the question); C8 #224 head pointer. C2 discharged by the filing.
+>
+> **Deliberately NOT built (dispatch §5):** the deny REASON (no wire slot),
+> `resolve_all` (no UI story), the `smart_denied` arm's verification
+> (handled by construction, unprobed, no bar claims it), any
+> `ToolConfirmationCenter` reuse, and #305 (outlives-the-screen — filed, not
+> built; its user cost is real: with the app away, the host denies by
+> timeout).
+>
+> **Q7/Q6 coupling (dispatch §8):** 3B ships NO transcript receipt for an
+> answered approval and NO persisted preference — deliberate, recorded here
+> so the drift is a decision; if #224's Q7 ever decides receipts, 3B adopts
+> that answer.
+
+> **⛔ REVIEW ROUND 1's FIX BELOW WAS FALSIFIED BY THE ROUND-2 RE-REVIEW
+> (2026-08-09, same day) — read the ROUND 2 note after it; the note below
+> stands as the record of what was tried, not of what shipped.** The
+> re-review's trace: the ONLY route from Talk to chat is ending the
+> session — End → `endSession()` → `teardownSessionResources()` →
+> `turnTask?.cancel()` → the round-1 post-loop scoped clear ran BEFORE the
+> overlay dismissed, so the user told to "open the chat" arrived at a chat
+> whose card was already gone. The plumbing was right; the promise was
+> still false. Round 1's "'open the chat' is now true" claim is STRUCK.
+>
+> **REVIEW ROUND 1 (2026-08-09, same day) — one Important finding, FIXED
+> *(superseded — see above and ROUND 2 below)*:
+> the VOICE consumer was a state where the feature lied.** A voice turn
+> rides the same runs transport, so an `approval.request` frame lands in
+> `NativeVoicePipelineService`'s OWN stream consumer — which rendered "open
+> the chat to answer it" while raising nothing: no replay, the degraded
+> raise also lands in the voice stream, and the chat showed NO card (the
+> #180 shape, reviewer-caught). **Fix = the cross-store raise (option a):**
+> the voice consumer raises the SAME `HostApprovalStore` the chat screen
+> renders (full question from the frame; degraded for the question-less
+> park), `approval.responded` forwards to the idempotent teardown, and the
+> voice turn's every exit — including the barge-in cancellation — tears its
+> card down SCOPED via new `clearForTurnEnd(runID:)`, so a predecessor
+> turn's exit can never tear down a successor's card (bar 304-E, narrower
+> door). An honest-copy downgrade remains for store-less constructions (no
+> instruction to open a chat that would show nothing). Constraints held: no
+> new Task/loop (#292 — rides the existing consumer); the at-most-once POST
+> guard is store state shared across both surfaces by construction. RED
+> first (`3563adb`: the scripted voice backend held its stream open and
+> `store.current` stayed nil; the scoped clear no-oped), GREEN in the fix
+> commit (`71a6b46`) — 68/68 across the five affected suites incl. the new
+> `VoiceHostApprovalTests` and the amended service's own
+> `NativeVoicePipelineTests`; **full `TalariaTests` after the fix: 1961
+> tests / 149 suites passed** (the pre-fix merged head's 1959/148 + the
+> fix's 2 tests / 1 suite). Reviewer Minor #1 (a POST completing after
+> teardown renders its 4xx nowhere — deliberate never-false-success)
+> PARKED by the controller, no action.
+
+> **REVIEW ROUND 2 (2026-08-09) — RULED: round 1 NOT ADDRESSED (the
+> endSession-teardown trace above), plus one NEW Important (with two
+> raisers, the chat's eight UNSCOPED `clearForTurnEnd()` sites could tear
+> down a voice-raised card for a different run — the same race round 1
+> scoped against, in the other direction). The controller ruled option (b):
+> the HONEST DOWNGRADE, and the voice raise removed.**
+> - The voice consumer's `.approvalRequested` arm now states only what is
+>   true — *"Hermes is waiting on a host approval this voice surface can't
+>   show or answer. If it isn't answered, the host denies it when its
+>   approval window expires."* — Owen's O5 honest-refusal ruling applied to
+>   the voice surface. **No instruction to open the chat.**
+>   `.approvalResolved` is a deliberate no-op on this surface.
+> - **REMOVED (dead plumbing is not kept "for later"):** the pipeline's
+>   `hostApprovals` reference, the AppContainer hoist + wiring, and
+>   `HostApprovalStore.clearForTurnEnd(runID:)`. With ONE raiser (the chat
+>   consumer) the unscoped clears revert to being correct — the originally
+>   reviewed 304-E design — which also discharges the new Important.
+>   **KEPT:** `commitUserUtterance`'s `// harness-visible` widening (drives
+>   the round-2 test) and the `ScriptedVoiceBackend` fixture.
+> - **Inversion recorded:** round 1's two tests REFUSE TO COMPILE against
+>   round-2 code (`clearForTurnEnd(runID:)` and `.hostApprovals` no longer
+>   exist — observed, log preserved in the lane report's scratchpad).
+>   Rewritten to pin the new truth:
+>   `aVoiceTurnsApprovalProducesTheHonestRefusalAndInstructsNothingFalse`
+>   (the copy names can't-show and the timeout deny, contains NO
+>   "open the chat"/"open Talaria", and the frames don't kill the voice
+>   session); the scoped-clear test deleted with its method. Chat-path
+>   teardown tests byte-unchanged.
+> - **A voice-surface ANSWER path is explicitly #305's scope** (pointer
+>   added to #305's entry).
+> - **Counts after round 2:** covering suites 67/67 in 5 (the deleted
+>   scoped-clear test left with its method; the voice test replaced 1:1);
+>   **full `TalariaTests` 1960 tests / 149 suites passed.**
+
+> **REVIEW ROUND 3 (2026-08-09) — the last surviving instance of the same
+> false-instruction family, on the SYNC path (bar 304-D(iii)'s copy).** The
+> T7 refusal still ended *"Open Talaria to answer it before the host's
+> approval window expires"* — but a sync-parked run has no stream and no
+> replay, so opening the app surfaces NO card (the chat consumer raises
+> only from a stream it drives). D(iii)'s required half (name the parked
+> approval, never the generic timeout) was met and stays; the instruction
+> tail was the surplus lie. **Copy aligned to the round-2 honest standard:**
+> *"The Hermes host paused this run — it is waiting for an approval this
+> path can't show or answer. If it isn't answered, the host denies it when
+> its approval window expires."* — no instruction to open anything. The
+> pinned test (`aSyncTurnParkedOnAnApprovalSaysSoRatherThanTimingOut`) now
+> also asserts the deny-on-expiry statement and the ABSENCE of any
+> "open Talaria"/"open the chat" instruction. (The AskHermes "Open Talaria
+> to watch it finish" family is untouched — those instructions are TRUE:
+> the answer does land in the app.)
+
+## 307. 🐛 The compose outbox can DRAIN INTO A LIVE RUN during the reconcile window — `drainComposeOutboxIfPossible` and `refreshDirectHealth` gate on `!isStreaming`, not `isTranscriptBusy` — **FILED 2026-08-09 (pre-existing at `main`, found by the #267→#306 dispatch investigation, §4-T4; the dispatch proposed #301, consumed, reassigned here). FIX RIDES #306 (its lane edits these exact lines; bar 306-E covers it).**
+
+**The mechanism, traced at HEAD:** `drainComposeOutboxIfPossible()` guards on
+`!isStreaming` (`ChatStore.swift:1967`) and its trigger `refreshDirectHealth()`
+likewise (`:1926`) — neither uses `isTranscriptBusy`. During the reconcile
+window (`streamingMessageID == nil`, `pendingRun != nil` — precisely the state
+`:127-135` documents) the offline outbox can drain into a live run.
+`attemptReconcile` (`:2389`) then selects the last Hermes message with
+`timestamp > pending.sentAt` — which is the DRAINED turn's reply — re-attaches
+the dropped run's `partialReasoning` to it, stamps a `turnDuration` measured
+from the OLD turn's `sentAt`, and re-pairs it with the OLD prompt. Reachable
+sequence: turn 1 unreachable → turn 2 committed but its stream drops → health
+probe reports connected → drain fires turn 1 → **turn 1's answer is adopted as
+turn 2's.** Nothing errors; the transcript is plausible and wrong — the #278
+shape in the one place #278 did not sweep. **Fix: tighten both guards to
+`!isTranscriptBusy`** (one line each), inside #306's T4, cited against this
+number in the commit.
+
+> **✅ FIXED 2026-08-09 inside #306's lane — commit `73f7378` (branch
+> `t27-306-message-queuing`), cited against this number in its message —
+> with the RESOLUTION AMENDED by review round 1 (same day):** the filed
+> "tighten both guards" prescription is superseded. **The fix is the DRAIN
+> gate alone** — `drainComposeOutboxIfPossible` guards on
+> `!isTranscriptBusy`, which every trigger (including `refreshDirectHealth`)
+> goes through, so the outbox can no longer drain into a live run.
+> **`refreshDirectHealth`'s guard stays `!isStreaming`, deliberately:**
+> tightening it would SKIP the probe and assert `.connected` unprobed for
+> the whole reconcile window (up to 120s, entered by a stream DROP —
+> weak-to-negative evidence of connectivity), painting the offline banner,
+> the pip, and three Settings reachability surfaces ONLINE on a dead
+> network — #180's hidden-degradation shape. The probe keeps running and
+> reporting honestly through the window. Pinned by bar 306-E's test
+> (`livePendingRunBlocksFireAndDrainUntilReconcileAdopts`, unedited across
+> the amendment), whose observed RED was precisely this mechanism: with the
+> drain gate reverted to `!isStreaming`, the parked turn drained into the
+> live run during the reconcile window. Closes when #306's lane merges
+> (gate 306-K: ✅ PASS on the merged head — see the header note).
+
+## 295. 🐛 A revoked background budget has NO host-recovery route — and three comments say it does — **FILED 2026-08-07 night, discovered by the review of #291's fix. The DOC half is being corrected in that lane; the BEHAVIORAL half is Owen's call. PRE-EXISTING: the recovery this promises was never there. → ✅ FIX LANDED 2026-08-08 — bars 295-A/B/C MET, gate PASS.**
+
+**The discovery, which is larger than the fix that surfaced it.** Three sites
+claim that `cancelStreaming(hardStopHost: false)` — the continued-send
+expiration path, i.e. iOS revoking a background budget with NO user action —
+"degrades to the ordinary recovery poll":
+`ChatStore.swift:~1136`, `HermesClientProtocol.swift:~138`, and
+`RunsPlaneTransportTests.swift:~1333` ("an answer the recovery poll would
+otherwise have retrieved"). **That poll does not fetch from the host.**
+`SessionsHermesClient.loadConversation()` (`~:720-725`) returns the client's
+CACHED `currentConversation` with no network call; `currentConversation` is
+only ever replaced by an explicit fetch elsewhere. So the loop was
+re-merging the app's own cache — **~60s of re-reading what it already knew.**
+
+**Consequence: the expiration path has never had a host-recovery route.** The
+route that would work is the one `.interrupted` already uses — `pendingRun` +
+`startReconcileLoopIfNeeded()` → `reconcileFromServer()`, a genuine GET
+against the hop's birth host — and it is armed only by `.interrupted`, never
+here.
+
+**What #291's fix changed, and what it did not.** Settling the user row to
+`.delivered` makes `hasPendingMessages` false, which stops that poll loop —
+so the lane removes a loop that was doing nothing useful, not a recovery.
+**But the user-visible result on this path is now a silent hole:** the prompt
+renders as delivered, #294 removed the empty placeholder, and there is no
+reply, no spinner, and no retry affordance. That trades a FALSE `.failed` +
+Retry (actively misleading) for SILENCE (passively unhelpful). Not strictly
+worse; not honest either.
+
+**The recommended shape (reviewer's, and I agree) — Owen's to approve:** on
+`hardStopHost: false` ONLY, settle the user row to **`.working`** and arm the
+reconcile loop, exactly as the `.interrupted` path does. `.working` is the
+state that path already means; it is not `.sending`, so no false-failure
+timer fires; it is not `isSettled`, so the transcript stops claiming a turn
+that has no answer; and the reconcile loop is the one route that actually
+asks the host. **User-initiated Stop keeps `.delivered`** — there the user
+does not want the answer and silence is correct.
+
+**Why it is a decision and not a patch:** it changes what a backgrounded
+attachment turn does after the system takes its time away, it interacts with
+#292 (the producer keeps running on that path regardless), and on the runs
+plane the answer is durably fetchable for an hour by status poll — which may
+be a better recovery than the sessions-plane reconcile it would inherit.
+
+**Bars: (295-A)** an expiration-path turn ends in a state that is neither a
+false failure nor a silent hole; **(295-B)** a user-initiated Stop is
+unaffected (still `.delivered`, still silent, no reconcile armed);
+**(295-C)** no comment anywhere claims a recovery route that the code does
+not walk — the doc half, being fixed now in the #291 lane.
+
+> **OWEN'S RULING 2026-08-08: the recommended shape is APPROVED — settle `.working` + arm the plane-appropriate recovery, expiration path (`hardStopHost: false`) ONLY.** Sessions plane: the reconcile loop `.interrupted` already arms. Runs plane: the status poll (the answer is durably fetchable for ~1h). User-initiated Stop unchanged (`.delivered`, silent, no reconcile — bar 295-B). Bars 295-A/B/C stand as registered. Interaction with #292 noted, not blocking. Lane not yet opened; Owen routes scheduling.
+
+> **⚠️ SUPERSESSION 2026-08-09 — THE RULING STANDS, ITS STATED REASONING DOES
+> NOT. Second correction to this same ruling in one day.** Corrected here, at
+> the claim's own home, per the close-out rule.
+>
+> **The falsified parenthetical:** this entry and the ruling above both say the
+> runs-plane answer is *"durably fetchable for ~1h by status poll"*, and the
+> ruling picked the runs plane partly because it *"may be a better recovery than
+> the sessions-plane reconcile it would inherit."* **It is the weaker of the
+> two.** `self._run_statuses` is a plain in-memory `Dict`
+> (`api_server.py:1433`) with `_RUN_STATUS_TTL = 3600` (`:6344`) — **a gateway
+> restart drops it and `GET /v1/runs/{id}` returns 404 `run_not_found`.** The
+> sessions plane's target is on disk (`SessionDB(state.db)`) and survives. The
+> hour is a TTL, not durability.
+>
+> *(The earlier correction, same day: the ruling said "Runs plane: the status
+> poll" when the sessions-messages GET shipped on both planes. **Twice now the
+> outcome was right and the justification was wrong** — both were written from
+> prose summaries rather than the code, which is the failure this project keeps
+> paying for.)*
+>
+> **Upstream moved recoverability UP, not down — the shipped gate is safe.**
+> `51fa7db46` then `d9ddfb23d` (both ancestors of the installed head) now
+> cooperatively interrupt in-flight turns on gateway shutdown. `d9ddfb23d`'s
+> `_shutdown_interruptible_agents` registry is armed at the one unconditional
+> agent-creation site in `_run_agent()`, so it covers **both session-chat
+> routes — our plane.** A cooperative interrupt reaches the single post-loop
+> `finalize_turn(...)`, where `_persist_session` is **not** gated behind a
+> not-interrupted check. **So a gateway restart now writes a closing assistant
+> row where it previously wrote none** — the turn used to sit parked until the
+> process died. Recoverability moved in exactly one direction.
+>
+> **Bars re-checked, all still MET.** 295-A better supported than when it was
+> scored — note a recovered reply can now legitimately be the literal
+> `"Operation interrupted."` (the placeholder `close_interrupted_tool_sequence`
+> appends); that is honest prose and satisfies "neither a false failure nor a
+> silent hole." The interrupt *reason* never enters the transcript. 295-B
+> untouched — these are shutdown-time paths only and `POST /v1/runs/{id}/stop`
+> is unchanged. 295-C: no shipped Swift comment makes a durability claim; the
+> overclaim was tracker prose, corrected above.
+>
+> **Residual, recorded not fixed — and it is NOT a regression:** the closing
+> placeholder is appended only when the tail is a `tool` message. **An interrupt
+> during the first model call — no tool run yet, no assistant row — closes
+> nothing**, so the armed reconcile finds nothing to recover. Best-effort on
+> that sub-case.
+>
+> **Intersection worth knowing:** #295 fires when iOS revokes a background
+> budget (`hardStopHost: false`), where the host is never told to stop. Gateway
+> shutdown is an independent event, so the overlap is "budget revoked **and**
+> gateway restarts mid-turn" — narrow, **but real, because the gateway is
+> restarted after every `hermes update`.**
+>
+> **No code change owed.** The one cheap probe that would upgrade this from
+> code-read to verified: start a sessions-plane turn on the Mac, `kill` the
+> gateway mid-turn (launchd respawns clean), then `GET
+> /api/sessions/{id}/messages` and look for the closing assistant row.
+
+
+> **🔧 FIX LANDED 2026-08-08 on `t27-295-expiration-recovery`, TDD with RED
+> evidence at every step. Gate PASS. Bars 295-A/B/C all MET.** Three
+> commits: `3dbc583`/`3da36a8` (settle parameterization + `activeStreamRun`
+> capture), `cfbbd8a` (the arm itself), `951823b` (Owen's gate ruling —
+> below), plus this close-out lane's ordering pin.
+> - **295-A MET** — `cancelStreaming(hardStopHost: false)` on a
+>   server-recoverable turn now mirrors the `.interrupted` arm exactly:
+>   removes the placeholder (preserving `partialReasoning`), settles the
+>   user row `.working`, mints a `PendingRun` from the captured session id,
+>   and starts the reconcile loop — pinned end-to-end by
+>   `expirationPathArmsTheRealRecovery` (drives a real reconcile pass and
+>   asserts the streamed reasoning survives onto the recovered reply, not
+>   just that a `PendingRun` exists) and the settle half by
+>   `expirationPathSettlesTheUserRowWorking`.
+> - **295-B MET** — a user-initiated Stop (`hardStopHost: true`, the
+>   default) is byte-unchanged: `explicitStopStillSettlesTheUserRowDelivered`
+>   and `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop` pin `.delivered`,
+>   no `PendingRun`, no reconcile loop.
+> - **295-C MET** — the doc block above `cancelStreaming`
+>   (`ChatStore.swift`), `HermesClientProtocol.hardStopActiveRun`'s doc, and
+>   the `#291 close-out` comment in `RunsPlaneTransportTests.swift` (the
+>   three sites this entry named) were all rewritten to describe the SHIPPED
+>   arm-on-recoverable / finalize-on-local-brain behavior. A repo-wide grep
+>   for `"degrades to the ordinary recovery poll"`, `"not implemented here"`,
+>   and `"open decision (#295)"` returns nothing. (The *other* "recovery
+>   poll" hits the grep also turned up — `SessionsHermesClient.swift:47`,
+>   `+RunsTransport.swift:283/288/784/876`, `RunsPlaneTransportTests.swift:346/1135`
+>   — are a DIFFERENT, real mechanism: the runs-plane's own host status poll
+>   after a stall/`/stop`, unrelated to the sessions-plane claim this bar is
+>   about. Left untouched deliberately, not missed.)
+> - **Owen's ruling shipped as the gate, not just approved:** a LOCAL-brain
+>   turn (on-device/PCC, #30) reads `currentRunIsServerRecoverable == false`
+>   and arms NO recovery — instead it finalizes the placeholder exactly like
+>   an explicit Stop, preserving the partial. This closes a corruption
+>   sequence the naive "always arm" shape would have opened: (1) nothing is
+>   ever committed server-side for a local turn, so
+>   `performReconcilePendingRuns` (fired every foreground/appear) would
+>   re-arm a fresh budget window FOREVER — an unbounded re-arm, not a
+>   one-shot failure; (2) worse, `reconcileFromServer()` resolves against
+>   `journal.activeHop`, NOT `pending.sessionId` — so once the conversation's
+>   next REAL Hermes turn lands on that same hop, `attemptReconcile`'s filter
+>   (`sender == .hermes && timestamp > pending.sentAt`) matches that unrelated
+>   reply and wrongly stamps it with the dead local turn's
+>   `partialReasoning`/duration, re-pairing it with the dead turn's prompt —
+>   cross-hop corruption, sequential, no concurrency needed; (3) the
+>   placeholder-removal mechanics the recovery arm uses would have destroyed
+>   the local turn's own real partial answer for a recovery that was never
+>   coming. Pinned by `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`
+>   (wires an EARLIER real Hermes hop on the journal, the exact shape the
+>   cross-hop corruption needs, and asserts no `PendingRun`, no loop, and the
+>   partial preserved).
+> - **The ordering pin (carried from the fix re-review, closed in this
+>   lane):** `cancelStreaming` reads `currentRunIsServerRecoverable` as its
+>   FIRST statement — before `streamingTask?.cancel()`, `hardStopActiveRun()`
+>   and `abandonActiveRun()` — because `abandonActiveRun()` releases the
+>   router's routing lock, which is the very signal `ChatBackendRouter`
+>   builds this gate from. Every double in this file used to answer the flag
+>   with a constant, so nothing pinned the ORDER of that read — a refactor
+>   moving it below the clears would have shipped silently, every production
+>   Hermes expiration falling to the non-recoverable branch with a fully
+>   green suite. `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`
+>   closes that hole: a double that flips `true → false` the instant either
+>   teardown call fires. **Verified RED first** — moving the read line to
+>   just after `abandonActiveRun()` failed the test (`pendingRunSessionId`
+>   nil, `hasActiveReconcileLoop` false), then the line was restored and the
+>   test re-verified GREEN.
+> - **Gate: PASS** (Debug suite — units + XCUITest — and a Release build,
+>   both required by `scripts/mac/lane-gate.sh`). AppStoresTests 118/118
+>   (117 pre-lane + this lane's ordering pin), RunsPlaneTransportTests
+>   32/32, both foreground.
+
+> **✅ 2026-08-09 — the "Interaction with #292 noted, not blocking" line in
+> Owen's ruling above is RESOLVED: the recovery is independent of the
+> producer, and #292's fix does not disturb it.** #292's cancellation hook
+> landed (`t27-292-producer-cancellation`) and the proof is structural, not
+> asserted: the arm's inputs are all store-side (`streamingMessageID`,
+> `streamingUserMessageID`, `activeStreamRun ?? activeSessionID`; `runId`
+> passed nil), and the recovery fetch is a separate client call
+> (`reconcileFromServer()` off `reconcileTask`), not work inside the
+> producer #292 now cancels. All seven of this entry's pins —
+> `expirationPathArmsTheRealRecovery`, `expirationPathSettlesTheUserRowWorking`,
+> `explicitStopStillSettlesTheUserRowDelivered`,
+> `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop`,
+> `localBrainExpirationArmsNoRecoveryAndPreservesThePartial`,
+> `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`,
+> `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed` — ran green
+> WITHOUT edits after the fix. (The ruling's "Runs plane: the status poll"
+> misnaming of the shipped mechanism is already corrected in the 2026-08-09
+> supersession note above — the sessions-messages GET shipped on both
+> planes; not duplicated here.) One #292-side consequence recorded there,
+> Owen-overturnable: an abandoned runs turn's usage is never recorded, so
+> its session's CTX gauge goes stale rather than current.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **Behavioral half RULED: HOLD (Owen, 2026-08-09 decision pass).** The
+> literal runs status-poll recovery (durable run_id) is NOT built — the
+> reconcile loop is the recovery path of record (device-proven in the 306-L
+> and 292-C runs). Revisit only if a real revocation is observed misbehaving
+> (device list Z4's screenshot standing order).
+
+## 294. 🐛 Stop before the first token persists a permanently EMPTY assistant bubble that survives relaunch — **FILED 2026-08-07 night from the adversarial audit (finding 2). ✅ CODE-VERIFIED: `cancelStreaming` sets `isStreaming = false` / `status = .delivered` UNCONDITIONALLY, including when content is empty and there are no tool activities. Same call site as #291, different fix.**
+
+**The gap:** the cold-load scrubber that exists for exactly this shape only
+catches `.sending` (`ChatStore.swift:486-491`), so `.delivered` + empty sails
+through and the next line persists it. Tap Stop during the thinking phase —
+before the first `assistant.delta` / `message.delta` — and `MessageBubble`'s
+non-streaming branch finds empty content and no activities and renders a bare
+box with a timestamp. It is written to the conversation cache, reloaded on
+next launch, merged forward on every poll tick, and journaled.
+
+**This is the shape #235 F1 exists to forbid.** `cleanCloseArmsRecovery`
+refuses to paint an empty bubble on a clean close, and `deliverPolledTerminal`
+deliberately REUSES that guard so the two planes cannot drift.
+**`cancelStreaming` is the third producer of terminal assistant rows and
+applies neither** — the guard is two functions away and reusing it is
+approximately one line.
+
+**More reachable since slice 3A:** `hardStopActiveRun` now really kills the
+host run, so stopping early is a rational thing for a user to do rather than
+a mistake.
+
+**Bars: (294-A)** a Stop with no content and no tool activity leaves NO
+assistant row behind (or leaves one that the scrubber removes on cold load);
+**(294-B)** a Stop WITH partial content still keeps that content — the fix
+must not eat a real partial answer; **(294-C)** relaunch after an early Stop
+shows no empty bubble.
+
+> **🔧 FIXED 2026-08-07 night, same lane as #291. 294-A/B/C all MET; gate
+> PASS (1804 + 12, Release green).** The placeholder is removed only when it
+> has nothing to show, and the prose half **calls
+> `SessionsHermesClient.cleanCloseArmsRecovery` rather than restating it** —
+> the same anti-drift reuse `deliverPolledTerminal` makes, so the three
+> producers of terminal assistant rows cannot diverge on what "empty" means.
+> **294-B's trap was traced against all four content shapes** by the review:
+> partial prose (kept, tested), tool-activity-only (kept, tested), an
+> agent-file chip with no prose (kept — #277's rule that a chip on a stopped
+> reply is as durable as the transcript), and reasoning-only (kept, #4.15).
+>
+> **One hazard recorded rather than left silent:** the emptiness predicate is
+> itself field-by-field — the #276 shape. It deliberately does NOT check
+> `codeDiff`, `usage` or `reasoningSummary`, all provably unreachable on a
+> pre-finish placeholder today. Those exclusions are now named in a doc
+> comment WITH the reason each is unreachable, so the next field added to
+> `Message` fails loudly here instead of silently eating a bubble.
+
+## 292. 🐛 The runs producer Task is NEVER cancelled — an abandoned turn can poll the host ~60 times over 2 minutes, and the comment claims the opposite — **FILED 2026-08-07 night from the adversarial audit (finding 3). STATIC, auditor ~90% on the mechanism. ESCALATES something #283's own whole-branch review saw and I under-weighted.**
+
+**The mechanism:** `sendStreaming` spawns an **unstructured** `Task`
+(`SessionsHermesClient.swift:322-350`) with **no
+`continuation.onTermination`**. Unstructured tasks inherit actor context,
+priority and task-locals — **not cancellation**. The router one layer up
+DOES wire the hook (`ChatBackendRouter.swift:456-459`), and
+`ResilientHermesClient` passes the stream straight through, so cancelling
+`ChatStore.streamingTask` stops the router's pump and releases the client's
+`AsyncStream` — while the producer runs on with `Task.isCancelled == false`
+for its whole life. **Every `if Task.isCancelled` in `streamTurnViaRuns`
+(`:434`) and `pollRunToTerminal` (`:780`, `:814`) is unreachable from a
+consumer walk-away**, and `RunsTransport.swift:535-536`'s comment states the
+opposite invariant.
+
+**Why this is an ESCALATION, not a re-file.** #283's whole-branch review
+found the same dead-cancellation shape and I deferred it as "parity with the
+sessions plane, not a regression." **That was right about the shape and wrong
+about the consequence.** On the sessions plane an uncancelled producer just
+held a dead SSE read. On the runs plane it now runs a bounded POLL LOOP: up
+to ~60 authenticated `GET /v1/runs/{id}` requests over `runsPollBudget`
+(120s) for a turn the user deliberately walked away from — the exact gesture
+the lane's own walk-away ruling protects. Same code shape, materially
+different cost. **I recorded it as a minor; it earns its own number.**
+
+**Consequence for #283's own accounting:** its recorded "~3 min worst case"
+silence window assumes a WATCHING consumer. For an abandoned turn the work
+continues unwatched, which is worse than the number implies.
+
+**Bars: (292-A)** cancelling the consumer stops the producer — assert the
+poll count stops advancing after the consumer's stream is released (the
+suite's 800ms budget hides this today, so the test must assert the producer,
+not the collector); **(292-B)** `RunsTransport.swift:535-536`'s comment
+describes what the code does; **(292-C)** device arm: walk away from a runs
+turn, kill the network past 60s, and confirm the host log shows NO further
+`GET /v1/runs/{id}` polls.
+
+**2026-08-09 — 292-A's observation mechanism REFINED, filed before any code
+(pre-registration per #215; full derivation in
+`dispatch/FABLE-T27-292-producer-cancellation.md` §6):** the bar's teeth are
+the per-test knob override. `makeClient` sets `runsPollBudget` to 800ms
+suite-wide, so a test inheriting it passes ON the defect (the budget ends the
+poll on its own). The test therefore: (1) observes the producer through
+`RunsStubURLProtocol`'s request log (`count("/v1/runs/run-r1")`), never the
+collector; (2) overrides `runsPollBudget = 30s` / `runsPollInterval = 40ms`
+on the test's own client; (3) runs the collector INLINE (not `collect(from:)`,
+which awaits completion under its own belt); (4) waits bounded until the count
+reaches ≥2 (loop proven live, not one opportunistic read); (5) cancels the
+collector, records `atWalkAway`; (6) sleeps ≥10 poll intervals; (7) asserts
+the count did not advance. Second assertion in the same test:
+`activeRunContext == nil` after the walk-away settles (the defer-runs-on-cancel
+hazard). **RED evidence is mandatory and numeric** — run on HEAD pre-fix and
+record the actual counts (`atWalkAway = N, final = M`), not "it failed"; a
+green-on-first-write test here is a FAILED bar (the override did not take).
+No off-by-one tolerance up front — `== atWalkAway` until a real flake is
+observed and recorded. **292-B covers THREE comment sites, not one** — at
+today's HEAD they are `SessionsHermesClient+RunsTransport.swift:546-547`,
+`:777`, and `:780-781` (the entry's `:535-536` citation is stale; the file is
+`SessionsHermesClient+RunsTransport.swift`, there is no bare
+`RunsTransport.swift`) — rewritten to name the mechanism (the `onTermination`
+hook) rather than deleted, plus a reciprocal note at the hook naming its three
+customer comments.
+
+> **✅ 292-C MET 2026-08-09 evening (build 2418, Mac Mini profile, §R8 run
+> with the poll-loop-first refinement — the row's own INCONCLUSIVE guard
+> satisfied). Host-log evidence:** run `run_ab7b16d0…` posted 21:46:40
+> (`POST /v1/runs` 202); a 90s+ background killed the events stream
+> (21:47:24, `200 0`) and the return at 21:48:24 put the producer into the
+> status poll loop — **~17 `GET /v1/runs/{id}` polls at 2s cadence
+> (non-zero before-count)**; the walk-away (thread switch, no Stop) landed
+> 21:48:57 and the polls STOPPED on that second — **zero `GET` after, zero
+> `POST /stop` anywhere** (the sole "stop" grep hit is `finish_reason=stop`).
+> The host kept working — tool completed the full 240.28s at 21:50:54, turn
+> ended 21:50:59 — so the walk-away stayed network-free AND non-lethal
+> (3A-C half 2 preserved). On reopen at 21:51:10 one reconcile
+> `GET /messages` adopted the turn; the answer rendered on screen. The
+> Ruling-1 cost was observed live (CTX gauge holds the prior run).
+> **#292 CLOSED; sweep to the archive at sitting close-out.**
+>
+> **🔧 FIX LANDED 2026-08-09 on `t27-292-producer-cancellation`, TDD with
+> numeric RED evidence — MERGED same day, PR #288 (`c2cc540`). Bars 292-A
+> and 292-B MET; ✅ 292-C QUEUED as `DEVICE-PASS-RUNNING-LIST.md` **§R8**
+> (the bar that closes this item); ✅ GATE: PASS 2026-08-09 (controller-run,
+> sim CC-272-iPhone-Air): TEST SUCCEEDED, 1927 Swift Testing + 12 XCUITest,
+> Release build clean.** One RED-verification caveat for the record: re-verifying 292-A's
+> RED by restoring the bug leaves an orphaned producer polling for up to the
+> test's 30s budget AFTER the test returns — later tests in the serialized
+> suite will see its requests as noise in the shared stub log. Expected
+> collateral of the un-fixed state, not a second regression.
+>
+> **⚠️ The entry's as-filed citations were stale — corrected here (close-out
+> rule), verified at the fix branch's HEAD:** the producer is
+> `sendStreaming` at `SessionsHermesClient.swift:346-393` (not `:322-350`,
+> which is the `postSyncTurn`/`discardStaleHop`/`postSyncChat` region); the
+> comment file is `SessionsHermesClient+RunsTransport.swift` (no bare
+> `RunsTransport.swift` exists) and there were THREE comment sites, not one
+> (post-fix: `:562-567`, `:795-806`'s "or on cancellation", and `:804-806`'s
+> "exits silently"); the cancellation checks are `streamTurnViaRuns`'s
+> events-loop break at `:444` and `pollRunToTerminal`'s single top-of-loop
+> check at `:824` plus the cancellation-shaped sleep catch at `:858`
+> (`:780` was a doc line, not a check). Note the 2026-08-09 refinement
+> note's own `:546-547`/`:777`/`:780-781` citations had already drifted by
+> the time it was committed (#296-C2's comment block landed above them);
+> the sites are the same three, found by the phrases, not the numbers.
+>
+> - **292-A MET, RED first with the numbers the bar demanded.** New test
+>   `consumerWalkAwayCancelsTheProducerAndStopsThePolling`
+>   (`RunsPlaneTransportTests.swift`), built exactly per the refinement
+>   note: stub-side counting, per-test `runsPollBudget = 30s` /
+>   `runsPollInterval = 40ms` override (the bar's teeth — stated as a
+>   comment in the test), inline collector, count proven ≥2 before the
+>   cancel, `==` with no tolerance. **RED on `f23a6fb`: `atWalkAway = 2,
+>   final = 13`** — eleven more authenticated `GET /v1/runs/run-r1` polls in
+>   a 500ms window after the consumer's stream was released — AND
+>   `activeRunContext` still non-nil (the second assertion, the
+>   defer-runs-on-cancel hazard, also failed on HEAD). **GREEN after the
+>   fix:** count frozen, context nil. The fix is the router's #192 shape
+>   verbatim: producer Task bound to a `let`,
+>   `continuation.onTermination = { _ in producer.cancel() }`
+>   (`SessionsHermesClient.swift:390-392`), strong capture of the Task
+>   handle. `RunsPlaneTransportTests` 33/33 (count MOVED 32 → 33, fresh
+>   DerivedData); the two tests the dispatch flagged as most likely to move
+>   — `streamCompletionSuppressesThePollPath` and
+>   `killedStreamRecoversFinalAnswerViaStatusPollExactlyOnce` — both stayed
+>   green untouched.
+> - **292-B MET.** All three comments now name the mechanism that makes
+>   them true (`sendStreaming`'s `onTermination` hook, #292) and the hook
+>   carries the reciprocal note naming its three customer checks. Repo-wide
+>   grep for "costs nothing" / "exits silently" / "makes the poll a no-op":
+>   the only Swift hits touching cancellation are the two rewritten sites
+>   (`+RunsTransport.swift:563`, `:804`), both now describing shipped
+>   behavior; every other hit (`ChatScreen.swift:114`,
+>   `SessionsHermesClient.swift:126`, `+RunsTransport.swift:487` (296-C2's
+>   field), `LocalChatBackend.swift:2194`, `AppStoresTests.swift:5004`,
+>   `scripts/e1-doubleinstall-probe.swift:11`) is an unrelated claim the
+>   code walks.
+> - **Ruling 1 held (the #295 interaction):** all seven #295 pins plus
+>   `ChatBackendRouterTests`' two guards ran green WITHOUT edits
+>   (AppStoresTests + ChatBackendRouterTests, 144/144). **One real cost,
+>   deliberate and Owen-overturnable:** an abandoned runs turn's usage is
+>   never recorded (`deliverPolledTerminal`'s `usageIndex` write no longer
+>   runs for it), so that session's CTX gauge shows the previous run's
+>   occupancy — stale, never zero, never hidden. The alternative was ~60
+>   authenticated requests to keep a gauge current on a turn the user left.
+> - **Ruling 2 held:** the producer's cancellation path is network-free —
+>   no `/stop` wired (that flip stays Owen's, per #283's ruling), no
+>   reordering in `cancelStreaming`.
+> - **292-C, procedure for the device row** (NOT yet queued — the
+>   controller adds it to `DEVICE-PASS-RUNNING-LIST.md` at close-out): walk
+>   away from a runs turn, kill the network past 60s, host log shows no
+>   further `GET /v1/runs/{id}` and no `/stop` at all; record the
+>   pre-walk-away poll count so a producer that never reached the poll loop
+>   reads inconclusive, not passing.
+> - **Open for Owen (Ruling 3, filed not built):** whether the runs plane
+>   should get the literal status-poll recovery his #295 ruling named
+>   (needs a durable `run_id` surfaced out of the producer — MORE necessary
+>   post-fix, since the producer is now guaranteed not to be around to
+>   poll), and whether the usage-gap trade above stands or a single final
+>   status read on cancellation is worth it.
+> - **CLAUDE.md: nothing owed** — no standing rule is falsified by this
+>   fix (stated explicitly per the dispatch's close-out).
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **Ruling 1's cost ACCEPTED (Owen, 2026-08-09 decision pass):** the stale
+> CTX gauge after an abandoned runs turn stands — no final status read on
+> cancellation; one would reopen exactly the network the fix closed. The
+> gauge self-corrects on the next completed turn.
+
+## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
+
+**Verified chain (read, not inferred):**
+1. `cancelStreaming(hardStopHost:)` finalizes ONLY the assistant placeholder
+   (`ChatStore.swift`, the `if let sid = streamingMessageID` block) — the
+   user's optimistic row is never touched — and nils `streamingMessageID`.
+2. `hasPendingMessages` is exactly `.user && .status == .sending`
+   (`:1896-1898`) → still TRUE after a Stop.
+3. The polling loop armed at send time runs `maxPollAttempts = 30` × 2s.
+4. At ~60s, `:1963`'s three conditions — attempts exhausted,
+   `hasPendingMessages`, `streamingMessageID == nil` — are ALL satisfied by a
+   Stop, so every `.sending` user row flips to **`.failed`**, the cache is
+   saved, and **`onSendFailed?()`** fires the error haptic.
+
+**What the user experiences:** a minute after deliberately pressing Stop, the
+phone buzzes with no visible cause and their message is marked failed with a
+Retry button — **while the partial answer sits directly above it marked
+delivered.** The host received the turn and answered part of it. The app is
+lying about its own delivery status on a first-class control that needs no
+network fault, no race, and no unusual state to reach.
+
+**The other branch is no better:** leave the chat screen first and
+`onDisappear` cancels the loop, so the row simply stays `.sending` forever.
+**There is no path where a stopped turn's user row settles honestly.** Every
+other terminal settles its row — `.interrupted` → `.working`,
+`.unreachable`/`.failed` → their own states. **Stop is the only one that
+does not.**
+
+**Why the suite cannot see it (the #218 shape again):** nothing asserts the
+USER row after a Stop; every stop test asserts the assistant placeholder.
+
+**Bars: (291-A)** after `cancelStreaming`, the user row settles to an honest
+terminal state (`.delivered` is defensible — the host DID receive it; NOT
+`.sending`, NOT `.failed`); **(291-B)** no `onSendFailed` / error haptic ever
+fires as a consequence of a user-initiated Stop; **(291-C)** the row survives
+a relaunch in that state; **(291-D)** device: Stop a turn, keep the chat
+screen up 90s — no buzz, no Retry button, no "failed" (this is also the
+auditor's own disproof test, so running it settles the finding either way).
+
+**Sibling filed from the same call site: #294** (empty assistant bubble).
+Fixing both together is one edit; they are separate items because the fixes
+are different (settle the user row vs. do not persist an empty terminal).
+
+> **🔧 FIXED 2026-08-07 night on `claude/t27-291-stop-settles` (Owen: "take
+> the small ones"), TDD with RED first. Gate PASS: 1804 Swift Testing + 12
+> XCUITest, Release green. ~~AWAITING PR + Owen's read.~~ **MERGED
+> 2026-08-08 as PR #280 (`b54ec1e`) — stale claim corrected 2026-08-09.**
+> Bundled with #294,
+> #293(a) and #293(c).
+> - **291-A MET** — `ChatStore` now tracks `streamingUserMessageID` beside
+>   `streamingMessageID`, and `cancelStreaming` settles THAT row
+>   `.sending → .delivered`. **Targeted, not a blanket sweep of every
+>   `.sending` user row** — a second in-flight send or a draining
+>   compose-outbox turn is not this Stop's business, and the `==
+>   clientMessageID` guard declines to steal a later turn's handle.
+> - **291-B MET** by the predicate assertion (`hasPendingMessages` false),
+>   which is what actually closes the false-failure door. **The reviewer
+>   caught that the accompanying `sendFailures == 0` line CANNOT FAIL** —
+>   polling is never enabled in that test file — so it is kept only as an
+>   annotated canary, explicitly not counted as coverage. Recorded because
+>   an assertion that cannot fail wearing a bar label is exactly how a bogus
+>   "verified" enters this tracker.
+> - **291-C MET** — survives a cold load through the real scrubber.
+> - **291-D ✅ MET ON DEVICE 2026-08-07 23:59 (OTA 2191, Hermes brain).** Owen
+>   sent `sleep 30; echo STOPTEST`, tapped Stop, and **held the chat screen
+>   for two full minutes** — twice the bar's 90s. *"I didn't get a retry or
+>   failed or anything after I stopped it."* No haptic, no `.failed`, no
+>   Retry button. **This was also the auditor's own disproof test, so the
+>   finding is now settled from both directions:** the defect was verified by
+>   code trace, and the fix verified by the exact observation that would have
+>   refuted it.
+> - **Verified by review, not assumed:** `.delivered` is honest here — every
+>   consumer was checked and none reads it on a USER row as "the assistant
+>   replied"; it also makes Edit & Resend available immediately instead of
+>   after the 60s false-failure flip.
+> - **Consequence filed separately as #295:** the settle stops the polling
+>   loop on the expiration path — which turned out to matter less than it
+>   looked, because that loop never fetched from the host at all.
+
+## 286. 🐛 Platform-link settlement LIES: a failed ACK or `query_result` POST still reports `.delivered` — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A2); STATIC SHAPE VERIFIED same day (`TalariaPlatformLink.swift:188` and `:222` both `_ = await post(...)`; `:178` returns `didWork ? .delivered : .idle` regardless). NOT STARTED → ✅ FIX LANDED 2026-08-08 — bars 286-A..F MET, all four tasks executed in one lane (see the dated bars-met note below).**
+
+Drain 200 + ACK 500/timeout ⇒ `.delivered`, and the loop's failure counter
+resets as if settlement succeeded. Severity capped at P2 by a property worth
+protecting: the inbox persists + dedupes on `platformID` BEFORE ack, so
+upstream redelivery does not duplicate visible rows. The cost is false
+success semantics, lost observability, and backoff reset while settlement is
+unhealthy. **Fix shape:** `ack`/`answer` return a typed result; `drain()`
+classifies honestly; no hot-loop on settlement outage. **The query-retry
+half is a PROTOCOL question first** — whether the plugin redelivers
+unanswered queries, whether `query_result` is idempotent — measure/read the
+plugin (never patch Hermes core) before choosing recompute-vs-cache.
+**Bars pre-register here (from the audit, adopted): (286-A)** ACK 500 ≠
+`.delivered`; **(286-B)** ACK transport failure ≠ `.delivered`; **(286-C)**
+query-result 500 ≠ `.delivered`; **(286-D)** happy path stays `.delivered`,
+dedupe intact; **(286-E)** 401 behavior explicitly defined + tested;
+**(286-F)** no hot loop; gate + Release green.
+
+> **✅ THE PROTOCOL QUESTION IS ANSWERED 2026-08-07 evening — read from the
+> installed plugin source (`~/.hermes/plugins/talaria`), not inferred. The
+> filing said "measure/read the plugin before choosing recompute-vs-cache";
+> this is that read, and it UNBLOCKS the fix design.**
+>
+> - **ACK: retrying with the same item ids is SAFE and needs no caching.**
+>   `outbox.mark_delivered` only touches items where `not delivered_at`
+>   (`outbox.py:86`), so a duplicate ack is a silent no-op returning `[]`
+>   — pinned upstream by `test_mark_delivered_is_idempotent_and_reports_only_real_acks`.
+> - **A missed/failed ack means REDELIVERY, not loss.** `pending()`
+>   (`outbox.py:73-78`) returns everything without `delivered_at` and
+>   `_drain` calls it unconditionally (`envelope.py:136-149`), so items keep
+>   coming back until an ack actually lands. The app's `platformID` dedupe
+>   is what keeps that invisible — which is exactly why this defect has
+>   been survivable, and why it is P2 not P1.
+> - **QUERIES ARE CONSUMED ONCE AND LOST — this is the sharp edge.**
+>   `take_queries` does a `pop` (`transport.py:206-225`), so a query handed
+>   to a drain NEVER reappears. If the phone's `query_result` POST fails,
+>   the waiting agent tool times out at **40s** (`_QUERY_TIMEOUT = 40.0`,
+>   `tools.py:23`) and answers *"The phone did not answer in time."*
+>   **So a failed `answer(...)` is a turn the AGENT experienced as a
+>   failure while the app reported `.delivered` — the app is not merely
+>   imprecise, it is contradicting what the user's agent was told.**
+> - **`query_result` is exactly-once BY `query_id`, and RECOMPUTE IS SAFE
+>   (option (a) of the filing).** `resolve_query` pops `_futures[query_id]`
+>   before settling (`transport.py:229-239`); the first arrival wins, every
+>   later one returns `{"ok": false}` harmlessly, and **the server never
+>   compares payload contents**. So the phone may recompute freely — no
+>   answer cache, no byte-identical resend requirement. **Constraint:** a
+>   retry is only meaningful INSIDE the 40s window; after the tool's timeout
+>   fires, `discard_query` has removed the future and any retry is a
+>   guaranteed no-op. **A settlement retry policy for queries must therefore
+>   be time-bounded to well under 40s, not exponential-backoff-forever.**
+>
+> **⚠️ NEW FINDING from the same read — the outbox has NO TTL, NO retry cap,
+> and NO delivery-attempt counter** (grepped `outbox.py`/`envelope.py`/
+> `transport.py`; items are "marked delivered, never deleted",
+> `outbox.py:1-6`). On its own that is a deliberate fetch-on-connect design
+> and fine. **Combined with this item's defect it compounds:** a
+> persistently failing ack means (1) `outbox.json` grows without bound,
+> (2) EVERY drain re-delivers the entire backlog, and (3) the app reports
+> `.delivered` and RESETS its failure counter, so no backoff ever engages
+> and nothing surfaces to the user. That is the actual worst case here, and
+> it argues the honest-settlement fix matters more than "false success
+> semantics" made it sound. **Whether the plugin should also grow a TTL or
+> attempt cap is a separate decision for Owen — note the ⛔ no-harden rule
+> governs the relay/connector, NOT the plugin, which is the component with
+> a future, so hardening it is legitimate if he wants it.**
+>
+> **Bar 286-E's 401 arm is also now answerable from source** rather than by
+> experiment: a wrong-device `query_result` returns `False` WITHOUT popping
+> (`transport.py:232-237`) specifically so the rightful owner can still
+> resolve it.
+
+> **OWEN'S RULING 2026-08-08: NO plugin TTL or attempt cap.** The compounding worst case exists because the app's false `.delivered` resets its own backoff; honest settlement (this item's fix) restores backoff and surfaces failures, and the unbounded outbox reverts to the deliberate fetch-on-connect design it always was. Revisit only if a real backlog is observed post-fix. **The fix lane is routed to open NEXT** (same evening), bars 286-A..F as registered.
+
+> **✅ FIX LANDED 2026-08-08 — all 4 tasks executed in one lane
+> (`planning/superpowers/plans/2026-08-08-286-honest-settlement.md`), every
+> bar MET and pinned by a named test in
+> `TalariaTests/TalariaPlatformLinkTests.swift`:**
+>
+> - **(286-A)** ACK 500 ≠ `.delivered` → `ackServerErrorClassifiesTheDrainFailed`
+>   (also pins 286-D's dedupe half: the item still reaches the app before the
+>   ack POST, so redelivery on the next drain stays invisible upstream).
+> - **(286-B)** ACK transport failure ≠ `.delivered` →
+>   `ackTransportFailureClassifiesTheDrainFailed`.
+> - **(286-C)** query-result 500 ≠ `.delivered`, and the bounded in-turn
+>   retry works → `queryResultServerErrorClassifiesTheDrainFailed` (both
+>   attempts 500, still `.failed`), `queryAnswerRetriesOnceAndRecovers`
+>   (500 then 200 → `.delivered`, exactly 2 requests), and
+>   `queryAnswerRetryIsEpochChecked` (a `stop()` landing in the 2s retry gap
+>   abandons the retry → `.superseded`, exactly 1 request).
+> - **(286-D)** happy path stays `.delivered` → `happyPathSettlementStaysDelivered`.
+> - **(286-E)** 401 on settlement is explicitly defined and tested →
+>   `settlementUnauthorizedClassifiesFailedWithoutTouchingThePair`: ack 401
+>   classifies `.failed`, the stored token/deviceID are untouched, and zero
+>   `pair` POSTs fire — the drain-owned 401-repair machinery never triggers
+>   from a settlement 401. `ack`/`answer` also gained doc comments stating
+>   this explicitly (`TalariaPlatformLink.swift`).
+> - **(286-F)** no hot loop → `backoffLadderIsBoundedAndDeterministic`,
+>   extended (not duplicated) to pin the pure `nextDelay(1,2,3) → (1,2,4)`
+>   ladder math together with a REAL settlement failure (ack 500)
+>   actually classifying `.failed` in the same test — the loop cannot spin
+>   freely on a broken settlement because the outcome it gets back is the
+>   one the ladder is keyed on.
+>
+> **Task-2 finding recorded here too, since it bears on 286-C's retry
+> design:** `Self.requestTimeout` is **40s**, not the 20s an earlier draft
+> assumed, so the query-answer retry's own worst case (2s pause + one more
+> full request timeout) is **~42s — past the host's 40s window**, not "well
+> inside" it. This is harmless rather than a defect: the agent tool's
+> `discard_query` pops the query's future at 40s, so a retry POST landing
+> after that is a guaranteed no-op, not a wrong answer delivered late. The
+> retry is aimed at the common failure mode (a fast 500 or
+> connection-refused) rather than a genuine 40s hang. Stated in the code
+> comment at the retry site (`TalariaPlatformLink.swift`, the query loop in
+> `drain`), which is the load-bearing copy — this note is a pointer to it,
+> not a duplicate.
+>
+> Suite counts: `TalariaPlatformLinkTests` moved 19→20→20 (Task 3 added one
+> test; Task 4 extended `backoffLadderIsBoundedAndDeterministic` rather than
+> duplicating it, per the task brief, so the count held). Both runs 20/20.
+> `ProfileSwitchAtomicityTests` 9/9, confirming #285's turn discipline
+> stayed intact through this lane. **`scripts/mac/lane-gate.sh` PASS**
+> (Debug suite: 1839 Swift Testing + 12 XCUITest, exit=0; the 2 SKIPPED
+> `CondenserFidelityTests` are the pre-existing #93/#183 on-device-only
+> gate, unrelated to this lane; Release build green — the #218 check).
+
+## 285. 🐛 P1 CONFIRMED → ✅ FIX BUILT — profile activation is not an atomic transport boundary: `TalariaPlatformLink` re-resolves live profile context across suspension points, and `setActiveProfile` mutates BEFORE the async stop callback — **FILED 2026-08-07 from the gpt-sol-xhigh work audit (A1); RUNTIME-REPRODUCED the same evening (5/5, deterministic); PARKED by Owen for the next Fable budget; ✅ FIX LANDED 2026-08-08 on that budget — all three parts in ONE lane (link TurnContext+epoch, serialized activation, runs endpoint pin), bars 285-A/B/C/D MET, RED tests INVERTED in place. Branch `claude/t27-285-profile-atomicity`; ~~merge is Owen's call~~ **MERGED 2026-08-08 as PR #281 (`82625c8`) — stale claim corrected 2026-08-09 by the archive-pass dispatch, which caught that this header still asked for a decision Owen had already made.**
+
+> **✅ THE FIX, 2026-08-08 — one lane, three parts, exactly the shape the
+> parking note demanded (no partial fix: keys AND activation AND the runs
+> family together).**
+>
+> - **Part 1 — `TalariaPlatformLink` (bars 285-A + 285-B).** Every turn now
+>   resolves an immutable `TurnContext` — scope, trailing-slash-normalized
+>   endpoint, all three Keychain keys, and a turn EPOCH — synchronously at
+>   turn start (two closure reads, no await between them: atomic on the
+>   actor). The live computed key vars and per-request `endpointURL()` are
+>   DELETED, so no future call site can re-resolve mid-turn; the injected
+>   `apiKey` closure is deleted too (the link reads the Keychain itself
+>   under the frozen `apiKeyKey` — byte-what production's closure did,
+>   minus the liveness). `stop()` bumps the epoch; a superseded turn
+>   abandons at side-effect checkpoints (before the drain POST, the pair
+>   POST — which closes #288's **deterministic** orphan-mint source, though
+>   **a residual race window remains and is now named in #288**: the
+>   checkpoint sits between the pair RESPONSE and the Keychain store, so a
+>   `stop()` landing while that POST is in flight still leaves a row minted
+>   host-side and the birth profile unpaired. Caught by the PR review
+>   2026-08-08; the earlier "closed at the source" wording here overstated
+>   it, and the claim was the problem rather than the code — the self-repair, the
+>   new honest `DrainOutcome.superseded`. Keychain pair writes and drops
+>   stay WHOLE (no checkpoint inside a pair) — "mixed" in the invariant
+>   means mixed PROFILES, and frozen keys make that impossible.
+> - **Part 2 — serialized activation (bar 285-C).**
+>   `setActiveProfile`'s handler dispatch adopts the #136
+>   generation/cancel/drain-the-corpse idiom: a rapid A→B→C runs ONLY C's
+>   handler (B's dispatch dies on the generation guard before its handler
+>   starts); a MID-FLIGHT B handler is cancelled and C provably waits for
+>   its exit (event-ordered test). `handleActiveProfileChanged` gains
+>   `Task.isCancelled` checkpoints before every shared write — key
+>   boxes/cache, `lastKnownHostOnline`, and critically the final
+>   `talariaPlatformLink?.start()`, so a superseded activation can never
+>   re-arm the loop mid-way through the winner's rebind.
+> - **Part 3 — runs endpoint pin (the #283 adjacency, in scope per the
+>   2026-08-07 whole-branch-review note below).** Both runs turn drivers
+>   resolve a `ResolvedEndpoint` ONCE at turn birth and every request in
+>   the family carries it — history GET, submit, events subscribe, status
+>   polls, the catch-path recovery poll, and the stop POST
+>   (`activeRunContext` now stores the endpoint, so a stop issued after a
+>   switch still reaches the run's real host). New test flips the live
+>   base URL mid-turn (deterministically, via the delayed-events-response
+>   trick) and every request still hits the birth host.
+>
+> **Bar evidence:** 285-A = `ensurePairedCompletesEntirelyOnItsBirthProfileAcrossASwitch`
+> (trace byte-identical to the no-switch control) +
+> `aDrainTurnSpeaksOnlyToItsBirthProfilesGateway`; 285-B =
+> `stopContainsAnInFlightTurnNoCrossProfileReadsNoSideEffects` (no B-keyed
+> op ever, wire empty, nothing delivered) +
+> `aStoppedTurnFinishesItsOwnCredentialDropAndNeverTouchesTheNewProfile`
+> (pair dropped whole under A, B byte-untouched, NO pair POST); 285-C =
+> `rapidSwitchesRunTheHandlerOnlyForTheLastWriter` +
+> `aSupersededMidFlightHandlerIsCancelledAndTheWinnerRunsAfterItExits`
+> (events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> cancelled=false)`) **+, from 2026-08-08, the container-chain arm
+> `aLateResumingSupersededActivationCannotOverwriteTheWinnersState` — see
+> the supersession block below**; runs pin =
+> `aMidTurnBaseURLChangeCannotRedirectALiveTurnsRequests`; 285-D = full
+> gate on the branch head: **GATE: PASS at `4a466d3` (the SHIPPING head) —
+> 1808 Swift Testing + 12 XCUITest, count MOVED 1798→1808 (the 9 fix-lane
+> tests plus the 285-C chain arm), the 2 known Apple-Intelligence hardware
+> skips, Release build green.** *(An earlier gate at `519d364` read 1807;
+> that run predated the 285-C harness commit and is superseded. Recorded
+> rather than deleted because the PR review caught the one-commit-stale
+> claim, which is this repo's own #218 discipline applied to a count — a
+> gate number is only true of the commit it ran on.)* Every inverted
+> test was first run against the UNFIXED code and observed to fail for the
+> right reason (cross-profile trace / B-gateway host / B-key read /
+> B-delete + leaked pair POST) before the fix landed — no
+> never-failed-test enters this entry as evidence.
+>
+> **Honesty note on 285-C's full-chain clause** ("hermesAPIKey, key box,
+> scoped stores, link all = C"): the store-level serialization arm is
+> unit-proven (the two tests above); the AppContainer chain arm holds BY
+> CONSTRUCTION — serialized handlers cannot interleave, so C's handler
+> writes every one of those after B's has exited — plus code-reviewed
+> checkpoints; there is no AppContainer unit harness to pin it directly.
+> Recorded so nobody later mistakes "by construction + reviewed" for "has
+> its own test."
+>
+> > **SUPERSEDED 2026-08-08 — the chain arm is now OBSERVED.** The
+> > "no AppContainer unit harness" sentence above is no longer true:
+> > `aLateResumingSupersededActivationCannotOverwriteTheWinnersState()`
+> > (same file, `ProfileSwitchAtomicityTests`) drives the REAL
+> > `AppContainer.handleActiveProfileChanged` off a REAL
+> > `BackendProfilesStore` — production's own wiring — with the
+> > container's secure store replaced by the lane's `GatedSecureStore`.
+> > A→B→C with B PARKED on the handler's only pre-write await (the
+> > gateway-key read, `AppContainer.swift:2209`): C's handler is observed
+> > NOT to start while B is parked; B is observed to resume, see
+> > cancellation and exit having written nothing; the settled state is
+> > observed on C (active profile, `hermesAPIKey == "apikey-C"`,
+> > `PairingStore` on `host-C`, `AppSessionStore` on `session-C`), with
+> > events exactly `enter(B), exit(B cancelled=true), enter(C), exit(C
+> > cancelled=false)`. **Non-vacuity was demonstrated, not asserted:** the
+> > `:2212` checkpoint was temporarily neutered, the test observed to FAIL
+> > on exactly one expectation (`hermesAPIKey` reads `apikey-B` in the
+> > window), and the file restored byte-identically (SHA-256 matched
+> > before/after). Test-only lane; no production code changed. Counts:
+> > 156 → 157 across the four suites, `** TEST SUCCEEDED **`.
+> > **What is still inferred rather than observed, and why:** the chat
+> > key box and the gateway key cache are `fileprivate` and the platform
+> > link is `private(set)`, all assigned only in `makeDefault`, so a bare
+> > test container has none of them and a test file cannot inject one
+> > without widening production access. The harness pins them by
+> > straight-line reachability instead — the three key writes share one
+> > guarded block, and B provably returned at its FIRST checkpoint so it
+> > never reached the link restart. Closing that last gap costs one
+> > production edit (a `// harness-visible` setter, the shape
+> > `skillsStore`/`cronJobsStore`/`insightsStore` already use for #180's
+> > wiring test) — NOT built; it is Owen's call, not a correction.
+> > Full evidence, both outputs verbatim: `285C-HARNESS-REPORT.md`.
+>
+> **The RED tests were INVERTED IN PLACE, not deleted** — same
+> choreography, gates, parks and anti-vacuous guards; opposite assertions.
+> `RED-REPORT.md` (this branch) preserves the pre-fix traces verbatim and
+> now carries a dated inversion addendum. Repro 0's close-out instruction
+> is DONE: the falsified "park the drain before the scope moves" comment in
+> `AppContainer.handleActiveProfileChanged` was rewritten to describe the
+> real mechanism (scope moves first; containment = the link's turn epoch).
+>
+> **What this unlocks:** #288's post-fix re-run (288-C) is now actionable —
+> the orphan-mint path is closed at the source (superseded turns abandon
+> before the pair POST), so a clean re-run after real switch traffic is the
+> proof the leak stopped.
+
+> **✅ REPRODUCED 2026-08-07 evening — branch `claude/t27-285-profile-atomicity`, evidence in that branch's `RED-REPORT.md`. Promoted from CANDIDATE to CONFIRMED.** No production code was touched; this is a pure reproduction lane.
+>
+> **The blocker that had hidden this until now, and it is worth knowing:**
+> every existing `SecureStoreProtocol` conformer (`KeychainSecureStore`,
+> `MockSecureStore`) is SYNCHRONOUS under the hood, so `await
+> secureStore.retrieve(...)` never actually yields to the scheduler. **The
+> interleaving was literally inexpressible in a test** until a
+> `GatedSecureStore` double that genuinely parks on
+> `withCheckedContinuation` was built (idiom copied from
+> `CronJobsStoreTests`' `GatedCronJobService`). That is why static reading
+> found this and no test ever did — worth remembering the next time a
+> concurrency claim "can't be reproduced."
+>
+> **Repro 1 — ONE `ensurePaired()` call split one credential across TWO
+> profiles' Keychain slots.** Keychain trace, verbatim:
+> `["retrieve(A.deviceToken)", "retrieve(B.deviceID)", "retrieve(B.apiKey)", "store(A.deviceToken)", "store(B.deviceID)"]`
+> — the token half landed in **A's** slot and the device-id half in **B's**,
+> for a credential pair minted at **B's** gateway with **B's** API key. A is
+> left holding a token that belongs to B's device row; B is left
+> half-paired. The control arm (same gate, no switch) reads
+> `["retrieve(A.deviceToken)", "retrieve(A.deviceID)", "retrieve(A.apiKey)", "store(A.deviceToken)", "store(A.deviceID)"]`
+> — all-A — so the harness is not manufacturing the defect.
+> - **Repro 2 — profile A's credentials sent to profile B's host:**
+>   `POST gateway-b.local {"device_id":"dev-A","type":"drain","auth":"tok-A",…}`.
+>   This is the cross-host isolation concern in one line.
+> - **Repro 3 — `stop()` neither unwinds nor contains an in-flight turn:** it
+>   returns with `isRunning == false` while the turn sits parked, and the
+>   turn then resumes **under the new scope**
+>   (`…"retrieve(A.deviceToken)", "retrieve(B.deviceID)"`).
+> - **Repro 3b — the worst one: a STOPPED turn belonging to A DELETED
+>   PROFILE B'S device id.** Trace: `…"delete(A.deviceToken)", "delete(B.deviceID)", "retrieve(B.deviceToken)"…` —
+>   a valid credential of an unrelated profile destroyed by a turn that had
+>   already been told to stop. **This is the concrete user harm and it
+>   escalates the item beyond "extra 401s".**
+> - **Repro 0 — falsifies a live comment.** `AppContainer`'s claim that the
+>   drain is parked *"before the scope moves"* cannot be true:
+>   `setActiveProfile` moves the scope SYNCHRONOUSLY and defers `stop()`
+>   behind a `Task {}`. Pinned by a provenance test. **Close-out rule: that
+>   comment must be corrected by whoever fixes this.** *(DONE 2026-08-08 —
+>   corrected in the fix lane; see the FIX note above.)*
+>
+> **⚖️ ONE AUDIT SUB-CLAIM REFUTED, and how it was caught.** The audit said a
+> stopped turn "runs to completion **including its POSTs**." Not reliably:
+> `stop()` cancels `loopTask` and URLSession IS cancellation-aware, so
+> post-`stop()` request dispatch is a genuine RACE, not a certainty. The
+> first draft of the repro asserted it, **passed on run 1 and failed on run
+> 2** — caught by repeated runs, not by reasoning. The repros were re-aimed
+> at the non-cancellable Keychain observables and are now 4/4 green with
+> byte-identical traces across runs. Recorded because a flaky assertion that
+> passes once is exactly how a bogus "verified" enters this tracker.
+>
+> **Residual worth a decision (NOT yet its own number — Owen routes):** repro
+> 3b showed a re-pair reaching B's gateway whose response was then
+> discarded, i.e. **an orphan device row minted on the HOST that the phone
+> has no record of.** Fixing #285 stops new ones; it does not clean existing
+> ones. If Owen wants that actioned it is a one-time data chore in the #144
+> shape (deactivate, never delete, keep a rollback) and needs its own entry.
+>
+> **🅿️ PARKED 2026-08-07 evening BY OWEN, with a routing instruction:**
+> *"Park it, but put it on the priority list when fable credits replenish.
+> This feels of fable complexity."* So: **#285's FIX is queued as the first
+> claim on the next Fable budget** — not deprioritized, deliberately
+> deferred to the right tier. His read matches the evidence: the fix is an
+> immutable per-turn transport context PLUS the bootstrap-generation
+> pattern applied to profile activation, touching `TalariaPlatformLink`,
+> `BackendProfilesStore` and `AppContainer` together. That is architecture,
+> not a patch, and the RED harness is already banked so the next session
+> starts from proof rather than from re-derivation.
+>
+> **Do NOT let a cheaper model "just fix the mixing" in the meantime** — a
+> partial fix that snapshots the keys but leaves activation unserialized
+> would turn 5 reproducible failures into 2 and read as progress. The
+> harness would still be red and the diagnosis would get muddier.
+>
+> **The orphan-row residual is now filed as its own chore, #288** (baseline
+> audit ran the same evening: zero orphans on the Mac, and OJAMD has no
+> plugin yet — but that clean result reflects USAGE, not safety, and #288's
+> post-fix re-run is the one that proves the leak stopped).
+>
+> **Still true and unchanged: NO FIX HAS BEEN ATTEMPTED.** *(SUPERSEDED
+> 2026-08-08 — the fix landed on the Fable budget exactly as routed; see
+> the FIX note at the top of this entry. The inversion demanded here
+> happened, in place.)* The fix direction
+> in the bars below (immutable per-turn context + the `AppContainer`
+> bootstrap-generation pattern applied to profile activation) is now backed
+> by evidence rather than static reading. Bars **285-A/B/C are effectively
+> demonstrated in the negative** — the RED tests assert today's broken
+> behavior; when the fix lands they must be INVERTED to assert the invariant,
+> not deleted.
+
+**Verified static facts (2026-08-07):** `BackendProfilesStore.swift:141-154`
+— `state = updated` THEN `Task { await onActiveProfileChanged?(target) }`,
+so the after-change callback cannot stop the transport "before the scope
+moves" as `AppContainer`'s comment claims; `TalariaPlatformLink.swift:72/:80`
+— `tokenKey`/`deviceIDKey` are LIVE computed vars over `credentialScopeID()`,
+and `:88`/`:130` freeze only `tokenKey` (`let tokenKey = tokenKey`), so one
+pair/drain turn can mix a captured token key with a live device-ID key and a
+live endpoint; `stop()` (`:282-283`) parks the NEXT iteration — it does not
+invalidate the current turn's side effects (onItemsReceived/ack/answer/
+credential store-delete). Rapid A→B→C switches spawn unserialized rebind
+Tasks with no generation guard around `handleActiveProfileChanged`'s shared
+writes (`hermesAPIKey`, `chatAPIKeyBox`, store resets).
+
+**The invariant to enforce (audit's wording, adopted):** a logical transport
+turn belongs to exactly ONE profile/host; after a newer activation
+supersedes it, old-profile async completion must not mutate current-profile
+state. **Fix direction if RED reproduces:** the already-proven in-repo
+pattern — `AppContainer`'s bootstrap generation/supersede/currentness-guard
+(`startBackgroundBootstrap` family) — applied to profile activation, plus an
+immutable per-turn context (endpoint + scope + both key slots + generation)
+inside the platform link. Snapshot-and-complete or invalidate-and-abandon
+are both acceptable; a MIXED turn is not. Superseded-turn ACK semantics =
+audit Q1, Owen's call if reached.
+
+**Bars pre-register here (RED first, from the audit, adopted): (285-A)**
+one transport turn cannot mix profile A/B keys or endpoints (deterministic
+suspension harness, not sleeps); **(285-B)** superseded drain cannot
+deliver/ACK/answer/write credentials after invalidation; **(285-C)** rapid
+A→B→C is last-writer-wins (active profile, `hermesAPIKey`, key box, scoped
+stores, link all = C; late B completion cannot overwrite); **(285-D)**
+existing platform-link + profile-switch tests stay green; gate + Release
+green; device bar only if sim can't establish the behavior. **If RED cannot
+be produced, record the falsification — do not force a patch.**
+
+**Adjacency noted at filing (same class, different surface):** the #283 runs
+turn driver resolves the ACTIVE profile live per request when `profileID` is
+nil (`resolveEndpoint` → `baseURLProvider()`/`apiKeyProvider()`), across a
+turn whose wall-clock now includes status polling — the SAME pre-existing
+pattern the sessions plane has, not a 3A regression, but 285's per-turn
+snapshot answer should eventually cover that seam too. Flagged for #283's
+whole-branch review as a look-at, not a blocker.
+
+> **Update 2026-08-07 — #283's whole-branch review CHECKED that adjacency
+> and the verdict is: parity confirmed, exposure WIDENED IN DURATION, not
+> in kind.** Every runs request carries the hop's birth profile explicitly
+> (submit, events subscribe, status poll, and the stop capture all pass
+> `hop.profileID` / `context.profileID`), so M-5's birth-profile routing
+> holds and the branch does not make this worse structurally. What changed
+> is the window: a sessions streamed turn resolved its endpoint ONCE per
+> long-lived request, whereas a runs turn is MANY requests over up to ~3
+> minutes of wall clock, each re-resolving — so in the profile-less
+> (`profileID == nil`) case a mid-turn base-URL/key change can now redirect
+> a turn's later polls where before there was nothing left to redirect.
+> **Consequence for this lane:** whatever per-turn snapshot 285 lands should
+> cover the runs driver's request family, not just the platform link.
+
+## 284. 💡 CAPABILITY BROKER for the local brain — capability discovery + selective typed-tool arming over ONE registry (native tools / MCP / Skills / Hermes-side) — **FILED 2026-08-07 from the open-source momentum report (`planning/reports/2026-08-07-open-source-momentum-report.md`), on Owen's instruction ("create / update open items for the ones we want to implement later"); claims VALIDATED same day against tracker, code, and the external repos. NO LANE, NO BARS — post-Phase-3 candidate by the report's own ordering; Owen routes.**
+
+**The idea (OpenWork's pattern, adapted):** instead of arming the full belt
+into every armed turn, the local brain gets a minimal belt + a discovery
+step — a CapabilityBroker searches one registry (native device tools,
+connected MCP capabilities later via #150, installed Skills per #163,
+Hermes-side capabilities) and re-arms the session with ONLY the applicable
+**strongly typed Swift `Tool`s**. Explicitly NOT a generic JSON executor —
+the typed-Tool discipline is the part of Talaria worth keeping. Pattern
+source validated 2026-08-07: `different-ai/openwork` really does expose
+`search_capabilities`/`execute_capability` as its agent surface.
+
+**Why it earned a number — it addresses three filed items at once, and the
+grounding checks out in code:**
+- **#257** (belt under-sold): the armed-branch capability blurb is a
+  HAND-WRITTEN PROSE STRING at `LocalChatBackend.swift:1845`, already stale
+  (misses `deviceStatus`, `readImageText`, `readBarcode`, …) — a registry
+  would GENERATE "what can I do?" from the belt itself. This is #257's root
+  cause, confirmed by the validation pass.
+- **#229** (closed; numbers stand): the belt alone measured ~18% of the
+  8,192-token window, belt + starting transcript ~41% — selective arming is
+  the structural relief valve beyond the toolless-routing cure.
+- **#150** (MCP client, parked post-launch): MCP multiplies capabilities;
+  injecting every schema into an 8k window does not scale. The broker is
+  the shape #150 lands into.
+- Adjacent, not drivers: **#253** (an AUTO route could consult the same
+  registry + descriptors), **#163** (a Skill could declare required
+  capabilities instead of loading everything).
+
+**Where it would live:** the belt already has ONE build site
+(`DeviceToolBelt.swift:16-92`, combined at `AppContainer.swift:957`) and ONE
+per-turn arming gate (`LocalChatBackend.effectiveOfferedTools`,
+`LocalChatBackend.swift:1215-1230`; image-filtering in
+`DeviceToolBelt.offeredTools`) — the seam exists; no registry/descriptor
+type exists today (`DeviceCapability` is OS permission status, unrelated).
+Descriptor sketch banked in the report (id / semanticDescription / source /
+riskClass / permissions / privacyClass / availability / argumentSummary).
+
+**Bars pre-register HERE before any code.** First bar candidate when a lane
+opens: a fresh session's "what can you do?" names the full belt (the #257
+screenshot shape, inverted), measured per the #200-series discipline.
+
+> **✅ THE LOAD-BEARING API QUESTION IS ANSWERED 2026-08-08 — read from the
+> beta4 swiftinterface, not from recall (post-cutoff SDK; this is the
+> [[ios27-beta4-fm-sdk-surfaces]] rule).** Interface:
+> `…/iPhoneOS.sdk/System/Library/Frameworks/FoundationModels.framework/Modules/FoundationModels.swiftmodule/arm64e-apple-ios.swiftinterface`.
+>
+> **Tools are fixed at session construction — every `init` takes `tools:` and
+> there is NO post-init mutation** (the only `tools` functions in the whole
+> interface are `tokenCount(for tools:)` and an instructions builder). So a
+> live session genuinely cannot be re-armed.
+>
+> **But re-arming is CHEAP anyway, and this is the finding that makes #284 a
+> clean layer instead of a session-lifecycle problem:**
+> **`convenience public init(model:tools:transcript:)` exists** (interface
+> line 41) and **`session.transcript` is a public accessor**. So the
+> discovery→arm cycle is: model calls the discovery tool → construct a NEW
+> session with `transcript: old.transcript` and only the matching tools →
+> continue. **The conversation carries forward; there is no re-prime.** The
+> "rebuild costs you the context" worry — which the momentum report glides
+> past with "rebuild/continue session" — does not apply.
+>
+> **Bonus that lands directly on this design: `tokenCount(for tools:)`
+> exists**, alongside overloads for prompts, instructions, schemas and
+> transcript entries. The broker's budget arithmetic can be **measured, not
+> estimated** — ask what a candidate belt actually costs before arming it.
+> That turns #229's one-off "the belt is ~18%" into a per-turn evaluable
+> number.
+>
+> **⚠️ HAZARD carried from a previous run-in with this API:
+> `tokenCount()` called CONCURRENTLY with a live streaming turn KILLS the
+> turn on device** (ModelManagerError 1001, surfacing as "error -1"). Budget
+> measurement must happen BETWEEN turns, never during one. That is a real
+> constraint on where the broker does its arithmetic.
+>
+> **Two scoping corrections to the report's framing, recorded so the lane
+> starts honest:**
+> 1. **The belt cost is an ARMED-TURN cost, not an every-turn cost.**
+>    `effectiveOfferedTools` already returns `[]` on a router-toolless turn
+>    (#196/#229's structural cure), so the biggest single win is already
+>    collected. The broker refines the armed case.
+> 2. **Today's saving is real but not "nullified":** ~13 tools ≈ 1,470 tok
+>    becomes a discovery tool (~110) plus a compact capability index
+>    (~150–250 prose, far cheaper than JSON schemas) ≈ 300–400 tok. **Where
+>    it genuinely nullifies the problem is #150/MCP** — 50+ capabilities
+>    would exceed the entire 8k window, and the broker decouples capability
+>    COUNT from context COST. That is the argument to lead with, not the
+>    current 18%.
+>
+> **Design risk to build against:** a broker adds a routing decision, and a
+> wrong one means the model lacks the tool and says "I can't" — which is
+> #257's symptom, made worse. **Discovery must fail OPEN** (arm a sensible
+> default belt), never closed.
+
+> **#284 BARS PRE-REGISTERED 2026-08-08 — before the vector probe run, per the
+> post-#215 convention. Spec: `planning/superpowers/specs/2026-08-08-284-capability-broker-design.md` §5.**
+> Vehicle: `runVectorRouterProbe(trials: 5)`, Developer screen, on device.
+> - **Gate:** armed/toolless Bool ≥95% across the pinned baseline ten AND the
+>   grid rows (#217B measured 100% with a second field; ten fields is what
+>   this run tests).
+> - **Dangerous ≤2%** of grid trials, scored by `vectorTrialIsDangerous`
+>   against each row's pre-written `expectedTools` annotation. Dangerous =
+>   the narrowed belt lacks a tool full-belt production uses on that prompt;
+>   all-false is safe by construction (fails open to the full belt).
+> - **In-scope groups ≥90%:** on rows with a non-empty expectedGroups, the
+>   exact expected set at ≥90% of trials.
+> - **Meta rows:** measurement only, no bar — they answer spec §4's routing
+>   question for Task 12.
+> - **Reclaim (reported, not barred):** measured narrowed-vs-full belt token
+>   delta via the #284 budget contrast line.
+> **Pre-registered responses:** danger bar missed → selective arming does NOT
+> ship; lane closes at stages 1–2 (registry, #257 armed fix, verdict filed) —
+> #217B's shape. Gate bar missed → the vector schema is abandoned outright
+> (it would be degrading the 200/200 Bool). Owen routes the verdict either way.
+> - **Chain stance (Owen, 2026-08-08):** the danger bar protects the answer path,
+>   not tool-chaining residue — lookupContact on the calendar-create row is
+>   deliberately unprotected (#215's named over-serving).
+
+> **#284 VECTOR PROBE VERDICT FILED 2026-08-08 — the danger bar is MISSED; the pre-registered response applies: selective arming does NOT ship this lane.** Two runs, both OTA Debug builds on device (iOS 27.0 24A5390f):
+> - **Run `21F0C10D` (build 2224) — INVALID BY MALFUNCTION, not scored.** 165/165 trials were router errors: `routeVector` reused production's `toolIntentRouterOptions` 64-token cap, which truncated every 11-field JSON mid-generation. The run measured the error path, not the model — caught ONLY because the META band carries an `errors=` field (added in Task 7's review fix); without it the output would have read as a plausible "arms everything, never sets a group" verdict. Fixed by `vectorRouterOptions` (greedy, 256; commit `636d7b3`), both option values pinned by test.
+> - **Run `0AF5A6D8` (build 2225) — VALID: errors=0 across all 165 trials, zero variance (every row single-valued 5/5, the #215/#217B determinism again).**
+> - **Gate ≥95%: MET at 100%** — 50/50 baseline + 105/105 grid. Eleven Bool fields cost the armed/toolless Bool nothing; #217B's "a second field is free" extends to eleven.
+> - **Dangerous ≤2%: MISSED at 4.76%** (5/105). One deterministic trap row: "How long will it take me to drive to the airport?" armed `deviceStatus+location+places` 5/5 — a confident wrong narrowing on an out-of-vocabulary prompt, firing on 100% of such requests by determinism.
+> - **In-scope exact-set ≥90%: MISSED at 37.5%** (30/80). Direction matters: **every miss was a SUPERSET of the needed groups — zero under-arming, DANGEROUS=0 on all 16 in-scope rows.** The model over-arms (~2.7 groups mean vs 10) but never starved a needed tool in vocabulary; #217B's wrong-domain-commit failure did not recur in-scope. Partial abstention is REAL and new vs #217B: all-false answered correctly on music / bottle-label / haiku / 2+2.
+> - **Meta rows: "What can you do?" routes ARMED with all ten groups true (5/5, errors=0, both phrasings)** — the registry-generated armed blurb answers it, the toolless "no external tools" trap never fires, and **the plan's Task 12 (toolless capability index + measured mini-arm) is unnecessary. Spec §4's open question is closed.**
+> - **Consequence per pre-registration:** stages 1–2 ship (registry, #257 armed fix, budget contrast, the probe artifacts); the arming stays full-belt. A superset-tolerant arming design (cover-the-needed-groups rather than exact-set, with the trap-row danger solved) would be NEW work with NEW bars under a new filing — not a reopening of this one. Owen routes.
+> - **Reclaim (pre-registered as reported-not-barred): n/a** — arming did not ship, nothing narrows, so there is no narrowed-vs-full delta to report; the `fullBelt=` line ships and measures the un-narrowed cost per turn.
+
+> **CORRECTION, same day (2026-08-08), on device evidence:** the verdict's meta-row bullet over-reached. The meta rows measured the VECTOR's routing; **production's one-Bool router routes "What can you do?" TOOLLESS** — verified on build 2225, fresh chat: the reply named zero capability families and is the toolless-lic2 self-description (IN=500, a beltless turn). The "Task 12 unnecessary / §4 resolved" inference is **WITHDRAWN**: #257's conversational bar is NOT met on device, and spec §4's toolless capability-index arm (plan Task 12 — a measured mini-arm on the toolless payload) is live again. Owen routes whether it runs in this lane or a follow-up. **Routed same day: follow-up = #297; PR #282 merges without it.**
+
+## 272. 🐛 CRITICAL — App Lock re-prompt loop: the unlock prompt won't hold, the app keeps re-triggering Face ID/passcode — **Owen-reported on the 2026-07-25 device pass, NEVER FILED until surfaced by the 2026-08-06 reconciliation audit — 12 days lost. ~~Unreproduced since; status unknown on the current build.~~ ✅ REPRODUCED ON DEVICE 2026-08-09 (272-C MET, build 2330, BOTH grace settings) — the conditional 272-A established is a LIVE defect. ~~THE FIX IS OWED and is the only thing left on this item.~~ ✅ FIX LANDED 2026-08-09 on branch `t27-272-applock-fix` (272-E red-first + 272-F met; see the fix-lane block) — ~~272-G (gate, controller) and 272-H (device, Owen's hand) still pending, so this stays OPEN.~~ ✅ MERGED (PR #289, `de435ee`), 272-G MET at merge · **272-H MET 2026-08-09 evening (build 2418, Owen's hand, BOTH grace settings; reservation offered and not taken) — CLOSED.**
+
+**Owen, 2026-07-25** (quoted verbatim in
+`handoffs/2026-07-25_t27-device-pass-session1.md:155-157`, a gitignored
+session note): *"[the app] continually tries to unlock and won't stay
+stagnant on the app provided unlock prompt, and gives the system/faceid
+stuff."*
+
+**Why a clean checklist pass hid this for 12 days.** The same session ran
+A7 (#124 Face ID app lock) and scored it **7/7 — every stated check
+PASSED.** The handoff records the tension in the next sentence: *"A7's
+stated criteria all passed, so this is not folded into A7."* None of A7's
+seven checks (prompt-appears-over-content, retry-to-passcode,
+switcher-obscured, grace period, Siri-while-locked, sheet-above-cover,
+push-while-locked) are written to catch a re-prompt **loop** — they check
+that a prompt appears, not that it stops re-appearing once dismissed. A
+green device pass and a live, Owen-visible loop coexisted in the same
+sitting, on the same build, and that is exactly the gap a standalone item
+exists to close — the handoff said so in as many words, and for 12 days no
+item was filed to hold it.
+
+**Suspect surface (the handoff's own pointer, unexamined since):**
+`AppLockController` state transitions (`Talaria/Core/AppLock/`) — the
+scenePhase × grace × auth matrix (`AppLockCore.swift`) is the obvious place
+a re-entrant unlock could re-arm itself before the prior attempt's result
+is consumed.
+
+**~~Possible interaction, worth checking before assuming a pure
+state-machine bug~~ — ✅ RULED OUT 2026-08-09, do not re-derive.** The
+paragraph that stood here asked whether #252's Settings redesign lane
+caused or masked this, on the strength of its build history
+(`HANDOFF-2026-08-05-T27-BIG-DAY.md:57-58`) recording *"App Lock grace
+segments — parity gap caught by review, live-verified"* as a mid-lane fix.
+`dispatch/OPUS-T27-272-applock-prereq.md` §1a answered it by exhaustive git
+history rather than inference, and the answer is folded in here so the next
+lane starts from it:
+
+- **Every commit that has ever touched App Lock code** (`git log --oneline
+  -- Talaria/Core/AppLock/ Talaria/Services/Support/AppLockCore.swift`) is
+  three commits — `baff8fa`, `3108de7`, `02a1e3f` — **all dated
+  2026-07-19, all from #124's original build, six days BEFORE Owen's
+  report, and nothing since.**
+- **`PrivacySettingsScreen.swift`'s App Lock section is likewise
+  untouched.** #252's two commits on that file (`dce6042` adds an
+  `embedded: Bool` flag wrapping background/header; `f8badf7` adds a
+  `SubsystemHero` block) both land in the top of `body`; `appLockSection`,
+  `graceSegment(_:)` and the `ForEach(AppLockGracePeriod.allCases…)` loop
+  sit far below and are unmodified. The other four commits on that file are
+  independently unrelated by subject and carry no `appLock` / `App Lock`
+  text in their diffs.
+- **Conclusion: no commit, ever, has changed App Lock's state machine,
+  controller, overlay view, or its Settings UI section — before OR after
+  2026-07-25.** #252 is out as a cause, a mask, and an interaction. **#272
+  is pre-existing since #124's original 2026-07-19 build.**
+- **The one thread this does NOT close** (named so it is not mistaken for
+  closed): #252 embedded `PrivacySettingsScreen` inside a `TabView` deck
+  page, which changes that view's appear/disappear LIFECYCLE without
+  touching its code. That is a thinner, separate thread — it is not the
+  grace-segment question this ruling answers.
+
+**Status: unreproduced since 2026-07-25.** No second sighting on device.
+Needs a repro attempt on the current build before this is routed anywhere —
+queued in `dispatch/DEVICE-PASS-RUNNING-LIST.md` (background/foreground
+churn while the unlock prompt is up).
+
+**Bars, pre-registered 2026-08-09 BEFORE any test or production code
+(no-device half of the lane).** The suspect mechanism is
+`dispatch/OPUS-T27-272-applock-prereq.md` §1b: `scenePhaseChanged(to:)`
+clears `didFailAuthentication = false` **unconditionally on every `.active`
+delivery**, at the top of the function, *before* `autoAuthenticateIfNeeded()`
+runs later in the same call — and that flag is the ONLY thing standing
+between a failed attempt and a re-fire (the class's own doc comment promises
+*"a failed or cancelled attempt drops to the retry button (no prompt
+loop)"*). This is a **hypothesis with named lines, not a diagnosis.**
+
+- **272-A — no-device deterministic reproduction ATTEMPT.** Build a
+  `GatedAppLockAuthenticator` (the `GatedSecureStore` / `DebounceGate`
+  idiom: park inside `authenticate(reason:)` on a `withCheckedContinuation`
+  until the test resumes it) and drive `AppLockController` through the
+  interleavings below, recording the observed `authenticate` call count for
+  each. **PASS = every listed interleaving is actually exercised (the gate
+  genuinely parked — an unparked run proves nothing) and each yields a
+  determinate recorded verdict.** The bar is explicitly **NOT** "the loop
+  reproduces": per the pre-registered response below, a non-reproduction at
+  every interleaving is an accepted outcome that FALSIFIES §1b. The
+  interleavings, each run and recorded:
+  - **A-i** — `.active` (auto-fire parks) → `.inactive` → `.active`
+    delivered *while the first attempt is still parked* (the TOCTOU window,
+    §1b-2).
+  - **A-ii** — `.active` (auto-fire parks) → resolve `false` → `.inactive`
+    → `.active`. This is the sheet's OWN blip: `AppLockCore.swift`'s
+    comment already asserts the Face ID sheet is `.inactive`, so its
+    dismissal guarantees a following `.active` (§1b-1, inactive variant).
+  - **A-iii** — as A-ii but `.background` → `.active` (§1b-1 as written).
+  - **A-iv** — iterate A-ii five times with **no user tap anywhere**.
+    Unbounded growth in the `authenticate` count is the loop itself.
+  - **A-v** — two `.active` deliveries with no `await` between them (pure
+    synchronous TOCTOU; a structural probe, not a claim that SwiftUI
+    delivers this shape).
+- **272-B — instrumentation, lands REGARDLESS of 272-A's result.** A
+  `Logger(subsystem: TalariaLog.subsystem, category: "AppLock")` emitting
+  **always-on `.notice`** lines with `privacy: .public` (NOT behind Verbose
+  Logging — this is rare and diagnostic, and Console.app hides `.info`).
+  **PASS = all four sites emit:** (1) every `scenePhaseChanged(to:)` entry —
+  old→new phase plus `isLocked`/`isAuthenticating`/`didFailAuthentication`
+  **before** the function's own mutations; (2) the
+  `didFailAuthentication = false` reset **only when it clears a `true`** (a
+  `false→false` reset is noise and must not log); (3) every
+  `autoAuthenticateIfNeeded()` — fired, or blocked by WHICH guard clause;
+  (4) every `requestUnlock()` entry/exit with branch taken and an **attempt
+  counter scoped to the current lock episode**, so a log grep shows "3
+  attempts in 4 seconds" with no timestamp math. **The acceptance test is a
+  single `grep AppLock` over a Console pull making the mechanism legible
+  without a live repro.**
+- **272-C — device repro, OPPORTUNISTIC. Do NOT schedule a sitting for it
+  alone.** 15+ days with no sighting under ordinary use; Group 4 of
+  `dispatch/DEVICE-PASS-RUNNING-LIST.md` already tried. Fold a
+  harder-than-ordinary attempt into the next sitting already touching
+  Settings/Privacy, now that 272-B makes a hit legible after the fact.
+- **272-D — regression guard.** The existing `AppLockControllerTests` /
+  `AppLockStateMachineTests` cases must stay green **and unedited** — in
+  particular `lockSurvivesRepeatedForegrounding` and
+  `retryAfterFailureUsesNewEvaluation`, which encode *intentional* repeat
+  behaviour (a user who fixes their Face ID and returns SHOULD eventually
+  get a fresh attempt). A naive "never reset `didFailAuthentication` on
+  foreground" fix would wrongly kill them. **PASS = zero diff to those
+  cases and a literal `GATE: PASS`.**
+
+**Pre-registered response (written before the run, binding):** if the gated
+double cannot reproduce the loop at any plausible interleaving, that is a
+**REAL RESULT** — record it as a falsification of §1b with the interleavings
+tried, and **do NOT force a patch onto an unconfirmed mechanism.** Other
+transitions (`.inactive` handling, `configurationChanged()`, the retry
+button's own independent `Task` at `AppLockOverlayView.swift:87`) would then
+be the next candidates. **And even on a reproduction, the FIX is not this
+lane's** — the fix shape (should `didFailAuthentication` survive a
+foreground within the same lock episode; should `autoAuthenticateIfNeeded`
+track "already attempted this episode" independently) is new work, reviewed
+against 272-D.
+
+**✅ RESULT, 2026-08-09 — 272-A REPRODUCED THE LOOP. 272-B LANDED. Gate
+`GATE: PASS` (1867 Swift Testing + 12 XCUITest + Release, 2 expected
+Apple-Intelligence skips).** Recorded against the bars above, which were
+written before any code:
+
+- **272-A — MET, and the hypothesis is CONFIRMED in one half and REFUTED in
+  the other.** `TalariaTests/AppLockControllerRaceTests.swift`'s
+  `GatedAppLockAuthenticator` parks inside `authenticate(reason:)`; all five
+  interleavings ran, every park point asserted, eight cases green.
+  - **§1b-1 CONFIRMED (A-ii, A-iii, and the interrupted variant).** After a
+    cancelled or interrupted attempt, a single foreground event —
+    `.inactive → .active` OR `.background → .active` — wipes
+    `didFailAuthentication` and re-fires the prompt. `authenticate` count
+    1 → 2, **with no user tap.**
+  - **A-iv: five cancellations, zero taps, SIX prompts** and the cover never
+    leaves `.locked`. Nothing bounds it — no attempt cap, no backoff, and
+    the retry button never becomes the only way forward.
+  - **§1b-2 (TOCTOU) REFUTED.** `requestUnlock()` re-checks
+    `!isAuthenticating` and sets it synchronously before its first `await`;
+    on a serial MainActor there is no window. Probed both realistically
+    (A-i) and structurally (A-v, synchronous double `.active`) — one
+    evaluation each time.
+  - **What this establishes is a CONDITIONAL, and the distinction is
+    load-bearing:** *given* an `.active` after a failed attempt in the same
+    lock episode, the controller re-prompts unprompted. Whether iOS 27
+    actually delivers that `.active` on sheet dismissal — and orders it
+    after `evaluatePolicy` resolves — is a device fact this cannot settle.
+    `AppLockCore.swift`'s own comment asserts the sheet is `.inactive`, which
+    is what makes the antecedent plausible; **272-C is what confirms it.**
+- **272-B — MET.** All four sites emit; the `false→false` reset is silent as
+  specced. The single `guard`s in `requestUnlock()` and
+  `autoAuthenticateIfNeeded()` were split into sequential ones so the log can
+  name the clause — same clauses, same order, same short-circuiting, no
+  behaviour change.
+- **272-D — MET.** `AppLockTests.swift` has **zero diff**; the new suite is a
+  sibling file with its own private double.
+- **⚠️ The reproducing assertions PIN THE BUG, not the desired behaviour** —
+  each is flagged `PINS THE BUG` in-file. That is deliberate: this lane's
+  scope was reproduce/record/stop, so pinning keeps the reproduction
+  executable and the gate green. **The fix lane MUST invert every one of
+  them**; a fix that leaves them passing has not fixed anything. *(✅ Done
+  2026-08-09 — all four inverted in the fix commit; see the fix-lane block.)*
+- ~~**STILL OPEN: the fix.**~~ *(✅ Landed 2026-08-09, fix-lane block below.)*
+  Per the pre-registered response above it is not
+  this lane's work. The shape to decide: should `didFailAuthentication`
+  survive a foreground within the same lock episode until success or an
+  explicit tap, or should `autoAuthenticateIfNeeded` track "already attempted
+  this episode" independently? Reviewed against 272-D.
+
+**Why the existing suite cannot see this — VERIFIED 2026-08-09, not
+assumed.** `TalariaTests/AppLockTests.swift` covers the pure machine well,
+but every controller test drives `requestUnlock()` **directly and awaits
+it**. The `autoAuthenticateIfNeeded()` → `Task { await requestUnlock() }`
+path *is* spawned by the `scenePhaseChanged(to: .active)` those tests call
+first — but it is never awaited and never asserted on, and the tell is
+`retryAfterFailureUsesNewEvaluation`'s `#expect(auth.authenticateCallCount
+>= 2)`: a `>=` hedging against an auto-fire nobody controls. Worse,
+`MockAppLockAuthenticator.authenticate(reason:)` returns **synchronously**,
+so awaiting it never yields — the interleaving is **structurally
+inexpressible** in the current suite, exactly the shape #285's
+`GatedSecureStore` note describes. **A fully green `lane-gate.sh` says
+nothing about this bug, by construction.**
+
+**✅ 272-C — MET ON DEVICE 2026-08-09, on the FIRST attempt of the sitting.
+The antecedent 272-A could not settle is CONFIRMED: iOS 27 does deliver
+`.active` on Face ID sheet dismissal, so the conditional that lane
+established is a LIVE defect, not a hypothetical.** Build **2330** (`main`
+@ `6b71872`, Release OTA), `whoGoesThere`, corded, Owen driving the phone.
+
+**How the evidence was taken, because it constrains what it proves.** The
+app was hand-launched, so there was no Xcode launch session and
+`GetConsoleOutput` was unavailable. Evidence is a rooted
+`log collect --device-udid 00008150-…` pull read with
+`/usr/bin/log show --archive … --predicate 'eventMessage CONTAINS "AppLock"'`
+— which is **272-B's own stated acceptance test**, verbatim: *"a single
+`grep AppLock` over a Console pull making the mechanism legible without a
+live repro."* That test is now discharged against a real repro rather than
+a synthetic one.
+
+- **BOTH grace settings reproduce.** `Immediately`, then `After 1 min`.
+  Owen on the second arm: *"same repro, cancelled it and it came right
+  back."* ⚠️ **The timed arm counts only because it was run as a genuine
+  CANCEL.** An earlier pass through that setting let Face ID *succeed* and
+  unlocked normally; that is not this bar and is **not** counted as one.
+- **Highest `attempt=` reached: 4**, inside ~7 seconds
+  (12:35:55.318 → 12:36:02.289).
+- **Nothing bounds the loop — the user leaving is what ends it.** The ladder
+  terminates at `autoAuth BLOCKED guard=phase(background)`, 14s after the
+  last fire. Owen: *"I can't get it to sit at the screen that has the unlock
+  button in talaria."* That is the field-severity form of A-iv's "five
+  cancellations, zero taps, six prompts, cover never leaves `.locked`."
+- **The mechanism is caught in the act at millisecond resolution.** The
+  clear and the re-fire share a timestamp on **every** rung — `…55.318`
+  twice, `…57.374` twice, `…00.714` twice, `…02.289` twice. One
+  `scenePhaseChanged(to:)` call, wiping the flag at `:110` and re-firing
+  auth at `:114`. Each `FIRED` is followed by
+  `BLOCKED guard=phase(inactive)` — the sheet itself making the scene
+  inactive — which is what makes the cycle self-sustaining: sheet →
+  inactive → cancel → active → clear → fire → sheet.
+
+**Severity is NARROWER than this item's header wording implies, and saying
+so precisely is not a downgrade.** The success path is unaffected — Owen:
+*"Facelock has history worked very well."* Only a user who **dismisses** the
+sheet is trapped, and backgrounding frees them. Read it as "the retry
+surface is unreachable," never "App Lock is unusable."
+
+**Two things the code read against this log settles for the fix lane:**
+1. **The guard the fix wants ALREADY EXISTS and is already correct** —
+   `guard !didFailAuthentication` → *"retry button is showing"*
+   (`AppLockController.swift:210`), the fourth clause 272-B split out. It
+   never executes, because `:110` sets that flag `false` in the same call
+   ~0 ms earlier. **This is not a missing guard; it is a guard whose input
+   is destroyed upstream of it.**
+2. **`episodeAttempt` already survives the foreground.** It increments per
+   unlock request (`:146`) and resets only on success (`:157`) or when the
+   lock is disabled (`:122`) — `scenePhaseChanged` never touches it. So the
+   "track already-attempted-this-episode independently" option has its state
+   variable sitting there today.
+
+**So the fix decision is narrower than the one posed in
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`, and it should be re-asked
+in its narrowed form.** Both options in that handoff reduce to the same
+question: **what ends a lock episode?** Gating on `episodeAttempt > 0`
+outright is NOT free — it would kill `retryAfterFailureUsesNewEvaluation`,
+which encodes deliberate behaviour (fix your enrollment, come back, get a
+fresh attempt) and which **272-D forbids editing**. The fix needs an episode
+boundary that is something other than "any foreground."
+
+> **🎯 RULED 2026-08-09, same sitting as 272-C: Option B — one auto-prompt
+> per locked stretch.** The episode boundary is the STATE TRANSITION
+> (cover newly locks), not a flag's survival policy: `episodeAttempt` resets
+> when the cover newly locks and `autoAuthenticateIfNeeded` gains an
+> `episodeAttempt == 0` guard. **Owen's acceptance carries a recorded
+> reservation, verbatim:** *"I'm not entirely sure on my end, but i'll take
+> your recommendation. feels very 'whoosh'"* — so the ruling is REVERSIBLE
+> UNTIL THE LANE MERGES, the plain-behaviour statement was given and stands
+> ("cancel means cancel; one extra UNLOCK tap after a cancel, however long
+> ago"), and bar 272-H below exists precisely so the fixed build gets judged
+> in Owen's hand before this closes. Lane brief:
+> `dispatch/FABLE-T27-272-applock-fix.md` *(renamed from `OPUS-…` same day —
+> Owen routed the lane to a Fable run; cold-session mechanics added)*.
+>
+> **Bars 272-E…H — PRE-REGISTERED 2026-08-09, before any fix code:**
+> - **272-E — red-first repro through the PUBLIC surface.** A test that
+>   drives `scenePhaseChanged(to:)` (NOT `requestUnlock()` directly — the
+>   272-A result block records that every existing test bypasses the loop)
+>   with a gated authenticator: auto-prompt → cancel → `.inactive` →
+>   `.active` → **assert no second `authenticate` call fires without a
+>   tap.** MUST be RED against HEAD before the fix (today's build re-fires;
+>   the device ladder proves it).
+> - **272-F — the fix itself.** Reset on newly-locked + the `== 0` guard.
+>   Positive cases pinned alongside: a FRESH locked stretch still fires
+>   exactly ONE auto-prompt (cold launch and grace-expiry shapes), and the
+>   UNLOCK tap path still authenticates after a cancel (the tap bypasses the
+>   auto-guards by design).
+> - **272-G — 272-D holds.** Zero diff to `lockSurvivesRepeatedForegrounding`
+>   and `retryAfterFailureUsesNewEvaluation`, both green, plus a literal
+>   `GATE: PASS`.
+> - **272-H — device confirm, Owen's hand.** Repeat 272-C's EXACT trial on
+>   the fixed build — cancel at grace `Immediately` AND `After 1 min`.
+>   PASS: the sheet stays down, the in-app UNLOCK button is reachable and
+>   works, and the pulled log shows the new guard blocking where today's
+>   ladder shows `FIRED`. **This bar is also where Owen's reservation gets
+>   its honest exit: if the behaviour feels wrong in hand, the ruling is
+>   re-opened, not defended.**
+
+**✅ RESULT, 2026-08-09 — THE FIX LANE. 272-E MET (RED-FIRST), 272-F MET.
+Branch `t27-272-applock-fix` off `2a664f0`; no PR opened (the controller
+reads the diff and runs the gate). ✅ 272-G MET 2026-08-09 — GATE: PASS
+(controller-run, CC-272-iPhone-Air): TEST SUCCEEDED, 1932 Swift Testing +
+12 XCUITest, Release build clean. 272-H is Owen's hand on the phone. #272 STAYS OPEN until 272-H — and its device row is NOT YET
+QUEUED: the controller adds it to `dispatch/DEVICE-PASS-RUNNING-LIST.md` at
+session close-out (the lane was told not to touch that file).** Recorded
+against the bars above:
+
+- **272-E — MET.** `bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip`
+  added to the EXISTING `TalariaTests/AppLockControllerRaceTests.swift` (no
+  new file — no xcodegen, no scheme churn), driving `scenePhaseChanged(to:)`
+  only, gated authenticator parked and asserted anti-vacuous. **Run RED
+  against HEAD (`2a664f0`) before any fix code, on sim `CC-272-iPhone-Air`;
+  the failure, verbatim:**
+
+  ```
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:374:9: Expectation failed: auth.callCount == 1
+  ↳ 272-E: no second authenticate call may fire without a user tap
+  ↳ auth.callCount == 1 → false
+  ↳   auth.callCount → 2
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() recorded an issue at AppLockControllerRaceTests.swift:375:9: Expectation failed: auth.pendingCount == 0
+  ↳ the sheet stays down — nothing may be parked
+  ↳ auth.pendingCount == 0 → false
+  ↳   auth.pendingCount → 1
+  ✘ Test bar272E_cancelledAutoPromptDoesNotRefireOnForegroundBlip() failed after 0.033 seconds with 2 issues.
+  ✘ Test run with 9 tests in 1 suite failed after 0.226 seconds with 2 issues.
+  ```
+
+  The test compiled and failed on the loop's behaviour, per the bar (not a
+  compile error); the 8 pre-existing cases — including every `PINS THE BUG`
+  reproduction — still passed on HEAD in the same run. The RED run's sim
+  log also caught 272-C's exact device signature live: the paired
+  `didFailAuthentication true->false on .active` +
+  `autoAuth FIRED (no tap)` lines.
+- **272-F — MET, the dispatch's fix shape as specced plus one forced
+  amendment.** In `AppLockController.swift`: (1) `episodeAttempt` resets on
+  the transition INTO `.locked` (in `refreshCover()`, only when the cover
+  actually changes — not on every call; logged only when it clears a real
+  count); (2) `autoAuthenticateIfNeeded()` gains a FIFTH sequential guard,
+  `episodeAttempt == 0`, in 272-B's split-guard logging style
+  (`autoAuth BLOCKED guard=episodeAttempt(N)` — the line 272-H greps for);
+  (3) **the `:110` clear is untouched**, and it is load-bearing for the
+  positive pins — it un-sticks a stale `didFailAuthentication` at the start
+  of a NEW episode; (4) the UNLOCK tap path is guard-free, unchanged.
+  - **The forced amendment — the retry surface (found by this lane; the
+    dispatch's fix-shape list omitted it):** `AppLockOverlayView` showed the
+    UNLOCK button on `didFailAuthentication` alone, and the kept `:110`
+    clear wipes that flag on the sheet-dismissal blip that follows every
+    cancel (every rung of the 272-C ladder). With the new guard holding the
+    prompt down, the unamended overlay would strand a cancelled episode
+    with NO prompt AND NO button — worse than the loop, and unrecoverable
+    until an app kill (backgrounding cannot start a new episode while the
+    cover never leaves `.locked`). That violates the ruling's
+    plain-behaviour contract clause 2 ("the in-app UNLOCK button is the
+    only path, and it must work") and 272-H's "reachable and works," so the
+    overlay now keys on `controller.showsRetryUnlockButton`
+    (`didFailAuthentication || (episodeAttempt > 0 && !isAuthenticating)`;
+    `episodeAttempt` made observable) — behaviour identical to today
+    everywhere except the trap window. The tap's action is untouched.
+  - **Positive pins, all green:** fresh-stretch auto-prompts exactly once
+    in BOTH shapes (cold launch; grace-expiry after a successful unlock —
+    the pin that proves the guard cannot silence a new episode); the tap
+    path always gets an attempt after a cancel + blip and its success
+    unlocks; the stale-counter leak (capability-neutralized episode →
+    re-armed lock) is caught by the transition reset; and the retry surface
+    survives the flag wipe. **All four `PINS THE BUG` assertions inverted**
+    (A-ii, A-iii, interrupted, A-iv — A-iv is now "one cancel, five blips,
+    ONE prompt, button stands throughout"), per the 272-A block's own
+    demand.
+  - **Targeted suite: 39/39 green in 5 suites** (`AppLockControllerRaceTests`
+    14, `AppLockStateMachineTests` 15, `AppLockGracePeriodTests` 1,
+    `AppLockControllerTests` 7, `AppLockSettingsCodingTests` 2) on
+    `CC-272-iPhone-Air`, `** TEST SUCCEEDED **`. **Count MOVED from the
+    lane's own measured baseline (33 at `2a664f0`) — not a stale
+    `.xctest`.** 272-D input: `TalariaTests/AppLockTests.swift` has **ZERO
+    DIFF** (`git diff` empty), `lockSurvivesRepeatedForegrounding` and
+    `retryAfterFailureUsesNewEvaluation` unedited and green.
+- **272-G — PENDING.** The controller runs `scripts/mac/lane-gate.sh`
+  serially at merge time; a literal `GATE: PASS` plus the zero-diff above
+  completes the bar. (This lane deliberately did not run the gate.)
+- **272-H — PENDING, Owen's hand on the phone (the reservation's exit).**
+  Note for the trial: with the fix, the pulled log's blip signature is
+  `didFailAuthentication true->false on .active` followed by
+  `autoAuth BLOCKED guard=episodeAttempt(1)` — the flag-wipe line still
+  appears (the `:110` clear stays) and the NEW guard's line replaces
+  `autoAuth FIRED`.
+- **272-H — ✅ MET 2026-08-09 evening (OTA build 2418 = merged `main`
+  `c4a1ca9`, Release; Owen's hand, corded sitting).** Both grace settings
+  (`Immediately`, `After 1 min`) ran §R4's exact trial on the fixed build,
+  and all four plain-behaviour clauses held on each: a fresh lock
+  auto-prompted once; Cancel held the sheet down with the in-app UNLOCK
+  button present and working (*"everything waited for me to tap unlock
+  then triggered face id"*); backgrounding and returning WITHIN the
+  cancelled stretch stayed quiet (*"it stayed there and waited"*); and a
+  successful unlock re-armed the next stretch's auto-prompt (*"locked
+  again, came back and it unlocked automatically"*). Arm 2 verbatim:
+  *"Both pass. Same song and dance for 1m and same result."* **The
+  reservation exit was offered twice and not taken — no "whoosh" complaint
+  in hand; the Option B ruling stands.** Evidence is the felt contract; no
+  log pull was needed (the broken build's signature was `attempt=4` in
+  ~7 s — unmissable by feel, and both arms stayed quiet). **#272 CLOSED;
+  sweep to the archive at sitting close-out.**
+- **Carry into the PR body (per the dispatch, for whoever opens it):** #302
+  composes with this — 302-B's "locked interval held open" fixture gets
+  harder after this merges, so #302's bars need a re-read then. #302 itself
+  was not touched here.
+
+## 256. 🎛️ SETTINGS GRID STATUS STRIP + device-pass fixes: info strip above the grid, Privacy value rewrite, #249 bounce-text sharpening, Appearance truncation — **ROUTED 2026-08-05 night (Owen, all three decisions via AskUserQuestion); bars pre-registered below BEFORE the run** → **✅ CLOSED 2026-08-09 — shipped 2026-08-05, bars A/B/C/D/F/G/H/I MET across builds 2042 and 2047, two gate PASSes. Header corrected: it still read "bars pre-registered BEFORE the run" on an item its own body called closed.**
+
+> **✅ CLOSE-OUT 2026-08-09.** Merged in two commits (`2c17f86`, `c8b27fb`,
+> PR #271) plus the closure note `ad32446`. Device-met in Owen's own words on
+> builds 2042 and 2047.
+>
+> **Two things this close must NOT bury:**
+>
+> 1. **256-E's bar text was superseded by 256-G and can never be met
+>    literally.** The strip dropped `DIRECT`, so the bar as originally written
+>    describes a string that no longer ships. That was a legitimate later
+>    routing decision, **not a missed bar** — recorded here at the bar's own
+>    home so a future reader does not score it as a falsification. This is the
+>    #218 promoted-clause discipline applied to a bar's own wording.
+> 2. **256-E's second half — the reminder-phrasing device observation — is
+>    NOT lost.** It is strictly weaker than **#249's 249F-D**, which covers
+>    the same phrasing on a different bounce path and remains open. The
+>    observation rides 249F-D; #256 does not stay open to hold a duplicate of
+>    a stronger bar.
+>
+> **Sibling residual, tracked in #252 not here:** `cardIsAccented(.voice)`
+> still keys off `readAloudAutoPlay` while 256-H moved the card's *value* to
+> the engine route, so the card can read `REALTIME · LIVE` and not glow. A fix
+> is specified as bar **252R-A** in `dispatch/OPUS-T27-252-settings-channels.md`
+> but is **NOT STARTED** — Owen routes it. **#252 stays open until it lands.**
+
+**Owen's routing (device pass, build 2034):** (1) info strip = **Link ·
+Host · Model** — status pip + link state (LINKED · DIRECT / ON-DEVICE) +
+host name + active-model short-name, full-width row between top bar and
+grid, grid view only ("a status bar about the size of two cards left to
+right would move it down perfectly"); (2) Privacy card value = **"SENSORS
+OFF" / "N SENSORS LIVE"** (his catch: "NOTHING LEAVES THIS PHONE" is
+misleading when paired; "0 STREAMS" clarifies nothing); (3) **#249
+past-due bounce text sharpened** to steer the model toward the
+nearest-future reading of the same clock hour ("8" at 6:59 PM → offer
+tonight) — tool-output text, 233-E rules, unit-pinned, no battery owed.
+Ride-along: Appearance card value truncation ("CASINO LUCKY 7S ·…").
+
+**BARS — written HERE, BEFORE the run:**
+- **256-A (unit):** privacy formatter — 0 → "SENSORS OFF", 1 →
+  "1 SENSOR LIVE", 3 → "3 SENSORS LIVE".
+- **256-B (unit):** new past-due bounce pins — still leads "No reminder
+  was created", carries the next-occurrence steering phrase, still no
+  digits or formatted date (233-E); the latch/caution path is unchanged
+  (existing 249 tests stay green with only wording pins updated).
+- **256-C (UI):** grid shows `settings.statusStrip` with store-derived
+  link/host/model text; strip absent in deck mode.
+- **256-D (build + device):** Appearance card value renders the longest
+  catalog theme name without ellipsis (scale-to-fit); Owen judges on
+  device.
+- **256-E (device, Owen):** strip reads LINKED · DIRECT · OJAMD ·
+  DEEPSEEK-V4-FLASH on his paired install and the grid sits visibly
+  lower; an evening "remind me at 8" now comes back offering tonight.
+- **256-F (ride-along, added same night from Owen's #250 follow-up
+  screenshot, before its code):** the Appearance deck page's APP ICON
+  row becomes a NavigationLink to the icon gallery
+  (`settings.appearance.openIconGallery`) — the gallery was findable
+  only via browser → tuning → expand. GLOW/GRID rows stay read-only.
+
+A missed bar is a falsification, not a redefinition.
+
+**📱 2042 DEVICE NOTES (Owen, same night):** strip ACCEPTED — "Strip
+looks good. Good on width, I imagined it larger, but i'm ok with this"
+(256-E first half MET; reminder-phrasing half still owed). Two musings
+FILED, not routed: (1) rename Uplink's "DIRECT" — note the DIRECT/RELAY
+distinction dies with #251 Phase 4, so either swap to plain
+CONNECTED/ONLINE now or collapse to LINKED when the relay retires;
+(2) Voice card value could show the voice ROUTE/engine state
+(talkStore.connectionState — REALTIME READY / SESSION LIVE / on-device)
+instead of the read-aloud toggle, demoting read-aloud to the deck page.
+Both formatter-level; ship together when Owen picks the words.
+
+**▶ WORDS PICKED (Owen, same night) — BARS FIRST, then the code:**
+"Change Direct to Connected, and Voice to show the engine route.
+Realtime or Local. If On Device is selected, the voice should also
+change to on device… If Realtime is setup AND connected, then it would
+show. Otherwise, It would still use Local, maybe a different indicator
+for voluntary being on On Device, vs thats the only option."
+- **256-G (unit):** uplink card online+direct → "CONNECTED" (relay →
+  "RELAY", other states unchanged); strip drops the transport word for
+  the direct case → "LINKED · OJAMD · DEEPSEEK-V4-FLASH", keeps the
+  anomaly → "LINKED · RELAY · …".
+- **256-H (unit):** voice route formatter — brain on-device →
+  "ON-DEVICE" (voluntary); engine picked .native on a linked brain →
+  "LOCAL" (voluntary); talk .connected → "REALTIME · LIVE"; .ready /
+  .connecting → "REALTIME"; .checking → "…"; .idle/.blocked/.failed on
+  a linked brain → "LOCAL ONLY" (the forced-fallback indicator).
+  Read-aloud state demotes to the Voice deck page (already there).
+- **256-I (device, Owen):** Uplink reads CONNECTED; Voice card shows
+  the route and flips to ON-DEVICE when he switches the brain.
+
+**✅ VERBIAGE ROUND BUILT + GATED (`claude/t27-256-verbiage`).** 256-G/H
+MET (13/13 in the formatter suite; strip's direct case now
+"LINKED · OJAMD · …", RELAY stays flagged; voice route three-way with
+the grid firing `refreshReadiness()` so the card is live). **GATE:
+PASS — 1618 units + 12 XCUITest, Release green.** 256-I rides the OTA.
+
+**✅ 256-I MET (Owen, build 2047, PR #271 merged):** "strip looks good,
+voice looks good, privacy looks good." With that, every #256 bar is MET
+except 256-E's second half — the sharpened reminder phrasing (evening
+"remind me at 8" should now come back OFFERING tonight) — which stays
+open until his next natural reminder ask; and 256-D's device judgment
+rides along informally (nothing ellipsized in his passes). Item is
+otherwise CLOSED.
+
+**✅ BUILT + GATED same night (`claude/t27-256-grid-strip`).** 256-A/B
+MET (privacy formatter + bounce pins, watched RED via the pin updates
+then GREEN); 256-C MET (strip asserted present in grid / absent in deck
+in the XCUITest pair); 256-D built (scale-to-fit 0.65 on card values;
+device judge owed); 256-F MET (deck APP ICON row → gallery,
+`settings.appearance.openIconGallery`). Strip formatter unit-pinned
+(5 shapes incl. hostless collapse to "ON-DEVICE"). **GATE: PASS — 1618
+Swift Testing units (1617 + 1, count moved) + 12 XCUITest, Release
+green.** 256-E (device) rides the next OTA.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The strip-width reservation is resolved: ACCEPTED FINAL (Owen,
+> 2026-08-09 decision pass).** Four days of real use since 08-05, no
+> complaint in hand; the one-line size bump is not queued.
+
+## 242. 💡 LOCAL-ANSWER BRIDGE: remote Hermes chats get phone-only facts by dispatching the on-device FM belt at query time — Owen's proposed avenue to ditch the sensor plane without losing health — ~~**FILED 2026-08-03 late night, UNROUTED (idea, no design yet)**~~ → **✅ CLOSED 2026-08-09: SUBSTANTIALLY DELIVERED as #251 Slice 2A and device-proven 2026-08-06. The header read "no design yet" for three days after it shipped.**
+
+> **✅ CLOSE-OUT 2026-08-09 — this idea was built, and nobody told the entry.**
+> The core shipped as **#251 Slice 2A**: `talaria_phone_query` (a 7-kind
+> catalog with a `check_fn` on transport liveness and honest-failure prose)
+> in `~/.hermes/plugins/talaria/tools.py`, answered app-side by
+> `Talaria/Services/Live/PhoneQueryResponder.swift`, which calls the same belt
+> statics behind the existing privacy gates. **Device-proven 2026-08-06.**
+>
+> **Its relationship to the decommission arc, which is the part worth
+> keeping:** #242 is neither a prerequisite for nor an alternative to #223 —
+> it is the **delivered enabler**. #223 named exactly one thing that would be
+> lost by ditching the sensor plane (the remote agent's view of phone health);
+> #242 was the avenue to dissolve that loss; it merged as Plan C Phase 2.
+>
+> **The residual loss is precisely what this entry predicted:** host-side
+> *asynchronous* history analysis, which a query-time bridge structurally
+> cannot provide. That is a real limitation, recorded rather than papered over.
+>
+> **What actually gates #223 Phase 4 is therefore NOT sensors** — it is voice
+> bootstrap (`talk/session`, `talk/readiness`) and #21 file delivery, neither
+> of which appears in any decommission plan. See
+> `dispatch/FABLE-T27-223-251-reconciliation.md`.
+
+**Owen, same night as the sensors-leaning (see #223), verbatim:** *"I keep hoping
+we'll find a different avenue to take for the health stuff, but I think we can
+extrapolate everything we need for sensors from the foundation models. Maybe it
+could be a setting, and when enabled, if queried about something that only the
+phone could know, maybe Talaria could ask the foundation models, and get the
+answer to provide in its chat. Think how when you do workflows or dispatch
+agents."*
+
+**The shape:** in a REMOTE (Hermes) chat, when the turn needs something only the
+phone knows (health, activity, location), Talaria — behind a setting — dispatches
+the question to the on-device FM belt (which already owns HealthKit/location
+tools), takes the local answer, and provides it into the Hermes conversation.
+The app is the orchestrator; the local brain is the subagent. **Inversion that
+matters:** no data stream, no host-side sensor store — phone facts leave the
+device only as a per-question answer inside a turn the user sent. This would
+retire the sensor plane's interactive half with ZERO sidecars and ZERO upstream
+change (upstream's `split_runtime:false` acknowledges client-side tool execution
+as a someday-mode — this is the app-side version that needs none of it).
+
+**Already in the codebase to build on:** the device-tool belt + HealthKit lane
+(#211, local, 10/10), intent routing (`routeNeedsDeviceTool`, #215/#217 — the
+router's measured surface), and the local/remote backend split (#216's files).
+
+**Open design questions (for the brainstorm when routed):** (1) detection in
+remote mode — the router must flag phone-only intents BEFORE the send (a remote
+turn Hermes answers with "I can't know that" is the miss shape); (2) delivery —
+prepend the local answer as turn context Hermes weaves in, vs. answer locally
+inline and skip Hermes for that turn; (3) the setting's name and default;
+(4) honest non-coverage: host-side ASYNC analysis of phone history (cron jobs,
+"analyze my sleep trends while I'm away") — that half of the old sensor plane
+does not come back with this and should be said out loud when deciding #223's
+sensor question.
+
+> **📌 APPEND-ONLY POINTER (sanctioned by #317's ruling (a), 2026-08-09 — the original text above is untouched):**
+> **The gating-semantics question this entry left open is RULED (Owen,
+> 2026-08-09 decision pass): ONE SWITCH for all sensor egress, clearly
+> relabelled — no split gates. Recorded in live #223's entry (the sensor
+> posture ruling: residual loss acceptable, pull replaces push).
+

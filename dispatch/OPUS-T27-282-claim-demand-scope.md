@@ -1,5 +1,13 @@
 # OPUS T27 #282 — scope the content-claim tier's DEMAND side to the in-flight turn
 
+> **⚠️ SEQUENCING BANNER, 2026-08-10 (Owen's ruling at the 2026-08-09 decision
+> pass): THIS LANE IS HELD BEHIND #299.** The halt this dispatch's own STOP
+> condition produced was ruled on: `dispatch/FABLE-T27-299-adoption-identity.md`
+> runs FIRST (adoption-time identity), then this lane resumes — and bars
+> 282-D/282-E must be RE-READ against the fixed merge before running (their
+> PREDICTED-RED was written against the duplicating merge). Nothing else in
+> this dispatch changes.
+
 **Goal:** execute Owen's 2026-08-09 ruling — only a local user row where
 `!localRow.status.isSettled` may consume a content claim — and MEASURE, with
 bars written first, exactly which of the claim tier's jobs that scope drops on

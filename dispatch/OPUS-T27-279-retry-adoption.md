@@ -1,5 +1,16 @@
 # OPUS T27 #279 — `retryMessage` removes the failed row without telling the mirror
 
+> **⚠️ STALENESS + SEQUENCING BANNER, 2026-08-10.** Verified at `35c6234`;
+> PRs #288–#294 merged since — including #306's ChatStore lane — and
+> `ChatStore.swift:1999`'s doc comment now carries a "corrected #279,
+> 2026-08-09" note from a later review fix (see #293(b), which is residue OF
+> that fix). **Re-verify every anchor and the entry's premises at lane start.**
+> And this item is in the claim/adoption FAMILY: the #299 fix
+> (`dispatch/FABLE-T27-299-adoption-identity.md`) and #282's ruled guard both
+> change what a `.failed` user row does in the merge. **Preferred order:
+> #299 → #282 → this lane** — if run earlier, re-derive this dispatch's RED
+> against whatever has landed, and expect the fix to shrink.
+
 **Goal:** make a retry's removal of the failed user row reach the backend's
 mirror, so the retried turn cannot be resurrected below the new one — the
 `truncateTranscript` guarantee (#78), applied to the one history-mutating path

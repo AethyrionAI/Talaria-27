@@ -1,5 +1,12 @@
 # OPUS T27 #280 — a voice-only thread gets no on-device title, and the tracker names the wrong cause
 
+> **⚠️ STALENESS BANNER, 2026-08-10.** Written 2026-08-09 at `04af0a7` (the
+> #295 branch); PRs #288–#294 merged since. No known interaction with the
+> merged lanes (title/voice path, not the merge/claim family) — but re-verify
+> the §4 mechanism read and every anchor at lane start before trusting them.
+> The §4 warning stands: the tracker entry's stated mechanism is NOT the
+> cause; implementing the entry as written ships a no-op.
+
 **Tier that EXECUTES this lane: OPUS.** Written 2026-08-09 from a HEAD code read
 (`t27-295-expiration-recovery`, `04af0a7`). No code was written for this brief.
 
