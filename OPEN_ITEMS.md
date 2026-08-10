@@ -6588,7 +6588,10 @@ the reshape ships with a decode-compatibility test.
 
 > **Update 2026-08-09 — LANE EXECUTED (branch `t27-306-message-queuing`;
 > commits `620b41e` T1, `73f7378` T2–T4 + the #307 fix, `209d53f` T5). Bars
-> 306-A..J MET with observed RED each; 306-K (gate) and 306-L (device)
+> 306-A..J MET with observed RED each; ✅ 306-K MET 2026-08-09 — GATE: PASS
+> (controller-run, CC-272-iPhone-Air, merged head `f3c8781`): TEST
+> SUCCEEDED, 2005 Swift Testing + 14 XCUITest, Release build clean;
+> 306-L (device)
 > PENDING — controller runs the gate serially at merge; Owen runs the device
 > pass.** Targeted suites green on a dedicated CC-306 sim:
 > `MessageQueueTerminalsTests` (NEW, 16), `ContinuityFabricTests` 28→33,
@@ -6773,7 +6776,7 @@ number in the commit.
 > the amendment), whose observed RED was precisely this mechanism: with the
 > drain gate reverted to `!isStreaming`, the parked turn drained into the
 > live run during the reconcile window. Closes when #306's lane merges
-> (gate 306-K pending).
+> (gate 306-K: ✅ PASS on the merged head — see the header note).
 
 ## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
 
