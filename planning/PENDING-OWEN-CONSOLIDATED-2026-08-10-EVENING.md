@@ -66,8 +66,15 @@ code.
 >   device-proven on `t27-250-island-compact-icon`; bars + gate + a re-run
 >   are owed before merge. **The re-scope this looked like it needed is
 >   cancelled — nothing owed from you.**
-> - **R12 is the only Phase B row left**, and the Debug build stays on the
->   phone, so it is one tap away with no reinstall.
+> - **R12 step 2 → ALL FOUR BARS MET** (1-GATE 100% arm AND control · 1-A
+>   100% · 1-B 0% · 1-D zero · `errors=0` across 350 classifications).
+>   **Lever 1 ships**; neither pre-registered kill clause fires. **Steps 3
+>   and 4 remain** — your read of `/capabilities` (3a-C) and the
+>   voice-absence check. **Step 1's pre-flight was never built as an
+>   instrument** and stays owed.
+>
+> **So Phase B is DONE apart from two small R12 steps that need you, not a
+> battery.** The Debug build stays on the phone — no reinstall for them.
 >
 > Verdicts live at their canonical homes as this file's contract requires:
 > `OPEN_ITEMS.md` #101 and #250, and §R's R13/R2 rows.

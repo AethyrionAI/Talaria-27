@@ -209,7 +209,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
-- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt …
+- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt … — **✅ DEVICE BARS ALL MET 2026-08-10: 1-GATE 100% (arm AND control), 1-A 100%, 1-B 0%, 1-D zero, `errors=0` across 350 classifications. Neither kill clause fires; LEVER 1 SHIPS. Remaining: 3a-C (Owen's read), the voice-absence check, the vision line, and the never-built `tokenCount` pre-flight**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
@@ -10971,12 +10971,12 @@ full battery.
 >   real render defect — MonoLabel force-uppercased the tool id into
 >   "READHEALTH"; ids now render case-preserved, which is also the honest
 >   display: the id IS the belt name.)
-> - **257-1-GATE / 1-A / 1-B / 1-D: QUEUED-DEVICE.** The two-field router
->   SHIPS AHEAD of its device probe — safe by construction (detection
->   fails open; a wrong TRUE costs an appended true block, the 1b
->   asymmetry) — and **1-GATE's pre-registered response stands unchanged:
->   missed → the second field is abandoned outright, a revert, no
->   iteration.** The device `tokenCount` pre-flight runs BEFORE the probe.
+> - ~~**257-1-GATE / 1-A / 1-B / 1-D: QUEUED-DEVICE.**~~ **✅ ALL FOUR MET ON
+>   DEVICE 2026-08-10 — see the run block at the end of this entry.** The
+>   two-field router SHIPS AHEAD of its device probe — safe by construction
+>   (detection fails open; a wrong TRUE costs an appended true block, the 1b
+>   asymmetry) — and **1-GATE's pre-registered abandon clause was never
+>   triggered: the routing Bool measured 100%, unchanged.**
 > - **257-3a-C: pending Owen** (his read of the surface; pass/fail his,
 >   stated in advance).
 > - **257-1-E: ✅ MET 2026-08-09** — GATE: PASS (controller-run,
@@ -11034,6 +11034,77 @@ full battery.
 > 3. **SHEET HOME: the chat sheet, as-is, is the PERMANENT home** — where
 >    the question arises mid-conversation; no move to Settings or Skills.
 >    3a-C's home question is closed.
+
+> **✅✅✅✅ 257-1-GATE · 1-A · 1-B · 1-D — ALL FOUR MET ON DEVICE,
+> 2026-08-10 (R12 step 2).** whoGoesThere, iOS 27.0 (24A5390f), Debug build
+> over OTA 2484, Owen driving, app foregrounded. Run `0E08CADF`, 350
+> classifications, `endedCleanly: true`, **50/50 probe rows with
+> `errors: 0`**.
+>
+> | Bar | Threshold | Measured | Verdict |
+> |---|---|---|---|
+> | **1-GATE (arm)** | ≥95% | **100/100 = 100%** | ✅ MET |
+> | **1-GATE (control)** | ≥95% | **100/100 = 100%** | ✅ MET |
+> | **1-A (recall)** | ≥90% cap=TRUE | **50/50 = 100%** | ✅ MET |
+> | **1-B (danger)** | ≤2% cap=TRUE | **0/100 = 0%** | ✅ MET |
+> | **1-D (honesty)** | zero, halves separate | **zero, both halves** | ✅ MET (see below) |
+>
+> **Per-row, not a ratio, as 1-A requires:** every one of the ten
+> `capabilityQuestionProbes` rows returned `correct 5/5`; every one of the
+> twenty DANGER rows (the baseline ten **plus** the ten deliberate
+> near-misses — *"What's the weather?"*, *"What's on my calendar today?"*,
+> *"What did we talk about yesterday?"*, *"What can I make with eggs?"*,
+> *"What's my battery at?"*) returned `correct 5/5`, i.e. **capability=FALSE
+> on all 100 danger trials.** No row split, anywhere in the run.
+>
+> **Neither pre-registered kill clause fires.** 1-GATE's *"missed → the
+> second field is abandoned outright, a revert, no iteration"* — not
+> triggered; the routing Bool is **unchanged at 100%**, consistent with its
+> 200/200 lifetime, so the second field costs the app's most load-bearing
+> classification nothing. 1-B's *"missed → Lever 1 does not ship; fall back
+> to 3a alone"* — not triggered, and 0% is the floor of that bar rather
+> than a squeak past it. **Lever 1 ships.**
+>
+> **On reading 100% everywhere as too good:** it is the EXPECTED shape here,
+> not an anomaly — #217B measured **zero variance across 380
+> classifications** on this router, which is the finding that justified
+> n=5 for the side bands in the first place. The guard against a
+> laundered result is the error tally, and it reads **0 on all 50 rows**;
+> `routeTurn` fails safe to ARMED, so instrument failure would have shown
+> up as errors and as GATE noise, not as a clean sweep.
+>
+> **1-D, and why losing the console cost nothing.** The Mac was restarted
+> before the console could be read, and the HONESTY band is emitted to the
+> log only — it is not written to the run store, so the device numbers are
+> gone. **It does not matter, and this was pre-registered rather than
+> rationalised after:** R12's own row says *"1-D's device numbers are a
+> denominator check only (the unit test is the evidence)."* Verified in
+> source tonight rather than assumed — the band scores
+> `settledReplyContent("", appendingCapabilityAnswer: true)`, and with an
+> empty `modelText` that function returns
+> `CapabilityRegistry.capabilityAnswerBlock()` **byte-identical**
+> (`LocalChatBackend.swift:1364`). That is the exact string
+> `capabilityAnswerBlockCarriesNoActionClaimAndNoToolSyntax`
+> (`CapabilityRegistryTests.swift:113`) asserts against — **claim and syntax
+> halves separately**, as 1-D demands. The band is a pure function of code
+> with no model call in it, so no device run could have produced a different
+> answer.
+>
+> **The `tokenCount` pre-flight was NOT run, and that is a real deviation
+> from R12 step 1 — recorded, not glossed.** No instrument for it was ever
+> built: it exists as a "QUEUED DEVICE PRE-FLIGHT" comment in two files
+> (`+IntentRouting.swift:76`, `+Battery.swift:2533`) with no Developer-screen
+> button behind it. What stands in its place is the failure it was meant to
+> catch: `21F0C10D` was truncation-mid-JSON under an undersized cap, which
+> now surfaces as a nonzero `routerFailureTally`. **370 two-field
+> generations across tonight's two runs (350 here + 20 in R13) produced
+> `errors=0`.** That is strong evidence of headroom under the 128 cap — it
+> is **not** a token measurement, and the pre-flight stays owed if anyone
+> wants the number itself.
+>
+> **Still open in R12: steps 3 and 4** — 3a-C (Owen's read of
+> `/capabilities`) and the voice-absence observation. Neither is a routing
+> measurement and neither is blocked by anything above.
 
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
