@@ -3,97 +3,11 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
-struct HermesBrandIcon: View {
-    let size: CGFloat
-    var fallbackSymbol: String = "brain.head.profile"
-    var fallbackTint: Color = .yellow
-    var backgroundTint: Color? = nil
-    var cornerRadius: CGFloat? = nil
-
-    var body: some View {
-        if let uiImage = Self.loadImage().map({ Self.redrawn($0, at: size) }) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .renderingMode(.original)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                }
-        } else {
-            Image(systemName: fallbackSymbol)
-                .font(.system(size: size * 0.7, weight: .medium))
-                .foregroundStyle(fallbackTint)
-                .frame(width: size, height: size)
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: Circle())
-                }
-        }
-    }
-
-    /// #250 — **the fix for the Dynamic Island's compact leading slot, proven on
-    /// device 2026-08-10.** `UIImage(data:)` returns scale 1.0, so a 120 px
-    /// handoff PNG arrives as a 120 **point** image. The lock screen (44 pt) and
-    /// the expanded island (28 pt) draw it; the 14 pt compact slot drew nothing
-    /// at all — a grey placeholder square, identical for every icon. Redrawing
-    /// at the slot's own point size makes the compact slot render the real icon.
-    ///
-    /// **What is established vs. assumed.** Established: the redraw fixes it,
-    /// and the slot is NOT monochrome (a plain SwiftUI symbol renders in full
-    /// colour there — probed directly). NOT isolated: this redraw changes point
-    /// size, scale AND provenance in one step, so which of the three is
-    /// load-bearing is unproven. Do not restate "oversized images fail to
-    /// encode" as fact without narrowing it.
-    private static func redrawn(_ image: UIImage, at points: CGFloat) -> UIImage {
-        let target = CGSize(width: points, height: points)
-        return UIGraphicsImageRenderer(size: target).image { _ in
-            image.draw(in: CGRect(origin: .zero, size: target))
-        }
-    }
-
-    private static func loadImage() -> UIImage? {
-        // #250: the app publishes the SELECTED icon's art into the app group;
-        // wear it when present so the island matches the home screen.
-        //
-        // 2026-08-10 (bar 250T-C, device): this loader is CORRECT and was
-        // wrongly suspected. The compact island's failure lived in how the
-        // loaded image was handed to that slot, not in the handoff — see
-        // `redrawn(_:at:)` above, which is what fixes it. Two theories were
-        // tried on device and BOTH FAILED, recorded so nobody spends the
-        // evening again: forcing `.withRenderingMode(.alwaysOriginal)` here
-        // changed nothing, and the "system tints an opaque bitmap into a
-        // square silhouette" story was falsified outright by a plain SwiftUI
-        // symbol rendering in full colour in the same slot.
-        if let selected = SelectedIconHandoff.load() {
-            return selected
-        }
-        if let image = UIImage(named: "AppIcon60x60", in: Bundle.main, compatibleWith: nil) {
-            return image
-        }
-
-        let containerAppURL = Bundle.main.bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        if let appBundle = Bundle(url: containerAppURL),
-           let image = UIImage(named: "AppIcon60x60", in: appBundle, compatibleWith: nil) {
-            return image
-        }
-
-        return nil
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func ifLet<T, Content: View>(_ value: T?, transform: (Self, T) -> Content) -> some View {
-        if let value {
-            transform(self, value)
-        } else {
-            self
-        }
-    }
-}
+// #250F (2026-08-11): `HermesBrandIcon` and the `ifLet` View helper moved
+// out of this file to `Shared/HermesBrandIcon.swift` so `TalariaTests` can
+// reach `HermesBrandIcon.redrawn(_:at:)` (bar 250F-A). `Shared/` compiles
+// into the app AND this extension, so nothing about what this widget draws
+// changed — see that file's header for the whole reason.
 
 struct HermesLiveActivity: Widget {
     var body: some WidgetConfiguration {

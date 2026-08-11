@@ -93,6 +93,7 @@
 		22F2CE9F8A34E0C2D6622CD4 /* DeviceLocationProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E331A6A95B8F14DCD79B956 /* DeviceLocationProviderTests.swift */; };
 		22F48F91FF6426E5A751032B /* ChartSpecTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 481E7932F34BD96E19482B68 /* ChartSpecTests.swift */; };
 		23BDB5F7E650A9858DBDCCBC /* IconPreview-AutumnHarvest.png in Resources */ = {isa = PBXBuildFile; fileRef = 058B8D699AF44F536D6AD863 /* IconPreview-AutumnHarvest.png */; };
+		24042E96E19518EC6DB49654 /* HermesBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85363AC73A2D535ED9B2ADDC /* HermesBrandIcon.swift */; };
 		247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */; };
 		24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */; };
 		24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */; };
@@ -261,6 +262,7 @@
 		784723436D764DC29E45E022 /* AppEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC4169ED78CE4C1D595AEB4 /* AppEntry.swift */; };
 		7913C0DD2BC82A52A672C650 /* HealthQueryCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF2F27035982B50A41364B24 /* HealthQueryCore.swift */; };
 		7A0465D2B0D5174B24DA77D9 /* LocationServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 213FC95107A5372F98363C1B /* LocationServiceProtocol.swift */; };
+		7B17D223032DE8ABA102CBDB /* HermesBrandIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85363AC73A2D535ED9B2ADDC /* HermesBrandIcon.swift */; };
 		7B5BEC5E4D34AF13634F687A /* ShareExtensionConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69E5B7A33B613AA64CF8495B /* ShareExtensionConfigTests.swift */; };
 		7D1E913B92F72BB1BD6CB6C6 /* ResilientHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */; };
 		7D594381366A01A69E246F06 /* Icon-AutumnHarvest@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 45A00D780AC82DFD56C2E7B6 /* Icon-AutumnHarvest@2x.png */; };
@@ -511,6 +513,7 @@
 		F27E5034CD34A735DE65FB9A /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
 		F2969766D6DC6CC091C7ADC2 /* SubsystemHero.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C9D8DBBA9993CD9C037B997 /* SubsystemHero.swift */; };
 		F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2D99D44859390A04BE71DF5 /* IPadAdaptationTests.swift */; };
+		F359407C861A4FD4363468A8 /* HermesBrandIconRedrawTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */; };
 		F3FD47CEF18E418FE942DC8B /* IconPreview-DeepField.png in Resources */ = {isa = PBXBuildFile; fileRef = B6A3FBA7A6250BBC0DA91EEB /* IconPreview-DeepField.png */; };
 		F4A9033B8674DE5B87C9EF71 /* TaskDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24AAADA601692857BDEEE1D /* TaskDetailScreen.swift */; };
 		F4C65399424290F068B8AA0E /* HostApprovalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32FBE88A2B3C7F579C6B5119 /* HostApprovalStore.swift */; };
@@ -784,6 +787,7 @@
 		5CC442FAC645EDA27FDC1937 /* IconPreview-CerealBox.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-CerealBox.png"; sourceTree = "<group>"; };
 		5CE6B0DE5CE1DCD32DA50DFA /* AppLockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockTests.swift; sourceTree = "<group>"; };
 		5EB471468F064EE7016C31FE /* TypingDotsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingDotsView.swift; sourceTree = "<group>"; };
+		5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBrandIconRedrawTests.swift; sourceTree = "<group>"; };
 		5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceTranscriptTests.swift; sourceTree = "<group>"; };
 		601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLArtifactSandboxTests.swift; sourceTree = "<group>"; };
 		6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-AutumnHarvest@3x.png"; sourceTree = "<group>"; };
@@ -873,6 +877,7 @@
 		843DA9094BCC14595B48C63B /* TalariaWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		845B6DA6FF0FBFDBF28567B8 /* TalariaShare.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = TalariaShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		85291A40EB53DE9F648C706C /* IconPreview-SummerSolar.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-SummerSolar.png"; sourceTree = "<group>"; };
+		85363AC73A2D535ED9B2ADDC /* HermesBrandIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBrandIcon.swift; sourceTree = "<group>"; };
 		8549D5DC5D745742DEFC60A2 /* MarkdownContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownContentView.swift; sourceTree = "<group>"; };
 		868A61E73986789BE64640CA /* ThrowawayLiveActivityHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThrowawayLiveActivityHarness.swift; sourceTree = "<group>"; };
 		869D148C883D52BB5E962609 /* IconPreview-EventHorizon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-EventHorizon.png"; sourceTree = "<group>"; };
@@ -1280,6 +1285,7 @@
 				7E2D7B9075DF8CC3420C70D7 /* GatewayModelCatalogTests.swift */,
 				F11D4C7D5673FB21C2B22C40 /* GenUISchemaTests.swift */,
 				D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */,
+				5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */,
 				E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */,
 				88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */,
 				601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */,
@@ -2007,6 +2013,7 @@
 			children = (
 				95FD288A6B4D5EDE15F442C8 /* ControlHandoff.swift */,
 				DF2F27035982B50A41364B24 /* HealthQueryCore.swift */,
+				85363AC73A2D535ED9B2ADDC /* HermesBrandIcon.swift */,
 				372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */,
 				5ABF6ED023952DF5A80472D3 /* SelectedIconHandoff.swift */,
 				89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */,
@@ -2418,6 +2425,7 @@
 				01E7964E5A2DA7BD52A79C60 /* HealthServiceProtocol.swift in Sources */,
 				3FC3D32BA5FCC6C051BE137C /* HermesActivityAttributes.swift in Sources */,
 				CA65B8819B1619503577C599 /* HermesAvatar.swift in Sources */,
+				7B17D223032DE8ABA102CBDB /* HermesBrandIcon.swift in Sources */,
 				9B5AE2A8D1A093106533F2C2 /* HermesClientProtocol.swift in Sources */,
 				AAEDBF19E4264B3B49075B06 /* HermesControlIntents.swift in Sources */,
 				DDB23DA5189F6958AF5296B0 /* HermesHostServiceProtocol.swift in Sources */,
@@ -2674,6 +2682,7 @@
 				062B015021677D136F335948 /* GenUISchemaTests.swift in Sources */,
 				EA081E6354B7FCAAF6CFC487 /* HTMLArtifactSandboxTests.swift in Sources */,
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
+				F359407C861A4FD4363468A8 /* HermesBrandIconRedrawTests.swift in Sources */,
 				C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */,
 				9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */,
 				F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */,
@@ -2758,6 +2767,7 @@
 				E3DA756A2AB06C9A31D6C098 /* ControlHandoff.swift in Sources */,
 				7913C0DD2BC82A52A672C650 /* HealthQueryCore.swift in Sources */,
 				64A437D1EC52FCC006035BD9 /* HermesActivityAttributes.swift in Sources */,
+				24042E96E19518EC6DB49654 /* HermesBrandIcon.swift in Sources */,
 				C7A757A4E2566A5754F04D21 /* HermesBriefingWidget.swift in Sources */,
 				4BB52E0CCE60FA2B2FC1062F /* HermesControlIntents.swift in Sources */,
 				2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */,
