@@ -2919,7 +2919,29 @@ for text that IS present). Hand-launched / uncorded → after the fact,
 UDID; Owen pastes), then grep. Read once at `oslogSeverity: ["all"]` — #198B's
 `fault` hides under `default`.
 
-### V1 · #302-A/B — is the microphone live behind App Lock? · **[Group 8 shape (Control Center, leaving the app); flip App Lock on during Group 3's Settings trip]**
+### V1 · #302-A/B — is the microphone live behind App Lock? · ~~**[Group 8 shape (Control Center, leaving the app); flip App Lock on during Group 3's Settings trip]**~~ **🚨 RAN 2026-08-10 (Owen, build 2484 Release, corded). ANSWER: YES — 302-B FAILED. DO NOT RE-RUN; the verdict and full evidence live at `OPEN_ITEMS.md` #302, and the non-voice half is filed as #323.**
+
+> **RESULT SUMMARY (the authority is #302's RESULT block, not this row).**
+> Mic HOT for **34.92 s** while `cover=locked locked=true`, going hot **3.87 s
+> before** the user cancelled the biometric — so the cancel did not open the
+> window, it was already open. A **second, unplanned reproduction** in the same
+> corpus went hot **820 ms before App Lock began evaluating at all**. Arm (a)
+> came back green only because Face ID resolved 470 ms faster than the audio
+> engine started: **a footrace, not a gate** — the voice path never consults
+> lock state (grep finds `AppLock` in `NativeVoicePipelineService` only inside
+> comments). The engine was `native` in every episode, so no trial was VOID.
+> **This row's own two-subsystem warning earned its keep**: the verdict is the
+> intersection of `org.aethyrion.talaria` capture lines with
+> `org.aethyrion.talaria27` AppLock lines, and either filter alone shows
+> nothing wrong.
+>
+> **The sitting STOPPED here, per this row's own instruction.** Phase B
+> (Debug install → R13/R12/R2) was staged and not run.
+>
+> **First thing on the next corded sitting, before anything else:** is Control
+> Center's "Talk to Hermes" reachable from the **device** lock screen (passcode
+> never entered)? Every measurement above had the device unlocked and only the
+> APP locked. That one check sets #323's blast radius. **~30 seconds.**
 
 **This is a CONTRACT-COMPLIANCE measurement, not an exploration.** 302-C was
 **RULED by Owen 2026-08-10: defer-until-unlock**, and it is today's felt flow

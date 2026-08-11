@@ -167,7 +167,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** …
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
-- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 302-C RULED 2026-08-10 (defer-until-unlock) + the capture-chain instrument shipped in PR #300; 302-A/B are a compliance measurement now, device row §V1**
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. FIX OWED, not built (design change, needs his go). Twin filing #323 carries the non-voice half**
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen — **✅ INVESTIGATED + FIX MERGED 2026-08-10 (PR #300, `179d506`): the trap is NOT device-only (that recorded claim is falsified), the site is `ensureSpeechAuthorization()`'s completion closure, and the discriminator is authorized-vs-notDetermined. OPEN only for 301-C's negative control — device row §V2 (fresh install) or the queued sim re-run**
 - **#300** 🐛 `lane-gate.sh`'s failure advice misdiagnoses a Swift Testing failure WITH assertion text as an XCUITest flake WITHOUT one, and cites **#164, which is CLOSED** — following it literally reopens a closed item under a wrong diagnosis and re-rolls a real failure as noise. The discriminator it needs (presence of assertion text) is already in its own text
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
@@ -186,6 +186,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#319** 🐛 XcodeGen derives the wrong product name on every regen — do NOT pin; NOT STARTED
 - **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix; NOT STARTED
 - **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD) — lane ungated, NOT STARTED, bars pre-register in the entry**
+- **#323** 🐛 🚨 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. Severity question still open — is Control Center's "Talk to Hermes" reachable from the DEVICE lock screen? One 30-second check, and it decides the blast radius**
 - **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292); NOT STARTED, bars pre-register in the entry**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#296** 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed
@@ -5204,7 +5205,7 @@ local substitution — cited here to note this is *not* an instance of it).
 > Until 303-A runs, the fail-safe reading stays live and nothing above is a
 > defect confirmation.
 
-## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question. ~~NOT INVESTIGATED. NOT STARTED~~ → 302-C RULED 2026-08-10 (Owen: DEFER-UNTIL-UNLOCK is the contract) and the #302-A capture-chain instrument SHIPPED in PR #300 — so 302-A/B are now a COMPLIANCE measurement against a stated requirement, runnable as device row §V1. Header corrected 2026-08-10.**
+## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. FIX OWED — not built; the fix is a design change and rides Owen's go.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -5220,6 +5221,89 @@ local substitution — cited here to note this is *not* an instance of it).
 > one that can still surprise.
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 1 = this item, runs FIRST).** Note recorded there: bar 302-B's "trivially arranged while #272 is unfixed" fixture is STALE — #272 closed 2026-08-09; the locked interval is now held open via the fixed Cancel-then-UNLOCK-button state.
+
+### 🚨 RESULT 2026-08-10 — RUN ON DEVICE, BAR 302-B **FAILED**. THE MICROPHONE IS LIVE BEHIND APP LOCK, AND 302-A's PASS IS A RACE.
+
+**Owen ran device row §V1 on `whoGoesThere` (iPhone 17 Pro Max, iOS 27.0),
+build 2484 (`main` @ `75e5e08`, Release OTA — the production build, chosen
+over a Debug install precisely because this bar is a timing question).
+Setup as pre-registered: App Lock ON / grace Immediately, brain On-Device,
+network up. Evidence: `log collect --device-udid` archive, 439 app-subsystem
+lines, mined across BOTH subsystems per §V's warning.** Owen's own words
+before any log was read: *"On the lock screen, it can hear me. and respond.
+When I unlocked, it had everything we discussed there."* The log agrees, to
+the millisecond.
+
+**The engine is `native` in every episode — no trial is VOID.**
+
+**302-B — 🛑 FAILED. Verbatim, arm (b):**
+```
+19:30:46.426  VoiceEngineRouter    voice session starting on engine native (relayPaired=true)
+19:30:46.535  NativeVoiceCapture   audio session activated for capture (#302-A)
+19:30:47.010  AppLock              scenePhase background -> active | pre: cover=locked locked=true
+19:30:47.038  AppLock              requestUnlock ENTER attempt=1
+19:30:47.212  NativeVoiceCapture   capture chain HOT — AVAudioEngine.isRunning=true inputTap=installed (#302-A)
+19:30:51.086  AppLock              requestUnlock EXIT attempt=1 result=FAILED_OR_CANCELLED didFail=true
+19:31:22.131  AppLock              requestUnlock EXIT attempt=2 result=SUCCESS (episode ends, counter reset)
+19:31:36.543  NativeVoiceCapture   capture chain COLD — AVAudioEngine.isRunning was=true now=false
+```
+**The microphone was HOT for 34.92 s while `cover=locked locked=true`** —
+and it went hot **3.87 s BEFORE the user cancelled** the biometric, so the
+cancel is not what opened the window; the window was already open.
+
+**302-A — GREEN, and the number says why that is worthless as reassurance:**
+```
+19:29:23.741  voice session starting on engine native
+19:29:23.899  audio session activated for capture (#302-A)     ← already cover=locked
+19:29:24.322  requestUnlock ENTER attempt=1
+19:29:24.930  requestUnlock EXIT attempt=1 result=SUCCESS       ← Face ID took 608 ms
+19:29:25.400  capture chain HOT                                 ← 470 ms LATER
+```
+**Nothing deferred the capture chain. Face ID simply won a footrace by
+470 ms.** The audio engine needed ~1.66 s from session start; the unlock
+happened to resolve in ~1.19 s. A slower Face ID, a colder start, a second
+attempt — any of these flips 302-A red too. **Recording 302-A as "PASS" without
+this sentence would be the most misleading true statement in the tracker.**
+
+**A SECOND, UNPLANNED REPRODUCTION in the same corpus (episode 3, 19:31:40),
+and it is worse:**
+```
+19:31:40.799  capture chain HOT — isRunning=true inputTap=installed
+19:31:41.619  AppLock  requestUnlock ENTER attempt=1        ← 820 ms AFTER the mic went hot
+19:31:45.791  AppLock  requestUnlock EXIT result=FAILED_OR_CANCELLED
+19:32:11.853  AppLock  requestUnlock EXIT attempt=2 result=SUCCESS
+```
+Here the microphone was live **before App Lock began evaluating at all**, and
+stayed live across another cancel and a ~31 s hold. Two independent
+reproductions, one run.
+
+**MECHANISM — read, not inferred. App Lock is a UI COVER and nothing else.**
+`AppLockWindowPresenter` (`AppLockOverlayView.swift:17-44`) presents an
+opaque `UIWindow` above every presentation layer — its own doc comment says
+so, and that design was correct for what it was solving (#124's sheets/alerts
+hole). **But no non-UI subsystem consults lock state.** A recursive grep of
+the voice path finds the string `AppLock` in `NativeVoicePipelineService`
+**only inside comments** about correlating log lines (`:997`, `:1166`), and
+not at all in `VoiceEngineRouter`. There is no gate to be late — there is no
+gate. `scenePhase` goes `.active` while `cover=locked`, and everything keyed
+on `.active` proceeds.
+
+**Consequence, stated plainly:** anyone holding the phone can reach Control
+Center → "Talk to Hermes" → cancel Face ID → and hold a working conversation
+with an assistant that has tool access, with the turns committing to the
+transcript. **App Lock's entire purpose is to prevent that.**
+
+**FIX NOT BUILT.** The row's instruction is stop-and-file, and the fix
+("defer session start behind the unlock") is a design change to the Control
+Center flow Owen described as his felt flow — it needs his go and its own
+bars. **Bars pre-register here before any code**, and the fix's bar must
+close the RACE, not the arm: a green 302-A that still depends on Face ID
+winning is not a fix.
+
+**Scope note:** the locked-interval evidence also shows a full inference turn
+and the whole sensor pipeline running behind the cover. That is broader than
+this item's microphone question and is filed separately as **#323** rather
+than absorbed here.
 
 **Observed** on build 2330 (`main` @ `6b71872`, Release OTA), `whoGoesThere`,
 iOS 27.0, while running #254's native arm. App Lock was enabled with grace
@@ -6538,6 +6622,91 @@ mid-session engine change if one ever becomes possible.
 belongs to).
 
 ---
+
+## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. NOT STARTED; bars pre-register here before any code.**
+
+**How it was found.** #302's bar 302-B asked one question — is the *microphone*
+live behind App Lock — and the answer was yes (see #302's RESULT block). Mining
+the same locked interval for the six pre-registered evidence lines surfaced
+everything else that ran alongside them. This entry is that remainder. It is
+filed separately rather than folded into #302 because #302's bars, ruling and
+fix are all scoped to the capture chain, and a fix that defers *voice* start
+behind the unlock would close #302 while leaving every line below untouched.
+
+**The locked interval, `whoGoesThere` build 2484, 19:30:47.010 → 19:31:22.131
+(34.9 s, `cover=locked locked=true` throughout, biometric CANCELLED at
+19:30:51.086):**
+
+```
+19:30:47.204  SensorUpload       captureHealth: collectSnapshot returned nil (auth=authorized)
+19:30:48.203  SensorUpload       📍 location update: (30.559249, -89.160568) accuracy=9.747997
+19:30:48.282  SensorUpload       captureHealth: got 2 samples — <private>
+19:30:49.370  SensorUpload       🏃 activity update: code=0
+19:31:03.831  SensorUpload       upload device/sensor/location: error — <private>
+19:31:19.063  ChatBackendRouter  sendStreaming routed to on-device
+19:31:21.253  SensorUpload       drain: health chunk (100 of 292 pending) → failed
+19:31:21.657  LocalChatBackend   router: turn routed toolless cap=false ctx=prior-turn img=false (#207)
+19:31:22.395  ChatBackendRouter  run finished on on-device [stream-ended] — routing lock released (#192)
+```
+
+**Three distinct facts, each worse than the last:**
+
+1. **A COMPLETE INFERENCE TURN ran behind the cover** — routed, executed and
+   finished (`sendStreaming` → `turn routed` → `run finished [stream-ended]`),
+   and the transcript kept it: Owen found the whole conversation waiting when
+   he unlocked. The lock did not defer the turn, queue it, or discard it.
+2. **The sensor pipeline collected personal data behind the cover** — precise
+   GPS (±9.7 m), health samples, and motion-activity updates, all while
+   `locked=true`. `handleAppDidBecomeActive` fires off `scenePhase == .active`,
+   which App Lock does not suppress.
+3. **It tried to EXFILTRATE that data behind the cover, and only luck stopped
+   it.** The outbox drained: `upload device/sensor/location` and
+   `drain: health chunk (100 of 292 pending)`. **Both failed — because Owen had
+   the OJAMD gateway deliberately switched off for unrelated reasons.** With
+   the host up, a locked app would have shipped location and health to it. **A
+   protection that depends on the user's server happening to be down is not a
+   protection**, and the failing uploads are the only reason this reads as a
+   near-miss instead of an incident.
+
+**MECHANISM — the same one-line root cause as #302, which is why they are
+twins rather than duplicates.** App Lock is an opaque `UIWindow` over the
+screen (`AppLockOverlayView.swift:17-44`). It never changes `scenePhase`,
+never pauses a store, never gates a service. Every subsystem keyed on
+`.active` — voice, sensors, chat — proceeds exactly as if the user were
+looking at the app. **`cover=locked` and "the app is active" are simultaneously
+true, and only the first is visible to the user.**
+
+**Why this is not simply "the app works in the background."** iOS background
+execution is a *system* decision the user can reason about. This is the app
+telling itself it is foreground-active while presenting a lock screen that
+says otherwise. The user's model — "my data is behind Face ID" — is exactly
+inverted for every non-UI subsystem.
+
+**Open questions for the fix lane (design, and Owen's to rule):**
+(a) does App Lock become a real gate (a state every subsystem consults) or do
+individual subsystems each defer — the former is one mechanism and one bar,
+the latter is N mechanisms and N ways to miss one; (b) what happens to work
+IN FLIGHT when the cover drops mid-turn — abandon, hold, or let it finish;
+(c) does a locked app queue sensor samples for later upload or drop the
+window entirely; (d) is the transcript written during a locked interval kept,
+discarded, or held (today it is kept, silently).
+
+**⚠️ THE SEVERITY QUESTION THAT IS NOT YET ANSWERED, and it needs the phone:**
+whether Control Center's "Talk to Hermes" is reachable **from the iOS lock
+screen** — i.e. with the *device* passcode never entered. Every measurement
+above was taken with the device unlocked and only the APP locked. If the
+control is reachable from the device lock screen, the blast radius is not "a
+person holding your unlocked phone" but "a person holding your phone", and
+this item's priority changes accordingly. **Do not assume either answer** —
+it is one 30-second check on the next corded sitting, and it is the first
+thing that sitting should do.
+
+**Cross-references:** **#302** (the microphone half, same root cause, same
+run), **#124** (the reason the cover is a dedicated window — that design is
+sound and is not what failed), **#272** (the App Lock re-prompt loop, fixed
+2026-08-09 — unrelated defect, same subsystem), **#223** (the sensor plane is
+on the deletion path, which is context for how much to invest in fixing its
+half rather than deleting it sooner).
 
 ## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). NOT STARTED; bars pre-register here before any code.**
 
