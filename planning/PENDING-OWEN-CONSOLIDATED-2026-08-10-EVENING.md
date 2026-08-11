@@ -51,6 +51,27 @@ code.
 - **#257 vision line** — add image reading to the deterministic block + 3a
   sheet, with the "when you attach a photo" caveat. Small; bars in the entry.
 
+> **➡️ UPDATE, 2026-08-10 ~23:00 — PHASE B IS PARTLY RUN. Two of its three
+> rows are done, and two of §3's stated blockers were already stale when
+> this file was written.** The phone was **LAN-reachable** (`devicectl`
+> `Transport Type: localNetwork`), so no cord was needed — a Debug build
+> went on over OTA 2484 via the Xcode bridge. And **OJAMD's gateway is UP**
+> (`:8642` → `{"status":"ok","version":"0.20.0"}`), so Groups 1 and 2 are no
+> longer blocked.
+> - **R13 → 101-A1 MISSED** (`armed=0/20`, `scored=20/20`, `errors=0`).
+>   **Shape A is dead**; A-2/A-3 do not open. ❓ **one question waiting for
+>   you in #101:** does the item continue as Shape B, or close?
+> - **R2 → 250T-C MISSED, then the cause was found and FIXED the same
+>   sitting.** #250 itself shipped the regression on 2026-08-05. Fix is
+>   device-proven on `t27-250-island-compact-icon`; bars + gate + a re-run
+>   are owed before merge. **The re-scope this looked like it needed is
+>   cancelled — nothing owed from you.**
+> - **R12 is the only Phase B row left**, and the Debug build stays on the
+>   phone, so it is one tap away with no reinstall.
+>
+> Verdicts live at their canonical homes as this file's contract requires:
+> `OPEN_ITEMS.md` #101 and #250, and §R's R13/R2 rows.
+
 ## 3 · Device queue — Phase B is staged and unrun
 
 **Tonight's sitting stopped on purpose.** §V1 ran and FAILED (see §7); the row's
