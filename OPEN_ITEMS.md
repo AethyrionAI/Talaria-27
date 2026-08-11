@@ -6275,7 +6275,7 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
-## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
+## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. ✅ BUILT 2026-08-11 on `t27-320-realtime-indicator` — bars 320-A..D and 320-F MET; **320-E is PREPARED AND QUOTED, NOT PUBLISHED** (the published page is Owen's call — the exact before/after wording is in the RESULT block). `GATE: PASS`, 2103 → **2116 tests / 161 suites** (+13). NOT MERGED, no PR — awaiting review. See the RESULT block after the bars.**
 
 **The ruling this implements:** the public copy (#140's lane) becomes "no
 Talaria-operated cloud; realtime voice uses your host's provider," and the
@@ -6342,6 +6342,221 @@ not a mechanism.**
   this part of the lane, not a follow-up. #140's copy half is cross-checked in
   the same commit.
 - **320-F — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved.
+
+---
+
+> **✅ RESULT — BUILT 2026-08-11 on `t27-320-realtime-indicator` (worktree
+> `.claude/worktrees/lane-320`, branched from `main` at `024926f`). Bars
+> 320-A, 320-B, 320-C, 320-D and 320-F MET. Bar 320-E is PREPARED AND
+> QUOTED, NOT PUBLISHED — that is a deliberate departure from the bar as
+> written and the reason is recorded below rather than reinterpreted. NOT
+> MERGED, no PR.**
+
+**What shipped.** `Talaria/Features/Talk/RealtimeVoiceIndicator.swift` (new):
+`RealtimeVoiceNotice` — a `nonisolated` pure derivation plus the copy
+constants — and `RealtimeVoiceIndicator`, the badge. Wired into
+`VoiceOverlayScreen.header` directly beneath #18's existing
+`LOCAL VOICE · ON-DEVICE PIPELINE` badge; the two are mutually exclusive by
+construction because they read the same single engine stamp. One production
+change outside the new file (`VoiceEngineRouter.snapshot`), forced by a defect
+found while wiring 320-B and described under that bar. Tests:
+`TalariaTests/RealtimeVoiceIndicatorTests.swift`, 13 of them.
+
+- **320-A — MET. Both arms, one test.**
+  `realtimeSessionShowsTheIndicatorAndANativeSessionDoesNot()` runs the same
+  stack twice, differing in exactly one input (whether the brain permits
+  realtime when the router is built): the realtime arm asserts the realtime
+  engine got the start, `store.voiceEngine == .realtime`, and `isArmed`; the
+  native arm asserts the mirror image and `!isArmed`.
+  `theDerivationIsAPureFunctionOfEngineAndConnectionState()` additionally
+  sweeps all 21 (engine × connection-state) cells including the `nil` engine,
+  so "always on" and "always off" both fail.
+
+- **320-B — MET, and it cost more than the bar anticipated.** The source is
+  `TalkSessionSnapshot.engine`, the #180 lane 180-L provenance stamp, read
+  through `TalkStore.voiceEngine`. Never the brain, never
+  `VoiceEngineRouter.activeEngine`, never a copy constant.
+  `indicatorReadsTheEngineNotTheBrainOnTheColdLaunchShape()` reproduces #303
+  end to end — brain `.onDevice` at `init`, flipped to `.hermes` before the
+  start, no upgrade path — and asserts the session runs native, that the brain
+  now reads as permitting realtime, and that the indicator **stays dark
+  anyway**.
+  - **A real defect was found under this bar and is fixed in the same
+    commit.** `LiveVoiceSessionService` never stamps its own snapshots
+    (`NativeVoicePipelineService:71` is the only producer that ever has), so
+    on the realtime path the engine reached the store **only** through the
+    event stream — while `TalkStore` also pulls `voiceService.snapshot`
+    directly at every decision point (`startSession`, `toggleMute`,
+    `interruptAssistant`, `endSession`) and writes the result over it. Each of
+    those wrote `voiceEngine = nil` on a live realtime session, so the header
+    — and, as first drafted, this indicator — blinked out until the engine
+    next happened to publish. **A privacy signal whose truthfulness depends on
+    how chatty the engine is does not satisfy this bar.**
+    `VoiceEngineRouter.snapshot` now stamps provenance when the active service
+    is actually driving (`.connecting`/`.connected`), and never overwrites a
+    self-stamp. 180-L's rule is intact and pinned:
+    `aPreSessionSnapshotStillNamesNoEngine()` asserts the init guess still
+    reaches nothing in every pre-session state. The defect itself is pinned by
+    `theIndicatorSurvivesAMidSessionPullOfTheSnapshot()`.
+  - **✅ RED→GREEN WITNESSED 2026-08-11 on a quiet box.** An earlier attempt
+    stalled at test-host launch under load and was killed rather than left to
+    hang, so this entry briefly said the pin was argued from mechanism; that
+    is now discharged by observation. With `VoiceEngineRouter.snapshot`
+    reverted to `{ active.snapshot }` and nothing else changed, the suite went
+    **13 tests / 5 issues / FAILED**, and the failures name the defect
+    directly:
+    ```
+    ✘ theIndicatorSurvivesAMidSessionPullOfTheSnapshot()
+        :256  Expectation failed: stack.store.voiceEngine == .realtime
+        :262  Expectation failed: stack.store.voiceEngine == .realtime
+        :264  Expectation failed: RealtimeVoiceNotice.isArmed(
+                  engine: stack.store.voiceEngine,
+                  connectionState: stack.store.connectionState)
+    ✘ realtimeSessionShowsTheIndicatorAndANativeSessionDoesNot()
+        :156  Expectation failed: realtimeStack.store.voiceEngine == .realtime
+        :157  Expectation failed: RealtimeVoiceNotice.isArmed(…)
+    ```
+    Restoring the stamp (`git status` clean against the committed tree, so the
+    restore is byte-identical and not a re-typing) returned **13 tests in 1
+    suite passed, 0 issues, `** TEST SUCCEEDED **`**.
+    - **One infra note, because it would otherwise read as a flaky pin.** The
+      first restore run reported `** TEST FAILED **` with **zero tests
+      executed, zero issues and no assertion text** — *"Talaria 27 (12252)
+      encountered an error (The test runner hung before establishing
+      connection.)"* — on a box at load 2.65 with memory free, i.e. **not** the
+      SIGKILL-under-pressure shape seen during the gate. A `simctl shutdown` +
+      `boot` of the lane sim (and a TCC re-grant, since #254 says the grants do
+      not survive a reboot) cleared it and the very next run passed. Recorded
+      because "TEST FAILED with no test having run" is a third distinct
+      infrastructure signature — distinct from the gate's bootstrap SIGKILL and
+      from a real assertion — and all three have now been seen in this lane.
+  - **The RED sharpened the defect's description, so the text above is
+    corrected here rather than left flattering.** `:256` is the assertion
+    taken **immediately after `startSession()`, before any mute** — so without
+    the stamp the store does not merely *lose* the engine on a later pull, it
+    **never learns it at all** on the realtime path when no event lands
+    between the start and the pull. "Blinked out until the engine next
+    happened to publish" was the mild reading; the measured one is that the
+    pull path alone never had it.
+  - **The RED is also SPECIFIC, which is the other half of a good pin.** The
+    5 issues fell in exactly 2 tests, so **11 of 13 stayed green** in the
+    reverted state, including
+    `aPreSessionSnapshotStillNamesNoEngine()` (180-C's guard, which must hold
+    in both states) and the native arm of 320-A. Only the two tests that
+    depend on realtime provenance moved.
+
+- **320-C — MET.** Fixed at session start, and the surface says so
+  (`FIXED FOR THIS SESSION` in the visible copy, "set when the session
+  started" in the VoiceOver label — pinned by
+  `theCopySaysTheChoiceIsFixedForTheSession()`). The structural guarantee is
+  that within a session the engine can only move `realtime → native`
+  (`refreshReadiness()` returns early under an active session,
+  `startSession()` has only a downgrade branch), so the indicator **can never
+  ARM after a start**; `aLiveNativeSessionCannotBeUpgradedToRealtimeByARefresh()`
+  pins that half. It is deliberately a live derivation and **not** a value
+  latched at start: `theIndicatorClearsWhenARealtimeStartFallsBackToLocalVoice()`
+  shows that a latch would keep claiming cloud audio through the #247 B1
+  fallback, on a session that had become local. The pip does not blink, for
+  the same reason — a pulse reads as live monitoring of something that could
+  change.
+
+- **320-D — MET, after the measurement overturned the first design.**
+  VoiceOver: `theVoiceOverLabelStatesTheConsequenceNotJustTheEngineName()`
+  requires "audio", "leaves this phone" and "provider configured on your
+  host", then re-checks that the consequence survives deleting the word
+  "realtime" from the label. Theme:
+  `theIndicatorTextIsLegibleInEveryThemeIncludingPaperTape()` sweeps every
+  `ThemeID × AccentSlot` for a real WCAG 2.1 contrast ratio against the
+  theme's own background at the AA normal-text threshold of 4.5:1.
+  - **The first draft used `forge`, matching the LOCAL VOICE badge, and the
+    sweep killed it.** Measured 2026-08-11 on the whole catalogue: `forge`
+    against background is **2.18:1** at worst (`springSprout`, and `pulpNoir`
+    on cyan/violet), 2.52 (`retroSciFi`), 2.54 (`winterFrost`) — under even
+    the 3.0:1 *non-text* threshold in four themes, and under AA text contrast
+    in roughly half the catalogue. `foregroundBright` never drops below
+    **10.99:1** (`casinoLucky7s`) and is typically 16–20:1. So the badge's
+    TEXT takes `foregroundBright` and the `forge` alert hue is carried by a
+    5pt pip. **Paper Tape — the theme the bar names — passes either way
+    (3.85–4.37:1 on forge); the failures were in themes nobody had thought to
+    check.**
+  - **The token itself is a design-system question and is NOT this lane's to
+    answer.** `forge` is the colour of shipping 9pt warning text the user is
+    meant to read (the LOCAL VOICE badge, the overlay's `blockedReason` and
+    #84 mic-health hint, several `VoiceSettingsScreen` rows). Raising it means
+    editing curated per-theme hues in `ThemePaletteCatalog` and is Owen's
+    call. **It is being filed as its own tracker item by a separate session
+    (orchestrator, 2026-08-11); this lane records the measurement and stops.**
+    The number is pinned here by
+    `theWarningTokenIsNotLegibleEnoughForThisBadgeInEveryTheme()`, which will
+    fail — deliberately — the day the token is fixed, at which point this
+    badge can go back to the warning hue.
+
+- **320-E — PREPARED AND QUOTED, NOT PUBLISHED.** The bar says the published
+  page is re-published in this lane. The lane stops one step short instead, on
+  the standing rule that outward-facing changes need Owen's read of the exact
+  text plus an explicit go. Both edits exist and are committed to the branch,
+  which publishes nothing — GitHub Pages serves `docs/` from `main`.
+  - `docs/privacy.html`, Voice section — sentence **ADDED** after "This is off
+    unless you configure it yourself on your own server.":
+    > *"When a voice session is running on that realtime engine, the app shows
+    > an indicator on the voice screen for the whole session, so you can tell
+    > at the time that your audio is leaving the phone."*
+
+    Scoped to "the voice screen" deliberately: that is where the badge lives,
+    and the Live Activity does not carry it. The 2026-08-10 near-miss recorded
+    above was a sentence written from this item's *intent*; this one is
+    written from its state.
+  - `docs/index.html:86` — the #140 copy half, cross-checked and found **not
+    yet done**. BEFORE: *"No cloud. No relay you don't own."* AFTER: *"No
+    Talaria-operated cloud. No relay you don't own. (Realtime voice, if you
+    turn it on, uses the provider you configured on your own host — and the
+    app says so on screen while it runs.)"*
+  - **Neither page is published, pushed, or deployed.** 320-E is scored as
+    prepared, not as met, until Owen approves the wording.
+
+- **320-F — MET, on the second run, and the first run's failure is reported
+  rather than laundered.** Verbatim:
+  `GATE: PASS — logs in /var/folders/0z/b07gxktx30s5cm8506x55py40000gn/T/talaria-gate.Idr9ZEWjBq`
+  — all nine checks PASS, **Swift Testing 2116, XCUITest 14**, Release build
+  succeeded. Count **2103 / 160 suites → 2116 tests / 161 suites** (+13, this
+  lane's suite). Command:
+  `TALARIA_SIM_NAME=CC-320-iPhone-Air scripts/mac/lane-gate.sh`, on `43cc521`.
+  - **The first run of the same commit was `GATE: FAIL (5 checks)`, and it was
+    host load, with a discriminator rather than a hunch.** Both processes died
+    identically: *"Talaria 27 (6129) encountered an error (Early unexpected
+    exit… Test crashed with signal kill while preparing to run tests)"* and the
+    same line for `TalariaUITests-Runner (6532)`. **SIGKILL during bootstrap,
+    before either runner started — so zero tests executed, no assertion text,
+    and no count line for EITHER framework** (which is why the gate reported
+    five failures rather than a test name). Measured at that moment: load
+    averages **31.02 / 117.65 / 103.02**, swap **4.36 GB of 5.12 GB used**,
+    **~79 MB of free RAM** (4,349 free 16 KB pages). The Release build passed
+    on the same tree in the same run, which is the other half of the
+    discriminator: a product defect does not spare the Release compile and kill
+    two unrelated processes at bootstrap. Re-run at load **7.65** on the
+    identical commit: PASS. Failing log kept at
+    `/var/folders/.../talaria-gate.aQjJt26Z4G/suite.log`.
+
+**Two things the bars did not anticipate, recorded so the next reader does not
+re-derive them:**
+
+1. **The 2026-08-01 instrument's engine name is the PRE-GATE pick.** This
+   entry's design note says the signal source already exists because
+   `voice session starting on engine …` names the engine at session start. It
+   does — but that line is logged in `VoiceEngineRouter.startSession()`
+   **before** the #221 last-line-of-defence downgrade that follows it, so a
+   session that runs native can be preceded by a line naming realtime. The
+   correcting line (`brain … forbids realtime voice — starting native
+   instead`) fires immediately after, so the RECORD is honest and #198A's "say
+   it once, up front, always" is not weakened — but the first value is not
+   authoritative and must not be a UI source. The log line is left unchanged;
+   the caveat is documented in `RealtimeVoiceIndicator.swift`.
+2. **#303's cost is still unmeasured, and this indicator does not measure it —
+   but it does make the defect VISIBLE for the first time.** On a
+   realtime-configured host, a cold Control Center launch will now show no
+   realtime badge while an in-app launch shows one, under identical settings.
+   That difference *is* 303-A/303-B's contrast, readable off the screen
+   instead of out of a log. A free instrument for that lane; not a fix for it.
 
 ## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. NOT STARTED; bars pre-register here before any code.**
 

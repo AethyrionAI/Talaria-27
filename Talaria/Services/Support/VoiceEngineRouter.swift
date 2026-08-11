@@ -167,7 +167,38 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     /// ∧ relay-paired) — stamping it here would put that guess on the overlay
     /// header as a selected engine, which is the exact defect 180-C removes.
     /// `forward(from:engine:)` stamps what actually produced a snapshot.
-    var snapshot: TalkSessionSnapshot { active.snapshot }
+    ///
+    /// **#320: one narrow exception, and it is provenance rather than a guess.**
+    /// `LiveVoiceSessionService` never stamps its own snapshots (only
+    /// `NativeVoicePipelineService` does, `:71`), so on the realtime path the
+    /// engine reached `TalkStore` **only** through the event stream above —
+    /// while `TalkStore` ALSO calls `applySnapshot(voiceService.snapshot)`
+    /// directly at every decision point (`startSession`, `toggleMute`,
+    /// `interruptAssistant`, …). Each of those pulled an unstamped snapshot and
+    /// wrote `voiceEngine = nil` over a stamp the push path had already
+    /// delivered, so a live realtime session's engine blinked out until the
+    /// next event happened to arrive. That was survivable for the header; it is
+    /// not survivable for #320's realtime indicator, whose whole job is to be
+    /// true for the duration of the session rather than most of it.
+    ///
+    /// The guard keeps 180-L's rule intact. It stamps only when the active
+    /// service is **actually driving** (`.connecting`/`.connected`), which is
+    /// the same fact `forward(from:engine:)` publishes — this snapshot came out
+    /// of that service — and it never overwrites an engine the service stamped
+    /// itself. Every pre-session state (`.idle`, `.checking`, `.ready`,
+    /// `.blocked`, `.failed`) still returns UNKNOWN, so the init guess can no
+    /// more reach the header now than it could before.
+    var snapshot: TalkSessionSnapshot {
+        var built = active.snapshot
+        guard built.engine == nil else { return built }
+        switch built.connectionState {
+        case .connecting, .connected:
+            built.engine = activeEngine
+        case .idle, .checking, .ready, .blocked, .failed:
+            break
+        }
+        return built
+    }
     var voiceState: VoiceState { active.voiceState }
     var connectionState: TalkConnectionState { active.connectionState }
     var transcriptItems: [TranscriptItem] { active.transcriptItems }
