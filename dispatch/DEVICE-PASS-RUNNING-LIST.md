@@ -2422,13 +2422,16 @@ against is a *mined phrase*, not a wrong time.
 > size 14) and `:114` (lock screen, size 44) — so the failure is specific to
 > the compact slot, not to the image.
 >
-> **The discriminator is 15 seconds and is still UNRUN:** long-press for the
-> EXPANDED island (same view at size 28, not a compact slot). Colour ⇒
-> system tinting flattens compact/minimal only. Grey ⇒ the app-group
-> `UIImage(data:)` handoff is the suspect, and #250's own feature is what
-> broke the slot. **Run this before any fix is designed** — the two
-> mechanisms need different fixes, and one of them means the feature is not
-> achievable as filed.
+> **✅ THE DISCRIMINATOR RAN, same sitting:** long-pressed the island — the
+> **EXPANDED** region renders the yellow star **in full colour** while the
+> compact slot beside it stays grey. So the handoff image is fine and only
+> the COMPACT presentation flattens it. **The expanded island already
+> satisfies the feature as filed; the compact slot is the whole problem.**
+>
+> Next step is a ~10-minute one-line experiment, not a re-run of this row:
+> `UIImage(data:)?.withRenderingMode(.alwaysOriginal)` in
+> `SelectedIconHandoff.load()` — see #250 for why that specific line, and
+> for the alpha reconciliation that was attempted and failed.
 
 *(original row text follows, kept for the record)*
 

@@ -12793,20 +12793,57 @@ lane opens.
 >    nothing in the app presents, so "preview island" in that filing cannot
 >    mean an in-app surface — it was the real island.)
 >
-> **THE DISCRIMINATOR, cheap and unrun:** long-press for the EXPANDED island
-> (`DynamicIslandExpandedRegion(.leading)`, same `HermesBrandIcon` at
-> `size: 28`, not a compact slot). Colour there ⇒ mechanism 1, and the fix
-> is scoped to compact/minimal. Grey there ⇒ mechanism 2, and the handoff
-> path is the suspect.
+> **✅ THE DISCRIMINATOR RAN THE SAME SITTING — MECHANISM 1, and mechanism 2
+> is FALSIFIED.** Long-pressed for the EXPANDED island: it renders the
+> **yellow star in full colour, with its white background and rounded
+> corners**, at `size: 28` — while the compact slot beside it stayed grey.
+> Same view, same handoff file, same process. **So the app-group image draws
+> perfectly well in the island; only the COMPACT presentation flattens it,
+> and the handoff is exonerated.**
+>
+> **The reconciliation with the 2026-08-04 filing was ATTEMPTED AND FAILED —
+> recorded because it constrains the fix.** The obvious story ("the upstream
+> Hermes art carried alpha, so its silhouette was a recognizable logo shape;
+> ours are opaque squares") is **dead on inspection**: `sips -g hasAlpha` on
+> the pre-#250 primary (`AppIcon.png` at `e10ece4^`) and on today's both
+> report **`no`** — both are fully opaque 1024² squares. Under a pure
+> tint-to-silhouette mechanism the pre-#250 island should have shown a
+> square too, which is not what that filing describes.
+>
+> **The refined hypothesis this leaves, and it predicts a ONE-LINE fix
+> (UNTESTED — do not treat as established):** the system tints the compact
+> slot by honouring the **UIImage's own** `renderingMode`, not SwiftUI's
+> `.renderingMode(.original)` modifier. An **asset-catalog** image (the
+> pre-#250 path, `UIImage(named:)`) can carry *Render As: Original* intent
+> and survives; **`UIImage(data:)` — what `SelectedIconHandoff.load()`
+> returns — is `.automatic`** and gets template-flattened to a silhouette.
+> That reconciles both observations without discarding either, and it names
+> its own experiment: `UIImage(data:)?.withRenderingMode(.alwaysOriginal)`
+> in the handoff loader, rebuild, one tap. If the star appears in compact,
+> the fix is that line; if it stays grey, the compact slot cannot show
+> colour at all and the feature needs the redesign described below.
+>
+> **One caveat on the 2026-08-04 evidence, stated rather than assumed
+> away:** what this entry records is a *description of* a screenshot,
+> written by an earlier session — not the screenshot. This project's own
+> history is full of borrowed facts that did not survive re-reading the
+> artifact. If Owen still has that image, it settles the question outright;
+> until then the filing's claim is the weakest link in the chain above.
 >
 > **What this means for the FEATURE, and it is Owen's call, not a bar
-> redefinition:** if mechanism 1 holds, *"the island wears whatever icon is
-> selected"* **is not achievable as specified** — a tinted slot can never
-> show icon colours, so the honest ceiling is a per-icon **shape** drawn
-> with real transparency (an alpha-carrying glyph), not a bitmap. That is a
-> different feature from the one filed, and it should be re-decided rather
-> than quietly delivered. If mechanism 2 holds, the feature is achievable
-> and simply broken.
+> redefinition.** The expanded island **already satisfies the feature as
+> filed** — it wears the selected icon, in colour, today. Everything at
+> stake is the COMPACT slot, which is the one people actually see. Two
+> outcomes, and the one-line experiment above decides which:
+> - **If the rendering-mode line fixes it:** #250's island half is simply
+>   finished, and 250T-C re-runs as written.
+> - **If it does not:** a tinted slot can never show icon colours, and the
+>   honest ceiling is a **silhouette** — which means an alpha-carrying glyph,
+>   authored per icon if the compact slot must still *distinguish* icons.
+>   Twenty-odd opaque square bitmaps cannot be told apart as silhouettes, so
+>   *"the compact island wears whatever icon is selected"* would be
+>   unachievable and should be **re-decided, not quietly delivered** as one
+>   generic brand mark.
 >
 > **NOT scored as a pass under either mechanism.** 250T-C asks that the
 > leading slot MATCH the selected icon; a grey square matches nothing. The

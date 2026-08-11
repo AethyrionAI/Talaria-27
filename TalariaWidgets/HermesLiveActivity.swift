@@ -42,12 +42,16 @@ struct HermesBrandIcon: View {
         // orb and a bright yellow star produced the identical square while the
         // lock screen rendered each correctly, in colour). The image is fine —
         // one view serves both presentations — so the failure is specific to
-        // the compact slot. Two mechanisms are still live: the system tinting
-        // an opaque bitmap into a silhouette (an app-icon PNG is an opaque
-        // square, so the silhouette IS a square), or this handoff itself,
-        // since the slot rendered recognizable art via UIImage(named:) before
-        // the handoff existed. Do not treat "the island matches the home
-        // screen" as true. See OPEN_ITEMS #250.
+        // the compact slot: the EXPANDED island region renders it correctly
+        // too, so this handoff is exonerated and only the COMPACT presentation
+        // flattens the art, silhouette-style (an app-icon PNG is fully opaque
+        // — verified `hasAlpha: no` — so its silhouette is a square, which is
+        // exactly what the slot shows). Leading hypothesis, UNTESTED: the
+        // compact slot honours the UIImage's OWN renderingMode rather than
+        // SwiftUI's `.renderingMode(.original)` below, and `UIImage(data:)` is
+        // `.automatic` ⇒ template. If so the fix is one line in the loader:
+        // `.withRenderingMode(.alwaysOriginal)`. Do not treat "the COMPACT
+        // island matches the home screen" as true. See OPEN_ITEMS #250.
         if let selected = SelectedIconHandoff.load() {
             return selected
         }
