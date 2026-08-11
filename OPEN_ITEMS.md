@@ -1566,6 +1566,11 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > **🛑 2026-08-11 — BETA-5 RE-STAGE ATTEMPTED. THE PASS IS STILL NOT RUN, AND
 > THIS TIME THE BLOCKER IS NOT THE RUNTIME. 74-A…E NOT RUN; 74-F EXECUTED AND
 > MET (again).**
+> **⬇️ SUPERSEDED THE SAME DAY — see the 2026-08-11 (later) block below.** Owen
+> restarted Simulator.app, the severance described here healed, and the runtime
+> question was then answered properly: **beta5 does NOT unblock the pass.**
+> Everything below remains accurate as the diagnosis of the severance; only its
+> "INDETERMINATE" verdict is superseded.
 > **Runtime verdict: INDETERMINATE — beta5 was never exercised.** Per the
 > 08-10 instruction the runtime was checked FIRST, before staging anything,
 > and the check never reached the CarPlay toggle: **the Mac's only running
@@ -1648,6 +1653,65 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > **#45 unchanged** — still sequenced behind this pass per Owen's 08-10
 > re-affirmation. This result does not touch that ruling; it only means the
 > pass has still not had a fair attempt on a beta5 runtime.
+
+> **🛑 2026-08-11 (later, after Owen restarted Simulator.app) — THE RUNTIME
+> QUESTION IS NOW ANSWERED, AND THE ANSWER IS NO. BETA-5 DOES NOT UNBLOCK THE
+> CARPLAY PASS. 74-A…E remain NOT RUN; 74-F unchanged and still MET.**
+> **The severance healed — verified, not assumed.** Simulator.app is now PID
+> **76449, started 14:36:16**, and the same instrument that diagnosed the
+> zombie now reads clean: four real device windows and no alert, and
+> File → Open Simulator lists **`iOS 27.0 (24A5408d)`** for every 27.0 device
+> where the dead process had shown a uniform `24A5390f`. That gate passed
+> before anything else was touched.
+> **The beta-5 arm, run properly and still negative.** `CC-74-iPhone-Air`
+> was booted under `runtime match set iphoneos27.0 24A5408d` (restored to
+> `--default` immediately after the boot) and its beta-5 binding was
+> positively verified the same way as before — `launchd_sim` executing from
+> the 24A5408d cryptex mount `…SimulatorRuntime-v24.1.5408.4.MIIn5t`. In the
+> I/O → External Displays submenu **CarPlay carries the ✓ checkmark**, so the
+> setting is accepted and `SimulatorExternalDisplay = 2714` is honoured. But
+> after an explicit Disabled → CarPlay toggle: **no "– CarPlay" window is ever
+> created, and `simctl io <udid> screenshot --display external` fails with
+> NSPOSIXErrorDomain code 60, "Timeout waiting for screen surfaces", 150 s
+> after the toggle.** Identical to beta-4.
+> **The positive control was re-run, and this A/B is the strongest one yet
+> because both arms were live in the SAME Simulator.app process at the SAME
+> moment, same host, same iPhone Air device type:**
+> ```
+> iPhone Air – CarPlay          ← iOS 26.5 (23F77):  window EXISTS, external
+>                                  surface screenshot-able (800×480 written)
+> CC-74-iPhone-Air – iOS 27.0   ← 27.0 (24A5408d):   CarPlay ✓ in the menu,
+>                                  NO CarPlay window, external screenshot
+>                                  errors "Timeout waiting for screen surfaces"
+> ```
+> The only variable is the runtime. (The 26.5 external frame renders black —
+> the criterion is that the *surface exists at all*, which is precisely what
+> the beta-5 arm cannot produce.)
+> **⚠️ A timing trap was caught and corrected mid-run, and it would have made
+> this result wrong.** The 26.5 control's window did not appear instantly —
+> it took **~35 s**, during which Simulator.app transiently reported **zero
+> windows** while it rebuilt them. The first beta-5 attempt had only been
+> given ~20 s, which was not a fair comparison, so it was re-run and polled
+> for **150 s**. The negative holds at more than four times the control's
+> latency. **Do not score this bar on a short wait** — and note the 08-10
+> note's "INSTANTLY on first toggle" is not what a 26.5 toggle looks like on
+> a loaded box.
+> **Verdict: the blocker persists beta-4 → beta-5**, is Apple's, and is
+> unchanged in character: the CarPlay external display is simply never brought
+> up on an iOS 27.0 simulator runtime. Nothing app-side was staged or built
+> for this run — `project.yml` was not touched, so 74-F's proof from earlier
+> today stands as-is and the tree stayed byte-clean.
+> **What remains owed: 74-A…E, still, on whatever beta first brings the window
+> up.** The check is now a two-minute pre-flight and should gate any future
+> re-stage: boot any 27.x sim, toggle CarPlay, wait ≥60 s, and look for the
+> window — stage nothing until it appears.
+> **#45:** stays sequenced behind the pass per Owen's 08-10 re-affirmation,
+> now knowingly across **two** consecutive beta cycles rather than one.
+> **Host state at close:** the four lane sims (CC-224, CC-250, CC-257, CC-B5)
+> were booted throughout and were still booted at close — CC-257 was mid-
+> XCUITest and was never touched; CC-74 and the 26.5 control were shut down
+> again, the control's external display was set back to Disabled, and
+> `runtime match` was left with no user override.
 
 > **Audit 2026-07-13:** PR #40 (`claude/w5-19-carplay-voice`→main, merged) and GitHub #19 (closed) confirm the code landed; `Talaria/CarPlay/CarPlayVoiceManager.swift` (nonisolated `maxTranscriptTitleLength`/`blockedTitle`, matching the described compile fix) and `TalariaTests/CarPlayVoiceStateTests.swift` are on main, and `project.yml:61` shows the CarPlay entitlement commented out per the hotfix. The item's own Mac-session note already confirms xcodegen/build/tests done, so the trailing 'Needs Mac: xcodegen generate... CLI build + tests' text is stale; the genuinely open work is the CarPlay Simulator functional pass (entitlement currently disabled) and filing Apple's discretionary grant — keep 🔧, this item is effectively blocked on that external approval.
 
