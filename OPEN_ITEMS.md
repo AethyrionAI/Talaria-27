@@ -181,9 +181,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#317** 📝 THE RULES CONTRADICTION — **RULED 2026-08-09: option (a), append-only dated pointers; close-out rule RATIFIED (upstream = our docs, never external repos)**
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
 - **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix — **bars 320-A..F PRE-REGISTERED 2026-08-11; READY TO DISPATCH** (close-out includes re-publishing `docs/privacy.html`)
-- **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD) — lane ungated, NOT STARTED, bars pre-register in the entry** **→ BARS 321-A..F PRE-REGISTERED 2026-08-11; READY TO DISPATCH.**
+- **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD)** **→ ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` (with #322, one commit): bars 321-A..F ALL MET, RED witnessed at `5c8fed7`; GATE: PASS, 2100/160 + 14 XCUITest + Release. NOT MERGED — awaiting review.**
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
-- **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292); NOT STARTED, bars pre-register in the entry** **→ BARS 322-A..E PRE-REGISTERED 2026-08-11; READY TO DISPATCH.**
+- **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292)** **→ ✅ BUILT 2026-08-11 on `t27-321-322-stop-completes` (with #321, one commit): bars 322-A..E ALL MET, ONE request pinned at BOTH the client seam and the wire; kill clause did not fire (#25's gauge-hide already IS the honest-unknown state); GATE: PASS, 2100/160 + 14 XCUITest + Release. NOT MERGED — awaiting review.**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -4614,6 +4614,20 @@ Logged 2026-07-24 (review of PR #144).
 > code read is the instrument. Remaining on this item: the §F1 device row
 > ONLY.** Header correction rides the next sweep.
 
+> **📌 POINTER 2026-08-11 (#321's close-out) — the primitive is intact; a
+> SECOND, narrower `pendingRun` clearer now exists and is not it.** All three
+> walk-away paths still call `abandonPendingRun(stopSpeech:)`, so this item's
+> claim stands unchanged. What changed is that `cancelStreaming(hardStopHost:
+> true)` now clears `pendingRun` too, inside the #278 reconcile window, via
+> `abandonReconcileWindowOnStop()` — deliberately NOT this primitive.
+> **The reason is behavioural, not stylistic:** the primitive calls
+> `parkHeldTurnsOnWalkAway()`, which SURFACES a held turn onto the chip, and
+> #321 ruling (c) requires a Stop to RESTORE it to the composer instead; it
+> also calls `persistDepartingLocalSession()`, which belongs to a thread the
+> user is leaving, and a Stop leaves none. So the rule to carry forward is
+> narrower than "one clearer": **every WALK-AWAY calls the primitive** — a
+> Stop is not a walk-away.
+
 > **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
 > this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
 > runnable check. **One queue** — do not restate it here; a check that lives in two
@@ -6432,7 +6446,7 @@ sound and is not what failed), **#272** (the App Lock re-prompt loop, fixed
 on the deletion path, which is context for how much to invest in fixing its
 half rather than deleting it sooner).
 
-## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
+## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). ✅ BUILT 2026-08-11 on `t27-321-322-stop-completes` — bars 322-A..E ALL MET, the kill clause did NOT fire (the honest-unknown state is #25's existing gauge-hide, not a new one); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #321. NOT MERGED — awaiting review.**
 
 **Origin and the superseded ruling, stated plainly.** #292's fix cancelled the
 runs producer Task so an abandoned turn stops polling (~60 requests over 2
@@ -6487,7 +6501,123 @@ not a feature.**
 > of this item is instrument honesty, and a scary-looking gauge on every cancel
 > would be a worse lie than the stale number Owen superseded.
 
-## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
+---
+
+> **✅ SHIPPED 2026-08-11 on `t27-321-322-stop-completes` — ALL FIVE BARS MET.**
+> Landed with **#321** in one commit: this read rides behind that abandon, and
+> writing the cancel path twice was the alternative.
+>
+> **THE KILL CLAUSE DID NOT FIRE, AND IT WAS NOT CLOSE — because the
+> honest-unknown state already existed and is already rendered.** #25 shipped
+> the rule in 2026: `ChatScreen.agentIdentityStrip` renders the gauge only
+> when `effectiveContextWindow != nil && currentContextTokens != nil`, and its
+> own comment says an unknown numerator *"must read as absent, never as
+> 'CTX 0%'"*. So "honestly unknown" is `lastTokenUsage = nil` and the gauge
+> simply **hides** — no new state, nothing that reads as an error, no
+> stop-and-ask owed. `ContextMeterTests` already pins that hide condition —
+> `resumedSessionWithoutCacheIsHonestlyAbsentNotZero()` (nil numerator, not
+> "CTX 0%") and `switchingToUnknownSessionDropsTheStaleNumerator()`, which is
+> this same never-show-a-stale-numerator rule one surface over — and both
+> stayed green.
+>
+> - **322-A MET — the regression pin, at BOTH seams.** At the store seam,
+>   `theAbandonPathTakesExactlyOneStatusReadAndNeverPollsAgain()` counts
+>   `finalRunUsage` calls: exactly **one**, addressed to the abandoned run's
+>   own id (`["R322"]`), and still one after a 300 ms tail — with
+>   `hasActiveReconcileLoop == false`, so no producer was resurrected.
+>   `aFailedReadIsNotRetried()` proves failure is as terminal as success.
+>   `aCancelWithNoRunIDIssuesNoRequestAtAll()` proves **zero** requests when
+>   there is nothing to address — nothing is invented to have something to
+>   call. At the WIRE seam, `FinalReadStubURLProtocol` counts real HTTP:
+>   `theTransportIssuesExactlyOneGetAndDecodesTheStatusUsage()` and all three
+>   arms of `everyUnreadableArmReturnsNilInExactlyOneRequest()` each assert
+>   `count("/v1/runs/{id}") == 1`. **Both seams matter:** the store counter
+>   catches a retry in `ChatStore`, the URLProtocol counter catches one inside
+>   `SessionsHermesClient`. The ~60-request loop #292 killed cannot reappear
+>   through either.
+> - **322-B MET, three arms.** *Success:*
+>   `aSuccessfulReadPutsTheStoppedRunsOwnNumbersOnTheGauge()` seeds the gauge
+>   with a prior run (91 000 prompt tokens — literally the stale number #292's
+>   Ruling 1 accepted), stops, and the gauge becomes the STOPPED run's 4 200.
+>   *Failure / 404 / no-usage:*
+>   `anUnreadableRunLeavesTheGaugeUnknownAndNeverStale()` proves the second
+>   clause the bar actually cares about — **never the prior run's numbers** —
+>   and proves it at the strongest moment available: `lastTokenUsage == nil` is
+>   true **synchronously, the instant `cancelStreaming()` returns**, because the
+>   clear happens BEFORE the read. There is no interval in which the gauge is
+>   labelled for one run and showing another's tokens. The three arms are
+>   separated where they are actually distinguishable — in the transport, by
+>   `everyUnreadableArmReturnsNilInExactlyOneRequest()` (404 · transport error ·
+>   200 with no `usage` block) — because the store has exactly one honest thing
+>   to say about all three.
+> - **322-C MET, with a transport that cannot resolve.**
+>   `theComposerFreesWhileTheStatusReadIsStillHung()` parks `finalRunUsage` on a
+>   continuation the test holds. `pendingRunSessionId == nil` and
+>   `isTranscriptBusy == false` are asserted on the line after
+>   `cancelStreaming()` returns, and the test then proves the read **really is
+>   in flight** (`finalUsageCalls.count == 1`) — so the freedom is not a skipped
+>   read dressed up as a fast one.
+> - **322-D MET, two arms.** *Second Stop:*
+>   `aSecondStopDuringTheReadNeitherCrashesNorTakesASecondRead()` — no crash,
+>   and no second read fired at a run already abandoned. *Walk-away:*
+>   `aWalkAwayDuringTheReadLeavesTheArrivingThreadsGaugeAlone()` parks the read,
+>   switches threads, then releases the straggler carrying the DEPARTED run's
+>   usage — and the arriving thread's gauge stays `nil`.
+>   `abandonPendingRun` cancels the task **and** bumps a generation token,
+>   because `withCheckedContinuation` is not cancellation-aware and the task can
+>   already be past its cancellation check; the token is what makes the
+>   late-write impossible rather than merely unlikely.
+> - **322-E MET** — the same run as 321-F: **`GATE: PASS`**, 2100 Swift Testing
+>   / 160 suites + 14 XCUITest + Release build, on `CC-321-iPhone-Air`. Unit
+>   count moved 2084 → 2100. The full verbatim block is under #321's 321-F.
+>
+> **The surface this actually covers, stated plainly because the bars only
+> named the abandon path.** The clear-and-read runs on **every explicit Stop**
+> (`hardStopHost: true`) that terminated something — the #321 window abandon
+> AND an ordinary live-stream Stop. A live-stream Stop leaves the gauge exactly
+> as stale as the abandon does, and the entry's own shape section says "an
+> explicit user cancel", so restricting it to the window would have been a
+> smuggled narrowing. It deliberately does **not** run on the continued-send
+> expiration (`hardStopHost: false`): with recovery armed, the reconcile will
+> deliver the real usage, and pre-empting it with an unknown is the lie in the
+> other direction.
+>
+> **That wider surface is PINNED, not merely asserted here — and pinning it
+> caught a real hole in this lane's own coverage.** The bars all describe the
+> abandon path, which takes its run id from `pendingRun`; the live-stream Stop
+> takes it from `hermesClient.activeRunID`, and **that read must happen at the
+> TOP of `cancelStreaming`, before `hardStopActiveRun()` clears the client's
+> slot as its first statement and before `abandonActiveRun()` releases the
+> router's lock.** Read it one line later and the id is nil on every Stop, no
+> request is ever made, and the gauge goes permanently unknown — while every
+> bar-mandated test still passes, because none of them exercise that seam.
+> `aLiveStreamStopReadsTheRunItHasJustStopped()` closes it: the stub clears
+> its own slot on the stop (as `SessionsHermesClient` does) and the test
+> asserts the read still addressed `"R-live"`. **Filed here as a thing the
+> bars did not anticipate**, not as a bar.
+>
+> **Two limitations, recorded rather than discovered later:**
+> 1. **The read uses the CURRENTLY resolved endpoint, not the run's frozen
+>    one** (the #285 shape `hardStopActiveRun` handles). The window Stop
+>    reaches the transport holding only `pendingRun.runId`, which never carried
+>    an endpoint, so one fidelity level for both callers beat two. After a
+>    mid-turn profile switch the read addresses the wrong host and 404s —
+>    landing on the honest-unknown arm that is already implemented and tested,
+>    never on a wrong number.
+> 2. **On the sessions plane the run id may not be addressable on
+>    `/v1/runs/{id}` at all.** `.interrupted` carries a `run_id` parsed from the
+>    sessions stream, and whether the runs plane's status store knows it is
+>    **UNVERIFIED** (not probed by this lane — a live probe is the instrument,
+>    and this is a client-side lane). If it does not, the read 404s and the
+>    gauge goes unknown: one request, honest outcome, no retry. Worth a probe
+>    if anyone wants the gauge to survive a sessions-plane Stop.
+>
+> **Nothing in this entry is falsified by the result** — the design-constraints
+> section is what shipped. The archived **#292** pointer chain gets its third
+> append-only block (per #317 carve-out (a)) recording that the supersession is
+> now built, not merely ruled.
+
+## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` — bars 321-A..F ALL MET, RED witnessed by restoring `ChatStore.swift` to its `5c8fed7` bytes (34 tests / 2 suites, 35 issues); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #322. NOT MERGED — awaiting review.**
 
 **What changed to make this reachable.** #315 moved the composer's commit door
 onto `isTranscriptBusy`, so both busy doors (`.queueCommit`, `.busyNoCommit`)
@@ -6584,6 +6714,130 @@ discovered later. Anchors resolved at `506a319`: `cancelStreaming`
 > **Scope fence:** this lane changes the Stop path only. The CTX-gauge read on
 > cancel is **#322** and must not be smuggled in here — but the two lanes touch
 > the same path, so whichever lands second re-runs the other's bars.
+
+---
+
+> **✅ SHIPPED 2026-08-11 on `t27-321-322-stop-completes` — ALL SIX BARS MET.**
+> Landed together with **#322** rather than after it: #322's read rides behind
+> this abandon, so splitting them would have meant writing the same path twice
+> (the scope fence above anticipated exactly this and is discharged, not
+> violated — the two are one commit, and each re-ran the other's bars).
+>
+> **HOW THE RED WAS WITNESSED** (321-A's own clause — a green-only run does not
+> score this bar). The fix and the tests were written together, then
+> **`Talaria/Stores/ChatStore.swift` alone was restored to its `5c8fed7`
+> bytes** (`git checkout 5c8fed7 -- Talaria/Stores/ChatStore.swift`; nothing
+> else reverted — the protocol members and the client are additive and change
+> no behaviour) and the two new suites were run on `CC-321-iPhone-Air`.
+> Verbatim verdict:
+>
+> ```
+> ✘ Test run with 34 tests in 2 suites failed after 39.006 seconds with 35 issues.
+> ✘ Test windowStopAbandonsThePendingRunAndFreesTheComposer() recorded an issue at
+>   MessageQueueTerminalsTests.swift:834:9: Expectation failed: store.pendingRunSessionId == nil
+> ```
+>
+> That second line **is** bar 321-A. The file was then restored
+> (`git checkout HEAD --`) and the same selection, widened to the two suites
+> the change could regress, ran
+> **`✔ Test run with 67 tests in 4 suites passed after 3.974 seconds`**
+> (`MessageQueueTerminalsTests`, `CancelFinalStatusReadTests`,
+> `ContextMeterTests`, `ChatBackendRouterTests`).
+>
+> **One test PASSED on the RED run, and that is the point of it:**
+> `neitherADefensiveCancelNorAnExpirationAbandonsTheWindow()` — the negative
+> control. HEAD already declined to abandon, so a test that only ever passes
+> proves nothing about the fix; it is here to prove the fix did not over-reach.
+>
+> - **321-A MET** — the RED above, by name and by line.
+> - **321-B MET** — `windowStopAbandonsThePendingRunAndFreesTheComposer()`
+>   asserts, in the bar's order: `pendingRunSessionId == nil`,
+>   `isTranscriptBusy == false`, `hasActiveReconcileLoop == false`, and
+>   `ChatInputBar.resolveDoor(...) == .send` (the IDLE door — #315's
+>   `.queueCommit` is gone with the run). All four were RED at HEAD.
+> - **321-C MET** — `aWindowStopProducesTheSameTranscriptStateAsALiveStreamStop()`
+>   builds both Stops from the same fixture text and compares an `Equatable`
+>   projection (`StopOutcome`: every row's sender/content/status/isStreaming,
+>   plus `isStreaming`, `isTranscriptBusy`, `hasPendingRun`,
+>   `hasActiveReconcileLoop`, the composer seed, and the held-turn phase).
+>   They are **equal**, so no new user-visible state exists. **What made them
+>   equal was one line, and it is worth naming:** the window's user row is
+>   `.working` (written by the `.interrupted` arm to mean "a reconcile is
+>   watching"), and nothing was watching after the abandon — the poll-exhaustion
+>   scrub only counts `.sending`, so `.working` would have been a row that could
+>   never be corrected. `settleAbandonedUserRow` settles it `.delivered`, which
+>   is where a live-stream Stop's row lands. **The honest caveat, recorded
+>   rather than glossed:** equality holds for a Stop taken before any prose,
+>   because the window's placeholder was already removed by #295's
+>   `armPendingRunRecovery` and cannot be brought back. That asymmetry is
+>   #295's pre-existing behaviour, present at `5c8fed7`, not new state this
+>   lane introduced — which is what the bar forbids.
+> - **321-D MET** — `aMidWindowHoldIsRestoredToTheComposerOnStop()`: the hold
+>   leaves the queue, `pendingComposerSeed` carries the text, **no** transcript
+>   row is minted, and `sentMessages` is unchanged after the busy gate drops
+>   (so a fire was reachable and did not happen). Its sibling
+>   `aMidWindowHoldWithADivergedComposerSurfacesInsteadOfOverwriting()` pins
+>   trap 7 the same way `stopWithDivergedComposerKeepsLiveTextAndSurfacesTheHold`
+>   pins it for a live stream. Both were RED at HEAD.
+> - **321-E MET — named first, re-run, green.** #306 T3 **row 2**:
+>   `stopNeverFiresAndRestoresTextToTheComposer`,
+>   `stopWithDivergedComposerKeepsLiveTextAndSurfacesTheHold`,
+>   `stopTerminalLeavesRowDeliveredAndDoesNotFire`. #306 T3 **row 3**:
+>   `livePendingRunBlocksFireAndDrainUntilReconcileAdopts`,
+>   `reconcileBudgetExpirySurfacesInsteadOfFiring`,
+>   `turnCommittedThroughTheDoorFiresOnceAfterReconcileAdopts` (#315-B).
+>   **#295 arming**: `explicitStopMintsNoPendingRunAndArmsNoReconcileLoop`
+>   (295-B), `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed`
+>   (295-A), `consumerWalkAwayAloneReleasesTheRoutingLock`. All green.
+>   The bar's own clause — *nothing arms a recovery for a run the user
+>   abandoned* — is asserted directly: after the abandon,
+>   `reconcilePendingRuns()` is called and `reconcileCallCount` stays **0**
+>   with no loop re-armed.
+> - **321-F MET.** `TALARIA_SIM_NAME=CC-321-iPhone-Air scripts/mac/lane-gate.sh`
+>   on `CC-321-iPhone-Air` (iOS 27.0 24A5408d, Xcode-beta5 27A5237l), verbatim:
+>   ```
+>   PASS  Test run reported TEST SUCCEEDED
+>   PASS  Swift Testing tests run — 2100
+>   PASS  XCUITest tests run — 14
+>   PASS  Release build succeeded
+>   PASS  no Swift compile errors in Release
+>   GATE: PASS
+>   ```
+>   **Unit count MOVED 2084 → 2100; suites 159 → 160** (16 new tests, one new
+>   suite `CancelFinalStatusReadTests`) — so this is not a stale `.xctest`
+>   reporting an old number. Run on the FINAL tree: an earlier gate was killed
+>   mid-XCUITest and re-run from scratch when one more test was added, rather
+>   than quoting a verdict for a tree that is not what shipped.
+>
+> **What this lane FALSIFIES in its own text above (close-out rule — the
+> claims' home is this entry).** Two sentences in the *"The finding, verified
+> by code read at `7467e96`"* paragraph described HEAD and no longer describe
+> the code:
+> 1. *"The only writer that clears it is `abandonPendingRun` … No Stop path
+>    calls it."* — **superseded.** There is now a second, deliberately
+>    narrower writer, `abandonReconcileWindowOnStop()`, called only from
+>    `cancelStreaming(hardStopHost: true)` inside the window.
+>    **It is NOT `abandonPendingRun` on purpose**, and the reason is ruling
+>    (c): the walk-away primitive calls `parkHeldTurnsOnWalkAway()`, which
+>    SURFACES a held turn onto the chip, while a Stop must RESTORE it to the
+>    composer. Reusing the primitive was the shorter diff and the wrong
+>    behaviour. (#184's "one teardown primitive" claim is untouched — all
+>    three walk-away paths still call it; see the dated pointer added under
+>    #184.)
+> 2. *"…so the held-turn restore/surface machinery **correctly** declines to
+>    run"* — **the mechanism was right, the word "correctly" was not.**
+>    `terminatedALiveTurn` really is false for the whole window; that is why
+>    the machinery declined. Ruling (c) then decided the decline was wrong,
+>    and the gate is now `terminatedALiveTurn || abandonsTheReconcileWindow`.
+>    The flag still guards the DEFENSIVE cancel (nothing streaming, nothing
+>    pending), which must still restore nothing — pinned by the negative
+>    control named above.
+>
+> **Anchors re-resolved at `5c8fed7` before editing** (the bars block cites
+> `506a319`): `abandonPendingRun` `:1247`, `cancelStreaming` `:1388`,
+> `terminatedALiveTurn` `:1392`, `performStopRestoreOfHeldTurn` `:2525` — all
+> four still correct at `5c8fed7`. The file also moved: it is
+> `Talaria/Stores/ChatStore.swift`, not `Talaria/Chat/ChatStore.swift`.
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 

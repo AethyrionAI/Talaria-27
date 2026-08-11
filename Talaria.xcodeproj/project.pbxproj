@@ -486,6 +486,7 @@
 		E3DA756A2AB06C9A31D6C098 /* ControlHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FD288A6B4D5EDE15F442C8 /* ControlHandoff.swift */; };
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
+		E439FDB038C23E457B6E0C25 /* CancelFinalStatusReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */; };
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
 		E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */; };
 		E5838375ED9AD3D0BDF55F70 /* ConversationCardInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F534300B8AB31C540006B3 /* ConversationCardInputTests.swift */; };
@@ -1066,6 +1067,7 @@
 		DD00699F0006940A80E8EA5B /* LocalChatBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalChatBackend.swift; sourceTree = "<group>"; };
 		DD040D4F1E11956E6DD7F112 /* ComposeOutboxState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeOutboxState.swift; sourceTree = "<group>"; };
 		DDF7D4D1DE78C68978B73F6E /* LiveSpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSpeechService.swift; sourceTree = "<group>"; };
+		DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancelFinalStatusReadTests.swift; sourceTree = "<group>"; };
 		DEA4FFA15643D2007BC80DA7 /* SkillsPickerSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsPickerSelectionTests.swift; sourceTree = "<group>"; };
 		DF2F27035982B50A41364B24 /* HealthQueryCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthQueryCore.swift; sourceTree = "<group>"; };
 		DFD34FD8F83D55B0E3A824F7 /* TaskSkillsPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskSkillsPicker.swift; sourceTree = "<group>"; };
@@ -1258,6 +1260,7 @@
 				B37699B2D4090F1A7924AA99 /* BatteryReapEventKitProbeTests.swift */,
 				D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */,
 				B101F84B43323E854C1B5F28 /* BriefingTests.swift */,
+				DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */,
 				25178BA15FDBAB257A89412B /* CapabilityRegistryTests.swift */,
 				3C102CC9A9B7B18C77F6D1DB /* CapabilitySurfaceTests.swift */,
 				68144B7B731A5FB65B02E49F /* CaptionLessImageFloorTests.swift */,
@@ -2657,6 +2660,7 @@
 				54B2F585874181F300A86D0C /* BatteryReapEventKitProbeTests.swift in Sources */,
 				B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */,
 				D78D0D8D86345D8E41B110B4 /* BriefingTests.swift in Sources */,
+				E439FDB038C23E457B6E0C25 /* CancelFinalStatusReadTests.swift in Sources */,
 				14ABBD71B2BFF8ED31904FA1 /* CapabilityRegistryTests.swift in Sources */,
 				139D0B71680BC959C5F2D251 /* CapabilitySurfaceTests.swift in Sources */,
 				29129C20F7FECC71753BF283 /* CaptionLessImageFloorTests.swift in Sources */,

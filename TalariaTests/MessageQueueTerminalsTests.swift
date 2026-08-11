@@ -766,4 +766,229 @@ struct MessageQueueTerminalsTests {
         client.continuations.last?.finish()
         _ = await sendTask.value
     }
+
+    // MARK: - #321: Stop inside the reconcile window is a WHOLE Stop
+
+    /// A transcript state, reduced to the parts a user can see, so bar 321-C
+    /// can compare two Stops for equality instead of eyeballing two lists of
+    /// assertions. Row identity (`UUID`) is deliberately excluded — it differs
+    /// between two independent runs by construction and is not user-visible.
+    private struct StopOutcome: Equatable, CustomStringConvertible {
+        struct Row: Equatable {
+            let sender: MessageSender
+            let content: String
+            let status: MessageStatus
+            let isStreaming: Bool
+        }
+        let rows: [Row]
+        let isStreaming: Bool
+        let isTranscriptBusy: Bool
+        let hasPendingRun: Bool
+        let hasActiveReconcileLoop: Bool
+        let composerSeed: String?
+        let heldTurnPhase: ComposeOutboxState.Phase?
+
+        var description: String {
+            "rows=\(rows.map { "\($0.sender)/\($0.content)/\($0.status)/streaming:\($0.isStreaming)" }) "
+                + "streaming=\(isStreaming) busy=\(isTranscriptBusy) pendingRun=\(hasPendingRun) "
+                + "reconcileLoop=\(hasActiveReconcileLoop) seed=\(composerSeed ?? "nil") held=\(String(describing: heldTurnPhase))"
+        }
+
+        @MainActor init(_ store: ChatStore) {
+            rows = (store.conversation?.messages ?? []).map {
+                Row(sender: $0.sender, content: $0.content, status: $0.status, isStreaming: $0.isStreaming)
+            }
+            isStreaming = store.isStreaming
+            isTranscriptBusy = store.isTranscriptBusy
+            hasPendingRun = store.pendingRunSessionId != nil
+            hasActiveReconcileLoop = store.hasActiveReconcileLoop
+            composerSeed = store.pendingComposerSeed
+            heldTurnPhase = store.currentThreadHeldTurn?.phase
+        }
+    }
+
+    /// **321-A + 321-B.** The finding and the fix, in one test and in the
+    /// order the bars name them.
+    ///
+    /// RED at HEAD: `cancelStreaming` never touched `pendingRun` — the only
+    /// writer that cleared it was `abandonPendingRun`, whose callers are the
+    /// walk-away paths — so the first `#expect` below failed and the composer
+    /// stayed on the busy door until the reconcile budget expired (up to
+    /// ~120s after the user tapped Stop).
+    ///
+    /// The tail is 321-E's own clause, asserted rather than assumed: nothing
+    /// may arm a recovery for a run the user abandoned.
+    @Test @MainActor
+    func windowStopAbandonsThePendingRunAndFreesTheComposer() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.composerLiveText = { "" }
+        try await enterReconcileWindow(store: store, client: client)
+        #expect(store.pendingRunSessionId == "S315", "fixture: the window's run must be live before the Stop")
+        #expect(store.isTranscriptBusy)
+        #expect(store.hasActiveReconcileLoop)
+
+        store.cancelStreaming()
+
+        #expect(store.pendingRunSessionId == nil,
+                "321-A/B: Stop must ABANDON the pendingRun — this is the assertion that is RED at HEAD")
+        #expect(store.isTranscriptBusy == false,
+                "321-B: the composer's other busy half must clear in the same call")
+        #expect(store.hasActiveReconcileLoop == false,
+                "321-B: 'free the composer immediately' includes ending the live recovery")
+        #expect(
+            ChatInputBar.resolveDoor(
+                store: store, canSend: true, canQueueMessage: true,
+                isSlashMode: false, sendBlockedByAttachments: false
+            ) == .send,
+            "321-B: the composer's door is the IDLE one — #315's queue door is gone with the run"
+        )
+
+        // 321-E: the abandoned run must not be re-adopted by the foreground
+        // reconcile chain, and must not re-arm the loop it just lost.
+        await store.reconcilePendingRuns()
+        #expect(client.reconcileCallCount == 0,
+                "321-E: an abandoned run must not be reconciled — nothing is watching it any more")
+        #expect(store.hasActiveReconcileLoop == false,
+                "321-E: nothing may arm a recovery for a run the user abandoned")
+    }
+
+    /// **321-C — one Stop story.** Ruling (b): the transcript a window Stop
+    /// produces is pinned EQUAL to the transcript a live-stream Stop
+    /// produces. Same fixture text, same client, same empty composer; only
+    /// the moment of the Stop differs.
+    ///
+    /// The equality is reachable because both arms converge on the same
+    /// shape: a live-stream Stop taken before any prose REMOVES the
+    /// placeholder (#294) and settles the user row `.delivered`, and the
+    /// window's placeholder was already removed by the `.interrupted` arm
+    /// (#295) — so the abandon only has to settle the row the same way.
+    @Test @MainActor
+    func aWindowStopProducesTheSameTranscriptStateAsALiveStreamStop() async throws {
+        let liveStopped: StopOutcome
+        do {
+            let client = ManualStreamClient()
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            let sendTask = await startTurn("one stop story", store: store, client: client)
+            store.cancelStreaming()
+            _ = await sendTask.value
+            liveStopped = StopOutcome(store)
+        }
+
+        let windowStopped: StopOutcome
+        do {
+            let client = ManualStreamClient()
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            try await enterReconcileWindow(turn: "one stop story", store: store, client: client)
+            store.cancelStreaming()
+            windowStopped = StopOutcome(store)
+        }
+
+        #expect(
+            windowStopped == liveStopped,
+            "321-C: a window Stop must look exactly like a live-stream Stop.\n  window: \(windowStopped)\n  live:   \(liveStopped)"
+        )
+        // Named explicitly so a future regression says WHICH half moved
+        // rather than only that the two diverged.
+        #expect(windowStopped.rows.count == 1)
+        #expect(windowStopped.rows.first?.status == .delivered,
+                "321-C: the abandoned turn's user row settles where a stopped turn's does")
+        #expect(windowStopped.hasPendingRun == false)
+        #expect(windowStopped.isTranscriptBusy == false)
+    }
+
+    /// **321-D.** Ruling (c): a message committed through #315's door and then
+    /// Stopped comes BACK to the composer as text — it mints no transcript
+    /// row and never auto-fires.
+    ///
+    /// RED at HEAD for a second reason beyond the pendingRun: `cancelStreaming`
+    /// opens with `terminatedALiveTurn = streamingMessageID != nil`, which is
+    /// false for this entire window, so `resolveHeldTurn` was never called at
+    /// all and the hold sat in the outbox with no chip and no restore.
+    @Test @MainActor
+    func aMidWindowHoldIsRestoredToTheComposerOnStop() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.composerLiveText = { "" }
+        try await enterReconcileWindow(store: store, client: client)
+
+        #expect(commitThroughTheDoor("held behind the window stop", store: store) == "held")
+        #expect(store.currentThreadHeldTurn?.phase == .held)
+
+        store.cancelStreaming()
+
+        #expect(store.currentThreadHeldTurn == nil,
+                "321-D: the hold leaves the queue — it is text again, not a queued turn")
+        #expect(store.pendingComposerSeed == "held behind the window stop",
+                "321-D: the held text lands back in the composer (#48 seed, seed-only)")
+        #expect(
+            store.conversation?.messages.contains { $0.content == "held behind the window stop" } != true,
+            "321-D: a restored hold mints NO transcript row"
+        )
+        // And it does not fire, then or later — the busy gate is down now, so
+        // a fire would be reachable if anything scheduled one.
+        client.autoFinishSends = true
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(client.sentMessages == ["dropped turn"],
+                "321-D: a Stopped hold must never auto-fire (#306 T3 row 2)")
+    }
+
+    /// **321-C/D, trap 7.** The other half of "the same treatment": with the
+    /// user's own text live in the composer, a window Stop must SURFACE the
+    /// hold on the chip rather than overwrite what they typed — byte-for-byte
+    /// what `stopWithDivergedComposerKeepsLiveTextAndSurfacesTheHold` pins for
+    /// a live-stream Stop.
+    @Test @MainActor
+    func aMidWindowHoldWithADivergedComposerSurfacesInsteadOfOverwriting() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.composerLiveText = { "newly typed thought" }
+        try await enterReconcileWindow(store: store, client: client)
+
+        #expect(commitThroughTheDoor("the original held text", store: store) == "held")
+        store.cancelStreaming()
+
+        #expect(store.pendingComposerSeed == nil, "trap 7: last writer must not win")
+        let held = try #require(store.currentThreadHeldTurn)
+        #expect(held.text == "the original held text")
+        #expect(held.phase == .surfaced)
+        #expect(store.pendingRunSessionId == nil, "321-B still holds on the diverged arm")
+    }
+
+    /// **321-E, the guard the other direction.** The abandon is gated on an
+    /// explicit Stop. A DEFENSIVE cancel — nothing streaming, nothing pending
+    /// — must still restore nothing and surface nothing (#306's reason for
+    /// `terminatedALiveTurn` in the first place), and the continued-send
+    /// EXPIRATION path (`hardStopHost: false`) must leave a live window's
+    /// recovery exactly where it found it: the system revoking a background
+    /// budget is not the user abandoning a run.
+    @Test @MainActor
+    func neitherADefensiveCancelNorAnExpirationAbandonsTheWindow() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.composerLiveText = { "" }
+
+        // Arm 1: a defensive cancel on a wholly idle store.
+        await store.loadConversationIfNeeded()
+        store.cancelStreaming()
+        #expect(store.pendingComposerSeed == nil)
+        #expect(store.currentThreadHeldTurn == nil)
+
+        // Arm 2: the expiration path meeting a live window.
+        try await enterReconcileWindow(store: store, client: client)
+        #expect(commitThroughTheDoor("held through an expiration", store: store) == "held")
+        store.cancelStreaming(hardStopHost: false)
+        #expect(store.pendingRunSessionId == "S315",
+                "321-E: a SYSTEM-revoked budget must not throw away a live recovery — only a user Stop abandons")
+        #expect(store.isTranscriptBusy)
+        #expect(store.currentThreadHeldTurn?.phase == .held,
+                "321-E: the hold keeps HOLDING while the reconcile still owns the run (#306 row 3)")
+        #expect(store.pendingComposerSeed == nil)
+    }
 }

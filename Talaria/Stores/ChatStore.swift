@@ -339,6 +339,17 @@ final class ChatStore {
     }
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
+    /// #322: the single detached `GET /v1/runs/{id}` a cancel takes, kept so
+    /// a second Stop or a walk-away can cancel it rather than let it land on
+    /// a world it no longer describes. Never a loop and never a producer —
+    /// this holds exactly one request's worth of work at a time.
+    private var finalStatusReadTask: Task<Void, Never>?
+    /// #322 bar 322-D: the late-write guard. Same shape as
+    /// `reconcileGeneration` / `pollingGeneration` — a read that resolves
+    /// after a newer cancel (or after the store moved on) sees a bumped token
+    /// and writes nothing, so the gauge can never be double-written or
+    /// dragged backwards by a straggler.
+    private var finalStatusReadGeneration: Int = 0
     /// #226 leg (c) / #227 instance 3: concurrent `reconcilePendingRuns()`
     /// callers coalesce onto this one in-flight pass. Distinct from
     /// `reconcileTask`, which is the polling LOOP started when a reconcile
@@ -1248,6 +1259,13 @@ final class ChatStore {
         persistDepartingLocalSession()
         reconcileTask?.cancel()
         reconcileTask = nil
+        // #322 bar 322-D: a walk-away taken while a cancel's final status
+        // read is still in flight must not let that read land on the arriving
+        // thread's gauge. Cancelling AND bumping the generation covers both
+        // orderings — the task may already be past its cancellation check.
+        finalStatusReadTask?.cancel()
+        finalStatusReadTask = nil
+        finalStatusReadGeneration &+= 1
         if let abandoned = pendingRun {
             onRunResolved?(abandoned.sessionId)
         }
@@ -1390,6 +1408,28 @@ final class ChatStore {
         // defensive cancel with nothing streaming must not restore or
         // surface a held message.
         let terminatedALiveTurn = streamingMessageID != nil
+        // #321 ruling (a): the #278 RECONCILE WINDOW — no stream, but a
+        // `pendingRun` this client is still watching, and (since #315) a Stop
+        // button on screen above it. An explicit Stop there means STOP:
+        // abandon the run outright rather than leaving the composer on the
+        // busy door until the reconcile budget expires.
+        //
+        // Gated on `hardStopHost` on purpose. The other caller
+        // (`beginContinuedSend`'s expiration) is the SYSTEM revoking a
+        // background budget with no user action; throwing away a live
+        // recovery on its behalf would be the opposite of what #295 armed it
+        // for. Only a person tapping Stop abandons.
+        let abandonsTheReconcileWindow =
+            hardStopHost && streamingMessageID == nil && pendingRun != nil
+        // #322: capture the cancelled run's id BEFORE `hardStopActiveRun()`
+        // below clears `activeRunContext` and `abandonActiveRun()` clears the
+        // router's lock — the same read-before-clear discipline
+        // `turnIsServerRecoverable` documents on the next line, and for the
+        // same reason. In the window the id rides `pendingRun` (the live
+        // client slot is long since cleared by the `.interrupted` arm); on a
+        // live-stream Stop it is the client's own. Nil on any plane without
+        // run ids, which is honest, not a gap — there is nothing to read.
+        let cancelledRunID = pendingRun?.runId ?? hermesClient.activeRunID
         // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
         // before cancelling the consuming task (which the router treats as a
         // walk-away and may itself release the routing lock from, per
@@ -1563,12 +1603,39 @@ final class ChatStore {
         // case settles `.delivered`, same as an explicit Stop, because as far
         // as this client can ever know, no recovery is coming.
         settleStoppedUserMessage(as: (hardStopHost || !armedRecovery) ? .delivered : .working)
+        // #321 ruling (a) — the abandon itself, and it happens BEFORE the
+        // held-turn resolution below so that the world the restore runs into
+        // is already the freed one (`pendingRun == nil`,
+        // `isTranscriptBusy == false`).
+        if abandonsTheReconcileWindow {
+            abandonReconcileWindowOnStop()
+        }
+        // #322: the cancellation's ONE final status read. Fired here, after
+        // the abandon, so bar 322-C's contract holds by construction — the
+        // composer is already free and nothing below this line awaits the
+        // read. Only an explicit Stop takes it: the expiration path with
+        // recovery armed still has a reconcile that will deliver the real
+        // usage, and pre-empting it with an unknown would be the lie in the
+        // other direction.
+        if hardStopHost, terminatedALiveTurn || abandonsTheReconcileWindow {
+            takeFinalStatusReadAfterCancel(runID: cancelledRunID)
+        }
         // #306 matrix rows 2/9/10 — report the OBSERVED terminal, never the
         // row status (all three of these can leave the row `.delivered`).
         // Row 2 (Stop): never auto-fire; the text restores (O2). Row 9
         // (expiration, recovery armed): HOLD — the reconcile owns it. Row 10
         // (expiration, nothing coming): HOLD + SURFACE.
-        if terminatedALiveTurn {
+        //
+        // #321 ruling (c): `terminatedALiveTurn` is FALSE for the whole
+        // reconcile window — that is exactly why the held-turn machinery
+        // declined to run there, and why a mid-window HOLD committed through
+        // #315's door used to survive a Stop with no restore and no chip.
+        // The window Stop is row 2 by every other measure, so it reports row
+        // 2's terminal too. This is the "stops keying on `terminatedALiveTurn`
+        // alone" the ruling asks for — the flag still guards the DEFENSIVE
+        // cancel (nothing streaming, nothing pending), which must still
+        // restore nothing.
+        if terminatedALiveTurn || abandonsTheReconcileWindow {
             if hardStopHost {
                 resolveHeldTurn(after: .stopped)
             } else {
@@ -1614,6 +1681,128 @@ final class ChatStore {
         else { return }
         conv.messages[idx].status = status
         conversation = conv
+    }
+
+    /// #321 ruling (a) — Stop means STOP inside the #278 reconcile window.
+    ///
+    /// **What it releases and why that is the whole list.** The window holds
+    /// exactly two things: a `pendingRun` (which is half of `isTranscriptBusy`,
+    /// so clearing it is what frees the composer) and the reconcile loop
+    /// watching for its reply. Both go. `onRunResolved` fires for the same
+    /// reason `abandonPendingRun` fires it — the relay's completion watcher
+    /// must stand down rather than stay armed against a run this store has
+    /// stopped tracking (#38).
+    ///
+    /// **Deliberately NOT `abandonPendingRun(stopSpeech:)`.** That is the
+    /// WALK-AWAY primitive, and two of the things it does are wrong here.
+    /// It calls `parkHeldTurnsOnWalkAway()`, which SURFACES a held turn onto
+    /// the chip — but ruling (c) says a mid-window hold is RESTORED to the
+    /// composer, the same as stopping a live turn, and `cancelStreaming`'s
+    /// own `resolveHeldTurn(after: .stopped)` is what does that. And it calls
+    /// `persistDepartingLocalSession()`, which belongs to a thread the user is
+    /// leaving; a Stop leaves nothing. Reusing it would have been the shorter
+    /// diff and the wrong behaviour.
+    ///
+    /// **What it deliberately does not touch:** `resolvedRunIDs` (#237 records
+    /// ADOPTIONS only — an abandon is not one), and `hermesClient`
+    /// (`hardStopActiveRun` / `abandonActiveRun` already ran, unconditionally,
+    /// at the top of `cancelStreaming`).
+    ///
+    /// Ruling (a)'s deciding fact, recorded here because it is what makes the
+    /// abandon safe: abandoning the reconcile does not burn a host-side
+    /// answer. A run that completes anyway still arrives through the ordinary
+    /// transcript merge on a later fetch — only the LIVE watch ends.
+    private func abandonReconcileWindowOnStop() {
+        guard let abandoned = pendingRun else { return }
+        reconcileTask?.cancel()
+        reconcileTask = nil
+        pendingRun = nil
+        pendingMessageSentAt = nil
+        settleAbandonedUserRow(abandoned.userMessageID)
+        onRunResolved?(abandoned.sessionId)
+        chatLog.notice(
+            "#321: Stop abandoned the reconcile window for session '\(abandoned.sessionId, privacy: .public)' — composer freed, live recovery ended"
+        )
+    }
+
+    /// #321 ruling (b) — the window Stop's user row settles exactly where a
+    /// live-stream Stop's does: `.delivered`.
+    ///
+    /// Separate from `settleStoppedUserMessage` above rather than folded into
+    /// it, because the two differ in both inputs. That one reads
+    /// `streamingUserMessageID`, which the `.interrupted` arm cleared on its
+    /// way into this window; the id here is the `PendingRun`'s. And that one
+    /// requires a `.sending` row, while the window's row is `.working` —
+    /// written by the `.interrupted` arm precisely to mean "a reconcile is
+    /// watching for this". Once the user abandons, nothing is watching, and
+    /// `.working` becomes a row that can never be corrected: the reconcile is
+    /// cancelled and the poll-exhaustion scrub only ever counts `.sending`.
+    /// That is the same reasoning `cancelStreaming` already applies on its
+    /// `armedRecovery == false` branch, reached from the other direction.
+    private func settleAbandonedUserRow(_ userMessageID: UUID) {
+        guard var conv = conversation,
+              let idx = conv.messages.firstIndex(where: {
+                  $0.sender == .user
+                      && ($0.id == userMessageID || $0.clientMessageID == userMessageID)
+              }),
+              conv.messages[idx].status == .working || conv.messages[idx].status == .sending
+        else { return }
+        conv.messages[idx].status = .delivered
+        conversation = conv
+    }
+
+    /// #322 — the cancellation path's ONE final status read.
+    ///
+    /// **The gauge is cleared SYNCHRONOUSLY, first, and that ordering is the
+    /// item.** #292's fix stopped an abandoned turn from polling, and accepted
+    /// as a side effect that the CTX gauge keeps showing the PRIOR run's
+    /// numbers; Owen superseded that on 2026-08-10. Clearing before the read
+    /// is what makes the gauge honest for the whole window in between — it
+    /// never displays one run's tokens while labelled as another's. `nil` is
+    /// an EXISTING rendered state, not a new one: #25 already hides the gauge
+    /// on an unknown numerator rather than printing "CTX 0%", so nothing here
+    /// invents an error-looking state for an ordinary cancel (#322's kill
+    /// clause, considered and not triggered).
+    ///
+    /// **Exactly one request, and no producer.** One detached `Task`, one
+    /// `finalRunUsage` call, no retry and no loop — see that method's own doc
+    /// for why this is a constraint rather than a preference. With no run id
+    /// there is no request at all: the gauge simply stays unknown.
+    ///
+    /// **Nothing awaits it** (bar 322-C). `cancelStreaming` returns the
+    /// instant this returns; the composer is already free.
+    ///
+    /// **Late-write safety** (bar 322-D). The generation token is checked
+    /// after the await, so a read still in flight when a second Stop, a thread
+    /// switch or a new turn's usage lands can never overwrite the newer value
+    /// — the same shape `reconcileGeneration` and `pollingGeneration` use.
+    /// A cancelled task writes nothing.
+    private func takeFinalStatusReadAfterCancel(runID: String?) {
+        finalStatusReadTask?.cancel()
+        finalStatusReadTask = nil
+        finalStatusReadGeneration &+= 1
+        let generation = finalStatusReadGeneration
+        // Honest unknown FIRST — before any await, so there is no instant at
+        // which the gauge shows the previous run's numbers for this one.
+        lastTokenUsage = nil
+        guard let runID else {
+            chatLog.notice(
+                "#322: cancelled turn had no run id — no final status read is possible, so the CTX gauge stays honestly unknown"
+            )
+            return
+        }
+        finalStatusReadTask = Task { [weak self] in
+            guard let client = self?.hermesClient else { return }
+            let usage = await client.finalRunUsage(runID: runID)
+            guard let self, !Task.isCancelled,
+                  self.finalStatusReadGeneration == generation else { return }
+            self.finalStatusReadTask = nil
+            // A read that came back empty changes nothing: the honest-unknown
+            // state was already written above, and re-asserting it here would
+            // just be the same value twice.
+            guard let usage else { return }
+            self.lastTokenUsage = usage
+        }
     }
 
     /// #294: whether a stopped streaming placeholder carries nothing worth

@@ -16448,6 +16448,20 @@ customer comments.
 > goes honestly unknown on a failed read). Nothing else in this entry
 > changes.
 
+> **📌 APPEND-ONLY POINTER 2026-08-11 (per #317 carve-out (a)) — #322 is
+> BUILT, so the supersession above is now code rather than a ruling.**
+> Shipped on `t27-321-322-stop-completes` with #321. **This entry's fix is
+> not weakened:** the pin that protects it is #322's own first bar, asserted
+> at two seams — a call counter on `ChatStore`'s client seam and a
+> `URLProtocol` counting real `GET /v1/runs/{id}` requests — with **exactly
+> one** request on the success arm, **one** on every failure arm (404,
+> transport error, no-usage body), **zero** when the cancelled turn has no run
+> id, and `hasActiveReconcileLoop == false` after. No retry, no loop, no
+> producer Task. The Ruling-1 cost this entry recorded live on 2026-08-09
+> ("CTX gauge holds the prior run") is the behaviour that is gone: the gauge
+> is cleared synchronously on the cancel and only re-filled by that one read.
+> Nothing else in this entry changes.
+
 ## 291. 🐛 Stop leaves the user's own row UNSETTLED — ~60s later the turn is marked FAILED with an error haptic, on a turn the host actually answered — **FILED 2026-08-07 night from the adversarial audit (finding 1, its top-ranked). ✅ CODE-VERIFIED end-to-end the same night — every link in the chain confirmed. PRE-EXISTING on the sessions plane; NOT a slice-3A regression.**
 
 **Verified chain (read, not inferred):**

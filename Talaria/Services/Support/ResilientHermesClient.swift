@@ -80,6 +80,15 @@ final class ResilientHermesClient: HermesClientProtocol {
         primary.hardStopActiveRun()
     }
 
+    /// #322: same rule as `hardStopActiveRun` above — `sendStreaming` only
+    /// ever rides `primary`, so only `primary` can have a run in flight and
+    /// only `primary` can answer for one.
+    var activeRunID: String? { primary.activeRunID }
+
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        await primary.finalRunUsage(runID: runID)
+    }
+
     /// #304: same rule as `hardStopActiveRun` above — `sendStreaming` only
     /// ever rides `primary`, so an approval question can only have come from
     /// it, and forwarding the answer to `fallback` would be a POST that
