@@ -15860,3 +15860,74 @@ catch (#197). That is where the next look belongs, not at the cap.
 so this distribution accrues without a dedicated lane. Reap exact again: counted
 5/5/5, reaped 6/6/6, residual **3 = the three warm-up trials**.
 
+## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
+
+**2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
+CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained for A/B):**
+
+- **Regressions: none found.** Debug compile clean; Release build clean (0 Swift errors);
+  full suite 2056 tests/156 suites + 14 XCUITest green on the beta5 SDK + beta5 sim runtime.
+  Gate run 1 FAILED on `HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()` —
+  triaged per the sim-verify precedent (2026-08-09, load-flake family): 3 concurrent probe
+  builds were saturating the box; the test passed 3/3 in isolation and the clean-conditions
+  full-suite re-run passed. Filed as WATCH below, not a regression.
+- **SDK surface diff (16 frameworks, swiftinterface-level): nothing Talaria calls changed.**
+  SwiftUI's 831 "removed" lines = relocation to SwiftUICore (`@_exported`; 0 fully-qualified
+  `SwiftUI.<Type>` refs in repo). SwiftData renamed ResultsSectionCollection→SectionedResults
+  (no shim; 0 repo hits). FM removals all on unused surface (CustomSegment, history→HistoryView,
+  metadata retyped, 2 deprecated members deleted). AppIntents' 1.67MB diff ≈ 99.6% reordering
+  (real: 43−/14+ lines, 0 repo hits). `EnhancedLinkSecurity` framework REMOVED from the SDK
+  (0 repo refs). Zero deferrals (nothing moved to 27.1/28.x). Toolchain: swiftlang
+  6.4.0.27.1 → 6.4.0.30.4.
+- **New API catalog (verified in-interface, runtime-probed where possible):**
+  `SystemLanguageModel.variant` (.core3 "AFM 3 Core" / .coreAdvanced3 "AFM 3 Core Advanced";
+  catalog-layer, gettable with assets absent; == stable, hashValue per-process) — candidate for
+  Settings→Models/Developer display + battery-run stamping. SwiftUI
+  `presentationPlacement(_:)` (sheet placement; fits the seven detent sheets).
+  `Transcript.HistoryView` (RangeReplaceable — fits condensed-replay's hand-built entry array).
+  FM metadata now typed `[String: GeneratedContent]`. SwiftData `HistoryToken.storeIdentifier`.
+  Vision RecognizeAnimalsRequest .revision3 + Identifier{dog,cat,dogHead,catHead}.
+  `onDropSessionUpdated`/`dragConfiguration` now iOS.
+- **Fixed-by-update verdicts:** ① #301-family dynamic actor-isolation trap: **NOT fixed** —
+  reproduced 2/2 on 24A5408d, byte-for-byte signature, @Sendable control clean; compiler still
+  emits the check (disassembly). @Sendable fixes remain required. Bonus: this trap class writes
+  **no .ips on the sim** — in-process handler or host-log assertion line is the only evidence.
+  ② SwiftData mainContext trap: **UNKNOWN** — minimal probe cannot reproduce in ANY
+  build×runtime cell INCLUDING July conditions (b4-built × b4-runtime); MainActor bodies never
+  left the true main thread in 15 shapes × all cells. The 2026-07-26 trap evidently needed full
+  app context. Workaround stays; see WATCH. ③ FM on sim: **still cannot generate** —
+  availability=.available yet respond()/guided throw; error identity on b5 is an UN-BRIDGED
+  NSError (`FoundationModels.LanguageModelError` code -1 wrapping ModelManagerServices
+  **ModelManagerError 1026**), NOT beta4's recorded UnifiedAssetFramework 5000, and typed
+  `as? LanguageModelError` catches DO NOT FIRE on it. `contextSize` returns **0** on sim.
+  tokenCount throws 1026 (device asymmetry unmeasurable off-device).
+- **New hazard (proven): beta-to-beta dyld strong-linking.** A beta5-built binary referencing
+  new-in-beta5 FM symbols dies at launch on a beta4 27.0 runtime — RBSProcessExitStatus
+  domain:dyld(6) code:4, no .ips. `@available(iOS 27.0)` cannot weak-link between betas.
+  Rule recorded in CLAUDE.md Build/tooling: adopt new beta5 symbols only while every target
+  runtime is on beta5 (Owen's phone updated to b5 overnight).
+- **Tooling:** idb companion cannot spawn under either Xcode 27 beta (SimulatorKit moved to
+  `Contents/SharedFrameworks/`; FBControlCore expects the release-Xcode private-frameworks
+  path) — workaround: spawn companion with `DEVELOPER_DIR=/Applications/Xcode.app/...`. A
+  manually-respawned companion bound to sim 047279D9 was left running for exactly this reason.
+- **Promotion executed in this commit** (close-out rule, one commit): CLAUDE.md (intro line 16 +
+  Build/tooling + Release-command example), lane-gate.sh + ota-stage.sh DEVELOPER_DIR defaults,
+  README.md:89, CONTRIBUTING.md ×3, MAINTAINER_NOTES.md test-posture line (2056/156+14).
+  Historical docs (dispatch/, old reports, project.yml:347 ATS provenance) untouched by design.
+  Memory files updated the same night (isolation-trap, swiftdata-trap, FM-surfaces,
+  sim-verify-gotchas + index).
+
+**WATCH / follow-ups (open):**
+- **324-W1** SwiftData mainContext IN-APP retest — only closer for the UNKNOWN above: temporary
+  `mainContext` fetch in ChatScreen's async chain on a beta5 runtime, expect trap-or-not; drop
+  the private-context workaround ONLY if that runs clean (probe + scripts preserved, see report).
+- **324-W2** HTMLArtifactSandbox control-arm 5s budget is load-flaky (2nd occurrence, both under
+  ≥3 concurrent xcodebuild). If it recurs on a QUIET box, that is a finding; consider a
+  condition-based wait or budget bump only then.
+- **324-W3** Device confirmations now that the phone is on b5: #301 §V2 fresh-install negative
+  control (unchanged urgency); FM tokenCount 4096-vs-8192 asymmetry + `variant.displayName` on
+  device; maximumResponseTokens throw-vs-truncate (still device-only).
+- **324-W4** The FM b4-vs-b5 error-identity comparison is measurement-only (same-binary control
+  is dyld-impossible; beta4's Code=5000 finding stands as recorded — do not treat the 1026 shape
+  as contradicting it).
+

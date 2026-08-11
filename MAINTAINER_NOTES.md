@@ -45,7 +45,7 @@ Chat does **not** pass through the relay. The relay carries everything else phon
 
 ## Test posture
 
-- iOS suite: 931 tests across 84 suites (Swift Testing) plus 8 XCUITests — green on the Xcode-beta4 SDK
+- iOS suite: 2056 tests across 156 suites (Swift Testing) plus 14 XCUITests — green on the Xcode-beta5 SDK (27A5237l, gate run 2026-08-11; previously recorded as 931/84 + 8 on beta4)
 - connector suite: passing
 - relay suite: passing
 - simulator launch flakes still happen intermittently on targeted runs
