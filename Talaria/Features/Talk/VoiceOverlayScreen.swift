@@ -169,6 +169,17 @@ struct VoiceOverlayScreen: View {
                     color: Design.Brand.forge
                 )
             }
+
+            // #320: and the other direction — when the REALTIME engine is
+            // driving, say so in the moment, because that is the session where
+            // microphone audio leaves the phone for the host's provider. The
+            // two badges are mutually exclusive by construction (one engine
+            // stamp, two values) and neither reads the brain setting; see
+            // `RealtimeVoiceNotice` for why bar 320-B forbids that source.
+            RealtimeVoiceIndicator(
+                engine: talkStore.voiceEngine,
+                connectionState: talkStore.connectionState
+            )
         }
         .frame(maxWidth: .infinity)
     }
