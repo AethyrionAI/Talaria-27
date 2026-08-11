@@ -16087,6 +16087,43 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
 - **324-W1** SwiftData mainContext IN-APP retest — only closer for the UNKNOWN above: temporary
   `mainContext` fetch in ChatScreen's async chain on a beta5 runtime, expect trap-or-not; drop
   the private-context workaround ONLY if that runs clean (probe + scripts preserved, see report).
+  - **🟡 RUN 2026-08-11. RESULT: NO TRAP — 12/12 fetches returned. AND THE WORKAROUND STAYS.
+    Status remains UNKNOWN, NOT fixed, and this run does not license the drop.** Read the
+    second number before the first: **12/12 samples reported `isMainThread=true`.**
+  - **What ran.** The real app, not a minimal probe — a temporary
+    `context.container.mainContext.fetch(FetchDescriptor<LocalSessionRecord>())` on
+    `SwiftDataLocalSessionStore`, called from **`ChatScreen.startChatSession()`** at four
+    sites: on entry and after **each** of its three awaits (`hostStore.refresh`,
+    `refreshDirectHealth`, `loadConversationIfNeeded`). The post-await sites are the point —
+    a MainActor Task can only get the chance to resume on a different OS thread at a
+    suspension point. Sim `CC-PROBES-iPhone-Air` (`0CB056F3-…`), **iOS 27.0 runtime
+    24A5408d (beta5)**, Xcode-beta5 Debug, branch `t27-sim-probes-301c-324w1` off `024926f`.
+    3 cold launches × 4 sites = 12 samples.
+  - **Instrument, because the trap is a SILENT SIGTRAP with no message and no `.ips`:** a
+    BEFORE line and an AFTER line around each fetch. BEFORE with no AFTER and a dead process
+    would be the trap; both lines is clean. **12 BEFORE, 12 AFTER, app alive after every run,
+    zero `BUG IN CLIENT OF LIBDISPATCH`.**
+  - **🔴 WHY THIS IS NOT A CLOSER, AND THE ENTRY'S OWN "ONLY IF THAT RUNS CLEAN" DOES NOT
+    APPLY.** July's trap is a **thread assertion** — `mainContext` is
+    `NSMainQueueConcurrencyType` underneath, and it fires when a MainActor body executes on a
+    non-main OS thread. **That condition never arose: every one of the 12 samples logged
+    `isMainThread=true`, on `<_NSMainThread … number = 1, name = main>`.** So the fetch was
+    never in a position to trap. A clean result from a cell that cannot express the failure
+    is not evidence the failure is gone — it is the same non-reproduction the beta5 audit got
+    across 15 minimal shapes, now reproduced one level up **in full app context, which is
+    exactly the escape the audit hypothesised and it did not pay out.** The honest reading:
+    the audit's "evidently needed full app context" explanation is now itself unsupported,
+    and what July hit remains unexplained.
+  - **Limitations, stated rather than left for the next lane to rediscover:** (a) the store
+    was EMPTY, `fetched=0` on all 12 — row count is irrelevant to a queue assert, which
+    fires on entry, but nobody has run this against a populated store; (b) all three launches
+    were on a **quiet box** (load ~8), while the #301 trials earlier the same hour ran at
+    load ~250 — if the July thread-hop was contention-driven, a loaded repeat is the cheap
+    next move and it was not run; (c) 3 launches is a small n for a condition that may be
+    intermittent.
+  - **Action: NONE. Keep the private `ModelContext(container)`.** Its comment in
+    `SwiftDataLocalSessionStore.swift` stays accurate. Dropping it was never this lane's call
+    and there is now less reason to, not more.
 - **324-W2** HTMLArtifactSandbox control-arm 5s budget is load-flaky (2nd occurrence, both under
   ≥3 concurrent xcodebuild). If it recurs on a QUIET box, that is a finding; consider a
   condition-based wait or budget bump only then.
