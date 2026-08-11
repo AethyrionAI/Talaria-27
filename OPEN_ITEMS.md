@@ -11892,7 +11892,7 @@ lane opens.
 > spawn the server cannot authenticate — that is what makes tui_gateway a
 > desktop-app story rather than a phone story.
 
-## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ~~ONE residual watch (250-D's island half)~~ — **🔴→✅ THE ISLAND HALF RAN 2026-08-10: 250T-C MISSED, then the CAUSE WAS FOUND AND FIXED THE SAME SITTING. The compact leading slot drew a grey placeholder for every icon; `UIImage(data:)` returns scale 1.0, so the 120 px handoff PNG arrives as a 120 POINT image the 14 pt slot won't draw — a regression #250 itself shipped 2026-08-05. Redrawing at the slot's point size makes it render (device-confirmed, *"full icon shows"*). Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged: bars + gate + a 250T-C re-run owed. Two theories died first (rendering mode; system tinting) — both recorded. The feature IS achievable as filed; no re-decide owed from Owen**
+## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ~~ONE residual watch (250-D's island half)~~ — **🔴→✅ THE ISLAND HALF RAN 2026-08-10: 250T-C MISSED, then the CAUSE WAS FOUND AND FIXED THE SAME SITTING. The compact leading slot drew a grey placeholder for every icon; `UIImage(data:)` returns scale 1.0, so the handoff PNG arrives with its POINT size equal to its PIXEL count (240, not the 120 first written down — corrected 2026-08-11 by #250F) and the 14 pt slot won't draw it — a regression #250 itself shipped 2026-08-05. Redrawing at the slot's point size makes it render (device-confirmed, *"full icon shows"*). Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged: bars + gate + a 250T-C re-run owed. Two theories died first (rendering mode; system tinting) — both recorded. The feature IS achievable as filed; no re-decide owed from Owen**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
 
@@ -12133,12 +12133,24 @@ lane opens.
 >    confirmed an hour earlier — is **falsified**. The defect is specific to
 >    the **bitmap**.
 > 3. **Size/scale — THE FIX.** `UIImage(data:)` returns **scale 1.0**, so
->    the 120 px handoff PNG arrives as a **120 POINT** image. The lock
+>    the ~~120 px~~ handoff PNG arrives as an image whose **POINT** size
+>    equals its **PIXEL** count. The lock
 >    screen (44 pt) and the expanded island (28 pt) draw it; the **14 pt**
 >    compact slot draws a placeholder instead. Redrawing the image at the
 >    slot's own point size (`UIGraphicsImageRenderer`) and restoring the
 >    real `HermesBrandIcon` — **the compact island renders the selected icon
 >    in full colour.** Owen: *"full icon shows."*
+>    **⚠️ SIZE CORRECTED 2026-08-11 (#250F, measured not inferred): the
+>    handoff is 240 px, not 120.** `IconPreview-Default.png` is a loose
+>    **240×240** bundle resource with no `@Nx` suffix, so `UIImage(named:)`
+>    reads it at scale 1.0, `pngData()` writes 240 px, and `UIImage(data:)`
+>    hands back **240 pt at scale 1.0** — pinned by
+>    `realPublishedHandoffAlsoLoadsAtScaleOne`. The mechanism above is
+>    unchanged and the fix is unaffected; the mismatch against a 14 pt slot
+>    is simply **2× worse** than every prior write-up said. The "120" came
+>    from `371e462`'s comment and propagated verbatim into this entry, this
+>    item's header, and `dispatch/DEVICE-PASS-RUNNING-LIST.md` — all three
+>    corrected in the #250F commit.
 >
 > **What is ESTABLISHED vs. what is ASSUMED, stated so the next reader does
 > not inherit a guess as a fact:** established — the redraw fixes it, and
@@ -12315,6 +12327,115 @@ THIS MERGES" line. Anchor: `HermesBrandIcon.redrawn(_:at:)` in
 > lane must not write "oversized images fail to encode" as fact unless it
 > narrows it with a real discriminator. Merging is gated on 250F-E, not on a
 > screenshot.
+
+**▶ 250F RAN 2026-08-11 (`t27-250-island-compact-icon`). 250F-A/B/C/D MET;
+250F-E is Owen's and is UNSCORED — it is the only thing between this branch
+and a merge.** Evidence per bar below. Two things the bars did not anticipate
+are recorded at the end, and one of them corrects this entry.
+
+- **250F-A — MET, and the RED was witnessed by REVERTING, not by
+  storytelling.** New suite `HermesBrandIconRedrawTests` (4 tests, one of them
+  parameterized over three sizes) in
+  `TalariaTests/HermesBrandIconRedrawTests.swift`.
+  - **RED:** `redrawn(_:at:)` was temporarily stubbed to `return image` — the
+    literal pre-fix behaviour, the raw handoff image going to the slot
+    untouched — and the suite run on the lane sim. Verbatim verdict:
+    **`✘ Test run with 4 tests in 1 suite failed after 0.330 seconds with 15
+    issues.`** The failures were `redrawnAdoptsTheSlotPointSizeAndTheScreenScale`
+    at **all three** sizes (14/28/44), five assertions each, the first being
+    `Expectation failed: out.size == CGSize(width: points, height: points)`.
+    Log: `/tmp/red2-250f.log`. The stub was then reverted and the same suite
+    re-run green inside the gate.
+  - **The pre-fix SHAPE is also asserted, not just remembered:**
+    `handoffLoadYieldsA120PointScaleOneImage` pins that a 120 px PNG loaded the
+    way the handoff file is loaded arrives **120 pt at scale 1.0** — and it
+    passed under the stub too, which is the point: the INPUT was never what
+    broke.
+  - **The widening carries the tag.** `redrawn` went `private static` →
+    `static` with a `// harness-visible` line comment in the #216 form.
+- **250F-B — MET.** The parameterized test runs **14 pt (compact island),
+  28 pt (expanded island) and 44 pt (lock screen)**; 28 and 44 are asserted in
+  exactly the same words as 14, and all three were red under the stub. Not
+  scored on 14 alone.
+- **250F-C — MET, re-run not restated.** `SelectedIconHandoffTests`' four
+  existing pins (round-trip, missing/nil → nil, fail-closed publish, init heal)
+  ran green in the same gate. Not edited by this lane — `git diff` touches no
+  line of that file.
+- **250F-D — MET.** Verbatim, from the third run:
+  `GATE: PASS — logs in /var/folders/0z/b07gxktx30s5cm8506x55py40000gn/T/talaria-gate.yt66wuHkeJ`
+  with `PASS Test run reported TEST SUCCEEDED` · `PASS Swift Testing tests
+  run — 2060` · `PASS XCUITest tests run — 14` · `PASS Release build
+  succeeded` · `PASS no Swift compile errors in Release`. Unit count
+  **2056 → 2060 (+4), 156 → 157 suites — it MOVED**, and the Swift Testing
+  verdict line reads `✔ Test run with 2060 tests in 157 suites passed`. The
+  "before" is main's own last gate (`0dbb7f6`, the beta5 audit) and is a valid
+  baseline because every commit on main since is docs-only
+  (`git diff --name-only 0dbb7f6..main` = two .md files). **+4, not +6:**
+  Swift Testing counts a parameterized function as ONE test regardless of its
+  argument count.
+  - **⚠️ IT TOOK THREE RUNS AND THE FIRST TWO FAILURES WERE HOST LOAD, said
+    plainly because the gate's own classifier told the reader otherwise.**
+    Two other lanes were building on this Mac throughout; load average peaked
+    at **948**. Run 2 (load ~550–950) failed on
+    `HTMLArtifactSandboxTests.controlArmWithoutRulesLeaksToTheListener()` — the
+    5 s WebKit-budget test the dispatch brief names as the known contention
+    casualty — **and** on
+    `MessageIdentityUITests.testTranscriptNeverRendersDuplicateMessageIDs()`
+    ("the on-device reply for 'f' should render"), which the classifier flagged
+    `ASSERTION TEXT PRESENT — treat this as a REAL failure. Do NOT re-roll it.`
+    **The classifier was doing its job — it fails SAFE and cannot see a
+    machine's load — but on this evidence it was wrong.** Discriminators: that
+    XCUITest PASSED in run 1 at lower concurrency and failed only as load rose;
+    both failures are timeouts waiting on an async result; the diff touches
+    only widget-icon compilation and adds unit tests, and cannot reach the chat
+    transcript; and the re-run at **load 34, same commit, same sim**, went
+    **2060/2060 green with zero issues.** Release built green in run 2 as well,
+    so the Release half never depended on the quiet box.
+- **250F-E — NOT SCORED. Owen's bar, device.** Nothing in this lane touches it
+  and nothing here should be read as evidence for it.
+
+**⚠️ FINDING 1 — the handoff is 240 px, not 120, and every prior write-up said
+120.** Measured, not inferred: `IconPreview-Default.png` is a loose **240×240**
+bundle resource with no `@Nx` suffix, so `UIImage(named:)` reads it at scale
+1.0, `pngData()` writes 240 px, and `UIImage(data:)` returns **240 pt at scale
+1.0**. Pinned by `realPublishedHandoffAlsoLoadsAtScaleOne`, which asserts both
+the exact number and the scale-free invariant behind it (point size == pixel
+count). **The mechanism is untouched and the fix is unaffected** — the mismatch
+against a 14 pt slot is simply **2× worse** than anyone wrote down. The "120"
+originated in `371e462`'s comment and propagated verbatim into this item's
+header, the chain-of-evidence block above, and
+`dispatch/DEVICE-PASS-RUNNING-LIST.md`; **all three are corrected in the same
+commit as this note**, per the close-out rule.
+
+**⚠️ FINDING 2 — the gate caught a FALSE assertion of mine, and it was the
+honesty clause's own failure mode.** A first gate run went red on
+`out.size.width * out.scale < loaded.size.width * loaded.scale` at 44 pt —
+I had written "the source is resampled DOWN to the slot's footprint". It is
+not: 44 pt × 3.0 = **132 px** against a 120 px source, so at the lock-screen
+size the redraw produces a **BIGGER** bitmap. The assertion was replaced with a
+true one (the output's pixel footprint is the slot's own, decoupled from the
+source's) and the correction is kept in the test file rather than quietly
+deleted, because **the false version smuggled in exactly the story the honesty
+clause forbids**: "oversized images fail to encode". The fix is not "shrink an
+oversized image"; it is "re-render at the slot's own geometry", and that is
+sometimes an ENLARGEMENT. **Which of point size / scale / provenance is
+load-bearing remains unproven** — this lane narrowed nothing and claims
+nothing.
+
+**Logs (this lane, all on the Mac Mini, `/tmp` — ephemeral, so the numbers
+above are transcribed rather than referenced):** `/tmp/red2-250f.log` (the RED
+witness), `/tmp/gate-250f-run2.log` (the host-load FAIL),
+`/tmp/gate-250f-run3.log` (`GATE: PASS`), with the gate's own per-run dirs
+named in each.
+
+**Note on where the code now lives.** `HermesBrandIcon` (and the one-line
+`ifLet` View helper) moved from `TalariaWidgets/HermesLiveActivity.swift` to
+**`Shared/HermesBrandIcon.swift`**, because `TalariaTests` compiles only its
+own sources plus `@testable import Talaria` and could not otherwise see the
+anchor. That is the pattern project.yml's own #58 note prescribes, and the move
+is byte-identical apart from the access-level widening (verified by diffing the
+excised region against the new file). `xcodegen generate` ran and its output is
+committed; the scheme was NOT rewritten, so #319's idempotence holds.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 

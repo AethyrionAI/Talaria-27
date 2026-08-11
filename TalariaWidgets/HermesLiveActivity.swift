@@ -3,82 +3,11 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
-struct HermesBrandIcon: View {
-    let size: CGFloat
-    var fallbackSymbol: String = "brain.head.profile"
-    var fallbackTint: Color = .yellow
-    var backgroundTint: Color? = nil
-    var cornerRadius: CGFloat? = nil
-
-    var body: some View {
-        if let uiImage = Self.loadImage() {
-            Image(uiImage: uiImage)
-                .resizable()
-                .renderingMode(.original)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                }
-        } else {
-            Image(systemName: fallbackSymbol)
-                .font(.system(size: size * 0.7, weight: .medium))
-                .foregroundStyle(fallbackTint)
-                .frame(width: size, height: size)
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: Circle())
-                }
-        }
-    }
-
-    private static func loadImage() -> UIImage? {
-        // #250: the app publishes the SELECTED icon's art into the app group;
-        // wear it when present so the island matches the home screen.
-        //
-        // ⚠️ KNOWN DEFECT 2026-08-10 (bar 250T-C, device): the LOCK SCREEN and
-        // the EXPANDED island render this correctly, but the island's COMPACT
-        // leading slot draws a grey placeholder square — identical for every
-        // icon. This loader is NOT at fault. `UIImage(data:)` returns scale
-        // 1.0, so the 120 px handoff PNG arrives as a 120 POINT image, and the
-        // 14 pt compact slot will not draw it; redrawing at the slot's own
-        // point size fixes it, proven on device. The fix lives on branch
-        // `t27-250-island-compact-icon` pending bars + the gate.
-        //
-        // Two theories were tried on device and BOTH FAILED — recorded so the
-        // evening is not repeated: forcing `.withRenderingMode(.alwaysOriginal)`
-        // here changed nothing, and "the system tints an opaque bitmap into a
-        // square silhouette" was falsified by a plain SwiftUI symbol rendering
-        // in full colour in that same slot. See OPEN_ITEMS #250.
-        if let selected = SelectedIconHandoff.load() {
-            return selected
-        }
-        if let image = UIImage(named: "AppIcon60x60", in: Bundle.main, compatibleWith: nil) {
-            return image
-        }
-
-        let containerAppURL = Bundle.main.bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        if let appBundle = Bundle(url: containerAppURL),
-           let image = UIImage(named: "AppIcon60x60", in: appBundle, compatibleWith: nil) {
-            return image
-        }
-
-        return nil
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func ifLet<T, Content: View>(_ value: T?, transform: (Self, T) -> Content) -> some View {
-        if let value {
-            transform(self, value)
-        } else {
-            self
-        }
-    }
-}
+// #250F (2026-08-11): `HermesBrandIcon` and the `ifLet` View helper moved
+// out of this file to `Shared/HermesBrandIcon.swift` so `TalariaTests` can
+// reach `HermesBrandIcon.redrawn(_:at:)` (bar 250F-A). `Shared/` compiles
+// into the app AND this extension, so nothing about what this widget draws
+// changed — see that file's header for the whole reason.
 
 struct HermesLiveActivity: Widget {
     var body: some WidgetConfiguration {

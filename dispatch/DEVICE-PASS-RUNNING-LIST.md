@@ -2429,9 +2429,13 @@ against is a *mined phrase*, not a wrong time.
 > Swapping the compact slot for a plain orange SF Symbol rendered **orange**
 > — so the slot is **not** monochrome and the tinting theory is
 > **falsified**; the defect is the bitmap. Cause: `UIImage(data:)` returns
-> **scale 1.0**, so the 120 px handoff PNG arrives as a **120 POINT** image
-> and the 14 pt slot won't draw it. Redrawing at the slot's point size
-> renders the real icon — Owen: *"full icon shows."*
+> **scale 1.0**, so the handoff PNG arrives as an image whose **POINT** size
+> equals its **PIXEL** count and the 14 pt slot won't draw it. Redrawing at
+> the slot's point size renders the real icon — Owen: *"full icon shows."*
+> **(Size corrected 2026-08-11 by #250F: this row said "120 px … 120 POINT".
+> Measured, the handoff is **240 px → 240 pt** — `IconPreview-Default.png` is
+> a loose 240×240 resource with no `@Nx` suffix. Mechanism unchanged; the
+> mismatch is 2× worse than written. See OPEN_ITEMS #250.)**
 >
 > **Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged.** This row
 > **re-runs as written** as the closing bar once that lane carries its bars
