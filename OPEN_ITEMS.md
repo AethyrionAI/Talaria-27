@@ -1563,6 +1563,92 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > Talaria 27 bundle), but per #254 its TCC grants are gone — re-grant
 > before any suite run on that sim.
 
+> **🛑 2026-08-11 — BETA-5 RE-STAGE ATTEMPTED. THE PASS IS STILL NOT RUN, AND
+> THIS TIME THE BLOCKER IS NOT THE RUNTIME. 74-A…E NOT RUN; 74-F EXECUTED AND
+> MET (again).**
+> **Runtime verdict: INDETERMINATE — beta5 was never exercised.** Per the
+> 08-10 instruction the runtime was checked FIRST, before staging anything,
+> and the check never reached the CarPlay toggle: **the Mac's only running
+> Simulator.app is severed from CoreSimulatorService and cannot open a device
+> window on ANY runtime.** Its own alert, read verbatim off the AX tree:
+> *"Loaded CoreSimulatorService is no longer valid for this process. Simulator
+> services will no longer be available… CoreSimulator.framework was changed
+> while the process was running… Service version (1171.2) does not match
+> expected service version (1169.1)."*
+> The cause is a timing coincidence, and both times are measured:
+> Simulator.app (PID 517, from `/Applications/Xcode.app` — **Xcode-beta5 ships
+> no Simulator.app at all**) launched **2026-08-10 23:01:08**; the beta5
+> runtime asset installed **23:07:37**, six minutes later, swapping the
+> system `CoreSimulator.framework` (now 1171.2) under the running process.
+> **Three consequences, each observed rather than inferred:**
+> (a) its device list is FROZEN at launch — a device created 3 s before the
+> menu was opened does not appear under File → Open Simulator;
+> (b) every 27.0 device in that menu resolves to **24A5390f (beta-4)**, the
+> only 27.0 runtime that existed when it started, so it could not open a
+> beta5 device even if the list did refresh;
+> (c) opening any device window raises the alert instead — which is also why
+> **the 26.5 positive control could not be re-run**, so the 08-10 A/B is
+> cited below, not refreshed.
+> **The runtime itself is healthy, and that WAS positively verified before any
+> blame was assigned:** a throwaway iPhone Air booted on beta5 and its
+> `launchd_sim` executes from the 24A5408d cryptex mount
+> (`…SimulatorRuntime-v24.1.5408.4.MIIn5t`; beta-4 mounts elsewhere, at
+> `/Library/Developer/CoreSimulator/Volumes/iOS_24A5390f`). Only the
+> Simulator.app UI process is broken — `simctl`-driven lanes are unaffected,
+> which is why nothing else on the box had noticed.
+> **No non-destructive workaround exists; both candidates were tried and both
+> failed.** `open -n` and a direct exec of the Simulator binary each start a
+> second process that self-terminates in ~4 s (single-instance enforcement —
+> PID 73850 observed alive at t=2 s, gone at t=4 s, all five booted sims
+> unharmed). And **`simctl` cannot substitute**: `simctl io` only enumerates
+> and records screens that already exist, with no external-display *attach*,
+> so Simulator.app is mandatory for this test. `simctl io … screenshot
+> --display external` on the beta5 probe returned NSPOSIXErrorDomain code 60
+> *"Timeout waiting for screen surfaces"* — **that is the CarPlay-OFF
+> baseline, NOT a beta5 verdict**, because the toggle could never be applied.
+> **Restarting Simulator.app was DECLINED, deliberately.** Four other lanes'
+> sims were booted throughout (CC-224, CC-250, CC-257, CC-B5) and this entry's
+> own 08-10 note records exactly what quitting it costs. All four were still
+> booted at lane close, and `simctl runtime match` was left with no user
+> override.
+> **THE UNBLOCK, for whoever runs this next — still ~10 min, but step 0 is new:**
+> **0.** Quit and relaunch Simulator.app at a moment when no other lane holds a
+> booted sim. It is a zombie either way; a fresh process picks up CoreSimulator
+> 1171.2 and both 27.0 runtimes. **Verify it took before trusting it:** File →
+> Open Simulator must list a **24A5408d** entry. Then the 08-10 procedure runs
+> unchanged — pin beta5, boot, toggle CarPlay, and look for the "– CarPlay"
+> window *before* staging the entitlement.
+> **Bars: 74-A NOT RUN · 74-B NOT RUN · 74-C NOT RUN (human) · 74-D NOT RUN
+> (human) · 74-E NOT RUN · 74-F MET.** Nothing here is a MISS — no bar was
+> observed and failed; the apparatus never came up.
+> **74-F evidence:** the entitlement was already commented and was never
+> staged (Step 1 stopped first, as instructed); `xcodegen generate` was
+> byte-identical (`git status --porcelain` empty, confirming #319's
+> idempotence); the carplay key is absent from `Talaria.entitlements`; and
+> `xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Debug
+> -destination 'generic/platform=iOS' build` → `** BUILD SUCCEEDED **`, zero
+> `error:` lines, signed *"Apple Development: James Jones (8RJ9C6466D)"*.
+> `GatherProvisioningInputs` appears in the log only as the build phase that
+> used to fail in the 2026-07-07 regression. Entitlements on the signed
+> product: healthkit (+access, +background-delivery), weatherkit,
+> application-groups — **no carplay**. Working tree byte-clean.
+> **⚠️ Correction to this entry's own 2026-07-07 text (close-out rule):** the
+> "aps-environment + weatherkit confirmed surviving" check is STALE and a
+> future 74-F run must not apply it — **`aps-environment` was deliberately
+> removed from the project by #238** (commit `3766537`) and is absent from
+> `project.yml` and every `.entitlements` file on `main` today. The surviving
+> keys to verify after regen are **weatherkit + healthkit +
+> application-groups**; expecting aps-environment will read as a false failure.
+> **Left in place on purpose:** `CC-74-iPhone-Air` still carries
+> `SimulatorExternalDisplay = 2714` (= CarPlay) in the
+> `com.apple.iphonesimulator` prefs from the 08-10 attempt, so the next run
+> starts one step further along. (2114 = Disabled — that mapping was read off
+> those prefs this session, and it is also how the CarPlay toggle can be set
+> without touching the I/O menu.)
+> **#45 unchanged** — still sequenced behind this pass per Owen's 08-10
+> re-affirmation. This result does not touch that ruling; it only means the
+> pass has still not had a fair attempt on a beta5 runtime.
+
 > **Audit 2026-07-13:** PR #40 (`claude/w5-19-carplay-voice`→main, merged) and GitHub #19 (closed) confirm the code landed; `Talaria/CarPlay/CarPlayVoiceManager.swift` (nonisolated `maxTranscriptTitleLength`/`blockedTitle`, matching the described compile fix) and `TalariaTests/CarPlayVoiceStateTests.swift` are on main, and `project.yml:61` shows the CarPlay entitlement commented out per the hotfix. The item's own Mac-session note already confirms xcodegen/build/tests done, so the trailing 'Needs Mac: xcodegen generate... CLI build + tests' text is stale; the genuinely open work is the CarPlay Simulator functional pass (entitlement currently disabled) and filing Apple's discretionary grant — keep 🔧, this item is effectively blocked on that external approval.
 
 **Update 2026-07-07 (Mac session — MERGED to `main`, PR #40 / GitHub #19):**
