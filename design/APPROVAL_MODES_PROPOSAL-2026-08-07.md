@@ -139,8 +139,19 @@ Edited field values are what get created (`:19-20`, `:145-150`).
 | Tool | Gate call | Card |
 |---|---|---|
 | `createReminder` (`DeviceActionTools.swift:98`) | `:228` | "Create this reminder?" + title/due/list, **plus a caution row** |
-| `createCalendarEvent` (`:410`) | `:484` | "Add this event to the calendar?" + title/starts/duration/location — **no caution** |
-| `scheduleAlarm` (`:601`) | `:626` | "Schedule on this iPhone?" + "It will ring through Silent mode and Focus." — **no caution** |
+| `createCalendarEvent` (`:410`) | `:484` | "Add this event to the calendar?" + title/starts/duration/location — ~~**no caution**~~ |
+| `scheduleAlarm` (`:601`) | `:626` | "Schedule on this iPhone?" + "It will ring through Silent mode and Focus." — ~~**no caution**~~ |
+
+> **⛔ SUPERSEDED 2026-08-11 by #224 PHASE 0 — the two "no caution" cells are
+> now FALSE, and that was the whole point of the phase.** `createCalendarEvent`
+> stages `STARTS IN THE PAST` / `EARLY MORNING START — CHECK AM/PM`
+> (`CalendarEventTool.startCaution(for:now:)`), and `scheduleAlarm` stages
+> `EARLY MORNING — CHECK AM/PM` / `ALREADY PASSED TODAY — RINGS TOMORROW`
+> (`AlarmTool.caution(for:now:calendar:)`). **All three gated tools carry a
+> caution layer now.** The `:NNN` line citations in this table were read at a
+> pre-Phase-0 head and every one below `:410` has drifted — re-resolve by
+> symbol, never by line (the #304 C1 rule). Evidence: OPEN_ITEMS #224, bars
+> 224-0A/0B/0C/0D.
 
 (Two extra `createReminder` / `createCalendarEvent` structs at `:339`, `:377`, `:567` are
 pinned rollback seams from the #209/#200 lanes, not additional flows.)
@@ -157,12 +168,35 @@ must not imply it does (real-data-only rule).
 the battery." So the shape of "a mode that changes what the gate does" is already proven
 mechanically; what's missing is a production, persisted, user-visible one.
 
+> **📌 UPDATED 2026-08-11 (#224 Phase 0): a production, persisted mode now
+> exists — and is deliberately NOT user-visible.** `ApprovalMode`
+> (`Talaria/Services/Support/ApprovalModeCore.swift`) ships `.manual` /
+> `.smart` / `.off`, persisted as the GLOBAL `UserSettings.approvalMode`
+> (ruling 2), read by the gate through
+> `ToolConfirmationCenter.modeProvider`. **`.manual` is the only value the
+> build can resolve to**: `ApprovalMode.selectable == [.manual]` and the
+> settings decoder clamps through `ApprovalMode.resolved(_:)`, so even a blob
+> that names `"off"` decodes to `.manual`. The battery flags are untouched and
+> still short-circuit ahead of the mode read. So "what's missing" is now just
+> the user-visible half, which is Phase 1's and holds per ruling 1.
+
 **The deterministic caution layer already exists, on one tool.**
 `DeviceActionTools.dueCaution(for:now:)` (`:305-315`) returns a forge-amber warning string
 for three rules: `isPastDue` (5-minute grace, `:57-59`), `isEarlyMorning` (hour ≤ 6,
 `:50-52`), `isNextMorning` (asked after 17:00, lands 07:00–11:59 next day, `:65-72`).
 Two of those three are #233 and #249 — defects caught **on the card**, which is exactly why
 the shelving note calls the cards load-bearing.
+
+> **⛔ "on one tool" SUPERSEDED 2026-08-11 — it is on all three now** (#224
+> Phase 0). The three PREDICATES are unchanged and are shared: the new rules
+> reuse `isPastDue` and `isEarlyMorning` verbatim rather than restating their
+> thresholds. `isNextMorning` stays reminder-only — it reads an evening ask
+> resolving to a next-morning DUE, a shape neither an event start nor an alarm
+> clock time has. One difference worth knowing before Phase 2 reads these:
+> **the two new tools' rows carry no formatted date or time** (the #233-E /
+> #249-F rule, asserted digit-free), while the reminder's three still carry
+> `displayDate`/`timeOnly` — those predate the rule and were left alone
+> deliberately, being #233/#249's shipped, device-validated surface.
 
 **We handle no host approval event.** The SSE switch in `SessionsHermesClient.swift`
 handles `run.started` (`:337`), `assistant.delta` (`:342`), `tool.started`/`tool.completed`
@@ -246,12 +280,33 @@ actions are unusual, ask only about those.** Zero model calls, zero added latenc
 new failure mode — and the rules that would drive it are the ones that already caught #233
 and #249.
 
-**Precondition, and it is a hard one: `createCalendarEvent` and `scheduleAlarm` pass no
-`caution:` today.** Shipping Smart without fixing that would auto-approve *every alarm*,
+~~**Precondition, and it is a hard one: `createCalendarEvent` and `scheduleAlarm` pass no
+`caution:` today.**~~ Shipping Smart without fixing that would auto-approve *every alarm*,
 including a 4 AM one — the precise defect #233 exists to prevent. So Phase 0 below extends
 the caution rules to those two tools before any mode ships. If you approve nothing else in
 this document, Phase 0 is worth doing on its own merits: it makes the *Manual* card better
 too.
+
+> **✅ PRECONDITION DISCHARGED 2026-08-11 — Phase 0 ran and both tools pass a
+> `caution:` now.** Smart is no longer blocked on this. Two things Phase 2 must
+> read before it uses these rules as its auto-approve discriminator, neither of
+> which this section anticipated:
+>
+> 1. **The wee-hour rule fires on the CANONICAL morning alarm.**
+>    `isEarlyMorning` is hours 0–6, so `"6:30am wake up"` — the ordinary alarm,
+>    not a defect — carries `EARLY MORNING — CHECK AM/PM` on every card. Under
+>    Manual that is one amber line on a card the user is already tapping.
+>    **Under Smart it means every pre-7 AM alarm CARDS instead of
+>    auto-approving**, which is conservative in the safe direction but is not
+>    "ask only about the unusual." Phase 2 should decide deliberately whether
+>    that is the behaviour it wants; the threshold is #233's and changing it is
+>    that lane's call to make in writing, not a detail to discover in use.
+> 2. **The `/alarm` SLASH COMMAND is a different gate and got nothing.**
+>    `ChatScreen.swift`'s `.alert("Schedule on this iPhone?", …)` (#193) is a
+>    separate consent surface from `ToolConfirmationCenter`, with no caution
+>    row and no mode. Phase 0's bars named the `scheduleAlarm` TOOL and that is
+>    what was built; if a mode ever ships, this second door has to be answered
+>    for or "Never ask" will be untrue of one path into AlarmKit.
 
 **What I deliberately do NOT propose:** routing a staged action through
 `LanguageModelSession` for a risk verdict. We already ship one on-device LLM classifier
@@ -408,6 +463,18 @@ Worth doing even if every later phase is declined; it improves the Manual card.
   starts.
 - **224-0C:** unit tests cover each rule per tool at boundaries (06:59 / 07:00, the 5-minute
   past-due grace); suite count moves.
+
+> **⚠️ DO NOT CITE THE SKETCH NUMBERS ABOVE — they are not the pre-registration,
+> and their letters do not line up with the ones that are.** The bars of record
+> were pre-registered in OPEN_ITEMS #224 on 2026-08-11 and RAN that day.
+> **Registered 224-0C is the RED-first bar** (the 0A/0B tests must fail before
+> the change), and **the boundary coverage above became registered 224-0D**;
+> the registration also adds **224-0E** (the mode scaffold), **224-0F** (the
+> model-free pin, pulled forward from the Phase 2 sketch's 224-2B) and
+> **224-0G** (the gate). A reader who cites "224-0C" from this page means a
+> different bar from the one the tracker scored. **Phases 1–3 below remain a
+> SKETCH and are NOT pre-registered** — they hold un-dispatched until Owen asks
+> for fewer prompts in so many words (ruling 1).
 
 **Phase 1 — Manual / Off, with the floor. Size: S–M.**
 - **224-1A:** default is `.manual` on a fresh install AND on a pre-existing settings blob

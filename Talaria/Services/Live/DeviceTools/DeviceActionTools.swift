@@ -474,13 +474,47 @@ struct CalendarEventTool: Tool {
         return min(max(raw, 5), 24 * 60)
     }
 
+    /// #224 Phase 0: the card's caution row for a staged event start. Two
+    /// deterministic rules — the same two the reminder card has carried since
+    /// #233 and #249 — a start already in the past, and a wee-hour start (the
+    /// AM/PM misread). First match wins; nil for ordinary starts, so an
+    /// ordinary event card renders byte-identically to pre-#224.
+    ///
+    /// ORDERING matches the reminder card's (#249-C): a start both stale AND
+    /// wee-hour reads as stale first, because an event that starts in the past
+    /// is a plain failure whichever hour it names.
+    ///
+    /// The wording carries **no formatted date or time**. That is the #233-E /
+    /// #249-F rule: the model has twice mined a formatted timestamp out of a
+    /// tool string into a fabricated "has been set for …" success claim. Every
+    /// row #224 Phase 0 adds is digit-free, pinned by
+    /// `phase0CautionRowsCarryNothingMineable` rather than by review. The
+    /// REMINDER card's own rows still carry their `displayDate`/`timeOnly`:
+    /// they predate the rule, they are #233/#249's shipped and
+    /// device-validated surface, and rewriting them is not what Owen balloted.
+    nonisolated static func startCaution(for date: Date?, now: Date) -> String? {
+        guard let date else { return nil }
+        if DeviceActionParsing.isPastDue(date, now: now) {
+            return "STARTS IN THE PAST"
+        }
+        if DeviceActionParsing.isEarlyMorning(date) {
+            return "EARLY MORNING START — CHECK AM/PM"
+        }
+        return nil
+    }
+
     /// The whole create flow from staged-title to EventKit save, shared
     /// with the #200T optional-field copy so that cell's ONLY delta is the
     /// two field types — structural-identity discipline: two structs, one
     /// engine (the #200Q/#200S reminder precedent).
+    ///
+    /// `now` is injectable for the same reason the reminder engine's is: the
+    /// caution rules read a clock, and a test that cannot set the clock can
+    /// only measure boundaries by luck. Production never passes it.
     nonisolated static func performCreate(
         rawTitle: String, rawStartsAt: String, rawMinutes: Int?, rawLocation: String,
-        confirmations: ToolConfirmationCenter
+        confirmations: ToolConfirmationCenter,
+        now: Date = Date()
     ) async -> String {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No event title was given — nothing staged." }
@@ -492,6 +526,7 @@ struct CalendarEventTool: Tool {
         let decision = await confirmations.requestConfirmation(
             title: "Add this event to the calendar?",
             detail: nil,
+            caution: Self.startCaution(for: start, now: now),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "startsAt", label: "Starts", value: DeviceActionParsing.displayDate(start)),
@@ -629,6 +664,50 @@ struct AlarmTool: Tool {
         var request: String
     }
 
+    /// #224 Phase 0: the alarm card's caution row. The #16 grammar resolves
+    /// to a wall-clock time or a countdown, never to a date, so both rules
+    /// read the REQUEST against `now` rather than a parsed due:
+    ///
+    /// * a wee-hour fixed time (hours 0–6) is #233's AM/PM misread arriving
+    ///   through a different door — "wake me at 4" is far more often 4 PM;
+    /// * a fixed time whose occurrence TODAY has already passed, beyond
+    ///   #249's five-minute grace, will not ring today at all —
+    ///   `AlarmService.nextOccurrence` rolls it to tomorrow, and the card
+    ///   shows only the raw request string, so nothing else on it says which
+    ///   day it rings.
+    ///
+    /// A countdown trips neither: it is always in the future and has no clock
+    /// hour to misread.
+    ///
+    /// PRECEDENCE runs the OPPOSITE way from `CalendarEventTool.startCaution`
+    /// and `ReminderCreateTool.dueCaution`, deliberately. A past-due reminder
+    /// or event is a plain failure, so "in the past" is the sharper thing to
+    /// say. A past-due ALARM still rings — one day later — so the softer
+    /// signal must never mask the wee-hour one, which is the defect #233
+    /// exists to raise.
+    ///
+    /// No formatted date or time, for the #233-E / #249-F reason spelled out
+    /// on `CalendarEventTool.startCaution`.
+    nonisolated static func caution(
+        for request: AlarmService.AlarmRequest,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> String? {
+        // A local wall-clock time that does not exist on `now`'s day (a
+        // spring-forward gap) is not evidence of anything — say nothing
+        // rather than guess.
+        guard case .fixedTime(let hour, let minute) = request.kind,
+              let todayAt = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now)
+        else { return nil }
+        if DeviceActionParsing.isEarlyMorning(todayAt) {
+            return "EARLY MORNING — CHECK AM/PM"
+        }
+        if DeviceActionParsing.isPastDue(todayAt, now: now) {
+            return "ALREADY PASSED TODAY — RINGS TOMORROW"
+        }
+        return nil
+    }
+
     func call(arguments: Arguments) async throws -> String {
         let raw = arguments.request.trimmingCharacters(in: .whitespacesAndNewlines)
         if case .refused(let refusal) = try await relay.started(name, detail: raw) { return refusal }
@@ -642,6 +721,7 @@ struct AlarmTool: Tool {
         let decision = await confirmations.requestConfirmation(
             title: "Schedule on this iPhone?",
             detail: "It will ring through Silent mode and Focus.",
+            caution: Self.caution(for: request, now: Date()),
             fields: [.init(key: "request", label: "Alarm", value: raw)]
         )
         guard case .approved(let values) = decision else {

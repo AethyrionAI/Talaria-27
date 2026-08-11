@@ -48,6 +48,21 @@ final class ToolConfirmationCenter {
     private(set) var pending: PendingConfirmation?
     private var continuation: CheckedContinuation<Decision, Never>?
 
+    /// #224 Phase 0: the gate's approval mode, read through a provider so
+    /// this class keeps no settings dependency (the
+    /// `SessionsHermesClient.useRunsTransportProvider` precedent). The key is
+    /// GLOBAL — `UserSettings.approvalMode`, ruling 2 — because the gate
+    /// governs THIS PHONE's writes, which happen identically whichever host a
+    /// turn came from and happen at all when no host is configured.
+    ///
+    /// `.manual` is the only value the settings layer can produce in this
+    /// build (`ApprovalMode.selectable == [.manual]`, and the decoder clamps
+    /// through `ApprovalMode.resolved(_:)`), so the disposition below is
+    /// always `.card` and the gate behaves exactly as it did before #224.
+    /// Phase 1 is the lane that gives `.autoApprove` and `.refuse` real
+    /// paths; this is the single production call site it edits.
+    @ObservationIgnored var modeProvider: @MainActor () -> ApprovalMode = { .manual }
+
     #if DEBUG
     /// #196 battery: headless sessions can never answer a card, and the
     /// continuation is deliberately non-cancellable — so the rate battery
@@ -131,6 +146,17 @@ final class ToolConfirmationCenter {
             return .approved(values)
         }
         #endif
+        // #224 Phase 0. `.card` is the only disposition with an
+        // implementation in this build, and the only one settings can
+        // produce. If a later lane arms a mode without also building its
+        // handling, the gate must NOT act on it: it stages the card anyway
+        // and says so in the log. That is the default-CLOSED direction this
+        // gate was designed around — an unhandled mode costs a prompt, never
+        // an unapproved write.
+        let disposition = modeProvider().disposition(hasCaution: caution != nil)
+        if disposition != .card {
+            Self.logger.error("approval mode produced \(disposition.rawValue, privacy: .public) — this build ships no handling for it; staging the card")
+        }
         guard continuation == nil else {
             Self.logger.warning("confirmation requested while another is pending — auto-declining the new one")
             return .declined
