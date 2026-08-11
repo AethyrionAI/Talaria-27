@@ -2938,10 +2938,13 @@ UDID; Owen pastes), then grep. Read once at `oslogSeverity: ["all"]` — #198B's
 > **The sitting STOPPED here, per this row's own instruction.** Phase B
 > (Debug install → R13/R12/R2) was staged and not run.
 >
-> **First thing on the next corded sitting, before anything else:** is Control
-> Center's "Talk to Hermes" reachable from the **device** lock screen (passcode
-> never entered)? Every measurement above had the device unlocked and only the
-> APP locked. That one check sets #323's blast radius. **~30 seconds.**
+> ~~**First thing on the next corded sitting:** is Control Center's "Talk to
+> Hermes" reachable from the **device** lock screen?~~ **✅ ANSWERED
+> 2026-08-10 by Owen, no sitting needed — DO NOT SCHEDULE IT.** The control is
+> on the lock screen, but **iOS demands Face ID / passcode at the DEVICE level
+> before Talaria launches**, so there is no device-lock bypass. #323's blast
+> radius is bounded to an UNLOCKED phone in someone else's hands — App Lock's
+> own threat model. Recorded at #323.
 
 **This is a CONTRACT-COMPLIANCE measurement, not an exploration.** 302-C was
 **RULED by Owen 2026-08-10: defer-until-unlock**, and it is today's felt flow

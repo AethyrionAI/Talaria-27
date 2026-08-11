@@ -186,7 +186,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#319** 🐛 XcodeGen derives the wrong product name on every regen — do NOT pin; NOT STARTED
 - **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix; NOT STARTED
 - **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD) — lane ungated, NOT STARTED, bars pre-register in the entry**
-- **#323** 🐛 🚨 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. Severity question still open — is Control Center's "Talk to Hermes" reachable from the DEVICE lock screen? One 30-second check, and it decides the blast radius**
+- **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292); NOT STARTED, bars pre-register in the entry**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#296** 🐛 A tool you INTERRUPTED renders with a ✓ as though it completed
@@ -6691,15 +6691,33 @@ IN FLIGHT when the cover drops mid-turn — abandon, hold, or let it finish;
 window entirely; (d) is the transcript written during a locked interval kept,
 discarded, or held (today it is kept, silently).
 
-**⚠️ THE SEVERITY QUESTION THAT IS NOT YET ANSWERED, and it needs the phone:**
-whether Control Center's "Talk to Hermes" is reachable **from the iOS lock
-screen** — i.e. with the *device* passcode never entered. Every measurement
-above was taken with the device unlocked and only the APP locked. If the
-control is reachable from the device lock screen, the blast radius is not "a
-person holding your unlocked phone" but "a person holding your phone", and
-this item's priority changes accordingly. **Do not assume either answer** —
-it is one 30-second check on the next corded sitting, and it is the first
-thing that sitting should do.
+**✅ THE SEVERITY QUESTION IS ANSWERED — 2026-08-10, Owen, same evening, and
+the answer BOUNDS this item.** The control *is* present in Control Center on
+the iOS lock screen, **but iOS demands Face ID / passcode at the DEVICE level
+before Talaria is ever launched**. His words: *"from the lock screen, but it
+has face id / passcode at the phone unlock level before it even gets to
+talaria."* So the path from a **locked device** is gated by the device
+passcode and **there is no device-lock bypass here.** The two authentications
+are sequential and independent: device unlock first, then Talaria's own App
+Lock prompt — and it is only the *second* one that can be cancelled while the
+session runs on.
+
+**What that leaves, stated without inflation or deflation.** The exposure is
+**an UNLOCKED device in someone else's hands** — handed over to show a photo,
+left unattended on a desk, taken while awake. That is not an exotic threat
+model; **it is precisely and only the threat model App Lock exists to
+address.** So the defect is real and the fix is still owed — App Lock fails
+at its one job — but the blast radius is bounded by the device passcode, and
+this item is **not** a "stranger with your phone reads your health data"
+finding. Priority: fix it properly, not tonight.
+
+**One structural note worth keeping, since it limits what any fix can buy.**
+App Lock authenticates with the same Face ID / passcode as the device, so it
+was never a true second factor against someone who knows the passcode — its
+value is against someone who has the *unlocked phone* but not the credential.
+A fix should be scoped to deliver exactly that, and claims beyond it (in
+copy, in the privacy policy, or in App Store material) would overstate what
+the mechanism can do.
 
 **Cross-references:** **#302** (the microphone half, same root cause, same
 run), **#124** (the reason the cover is a dedicated window — that design is
