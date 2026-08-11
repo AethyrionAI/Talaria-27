@@ -1,5 +1,25 @@
 # OPUS T27 #282 — scope the content-claim tier's DEMAND side to the in-flight turn
 
+> **🛑 SUPERSEDED 2026-08-11 — THIS DISPATCH'S CENTRAL INSTRUCTION IS NO
+> LONGER THE SHIPPED DESIGN, INCLUDING ITS TITLE.** This document tells a lane
+> to BAN settled rows from the content claim (*"scope the DEMAND side to the
+> in-flight turn"*). That guard was built and measured on 2026-08-10 (the
+> measurement lane, GitHub PR #304, parked DO NOT MERGE) and it **cost more
+> than predicted**: bars 282-B, 282-D, 282-E and 299-B all went RED, because
+> for a locally-born SETTLED user row the content claim is the ONLY
+> confirmation that exists. **Owen ruled §7 option 1 on 2026-08-10: RANK the
+> consumers instead of banning them** — in-flight rows take a claim first, and
+> a settled row may still consume one that no in-flight row wants. That
+> ranking is what was built (2026-08-11, branch `t27-282-rank-consumers`,
+> bars 282R-A..F all met).
+>
+> **Read this file as HISTORY, not as instructions.** Its §5/§6 procedure, its
+> STOP condition and its §7 options are the record of how the decision was
+> reached; the live text is **`OPEN_ITEMS.md` #282**, whose 2026-08-11 result
+> block is authoritative. In particular: **§7 option 2 (a deterministic
+> fallback id in `mapStoredMessage`) was explicitly NOT taken** — the id-less
+> hazard it addressed only manifested under the ban this ruling supersedes.
+
 > **⚠️ SEQUENCING BANNER, 2026-08-10 (Owen's ruling at the 2026-08-09 decision
 > pass): THIS LANE IS HELD BEHIND #299.** The halt this dispatch's own STOP
 > condition produced was ruled on: `dispatch/FABLE-T27-299-adoption-identity.md`
