@@ -36,22 +36,20 @@ struct HermesBrandIcon: View {
         // #250: the app publishes the SELECTED icon's art into the app group;
         // wear it when present so the island matches the home screen.
         //
-        // ⚠️ CORRECTION 2026-08-10 (device run, bar 250T-C): this works for the
-        // LOCK SCREEN presentation and NOT for the island's compact leading
-        // slot, which renders a flat grey square for every icon tried (a dark
-        // orb and a bright yellow star produced the identical square while the
-        // lock screen rendered each correctly, in colour). The image is fine —
-        // one view serves both presentations — so the failure is specific to
-        // the compact slot: the EXPANDED island region renders it correctly
-        // too, so this handoff is exonerated and only the COMPACT presentation
-        // flattens the art, silhouette-style (an app-icon PNG is fully opaque
-        // — verified `hasAlpha: no` — so its silhouette is a square, which is
-        // exactly what the slot shows). Leading hypothesis, UNTESTED: the
-        // compact slot honours the UIImage's OWN renderingMode rather than
-        // SwiftUI's `.renderingMode(.original)` below, and `UIImage(data:)` is
-        // `.automatic` ⇒ template. If so the fix is one line in the loader:
-        // `.withRenderingMode(.alwaysOriginal)`. Do not treat "the COMPACT
-        // island matches the home screen" as true. See OPEN_ITEMS #250.
+        // ⚠️ KNOWN DEFECT 2026-08-10 (bar 250T-C, device): the LOCK SCREEN and
+        // the EXPANDED island render this correctly, but the island's COMPACT
+        // leading slot draws a grey placeholder square — identical for every
+        // icon. This loader is NOT at fault. `UIImage(data:)` returns scale
+        // 1.0, so the 120 px handoff PNG arrives as a 120 POINT image, and the
+        // 14 pt compact slot will not draw it; redrawing at the slot's own
+        // point size fixes it, proven on device. The fix lives on branch
+        // `t27-250-island-compact-icon` pending bars + the gate.
+        //
+        // Two theories were tried on device and BOTH FAILED — recorded so the
+        // evening is not repeated: forcing `.withRenderingMode(.alwaysOriginal)`
+        // here changed nothing, and "the system tints an opaque bitmap into a
+        // square silhouette" was falsified by a plain SwiftUI symbol rendering
+        // in full colour in that same slot. See OPEN_ITEMS #250.
         if let selected = SelectedIconHandoff.load() {
             return selected
         }

@@ -215,7 +215,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
-- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴 250T-C RAN 2026-08-10 AND MISSED — the island's leading slot is a flat grey square for every icon while the lock screen renders correctly; mechanism unresolved (tinting vs a handoff regression), and under one of them the feature is not achievable as filed**
+- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴→✅ 250T-C RAN 2026-08-10 AND MISSED, cause found and FIXED the same sitting: the scale-1.0 handoff image arrives 120 pt wide and the 14 pt compact slot won't draw it — a regression #250 itself shipped. Fix device-proven on `t27-250-island-compact-icon`; bars + gate + re-run owed before merge**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
@@ -12587,7 +12587,7 @@ lane opens.
 > spawn the server cannot authenticate — that is what makes tui_gateway a
 > desktop-app story rather than a phone story.
 
-## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ~~ONE residual watch (250-D's island half)~~ — **🔴 THE ISLAND HALF RAN 2026-08-10 AND FAILED: 250T-C MISSED. The compact leading slot is a flat grey square for EVERY icon (dark orb and bright yellow star both), while the lock-screen presentation renders the selected icon correctly in colour. Two candidate mechanisms recorded — system tinting of an opaque bitmap, or a regression introduced by #250's own handoff (the filing below records the slot rendering recognizable art BEFORE the handoff existed). Discriminator named, unrun. Under mechanism 1 the feature is NOT achievable as specified — Owen's call**
+## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ~~ONE residual watch (250-D's island half)~~ — **🔴→✅ THE ISLAND HALF RAN 2026-08-10: 250T-C MISSED, then the CAUSE WAS FOUND AND FIXED THE SAME SITTING. The compact leading slot drew a grey placeholder for every icon; `UIImage(data:)` returns scale 1.0, so the 120 px handoff PNG arrives as a 120 POINT image the 14 pt slot won't draw — a regression #250 itself shipped 2026-08-05. Redrawing at the slot's point size makes it render (device-confirmed, *"full icon shows"*). Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged: bars + gate + a 250T-C re-run owed. Two theories died first (rendering mode; system tinting) — both recorded. The feature IS achievable as filed; no re-decide owed from Owen**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
 
@@ -12801,27 +12801,63 @@ lane opens.
 > perfectly well in the island; only the COMPACT presentation flattens it,
 > and the handoff is exonerated.**
 >
-> **The reconciliation with the 2026-08-04 filing was ATTEMPTED AND FAILED —
-> recorded because it constrains the fix.** The obvious story ("the upstream
-> Hermes art carried alpha, so its silhouette was a recognizable logo shape;
-> ours are opaque squares") is **dead on inspection**: `sips -g hasAlpha` on
-> the pre-#250 primary (`AppIcon.png` at `e10ece4^`) and on today's both
-> report **`no`** — both are fully opaque 1024² squares. Under a pure
-> tint-to-silhouette mechanism the pre-#250 island should have shown a
-> square too, which is not what that filing describes.
+> **An alpha-based reconciliation was ATTEMPTED AND FAILED, and killing it
+> is what forced the right answer.** The tidy story ("the upstream Hermes
+> art carried alpha, so its silhouette read as a logo; ours are opaque
+> squares") is **dead on inspection**: `sips -g hasAlpha` on the pre-#250
+> primary (`AppIcon.png` at `e10ece4^`) and on today's both report **`no`**
+> — both fully opaque 1024² squares. With that gone, the tinting mechanism
+> could no longer explain the 2026-08-04 filing at all, which is what sent
+> the next experiment at the assumption instead of at the details.
 >
-> **The refined hypothesis this leaves, and it predicts a ONE-LINE fix
-> (UNTESTED — do not treat as established):** the system tints the compact
-> slot by honouring the **UIImage's own** `renderingMode`, not SwiftUI's
-> `.renderingMode(.original)` modifier. An **asset-catalog** image (the
-> pre-#250 path, `UIImage(named:)`) can carry *Render As: Original* intent
-> and survives; **`UIImage(data:)` — what `SelectedIconHandoff.load()`
-> returns — is `.automatic`** and gets template-flattened to a silhouette.
-> That reconciles both observations without discarding either, and it names
-> its own experiment: `UIImage(data:)?.withRenderingMode(.alwaysOriginal)`
-> in the handoff loader, rebuild, one tap. If the star appears in compact,
-> the fix is that line; if it stays grey, the compact slot cannot show
-> colour at all and the feature needs the redesign described below.
+> **✅ CAUSE FOUND AND FIX PROVEN ON DEVICE THE SAME SITTING — four
+> experiments, two of them failures, and the failures are the reason the
+> answer is trustworthy.** Recorded in order, because the order is the
+> argument:
+> 1. **Rendering mode — FAILED.** Forced
+>    `UIImage(data:)?.withRenderingMode(.alwaysOriginal)` in the loader,
+>    rebuilt, reinstalled: **still grey.** The tidy one-line fix predicted
+>    directly above is **dead**, and the hypothesis that produced it was
+>    wrong.
+> 2. **Can the slot show colour at all? — YES, and this killed the tinting
+>    story outright.** Replaced the compact slot's content with a plain
+>    `Image(systemName: "star.fill").foregroundStyle(.orange)` — no bitmap
+>    anywhere. It rendered **orange**. So the compact slot is **not
+>    monochrome**, the system is **not** flattening everything, and
+>    "silhouette of an opaque square" — the mechanism this entry called
+>    confirmed an hour earlier — is **falsified**. The defect is specific to
+>    the **bitmap**.
+> 3. **Size/scale — THE FIX.** `UIImage(data:)` returns **scale 1.0**, so
+>    the 120 px handoff PNG arrives as a **120 POINT** image. The lock
+>    screen (44 pt) and the expanded island (28 pt) draw it; the **14 pt**
+>    compact slot draws a placeholder instead. Redrawing the image at the
+>    slot's own point size (`UIGraphicsImageRenderer`) and restoring the
+>    real `HermesBrandIcon` — **the compact island renders the selected icon
+>    in full colour.** Owen: *"full icon shows."*
+>
+> **What is ESTABLISHED vs. what is ASSUMED, stated so the next reader does
+> not inherit a guess as a fact:** established — the redraw fixes it, and
+> the slot is not monochrome. **NOT isolated** — that redraw changes point
+> size, scale AND provenance in one step, so *which* is load-bearing is
+> unproven. Do not restate "oversized images fail to encode into the compact
+> slot" as mechanism until something narrows it.
+>
+> **Where the fix lives:** branch **`t27-250-island-compact-icon`**, commit
+> `371e462` — `redrawn(_:at:)` in `HermesBrandIcon`. **NOT merged**, and not
+> to be merged on the strength of one screenshot. **OWED FIRST: bars,
+> pre-registered here before any claim** — a unit test over `redrawn(_:at:)`
+> (output point size + scale), and **a 250T-C device re-run as the closing
+> bar** — plus `scripts/mac/lane-gate.sh`.
+>
+> **The 2026-08-04 filing is now RECONCILED, and it was a real clue rather
+> than a bad memory.** Pre-#250 the slot drew `UIImage(named:)` asset-catalog
+> art, which carries a correct scale and arrives at a sane point size — so
+> it rendered, exactly as that filing describes. #250 replaced it with a
+> scale-1.0 `UIImage(data:)`, and **the feature built to make the island
+> wear the selected icon is what stopped it wearing any icon.** The
+> regression shipped 2026-08-05 and went unseen for five days because the
+> island could not be triggered on demand until the harness landed — which
+> is precisely what that harness was built for.
 >
 > **One caveat on the 2026-08-04 evidence, stated rather than assumed
 > away:** what this entry records is a *description of* a screenshot,
@@ -12830,20 +12866,23 @@ lane opens.
 > artifact. If Owen still has that image, it settles the question outright;
 > until then the filing's claim is the weakest link in the chain above.
 >
-> **What this means for the FEATURE, and it is Owen's call, not a bar
-> redefinition.** The expanded island **already satisfies the feature as
-> filed** — it wears the selected icon, in colour, today. Everything at
-> stake is the COMPACT slot, which is the one people actually see. Two
-> outcomes, and the one-line experiment above decides which:
-> - **If the rendering-mode line fixes it:** #250's island half is simply
->   finished, and 250T-C re-runs as written.
-> - **If it does not:** a tinted slot can never show icon colours, and the
->   honest ceiling is a **silhouette** — which means an alpha-carrying glyph,
->   authored per icon if the compact slot must still *distinguish* icons.
->   Twenty-odd opaque square bitmaps cannot be told apart as silhouettes, so
->   *"the compact island wears whatever icon is selected"* would be
->   unachievable and should be **re-decided, not quietly delivered** as one
->   generic brand mark.
+> **NOTHING IS OWED FROM OWEN HERE — the re-decide is CANCELLED.** For about
+> an hour this entry was heading toward "the compact island cannot show icon
+> colours; re-scope the feature or drop it," and that would have been a
+> product concession made on a false mechanism. **The feature is achievable
+> exactly as filed**, the expanded island already delivered it, and the
+> compact slot now does too on the fix branch. What remains is ordinary lane
+> work — bars, a unit test, the gate, a device re-run — not a decision.
+>
+> **The lesson worth more than the fix, and it is this project's own rule
+> arriving from a new direction:** the tinting mechanism *explained every
+> observation available at the time* — icon-independence, compact-vs-lock
+> asymmetry, and a documented sibling behaviour in this very tree
+> (`HermesStatusWidget.swift:6`). It was still wrong. What broke it was not
+> more reasoning but **the cheapest possible probe against the assumption
+> itself** (can this slot show colour at all?), which took one line and two
+> minutes. **Three device experiments cost less than the one confident
+> redesign they prevented.**
 >
 > **NOT scored as a pass under either mechanism.** 250T-C asks that the
 > leading slot MATCH the selected icon; a grey square matches nothing. The
