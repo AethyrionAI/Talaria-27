@@ -121,19 +121,31 @@ struct CapabilityRegistryTests {
     /// `allCases`, never from a literal list, so adding a `CapabilityGroup`
     /// fails the suite loudly. (The two exhaustive switches behind the line
     /// already fail the COMPILE — this pins the block's shape on top.)
-    @Test func capabilityAnswerBlockRendersOneDerivedBulletPerNonVisionFamily() {
-        let expected = CapabilityGroup.allCases.filter { $0 != .vision }
+    ///
+    /// **#257-V:** the block renders EVERY family — the `.vision` exclusion
+    /// was flipped by Owen's 2026-08-10 ruling — and a family declaring an
+    /// `availabilityCaveat` renders it as a trailing parenthetical. Both
+    /// halves stay derived: no literal count, no literal caveat.
+    @Test func capabilityAnswerBlockRendersOneDerivedBulletPerFamily() {
+        let expected = CapabilityGroup.allCases
         let lines = CapabilityRegistry.capabilityAnswerBlock().components(separatedBy: "\n")
         #expect(lines.count == expected.count + 2)   // opener + N bullets + closer
         #expect(lines.first == CapabilityRegistry.capabilityAnswerOpener)
         #expect(lines.last == CapabilityRegistry.capabilityAnswerCloser)
         for (line, group) in zip(lines.dropFirst().dropLast(), expected) {
-            #expect(line == "• \(group.capabilityAnswerTitle) — \(group.capabilityAnswerDetail)")
+            var body = "• \(group.capabilityAnswerTitle) — \(group.capabilityAnswerDetail)"
+            if let caveat = group.availabilityCaveat { body += " (\(caveat))" }
+            #expect(line == body)
         }
     }
 
     /// Determinism: two renders are byte-identical. Zero generation is the
     /// whole mechanism — if this ever wobbles, something stochastic got in.
+    ///
+    /// **BAR 257-V-E**, extended rather than replaced: the caveated family
+    /// is inside the render now, so the byte-comparison must cover the
+    /// caveat too, and declaration order must still survive a caller that
+    /// hands the families in reversed.
     @Test func capabilityAnswerBlockIsByteIdenticalAcrossRenders() {
         let first = CapabilityRegistry.capabilityAnswerBlock()
         let second = CapabilityRegistry.capabilityAnswerBlock()
@@ -142,16 +154,51 @@ struct CapabilityRegistryTests {
         // Caller ordering must not leak into the output either.
         #expect(CapabilityRegistry.capabilityAnswerBlock(
             families: CapabilityGroup.allCases.reversed()) == first)
+        // 257-V-E: the caveated line is part of what must stay byte-stable,
+        // and `.vision` is declared last, so it renders last.
+        let lines = first.components(separatedBy: "\n")
+        #expect(lines.dropLast().last?.contains(
+            CapabilityGroup.vision.capabilityAnswerTitle) == true)
+        let visionOnlyA = CapabilityRegistry.capabilityAnswerBlock(families: [.vision])
+        let visionOnlyB = CapabilityRegistry.capabilityAnswerBlock(families: [.vision])
+        #expect(Array(visionOnlyA.utf8) == Array(visionOnlyB.utf8))
     }
 
-    /// #176 rule V at this seam: `.vision` never appears, even when a caller
-    /// hands it in explicitly — the mirror of
-    /// `visionInTheFamiliesListNeverLeaksWithoutImageTools`.
-    @Test func capabilityAnswerBlockNeverAdvertisesTheImageTools() {
-        let block = CapabilityRegistry.capabilityAnswerBlock(families: CapabilityGroup.allCases)
-        #expect(!block.contains(CapabilityGroup.vision.capabilityAnswerTitle))
-        #expect(!block.contains("barcode"))
-        #expect(!block.contains("photo"))
+    /// **BAR 257-V-A/B** — the inverse of the shipped
+    /// `capabilityAnswerBlockNeverAdvertisesTheImageTools`, which pinned an
+    /// exclusion Owen's 2026-08-10 ruling FLIPS: the block names image
+    /// reading, carrying the caveat, because deterministic app text cannot
+    /// overpromise the way a generated answer can, and the feature was
+    /// otherwise undiscoverable.
+    ///
+    /// The caveat is asserted THROUGH `availabilityCaveat` — the one source
+    /// the sheet's label also reads — so a second copy of the sentence
+    /// cannot satisfy this test (257-V-B).
+    @Test func capabilityAnswerBlockNamesTheImageFamilyWithTheSharedCaveat() {
+        let block = CapabilityRegistry.capabilityAnswerBlock()
+        let caveat = CapabilityGroup.vision.availabilityCaveat
+        #expect(caveat != nil, "the vision family must declare the shared caveat")
+        #expect(block.contains(CapabilityGroup.vision.capabilityAnswerTitle))
+        #expect(block.contains(CapabilityGroup.vision.capabilityAnswerDetail))
+        #expect(block.contains("barcodes"))
+        #expect(block.contains(caveat ?? "\u{0}"))
+        // The caveat rides the vision line itself, not a stray trailing line.
+        let visionLine = block.components(separatedBy: "\n")
+            .first { $0.contains(CapabilityGroup.vision.capabilityAnswerTitle) }
+        #expect(visionLine?.contains(caveat ?? "\u{0}") == true)
+    }
+
+    /// The caveat is a per-family DECLARATION, not a vision special case
+    /// bolted onto the renderer: exactly the families whose tools are not on
+    /// every turn's belt declare one. Today that is `.vision` alone (#176's
+    /// image gate); a future conditional family gets its own caveat and this
+    /// pin moves deliberately.
+    @Test func onlyTheConditionalFamilyDeclaresAnAvailabilityCaveat() {
+        let caveated = CapabilityGroup.allCases.filter { $0.availabilityCaveat != nil }
+        #expect(caveated == [.vision])
+        for group in caveated {
+            #expect(!(group.availabilityCaveat ?? "").isEmpty)
+        }
     }
 
     /// Narrowing works and stays ordered — the surface #257's lever 3a would
@@ -164,7 +211,12 @@ struct CapabilityRegistryTests {
         #expect(lines[2].hasPrefix("• Reminders —"))
         #expect(!block.contains("Health and activity"))
         #expect(CapabilityRegistry.capabilityAnswerBlock(families: []).isEmpty)
-        #expect(CapabilityRegistry.capabilityAnswerBlock(families: [.vision]).isEmpty)
+        // #257-V: a `.vision`-only narrowing used to render EMPTY (the
+        // exclusion). It now renders the family's own caveated line — the
+        // ruling's flip, pinned at the narrowing seam as well as the default.
+        let visionOnly = CapabilityRegistry.capabilityAnswerBlock(families: [.vision])
+        #expect(visionOnly.components(separatedBy: "\n").count == 3)
+        #expect(visionOnly.contains(CapabilityGroup.vision.availabilityCaveat ?? "\u{0}"))
     }
 
     @Test func everyGroupHasAnAnswerTitleAndDetail() {

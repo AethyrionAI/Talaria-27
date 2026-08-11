@@ -204,7 +204,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
-- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt … — **✅ DEVICE BARS ALL MET 2026-08-10: 1-GATE 100% (arm AND control), 1-A 100%, 1-B 0%, 1-D zero, `errors=0` across 350 classifications. Neither kill clause fires; LEVER 1 SHIPS. Remaining: 3a-C (Owen's read), the voice-absence check, the vision line, and the never-built `tokenCount` pre-flight** **→ VISION-LINE BARS 257-V-A..F PRE-REGISTERED 2026-08-11; that slice is READY TO DISPATCH.**
+- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt … — **✅ DEVICE BARS ALL MET 2026-08-10: 1-GATE 100% (arm AND control), 1-A 100%, 1-B 0%, 1-D zero, `errors=0` across 350 classifications. Neither kill clause fires; LEVER 1 SHIPS. Remaining: 3a-C (Owen's read), the voice-absence check, and the never-built `tokenCount` pre-flight** **→ ✅ VISION LINE DONE 2026-08-11: bars 257-V-A..F ALL MET on `t27-257-vision-line` (GATE: PASS, 2058/156 + 14 XCUITest + Release); #297's 10-non-vision-family scoring did NOT move.**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
@@ -10220,6 +10220,15 @@ cover without fixing the home). **Device needs (queued):** the pre-flight
 tokenCount measure and the detection probe run — one small probe grid, no
 full battery.
 
+> **↪ SUPERSEDED 2026-08-11 (257-V).** Both sub-questions above are closed,
+> and one clause in them is now FALSE as written: *"The ten-family list
+> excludes `.vision` by design"* described the code until this date. It no
+> longer does — Owen's 2026-08-10 ruling 2 flipped the exclusion and 257-V
+> shipped it, so `capabilityAnswerBlock()` renders **eleven** families, the
+> vision line carrying the caveat. The HOME question was closed by ruling 3
+> (chat sheet, permanently). Read the ruling block and the 257-V results
+> block below, not this paragraph, for current state.
+
 > **▶ PHASE 1 BUILT + 257-1-C MET, 2026-08-09 (commit `93a42e6`, branch
 > `t27-257-capability-lever`).** `CapabilityRegistry.capabilityAnswerBlock(families:)`
 > renders the deterministic answer — opener + one derived bullet per
@@ -10384,6 +10393,9 @@ full battery.
 >    bars pre-register here before the change** (the #297 toolless-index
 >    arm is separate and unchanged — its 297-A scoring stays 10 non-vision
 >    families unless its own bars say otherwise).
+>    **↪ DONE 2026-08-11 — bars 257-V-A..F pre-registered below, then all
+>    six MET on `t27-257-vision-line`. The 297 caveat held: the scoring is
+>    still 10 non-vision families and the keyword table was not touched.**
 > 3. **SHEET HOME: the chat sheet, as-is, is the PERMANENT home** — where
 >    the question arises mid-conversation; no move to Settings or Skills.
 >    3a-C's home question is closed.
@@ -10494,6 +10506,109 @@ full battery.
 >
 > **Scope fence:** this is UI copy in two surfaces. It does not arm a tool, does
 > not touch the #176 image gate, and does not change what the model is told.
+
+> **✅✅✅✅✅✅ 257-V — ALL SIX BARS MET, 2026-08-11** (branch
+> `t27-257-vision-line`, off `fb8d28c`; sim `CC-257-iPhone-Air`, iOS 27.0
+> 24A5408d, Xcode-beta5). Four files, +178/−31: the two surfaces, their
+> two test files. **No new Swift file, so no `xcodegen` run was owed** —
+> `project.pbxproj` is untouched and the gate's own drift check confirms it.
+>
+> **The line Owen's ruling bought, rendered by the shipped code** (printed
+> by `capabilityAnswerBlockNamesEveryNonVisionFamilyUnderTheShippedScorer`,
+> so this is the product and not a mock-up):
+> ```
+> • Images you attach — read the text and barcodes in a photo you send (available when you attach a photo)
+> ```
+>
+> - **257-V-A — MET. The RED was witnessed, not asserted.** Staged in two
+>   steps: the `availabilityCaveat` declaration + the new tests FIRST, with
+>   `capabilityAnswerBlock`'s exclusion and the sheet's derivation still at
+>   HEAD behaviour. That run is `** TEST FAILED **`, **13 issues across 5
+>   tests**, every one carrying real Swift Testing assertion text — e.g.
+>   `✘ capabilityAnswerBlockNamesTheImageFamilyWithTheSharedCaveat()
+>   recorded an issue at CapabilityRegistryTests.swift:181:9: Expectation
+>   failed: block.contains(CapabilityGroup.vision.capabilityAnswerTitle)`.
+>   The two tests that PASSED in that same run are the load-bearing ones:
+>   `…NamesEveryNonVisionFamilyUnderTheShippedScorer()` and
+>   `onlyTheConditionalFamilyDeclaresAnAvailabilityCaveat()` — so the RED
+>   was specific to the flip and did not disturb #297's arm even before the
+>   change. The quoted failure text above IS the durable evidence — the
+>   raw log lived in the session scratchpad and is not committed, because a
+>   RED log has no home in this repo and a pointer to a path that will not
+>   exist tomorrow is worse than none.
+> - **257-V-B — MET, one source.** The caveat lives once, on
+>   `CapabilityGroup.availabilityCaveat` (`CapabilityRegistry.swift:109`),
+>   as `"available when you attach a photo"`. `grep -rni "when you attach a
+>   photo" --include=*.swift` returns **exactly one line in the whole
+>   tree**. The sheet's label is no longer a literal — it renders the
+>   property and `MonoLabel` uppercases it, so the pixels are unchanged
+>   ("AVAILABLE WHEN YOU ATTACH A PHOTO") while the bytes now come from the
+>   registry. The block renders the same string as a trailing parenthetical.
+> - **257-V-C — MET, and the bar's PREMISE was wrong in a way worth
+>   recording.** The bar said a sheet opened on an attachment-less turn "has
+>   no Images section at all". **It does have one, and always did.**
+>   `sections(from:)` is fed by `ChatScreen.swift:234` →
+>   `CapabilityRegistry(belt: container.localChatBackend?.tools ?? [])`, and
+>   `LocalChatBackend.tools` is the FULL belt — assigned once in
+>   `installTools` (`:183-194`) from `AppContainer.swift:966-985`, which
+>   includes `ImageTextTool`/`BarcodeReaderTool`. The #176 narrowing
+>   (`offeredTools`) happens **per turn, on a copy**, and never touches
+>   `.tools`. So the undiscoverability the ruling fixes was real in the
+>   BLOCK and not in the sheet. The bar's requirement is still implemented
+>   and pinned (`sectionsStateCaveatedFamiliesEvenWithNoLiveTools`): a
+>   family that DECLARES a caveat now renders even with zero live tools,
+>   derived from the declaration rather than a `.vision` literal. An empty
+>   registry still derives to nothing, so the honest "CAPABILITY REGISTRY
+>   UNAVAILABLE" state survives, and `everyGroupMapsToAtLeastOneTool…`
+>   still guarantees a caveated family's tools exist in the app at all.
+> - **257-V-D — MET; the bar that could have killed the lane did not
+>   fire.** `git diff` over `Talaria/` touches **no line of
+>   `instructionsText`, `armedEnumeration`, `hasImageTools` or
+>   `displayPhrase`** — the only diff hits on those names are inside doc
+>   comments. **#297's scoring did not move: 10 non-vision families, still
+>   scored by the shipped `toollessIndexFamiliesNamed(in:)`**, and
+>   `capabilityAnswerBlockNamesEveryNonVisionFamilyUnderTheShippedScorer()`
+>   passes unchanged — it asserts `named == allCases.filter { $0 != .vision
+>   }`, which is a set the new line cannot join, because `.vision` has no
+>   entry in `toollessIndexFamilyKeywords` and the keyword table was not
+>   edited. Checked ahead of the run and confirmed by it: the new line
+>   matches **zero** non-vision keywords and trips **neither** half of
+>   297-C (`toollessIndexClaimHit` / `…SyntaxHit`), which
+>   `capabilityAnswerBlockCarriesNoActionClaimAndNoToolSyntax` re-proves on
+>   the real string. 297-A's threshold text was not touched.
+> - **257-V-E — MET.** `capabilityAnswerBlockIsByteIdenticalAcrossRenders`
+>   was EXTENDED, not replaced: it still compares two renders byte-for-byte
+>   and still proves caller order cannot leak, and now also pins the
+>   caveated line's position (declaration order puts `.vision` last) and
+>   byte-compares a vision-only render. **Unit count MOVED 2056 → 2058**
+>   (+3 tests, −1: the `…NeverAdvertisesTheImageTools` exclusion pin is
+>   gone, being the assertion the ruling falsifies; one test renamed
+>   `…PerNonVisionFamily` → `…PerFamily`). A moving count is what rules out
+>   the stale-`.xctest` false green.
+> - **257-V-F — MET.** Verbatim: **`GATE: PASS — logs in
+>   /tmp/gate-257v-run2`** — `Test run reported TEST SUCCEEDED` · Swift
+>   Testing **2058** in 156 suites · XCUITest **14** · `Release build
+>   succeeded` · no Release compile errors. The 4 skips are pre-existing
+>   (the permanent `CondenserFidelityTests` pair + two #282 skips); this
+>   lane added none.
+>
+> **A FIRST gate run died and its failures were host load, not this diff —
+> recorded because "re-ran it and it went green" is exactly the shape that
+> should never be waved through.** Run 1 ran against a box at load average
+> **729–948** with up to 31 concurrent `swift-frontend` processes from other
+> lanes; it failed `controlArmWithoutRulesLeaksToTheListener()`
+> (`HTMLArtifactSandboxTests.swift:157`, the 5 s WebKit budget — tracker
+> **#324-W2**, and this is its third occurrence, all three under ≥3
+> concurrent `xcodebuild`s), and the process then died without ever
+> printing a verdict. Run 2, same commit, same sim, on a quiet box: the
+> unit bundle passed in **55 s against run 1's 180 s**, and neither failure
+> recurred. **The discriminator is the load, not the re-roll** — and note
+> the gate's classifier cannot see host load, so it correctly fails SAFE
+> and would have called these real.
+>
+> **What this lane did NOT do:** arm a tool, touch the #176 gate, change a
+> word the model reads, or retro-fix anything about voice. The scope fence
+> above held exactly.
 
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
