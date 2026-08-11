@@ -7543,7 +7543,7 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 >   `SessionsHermesClient+RunsTransport.swift` carried the same stale citations
 >   and were corrected in the #304 lane.
 
-## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. ~~NOT STARTED — no lane, no bars, and the scope question is Owen's call.~~ **SCOPE RULED 2026-08-10 (§7: RANK the consumers) and BARS 282R-A..F PRE-REGISTERED 2026-08-11 — the ranking lane is READY TO DISPATCH.****
+## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. ~~NOT STARTED — no lane, no bars, and the scope question is Owen's call.~~ **SCOPE RULED 2026-08-10 (§7: RANK the consumers) and BARS 282R-A..F PRE-REGISTERED 2026-08-11.** ✅ **THE RANKING IS BUILT — bars 282R-A..F ALL MET 2026-08-11 on branch `t27-282-rank-consumers` (base `5c8fed7`); case (a)'s common shape closes, the ban's three duplicate populations stay green, and the settled-successor residual is an ACCEPTED, DOCUMENTED gap. Not merged, no PR opened — awaiting Owen. The measurement lane (PR #304) stays parked.****
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **#299 FIRST.** The demand-side guard does not land into a merge that is
@@ -8369,6 +8369,194 @@ already in this entry belong to the MEASUREMENT lane (PR #304, parked) and are
 > the lane (consolidated index §8). `dedupingAdoptedEchoes`' timestamp key is
 > **not** loosened (#237). Option 2 (the deterministic fallback id in
 > `mapStoredMessage`) is **NOT** in scope — the ruling excluded it explicitly.
+
+### ✅ RESULT 2026-08-11 — THE RANKING IS BUILT AND EVERY BAR IS MET. Branch `t27-282-rank-consumers`, base `5c8fed7`.
+
+**The ruled change, and it is the only production edit** — 
+`ChatStore.unconfirmedLocalMessages`, one `local.filter` replaced by an
+explicit two-pass allocation plus the doc comment that carries the ruling and
+the accepted gap. The claim's consumer is no longer whichever content match
+comes first in local order; claims are dealt to **in-flight candidates first**
+(`!status.isSettled`), then to settled ones, with local order preserved inside
+each rank (so #248's dequeue counting for two identical in-flight sends is
+untouched). Candidates are addressed by INDEX rather than id, so two local
+rows sharing an id could not claim as one. `serverIdentityAdoptions` (#299),
+`dedupingAdoptedEchoes`' key (#237), `openSession`'s bypass (#277) and
+`mapStoredMessage` (option 2) are all byte-untouched.
+
+**Everything measured, sim `CC-282-iPhone-Air` (UDID
+`4D205187-…C8DDCD9E9270`), Xcode-beta5, base `5c8fed7`.** Three runs of the
+two affected suites — **171 tests in 2 suites** each time — at HEAD, with the
+ranking, and (for the discriminator below) with the superseded ban.
+
+- **282R-A — MET, RED → GREEN.** New pin
+  `anInFlightRowOutranksASettledOneForTheSameContentClaim`
+  (`AppStoresTests.swift`). One `.delivered` local user row FIRST, one
+  `.sending` row second, same content; one claimable server row.
+  **Watched RED against unmodified production, verbatim:**
+  ```
+  ✘ Test anInFlightRowOutranksASettledOneForTheSameContentClaim() recorded an issue at
+    AppStoresTests.swift:1361:9: Expectation failed: unconfirmed.map(\.id) == [settledID]
+  ↳ unconfirmed.map(\.id) == [settledID] → false
+  ↳   unconfirmed.map(\.id) → [CFF239F2-C42E-45BB-A498-9C679EBAC56A]
+  ↳   [settledID] → [F7CFE1A4-79F6-407B-9CDD-8D4C2E0FBABA]
+  ```
+  The survivor at HEAD is the IN-FLIGHT row's id — local order won, exactly
+  the defect. GREEN with the ranking. The settled row is deliberately
+  `.delivered`, not `.failed`: 282-A already covers the failed shape, and this
+  bar is about SETTLEDNESS as the rank key.
+  **282-A came along with it — RED → GREEN, re-enabled from `.disabled`**
+  (the 2026-08-09 halt parked it). Re-watched RED at `5c8fed7`, verbatim:
+  ```
+  ✘ Test aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() recorded an issue at
+    AppStoresTests.swift:1313:9: Expectation failed: unconfirmed.map(\.id) == [failedID]
+  ↳   unconfirmed.map(\.id) → [9F29E7F4-02A0-4655-911A-BE5360F67ED7]
+  ↳   [failedID] → [24947E99-B382-4883-B76F-4A41B6CA93C5]
+  ```
+  **So case (a) closes under the ranking as it did under the ban** — by a
+  different mechanism, and without the ban's cost. **282-F likewise
+  re-enabled and RED → GREEN** (`tail.id → C267E633-…`, `tail.status →
+  .working` at HEAD); tail placement stands exactly as the parked lane pinned
+  it.
+
+- **282R-B — MET, and it is EVIDENCE rather than an assertion.** Two new pins:
+  `aSettledRowStillConsumesAClaimNoInFlightRowWants` (a settled row and an
+  in-flight row of DIFFERENT content, two claims — both confirm) and
+  `aLoneSettledRowIsStillConfirmedByTheContentClaim` (the narrowest arm: one
+  settled row, one claim, no in-flight candidate anywhere). Both green at HEAD
+  and green with the ranking, which on its own only shows they do not
+  regress. **So the lane ran a third arm to prove they DISCRIMINATE:** the
+  superseded ban-style guard (`!row.status.isSettled` as a filter on the tier
+  itself) was applied transiently to the same tree and both bars went RED —
+  ```
+  ✘ Test aSettledRowStillConsumesAClaimNoInFlightRowWants() recorded an issue at
+    AppStoresTests.swift:1390:9: Expectation failed:
+    ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty
+  ✘ Test aLoneSettledRowIsStillConfirmedByTheContentClaim() recorded an issue at
+    AppStoresTests.swift:1403:9: Expectation failed:
+    ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty
+  ```
+  — alongside the parked lane's four, reproduced exactly (see 282R-C). The
+  guard was reverted immediately; the branch carries the ranking. **This lane
+  did not rebuild the ban, and the bar can tell.**
+
+- **282R-C — MET. The parked lane's three REDs are GREEN under the ranking,
+  from the same fixtures, unmodified.** All three run at store level on
+  `makeMirroredStore(shape: .hermesFetchCache)`:
+  - **282-B** `theHermesReconcileMergeBaselineBeforeScopingTheClaim` — passed;
+    the clean array `["Q1","A1","Q2","A2"]` holds.
+  - **282-D** `aSettledInAppUserRowIsNotDuplicatedByTheReconcileMerge` —
+    passed; `Set(userContents).count == userContents.count`.
+  - **282-E** `anIDLessServerRowDoesNotGrowTheUserRowsAcrossTwoFetches` —
+    **passed, and the measured numbers are `afterFirst == 1` and
+    `afterSecond == 1`** (the test asserts `afterFirst == 1` and
+    `afterSecond == afterFirst`, both green). **This is the arm the ban
+    inverted and the one the bars said to watch.** In the same tree under the
+    transient ban it read `afterSecond → 2, afterFirst → 1`, byte-identical to
+    the parked lane's 2026-08-10 measurement — so 282-E's flat count here is
+    the ranking's doing and not a fixture that stopped biting.
+  - **299-B**'s array half, which the ban also falsified, is green too
+    (`afterFirst == ["Q1","A1","Q2","A2"]`). Under the transient ban it read
+    `["Q1","A1","Q2","A2","Q1","Q2"]` — again byte-identical to 2026-08-10.
+  **The five #248/#281 pins pass BYTE-UNMODIFIED** (248-A/B/C/D, 281-A); the
+  diff on `AppStoresTests.swift`'s pin region is purely additive.
+
+- **282R-D — MET. #299 stays fixed and its pinned arrays did not move.**
+  `ChatStore.serverIdentityAdoptions` is byte-untouched (the diff is confined
+  to `unconfirmedLocalMessages` and its doc comment). Assistant rows stay
+  single in every fixture; **299-A/299-B/299-C/299-D all green.** Because
+  299-A/299-B's literals did NOT move, no correction to them is owed —
+  but the archived entry left a live conditional (*"If any #282 successor
+  lands, 299-A/299-B's pinned literals are text that lane must correct"*), so
+  this lane discharges it with an **append-only dated pointer block** beneath
+  `OPEN_ITEMS-ARCHIVE.md` #299's original text, per #317 carve-out (a). The
+  archived #248 closure gets one too, correcting its forward-looking
+  *"needs re-reading as scoped to in-flight rows"* — the ranking is not a
+  scope narrowing.
+
+- **282R-E — MET. The accepted gap is documented, not closed.**
+  **Stated plainly: ranking closes case (a) only when the successor is
+  genuinely IN FLIGHT at merge time. When BOTH candidates have settled — the
+  retry already `.sent`/`.delivered`, or itself `.failed` — the tie breaks on
+  local order exactly as before and the older failed row still eats the claim
+  and still leaves the transcript.** That residual stays OPEN by Owen's
+  ruling. Closing it needs an identity the gateway transcript does not carry
+  (it echoes no `clientMessageID` — #248/#223), and the two candidate designs
+  — a turn-anchored confirmation in `serverIdentityAdoptions`' shape, or
+  option 2's deterministic fallback id in `mapStoredMessage` — are separate
+  lanes with their own bars and were **not** built. The gap is named in the
+  production doc comment (`ChatStore.unconfirmedLocalMessages`, the
+  "ACCEPTED, DOCUMENTED GAP" paragraph) and in 282R-A's own test doc, so a
+  future lane cannot close it by accident.
+
+**What the ruling bought, in one sentence.** Ranking gets case (a)'s common
+shape (282-A, 282R-A, 282-F) at **zero cost to the three populations the ban
+converted into visible duplicates** (282-B, 282-D, 282-E, 299-B) — measured
+in the same tree, same sim, same run shape, with the ban applied and reverted
+to prove the attribution runs both ways.
+
+**Attribution is two-sided and was measured, not argued.** At HEAD exactly
+three tests fail and they are the three the ranking targets; with the ranking
+all 171 pass; with the ban six fail and they are the two anti-ban bars plus
+the parked lane's four. Three arms, one tree, one sim.
+
+> **⚠️ FINDING, not caused by this lane — `/tmp/gate-282/` IS ALREADY GONE.**
+> The standing constraint above requires the parked measurement lane's gate
+> logs to survive. They do not: `ls /tmp/gate-282` → *No such file or
+> directory*, checked 2026-08-11 15:56. **Nothing in this lane touched that
+> path** — it used the distinct `/tmp/gate-282R/` precisely to avoid a
+> collision — and every surviving entry in `/tmp` is stamped 2026-08-11 13:22
+> or later, so `/tmp` was cleared by the host restart earlier that day, before
+> this lane opened. **The consequence for the record:** PR #304's gate verdict
+> and its failing-test list now exist only as the verbatim text transcribed
+> into this entry on 2026-08-10 and in the branch itself (`498a08b`), not as
+> logs. That transcription is now the primary artifact — which is an argument
+> for keeping verbatim text in the tracker rather than pointers to `/tmp`.
+
+**Not built, and not smuggled in:** option 2 (`mapStoredMessage` fallback id),
+the #299-anchor extension, any loosening of `dedupingAdoptedEchoes`' timestamp
+key (#237), and anything in the cancel path (`ChatStore.swift` ~`:1247-1571`
+and `:2525`) which belongs to #321/#322's concurrent lane.
+
+- **282R-F — MET. `GATE: PASS`, and the count MOVED.** Full gate on
+  `CC-282-iPhone-Air` (Xcode-beta5; TCC calendar + reminders re-granted
+  immediately before the run), logs `/tmp/gate-282R`. Verbatim verdict:
+  ```
+  GATE: PASS — logs in /tmp/gate-282R
+  ```
+  with, above it:
+  ```
+     xcodebuild exit=0
+    PASS  Test run reported TEST SUCCEEDED
+    PASS  Swift Testing tests run — 2087
+    PASS  XCUITest tests run — 14
+  ...
+     xcodebuild exit=0
+    PASS  Release build succeeded
+    PASS  no Swift compile errors in Release
+  ```
+  **UNIT COUNT 2084 → 2087, in 159 suites** — `✔ Test run with 2087 tests in
+  159 suites passed after 52.853 seconds`, **zero recorded issues in the whole
+  log**. The +3 is exactly the three pins this lane ADDED (282R-A's one and
+  282R-B's two); re-enabling 282-A and 282-F does not move the number, because
+  a `.disabled` Swift Testing case is still counted — which is the same thing
+  the 2026-08-10 measurement lane recorded when its count deliberately stayed
+  at 2056. The two `CondenserFidelityTests` skips are the known-permanent
+  Apple-Intelligence-hardware pair, unchanged. **Release is CLEAN** (#218's
+  check), so the change is not a Debug-only illusion.
+  *One honest note about the log's own header: it prints the branch's HEAD at
+  the time (`f61f093`, this lane's watched-RED checkpoint) while the tree it
+  tested carried the ranking uncommitted. The suite result is the tested
+  tree's; the commit named in that header is not.*
+
+**282-G (device) is still NOT REQUESTED by this lane.** Its precondition was
+written against the measurement lane. What a device pass would now confirm is
+the ranking's user-visible half — send, fail, retry, succeed, leave and
+return: the failed bubble is still there with its retry affordance, the
+successful turn appears once, and the rescued failed row sits at the BOTTOM
+of the transcript (282-F's pinned placement, which is the one thing here that
+will look odd before it looks correct). **Worth a slot on the next device
+pass; this lane does not request one unprompted.**
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 

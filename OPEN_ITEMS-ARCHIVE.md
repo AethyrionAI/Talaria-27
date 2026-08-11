@@ -9336,6 +9336,37 @@ microphone audio somewhere the UI says it is not going.
 > board: **#282**, which carries the full measurement, the mirror proof, and
 > a decision owed to Owen.
 
+> ### 📌 APPEND-ONLY POINTER BLOCK — 2026-08-11, filed by tracker #282's RANKING lane
+>
+> Per #317 ruling (a): original bytes untouched, and this item stays closed.
+> **This block corrects the forward-looking sentence immediately above.**
+>
+> **The decision came back, and it is NOT the scope narrowing that sentence
+> anticipated.** Owen ruled on 2026-08-10: **RANK the consumers, do not ban
+> them.** In-flight rows take a content claim first; **a settled row still
+> consumes a claim that no in-flight row wants.** So the correction that
+> sentence pre-announced — *"this closure's claim needs re-reading as scoped
+> to in-flight rows"* — **is not owed.** Tier 3 is not scoped to in-flight
+> rows; its ALLOCATION ORDER changed and its eligibility did not.
+> Concretely: this closure's claim ("the dupe this item existed to kill is
+> dead") holds unchanged for settled locally-born user rows, which was the
+> population the 2026-08-10 block flagged as at risk.
+>
+> **What DID change, stated so it is not a surprise later.** When two
+> content-identical local user rows both reach tier 3, the claim no longer
+> goes to whichever comes first in local order — it goes to the in-flight one
+> first. **All four pins here are unaffected and pass BYTE-UNMODIFIED**,
+> because every one of their local rows is `.working`/`.sending`; there is no
+> contention to rank. The three fixtures the 2026-08-10 block listed as going
+> red under the ban are **green** under the ranking, including the unbounded
+> id-less-server-row arm (`afterFirst == 1`, `afterSecond == 1`).
+>
+> **Status of the code:** built on branch `t27-282-rank-consumers` (base
+> `5c8fed7`), all bars 282R-A..F met, **not merged and no PR opened** —
+> `main` is still unaffected, exactly as when the block above was written.
+> Full result, including the transient re-application of the ban that proves
+> the attribution runs both ways: **#282** on the live board.
+
 > **✅ CLOSED 2026-08-04 night.** Owen's device run: *"picked up a session
 > that started on the mac on talaria, and asked a follow up question that
 > will need research and tools - Question not duplicated. Response below
@@ -17858,6 +17889,38 @@ inert). #282 (the demand-side ruling that halted on this).
 > arrays are predicted to stay green. If a #282-descended lane ever
 > falsifies them, the correction lands beneath this archived entry as an
 > append-only dated pointer block per #317 carve-out (a).
+
+> ### 📌 APPEND-ONLY POINTER BLOCK — 2026-08-11, filed by tracker #282's RANKING lane
+>
+> Per #317 ruling (a): original bytes untouched. **Nothing is retracted and
+> nothing above needs editing** — this discharges a conditional the entry
+> left live, which is itself a correction owed under the close-out rule.
+>
+> **The prediction directly above is now MEASURED, not predicted.** #282's
+> ranking change is built (branch `t27-282-rank-consumers`, base `5c8fed7`,
+> not merged), and **299-A/299-B's pinned arrays did NOT move**: both are
+> green with the ranking in place, alongside 299-C and 299-D. So the standing
+> instruction from the 2026-08-10 pointer block above — *"If any #282
+> successor lands, 299-A/299-B's pinned literals are text that lane must
+> correct in its own commit"* — is **discharged with no correction needed**,
+> and a reader who finds it should stop there rather than go looking for an
+> edit that was never owed.
+>
+> **Why they held, and it is the whole difference between the two #282
+> lanes.** The falsification recorded on 2026-08-10 came from the **ban**
+> (`!isSettled` as a filter on the content tier), which took away the only
+> confirmation a locally-born SETTLED user row has. The ruling that shipped
+> **ranks** instead: in-flight rows take a claim first, and a settled row
+> still consumes one that no in-flight row wants — so 299-A/299-B's user rows
+> confirm exactly as they did before. #282's lane re-applied the ban
+> transiently on the same tree to check the attribution ran both ways, and
+> 299-B reproduced its 2026-08-10 array byte-for-byte
+> (`["Q1","A1","Q2","A2","Q1","Q2"]`) before being reverted.
+>
+> **`serverIdentityAdoptions` is byte-untouched** by that lane — the diff is
+> confined to `ChatStore.unconfirmedLocalMessages` and its doc comment — and
+> assistant rows stay single in every fixture. Full result: **#282** on the
+> live board.
 
 
 ## 300. 🐛 `lane-gate.sh`'s failure-advice text misdiagnoses Swift Testing failures and routes them to a CLOSED item — ~~**FILED 2026-08-09 by #254's lane. NOT STARTED; bars pre-register here before any code.**~~ **✅ FIXED + MERGED 2026-08-10 (PR #297, `5d0879f`) — all four bars MET, `GATE: PASS`. Classifier extracted to `scripts/mac/lane-gate-classify.sh` (+ a ~1 s self-test), advice names search strings instead of item numbers, and it fails SAFE. CLOSED; SWEPT TO ARCHIVE 2026-08-11. Header corrected 2026-08-11 — it read NOT STARTED for a day after its own body recorded the fix, the same staleness shape this file keeps paying for.**

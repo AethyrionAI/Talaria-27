@@ -3386,6 +3386,51 @@ final class ChatStore {
     /// older content-identical ask, still carrying its original timestamp
     /// (*"It didn't show the current time for when I actually regenerated
     /// it"* — Owen, the 78-F device failure).
+    ///
+    /// **#282 — the DEMAND side is RANKED, not banned (Owen's ruling,
+    /// 2026-08-10).** The claim's consumer used to be chosen by LOCAL ORDER
+    /// alone: first content match wins, whatever that row is. So a `.failed`
+    /// user row the host never stored, sitting above a later identical prompt
+    /// that succeeded, ate the claim minted by the SUCCESSFUL turn's echo and
+    /// silently left the transcript — taking with it the one row the user can
+    /// still see and still retry. Claims are now allocated in two passes over
+    /// the rows that reach this tier: **IN-FLIGHT rows first**
+    /// (`!status.isSettled` — #278's predicate, covering
+    /// `.sending`/`.working`/`.queued`), then settled rows. Local order still
+    /// decides within each pass, so #248's dequeue counting is unchanged for
+    /// two identical in-flight sends.
+    ///
+    /// **"Ranking, not banning" is the load-bearing distinction, and it was
+    /// bought with a measurement.** A settled row still consumes a claim that
+    /// no in-flight row wants. The ban-shaped alternative — `!isSettled` as a
+    /// filter on the tier itself — was written and measured on 2026-08-10
+    /// (#282's parked measurement PR) and it converted three populations from
+    /// a silent swallow into a VISIBLE DUPLICATE: an in-app thread reconciled
+    /// against the host, a settled-historical turn, and an id-less server row
+    /// (`mapStoredMessage`'s honest `stableID ?? UUID()`, which mints a fresh
+    /// claim per fetch — that one did not even converge). For a locally-born
+    /// SETTLED user row this tier is the only confirmation that exists: tier 1
+    /// misses (client id vs the host's `stableMessageID`), tier 2 misses (the
+    /// gateway echoes no `clientMessageID`), and `dedupingAdoptedEchoes`
+    /// cannot collapse the pair because its key carries a timestamp and the
+    /// phone's clock is not the host's (#237 — and that key must NOT be
+    /// loosened; it is what keeps genuinely repeated user messages alive).
+    ///
+    /// **ACCEPTED, DOCUMENTED GAP — #282, by ruling. Do not close it without a
+    /// per-change go.** Ranking only decides between an in-flight and a
+    /// settled candidate. When BOTH have settled — the retry already
+    /// `.sent`/`.delivered`, or itself `.failed` — the tie breaks on local
+    /// order exactly as before and the older failed row still eats the claim.
+    /// That residual stays OPEN: closing it needs an identity the gateway
+    /// transcript does not carry, and the two candidate designs (a
+    /// turn-anchored confirmation in `serverIdentityAdoptions`' shape, or a
+    /// deterministic fallback id in `mapStoredMessage`) are separate lanes
+    /// with their own bars and are deliberately NOT built here.
+    ///
+    /// A rescued row is APPENDED at the tail, not reinserted above its retry.
+    /// That placement is pinned by #282's own bar rather than discovered on
+    /// device; reinsertion-in-place is a second production edit the ruling
+    /// does not authorise.
     nonisolated static func unconfirmedLocalMessages(
         local: [Message], refreshed: [Message]
     ) -> [Message] {
@@ -3397,17 +3442,41 @@ final class ChatStore {
         where row.sender == .user && row.clientMessageID == nil && !localIDs.contains(row.id) {
             claimableUserContent[row.content.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
         }
-        return local.filter { localRow in
-            if refreshedIDs.contains(localRow.id) { return false }
-            if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
-            if localRow.sender == .user {
-                let key = localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let claimable = claimableUserContent[key], claimable > 0 {
-                    claimableUserContent[key] = claimable - 1
-                    return false
-                }
-            }
+
+        // Every local user row that survives tiers 1 and 2 and so reaches the
+        // content claim. Indices, not ids: the ranking has to address a
+        // specific ROW, and two rows carrying the same id would otherwise
+        // claim as one.
+        let claimCandidates = local.indices.filter { index in
+            let row = local[index]
+            guard row.sender == .user else { return false }
+            guard !refreshedIDs.contains(row.id) else { return false }
+            if let clientID = row.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
             return true
+        }
+
+        // #282's ranking: serve the in-flight candidates first, then let the
+        // settled ones take whatever is left over. Two explicit passes rather
+        // than a sort — `sorted(by:)` is not documented stable, and local
+        // order inside each rank is #248's dequeue behaviour.
+        var remainingClaims = claimableUserContent
+        var claimedIndices: Set<Int> = []
+        for servingSettledRows in [false, true] {
+            for index in claimCandidates
+            where local[index].status.isSettled == servingSettledRows {
+                let key = local[index].content.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let claimable = remainingClaims[key], claimable > 0 else { continue }
+                remainingClaims[key] = claimable - 1
+                claimedIndices.insert(index)
+            }
+        }
+
+        return local.indices.compactMap { index -> Message? in
+            let localRow = local[index]
+            if refreshedIDs.contains(localRow.id) { return nil }
+            if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return nil }
+            if claimedIndices.contains(index) { return nil }
+            return localRow
         }
     }
 
