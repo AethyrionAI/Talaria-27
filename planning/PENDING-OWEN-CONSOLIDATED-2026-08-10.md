@@ -1,5 +1,16 @@
 # Everything pending — consolidated for Owen, 2026-08-10 (post wave-2)
 
+> # ⛔ SUPERSEDED 2026-08-10 EVENING — read `PENDING-OWEN-CONSOLIDATED-2026-08-10-EVENING.md` instead.
+>
+> This snapshot was assembled ~15:30 and was overtaken the same evening.
+> **Every decision in its §1 was ruled**, its §5 asked for a go that had
+> already been given on 08-09, and its §2 predates the §V1 device run that
+> failed. The addenda appended below (§1-CLEARED, §5-RESOLVED, and the
+> struck-through #301 bullet) are patches over a body that now contradicts
+> itself in places — which is exactly the stale-header shape this project
+> keeps paying for. **Kept unedited as the dated record of what was pending at
+> 15:30; do not work from it.**
+
 **A dated snapshot INDEX, not a second queue.** Every item points at its
 canonical home; verdicts get recorded THERE (`OPEN_ITEMS.md`,
 `dispatch/DEVICE-PASS-RUNNING-LIST.md`, the OJAMD handoff). Assembled from:
