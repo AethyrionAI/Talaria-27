@@ -162,7 +162,9 @@ per-change go) · #224 → APPROVED, all eight (Phase 0 dispatch owed) · privac
 policy → confirmed and STAGED at `docs/privacy.html`, uncommitted, publish
 moment Owen's · #321 → abandon outright / live-stream-Stop transcript /
 restore the HOLD · #299 → SWEPT to archive · #257 voice → screen-only stands ·
-#257 vision → ADD with attach-caveat (work owed in #257) · #257 home → chat
+#257 vision → ADD with attach-caveat (work owed in #257 — **BUILT 2026-08-11,
+lane 257-V; the block and the sheet both name image reading now, so that work
+is no longer owed**) · #257 home → chat
 sheet permanent · #292 R1 → **superseded knowingly** (it turned out already
 ruled ACCEPTED on 08-09 — this index carried it as an open survivor in error;
 the conflict was surfaced and Owen chose the final read anyway, filed as

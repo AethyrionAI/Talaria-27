@@ -23,15 +23,30 @@ struct CapabilitiesSheet: View {
 
     /// Declaration-ordered sections, derived — pure and static so bar
     /// 257-3a-A's unit test pins the derivation against the real belt.
-    /// Groups with no live tool render nothing (real data only).
+    ///
+    /// Groups with no live tool render nothing (real data only) — **except a
+    /// family that DECLARES an `availabilityCaveat`** (bar 257-V-C). Those
+    /// families are conditional by construction: `.vision`'s tools come off
+    /// the belt on any turn with no attachment (#176), so dropping the
+    /// section for an absent tool is what made image reading undiscoverable
+    /// — the thing Owen's 2026-08-10 ruling flips. The caveat label rides
+    /// the section and says when the tools are there, so the section is a
+    /// caveated statement rather than an overpromise; that a caveated
+    /// family's tools exist in the app AT ALL stays pinned by
+    /// `everyGroupMapsToAtLeastOneToolAndEveryToolToExactlyOneGroup`.
+    ///
+    /// An EMPTY registry still derives to nothing, so the honest
+    /// "registry unavailable" state below survives.
     nonisolated static func sections(
         from descriptors: [CapabilityDescriptor]
     ) -> [(group: CapabilityGroup, tools: [CapabilityDescriptor])] {
-        CapabilityGroup.allCases.compactMap { group in
+        guard !descriptors.isEmpty else { return [] }
+        return CapabilityGroup.allCases.compactMap { group in
             let tools = descriptors
                 .filter { $0.group == group }
                 .sorted { $0.id < $1.id }
-            return tools.isEmpty ? nil : (group, tools)
+            if tools.isEmpty, group.availabilityCaveat == nil { return nil }
+            return (group, tools)
         }
     }
 
@@ -119,10 +134,13 @@ struct CapabilitiesSheet: View {
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
                 .fixedSize(horizontal: false, vertical: true)
-            if group == .vision {
+            if let caveat = group.availabilityCaveat {
                 // #176: the image tools arm only when a photo rides the
-                // conversation — say so rather than overpromise.
-                MonoLabel("AVAILABLE WHEN YOU ATTACH A PHOTO", size: 8,
+                // conversation — say so rather than overpromise. The string
+                // is the registry's, NOT a literal: the capability block
+                // renders the same one, so the two surfaces cannot drift
+                // (bar 257-V-B, #202D). `MonoLabel` uppercases it.
+                MonoLabel(caveat, size: 8,
                           tracking: Design.Tracking.monoWide,
                           color: Design.Colors.dimForeground)
             }

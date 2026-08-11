@@ -82,6 +82,33 @@ enum CapabilityGroup: String, CaseIterable, Sendable {
         case .vision: return "read the text and barcodes in a photo you send"
         }
     }
+
+    /// #257-V: the availability caveat a family carries when its tools are
+    /// not on every turn's belt. **ONE source** — the deterministic
+    /// capability block and the `/capabilities` sheet both render THIS
+    /// string (the sheet's `MonoLabel` uppercases it), so the two surfaces
+    /// cannot drift apart (#202D, the rule this file's copy exists for).
+    /// `nil` = the family is unconditional and its line carries no caveat.
+    ///
+    /// Vision is the only conditional family today: the image tools arm
+    /// solely through the #176 image gate. **Naming it, caveated, is Owen's
+    /// 2026-08-10 ruling** — the block is deterministic app text rather than
+    /// model output, so the caveat carries no overpromise risk, and without
+    /// the line the feature is undiscoverable. It does NOT arm anything: the
+    /// instructions the model reads still gate vision on `hasImageTools`.
+    ///
+    /// Exhaustive by design, like the two switches above — a new
+    /// `CapabilityGroup` cannot compile until someone decides whether it is
+    /// always available.
+    var availabilityCaveat: String? {
+        switch self {
+        case .health, .location, .weather, .places, .calendar, .reminders,
+             .alarms, .contacts, .conversations, .deviceStatus:
+            return nil
+        case .vision:
+            return "available when you attach a photo"
+        }
+    }
 }
 
 enum CapabilitySource: String, Sendable {
@@ -168,23 +195,40 @@ struct CapabilityRegistry {
     /// enumeration moves out of the model and into the registry. Bar 257-1-C
     /// scores this string with the shipped `toollessIndexFamiliesNamed(in:)`.
     ///
-    /// `.vision` is excluded **by design**: the image tools are armed only by
-    /// the #176 image gate, so advertising them on a turn with no attachment
-    /// would promise a tool the belt is not carrying — the same rule
-    /// `armedEnumeration` enforces via `hasImageTools`. Passing `.vision` in
-    /// `families` does not defeat it.
+    /// **`.vision` IS rendered, carrying its `availabilityCaveat` (#257-V,
+    /// Owen's ruling 2026-08-10).** This paragraph said the opposite until
+    /// then — that the family was excluded "by design" because advertising
+    /// image tools on an attachment-less turn would promise a tool the belt
+    /// is not carrying. The ruling flips it, and the reasoning that looked
+    /// sound was scoped wrong:
+    ///
+    /// - The rule it borrowed from — `armedEnumeration`'s `hasImageTools`
+    ///   gate — governs the INSTRUCTIONS THE MODEL READS, where naming a
+    ///   tool that is not on the belt really does invite a phantom call.
+    ///   **That gate is untouched.** This block is deterministic app text
+    ///   spoken to the USER; it offers the model nothing, so a caveated line
+    ///   cannot promise a tool to anyone who could try to call it.
+    /// - The caveat is what makes it honest, and it is the registry's one
+    ///   copy (`availabilityCaveat`) — the `/capabilities` sheet's label
+    ///   renders the same string, so the two surfaces cannot drift (#202D).
+    /// - Excluding it cost DISCOVERABILITY, which is the defect this whole
+    ///   item exists to fix: `readImageText`/`readBarcode` are two of the
+    ///   fifteen tools the original "I thought it could do more than that"
+    ///   complaint counted as missing.
     ///
     /// Order is `CapabilityGroup` declaration order, so the render is
     /// byte-identical every call regardless of the caller's ordering.
     nonisolated static func capabilityAnswerBlock(
         families: [CapabilityGroup] = CapabilityGroup.allCases
     ) -> String {
-        let ordered = CapabilityGroup.allCases.filter {
-            $0 != .vision && families.contains($0)
-        }
+        let ordered = CapabilityGroup.allCases.filter { families.contains($0) }
         guard !ordered.isEmpty else { return "" }
         var lines = [capabilityAnswerOpener]
-        lines += ordered.map { "• \($0.capabilityAnswerTitle) — \($0.capabilityAnswerDetail)" }
+        lines += ordered.map { group in
+            let body = "• \(group.capabilityAnswerTitle) — \(group.capabilityAnswerDetail)"
+            guard let caveat = group.availabilityCaveat else { return body }
+            return "\(body) (\(caveat))"
+        }
         lines.append(capabilityAnswerCloser)
         return lines.joined(separator: "\n")
     }
