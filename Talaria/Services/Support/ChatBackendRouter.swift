@@ -521,6 +521,27 @@ final class ChatBackendRouter: HermesClientProtocol {
         backend(for: brain).hardStopActiveRun()
     }
 
+    /// #322: the in-flight run's id, forwarded by routing lock exactly like
+    /// `hardStopActiveRun` above — and, exactly like
+    /// `currentRunIsServerRecoverable`, it MUST be read before
+    /// `abandonActiveRun()`, which clears `runningBrain`.
+    var activeRunID: String? {
+        guard let brain = runningBrain else { return nil }
+        return backend(for: brain).activeRunID
+    }
+
+    /// #322: the final status read, and it is deliberately **NOT** gated on
+    /// `runningBrain` the way every other run-scoped forward here is.
+    ///
+    /// A `/v1/runs/{id}` id can only ever have come from the Hermes plane,
+    /// and this read is taken DETACHED, after `cancelStreaming` has already
+    /// called `abandonActiveRun()` — which releases the very lock the other
+    /// forwards consult. Gating on it would return nil on every Stop, which
+    /// is precisely the silent no-op this note exists to prevent.
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        await hermes.finalRunUsage(runID: runID)
+    }
+
     /// #304: the approval answer, forwarded by routing lock exactly like
     /// `hardStopActiveRun` above. A live card only exists while the runs
     /// turn (or its recovery poll) is alive — `ChatStore` tears it down on

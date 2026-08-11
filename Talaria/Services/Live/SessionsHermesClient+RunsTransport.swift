@@ -1274,6 +1274,70 @@ extension SessionsHermesClient {
         }
     }
 
+    // MARK: - #322: the cancellation path's ONE final status read
+
+    /// #322: the run in flight, for `ChatStore.cancelStreaming` to capture
+    /// BEFORE `hardStopActiveRun()` clears the slot on the very next line.
+    var activeRunID: String? { activeRunContext?.runID }
+
+    /// #322: ONE `GET /v1/runs/{id}`, best effort, so a Stop can report the
+    /// stopped run's real token usage instead of leaving the CTX gauge on
+    /// the PRIOR run's numbers.
+    ///
+    /// **Deliberately not `readRunStatus` and deliberately not
+    /// `pollRunToTerminal`.** Those are the recovery poll's machinery — a
+    /// loop with a budget, an interval and a retry posture. This is the
+    /// opposite instrument: exactly one request, no retry, no loop, no
+    /// producer Task. #292 killed a runs producer that fired ~60 requests
+    /// over 2 minutes and this item exists downstream of that fix; a "just
+    /// one more attempt" here is how that regression comes back.
+    ///
+    /// **Every failure is the same answer: `nil`.** A transport error, a
+    /// non-2xx (including the 404 of a run the host already reaped), an
+    /// unparseable body, or a status object with no `usage` block all return
+    /// nil, and the caller renders nil as honestly unknown. Nothing here
+    /// distinguishes them for the UI because the UI has one honest thing to
+    /// say — they are separated only in the log.
+    ///
+    /// **Known limitation, stated rather than hidden:** the request rides
+    /// the CURRENTLY resolved endpoint, not the run's own frozen one (the
+    /// #285 shape `hardStopActiveRun` handles). The window Stop reaches here
+    /// holding only `pendingRun.runId`, which never carried an endpoint, so
+    /// one fidelity level for both callers beats two. After a mid-turn
+    /// profile switch this read addresses the wrong host and 404s — which
+    /// lands on the honest-unknown arm the caller already implements, not on
+    /// a wrong number.
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        do {
+            let request = try makeRequest(
+                path: "\(Self.runsPath)/\(runID)",
+                method: "GET",
+                body: nil,
+                accept: "application/json"
+            )
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200 ..< 300).contains(http.statusCode) else {
+                runsTransportLogger.notice(
+                    "#322: final status read for \(runID, privacy: .public) was not readable (HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1, privacy: .public)) — the gauge goes unknown, and there is no retry by design"
+                )
+                return nil
+            }
+            guard let usage = Self.decodeRunUsage(String(decoding: data, as: UTF8.self)) else {
+                runsTransportLogger.notice(
+                    "#322: final status read for \(runID, privacy: .public) carried no usage block — the gauge goes unknown rather than keeping the prior run's numbers"
+                )
+                return nil
+            }
+            return usage
+        } catch {
+            runsTransportLogger.notice(
+                "#322: final status read for \(runID, privacy: .public) failed in transport — \(error.localizedDescription, privacy: .public) — the gauge goes unknown, and there is no retry by design"
+            )
+            return nil
+        }
+    }
+
     // MARK: - Approvals (#304, slice 3B)
 
     /// The wire body: exactly `{"choice": …}` (bar 304-B). Nothing else ever
