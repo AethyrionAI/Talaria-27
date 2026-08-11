@@ -3101,6 +3101,30 @@ cold ⇒ closes **NOT A DEFECT** with the ordering documented.
 
 ### V2 · #301 — the negative control: a first-ever speech grant must not kill the app · **[§F3 FRESH INSTALL — the app is DELETED; runs LAST in any sitting]**
 
+> **🟢 DO NOT RUN THIS ROW — DISCHARGED 2026-08-11. The SIM arm scored bar
+> 301-C instead, n = 3/3 clean**, on sim `CC-PROBES-iPhone-Air`
+> (`0CB056F3-…`) on the **beta5 runtime 24A5408d**, off `main` @ `024926f`:
+> TCC reset to a verified-zero-row notDetermined state, then microphone and
+> speech granted at the real system alerts, three times. All three continued
+> past the crashing site (the app's own `audio session activated for capture
+> (#302-A)` is downstream of the resumed continuation) with **zero `BUG IN
+> CLIENT OF LIBDISPATCH`**. Full evidence in `OPEN_ITEMS.md` #301's dated
+> 2026-08-11 block.
+>
+> **This row's own closing paragraph asked for exactly this** — *"Either can
+> produce the control; record which one did"* — so the answer is recorded
+> here as well as at #301: **the sim arm did.** The cost this saves is the
+> one the row itself flags: deleting the app loses the pairing and the local
+> data, and §F3 runs LAST in any sitting. Nothing about #301 needs that now.
+>
+> One thing the sim arm genuinely does **not** cover, stated so nobody
+> re-derives it as a gap: it is a simulator, not `whoGoesThere`. The
+> discriminator for this crash is authorized-vs-notDetermined and **not**
+> sim-vs-device — that is #301's own central correction, and the sim runtime
+> was already shown to enforce the same isolation check — so the arm is
+> valid. If a future finding ever re-opens sim-vs-device as a real axis,
+> this row comes back.
+
 **⚠️ THE INDEX'S FRAMING OF THIS ROW IS STALE and this row does not inherit
 it.** `planning/PENDING-OWEN-CONSOLIDATED-2026-08-10.md` §2 lists *"#301 device
 repro attempt (n≥5, native voice; sim-only so far)"*. **That was true when the
