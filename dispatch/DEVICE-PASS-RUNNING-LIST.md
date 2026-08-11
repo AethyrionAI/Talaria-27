@@ -2406,7 +2406,31 @@ settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening)
 **Record the model's exact words.** Both are text bars, and the failure mode they guard
 against is a *mined phrase*, not a wrong time.
 
-### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ **✅ NOW RUNNABLE — QUEUE IT (2026-08-10)**
+### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ ~~✅ NOW RUNNABLE — QUEUE IT (2026-08-10)~~ **🔴 RAN 2026-08-10 — 250T-C MISSED. DO NOT RE-RUN as written; the verdict, both candidate mechanisms and the unrun discriminator live at `OPEN_ITEMS.md` #250.**
+
+> **✅ VERDICT, 2026-08-10 — the slot is a flat grey square, and it always
+> has been.** Two runs, two icons at opposite ends of the brightness range
+> (dark Talaria orb, then a bright yellow star): the **lock-screen**
+> presentation rendered each one correctly and in colour, the **compact
+> island leading slot** rendered the same grey square both times. Owen:
+> *"lock screen shows the star fine, island's been grey the whole time."*
+>
+> **So the output is independent of the selected icon**, the handoff
+> publishes fine (the lock screen proves it), and the "dark art is just
+> illegible at 14 pt" reading is falsified by the star. Both presentations
+> call ONE view — `HermesBrandIcon`, `HermesLiveActivity.swift:96` (compact,
+> size 14) and `:114` (lock screen, size 44) — so the failure is specific to
+> the compact slot, not to the image.
+>
+> **The discriminator is 15 seconds and is still UNRUN:** long-press for the
+> EXPANDED island (same view at size 28, not a compact slot). Colour ⇒
+> system tinting flattens compact/minimal only. Grey ⇒ the app-group
+> `UIImage(data:)` handoff is the suspect, and #250's own feature is what
+> broke the slot. **Run this before any fix is designed** — the two
+> mechanisms need different fixes, and one of them means the feature is not
+> achievable as filed.
+
+*(original row text follows, kept for the record)*
 
 > **▶ THE TRIGGER EXISTS AS OF 2026-08-10** (`t27-250-debug-island-trigger`,
 > bars 250T-A/B in OPEN_ITEMS #250). The "untriggerable" preamble below is
@@ -2820,7 +2844,26 @@ nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
    That asymmetry is a recorded product question (NEEDS-OWEN §3.1), not a
    defect; confirm the observation matches.
 
-### R13 · #101 — bar 101-A1: the cross-chat recall routing run · **[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]**
+### R13 · #101 — bar 101-A1: the cross-chat recall routing run · ~~[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]~~ **🔴 RAN 2026-08-10 (Debug build over OTA 2484, Owen driving) — BAR MISSED: `armed=0/20 toolless=20/20 scored=20/20 errors=0`. SHAPE A IS DEAD. DO NOT RE-RUN — the verdict and the full protocol scoring live at `OPEN_ITEMS.md` #101.**
+
+> **✅ VERDICT, 2026-08-10 — run `BABBABD8`, 13.9 s, ten rows unanimous.**
+> The run was COMPLETE (`scored=20/20`, `errors=0`), so the protocol's named
+> worst case (a total-error run misread as a toolless verdict) is excluded.
+> 0% armed against a ≥90% bar is **not** within the ±2 near-miss window, so
+> **no n=50 re-run is owed.** The ambiguity statement rides it: the router
+> does not arm *these ten phrasings*, which is not the same claim as "the
+> model cannot route cross-chat recall."
+>
+> **The tell that makes it trustworthy:** `routeTurn` fails safe to ARMED,
+> so a broken generation path pushes this number toward the bar. It came
+> back 20/20 in the opposite direction with a zero error tally — the failure
+> mode that could have faked a miss cannot produce this result.
+>
+> 101-A2/A3 do not open (post-verdict by design). Shape B is untouched by
+> this and stays HELD; whether #101 continues as Shape B or closes is
+> Owen's, and is asked in the entry.
+
+*(original row text follows, kept for the record)*
 
 **Prerequisite:** a build at or past PR #291 (`1ecaa86`).
 

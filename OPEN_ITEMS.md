@@ -129,7 +129,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#82** 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) …
 - **#99** 🔧 Interactive artifact / HTML preview — Lane I MERGED (PR #78), device-verified 2026-07-20; WKContentRuleList …
-- **#101** 📝 Cross-chat memory / durable-facts layer (post-#93 successor)
+- **#101** 📝 Cross-chat memory / durable-facts layer (post-#93 successor) — **🔴 101-A1 RAN 2026-08-10 ON DEVICE AND MISSED: `armed=0/20`, `scored=20/20`, `errors=0`. SHAPE A IS DEAD** (the router sends all ten cross-chat-recall phrasings TOOLLESS, so the already-armed `ConversationSearchTool` never fires). A-2/A-3 do not open. Shape B (L3 preferences, ≤120 tok) is the surviving shape and stays HELD — Owen's call**
 - **#109** 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 - **#112** ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
 - **#116** 🔧 Shim plane — kill the manual token paste + make the probe honest — BOTH HALVES MERGED (PRs #101 + #102 …
@@ -215,7 +215,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
-- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; STAYS OPEN only for 250-D's island watch**
+- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴 250T-C RAN 2026-08-10 AND MISSED — the island's leading slot is a flat grey square for every icon while the lock screen renders correctly; mechanism unresolved (tinting vs a handoff regression), and under one of them the feature is not achievable as filed**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
@@ -2042,6 +2042,61 @@ Logged 2026-07-11.
 > branch merged with main): GATE: PASS — TEST SUCCEEDED, 1954 Swift
 > Testing + 13 XCUITest, Release build clean.** (Not a bar — the standing
 > pre-PR rule; A-1's own bars remain the device run.)
+
+> **🔴 101-A1 — RAN 2026-08-10 ON DEVICE. THE BAR IS MISSED, AND SHAPE A IS
+> DEAD.** whoGoesThere (iPhone 17 Pro Max, iOS 27.0 build 24A5390f), Debug
+> build installed over OTA 2484 at `c2b1389` (appBuild `1`/`1.0.0`), Owen
+> driving, app foregrounded, live console. Run `BABBABD8`, 21:29:41 →
+> 21:29:55 CDT (13.9 s for 20 classifications).
+>
+> **The summary band, quoted:**
+> ```
+> router: [crosschat] SUMMARY rows=10 armed=0/20 toolless=20/20 scored=20/20 errors=0 (#101)
+> ```
+> **Every one of the ten rows read `armed=0/2 toolless=2/2 scored=2/2
+> errors=0`** — unanimous, no row split. Corroborated by the run record
+> (`run-20260811-022941-BABBABD8.json`, `endedCleanly: true`, all ten probes
+> `correct: 0, errors: 0`).
+>
+> **Scored against the pre-registered RUN PROTOCOL, clause by clause, so the
+> verdict cannot be re-derived later:**
+> 1. **`scored = 20/20` — the run is COMPLETE, not INCOMPLETE.** No top-up
+>    is owed. The worst case the protocol named in advance — a total-error
+>    run emitting `armed=0/20 … errors=20` and being misread as "routes
+>    toolless" — **did not happen**: `errors=0` on every band.
+> 2. **Rate = `armed/scored` = 0/20 = 0%** against a **≥90%** bar (18/20).
+> 3. **Not a near miss.** The ±2 window is 16–20 armed; 0 is not in it, so
+>    the n=50 re-run clause does **not** fire. One run settles this.
+> 4. **The ambiguity statement, as required:** this establishes *the router
+>    does not arm THESE TEN cross-chat phrasings*, **not** "the model cannot
+>    route cross-chat recall." The ten rows are a phrasing hypothesis, pinned
+>    closed from birth.
+>
+> **Why this is a real classification and not laundered failure — the
+> strongest single fact in the run.** `routeTurn` **fails safe to ARMED**.
+> A broken generation path therefore pushes this number UP, toward the bar.
+> The observed direction is the exact opposite: 20/20 TOOLLESS with a zero
+> error tally, at ~0.7 s of real on-device generation per trial. The failure
+> mode that could have faked a miss cannot produce this result.
+>
+> **Consequence, per the bar's own pre-registration:** the already-armed
+> `ConversationSearchTool` never fires on cross-chat recall, so widening the
+> corpus behind it buys nothing. **Shape A is dead before any corpus work
+> begins — and that is a RESULT, not a failure of the lane.** 101-A2 and
+> 101-A3 were post-verdict by design and **do not open**: no corpus
+> widening, no store, no extractor, no privacy classifier, no report
+> builder. The instrument cost one evening and saved that entire build.
+>
+> **What survives, and what is Owen's:** **Shape B** (L3 stable
+> preferences, injected, hard-capped ≤120 tok) never depended on the router
+> — its falsifier is renderer + flag + 8 hand-seeded lines through the
+> #297-shaped A/B harness, no store required. It remains HELD. **Shape C
+> stays DECLINED.** ❓ **QUESTION FOR OWEN: does #101 continue as Shape B, or
+> does the whole item close on this result?** A third option exists and is
+> recorded rather than pursued: re-approach the routing question from the
+> *prompt* side (the router's instruction never mentions past conversations)
+> rather than the phrasing side — that would be a NEW bar on a NEW list, not
+> a re-score of this one, and it is not started.
 
 ## 109. 📝 True iPad multi-window — gated on a store-layer concurrent-scene audit (J-2 follow-up)
 
@@ -12532,7 +12587,7 @@ lane opens.
 > spawn the server cannot authenticate — that is what makes tui_gateway a
 > desktop-app story rather than a phone story.
 
-## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ONE residual watch (250-D's island half)**
+## 250. ✨ Icon identity: teal Talaria as the DEFAULT app icon, and the Dynamic Island Live Activity should wear whatever icon is currently selected — **FILED 2026-08-04 night (Owen's feature request, with screenshot); feasible on existing #25 machinery; ~~lane not yet scheduled~~ → ✅ BUILT + MERGED 2026-08-05 (PR #269, `e10ece4`), bars 250-A/B/C MET, gate PASS; ~~ONE residual watch (250-D's island half)~~ — **🔴 THE ISLAND HALF RAN 2026-08-10 AND FAILED: 250T-C MISSED. The compact leading slot is a flat grey square for EVERY icon (dark orb and bright yellow star both), while the lock-screen presentation renders the selected icon correctly in colour. Two candidate mechanisms recorded — system tinting of an opaque bitmap, or a regression introduced by #250's own handoff (the filing below records the slot rendering recognizable art BEFORE the handoff existed). Discriminator named, unrun. Under mechanism 1 the feature is NOT achievable as specified — Owen's call**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/OPUS-T27-250-debug-island-trigger.md`** — the Debug-only throwaway-activity trigger that makes device row §R2 runnable; bars 250T-A..D proposed there. Joins Wave 1.
 
@@ -12687,6 +12742,77 @@ lane opens.
 > The "change the default icon at a version boundary?" question this sweep
 > raised for Owen is **moot** — that decision was made and shipped in place on
 > 2026-08-05, and is device-confirmed on his phone.
+
+> **🔴 250T-C RAN 2026-08-10 ON DEVICE — MISSED. The island's compact
+> leading slot renders a FLAT GREY SQUARE, and it always has.** Debug build
+> over OTA 2484 at `c2b1389`, Owen driving, throwaway trigger, two runs
+> ~21:45 and ~21:48 CDT.
+>
+> **What was observed, and the discriminator that makes it more than one
+> screenshot:**
+> - **Run 1, Talaria (dark orb) selected:** lock-screen presentation renders
+>   the orb **in full colour**; the compact island's leading slot is a grey
+>   rounded square. Owen: *"island is blank icon. Lock screen looks good
+>   though."*
+> - **Run 2, after switching to a BRIGHT yellow-star icon:** lock screen
+>   renders **the star**, correctly and in colour — so the handoff published
+>   and `load()` returned the new art. The island's leading slot is **the
+>   same grey square**. Owen: *"lock screen shows the star fine, island's
+>   been grey the whole time."*
+> - **Therefore: the slot's output is INDEPENDENT of the selected icon**, and
+>   this is **not a regression from the icon switch** — it has never worked.
+>   The legibility explanation (dark art invisible at 14 pt on a black
+>   island) is **falsified**: a yellow star on black would have been
+>   unmissable.
+>
+> **The two presentations share one view.** `HermesBrandIcon` is called at
+> `size: 44` for the lock screen (`HermesLiveActivity.swift:114`) and
+> `size: 14` for `compactLeading` (`:96`) — same file, same process, same
+> `loadImage()`, same PNG. So the image pipeline is proven good by the
+> lock-screen render, and whatever fails is specific to the compact slot.
+>
+> **TWO CANDIDATE MECHANISMS, both live, and they need different fixes.
+> Recorded as competing rather than resolved, because the run does not
+> separate them:**
+> 1. **System tinting.** The island's compact/minimal slots are
+>    system-rendered the way accessory widget families are — this tree
+>    already documents that shape at `HermesStatusWidget.swift:6` (*"the
+>    system applies vibrant/tinted modes there and ignores custom
+>    backgrounds"*). A tinted render of a **fully opaque** bitmap is a solid
+>    silhouette, and an app-icon PNG is an opaque square — so the silhouette
+>    IS a square. Predicts icon-independence, which held.
+> 2. **#250's own handoff regression, and this is the uncomfortable one.**
+>    This item's ORIGINAL FILING (below) records the compact island wearing
+>    the **upstream Hermes desktop icon**, recognizably, on 2026-08-04 —
+>    i.e. **before** the handoff existed, when `loadImage()` fell through to
+>    `UIImage(named: "AppIcon60x60")` from the asset catalog. Since #250 the
+>    slot draws `UIImage(data:)` read from the app-group file. If the slot
+>    renders catalog art but not decoded-PNG art, **the feature built to
+>    make the island wear the selected icon is what stopped it wearing any
+>    icon.** (`LiveActivityPreviews.swift` is `#Preview` scaffolding that
+>    nothing in the app presents, so "preview island" in that filing cannot
+>    mean an in-app surface — it was the real island.)
+>
+> **THE DISCRIMINATOR, cheap and unrun:** long-press for the EXPANDED island
+> (`DynamicIslandExpandedRegion(.leading)`, same `HermesBrandIcon` at
+> `size: 28`, not a compact slot). Colour there ⇒ mechanism 1, and the fix
+> is scoped to compact/minimal. Grey there ⇒ mechanism 2, and the handoff
+> path is the suspect.
+>
+> **What this means for the FEATURE, and it is Owen's call, not a bar
+> redefinition:** if mechanism 1 holds, *"the island wears whatever icon is
+> selected"* **is not achievable as specified** — a tinted slot can never
+> show icon colours, so the honest ceiling is a per-icon **shape** drawn
+> with real transparency (an alpha-carrying glyph), not a bitmap. That is a
+> different feature from the one filed, and it should be re-decided rather
+> than quietly delivered. If mechanism 2 holds, the feature is achievable
+> and simply broken.
+>
+> **NOT scored as a pass under either mechanism.** 250T-C asks that the
+> leading slot MATCH the selected icon; a grey square matches nothing. The
+> fix lane owes a new bar, and 250-F (assert the RIGHT icon republishes) is
+> untouched by this — it tests the publish half, which this run proves
+> works.
 
 **FILED from Owen, 2026-08-04 night, during device testing:** *"In the
 preview island it uses the Hermes default icon for hermes desktop. I'd

@@ -35,6 +35,19 @@ struct HermesBrandIcon: View {
     private static func loadImage() -> UIImage? {
         // #250: the app publishes the SELECTED icon's art into the app group;
         // wear it when present so the island matches the home screen.
+        //
+        // ⚠️ CORRECTION 2026-08-10 (device run, bar 250T-C): this works for the
+        // LOCK SCREEN presentation and NOT for the island's compact leading
+        // slot, which renders a flat grey square for every icon tried (a dark
+        // orb and a bright yellow star produced the identical square while the
+        // lock screen rendered each correctly, in colour). The image is fine —
+        // one view serves both presentations — so the failure is specific to
+        // the compact slot. Two mechanisms are still live: the system tinting
+        // an opaque bitmap into a silhouette (an app-icon PNG is an opaque
+        // square, so the silhouette IS a square), or this handoff itself,
+        // since the slot rendered recognizable art via UIImage(named:) before
+        // the handoff existed. Do not treat "the island matches the home
+        // screen" as true. See OPEN_ITEMS #250.
         if let selected = SelectedIconHandoff.load() {
             return selected
         }
