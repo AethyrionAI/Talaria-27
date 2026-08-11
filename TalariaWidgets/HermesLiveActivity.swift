@@ -11,7 +11,7 @@ struct HermesBrandIcon: View {
     var cornerRadius: CGFloat? = nil
 
     var body: some View {
-        if let uiImage = Self.loadImage() {
+        if let uiImage = Self.loadImage().map({ Self.redrawn($0, at: size) }) {
             Image(uiImage: uiImage)
                 .resizable()
                 .renderingMode(.original)
@@ -32,26 +32,39 @@ struct HermesBrandIcon: View {
         }
     }
 
+    /// #250 — **the fix for the Dynamic Island's compact leading slot, proven on
+    /// device 2026-08-10.** `UIImage(data:)` returns scale 1.0, so a 120 px
+    /// handoff PNG arrives as a 120 **point** image. The lock screen (44 pt) and
+    /// the expanded island (28 pt) draw it; the 14 pt compact slot drew nothing
+    /// at all — a grey placeholder square, identical for every icon. Redrawing
+    /// at the slot's own point size makes the compact slot render the real icon.
+    ///
+    /// **What is established vs. assumed.** Established: the redraw fixes it,
+    /// and the slot is NOT monochrome (a plain SwiftUI symbol renders in full
+    /// colour there — probed directly). NOT isolated: this redraw changes point
+    /// size, scale AND provenance in one step, so which of the three is
+    /// load-bearing is unproven. Do not restate "oversized images fail to
+    /// encode" as fact without narrowing it.
+    private static func redrawn(_ image: UIImage, at points: CGFloat) -> UIImage {
+        let target = CGSize(width: points, height: points)
+        return UIGraphicsImageRenderer(size: target).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: target))
+        }
+    }
+
     private static func loadImage() -> UIImage? {
         // #250: the app publishes the SELECTED icon's art into the app group;
         // wear it when present so the island matches the home screen.
         //
-        // ⚠️ CORRECTION 2026-08-10 (device run, bar 250T-C): this works for the
-        // LOCK SCREEN presentation and NOT for the island's compact leading
-        // slot, which renders a flat grey square for every icon tried (a dark
-        // orb and a bright yellow star produced the identical square while the
-        // lock screen rendered each correctly, in colour). The image is fine —
-        // one view serves both presentations — so the failure is specific to
-        // the compact slot: the EXPANDED island region renders it correctly
-        // too, so this handoff is exonerated and only the COMPACT presentation
-        // flattens the art, silhouette-style (an app-icon PNG is fully opaque
-        // — verified `hasAlpha: no` — so its silhouette is a square, which is
-        // exactly what the slot shows). Leading hypothesis, UNTESTED: the
-        // compact slot honours the UIImage's OWN renderingMode rather than
-        // SwiftUI's `.renderingMode(.original)` below, and `UIImage(data:)` is
-        // `.automatic` ⇒ template. If so the fix is one line in the loader:
-        // `.withRenderingMode(.alwaysOriginal)`. Do not treat "the COMPACT
-        // island matches the home screen" as true. See OPEN_ITEMS #250.
+        // 2026-08-10 (bar 250T-C, device): this loader is CORRECT and was
+        // wrongly suspected. The compact island's failure lived in how the
+        // loaded image was handed to that slot, not in the handoff — see
+        // `redrawn(_:at:)` above, which is what fixes it. Two theories were
+        // tried on device and BOTH FAILED, recorded so nobody spends the
+        // evening again: forcing `.withRenderingMode(.alwaysOriginal)` here
+        // changed nothing, and the "system tints an opaque bitmap into a
+        // square silhouette" story was falsified outright by a plain SwiftUI
+        // symbol rendering in full colour in the same slot.
         if let selected = SelectedIconHandoff.load() {
             return selected
         }
