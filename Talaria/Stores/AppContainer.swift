@@ -980,6 +980,14 @@ final class AppContainer {
             },
             location: sharedLocationProvider
         )
+        // #224 Phase 0: arm the confirm gate's GLOBAL approval mode from
+        // UserSettings — a CLOSURE, not a captured value, so a later settings
+        // write is seen without re-wiring (the `useRunsTransportProvider`
+        // precedent). `.manual` is the only value the settings layer can
+        // produce in this build, so this changes no behaviour; it is what
+        // makes the key real rather than vestigial, and it is the one
+        // production line Phase 1 edits.
+        container.toolConfirmationCenter.modeProvider = { settingsStore.settings.approvalMode }
         deviceTools += DeviceToolBelt.makeActionTools(
             relay: toolRelay,
             confirmations: container.toolConfirmationCenter,

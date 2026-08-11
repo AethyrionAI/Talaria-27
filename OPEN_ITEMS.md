@@ -5200,6 +5200,179 @@ pre-registered here and must not be treated as such. Anchors resolved at
 > report** rather than proceeding — that text is #233's defended surface and a
 > change to it is a different decision than the one Owen balloted.
 
+**✅ PHASE 0 RAN — 2026-08-11, branch `t27-224-phase0-caution` off `fb8d28c`.
+ALL SEVEN BARS MET. The kill clause never came close to firing: neither tool's
+success-claim text was touched, and neither tool's success path was entered at
+all — the whole change is one `caution:` argument per tool plus the pure
+function behind it. Phases 1–3 stay UN-DISPATCHED (ruling 1).**
+
+Result in one line: `createCalendarEvent` and `scheduleAlarm` now stage caution
+rows, and an `ApprovalMode` type ships with `.manual` as its only reachable
+value. **No user-facing control ships.**
+
+- **224-0A — MET.** `AlarmTool.caution(for:now:calendar:)` stages
+  `EARLY MORNING — CHECK AM/PM` for a fixed-time alarm in hours 0–6 and
+  `ALREADY PASSED TODAY — RINGS TOMORROW` for one whose occurrence today is
+  stale beyond #249's five-minute grace; `AlarmTool.call` passes it. The alarm
+  grammar resolves to a clock time, never a date, so both rules read the
+  request against `now` rather than a parsed due, reusing `isEarlyMorning` and
+  `isPastDue` verbatim rather than restating their thresholds. A countdown
+  trips neither (always future, no clock hour to misread). Tests:
+  `weeHourAlarmStagesACautionRow`, `alarmCautionEarlyMorningBoundary`,
+  `alarmCautionPastDueGraceBoundary`, `countdownAlarmNeverCautions`,
+  `weeHourAlarmOutranksAlreadyPassedToday`,
+  `afternoonAlarmStagesWithNoCautionWhenStillAhead`.
+- **224-0B — MET.** `CalendarEventTool.startCaution(for:now:)` stages
+  `STARTS IN THE PAST` and `EARLY MORNING START — CHECK AM/PM`;
+  `performCreate` passes it and gained an injectable `now` (default `Date()`;
+  production never passes it) for the same reason the reminder engine has one.
+  Tests: `weeHourEventStartStagesACautionRow`, `pastEventStartStagesACautionRow`,
+  `ordinaryEventStartStagesWithNoCaution`, `eventStartCautionEarlyMorningBoundary`,
+  `eventStartCautionPastDueGraceBoundary`, `pastWeeHourEventStartReadsAsPastFirst`.
+- **The wording constraint (0A + 0B) — MET, pinned by assertion.**
+  `phase0CautionRowsCarryNothingMineable` asserts every row this lane adds is
+  **DIGIT-FREE**, which is strictly stronger than "no formatted date": every
+  formatted date and time carries digits, so a digit check cannot be satisfied
+  by one. **Scope, stated rather than left to be discovered: the REMINDER
+  card's rows still carry `displayDate`/`timeOnly`** — they predate the
+  #233-E/#249-F rule, they are #233/#249's shipped and device-validated
+  surface, and rewriting them was not balloted. The card is therefore
+  deliberately inconsistent between tools, and that is a decision, not an
+  oversight.
+- **224-0C — MET; RED WITNESSED FIRST, and here is how.** The wiring tests were
+  written against API that already existed at HEAD (`performCreate` /
+  `AlarmTool.call` / `ToolConfirmationCenter.pending`), so they COMPILE at HEAD
+  and FAIL there rather than failing to build — a build error is not a RED. The
+  four production edits were removed with
+  `git stash push -- Talaria/Models/UserSettings.swift
+  Talaria/Services/Live/DeviceTools/DeviceActionTools.swift
+  Talaria/Services/Live/DeviceTools/ToolConfirmationCenter.swift
+  Talaria/Stores/AppContainer.swift`, the targeted run was executed, and the
+  stash was popped after. Verbatim (`/tmp/224p0-red.log`, 2026-08-11 13:5x):
+  ```
+  ✘ Test weeHourEventStartStagesACautionRow() recorded an issue at Phase0ActionCautionTests.swift:88:9: Expectation failed: center.pending?.caution == "EARLY MORNING START — CHECK AM/PM"
+  ✘ Test pastEventStartStagesACautionRow() recorded an issue at Phase0ActionCautionTests.swift:107:9: Expectation failed: center.pending?.caution == "STARTS IN THE PAST"
+  ✔ Test ordinaryEventStartStagesWithNoCaution() passed after 0.007 seconds.
+  ✘ Test weeHourAlarmStagesACautionRow() recorded an issue at Phase0ActionCautionTests.swift:150:9: Expectation failed: center.pending?.caution == "EARLY MORNING — CHECK AM/PM"
+  ✘ Test run with 9 tests in 2 suites failed after 0.950 seconds with 4 issues.
+  ```
+  Every one of the three read `center.pending?.caution → nil` — the precondition
+  the bar names, observed rather than asserted. **`ordinaryEventStartStagesWithNoCaution`
+  passing in the same run is the control**: it says the three failed because the
+  caution was absent, not because the harness never staged a card. (The fourth
+  issue was the 224-0F source scan; see below.)
+- **224-0D — MET.** Boundary coverage per tool, on an injected clock.
+  `isEarlyMorning` is hours 0…6: **06:59 trips, 07:00 does not**, tested for
+  both tools. `isPastDue` is `date < now - 300`: **-299 s and exactly -300 s are
+  inside the grace, -301 s is not**, tested for both (the alarm's at
+  08:04:59 / 08:05:00 / 08:05:01 against an 8 AM request). Counts:
+  **BEFORE 2056 tests in 156 suites** (`/tmp/gate-224p0-baseline/suite.log`,
+  the same 2056/156 #324's beta5 audit recorded on `main`, which
+  cross-validates the baseline) → **AFTER 2078 tests in 158 suites**
+  (`/tmp/gate-224p0/suite.log`). +22 tests, +2 suites.
+- **224-0E — MET.** `ApprovalMode` in
+  `Talaria/Services/Support/ApprovalModeCore.swift`: `.manual` implemented,
+  `.smart` and `.off` present so every switch is exhaustive from day one
+  (#306's C1). The policy table is `disposition(hasCaution:)`, one pure
+  function carrying the balloted §3.4 rows including ruling 4's `.off` +
+  caution ⇒ REFUSE. Persisted as **GLOBAL `UserSettings.approvalMode`**
+  (ruling 2), read by the gate through `ToolConfirmationCenter.modeProvider`,
+  armed in `AppContainer` from `settingsStore.settings.approvalMode` — so the
+  key is real, not vestigial. **`.manual` is the only reachable value, and it
+  is unreachable at the DATA layer, not merely un-rendered:**
+  `ApprovalMode.selectable == [.manual]` and the settings decoder clamps
+  through `ApprovalMode.resolved(_:)`, so a blob that literally says
+  `"approvalMode":"off"` decodes to `.manual`
+  (`approvalModeIsAGlobalUserSettingsKeyDefaultingToManual`). A later lane that
+  widens `selectable` turns `approvalModeExposesOnlyManual` RED — exposing a
+  mode has to be a deliberate edit to the line that says so.
+  `anUnreachableModeStillStagesTheCardRatherThanActing` proves the second
+  half: even if a future lane arms `.smart`/`.off` without building their
+  paths, the gate stages the card anyway (default-CLOSED — an unhandled mode
+  costs a prompt, never an unapproved write).
+- **224-0F — MET, in two halves, because one is not enough.**
+  (i) `approvalPathDecisionsAreSynchronousAndModelFree` — **the pin is the
+  absence of `async` on that test body**, not an expectation inside it. Every
+  approval decision is a pure synchronous function; a `LanguageModelSession`
+  turn is necessarily `await`ed, so putting the model on this path means making
+  one of them `async`, which stops the file compiling. (ii) the type system
+  cannot see `requestConfirmation`, which is legitimately `async`, so
+  `approvalPathSourcesNeverReferenceALanguageModelSession` reads the three
+  approval-path sources and fails if the symbol appears outside a comment. It
+  carries a **positive control** — it asserts the scan still FINDS the
+  constructions in `LocalChatBackend+IntentRouting.swift` — because a scan that
+  has never fired is indistinguishable from one that cannot fire.
+- **224-0G — MET.** Verbatim, `/tmp/gate-224p0.log`:
+  ```
+    PASS  Test run reported TEST SUCCEEDED
+    PASS  Swift Testing tests run — 2078
+    PASS  XCUITest tests run — 14
+    PASS  Release build succeeded
+    PASS  no Swift compile errors in Release
+  GATE: PASS — logs in /tmp/gate-224p0
+  ```
+  Sim `CC-224-iPhone-Air` (`658E3991-…`), calendar + reminders TCC granted
+  immediately before the run. Two notes on the run, neither a pass being
+  claimed for something unproven: the preflight printed
+  `WARN project.pbxproj is modified` — that is the uncommitted `xcodegen`
+  regen for the two new files, which THIS commit lands; and the gate's four
+  reported SKIPS are the pre-existing set (two `CondenserFidelityTests`, two
+  #282), unchanged by this lane and none of them ours.
+
+**Three things the bars did not anticipate, all worth the next lane's time:**
+
+1. **The wee-hour rule fires on the CANONICAL morning alarm.** `isEarlyMorning`
+   is hours 0–6, so `"6:30am wake up"` — an ordinary alarm, not a defect —
+   carries `EARLY MORNING — CHECK AM/PM` on every card. Under Manual that is one
+   amber line on a card the user is already tapping, which is the cost the bar
+   bought. **Under Phase 2's Smart it would mean every pre-7 AM alarm CARDS
+   instead of auto-approving** — conservative in the safe direction, but not
+   "ask only about the unusual". Phase 2 must decide that deliberately; the
+   threshold is #233's and moving it is a written decision, not a detail to
+   discover in use. Not changed here: the bar said "before 07:00 local" and a
+   missed bar is a falsification, not a redefinition — so is a quietly
+   improved one.
+2. **The `/alarm` SLASH COMMAND is a second door and it got nothing.**
+   `ChatScreen.swift`'s `.alert("Schedule on this iPhone?", …)` (#193) is a
+   separate consent surface from `ToolConfirmationCenter`, with no caution row
+   and no mode. The bars named the `scheduleAlarm` TOOL and that is what was
+   built — correctly — but if a mode ever ships, "Never ask" would be untrue of
+   one path into AlarmKit until this door is answered for.
+3. **🔴 THE PROJECT'S POLL-THEN-DECLINE TEST IDIOM CAN HANG THE SUITE, and it
+   did — this is a live hazard in `DeviceActionToolsTests`, not a story about
+   this lane.** The shape is
+   `while center.pending == nil && attempts < 2_000 { await Task.yield() }`
+   followed by `center.decline()` and `await task.value`. It is a RACE, not a
+   flake: when the budget expires before the tool's Task has reached
+   `requestConfirmation`, the test declines an EMPTY gate — a no-op that still
+   logs `confirmation declined`, so the log looks normal — the tool stages a
+   moment later, and it then suspends on a continuation nobody will ever
+   answer, so `await task.value` never returns. **Measured on the first RED
+   attempt (`/tmp/224p0-red-attempt1.log`): the card arrived 3.4 SECONDS after
+   the yield budget ran out** (declined 13:42:11.028999, staged
+   13:42:11.029432 — that second staging is the orphan), with three lanes
+   building on this Mac. The run had to be killed. **A yield count is not a
+   clock**; 2,000 of them are microseconds or minutes depending on who holds
+   the main actor. This lane's tests use `awaitStagedCard`, which waits on a
+   `ContinuousClock` deadline and, if no card arrived, records an issue and
+   deliberately does NOT decline or await — leaking a suspended Task is bad,
+   hanging the suite is worse. **The five older loops in
+   `DeviceActionToolsTests.swift` were left alone** (out of scope, and green
+   today because a full run reaches them warm), but they are the same shape and
+   one of them will eventually eat a gate run on a loaded host. Filing that
+   conversion is the next reader's call.
+
+**Upstream corrections made in this commit** (close-out rule): four in
+`design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` — §2's gate table (both "**no
+caution**" cells now false), §2's "the caution layer exists **on one tool**"
+(all three now), §2's "modes exist today only as DEBUG battery flags" (a
+production persisted mode exists and is deliberately not user-visible), and
+§3.5's "hard precondition" (discharged). §6's Phase 0 sketch also gained a
+**do-not-cite** warning: its `224-0C` is the boundary bar, whereas the
+REGISTERED `224-0C` is the RED-first bar and the boundary bar is `224-0D`,
+so a reader citing a letter from that page means a different bar from the one
+scored here.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
