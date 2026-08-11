@@ -13,7 +13,7 @@ It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay ar
 **only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
-write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta4**.
+write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
 
 ## Architecture — Clean Chat Path
 
@@ -425,15 +425,24 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Build / tooling
 
-- **Xcode-beta4** (`/Applications/Xcode-beta4.app`, Xcode 27.0 build 27A5228h) is the
-  standard toolchain for iOS 27 targets (per Owen, 2026-07-20; verified same day — full suite
-  931/84 green on its SDK); release Xcode can't build iOS 27.
-  `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer` in every shell.
-  `Xcode-beta.app` and `Xcode-beta3.app` were **deleted 2026-07-24** — beta4 and release
-  Xcode are the only copies on disk. Command Line Tools 27 beta 4 is installed and
-  `xcode-select` points at beta4, but CLT ships no iOS SDK and no `xcodebuild`, so the
-  `DEVELOPER_DIR` export is still mandatory. Sim runtimes kept: **iOS 27.0 (24A5390f)** and
-  **iOS 26.5 (23F77)**; seeds 24A5355p / 24A5380g were deleted the same day. The pinned sim
+- **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
+  standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
+  pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
+  tests/156 suites Swift Testing + 14 XCUITest + Release build; zero Talaria-affecting SDK
+  changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
+  Release Xcode still can't build iOS 27.
+  `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
+  **Beta4 (27A5228h) remains on disk as the A/B fallback**; `Xcode-beta.app`/`Xcode-beta3.app`
+  were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
+  iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
+  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
+  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5390f` for NEW boots,
+  and ALWAYS `match set iphoneos27.0 --default` afterwards — and **iOS 26.5 (23F77)**.
+  **⚠️ Beta-to-beta dyld hazard (proven #324): a beta5-built binary referencing new-in-beta5
+  symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
+  (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
+  cannot weak-link between betas of the same version, so adopt new beta5 API only while every
+  target device/sim runtime is on beta5. The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData for **this** repo is
   `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented
@@ -653,7 +662,7 @@ Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
 Release build**, because a green Debug suite cannot see a mis-set gate.
 
   ```bash
-  DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
   ```
 
 ## Project history

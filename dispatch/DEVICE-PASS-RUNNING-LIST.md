@@ -2406,7 +2406,7 @@ settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening)
 **Record the model's exact words.** Both are text bars, and the failure mode they guard
 against is a *mined phrase*, not a wrong time.
 
-### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ ~~✅ NOW RUNNABLE — QUEUE IT (2026-08-10)~~ **🔴 RAN 2026-08-10 — 250T-C MISSED. DO NOT RE-RUN as written; the verdict, both candidate mechanisms and the unrun discriminator live at `OPEN_ITEMS.md` #250.**
+### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ ~~✅ NOW RUNNABLE — QUEUE IT (2026-08-10)~~ **🔴→✅ RAN 2026-08-10 — 250T-C MISSED, cause found and fixed the same sitting. RE-RUN THIS ROW AS WRITTEN once the fix lane (`t27-250-island-compact-icon`) carries its bars and the gate — it is that lane's closing bar. Full chain at `OPEN_ITEMS.md` #250.**
 
 > **✅ VERDICT, 2026-08-10 — the slot is a flat grey square, and it always
 > has been.** Two runs, two icons at opposite ends of the brightness range
@@ -2422,16 +2422,21 @@ against is a *mined phrase*, not a wrong time.
 > size 14) and `:114` (lock screen, size 44) — so the failure is specific to
 > the compact slot, not to the image.
 >
-> **✅ THE DISCRIMINATOR RAN, same sitting:** long-pressed the island — the
-> **EXPANDED** region renders the yellow star **in full colour** while the
-> compact slot beside it stays grey. So the handoff image is fine and only
-> the COMPACT presentation flattens it. **The expanded island already
-> satisfies the feature as filed; the compact slot is the whole problem.**
+> **✅ AND THE CAUSE WAS FOUND THE SAME SITTING — four experiments, two of
+> them failures.** Long-press showed the **EXPANDED** region rendering the
+> icon in full colour beside a grey compact slot. Forcing
+> `.withRenderingMode(.alwaysOriginal)` changed nothing (**failed**).
+> Swapping the compact slot for a plain orange SF Symbol rendered **orange**
+> — so the slot is **not** monochrome and the tinting theory is
+> **falsified**; the defect is the bitmap. Cause: `UIImage(data:)` returns
+> **scale 1.0**, so the 120 px handoff PNG arrives as a **120 POINT** image
+> and the 14 pt slot won't draw it. Redrawing at the slot's point size
+> renders the real icon — Owen: *"full icon shows."*
 >
-> Next step is a ~10-minute one-line experiment, not a re-run of this row:
-> `UIImage(data:)?.withRenderingMode(.alwaysOriginal)` in
-> `SelectedIconHandoff.load()` — see #250 for why that specific line, and
-> for the alpha reconciliation that was attempted and failed.
+> **Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged.** This row
+> **re-runs as written** as the closing bar once that lane carries its bars
+> and the gate. Full chain, including what is established vs. merely
+> assumed, in `OPEN_ITEMS.md` #250.
 
 *(original row text follows, kept for the record)*
 
@@ -2821,7 +2826,37 @@ DENIED tool call renders as on the runs event stream** — the dispatch's open
 unknown (#296's family): does `tool.completed` arrive with an error field, or
 nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
 
-### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · **[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]**
+### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · ~~[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]~~ **✅ STEP 2 RAN 2026-08-10 — ALL FOUR BARS MET (1-GATE 100% arm AND control · 1-A 100% · 1-B 0% · 1-D zero). Lever 1 SHIPS. DO NOT RE-RUN step 2. STEPS 3 + 4 STILL OWED.**
+
+> **✅ VERDICT, 2026-08-10 — run `0E08CADF`, 350 classifications,
+> `errors: 0` on all 50 rows, `endedCleanly: true`.** Every GATE row 10/10
+> on both arm and control; every RECALL row 5/5 capability-TRUE; every
+> DANGER row 5/5 capability-FALSE, including the ten deliberate near-misses.
+> **Neither kill clause fires** — the routing Bool is unchanged at 100%, so
+> the second field costs the app's most load-bearing classification nothing.
+> 100% everywhere is the expected shape, not a red flag: #217B measured zero
+> variance across 380 classifications on this router, which is why n=5 was
+> justified.
+>
+> **⚠️ STEP 1 (the `tokenCount` pre-flight) WAS NOT RUN — no instrument for
+> it was ever built.** It lives as a comment in two files with no
+> Developer-screen button. Standing in for it: 370 two-field generations
+> across tonight's two runs with `errors=0`, which is the failure the
+> pre-flight existed to catch (`21F0C10D` truncation) rather than the
+> measurement it asked for. **The pre-flight stays owed** if the number
+> itself is ever wanted.
+>
+> **1-D's device numbers were lost** (console-only, and the Mac restarted
+> mid-sitting) **and it does not matter** — this row pre-registered the unit
+> test as the evidence, and the band provably scores a byte-identical string
+> to the one the unit test asserts on. Full reasoning in #257.
+>
+> **STEPS 3 + 4 REMAIN, and neither needs a battery:** 3a-C (Owen opens
+> `/capabilities` and judges whether it answers "what can you do" better
+> than the model does — pass/fail his) and the voice check (ask a capability
+> question BY VOICE and confirm the block's ABSENCE from the spoken reply).
+
+*(original row text follows, kept for the record)*
 
 **Prerequisite:** a build at or past PR #290 (`c8759b9`).
 
