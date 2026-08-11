@@ -124,7 +124,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
-- **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 SIM PASS ATTEMPTED 2026-08-10: BLOCKED BY THE iOS 27.0 BETA-4 SIM RUNTIME (CarPlay display never comes up; 26.5 A/B proves it), app-side config verified correct; 74-F exit gate MET (signed device build green). 74-A…E re-run when a newer runtime lands; #45 sequencing question raised**
+- **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#75** 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42)
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#82** 🔧 Voice capture wedge — root cause was OUR read-aloud session hijack, NOT the OS seed — fix merged (PR #106) …
@@ -1530,9 +1530,14 @@ entitlement to project.yml (surgical commit) only once Apple grants it.
 > (CC-74, CC-300) across: initial toggle, off/on cycle, a fresh
 > Simulator.app process, and a fresh device boot. **Controlled A/B, same
 > host / same Simulator.app / same iPhone Air device type:** a throwaway
-> iOS 26.5 (23F77) device brought up its "– CarPlay" window INSTANTLY on
+> iOS 26.5 (23F77) device brought up its "– CarPlay" window ~~INSTANTLY~~ on
 > first toggle, rendering the car home screen, external surface
-> screenshot-able (evidence:
+> screenshot-able (**⚠️ "INSTANTLY" CORRECTED 2026-08-11 by the beta5 re-run:
+> the 26.5 control takes ~35 s on a loaded box, and Simulator.app transiently
+> reports ZERO windows while it rebuilds. Scoring this bar on a short wait
+> manufactures a false negative — that re-run's first beta5 attempt was given
+> ~20 s and had to be discarded. Pre-flight for any future re-stage: toggle,
+> then wait ≥60 s before concluding anything.**) (evidence:
 > `…/scratchpad/carplay-265-probe.png`, session 2026-08-10; probe deleted
 > after capture). The only variable was the runtime. Running the pass on
 > 26.5 is not an out: `project.yml` floors at iOS 27.0 and the app is
