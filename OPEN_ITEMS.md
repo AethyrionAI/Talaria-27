@@ -5875,7 +5875,7 @@ the same blind spot that hid #272 for 12 days), #272 (unbounded locked interval)
 > response stands: both-cold ⇒ closes NOT A DEFECT with the ordering
 > documented.
 
-## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — ~~**FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**~~ **✅ INVESTIGATED, SITE NAMED AND SYMBOLICATED, FIX MERGED 2026-08-10 (PR #300, `179d506` — `@Sendable` on `ensureSpeechAuthorization()`'s completion closure). Repro was DETERMINISTIC (3 occurrences / 0 clean), and the discriminator is authorized-vs-notDetermined, NOT sim-vs-device. Stays OPEN for bar 301-C's negative control only — device row §V2 (needs §F3's FRESH INSTALL; an upgrade-in-place preserves TCC grants and can never reach the path) or the queued `simctl privacy reset` sim re-run; record which one scored it. Header corrected 2026-08-10 — it read NOT INVESTIGATED for a day after its own body recorded the fix.**
+## 301. 🐛 A libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **ON THE SIMULATOR**, which the known trap said was device-only — ~~**FILED 2026-08-09, OBSERVED IN PASSING, NOT INVESTIGATED. NOT STARTED; bars pre-register here before any code.**~~ **✅ INVESTIGATED, SITE NAMED AND SYMBOLICATED, FIX MERGED 2026-08-10 (PR #300, `179d506` — `@Sendable` on `ensureSpeechAuthorization()`'s completion closure). Repro was DETERMINISTIC (3 occurrences / 0 clean), and the discriminator is authorized-vs-notDetermined, NOT sim-vs-device. ~~Stays OPEN for bar 301-C's negative control only — device row §V2 (needs §F3's FRESH INSTALL; an upgrade-in-place preserves TCC grants and can never reach the path) or the queued `simctl privacy reset` sim re-run; record which one scored it.~~ **✅ 301-C IS NOW MET — the `simctl privacy reset` SIM ARM scored it, 2026-08-11, n = 3/3 clean on the beta5 runtime (24A5408d); see the dated block at the end of this entry. §V2 is DISCHARGED — do not run the device fresh install for #301.** Header corrected 2026-08-10 — it read NOT INVESTIGATED for a day after its own body recorded the fix.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 3).** Repro attempt (n≥5) then site-naming before any code; no-repro ⇒ park as a watch.
 
@@ -5998,6 +5998,73 @@ annotation sweep would hide rather than settle it.
 > with the control owed, stated plainly — the crash mechanism is
 > symbolicated, deterministic, and matches the archived EventKit trap
 > one framework over.
+
+> **✅ 301-C — THE NEGATIVE CONTROL IS RUN AND MET. SCORED BY THE SIM ARM
+> (`simctl privacy reset`), 2026-08-11, n = 3/3 CLEAN. §V2 (the device
+> fresh-install row) is therefore DISCHARGED and can come off the device
+> queue — it does not need to be run twice, and the entry asked for exactly
+> this to be recorded.**
+>
+> **Fixture.** Purpose-made sim `CC-PROBES-iPhone-Air`
+> (`0CB056F3-3D7C-4C8C-A68F-CA753A3C7D3A`), **iOS 27.0 runtime 24A5408d
+> (beta5)** — note this is a RUNTIME UPGRADE on the original repro, which ran
+> on beta4 24A5390f. Build: worktree `t27-sim-probes-301c-324w1` off `main`
+> @ `024926f` (contains `179d506`), Xcode-beta5, Debug, signed (no
+> `CODE_SIGNING_ALLOWED=NO`). Path per trial: `simctl privacy reset all
+> org.aethyrion.talaria27` → **verified 0 TCC rows for the bundle** (the
+> notDetermined state is the absence of a record, and it was confirmed by
+> query before every trial, not assumed) → launch → `hermes://voice` →
+> **tap Allow on the real microphone alert → tap Allow on the real speech
+> alert.** Neither service was pre-granted. Engine confirmed native each
+> trial by the app's own line: `voice session starting on engine native
+> (relayPaired=false)`.
+>
+> **Instrument — and it is a POSITIVE liveness marker, not an absence
+> argument.** #324's audit established this trap class writes **no `.ips` on
+> the simulator**, so "no crash report" proves nothing. What scores the bar
+> is that execution **provably continued past the site**: the closure under
+> test is the last thing `ensureSpeechAuthorization()` does, and
+> `beginCapture()` is the next thing `startSession()` does, so the
+> capture-chain notices are downstream of the resumed continuation. All
+> three trials emitted, AFTER the grant:
+> ```
+> [NativeVoiceCapture] capture chain COLD — AVAudioEngine.isRunning was=false …
+> [NativeVoiceCapture] audio session activated for capture (#302-A)
+> ```
+> Corroborated by the launch PID still being alive at the grant, and by
+> `kTCCServiceSpeechRecognition|2` appearing in the sim's TCC.db (the grant
+> really landed — a swallowed tap would have scored nothing). **`BUG IN
+> CLIENT OF LIBDISPATCH`: 0 occurrences across all three whole-process log
+> streams.**
+>
+> **The instrument is proven capable of recording a death** — see the
+> CoreAudio note below, which the same log stream caught at Fault level in
+> two of the three trials. That is the check that makes the zero meaningful.
+>
+> **⚠️ WHAT THIS RUN DOES NOT CLAIM, AND A SECOND FINDING IT TURNED UP.** In
+> trials 1 and 3 the app **did** die — but **~9–11 s after the grant, at a
+> different site, with a different signature**, well downstream of the
+> measured moment:
+> ```
+> 17:27:46.372  audio session activated for capture (#302-A)   ← past the #301 site
+> 17:27:57.668  F [com.apple.coreaudio] Initialize: RPC timeout.
+>               Apparently deadlocked. Aborting now.
+> ```
+> That is `AURemoteIO::Initialize` timing out its RPC and calling abort, with
+> the sim reporting a degenerate input (`inputFormat: 2 ch, 0 Hz`). Trial 2 —
+> run when host load had fallen from ~250 to ~55 — did **not** hit it and the
+> app was still alive at t+18 s. So it reads as the simulator's audio-input
+> stack under host load, not a product defect and **not** #301; the app's own
+> degenerate-format guard sits further downstream than the abort. Recorded
+> because it is a real observation and because it will look like a crash to
+> the next person driving voice on a loaded sim. **Not filed as a defect —
+> it needs a quiet-box repeat before anyone spends a number on it.**
+>
+> **What remains before #301 can close: nothing this entry asks for.** 301-A
+> (reproduction), 301-B (site named + symbolicated) and 301-C (fix + negative
+> control) are all now recorded. The close itself is left to the orchestrator
+> rather than taken here — this lane was dispatched to MEASURE, and a lane
+> that scores its own bar should not also be the one that shuts the item.
 
 ---
 
@@ -16023,9 +16090,12 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
 - **324-W2** HTMLArtifactSandbox control-arm 5s budget is load-flaky (2nd occurrence, both under
   ≥3 concurrent xcodebuild). If it recurs on a QUIET box, that is a finding; consider a
   condition-based wait or budget bump only then.
-- **324-W3** Device confirmations now that the phone is on b5: #301 §V2 fresh-install negative
-  control (unchanged urgency); FM tokenCount 4096-vs-8192 asymmetry + `variant.displayName` on
-  device; maximumResponseTokens throw-vs-truncate (still device-only).
+- **324-W3** Device confirmations now that the phone is on b5: ~~#301 §V2 fresh-install negative
+  control (unchanged urgency);~~ **[STRUCK 2026-08-11 — #301's 301-C was scored by the SIM arm
+  (`simctl privacy reset`, n = 3/3 clean, runtime 24A5408d). §V2 is discharged; do not spend a
+  device fresh install on it. See #301's dated 2026-08-11 block.]** FM tokenCount 4096-vs-8192
+  asymmetry + `variant.displayName` on device; maximumResponseTokens throw-vs-truncate (still
+  device-only).
 - **324-W4** The FM b4-vs-b5 error-identity comparison is measurement-only (same-binary control
   is dyld-impossible; beta4's Code=5000 finding stands as recorded — do not treat the 1026 shape
   as contradicting it).

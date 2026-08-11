@@ -537,10 +537,19 @@ struct ChatScreen: View {
     /// Sessions API health, then load the conversation. Extracted from `body`'s
     /// `.task` to keep that view expression cheap to type-check.
     private func startChatSession() async {
+        // TEMPORARY #324-W1 PROBE — REMOVE BEFORE THIS LANE CLOSES.
+        // Probed after EACH await: a MainActor Task only gets the chance to
+        // resume on a non-main OS thread at a suspension point, so the
+        // post-await sites are the ones July's trap actually died on.
+        let w1 = chatStore.localSessions as? SwiftDataLocalSessionStore
+        w1?.t324W1MainContextFetch("entry")
         chatStore.setPollingEnabled(true)
         await hostStore.refresh()
+        w1?.t324W1MainContextFetch("afterHostRefresh")
         await chatStore.refreshDirectHealth()
+        w1?.t324W1MainContextFetch("afterDirectHealth")
         await chatStore.loadConversationIfNeeded()
+        w1?.t324W1MainContextFetch("afterLoadConversation")
     }
 
     /// Periodically re-checks relay host status and direct Sessions API health

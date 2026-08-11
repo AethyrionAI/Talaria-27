@@ -137,6 +137,35 @@ final class SwiftDataLocalSessionStore: LocalSessionStoring {
         }
     }
 
+    // TEMPORARY #324-W1 PROBE — REMOVE BEFORE THIS LANE CLOSES.
+    //
+    // #324's beta5 audit could not reproduce the July `mainContext` SIGTRAP in
+    // a minimal probe in ANY build×runtime cell (15 shapes), so the trap's
+    // status is UNKNOWN rather than fixed. 324-W1 is the only closer: the same
+    // fetch, in the REAL app's ChatScreen async chain, where July saw it die.
+    //
+    // The trap is a SILENT SIGTRAP (brk #1, no message, no .ips), so the
+    // instrument has to be a BEFORE line and an AFTER line: BEFORE with no
+    // AFTER and a dead process = trap; both lines = clean. `Thread.isMainThread`
+    // is the discriminator the audit actually measured — the July diagnosis was
+    // that a MainActor Task can resume on a non-main OS thread, which is what
+    // makes mainContext's NSMainQueueConcurrencyType assert fire.
+    func t324W1MainContextFetch(_ site: String) {
+        Self.logger.notice(
+            "#324-W1 BEFORE site=\(site, privacy: .public) isMainThread=\(Thread.isMainThread, privacy: .public) thread=\(Thread.current.description, privacy: .public)"
+        )
+        do {
+            let rows = try context.container.mainContext.fetch(FetchDescriptor<LocalSessionRecord>())
+            Self.logger.notice(
+                "#324-W1 AFTER  site=\(site, privacy: .public) fetched=\(rows.count, privacy: .public) — NO TRAP"
+            )
+        } catch {
+            Self.logger.notice(
+                "#324-W1 AFTER  site=\(site, privacy: .public) THREW \(error.localizedDescription, privacy: .public) — no trap"
+            )
+        }
+    }
+
     // MARK: LocalSessionStoring
 
     func upsertSession(_ conversation: Conversation) {
