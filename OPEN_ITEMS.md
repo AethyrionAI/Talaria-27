@@ -165,7 +165,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#188** 🔧 Connector watchdog cannot distinguish relay-down from connector-down
 - **#189** ⚰️ Notifications never authorized on a fresh install + a false-green panel — **MOOT BY DELETION: #238 removed the subsystem; §F3 has nothing to run** (corrected 2026-08-09) …
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
-- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** …
+- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … **→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
 - **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. FIX OWED, not built (design change, needs his go). Twin filing #323 carries the non-voice half**
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen — **✅ INVESTIGATED + FIX MERGED 2026-08-10 (PR #300, `179d506`): the trap is NOT device-only (that recorded claim is falsified), the site is `ensureSpeechAuthorization()`'s completion closure, and the discriminator is authorized-vs-notDetermined. OPEN only for 301-C's negative control — device row §V2 (fresh install) or the queued sim re-run**
@@ -180,10 +180,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#316** 🧹 The `///` doc block above `handleActiveProfileChanged` is ORPHANED from its own function
 - **#317** 📝 THE RULES CONTRADICTION — **RULED 2026-08-09: option (a), append-only dated pointers; close-out rule RATIFIED (upstream = our docs, never external repos)**
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
-- **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix; NOT STARTED
-- **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD) — lane ungated, NOT STARTED, bars pre-register in the entry**
+- **#320** ✨ Realtime voice indicator — closes archived #221's question; pairs with #140's "no cloud" copy fix — **bars 320-A..F PRE-REGISTERED 2026-08-11; READY TO DISPATCH** (close-out includes re-publishing `docs/privacy.html`)
+- **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD) — lane ungated, NOT STARTED, bars pre-register in the entry** **→ BARS 321-A..F PRE-REGISTERED 2026-08-11; READY TO DISPATCH.**
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
-- **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292); NOT STARTED, bars pre-register in the entry**
+- **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292); NOT STARTED, bars pre-register in the entry** **→ BARS 322-A..E PRE-REGISTERED 2026-08-11; READY TO DISPATCH.**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -191,7 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#288** 🧹 Orphan device rows on paired hosts — audit + deactivate, one-time chore, **RE-RUN OWED after #285 is fixed for good**
 - **#287** 📝 Launch contract GHOST: `LaunchInitStep.pushTokenRegistration` survives the #238 teardown it describes
 - **#283** 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch)
-- **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — **🛑 MEASURED 2026-08-10: the ruled guard fixes case (a) but 282-B/D/E went RED (user-row dupes, 282-E unbounded); MEASUREMENT PR #304 parked DO NOT MERGE. ✅ §7 RULED 2026-08-10: RANK the consumers (option 1 alone) — that is the per-change go; bars pre-register in the entry before code** …
+- **#282** 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` row can eat a later identical prompt's claim — **🛑 MEASURED 2026-08-10: the ruled guard fixes case (a) but 282-B/D/E went RED (user-row dupes, 282-E unbounded); MEASUREMENT PR #304 parked DO NOT MERGE. ✅ §7 RULED 2026-08-10: RANK the consumers (option 1 alone) — that is the per-change go; bars pre-register in the entry before code** … **→ BARS 282R-A..F PRE-REGISTERED 2026-08-11; READY TO DISPATCH.**
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** …
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
@@ -204,13 +204,13 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#264** ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race and never …
 - **#263** 🐛 Plugin transport: discovery-pass module reloads SPLIT the hub singleton; the enqueue wake misses the … — **(b) FIXED + 263-G MET; (a) AS FILED FALSIFIED — open ONLY as the (a) WATCH** (the header predates both) …
 - **#261** 🗃️ OPEN_ITEMS IS OUT OF HAND — archive the closed, keep the open, and stop putting attack recipes in a file …
-- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt … — **✅ DEVICE BARS ALL MET 2026-08-10: 1-GATE 100% (arm AND control), 1-A 100%, 1-B 0%, 1-D zero, `errors=0` across 350 classifications. Neither kill clause fires; LEVER 1 SHIPS. Remaining: 3a-C (Owen's read), the voice-absence check, the vision line, and the never-built `tokenCount` pre-flight**
+- **#257** 🗣️ On-device model UNDER-SELLS its own toolbelt on capability questions — toolless turns can't see the belt … — **✅ DEVICE BARS ALL MET 2026-08-10: 1-GATE 100% (arm AND control), 1-A 100%, 1-B 0%, 1-D zero, `errors=0` across 350 classifications. Neither kill clause fires; LEVER 1 SHIPS. Remaining: 3a-C (Owen's read), the voice-absence check, the vision line, and the never-built `tokenCount` pre-flight** **→ VISION-LINE BARS 257-V-A..F PRE-REGISTERED 2026-08-11; that slice is READY TO DISPATCH.**
 - **#255** 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the …
 - **#254** 👁 Control Center buttons BIND (confirmed 2034); ghost session = connect-window ownership race — **WATCH (downgraded 2026-08-05, header corrected twice, 2026-08-09); premise MEASURED (254-F), fix landed under 254-A/B/C; **254-D OWED, 254-E UNRUNNABLE AS WRITTEN (device 2026-08-09; native `LIVE` arm passed in its place)** — STAYS OPEN**
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
-- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴→✅ 250T-C RAN 2026-08-10 AND MISSED, cause found and FIXED the same sitting: the scale-1.0 handoff image arrives 120 pt wide and the 14 pt compact slot won't draw it — a regression #250 itself shipped. Fix device-proven on `t27-250-island-compact-icon`; bars + gate + re-run owed before merge**
+- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴→✅ 250T-C RAN 2026-08-10 AND MISSED, cause found and FIXED the same sitting: the scale-1.0 handoff image arrives 120 pt wide and the 14 pt compact slot won't draw it — a regression #250 itself shipped. Fix device-proven on `t27-250-island-compact-icon`; bars + gate + re-run owed before merge** **→ FIX BARS 250F-A..E PRE-REGISTERED 2026-08-11; gate + merge READY, closing bar 250F-E is device (Owen).**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
@@ -5162,6 +5162,44 @@ Manual/Off app lane).**
 > this entry before any code.** Design of record remains
 > `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md`.
 
+**BARS — PHASE 0 ONLY, pre-registered 2026-08-11 BEFORE any code, per the
+ballot's own next-action line. Phases 1–3 stay un-dispatched; their sketch
+bars in `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` §6 are NOT
+pre-registered here and must not be treated as such. Anchors resolved at
+`506a319`.**
+
+- **224-0A — `scheduleAlarm` gains caution rows.** An early-morning alarm
+  (before 07:00 local) and a past-due one (beyond the 5-minute grace) each
+  stage a caution row. The caution wording carries **no formatted date or
+  time** the model could mine into a fabricated success claim — the #233-E /
+  #249-F rule, pinned by assertion, not by review.
+- **224-0B — `createCalendarEvent` gains the same two rules** (past-due and
+  early-morning starts), same wording constraint.
+- **224-0C — RED witnessed first.** Neither tool passes `caution:` at HEAD, so
+  0A's and 0B's tests must FAIL before the change and pass after. A green-only
+  run does not score this bar (the #313 / "tests written after a defect" rule).
+- **224-0D — boundary coverage.** Unit tests per tool at 06:59 / 07:00 and at
+  both sides of the 5-minute past-due grace. Swift Testing count MOVES; the
+  before/after numbers are recorded in this entry.
+- **224-0E — the mode scaffold exists and is unreachable.** An `ApprovalMode`
+  type ships with `.manual` implemented and `.smart` / `.off` present as cases
+  every switch must handle (#306's C1 precedent — name the door on day one).
+  It reads from **`UserSettings`, GLOBAL, not per-profile** (ruling 2).
+  **No user-facing control ships in Phase 0** (ruling 1) and `.manual` is the
+  only reachable value — asserted, so a later lane cannot expose a mode by
+  accident.
+- **224-0F — the model-free pin, placed now rather than at Phase 2.** No
+  `LanguageModelSession` is constructed anywhere on the approval path
+  (ruling 5). Asserted at scaffold time so Phase 2 inherits the pin instead of
+  adding it.
+- **224-0G — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved,
+  logs path recorded here.
+
+> **KILL CLAUSE, written before the run:** if extending the caution layer
+> cannot be done without editing either tool's SUCCESS-claim text, **stop and
+> report** rather than proceeding — that text is #233's defended surface and a
+> change to it is a different decision than the one Owen balloted.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
@@ -5895,7 +5933,7 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
-## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. NOT STARTED; bars pre-register here before any code.**
+## 320. ✨ REALTIME VOICE INDICATOR — a visible signal when a voice session runs on the realtime engine (reaches the host's provider), closing archived #221's open product question — **FILED 2026-08-09 by Owen's ruling on the "no cloud" copy (decision pass): qualify the copy AND add the indicator — one decision, two surfaces. Archived #221 carries the append-pointer. NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
 
 **The ruling this implements:** the public copy (#140's lane) becomes "no
 Talaria-operated cloud; realtime voice uses your host's provider," and the
@@ -5933,6 +5971,35 @@ mid-session engine change if one ever becomes possible.
 belongs to).
 
 ---
+
+**BARS — pre-registered 2026-08-11 BEFORE any code. Anchor: the engine is
+already named at session start by the 2026-08-01 instrument (`voice session
+starting on engine …`), so the signal source exists and the lane is a surface,
+not a mechanism.**
+
+- **320-A — both arms, one test.** A session on the **realtime** engine shows
+  the indicator; a session on the **native** engine does not. A test that only
+  asserts the positive arm does not score this bar.
+- **320-B — the indicator reads the ENGINE, not the intent.** Its source is
+  the engine actually in use at the site that logs it — never the brain
+  setting, never a copy constant. **#303 is the reason this bar exists**: a
+  cold Control Center launch pins NATIVE while the brain says realtime, and an
+  indicator wired to the brain would announce cloud audio on a session that
+  never left the phone.
+- **320-C — it is fixed at session start, and says so.** Since #303 leaves no
+  mid-session upgrade path, the indicator must not imply live tracking. If a
+  future lane adds an upgrade path, this bar is what tells it to revisit the
+  surface.
+- **320-D — theme + VoiceOver.** Renders in every theme including Paper Tape;
+  the VoiceOver label states the **consequence** ("audio goes to your host's
+  provider"), not the engine name alone. #18's no-silent-substitution rule is
+  the family this belongs to.
+- **320-E — close-out includes the PUBLISHED page.** The privacy policy's
+  Voice sentence is restored to the indicator claim in the SAME lane, and
+  `docs/privacy.html` is re-published — the entry's own 2026-08-10 note makes
+  this part of the lane, not a follow-up. #140's copy half is cross-checked in
+  the same commit.
+- **320-F — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved.
 
 ## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. NOT STARTED; bars pre-register here before any code.**
 
@@ -6037,7 +6104,7 @@ sound and is not what failed), **#272** (the App Lock re-prompt loop, fixed
 on the deletion path, which is context for how much to invest in fixing its
 half rather than deleting it sooner).
 
-## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). NOT STARTED; bars pre-register here before any code.**
+## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
 
 **Origin and the superseded ruling, stated plainly.** #292's fix cancelled the
 runs producer Task so an abandoned turn stops polling (~60 requests over 2
@@ -6065,7 +6132,34 @@ its supersession pointer), **#321** (same-day Stop semantics this must not
 slow), archived **#295** (the wider status-poll recovery, ruled SKIP the same
 day — this item is a single read on cancel, not a recovery mechanism).
 
-## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). NOT STARTED; bars pre-register here before any code.**
+**BARS — pre-registered 2026-08-11 BEFORE any code. This item exists
+downstream of a fix it must not undo, so the first bar is a regression pin,
+not a feature.**
+
+- **322-A — exactly ONE request, and #292 stays fixed.** A stubbed transport
+  counts requests on the abandon path: **exactly one** `GET /v1/runs/{id}`,
+  **zero** retries, **zero** follow-up polls, and no producer Task resurrected.
+  The ~60-request loop #292 killed must not reappear under any failure arm.
+- **322-B — the gauge stops lying.** On a successful read carrying `usage`,
+  the CTX gauge shows THAT run's numbers. On failure, on a 404/expired run, or
+  on a read with no usage, it goes honestly unknown/zero and **never holds the
+  prior run's numbers** — three arms, all asserted (#215 / #180 instrument
+  honesty).
+- **322-C — the UI never waits.** The composer frees before the read resolves:
+  asserted with a transport that never completes, so a hung read cannot be
+  mistaken for a fast one. #321's immediate abandon is the contract this rides
+  behind.
+- **322-D — cancellation-safe.** A second Stop, a screen exit, or a thread
+  switch while the read is in flight neither crashes nor double-writes the
+  gauge.
+- **322-E — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved.
+
+> **Kill clause:** if the honest-unknown state cannot be rendered without a new
+> gauge state that reads as an error to the user, **stop and ask** — the point
+> of this item is instrument honesty, and a scary-looking gauge on every cancel
+> would be a worse lie than the stale number Owen superseded.
+
+## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). NOT STARTED — but **BARS ARE PRE-REGISTERED (2026-08-11), so this lane is READY TO DISPATCH**; see the bars block at the end of this entry.**
 
 **What changed to make this reachable.** #315 moved the composer's commit door
 onto `isTranscriptBusy`, so both busy doors (`.queueCommit`, `.busyNoCommit`)
@@ -6131,6 +6225,37 @@ that names Stop), **#180** (honest degradation).
 > in those bars, not discovered after.
 
 ---
+
+**BARS — pre-registered 2026-08-11 BEFORE any code, per the ruling's own
+discipline line, with the terminal-matrix interactions NAMED here rather than
+discovered later. Anchors resolved at `506a319`: `cancelStreaming`
+(`ChatStore.swift:1388`), `terminatedALiveTurn` (`:1392`), `abandonPendingRun`
+(`:1247`), `performStopRestoreOfHeldTurn` (`:2525`).**
+
+- **321-A — RED witnessed first.** With the store in the reconcile window
+  (`streamingMessageID == nil`, `pendingRun` live), `cancelStreaming()` leaves
+  `pendingRun` non-nil at HEAD. The test asserting `pendingRun == nil` must
+  FAIL before the change.
+- **321-B — Stop abandons, and the composer frees immediately** (ruling a):
+  after a window Stop, `pendingRun == nil`, `isTranscriptBusy == false`, and
+  the composer's door is the idle one — asserted in the same test, in that
+  order.
+- **321-C — one Stop story** (ruling b): the transcript state a window Stop
+  produces is pinned equal to the state a live-stream Stop produces. No new
+  user-visible state is introduced; if the two cannot be made identical, that
+  is a finding to report, not a variance to accept.
+- **321-D — a mid-window HOLD is restored, not sent** (ruling c): a message
+  committed through #315's door and then Stopped lands back in the composer as
+  text, mints **no** transcript row, and does **not** auto-fire. The restore
+  path stops keying on `terminatedALiveTurn` alone for this window.
+- **321-E — the terminal matrix still holds.** #306's T3 rows 2–3 (Stop =
+  HOLD + SURFACE, never auto-fire) and #295's recovery arming are re-run by
+  name and stay green; nothing arms a recovery for a run the user abandoned.
+- **321-F — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved.
+
+> **Scope fence:** this lane changes the Stop path only. The CTX-gauge read on
+> cancel is **#322** and must not be smuggled in here — but the two lanes touch
+> the same path, so whichever lands second re-runs the other's bars.
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
@@ -7090,7 +7215,7 @@ ships behind a Developer switch (plan §5 Q3 as recommended — dual path during
 >   `SessionsHermesClient+RunsTransport.swift` carried the same stale citations
 >   and were corrected in the #304 lane.
 
-## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. NOT STARTED — no lane, no bars, and the scope question is Owen's call.**
+## 282. 🐛 The content-claim tier's DEMAND side is unbounded and order-keyed — a `.failed` user row can eat the claim minted by a LATER identical prompt and silently leave the transcript — **FILED 2026-08-07 by the tracker tidy pass, carried verbatim out of #281's closure so it does not sit in the archive unnumbered. ~~NOT STARTED — no lane, no bars, and the scope question is Owen's call.~~ **SCOPE RULED 2026-08-10 (§7: RANK the consumers) and BARS 282R-A..F PRE-REGISTERED 2026-08-11 — the ranking lane is READY TO DISPATCH.****
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **#299 FIRST.** The demand-side guard does not land into a merge that is
@@ -7880,6 +8005,42 @@ the next reader does not re-check it.
 > entry before any code, watched-RED where the fixture permits, and PR #304
 > stays parked DO NOT MERGE as the measurement record (its `/tmp/gate-282/`
 > logs preserved per the consolidated index §8).
+
+**BARS — RE-PRE-REGISTERED 2026-08-11 for the RANKING lane, before any code,
+per the resumed-lane discipline in the ruling above.** The 282-A..E bars
+already in this entry belong to the MEASUREMENT lane (PR #304, parked) and are
+**not** these. Site: `ChatStore.unconfirmedLocalMessages` (`:3389` at
+`506a319`) — the claim pass at `:3395-3410`. Discriminator: `MessageStatus`
+`isSettled` (in-flight = `.sending` / `.working` / `.queued`).
+
+- **282R-A — the ranking holds, RED witnessed.** With one in-flight and one
+  settled local row of identical content and a single claimable server row,
+  the **in-flight row takes the claim**. At HEAD the settled row takes it
+  (local order), so the test must fail before the change.
+- **282R-B — a settled row still confirms when nothing else wants the claim.**
+  This is the whole difference from the superseded ban-style guard: with no
+  in-flight candidate, the settled row consumes as it does today. Falsifying
+  this bar means the lane rebuilt the ban.
+- **282R-C — the parked lane's three REDs stay green under the ranking.**
+  282-B (in-app reconcile user-row dupes), 282-D (settled-historical turn) and
+  282-E (id-less server rows, unbounded) are re-run on this branch from the
+  same fixtures and must not regress. **282-E is the one to watch**: it is the
+  arm the ban-style guard inverted.
+- **282R-D — #299 stays fixed.** `serverIdentityAdoptions` is untouched and
+  assistant rows stay single; 299-C/299-D green. If 299-A/299-B's pinned
+  ARRAYS move, the correction lands at #299's archived home as an append-only
+  dated pointer block (#317 carve-out (a)) in the same commit.
+- **282R-E — the accepted gap is DOCUMENTED, not silently closed.** Case (a)
+  with a genuinely settled successor stays open by ruling; the entry says so in
+  the result block and the code comment names it. A lane that quietly closes it
+  has exceeded the per-change go.
+- **282R-F — `GATE: PASS`** (units + XCUITest + **Release**), unit count moved.
+
+> **Standing constraints for this lane:** PR #304 stays parked **DO NOT
+> MERGE** as the measurement record and its `/tmp/gate-282/` logs must survive
+> the lane (consolidated index §8). `dedupingAdoptedEchoes`' timestamp key is
+> **not** loosened (#237). Option 2 (the deterministic fallback id in
+> `mapStoredMessage`) is **NOT** in scope — the ruling excluded it explicitly.
 
 ## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
 
@@ -9970,6 +10131,42 @@ full battery.
 > `/capabilities`) and the voice-absence observation. Neither is a routing
 > measurement and neither is blocked by anything above.
 
+> **BARS — 257-V (the VISION LINE), pre-registered 2026-08-11 BEFORE any
+> code, per ruling 2's own "bars pre-register here" instruction. Anchors
+> resolved at `506a319`: the exclusion is
+> `CapabilityRegistry.capabilityAnswerBlock` (`:183`,
+> `$0 != .vision && families.contains($0)`); the sheet's caveat label already
+> exists at `CapabilitiesSheet.swift:122`; the sheet's section derivation
+> drops empty groups at `:29-36`.**
+>
+> - **257-V-A — RED witnessed first.** At HEAD `capabilityAnswerBlock()`
+>   excludes `.vision` unconditionally, so the test asserting a vision line
+>   must FAIL before the change.
+> - **257-V-B — the block names image reading WITH the caveat**, and the
+>   caveat string has **ONE source** shared with the sheet's existing label —
+>   a second copy of that sentence is a bar failure, not a style note (#202D's
+>   one-source rule, which is why this entry's copy lives on
+>   `CapabilityGroup` at all).
+> - **257-V-C — the sheet shows the section with no image tools on the
+>   belt.** Today `sections(from:)` drops a group whose tools are absent, so a
+>   sheet opened on an attachment-less turn has no Images section at all —
+>   which is exactly the undiscoverability the ruling flips. The caveat label
+>   must ride it.
+> - **257-V-D — NO honesty regression, and this is the bar that could kill
+>   the lane.** `armedEnumeration` stays gated by `hasImageTools` (the
+>   instructions text the model reads is UNCHANGED — only user-facing UI
+>   copy moves), and #297's `toollessIndexFamiliesNamed(in:)` still scores
+>   **10 non-vision families**; 297-A's threshold text is not edited by this
+>   lane. If adding the line moves that scoring, **stop** — the toolless-index
+>   arm is separate by ruling.
+> - **257-V-E — determinism preserved.** Renders stay byte-identical across
+>   calls in declaration order; the existing determinism test is extended
+>   rather than replaced, and the unit count MOVES.
+> - **257-V-F — `GATE: PASS`** (units + XCUITest + **Release**).
+>
+> **Scope fence:** this is UI copy in two surfaces. It does not arm a tool, does
+> not touch the #176 image gate, and does not change what the model is told.
+
 ## 255. 🧹 DE-BRANDING SWEEP: rename hermes-mobile → talaria-mobile; remove the remaining dylan-buck marks from the repo — **FILED 2026-08-05 evening (Owen: "I also want to rename the hermes-mobile to talaria-mobile and get rid of the rest of dylan's mark on the repo"); inventory owed before any rename**
 
 **Scope discipline written at filing, before the inventory:**
@@ -11913,6 +12110,38 @@ judge it whenever one appears. UX ride-along from the same screenshot,
 routed into #256: the icon gallery was buried (browser → tuning →
 expand); the deck page's APP ICON row now navigates to the gallery
 directly.
+
+
+**BARS — 250F (the COMPACT-SLOT FIX on `t27-250-island-compact-icon`, `371e462`),
+pre-registered 2026-08-11 BEFORE the gate, per that commit's own "OWED BEFORE
+THIS MERGES" line. Anchor: `HermesBrandIcon.redrawn(_:at:)` in
+`TalariaWidgets/HermesLiveActivity.swift`.**
+
+- **250F-A — RED witnessed, then GREEN.** A 120 px PNG loaded the way the
+  handoff file is loaded arrives as a **120-point, scale-1.0** image; after
+  `redrawn(_:at:)` its point size is the slot's and its scale is the screen's.
+  The pre-fix shape must be asserted failing first. **`redrawn` is `private
+  static` today — widening it for the test is part of this lane and carries the
+  `// harness-visible` tag (#216's convention), not a silent API change.**
+- **250F-B — the sizes that already worked still work.** 44 pt (lock screen)
+  and 28 pt (expanded island) render through the same path; the fix must not be
+  scored on 14 pt alone, because those two are the control that made the
+  diagnosis possible.
+- **250F-C — the fallback chain is untouched.** A missing or nil handoff file
+  still falls back to the bundled SF-symbol chain — 250-B's existing pin
+  re-run, not restated.
+- **250F-D — `GATE: PASS`** (units + XCUITest + **Release**; the widget target
+  is in the Release build), unit count moved.
+- **250F-E (device, Owen — the CLOSING bar):** 250T-C re-run. The compact
+  leading slot shows the **selected** icon, and a switch is followed on the next
+  activity render.
+
+> **Honesty clause carried forward from the fix commit, and it is a bar in
+> itself:** the redraw changes point size, scale AND provenance together, so
+> which is load-bearing is **unproven**. No bar above claims otherwise, and the
+> lane must not write "oversized images fail to encode" as fact unless it
+> narrows it with a real discriminator. Merging is gated on 250F-E, not on a
+> screenshot.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 
