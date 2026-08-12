@@ -193,6 +193,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#338** 🛡️ **THE HONESTY GUARD** — a turn that CLAIMS a device action while executing ZERO tool calls must never reach the user as-is. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
 - **#337** 🔥🔴 **THE ACTION PATH CREATED NOTHING — AND TELLS THE USER IT DID.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
@@ -9251,6 +9253,85 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > **The queue in `UNATTENDED-RUNS-HANDOFF.md` §6 is now RUNNABLE** — #257's tokenCount
 > pre-flight is the named next build (an instrument that does not exist yet; it becomes
 > a registry entry + a bar run).
+
+## 338. 🛡️ THE HONESTY GUARD — a turn that CLAIMS a device action while executing ZERO tool calls must never reach the user as-is — **FILED 2026-08-12 on Owen's go ("all three please") the same hour #337-A confirmed the defect in production. This is the STOP-THE-BLEEDING lane: deterministic, app-side, and independent of model behaviour. Bars below pre-registered BEFORE code.**
+
+**Why app-side and why now.** #337-A proved the app tells users a reminder was
+created when nothing was. The root cause (#337-D) and the impersonation hypothesis
+(#337-F) are both MEASUREMENTS that will take runs to settle; **this entry does not
+wait on either**, because the failure is a trust failure and the mitigation does not
+require knowing why the model does it. It requires only a fact the app already has:
+**did any tool execute this turn?**
+
+**The shape.** Two separable pieces, and the lane must keep them separable:
+1. **A pure detector** — given a turn's final text and its executed-tool-call list,
+   decide whether the text asserts a COMPLETED device action that did not happen.
+   Pure function, no I/O, exhaustively tested. **It must handle the curly
+   apostrophe** — tonight a straight-quote regex read *"I've set…"* as "no claim"
+   and produced a wrong reading in this very investigation; that miss is a test case.
+   It must NOT fire on honest offers (*"Would you like me to create this?"*), on
+   future/conditional phrasing, or on the model quoting the user.
+2. **The response** — what the user sees instead. **The exact user-facing copy is
+   OWEN'S RULING, not the lane's**; the lane proposes and instruments, he approves
+   before it ships. Default proposal: keep the model's text but append a visibly
+   distinct honest correction, rather than silently rewriting the model — silent
+   rewriting is its own trust problem and forecloses diagnosis.
+
+**Explicitly IN SCOPE:** the literal `"Confirmation card:"` prose shape from #337-A
+(the model imitating the app's own affordance) — the detector treats an imitated
+card as a claim, and a fired detection is counted for #337's measurements.
+
+**Explicitly OUT OF SCOPE:** changing tool descriptions (that is #337-F's A/B),
+changing the #232 governor's threshold, and any attempt to make the model call the
+tool — this lane makes the app HONEST, not capable.
+
+> **BARS PRE-REGISTERED 2026-08-12, before code:**
+>
+> - **338-A (detector correctness).** A table-driven test over labelled fixtures
+>   drawn from TONIGHT'S REAL ARTIFACTS, not invented strings: the three #336
+>   fabricated rows, the #337-A production reply, the 15 honest offers from
+>   `A7AB9960`, the honest called-and-said-so rows from `F6C46C82`, and the haiku
+>   canaries. Zero false negatives on the fabrications; **zero false positives on
+>   the honest offers** — a guard that fires on an honest offer trains the user to
+>   ignore it.
+> - **338-B (curly apostrophes and friends).** Fixtures include `’`, `'`, plain
+>   "I set", "is now on your calendar", and "has been created" — the exact strings
+>   observed, each as its own case. RED witnessed by removing the normalization.
+> - **338-C (wired, and it fires).** On a device turn that reproduces #337-A, the
+>   user-visible outcome is honest. Witnessed on hardware, quoted, not reasoned.
+> - **338-D (production-safe).** The guard cannot fire on a turn that DID execute
+>   its tool call — pinned by test over the real accepted-call rows; and it adds no
+>   user-visible change to a normal successful turn.
+> - **338-E (counted).** Every detection increments a counter the instruments can
+>   read, so #337's rate can be measured from production behaviour rather than
+>   re-derived from battery cells.
+> - **338-F** — `GATE: PASS`, count moved, Release built.
+
+**Cross-references:** **#337** (the defect this mitigates; 337-A is the evidence),
+**#336** (the fabrication mechanism), **#232** (the governor whose cut precedes most
+of these turns), **#197** (never-throw discipline on the tool path — the guard must
+not introduce a throw), **#196** (the disclaimer tic, this shape's inverse).
+
+## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
+
+**What makes it newly possible:** #333's runner turned every instrument into one
+command with a machine-readable artifact and a positive completion flag, and #335
+added three read-only FM instruments. **19 of 48 instruments are unattended- and
+iPad-eligible today** — enough for a real routine pass with no human tapping.
+
+**What tonight proved about the value:** four instrument runs surfaced #334, #336
+and #337 in one evening, and #337 turned out to be a user-facing trust defect that
+2,181 green unit tests could not see. **The batteries measure behaviour the suite
+cannot.**
+
+**The open questions this entry exists to answer (not decided here):** cadence and
+trigger (per-merge? nightly? pre-TestFlight only?); which subset is the regression
+set vs the investigation set; **what a REGRESSION even means for a stochastic
+instrument** — a rate that moves needs a band and an n, not an equality assertion,
+and #215's routed-vs-unrouted rule governs which cells may be compared at all;
+where the baselines live; and who reads a red. **Bars pre-register here when a lane
+opens.** The hazard to design against is the one this project already names: a
+routinely-red or routinely-ignored gate is worse than none.
 
 ## 337. 🔥 THE ACTION PATH CREATED **NOTHING** IN 180 ATTEMPTS — ~80% of action turns end in #232's phase cut, the survivors offer instead of acting, and the second run executed **0/90** — **MEASURED 2026-08-12 on `whoGoesThere`, TWO runs 75 minutes apart, same build, same auto-accept arming. The most product-facing number of the day. NOT STARTED; the first bar is a HAND-RUN turn, because no instrument here can see what a real user sees.**
 
