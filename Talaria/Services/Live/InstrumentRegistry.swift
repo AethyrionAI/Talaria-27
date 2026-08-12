@@ -429,11 +429,11 @@ enum InstrumentRegistry {
         // so an appropriate create EXECUTES and is countable as an artifact —
         // real writes, marker-tagged, reaped per trial.
         //
-        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
-        // alarm / calendar creates, executed for real under auto-accept.
-        // Not `runActionBattery`, but the same write surface: it accumulates
-        // `perTrialAlarms` and calls `AlarmService.reapBatteryAlarms()`, so
-        // alarms are in scope and the flags follow the writes, not the family.
+        // Surface: NOT `runActionBattery` — `runTwoTurnBattery` is its own
+        // instrument — but the same write surface, and derived rather than
+        // assumed from the family: it accumulates `perTrialAlarms` and calls
+        // `AlarmService.reapBatteryAlarms()` per trial, so alarms are in
+        // scope. The flags follow the writes, not the neighbours.
         // Button: `instrumentButton("two-turn", …)`.
         InstrumentSpec(name: "two-turn", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
@@ -580,6 +580,10 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runImageRoutingProbe(trials: trials)
                        }),
+        // #202C companion: ctx-a on realistic LONG contexts, timed. The only
+        // button in the sweep whose factory carried NO rationale comment —
+        // this line is the call site's, moved here so the entry is not the
+        // one blank in the table.
         //
         // Surface: read-only — classifications or READ tools; nothing is written.
         // Button: `instrumentButton("long-context-probe", …)`.
