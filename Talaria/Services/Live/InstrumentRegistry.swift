@@ -46,7 +46,9 @@ enum InstrumentRegistry {
         // Surface: nothing. Auto-decline is checked FIRST in
         // `ToolConfirmationCenter.requestConfirmation`, so no action tool ever
         // executes and the reap is a no-op.
-        // The #196 shape battery's own prompt set, run under decline.
+        // The #196 shape battery's own prompt set, run under decline. Headless
+        // sessions can never answer a confirmation card, so grabs auto-decline —
+        // which also measures post-denial recovery (restored: #333 final review).
         // Button: `instrumentButton("shape", …)`.
         InstrumentSpec(name: "shape", confirmationMode: .autoDecline,
                        writesEventKit: false, writesAlarms: false,

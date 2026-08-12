@@ -88,6 +88,9 @@ final class InstrumentConductor {
         confirmationCenter.autoDeclineForBattery = (spec.confirmationMode == .autoDecline)
         BatteryTestContainer.alarmWritesAttended =
             (spec.confirmationMode == .autoAccept && spec.writesAlarms && !unattended)
+        // A ~20-minute n=20 must survive auto-lock — work-desk runs have no
+        // cable keeping the screen awake, and a locked screen suspends the run
+        // mid-battery (rationale from the deleted #196 button; #333 final review).
         UIApplication.shared.isIdleTimerDisabled = true
         defer {
             confirmationCenter.autoAcceptForBattery = false
