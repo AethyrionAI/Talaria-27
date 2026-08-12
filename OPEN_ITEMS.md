@@ -8964,6 +8964,18 @@ toggle stops gating — witnessed, not assumed.
 ---
 
 ### 332 — THE DEVICE-PASS COMMANDS for 332-a(1) and 332-b(1)
+
+> **✅ 332-a(1) SCORED ON HARDWARE 2026-08-12, same day** — the narrow run on Shelley's
+> iPad (`main` @ `a5595a2`, the #333 device sitting, device unlocked by Owen). The test
+> **skipped with the full #332-a reason string** (log line quoted: *"➜ Test
+> approvalPathSourcesNeverReferenceALanguageModelSession() skipped: '#332-a: this bar
+> proves ruling 5 by READING the repo's Swift sources at runtime…'"*), `** TEST
+> SUCCEEDED **`, and **zero `Code=260` errors** (the one `NSCocoaErrorDomain` string in
+> the log is the skip reason quoting itself — checked before scoring). 332-a is now
+> fully met: sim positive control on every gate + device skip witnessed. **332-b(1)
+> remains owed** — it needs `whoGoesThere` (the pre-existing-donations condition lives
+> there), and the narrow command below still applies for that half.
+
 Neither device half was scored by the fixing lane, which touched no hardware by
 instruction. Both close in one device run. Run from the repo root with
 `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer`:
