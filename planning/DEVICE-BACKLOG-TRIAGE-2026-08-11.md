@@ -231,3 +231,32 @@ because those write to Owen's *host*, not to her device).
 dyld-death signature (#324 — no `.ips`, empty stdout, so a silent death looks like
 nothing); confirm tailnet reach for host-touching rows; and confirm Apple Intelligence is
 actually enabled after the update.
+
+
+### 9a. The iPad is VERIFIED as an FM runner — 2026-08-11
+
+All four pre-checks passed, in order, and none was skipped:
+
+1. **Signed and installed** — `Apple Development: James Jones (8RJ9C6466D)`, three
+   identities, no `requires a development team`.
+2. **Launched clean** — no dyld death. The #324 beta-to-beta hazard did **not** fire on a
+   beta5-built binary, consistent with the audit's finding that we adopt no new beta5
+   symbols. (It was checked rather than assumed, because that failure writes no `.ips` and
+   looks like nothing.)
+3. **On the tailnet**, Developer Mode on, previously paired.
+4. **IT GENERATES.** `CondenserFidelityTests` ran **7/7, `** TEST SUCCEEDED **`, 25.3 s** —
+   including the two tests that `#require(composition.condensedByModel)` and therefore
+   **cannot pass without real on-device generation.** They ran; they did not skip. This is
+   the check that mattered, and it is the one "availability" has lied about twice.
+
+**Consequence: the FM cluster is no longer pinned to `whoGoesThere`.** The rows that are
+device-only purely because simulators cannot generate can run here instead, leaving his
+phone free — subject to §9's rule, which is unchanged and absolute: **no calendar,
+reminder or alarm tests on this device.**
+
+**Incidental but worth keeping:** this is the first time the fidelity suite has run on a
+second device, and it passed there too. That slightly strengthens #313's closure — the
+removed `chicago` proxy was not masking a device-specific quirk of one phone. Timing also
+differs usefully: the long-journal budget test took 16.9 s here against 20.9 s and 123.0 s
+on the phone, which is a further reminder that model wall-clock on this hardware is not a
+stable measurement and must never be pinned as one.
