@@ -184,6 +184,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#321** 🐛 Stop is only HALF a Stop in the reconcile window — `cancelStreaming` never clears `pendingRun`; filed 2026-08-10 by the #315 lane; **✅ SEMANTICS RULED 2026-08-10 (abandon outright · live-stream-Stop transcript treatment · restore the mid-window HOLD)** **→ ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` (with #322, one commit): bars 321-A..F ALL MET, RED witnessed at `5c8fed7`; GATE: PASS, 2100/160 + 14 XCUITest + Release. NOT MERGED — awaiting review.**
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292)** **→ ✅ BUILT 2026-08-11 on `t27-321-322-stop-completes` (with #321, one commit): bars 322-A..E ALL MET, ONE request pinned at BOTH the client seam and the wire; kill clause did not fire (#25's gauge-hide already IS the honest-unknown state); GATE: PASS, 2100/160 + 14 XCUITest + Release. NOT MERGED — awaiting review.**
+- **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
+- **#326** 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — same commit, 5/5 on one sim and 2 failures on another; it red-gated a clean tree and held a publish. The assertion adapts to the environment but hides a premise (that `Activity.request` succeeds whenever ActivityKit reports enabled). **Fourth distinct non-product failure signature seen 2026-08-11. NOT STARTED; bars 326-A..E pre-registered**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -7120,6 +7122,144 @@ discovered later. Anchors resolved at `506a319`: `cancelStreaming`
 > `terminatedALiveTurn` `:1392`, `performStopRestoreOfHeldTurn` `:2525` — all
 > four still correct at `5c8fed7`. The file also moved: it is
 > `Talaria/Stores/ChatStore.swift`, not `Talaria/Chat/ChatStore.swift`.
+
+## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.**
+
+**The measurement.** WCAG 2.1 relative luminance (sRGB linearisation, `L = 0.2126R + 0.7152G + 0.0722B`, ratio `(L₁+0.05)/(L₂+0.05)`) computed over every `(ThemeID × AccentSlot)` pair in `Shared/ThemePaletteCore.swift`, comparing the resolved `palette.forge` (= `Design.Brand.forge`, the warning token) against the resolved `palette.background`. 30 themes × 3 slots = **90 cells; 88 reachable** — Terminal's `lockedAccentSlot: .cyan` pin makes its amber and violet variants unreachable by construction. Run first on the #320 lane 2026-08-11, then **re-derived from scratch at filing time by a second parse of the same file: every figure below reproduced exactly.**
+
+| theme | slots | background | forge | forge : background |
+|---|---|---|---|---|
+| `springSprout` | all three | `0xFFF9F4` | `0xE89C30` | **2.18:1** |
+| `pulpNoir` | cyan, violet | `0xEFE3C6` | `0xC8912B` | **2.18:1** |
+| `retroSciFi` | all three | `0xF5F0E8` | `0xE67E00` | **2.52:1** |
+| `winterFrost` | all three | `0xF4F9FC` | `0xD49020` | **2.54:1** |
+| `stickerBombToybox` | all three | `0xF4F1EA` | `0xC96410` | 3.50:1 |
+| `comicFunnies` | all three | `0xFBF7EC` | `0xA87D00` | 3.50:1 |
+| `paperTape` | cyan, amber | `0xF2EFE9` | `0xA96A12` | 3.85:1 |
+| `pulpNoir` | amber | `0xEFE3C6` | `0x8F6A1E` | 3.88:1 |
+| `paperTape` | violet | `0xF2EFE9` | `0xB4530F` | 4.37:1 |
+
+**Against the thresholds:** SC 1.4.3 (AA, normal text) wants **4.5:1**; large text (≥18pt regular / ≥14pt bold) and SC 1.4.11 non-text UI both want **3.0:1**. So **11 of 88 reachable cells sit under the NON-TEXT floor** (4 themes: springSprout, pulpNoir, retroSciFi, winterFrost) and **21 of 88 sit under AA text contrast** (7 themes). The control makes the number legible as a defect rather than a house style: `palette.foregroundBright` on the same backgrounds **never drops below 10.99:1** (casinoLucky7s) and typically runs 16–20:1.
+
+**The shape is exact, and it is not "roughly half the catalogue": it is EVERY LIGHT THEME AND ONLY LIGHT THEMES.** All 7 light `ThemeID`s fail AA text contrast; all 23 dark themes pass with a **floor of 6.06:1** (casinoLucky7s). `forge` is a warm amber/orange tuned against near-black — carried onto a near-white ground unchanged, it has nowhere to go. (This corrects the "roughly half" figure the finding travelled with; the sweep says 7 of 30 themes / 21 of 88 cells. The named per-theme numbers were all exact.)
+
+**One of the seven is not opt-in.** `comicFunnies` is the LIGHT half of the adaptive Comic Book theme (#112 — `AppearanceTheme.comicBook.themeID(for: .light) == .comicFunnies`, pinned by `DesignThemeTests.comicBookFollowsTheSystemScheme`). A Comic Book user whose phone is in Light appearance lands on the 3.50:1 cell **without ever choosing a light theme**. Three of the seven failing palettes ship from #112 (pulpNoir, stickerBombToybox, comicFunnies).
+
+**Why this is not a niceness item: `forge` is the colour of warning TEXT the user is meant to read.** Named surfaces, verified at `c2b1389`:
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:165-170` — the `LOCAL VOICE · ON-DEVICE PIPELINE` badge, `MonoLabel(size: 9, weight: .medium, color: Design.Brand.forge)`. This is **#18's no-silent-substitution signal**: the one on-screen thing that tells a user the local engine is driving. At 9pt it is nowhere near WCAG's large-text carve-out, so 4.5:1 is its bar and 2.18:1 is what a springSprout user gets.
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:327` — `orbStatusLabel`'s `blockedReason`, `Design.Typography.callout`. Callout sits below the 18pt large-text line, so 4.5:1 applies here too.
+- `Talaria/Features/Talk/VoiceOverlayScreen.swift:355` — the **#84** mic-health hint ("connected but no mic signal"), `Design.Typography.caption`.
+- `Talaria/Features/Settings/VoiceSettingsScreen.swift:112,114,116` — `engineState`'s CHECKING / CONNECTING / BLOCKED; `:129` the Engine row when the engine is native; `:135,138` the Configured / Ready rows' `NOT CONFIGURED` and `BLOCKED`.
+
+**Blast radius beyond those (measured by grep, not asserted):** `Design.Brand.forge` is referenced **128 times in `Talaria/`**, of which **64 set it as a foreground colour** — 43 `.foregroundStyle(Design.Brand.forge)` + 21 `color: Design.Brand.forge` (excluding the 3 `StatusPip` uses) — across **24 files**, including `HostApprovalCard`, `ToolConfirmationCard`, `ToolActivityRail`, `TasksScreen`, `InsightsScreen`, `SkillsScreen`, `UplinkSettingsScreen`, `ConnectHermesScreen`. The remainder are pips, hairlines, borders and low-opacity fills, which answer to the 3.0:1 non-text floor instead. The widget target reads the same token from the same Shared catalog (`TalariaWidgets/HermesBriefingWidget.swift:35`, `HermesStatusWidget.swift:81`), so the numbers carry there unchanged.
+
+**What #320 did, and what it deliberately did NOT do.** The #320 lane hit this while building the realtime voice indicator and **routed around it for that one surface**: the indicator's text uses `Design.Colors.foregroundBright` and `forge` appears only on a 5pt pip (non-text, and comfortably over 3.0:1 everywhere). The reasoning and the numbers live in the doc comment of `Talaria/Features/Talk/RealtimeVoiceIndicator.swift`, pinned by two tests in `TalariaTests/RealtimeVoiceIndicatorTests.swift` — `theIndicatorTextIsLegibleInEveryThemeIncludingPaperTape` and `theWarningTokenIsNotLegibleEnoughForThisBadgeInEveryTheme`. **Both files live on the lane branch `t27-320-realtime-indicator` (worktree `.claude/worktrees/lane-320`), not on `main`** — this entry is the finding's home on the board, and the #320 lane's close-out should point here rather than leaving the token question inside one view's comment. **That was a workaround for one badge. The token is untouched, and the five surfaces above still render warning text at 2.18–4.37:1 on light themes.**
+
+**Why raising `forge` is Owen's call and not arithmetic.** These are curated per-theme hues, not accidents — `ThemePaletteCore.swift:262-265` states the invariant in the source: *"Warning ('forge') accent as resolved for this slot — curated per slot so it always stays separable from `base`."* Darkening `forge` on a light ground pushes it toward the accent it must stay separable from, and in three cells that margin is already almost gone (hue separation `forge`↔`base`: **stickerBombToybox/amber 0.4°**, `comicFunnies`/amber 1.3°, `pulpNoir`/amber 1.4°). For reference, a same-hue retune has to land under these relative luminances to clear each bar:
+
+| theme | forge L today | L max @ 4.5:1 | L max @ 3.0:1 |
+|---|---|---|---|
+| `springSprout` | 0.411 | 0.173 | 0.285 |
+| `pulpNoir` (cyan/violet) | 0.327 | 0.133 | 0.225 |
+| `retroSciFi` | 0.317 | 0.156 | 0.259 |
+| `winterFrost` | 0.340 | 0.170 | 0.280 |
+| `comicFunnies` | 0.230 | 0.168 | 0.277 |
+| `stickerBombToybox` | 0.216 | 0.157 | 0.260 |
+| `paperTape` (cyan/amber) | 0.188 | 0.153 | 0.255 |
+
+i.e. springSprout's warning amber has to lose **more than half its luminance** to become readable text on its own background. That is a visible re-design of four to seven palettes, not a nudge.
+
+**The routes, for the ruling (not a recommendation to build):**
+- **(a) Retune `forge` per light theme** — data-only, one line per failing variant thanks to #49's catalog (no switch arms), but it changes how four to seven shipped themes look and collides with the separability invariant above.
+- **(b) Rule `forge` non-text** — keep the hues, demote the token to pips/borders/fills (3.0:1 bar, which still fails in four themes), and migrate the 64 foreground sites to a legible token. Largest code change, no visual redesign of the palettes.
+- **(c) Add a second token** (`forgeText` / warning-on-light) resolved per theme, leaving `forge` as the decorative hue. Two tokens to keep honest forever.
+- **(d) Accept and document** — an explicit, dated decision that warning text is decorative on light themes, which at least stops the next lane re-discovering it.
+
+**BARS — pre-registered before any code, per the convention (bars live in the entry).** They bind whichever route (a)–(d) is chosen, except where named:
+- **325-A (the floor).** No shipping surface renders warning **text** below **4.5:1** against its own theme background, and no warning pip/border/fill below **3.0:1**, in any of the 88 reachable cells. **RED today: 21 cells under 4.5:1, 11 under 3.0:1.** Under route (d) this bar is not met and the ruling says so in writing — a documented exception, never a silent one.
+- **325-B (Deep Field is untouched).** `DesignThemeTests.deepFieldCyanMatchesLegacyConstants` and `.deepFieldWarningSwapsUnderAmberAccent` stay green **without edits**. Deep Field measures 12.39:1 (cyan/violet) and 7.68:1 (amber) — it needs nothing, and `ThemePaletteCore.swift`'s "Do not retune" comment stands.
+- **325-C (separability survives).** `DesignThemeTests.accentSlotsAreDistinctWithinEachUnlockedTheme` stays green, and **every retuned cell ends at least as separable from its accent `base` as it is today**, measured on both metrics recorded above (hue angle and contrast ratio) so the comparison is mechanical. The three near-zero cells (0.4° / 1.3° / 1.4°) do not clear this by arithmetic and need a stated design decision.
+- **325-D (a catalog-wide test, proven to fail first).** One Swift Testing case sweeping all 88 reachable cells against the ruled floor, **demonstrated RED on the pre-fix palette with the failure text recorded in this entry** before any palette value changes. #320's two point tests fold in or stay as surface-specific pins.
+- **325-E (the widget target too).** Verified through `Shared/ThemePaletteCore.swift` so both targets move together, with both `HermesWidgetData.swift` copies in lockstep per CLAUDE.md.
+- **Gate:** `scripts/mac/lane-gate.sh` green (Debug suite + Release build) with a dedicated `TALARIA_SIM_NAME`, and Calendar + Reminders TCC granted before the run.
+
+**Cross-references:** **#320** (the lane that measured this and routed around it for one badge; its close-out points here), **#49** (the data-driven palette catalog — the reason a fix is data and not switch arms, and the file this entry deliberately did not edit), **#18** (the no-silent-substitution rule whose `LOCAL VOICE` badge is the worst-affected surface — cited the way the surrounding code and #180's 180-D use the number; note that **tracker** item 18 in `OPEN_ITEMS-ARCHIVE.md` is the session-shelf scrim, so this is the GitHub-sequence collision CLAUDE.md warns about), **#112** (Midnight Marquee — ships three of the seven failing palettes and the adaptive Comic Book theme that reaches one of them automatically), **#84** (the mic-health hint, one of the affected surfaces), **#180** (honest degradation — a warning the user cannot read is the family's shape, arriving through the design system rather than through copy).
+## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. NOT STARTED; bars pre-register here before any fix.**
+
+**What happened.** The final combined gate on merged `main` (`d470c0d`) returned
+`GATE: FAIL (4 checks)` on `CC-320-iPhone-Air`:
+
+```
+✘ aSecondTapEndsTheThrowawayAndLeavesNoZombie()
+    ThrowawayLiveActivityHarnessTests.swift:78: Expectation failed:
+    service.hasActiveActivity == service.isAvailable
+✘ theAutoEndWindowEndsAThrowawayNobodyTappedAgain()   (same assertion, :104)
+```
+
+Release built green in the same run, and the other 2114 tests passed.
+
+**The discriminator, run before anything was called environmental.** The same
+suite, at the **same commit**, on `CC-321-iPhone-Air`: **5/5 passed,
+`** TEST SUCCEEDED **`**. Then the full gate re-run on that sim:
+`GATE: PASS — 2116 tests / 161 suites`, including both of the tests above. One
+variable moved — the simulator — so the code is exonerated by measurement
+rather than by argument. This matters because "it is the environment" is the
+excuse that hides real defects, and #300 exists because the gate's own advice
+used to guess instead of discriminate.
+
+**The mechanism, and the part of it that is UNPROVEN.** The assertion is
+environment-*adaptive* by design — `hasActiveActivity == isAvailable`, where
+`isAvailable` is `ActivityAuthorizationInfo().areActivitiesEnabled`
+(`LiveActivityService.swift:11`), a per-device setting. That is better instinct
+than pinning `== true`. But the adaptation carries a hidden premise: **that
+`Activity.request` SUCCEEDS whenever ActivityKit reports enabled.** On `CC-320`
+that premise fails. **Which side actually diverged — `areActivitiesEnabled`
+reading differently, or the request failing under an enabled reading — was NOT
+measured**, and naming it is the first job of any lane here.
+
+**Why it is worth a number rather than a shrug.** It produced a **red gate on a
+clean tree** and held a public documentation publish until the discriminator
+ran. And it is the **fourth distinct non-product failure signature** observed on
+2026-08-11 alone, each of which looks like a flaky test to a reader:
+1. SIGKILL during bootstrap under memory pressure (load 31, 79 MB free) — zero
+   tests, no count line;
+2. `HTMLArtifactSandboxTests` 5 s WebKit budget under ≥3 concurrent builds
+   (**#324-W2**, three occurrences);
+3. "test runner hung before establishing connection" at load 2.65 with memory
+   free — cleared by a sim shutdown/boot plus a TCC re-grant (**#254**);
+4. this one, which is not load at all.
+
+**The uncomfortable corollary, recorded rather than glossed.** Two earlier
+combined gates today (2103 and 2084) passed on sims that happened to hold
+ActivityKit in the state this test expects. **That was luck, not coverage** —
+the suite's green on those runs said nothing about this axis, and the same is
+true of every past gate that ran on a sim nobody characterised.
+
+**BARS — pre-registered 2026-08-11 BEFORE any fix.**
+- **326-A — name the diverging side.** Measure `areActivitiesEnabled` AND the
+  outcome of `Activity.request` on both `CC-320` and `CC-321` at the same
+  commit. The finding is not actionable until one of the two is shown to differ;
+  report the reading, not a theory.
+- **326-B — RED reproduced deliberately.** Put a sim into the failing state on
+  purpose and watch the assertion fail. A test that only fails by accident
+  cannot be proven fixed.
+- **326-C — the fix removes the hidden premise, it does not widen the
+  assertion.** Either the harness asserts against what it can control, or it
+  skips with a reason naming THIS item (per #300's rule, a skip is not a pass
+  and every skip names a tracker item). **Deleting the assertion is not a fix**
+  — it is the only thing pinning the throwaway to the production start path,
+  which is #250's whole point (bar 250T-B).
+- **326-D — no other sim-dependent assertion of this shape survives.** Sweep the
+  suite for `== service.isAvailable` and its relatives; if others exist they are
+  named here, whether or not they are fixed.
+- **326-E — `GATE: PASS`** on a sim characterised in the result block, with the
+  ActivityKit state recorded so the next reader knows what was covered.
+
+**Cross-references:** **#250** (owns the harness; 250T-B is the bar the
+assertion serves), **#324-W2** (signature 2), **#254** (signature 3, and the
+TCC-does-not-survive-a-reboot rule), **#300** (the gate advice that must
+discriminate rather than guess), **#182 / #219 / #236** (the flaky-test family
+this joins).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
