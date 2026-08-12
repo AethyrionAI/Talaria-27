@@ -190,6 +190,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
+- **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -8474,6 +8475,47 @@ spend.
 not free and must be visible" is that lane's own sentence, in the code at
 `StatusCardView.swift:94`), **#46** (the card and its CTX-gauge toggle),
 **#215** (why 330-B has a stop condition), **#180** (honest degradation).
+
+## 331. 🧪 A DEDICATED TEST CONTAINER for calendar / reminders / alarms — the gate on running anything unattended — **FILED 2026-08-11 on Owen's instruction ("make a dedicated test for those, and we can do those later"). The containment decision is RULED; the lane pre-registers its own bars before code.**
+
+**Why this exists.** The 2026-08-11 device-backlog triage
+(`planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` §5) found the one thing that
+gates unattended device running, and it is not a capability gap — it is data.
+`runActionBattery` and its ~20 siblings arm `autoAcceptForBattery = true` and
+perform **real Calendar, Reminders and Alarm writes**, reaped only at the DONE
+line. **An interrupted run — a crash, a dropped USB cable, a killed test host,
+an overnight box reboot — leaves residue in Owen's real data.** Eight further
+device rows carry the same hazard independently (#33, #137, #162-CRUD, #170,
+#186, #199A, #225-B4, #249F-D).
+
+Today that hazard is survivable because a human is watching. Unattended, it is
+not, and "the reap usually runs" is not a containment story.
+
+**✅ OWEN'S RULING 2026-08-11 — a DEDICATED TEST CONTAINER**, chosen over an
+abort-time reap and over a throwaway Apple ID. The data rows themselves are
+deliberately DEFERRED until this exists ("we can do those later").
+
+**The contract (constraints, not bars — the lane writes bars before code):**
+- Test writes land in a **dedicated calendar and a dedicated reminders list**,
+  created by the harness if absent and identifiable at a glance as test data.
+- **The reap nukes the CONTAINER wholesale**, not item-by-item. A per-item reap
+  is the thing that fails when a run dies mid-flight.
+- **Reap on START as well as on finish.** Start-of-run cleanup is what makes a
+  crashed previous run harmless, and it is the half that abort-time reaping
+  cannot provide.
+- **The default calendar and default list are never written to, and never
+  deleted from** — asserted, not assumed. That assertion is the whole item.
+- **Alarms have no container** (AlarmKit has no per-list concept), so they need
+  their own answer — a naming convention plus a sweep, or an explicit statement
+  that alarm-writing rows stay attended. Do not pretend a container exists.
+- Production behaviour is unchanged when the harness is off; this is
+  DEBUG/test-only surface.
+
+**Cross-references:** the triage doc §5 (the hazard, measured), **#215**
+(battery discipline), **#225** (B4 writes a real reminder), **#199A**
+(auto-accept action battery), **#137 / #186** (⚠️DATA rows the triage also
+recommends moving to a simulator), and the instrument-trigger build the triage
+names as build #1 — **this must land before that one runs unattended.**
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
