@@ -307,6 +307,26 @@ final class LocalChatBackend: HermesClientProtocol {
         escalationOfferDismissed = true
     }
 
+    #if DEBUG
+    /// #335 `// harness-visible`: put the #30 escalation-offer flag back where
+    /// the instrument found it.
+    ///
+    /// `condensation-fit` calls production's own condenser, and arming this
+    /// offer is the one side effect that call has. **Restoring is not the
+    /// instrument editing production behaviour — it is a measurement putting
+    /// back what it perturbed**, so a run never leaves the user an offer they
+    /// did not earn. `dismissPrivateCloudEscalationOffer()` is the wrong tool
+    /// for it: that also sets `escalationOfferDismissed`, which would suppress
+    /// a REAL offer for the rest of the conversation. Lives here because the
+    /// flag's setter is file-private, and stays `#if DEBUG` so no production
+    /// path can reach it. (Inert today — `pccGrantConfirmed` is false, so the
+    /// offer cannot arm at all; written for the day that changes rather than
+    /// left as a landmine.)
+    func restorePrivateCloudEscalationOffer(_ value: Bool) {  // harness-visible
+        shouldOfferPrivateCloudEscalation = value
+    }
+    #endif
+
     /// PCC context window, fetched once per process and cached — the window
     /// is a fixed property of the model class, not live state. (The beta-27
     /// SDK exposes `contextSize` as `async throws` on PCC, unlike the sync
@@ -1088,7 +1108,19 @@ final class LocalChatBackend: HermesClientProtocol {
         let condensedMemory: String?
     }
 
-    private func sessionBlueprint(
+    /// **Widened from `private` by #335 — `// harness-visible`, private in
+    /// spirit.** Swift's `private` is FILE-scoped and the `condensation-fit`
+    /// instrument lives in `LocalChatBackend+Preflight.swift`; this is the ONE
+    /// seam that lets a SYNTHETIC transcript into production's real condenser,
+    /// and it is the right seam rather than a convenient one. The instrument
+    /// must not reimplement condensation — a measurement of a lookalike
+    /// measures nothing — and must not read the user's real conversation,
+    /// which would be unrepeatable and would answer a question about that
+    /// day's chat rather than about the mechanism (#210's residual is the
+    /// mechanism). Production reaches this through `rebuildSession`, which
+    /// supplies the turns from `currentConversation`; the instrument supplies
+    /// its own and changes nothing else.
+    func sessionBlueprint(  // harness-visible
         for turns: [TranscriptTurn],
         hasImageInContext: Bool,
         forceCondense: Bool

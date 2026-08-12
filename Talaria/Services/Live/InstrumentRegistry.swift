@@ -545,6 +545,81 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runCapabilityDetectionProbe(trials: trials)
                        }),
+        // #335 A — #257's MANDATORY PRE-FLIGHT (the `21F0C10D` gate), which
+        // has been owed since the capability lane was routed. READ-ONLY in
+        // the strongest sense available: tokenizer round trips ONLY, no
+        // generation at all, no tools registered, nothing created or reaped.
+        // What it prices is the payload `capability-detection-probe` submits
+        // — production's router instructions, the prompt envelope for the
+        // longest pinned baseline row, and BOTH generation schemas — plus the
+        // worst-case response JSON against the cap each schema really
+        // generates under, read from `twoFieldRouterOptions` /
+        // `toolIntentRouterOptions` rather than retyped. The hazard: the
+        // router's catch arm fails safe to ARMED, so a response that outgrows
+        // its cap routes every capability question armed and reads as
+        // "detection doesn't work" while the instrument is dead — that is
+        // `21F0C10D` exactly, 165/165 instrument errors scored as behaviour.
+        // `trials` is a REPEAT count; token counts should be deterministic
+        // and the repeats are what turn "should" into a measured `distinct`.
+        //
+        // Surface: read-only — tokenizer round trips; nothing is generated
+        // and nothing is written.
+        // Button: `instrumentButton("tokencount-preflight", …)`.
+        InstrumentSpec(name: "tokencount-preflight", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runTokenCountPreflight(trials: trials)
+                       }),
+        // #335 B — #324-W3's three device-only FM questions, one labeled band
+        // each. READ-ONLY: two bands are tokenizer round trips and the third
+        // is a SINGLE plain generation with no tools registered and no
+        // confirmation reachable, so nothing can be created or reaped. The
+        // beta5 SDK audit could not settle any of these off-device in its own
+        // words — on a sim `tokenCount` throws 1026 and `contextSize` reads 0.
+        // Bands: the 4096-vs-8192 counting boundary (both counts and both
+        // ratios, because clamping shows up as tokenRatio < charRatio); the
+        // new `SystemLanguageModel.variant.displayName`; and whether a binding
+        // `maximumResponseTokens` THROWS or TRUNCATES on plain generation
+        // (guided generation is known to throw — plain is unmeasured).
+        //
+        // ⚠️ The variant band references a NEW-IN-BETA5 symbol, and #324
+        // proved a beta5-built binary referencing one dies at DYLD LAUNCH on a
+        // beta4 27.0 runtime — the whole app, not the instrument. Every target
+        // device must be on beta5 before this entry is run.
+        //
+        // Surface: read-only — tokenizer round trips plus one beltless
+        // generation; nothing is written.
+        // Button: `instrumentButton("fm-asymmetries", …)`.
+        InstrumentSpec(name: "fm-asymmetries", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runFMAsymmetriesProbe(trials: trials)
+                       }),
+        // #335 C — #210's own "Still owed", made runnable: *"whether one
+        // forced condensation actually gets a real long-conversation turn
+        // under 8,192 is a separate question and needs a measured run, not an
+        // assumption."* READ-ONLY: no generation at all, no tools, nothing
+        // created; the transcript is SYNTHETIC and the user's real ChatStore
+        // is never read (that would measure whatever was in the app that day
+        // and could not be re-run). It calls PRODUCTION's condenser —
+        // `sessionBlueprint(…forceCondense: true)`, the same function
+        // `rebuildSession` calls on the #26/#229 retry — rather than modelling
+        // one, because a measurement of a lookalike measures nothing. A trial
+        // scores only if it is ARMED: pre-condensation count above the 8,192
+        // ceiling, MEASURED, per #215's rule that an unarmed cell measures a
+        // configuration the app never enters.
+        //
+        // Surface: read-only — tokenizer round trips and one condenser call;
+        // nothing generated, nothing written.
+        // Button: `instrumentButton("condensation-fit", …)`.
+        InstrumentSpec(name: "condensation-fit", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCondensationFitProbe(trials: trials)
+                       }),
         // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
         // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
         // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools

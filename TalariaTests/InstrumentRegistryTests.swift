@@ -48,7 +48,7 @@ struct InstrumentRegistryTests {
     /// same commit. `>=` so a future addition does not red the suite for the
     /// lane that made it.
     @Test func registryCoversEveryDeveloperScreenInstrument() {
-        #expect(InstrumentRegistry.all.count >= 45)
+        #expect(InstrumentRegistry.all.count >= 48)
     }
 
     /// The pin above counts; this one checks the count is of the right things.
@@ -72,6 +72,8 @@ struct InstrumentRegistryTests {
             "vector-router-probe", "toolless-index", "capability-detection-probe",
             "cross-chat-recall-probe", "router-context-probe", "image-routing-probe",
             "long-context-probe", "honesty", "honesty-v2",
+            // #335: the read-only FM measurement instruments.
+            "tokencount-preflight", "fm-asymmetries", "condensation-fit",
         ]
         for name in namesTheViewPasses {
             #expect(InstrumentRegistry.spec(named: name) != nil,
