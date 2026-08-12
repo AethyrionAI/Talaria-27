@@ -49,14 +49,33 @@ Every one of these has failed silently at least once on this project.
 
 ## 3. The run procedure
 
+> **✅ SUPERSEDED 2026-08-12 by #333 (merged `f8ec228`) — steps 3–5 are now ONE command:**
+>
+> ```bash
+> DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer \
+>   scripts/mac/run-instrument.sh --device <name-or-udid-fragment> \
+>   --instrument <registry-name> --trials <n> [--timeout seconds]
+> ```
+>
+> It does the baseline fetch, env launch (`DEVICECTL_CHILD_*`), wall-clock-bounded
+> polling, artifact fetch, and the positive-completion check. Exit 0 = `completed` or
+> `refused` (read the artifact's `status`/`refusalReason`); exit 1 = `failed`; exit 2 =
+> TIMEOUT (store snapshots auto-fetched for the post-mortem, on-device app terminated);
+> exit 3 = precondition (incl. a LOCKED device — it fails fast rather than burning the
+> timeout). Artifacts land in `~/.talaria-instrument-runs/<stamp>-<instrument>/`.
+> Registry names: see `InstrumentRegistry.swift` (45 entries; **16 unattended-eligible —
+> alarm-writing instruments refuse unattended by Owen's ruling, and the iPad refuses all
+> EventKit writers in-app**). Run the harness BACKGROUNDED with an absolute project path
+> and a tool timeout above `--timeout`. Steps 1–2 and 6 below still apply verbatim.
+
 1. Pick the host by §1. If the instrument has *any* write cell, it is the phone.
 2. Confirm the device is connected, unlocked, and grants are in place.
-3. Launch with the trigger env vars; **background it and poll with an `until` loop.** A
-   backgrounded shell never notifies you — parking on a signal that cannot arrive has
-   stalled a lane on this project more than once.
-4. Fetch the artifact (`xcrun devicectl device copy from`) and assert on the JSON.
+3. ~~Launch with the trigger env vars; **background it and poll with an `until` loop.**~~
+   *(superseded above)*
+4. ~~Fetch the artifact (`xcrun devicectl device copy from`) and assert on the JSON.~~
+   *(superseded above)*
 5. **Check the completion flag before reading any numbers.** A file that exists is not a
-   run that finished.
+   run that finished. *(The harness enforces this; it holds for manual fetches too.)*
 6. Score the bar from the artifact, at the bar's own home in `OPEN_ITEMS.md`.
 
 ## 4. Scoring — the rules that make a result count here

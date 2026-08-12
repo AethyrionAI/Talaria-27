@@ -6462,6 +6462,16 @@ closes on merge.
 Logged 2026-07-27; battery-4/results-page note 2026-07-28; battery-4 VERDICT 2026-07-28;
 router probe 200/200 2026-07-28; PROMOTED 2026-07-28.
 
+> **📌 2026-08-12 pointer (append-only; #317 carve-out): battery 4's headless trigger is
+> SUPERSEDED by #333.** `runAutoBatteryIfArmed` no longer exists — the #333 unattended
+> instrument runner (merged `f8ec228`) generalized it into an `InstrumentRegistry` (45
+> entries) + `InstrumentConductor` dispatch reading `TALARIA_RUN_INSTRUMENT` /
+> `TALARIA_TRIALS`. **The two #196 env vars still work**, mapped onto the same registry
+> (`TALARIA_AUTO_BATTERY` → `"shape"`, `TALARIA_AUTO_ROUTER_PROBE` → `"router-probe"`,
+> legacy order preserved), so the 2026-07-28 procedure in `HANDOFF-2026-07-28-OVERNIGHT.md`
+> still runs — but the completion marker is now `instrument: AUTO COMPLETE (#333)`, not
+> `battery: AUTO COMPLETE (#196)`. See #333's entry in `OPEN_ITEMS.md`.
+
 ## 197. ✅ Tool-invocation failure aborts the turn and renders the RAW error — types, descriptions, and a memory address in the transcript — **CLOSED 2026-08-04 (closure sweep): both defects fixed; the unexplained decode cause becomes a WATCH on the armed instrument**
 
 > **✅ CLOSED 2026-08-04 (queue item 3 closure sweep).** Both stacked defects

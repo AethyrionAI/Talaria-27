@@ -192,7 +192,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
-- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — the launch-env trigger + artifact + harness that makes the ~42 existing instruments reachable without a human tapping the Developer screen; unlocks ~13 device bars (`UNATTENDED-INSTRUMENT-RUNNER-PLAN.md`). **FILED 2026-08-12 — the plan was committed 2026-08-11 without a number (#268). Owen's go 2026-08-12; bars 333-A..H pre-registered in the entry before code. Design deltas from the committed plan recorded in the entry: fixed artifact path (no `TALARIA_RESULT_PATH`), registry generalizes #196's `runAutoBatteryIfArmed` precedent, alarm/iPad refusals enforced in-app**
+- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling). The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -9156,6 +9156,68 @@ explicitly per instrument (never inheriting), exactly as the buttons do.
 this composes with), #332 (the device-suite reds being fixed in a parallel lane so device
 runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this unlocks),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` §3 (build order #1).
+
+> **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`; SDD lane, 16 commits; final
+> whole-branch review: merge-ready). Every bar scored the day it was pre-registered:**
+>
+> - **333-A MET.** Unattended `router-probe` n=2 on Shelley's iPad via
+>   `scripts/mac/run-instrument.sh` — nobody touched the device between launch and
+>   verdict. Artifact (witness dir `barA-completed.json`): `status: "completed"`,
+>   `unattended: true`, `buildSha: "b755552"`, embedded run record with **10 probes × 2
+>   trials, all classified, 0 errors — the iPad generated for real**. 29 s end to end.
+> - **333-B MET** structurally: exactly two conductor call sites exist (the generic
+>   button factory, `unattended: false`; the launch trigger, `unattended: true`), both
+>   resolving through `InstrumentRegistry.spec(named:)`; no other path reaches any
+>   `run*` method (final-review grep).
+> - **333-C MET, witnessed by killing:** `router-probe` n=20 killed at ~t+60s (via an
+>   inert `--terminate-existing` relaunch). `latest.json` still reads `"running"`; the
+>   fetched store snapshot reads `endedCleanly: false` with 2 probes of partial data.
+>   A partial was never mistaken for a finished run.
+> - **333-D MET** by unit test: flags explicit + mutually exclusive on every path,
+>   `defer`-cleared on all exits; the conductor never sets `alarmWritesAttended` on an
+>   unattended run (refusal fires first, and the arming formula carries `!unattended`).
+> - **333-E MET, one nuance recorded rather than smoothed:** alarm-arm refusal witnessed
+>   live twice (sim + iPad — `"alarm-writing instruments never run unattended (Owen
+>   2026-08-11; #331)"`, zero writes). The **iPad-specific** reason string is witnessed at
+>   unit level only, because the alarm check fires first and **every EventKit-writing
+>   entry today also writes alarms** — the pad branch is unreachable unattended by
+>   construction (it protects attended taps on an iPad, which now refuse).
+> - **333-F MET:** all new code `#if DEBUG`; Release build PASS in the gate.
+> - **333-G MET, witnessed:** the killed run ended `TIMEOUT after 240s — run NOT
+>   complete`, exit 2, post-mortem snapshots fetched; a marker that never arrived was
+>   never read as success.
+> - **333-H MET:** `GATE: PASS` on the lane sim, **2145 → 2167** Swift Testing (+22)
+>   + 14 XCUITest + Release, at `9cc9285`; post-gate commits touched only the harness
+>   script and comments.
+>
+> **What the first REAL device runs taught (all fixed in-lane):** devicectl's actual
+> missing-file stderr is `Failed to retrieve the file node … CoreDeviceError error 7000`
+> (the guessed patterns matched nothing — `789094e`); a **locked device refuses the
+> launch** and the harness now fails fast (exit 3, quoting console.log) instead of
+> burning the timeout (`b755552`); and a review round each on the conductor (false
+> `completed` on battery-mutex refusal — now `completed` REQUIRES a new run record) and
+> the harness (stale-artifact guard re-anchored to a pre-launch baseline; every devicectl
+> call alarm-bounded; three-state baseline).
+>
+> **Standing facts for the next runner session:**
+> - **16 of 45 instruments are unattended-eligible** (all read-only probes + the
+>   decline-mode batteries). The 29 alarm-writing accept batteries refuse unattended by
+>   design — Owen's ruling, enforced in code. Unattended-eligible ≠ iPad-eligible only
+>   for EventKit reasons; on the iPad the write set is refused entirely.
+> - **`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
+>   cells; `runActionBattery`'s cells are `[ActionBatteryCell]`, not strings). Reserved,
+>   documented, inert.
+> - Known post-merge minors, filed here so they aren't rediscovered: an unknown
+>   instrument name emits `instrument: UNKNOWN` to console but writes NO artifact (the
+>   harness burns its timeout on a typo); `runColdCalfixBattery` has no button and no
+>   entry; the harness's `--trials`/`--timeout` accept garbage (fail-safe directions);
+>   a hard-killed `list devices` probe exits raw 142 not 3.
+> - Witness artifacts: `.superpowers` evidence copied to the session ledger dir at merge
+>   time; canonical copies quoted above. Harness output root: `~/.talaria-instrument-runs/`.
+>
+> **The queue in `UNATTENDED-RUNS-HANDOFF.md` §6 is now RUNNABLE** — #257's tokenCount
+> pre-flight is the named next build (an instrument that does not exist yet; it becomes
+> a registry entry + a bar run).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
