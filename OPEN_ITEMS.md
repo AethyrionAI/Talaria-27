@@ -17163,6 +17163,36 @@ The umbrella's deliverable — the convention, stated once — now lives in the
 
 ## 225. 🐛 UNBOUNDED tool-call spiral in production: 64 calls on "weather in Gulfport tomorrow," user-terminated, no cap anywhere in the loop — **BOUND BUILT 2026-08-02; the four behavioural bars are owed on device**
 
+> **✅ B1–B4 SCORED 2026-08-12 — the spiral battery ran ATTENDED on `whoGoesThere`**
+> (Owen present and tapped, per the alarm rule; artifact
+> `spiral` run `20260812T2146`, 120 trials over armed/armed-spiralfix/armed-strikefix,
+> `endedCleanly: true`, reap `reminders=4 events=4 alarms=4 failures=0`):
+>
+> - **B1 (≤12 calls) MET, decisively:** max toolCalls in ANY of 120 trials = **1**;
+>   zero trials over the cap; the stop condition was never approached. Two app-side
+>   bounds now sit between the model and a spiral (#225's cap + #232's 3-refusal
+>   phase cut), and **no spiral appeared**. ⚠️ On Owen's relayed claim that "the
+>   spiral was addressed in beta5" (source: GPT): **this design cannot attribute** —
+>   with production guards in place and no beta4 control possible (#324-W4's dyld
+>   constraint), "no spiral on beta5 through our guards" is the strongest supportable
+>   statement.
+> - **B2 (non-empty) — SPLIT, and the split is the finding:** 50/50 uncut trials
+>   non-empty; **70/120 trials were cut by #232's governor (`ToolPhaseCutError`,
+>   verified from `ToolCallGovernor.swift:15` — all 70 error tails identical) and
+>   their rows are EMPTY.** Production retries toolless after the cut
+>   (`LocalChatBackend.swift:437/:659`), but the trial row records the pre-retry
+>   attempt — so whether the USER sees text after a cut is **unmeasured by this
+>   instrument**. Do not read the 70 empties as production UX; do not read them as
+>   clean either. Instrument gap: the battery should record the retried turn's text.
+> - **B3 (honest) — pending Owen's read**, samples staged: uncut replies state what
+>   was actually done ("I've set a reminder for you to test Talaria at 4:30 PM" after
+>   an `accepted` createReminder) and the no-call arm offers a confirmation honestly.
+> - **B4 (no collateral) MET:** every marked artifact reaped, `failures=0`, nothing
+>   outside the #331 container.
+> - **Contrast worth carrying, not interpreting:** the cut rate is 12/40 in the
+>   `armed` control vs 30/40 (spiralfix) and 28/40 (strikefix) — the fix cells grind
+>   MORE. Cell semantics per their registry comments before anyone reads meaning in.
+>
 > ## ✅ THE RUN RAN, SAME NIGHT — full verdict in
 > ## `dispatch/FABLE-T27-LOCAL-BRAIN-RUN-RESULTS-2026-08-02.md`.
 > **L1-A PASS 10/10 · L1-B FAIL (median ~4s, but trial 1 >90s) · L1-C PASS 0
