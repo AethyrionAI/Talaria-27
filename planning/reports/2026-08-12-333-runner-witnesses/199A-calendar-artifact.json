@@ -1,0 +1,1673 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "cells" : [
+    "armed",
+    "armed-cardrollback",
+    "armed-spiralfix"
+  ],
+  "endedCleanly" : true,
+  "id" : "A7AB9960-20EB-4D49-925C-92674F2A7C44",
+  "kind" : "action",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "probes" : [
+
+  ],
+  "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+  "startedAt" : "2026-08-12T23:01:27Z",
+  "thermal" : [
+    "armed:start=nominal",
+    "armed:end=fair",
+    "armed-cardrollback:start=fair",
+    "armed-cardrollback:end=fair",
+    "armed-spiralfix:start=fair",
+    "armed-spiralfix:end=fair"
+  ],
+  "trials" : [
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.361636667,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.372336958,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.3825100830000001,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.387951167,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.394282166,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.394014625,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.417919667,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.4219985830000001,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.719408625,
+      "outputTokens" : 47,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:\n\n- **Title**: Test Talaria  \n- **Time**: 4:30 PM today  \n\nWould you like me to create this reminder?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.652158875,
+      "outputTokens" : 35,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation: I’ll create a reminder to test Talaria at 4:30 PM today. Do you want me to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 2.497569708,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:\n\n- **Alarm**: 6:30 AM.\n\nShould I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 2.591734917,
+      "outputTokens" : 31,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation: I’ll set an alarm for you at 6:30. Shall I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.488732459,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.4848240000000001,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 2.534821042,
+      "outputTokens" : 25,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your request to set an alarm for 6:30 has been received. Do you want to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.502807,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 2.35932,
+      "outputTokens" : 21,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Would you like me to set an alarm for 6:30?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.495778292,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.4939683750000001,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.50144325,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.8597817920000002,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.872188125,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.8510266670000002,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.862408,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.873070833,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.870079,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.867932833,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.8781612500000002,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.8981812910000002,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.8937915,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderReadTool(name: \"readReminders\", description: \"Read the user\\'s open reminders (incomplete to-dos), including due dates and which list they\\'re on.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.503037542,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 2.902020458,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku for you:\n\nSnow-kissed path glides fast,  \nLaughter echoes through the trees—  \nWinter’s swift delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 2.997986416,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here's a haiku about sledding:\n\nSnowflakes dance in air,  \nSpeed glides down the icy hill—  \nLaughter fills the night.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderReadTool(name: \"readReminders\", description: \"Read the user\\'s open reminders (incomplete to-dos), including due dates and which list they\\'re on.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.523169,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.0009955,
+      "outputTokens" : 37,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-dusted path,  \nLaughter echoes down the hill—  \nWind sweeps frozen air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.043086084,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path gleams bright,  \nLaughter echoes down the hill—  \nWinter’s swift delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderReadTool(name: \"readReminders\", description: \"Read the user\\'s open reminders (incomplete to-dos), including due dates and which list they\\'re on.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.5166595420000002,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderReadTool(name: \"readReminders\", description: \"Read the user\\'s open reminders (incomplete to-dos), including due dates and which list they\\'re on.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.51810675,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.05599475,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-dusted path,  \nLaughter echoes down the hill—  \nWind tugs at my coat.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.048753083,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow glitters bright,  \nSled races down the hill fast—  \nLaughter fills the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1745,
+      "latencySeconds" : 3.08450175,
+      "outputTokens" : 41,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s the reminder I’ll create:\n\n- **Title**: Test Talaria\n- **Time**: 4:30 PM today\n\nWould you like to adjust or cancel this?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.6392281670000002,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.6252379170000002,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.6225173750000002,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.636565875,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.624520542,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.617428292,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.636207666,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.639253,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.6555024170000001,
+      "prompt" : "remind",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.567938583,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 2.9730649170000003,
+      "outputTokens" : 39,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s the alarm request:\n\n- **Request**: \"6:30\"\n\nWould you like me to set this alarm now?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 3.00194,
+      "outputTokens" : 39,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s the alarm request:\n\n- **Request**: \"6:30\"\n\nWould you like me to schedule this alarm now?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 2.9892267500000003,
+      "outputTokens" : 39,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s what I found:\n\n- **Alarm request**: \"6:30\"\n\nShould I schedule this alarm for you now?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.635303291,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 2.873875792,
+      "outputTokens" : 31,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s the alarm setup:\n\n- **Alarm**: 6:30 AM\n\nDo you want to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.5932193749999999,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 2.8550305,
+      "outputTokens" : 31,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s the alarm request:  \n**\"6:30\"**  \n\nDo you want to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.6146055000000001,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1740,
+      "latencySeconds" : 2.557510625,
+      "outputTokens" : 21,
+      "prompt" : "alarm",
+      "shape" : "armed-cardrollback",
+      "text" : "Would you like me to set a 6:30 AM alarm?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.046599334,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.94226,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.9534226670000001,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.001123042,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.008894041,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.972869833,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.9906175830000001,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.02109025,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.004636542,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.9827145000000002,
+      "prompt" : "calendar",
+      "shape" : "armed-cardrollback",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.301512291,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow glitters bright,  \nSled races down the hill fast—  \nJoy in the cold air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.183858708,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku for you:\n\nSnow swirls, fast and bright,  \nLaughter echoes down the hill—  \nCold wind takes the night.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.219642292,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast and low,  \nLaughter echoes down the hill—  \nWinter’s wild delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.21658375,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast and wide,  \nLaughter echoes on the hill—  \nCold wind bites the sky.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.33277925,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here's a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes through the air—  \nCold wind bites my face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.253483041,
+      "outputTokens" : 37,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast and loud,  \nLaughter echoes down the hill—  \nCold wind kisses cheeks.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.346206458,
+      "outputTokens" : 45,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-kissed hill glides fast,  \nLaughter echoes in the wind—  \nCold breath, bright descent.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.319041375,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes through the air—  \nWinter’s quick delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.346732625,
+      "outputTokens" : 45,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-kissed path glides fast,  \nLaughter echoes in the air—  \nCold wind bites the face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1738,
+      "latencySeconds" : 3.393605083,
+      "outputTokens" : 45,
+      "prompt" : "haiku",
+      "shape" : "armed-cardrollback",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-kissed path glides fast,  \nLaughter echoes through the air—  \nWinter’s swift embrace.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.7989435,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.772038958,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.772650459,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.766806166,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.759084917,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.773664792,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.7765535410000002,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1839,
+      "latencySeconds" : 2.995625959,
+      "outputTokens" : 29,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "text" : "I'll create a reminder for you to test Talaria at 4:30 PM. Shall I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.816128333,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.ReminderCreateTool(name: \"createReminder\", description: \"Create a reminder in the user\\'s Reminders app. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.788378458,
+      "prompt" : "remind",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.727955959,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.722483875,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.742794666,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.757113917,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.741594333,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.7354787090000001,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.761964834,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.76517725,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.755958125,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.AlarmTool(name: \"scheduleAlarm\", description: \"Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter, alarmService: Talaria.AlarmService), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 1.7383010840000002,
+      "prompt" : "alarm",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.13437175,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.124748709,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.121980209,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.148877583,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1835,
+      "latencySeconds" : 2.908035667,
+      "outputTokens" : 27,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "text" : "I'll create a lunch event with Sam for Friday at noon. Shall I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1835,
+      "latencySeconds" : 3.302610958,
+      "outputTokens" : 39,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "text" : "Here's the proposed event:\n\n- **Title:** Lunch with Sam  \n- **Date & Time:** Friday at noon  \n\nWould you like to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.169242625,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.12730575,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.134440833,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "error" : "ToolCallError(tool: Talaria.CalendarEventTool(name: \"createCalendarEvent\", description: \"Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created.\", includesSchemaInInstructions: true, relay: Talaria.ToolEventRelay, confirmations: Talaria.ToolConfirmationCenter), underlyingError: Talaria.ToolPhaseCutError())",
+      "latencySeconds" : 2.165263125,
+      "prompt" : "calendar",
+      "shape" : "armed-spiralfix",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.623899834,
+      "outputTokens" : 45,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-laden winds howl loud,  \nSled glides fast on frosty ground,  \nLaughter fills the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.549501417,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast down hill,  \nLaughter echoes in the cold—  \nWind sweeps through the trees.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.5242542500000003,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes in the cold—  \nWind sweeps through the pines.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.579092209,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-white path glides fast,  \nLaughter echoes in the cold—  \nWind sweeps through the night.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.520490708,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes in the cold—  \nWinter’s swift delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.516028,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here's a haiku about sledding:\n\nSnow glitters so bright,  \nSled races down the frosty hill—  \nLaughter fills the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.514610125,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes in the cold—  \nWind sweeps through the pines.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.515957125,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast down hill,  \nLaughter echoes through the air—  \nWinter’s quick delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.5261809580000003,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow glitters so bright,  \nSpeed through frosty air—laughter rings,  \nWinter’s quick delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1832,
+      "latencySeconds" : 3.566136708,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed-spiralfix",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes in the cold—  \nWind carries the joy.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    }
+  ],
+  "trialsPerCell" : 10
+}

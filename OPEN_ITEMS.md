@@ -193,6 +193,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#337** 🔥 **THE ACTION PATH CREATED NOTHING IN 180 ATTEMPTS** — two attended runs on the phone 75 min apart, same build: **~80% of action turns end in #232's phase cut** (69/90 then 74/90) and the second executed **0 tool calls in 90 tries, 0 artifacts**; the 16 uncut turns OFFERED instead of acting. **MEASURED 2026-08-12.** Bounded honestly: unrouted cells, but #215 says routing is a no-op on device-request prompts — and **what the user sees after the toolless retry is NOT measured** (same gap as #225 B2). 337-A is a one-minute HAND-RUN, because no battery row can answer it
 - **#336** 🐛 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
@@ -9250,6 +9251,78 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > **The queue in `UNATTENDED-RUNS-HANDOFF.md` §6 is now RUNNABLE** — #257's tokenCount
 > pre-flight is the named next build (an instrument that does not exist yet; it becomes
 > a registry entry + a bar run).
+
+## 337. 🔥 THE ACTION PATH CREATED **NOTHING** IN 180 ATTEMPTS — ~80% of action turns end in #232's phase cut, the survivors offer instead of acting, and the second run executed **0/90** — **MEASURED 2026-08-12 on `whoGoesThere`, TWO runs 75 minutes apart, same build, same auto-accept arming. The most product-facing number of the day. NOT STARTED; the first bar is a HAND-RUN turn, because no instrument here can see what a real user sees.**
+
+**The two runs, action prompts only (`remind` / `alarm` / `calendar`; the `haiku`
+canary excluded):**
+
+| run | action trials | #232 phase-cut | executed a tool call | artifacts reaped |
+|---|---|---|---|---|
+| spiral, 21:46 (`F6C46C82`) | 90 | **69 (77%)** | **10 (11%)** | 12 |
+| calendar, 23:01 (`A7AB9960`) | 90 | **74 (82%)** | **0 (0%)** | **0** |
+
+**Per cell, the second run:** `armed` 28/40 cut, `armed-cardrollback` 23/40,
+`armed-spiralfix` 27/40 — **zero recorded calls in any cell.** The 16 action turns
+that were *not* cut produced **15 text offers** (*"Here's the confirmation… Would
+you like me to create this reminder?"*) and one other reply. So on that run the
+belt was armed, auto-accept was armed, and **not one reminder, alarm or event was
+created in 90 tries.**
+
+**What the cut is:** `ToolPhaseCutError` (`ToolCallGovernor.swift:15`), #232's
+governor, which fires after **3 refusals** in one turn. It is doing its job — the
+grind stops — but the turn count says the model is refusing device tools three
+times on ~80% of action requests, which is the grind being the NORM rather than
+the exception.
+
+**Why this is not automatically a production verdict, stated before anyone quotes
+it:** these are the `armed*` cells, which are **UNROUTED** (#215). An unrouted cell
+arms every trial by construction. **But #215's own measurement is that routing is a
+NO-OP on device-request prompts** — and `remind`/`alarm`/`calendar` are exactly
+those. So the caveat does not dissolve the finding; it bounds it. What is genuinely
+NOT measured: **what a real user sees.** Production retries toolless after the cut
+(`LocalChatBackend.swift:437/:659`), and the trial row records the pre-retry
+attempt — the same instrument gap named in #225 B2. A user may well get a helpful
+toolless answer and no reminder, which is a different (and still bad) failure than
+silence.
+
+**What changed is unknown and deliberately not guessed.** Candidates, none elected:
+the beta5 model (`AFM 3 Core`, measured tonight in #335); the #232 governor's
+threshold meeting a model that refuses more; an instructions change; per-session
+state. **The #200-series' historical grab and create rates were measured under
+different conditions and must not be compared to these numbers casually** — the
+denominators differ (those runs executed; these do not).
+
+> **BARS PRE-REGISTERED 2026-08-12, before any fix:**
+>
+> - **337-A (the hand-run — do this FIRST, it costs one minute).** In a real chat on
+>   the phone, ask for a reminder and observe: does a confirmation card appear, does
+>   tapping it create the reminder, and does the reply claim anything false? **A
+>   product verdict may not be written from battery rows alone** — this bar exists
+>   because the instrument cannot see the retry the user actually gets.
+> - **337-B (what the user sees).** The instrument records the POST-cut retried
+>   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
+>   report a cut trial as a user-visible outcome.
+> - **337-C (the routed arm).** The same prompts through `routed-production`, so the
+>   rate carries #215's warrant instead of its caveat.
+> - **337-D (the refusal itself).** What the model says in the ≥3 refusals that
+>   trigger the cut — captured verbatim, per cell. A cut with no refusal text
+>   recorded is a measurement that names its own blind spot (#232 filed the grind;
+>   nobody has read the grind's words at n≥90).
+> - **337-E (variance).** 11% vs 0% execution 75 minutes apart on one phone is
+>   itself unexplained; a third run says whether the floor is zero or the rate is
+>   unstable. Report both runs' numbers, never a pooled average.
+> - **No bar on wall-clock.**
+
+**Cross-references:** **#232** (the governor doing the cutting — this is its rate at
+scale, which its own filing never had), **#225** (B1's cap verdict and B2's
+instrument gap; the spiral run is row 1 of the table above), **#336** (the 3
+fabricated claims came from the run that DID execute; this run had zero claims and
+zero calls — so #336's shape did NOT replicate, which is 336-D scope data),
+**#211A** (offer-instead-of-act — 15 of the 16 uncut action turns did exactly that,
+on CREATE paths where #211A says the confirmation gate at least partly excuses it),
+**#215** (routed-vs-unrouted, and why this entry states its own bound),
+`planning/reports/2026-08-12-333-runner-witnesses/`.
 
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
 
