@@ -1,0 +1,631 @@
+#if DEBUG
+import Foundation
+
+/// #333: one reachable instrument. `run` binds the EXACT call the
+/// Developer-screen button makes — the button and the trigger share this
+/// closure, which is the whole of bar 333-B. Capability flags feed the
+/// conductor's refusal rules (alarms never unattended — Owen 2026-08-11;
+/// EventKit never on an iPad — Shelley's-device rule made structural).
+///
+/// Backend is optional so conductor tests can exercise flag discipline with
+/// no LocalChatBackend; every registry entry guard-lets it first thing.
+struct InstrumentSpec {
+    enum ConfirmationMode { case autoAccept, autoDecline, none }
+    let name: String
+    let confirmationMode: ConfirmationMode
+    let writesEventKit: Bool
+    let writesAlarms: Bool
+    let run: @MainActor (LocalChatBackend?, _ trials: Int, _ cells: [String]?) async -> Void
+}
+
+/// Every instrument the Developer screen can launch, and the ONLY place a
+/// launch is described. Each entry carries the measurement rationale that
+/// used to sit above the button's `@ViewBuilder` factory — those comments are
+/// the lane history for the run they describe, so the #333 sweep MOVED them
+/// here rather than deleting them with the factories.
+///
+/// **The capability flags describe what the INSTRUMENT writes, not what the
+/// button armed.** Every accept-mode button set `alarmWritesAttended = true`
+/// identically, so copying the button would have told us nothing; these were
+/// derived by reading each backend method through to its prompt set. The
+/// #200-family batteries delegate to `runActionBattery` with the DEFAULT
+/// prompts, and that set contains `("alarm", "Set an alarm for 6:30")`
+/// beside the reminder and calendar creates — so they write EventKit AND
+/// AlarmKit, and per Owen's 2026-08-11 ruling none of them may run
+/// unattended. The three read-only exceptions in that family
+/// (`read-tool`, `motion-scope`, `motion-redirect`) pass their own prompt
+/// set and write nothing.
+enum InstrumentRegistry {
+    static let all: [InstrumentSpec] = [
+        // #196 second battery: one launcher, two powers — n=10 resolves the
+        // reminder-grab question (8/10 -> ~0 is unmissable); n=20 is required
+        // for a significant composition verdict (4/10 vs 8/10 at n=10 is
+        // p~0.17 — the exact underpowering behind the afternoon's overturned
+        // n=4 conviction).
+        //
+        // Surface: nothing. Auto-decline is checked FIRST in
+        // `ToolConfirmationCenter.requestConfirmation`, so no action tool ever
+        // executes and the reap is a no-op.
+        // The #196 shape battery's own prompt set, run under decline. Headless
+        // sessions can never answer a confirmation card, so grabs auto-decline —
+        // which also measures post-denial recovery (restored: #333 final review).
+        // Button: `instrumentButton("shape", …)`.
+        InstrumentSpec(name: "shape", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runShapeBattery(trials: trials)
+                       }),
+        // #200 action battery: the action-SUCCESS path. Auto-ACCEPT armed —
+        // every staged confirmation approves, so appropriate creates EXECUTE:
+        // real EventKit/AlarmKit writes, every artifact marker-tagged by the
+        // gate, all reaped before the DONE line. Run with Reminders/Calendar
+        // permissions GRANTED (the observed #200 failure post-dates the grant).
+        // Shares the batteryRunning guard with the other instruments.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // `runActionBattery`'s real `cells:` parameter is `[ActionBatteryCell]`,
+        // not `[String]` — the button never supplies one, so this entry does not
+        // either; inventing a conversion here would be an argument the button
+        // does not pass.
+        // Button: `instrumentButton("action", …)`.
+        InstrumentSpec(name: "action", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runActionBattery(trials: trials)
+                       }),
+        // #209 read-tool battery: production vs the pinned read-tool rollback on
+        // prompts where OMITTING the field is correct. READ tools only — nothing
+        // is written, so no auto-accept is needed and the reap is a no-op.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Its own `readToolBatteryPrompts` (weather / health) replace the create
+        // prompts, so no confirmation can fire and the reap is a no-op.
+        // Button: `instrumentButton("read-tool", …)`.
+        InstrumentSpec(name: "read-tool", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runReadToolBattery(trials: trials)
+                       }),
+        // #196 battery 4: router-accuracy probe — no tools execute (pure
+        // classification), so no confirmation auto-decline is needed; the
+        // shared batteryRunning guard keeps the two instruments from
+        // overlapping on the model.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("router-probe", …)`.
+        InstrumentSpec(name: "router-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runRouterProbe(trials: trials)
+                       }),
+        // #200B destall battery: the reminder list-stall treatment as measured
+        // cells (control / guidefix / toolfix / bothfix) × four prompts — the
+        // haiku grab canary included, since the de-stall texts push toward
+        // immediate creation. Auto-ACCEPT, real writes, reaped. Promotion only
+        // on the classified verdict.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("destall", …)`.
+        InstrumentSpec(name: "destall", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDestallBattery(trials: trials)
+                       }),
+        // #200C instrfix battery: control vs the INSTRUCTIONS-level de-stall
+        // clause (#200B falsified the tool-text seam — the stall fires before
+        // tool engagement). Auto-ACCEPT, grab canary watching whether "create
+        // it right away" pushes haiku grabs above the 8/10 control baseline.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("instrfix", …)`.
+        InstrumentSpec(name: "instrfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runInstrfixBattery(trials: trials)
+                       }),
+        // #200E toolmode battery: promoted-production control vs the structural
+        // `.required` treatment (DynamicProfile with the mandatory demote-after-
+        // first-call exit — a static .required loops). Auto-ACCEPT; the canary
+        // measures which tool a FORCED call grabs on the haiku misroute.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("toolmode", …)`.
+        InstrumentSpec(name: "toolmode", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runToolmodeBattery(trials: trials)
+                       }),
+        // #200F community battery: promoted-production control vs the three
+        // survey-derived treatments (per-intent scoped belt, create-only belt,
+        // find-first carve-out instructions). Auto-ACCEPT; per-trial reap.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("community", …)`.
+        InstrumentSpec(name: "community", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCommunityBattery(trials: trials)
+                       }),
+        // #200G findfix re-verify: promoted control vs explicit-true findfix
+        // (identity — both halves measure production and pool).
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("findfix", …)`.
+        InstrumentSpec(name: "findfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runFindfixBattery(trials: trials)
+                       }),
+        // #200H spiral battery: promoted control vs the lookup-spiral
+        // carve-out (instructions) and the third-strike demote (structural).
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("spiral", …)`.
+        InstrumentSpec(name: "spiral", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runSpiralBattery(trials: trials)
+                       }),
+        // #214 THE structural lane: production vs per-intent belt + composition
+        // licensing. Creates real artifacts — auto-ACCEPT, reaped before DONE.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("scoped-v2", …)`.
+        InstrumentSpec(name: "scoped-v2", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runScopedV2Battery(trials: trials)
+                       }),
+        // #215 THE missing denominator: unrouted control vs production's routed
+        // configuration. Creates real artifacts — auto-ACCEPT, reaped before DONE.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("routed", …)`.
+        InstrumentSpec(name: "routed", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runRoutedActionBattery(trials: trials)
+                       }),
+        // #216 the narrow belt re-tried where it cannot lose: both arms routed,
+        // only the armed belt differs. Creates real artifacts — auto-ACCEPT, reaped.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("routed-scoped", …)`.
+        InstrumentSpec(name: "routed-scoped", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runRoutedScopedBattery(trials: trials)
+                       }),
+        // #200I spiralfix re-measure: promoted control vs the event-scoped
+        // reword of the lookup-spiral carve-out. Strikefix is parked (its
+        // tally instrument is unproven), so this is 2 cells, not 3.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("spiralfix", …)`.
+        InstrumentSpec(name: "spiralfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runSpiralfixBattery(trials: trials)
+                       }),
+        // #200J: promoted control vs the card-narration clause — the
+        // treatment for #200I's largest failure bucket (zero-tool trials that
+        // type the confirmation card out in prose and call nothing).
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("cardfix", …)`.
+        InstrumentSpec(name: "cardfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCardfixBattery(trials: trials)
+                       }),
+        // #200K: the promoted control + the (now identity) cardfix cell —
+        // pooled as the production re-verify — plus the datefix treatment.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("datefix", …)`.
+        InstrumentSpec(name: "datefix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDatefixBattery(trials: trials)
+                       }),
+        // #200L: promoted production vs the pinned card-clause rollback vs
+        // the #200I spiral carve-out — the calendar lane.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("calendar", …)`.
+        InstrumentSpec(name: "calendar", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCalendarBattery(trials: trials)
+                       }),
+        // #200M: production vs the v3 dead-end carve-out vs v2, same run.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("deadend", …)`.
+        InstrumentSpec(name: "deadend", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadendBattery(trials: trials)
+                       }),
+        // #200N: the v3 confirmation A/B — production vs the dead-end
+        // carve-out only, second independent run before any promotion.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("deadend-verify", …)`.
+        InstrumentSpec(name: "deadend-verify", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadendVerifyBattery(trials: trials)
+                       }),
+        // #200O: the promoted control + the (now identity) deadendfix cell
+        // pooled as the production re-verify, plus the grabfix treatment.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("grabfix", …)`.
+        InstrumentSpec(name: "grabfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runGrabfixBattery(trials: trials)
+                       }),
+        // #200P: production vs the card-correction clause — the conserved
+        // zero-tool stall, treated as a class rather than field by field.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("stallfix", …)`.
+        InstrumentSpec(name: "stallfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runStallfixBattery(trials: trials)
+                       }),
+        // #200Q: production vs the reminder tool whose optional fields are
+        // optional in the SCHEMA — the stall's structural seam.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("schemafix", …)`.
+        InstrumentSpec(name: "schemafix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runSchemafixBattery(trials: trials)
+                       }),
+        // #200S: pooled production re-verify (control + the now-identity
+        // schemafix cell) vs the pinned pre-promotion rollback.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("schema-reverify", …)`.
+        InstrumentSpec(name: "schema-reverify", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runSchemaReverifyBattery(trials: trials)
+                       }),
+        // #200T: production control vs the calendar tool with its two
+        // undefaultable fields optional in the schema.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("calfix", …)`.
+        InstrumentSpec(name: "calfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCalfixBattery(trials: trials)
+                       }),
+        // #200U: control vs the contact not-found RESULT carrying continuation,
+        // plus the ceiling probe with the tool absent.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("deadend2", …)`.
+        InstrumentSpec(name: "deadend2", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadend2Battery(trials: trials)
+                       }),
+        // #200V: #200U's three arms REVERSED (production last) after a discarded
+        // warm-up pass — the confirmation run that tests the cell-order confound.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("deadend-confirm", …)`.
+        InstrumentSpec(name: "deadend-confirm", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadendConfirmBattery(trials: trials)
+                       }),
+        // #200W: #200T's calendar arms re-run WARM with production last. The
+        // primaries are the location-spiral and invented-location counts, not the
+        // rate — warm production calendar is already ~9/10.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("calfix-warm", …)`.
+        InstrumentSpec(name: "calfix-warm", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCalfixWarmBattery(trials: trials)
+                       }),
+        // #200X: the promoted calendar tool against its OWN pinned rollback,
+        // warm, production last — the confidence run the promotion is owed.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("cal-rollback-verify", …)`.
+        InstrumentSpec(name: "cal-rollback-verify", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCalRollbackVerifyBattery(trials: trials)
+                       }),
+        // #201: #200U's contact fix re-measured at n=20, production last — the
+        // primary is a dead-end COUNT, which n=10 could not carry.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // TWO buttons share this entry — n=20 (#201) and the n=40 POWER run
+        // (#201B). Trials are the caller's, which is exactly why they can.
+        // Button: `instrumentButton("deadend-reconsider", …)`.
+        InstrumentSpec(name: "deadend-reconsider", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadendReconsiderBattery(trials: trials)
+                       }),
+        // #201B: the same two arms REVERSED — production first, in the cool slot,
+        // so the run doubles as the thermal control.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("deadend-reversed", …)`.
+        InstrumentSpec(name: "deadend-reversed", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeadendReversedBattery(trials: trials)
+                       }),
+        // #202B two-turn battery: an offer, then a bare affirmative. Auto-ACCEPT
+        // so an appropriate create EXECUTES and is countable as an artifact —
+        // real writes, marker-tagged, reaped per trial.
+        //
+        // Surface: NOT `runActionBattery` — `runTwoTurnBattery` is its own
+        // instrument — but the same write surface, and derived rather than
+        // assumed from the family: it accumulates `perTrialAlarms` and calls
+        // `AlarmService.reapBatteryAlarms()` per trial, so alarms are in
+        // scope. The flags follow the writes, not the neighbours.
+        // Button: `instrumentButton("two-turn", …)`.
+        InstrumentSpec(name: "two-turn", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runTwoTurnBattery(trials: trials)
+                       }),
+        // #204: full action battery — auto-ACCEPT, real writes, reaped per
+        // trial. Run with Reminders/Calendar GRANTED.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
+        // Button: `instrumentButton("clause-reverify", …)`.
+        InstrumentSpec(name: "clause-reverify", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runClauseReverifyBattery(trials: trials)
+                       }),
+        // #199: the DECLINE lane. auto-DECLINE is mutually exclusive with
+        // auto-accept — declining is the whole measurement, so no artifact can
+        // be created and there is nothing to reap.
+        //
+        // Surface: nothing. Auto-decline is checked FIRST in
+        // `ToolConfirmationCenter.requestConfirmation`, so no action tool ever
+        // executes and the reap is a no-op.
+        // Button: `instrumentButton("decline", …)`.
+        InstrumentSpec(name: "decline", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runDeclineBattery(trials: trials)
+                       }),
+        // #211 motion-scope: control vs the scoped readMotion description.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Its own `motionScopeBatteryPrompts` (two step questions) replace the
+        // create prompts — READ tools only.
+        // Button: `instrumentButton("motion-scope", …)`.
+        InstrumentSpec(name: "motion-scope", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runMotionScopeBattery(trials: trials)
+                       }),
+        // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Same read-only `motionScopeBatteryPrompts`.
+        // Button: `instrumentButton("motion-redirect", …)`.
+        InstrumentSpec(name: "motion-redirect", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runMotionRedirectBattery(trials: trials)
+                       }),
+        // #217 intent-router probe: READ-ONLY, no tools registered, nothing
+        // created or reaped. Just classifications.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("intent-router-probe", …)`.
+        InstrumentSpec(name: "intent-router-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runIntentRouterProbe(trials: trials)
+                       }),
+        // #284 vector router probe: READ-ONLY, no tools registered, nothing
+        // created or reaped. Three bands — baseline gate, grid (armed/groups/
+        // danger), meta rows (measured, no bar).
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("vector-router-probe", …)`.
+        InstrumentSpec(name: "vector-router-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runVectorRouterProbe(trials: trials)
+                       }),
+        // #297 toolless-index A/B: READ-ONLY, no tools registered — the toolless
+        // branch by definition, so no confirmation gate can fire. 2 arms
+        // (control/treatment) x 3 prompts, both built through the one
+        // productionToollessInstructions builder (#202D). Bars 297-A/B/C are
+        // pre-registered in OPEN_ITEMS #297.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("toolless-index", …)`.
+        InstrumentSpec(name: "toolless-index", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runToollessIndexBattery(trials: trials)
+                       }),
+        // #257 capability-detection probe: READ-ONLY, classifications only — no
+        // tools registered, nothing created or reaped. Arm (2-field production
+        // route) vs control (pinned 1-field) in the SAME run; bands GATE x2
+        // (10 rows x n each), RECALL (10 x n/2), DANGER (20 x n/2), HONESTY
+        // (the deterministic appended payload through the shipped 297-C halves,
+        // counted separately). Bars 257-1-GATE/A/B/D pre-registered in
+        // OPEN_ITEMS #257; run the device tokenCount pre-flight first.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("capability-detection-probe", …)`.
+        InstrumentSpec(name: "capability-detection-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCapabilityDetectionProbe(trials: trials)
+                       }),
+        // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
+        // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
+        // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools
+        // registered, nothing created or reaped. If these route toolless the
+        // already-armed ConversationSearchTool never fires and Shape A is dead
+        // before any corpus work — which is why this runs first.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("cross-chat-recall-probe", …)`.
+        InstrumentSpec(name: "cross-chat-recall-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCrossChatRecallProbe(trials: trials)
+                       }),
+        // #202A: same shape as the #196 router probe — pure classification, so
+        // no confirmation auto-decline and nothing to sweep afterwards. The
+        // idle-timer lock matters here too: ~585 generations is ~10 minutes.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("router-context-probe", …)`.
+        InstrumentSpec(name: "router-context-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runRouterContextProbe(trials: trials)
+                       }),
+        // #207: same shape as the other probes — classification only.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("image-routing-probe", …)`.
+        InstrumentSpec(name: "image-routing-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runImageRoutingProbe(trials: trials)
+                       }),
+        // #202C companion: ctx-a on realistic LONG contexts, timed. The only
+        // button in the sweep whose factory carried NO rationale comment —
+        // this line is the call site's, moved here so the entry is not the
+        // one blank in the table.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("long-context-probe", …)`.
+        InstrumentSpec(name: "long-context-probe", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runLongContextProbe(trials: trials)
+                       }),
+        // #202C: the honesty lane. Every trial runs with an EMPTY belt, so no
+        // confirmation can fire and nothing can be written — no grants needed
+        // and nothing to reap, same as the probes.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Empty belt in every trial, so nothing can be confirmed or created.
+        // `ticTrials` stays at its default 4 — the button never passed one.
+        // Button: `instrumentButton("honesty", …)`.
+        InstrumentSpec(name: "honesty", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runHonestyBattery(trials: trials)
+                       }),
+        // #202D: same empty-belt shape as #202C — nothing to grant, nothing to reap.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // The SAME backend method as `honesty` with the v2 cell list BOUND —
+        // the one converted button that passed more than `trials`.
+        // Button: `instrumentButton("honesty-v2", …)`.
+        InstrumentSpec(name: "honesty-v2", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runHonestyBattery(
+                                trials: trials, cells: LocalChatBackend.honestyV2BatteryCells)
+                       }),
+    ]
+
+    static func spec(named name: String) -> InstrumentSpec? {
+        all.first { $0.name == name }
+    }
+}
+#endif
