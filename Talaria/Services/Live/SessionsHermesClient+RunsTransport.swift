@@ -1278,6 +1278,11 @@ extension SessionsHermesClient {
                 )
             }
         }
+        // #328 route 2: the request is out. `true` is "we asked", not "the
+        // host stopped" — the POST above is fire-and-forget and its `catch`
+        // deliberately marks nothing, so this cannot promise delivery. It
+        // promises only that a stop was ISSUED for a run we really had.
+        return true
     }
 
     // MARK: - #322: the cancellation path's ONE final status read
