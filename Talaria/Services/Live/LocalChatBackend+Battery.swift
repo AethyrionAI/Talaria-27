@@ -1680,10 +1680,25 @@ extension LocalChatBackend {
         // every device run died. @Sendable severs the actor-context
         // inheritance; ReminderReadTool's twin closure never needed it
         // because Tool.call is nonisolated.
+        //
+        // #331 SCOPE GUARD: `calendars:` is the harness's OWN lists, never
+        // `nil`. Passing nil searched every list on the device, so a marked
+        // item in the user's default list was deleted by a title match —
+        // proven, not theorised: `defaultCalendarAndListSurviveTheWholeDestroyingSurface`
+        // was RED on exactly that at `b497256`. An empty owned set means
+        // there is nothing of ours to sweep, which is a zero, not a licence
+        // to widen the search.
+        let ownedLists = BatteryTestContainer.ownedContainers(for: .reminder, in: store)
+        // `remindersAccess` still tracks ACCESS and only access — the REAP
+        // line's `skipped(no-access)` form must keep meaning what it says,
+        // so "full access, no container yet" reports an honest zero rather
+        // than a skip.
         if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
             counts.remindersAccess = true
+        }
+        if counts.remindersAccess, !ownedLists.isEmpty {
             let predicate = store.predicateForIncompleteReminders(
-                withDueDateStarting: nil, ending: nil, calendars: nil
+                withDueDateStarting: nil, ending: nil, calendars: ownedLists
             )
             let markedIDs: [String] = await withCheckedContinuation { continuation in
                 store.fetchReminders(matching: predicate) { @Sendable found in
@@ -1720,12 +1735,21 @@ extension LocalChatBackend {
         // scope-correctness: it is the minimal honest query for what the
         // reap needs.) events(matching:) here is SYNCHRONOUS on the
         // calling thread — no cross-queue closure, no isolation hazard.
+        //
+        // #331 SCOPE GUARD, the second half: `writable` was every modifiable
+        // calendar on the device, which is how a marked event in the user's
+        // DEFAULT calendar got deleted. It is now the harness's own
+        // containers and nothing else. Marked items found elsewhere are
+        // counted by `BatteryTestContainer.markedEventsOutsideContainers`
+        // and reported in the CONTAINER-REAP line — never removed.
+        let ownedCalendars = BatteryTestContainer.ownedContainers(for: .event, in: store)
         if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
             counts.eventsAccess = true
+        }
+        if counts.eventsAccess, !ownedCalendars.isEmpty {
             let start = Date().addingTimeInterval(-1 * 86_400)
             let end = Date().addingTimeInterval(14 * 86_400)
-            let writable = store.calendars(for: .event).filter(\.allowsContentModifications)
-            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: writable)
+            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: ownedCalendars)
             let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
             if emitSteps { Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)") }
             for event in marked {
