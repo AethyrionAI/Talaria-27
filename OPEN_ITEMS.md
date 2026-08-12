@@ -9330,6 +9330,24 @@ failure mode is a launch that produces no artifact and no crash log.
   the tokenizer refuses the oversized payload), the instrument reports that and
   #210's residual STAYS OPEN — it is not scored on an unarmed cell.
 
+**WATCH (found while building, 2026-08-12) — #333's completion check reads
+`loadRuns().first`, and "newest" has SECOND granularity.** `BatteryRunStore`
+sorts newest-first on `startedAt`, which persists as ISO8601 — whole seconds —
+so two records written inside one second have equal keys and no defined order
+between them. The conductor's verdict is
+`if let newest = loadRuns().first, newest.id != priorNewestID`, so in that case
+it can compare against the wrong record and report **`.failed` for a run that
+completed** (the safe direction, but a wrong verdict for the runner). **This
+was not theoretical: it happened in these instruments' own tests**, which run
+several sub-second instrument runs back to back — three assertions failed for a
+reason that had nothing to do with the instrument. The tests now identify their
+run by SET DIFFERENCE on the ids. **Nothing was changed in #333's shipped
+conductor**: separate `run-instrument.sh` launches are never one second apart,
+so no device run can hit it, and editing merged code on a hazard that needs two
+runs in one launch is not this lane's call. It is named here rather than left
+for whoever adds a second instrument to one launch to rediscover; the fix, if
+it is ever wanted, is the same set difference.
+
 **Known limits, recorded before the run rather than after.** (i) C measures the
 **pre-turn** condensation shape (belt instructions), which is the LARGER of the
 two — #229's mid-turn retry additionally disarms the belt, so its payload is

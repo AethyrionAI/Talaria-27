@@ -21,6 +21,12 @@ struct PreflightInstrumentRegistryTests {
         #expect(spec.confirmationMode == .none)
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
+
+    @Test func fmAsymmetriesIsRegisteredReadOnly() throws {
+        let spec = try #require(InstrumentRegistry.spec(named: "fm-asymmetries"))
+        #expect(spec.confirmationMode == .none)
+        #expect(!spec.writesEventKit && !spec.writesAlarms)
+    }
 }
 
 /// The record change #334 needed: two optional dictionaries on
@@ -77,14 +83,35 @@ struct PreflightInstrumentRunTests {
         )
     }
 
+    /// The ids already on disk, and then the ONE that was not there before.
+    ///
+    /// **Not `loadRuns().first`, and the difference is a real trap rather than
+    /// a style preference.** The store sorts newest-first by `startedAt`, but
+    /// the persisted form is ISO8601 — SECOND granularity — so two runs inside
+    /// the same second decode to equal keys and the sort gives no order
+    /// between them. These instruments finish in a second or two, which is
+    /// precisely the regime where that bites: an earlier test's record came
+    /// back as "newest" and three assertions failed for a reason that had
+    /// nothing to do with the instrument. A set difference names MY run
+    /// whatever the clock did. (#333's conductor reads `first` — see the watch
+    /// note in OPEN_ITEMS #334; harmless there because separate launches are
+    /// never a second apart, and named rather than left to be rediscovered.)
+    private func idsOnDisk() -> Set<UUID> {
+        Set(LocalChatBackend.batteryRunStore.loadRuns().map(\.id))
+    }
+
+    private func freshRun(after known: Set<UUID>) throws -> BatteryRunRecord {
+        try #require(LocalChatBackend.batteryRunStore.loadRuns().first { !known.contains($0.id) },
+                     "no NEW run record appeared — exactly what #333's conductor reports as failed")
+    }
+
     @Test func tokenCountPreflightSealsARunEvenWhereTheModelThrows() async throws {
         let backend = makeBackend()
-        let before = LocalChatBackend.batteryRunStore.loadRuns().first?.id
+        let known = idsOnDisk()
 
         await backend.runTokenCountPreflight(trials: 2)
 
-        let record = try #require(LocalChatBackend.batteryRunStore.loadRuns().first)
-        #expect(record.id != before, "the instrument must open a NEW run — a conductor reads exactly this")
+        let record = try freshRun(after: known)
         #expect(record.endedCleanly == true, "endRun() must run on the sim path too, or the artifact is INCOMPLETE")
         #expect(record.kind == "tokencount-preflight")
         #expect(!record.probes.isEmpty, "an empty run is DROPPED by endRun() and the conductor then reports failed")
@@ -96,8 +123,9 @@ struct PreflightInstrumentRunTests {
     /// point of running this here.
     @Test func everyPreflightRowCarriesItsErrorTallyAndScoredCount() async throws {
         let backend = makeBackend()
+        let known = idsOnDisk()
         await backend.runTokenCountPreflight(trials: 2)
-        let record = try #require(LocalChatBackend.batteryRunStore.loadRuns().first)
+        let record = try freshRun(after: known)
 
         for row in record.probes {
             #expect(row.errors != nil, "row \"\(row.probe)\" has no error tally — unsampled reads as clean")
@@ -106,14 +134,68 @@ struct PreflightInstrumentRunTests {
         }
     }
 
+    @Test func fmAsymmetriesSealsARunWithAllThreeBands() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+
+        await backend.runFMAsymmetriesProbe(trials: 1)
+
+        let record = try freshRun(after: known)
+        #expect(record.endedCleanly == true)
+        #expect(record.kind == "fm-asymmetries")
+        // #324-W3 names three questions; three bands answer them, and a band
+        // that silently stopped being recorded is the failure this pins.
+        let bands = Set(record.probes.compactMap(\.band))
+        #expect(bands == ["boundary", "variant", "response-cap-behavior"])
+    }
+
+    /// The boundary band's whole point is the COMPARISON, so both sides and
+    /// both ratios have to survive into the record — a run that reports one
+    /// count answers nothing.
+    @Test func boundaryBandRecordsBothSizesAndTheCharacterRatio() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+        await backend.runFMAsymmetriesProbe(trials: 1)
+        let record = try freshRun(after: known)
+
+        let low = try #require(record.probes.first { $0.band == "boundary" && $0.variant == "4096" })
+        let high = try #require(record.probes.first { $0.band == "boundary" && $0.variant == "8192" })
+        #expect(low.metrics?["targetTokens"] == 4096)
+        #expect(high.metrics?["targetTokens"] == 8192)
+        #expect(high.metrics?["chars"] ?? 0 > (low.metrics?["chars"] ?? 0))
+        // Known even where the tokenizer refuses — characters are countable
+        // without a model, so this ratio is never the missing half.
+        #expect(high.metrics?["charRatioVs4096"] != nil)
+    }
+
+    /// "none" is a real outcome and must be sayable: a band where every trial
+    /// timed out has measured nothing, and a classifier that could only emit
+    /// "threw"/"truncated" would launder that into a finding.
+    @Test func responseCapBandClassifiesItsBehaviourWithEvidence() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+        await backend.runFMAsymmetriesProbe(trials: 1)
+        let record = try freshRun(after: known)
+
+        let row = try #require(record.probes.first { $0.band == "response-cap-behavior" })
+        let behavior = try #require(row.notes?["behavior"])
+        #expect(["threw", "truncated", "mixed", "none"].contains(behavior))
+        #expect(row.metrics?["cap"].map(Int.init) == LocalChatBackend.responseCapProbeCap)
+        #expect(row.errors != nil)
+        // On the sim the generation throws, so the evidence must be the error
+        // text — the row cannot claim a behaviour it did not observe.
+        if behavior == "threw" { #expect(row.notes?["firstError"] != nil) }
+    }
+
     /// The caps are READ from the production constants, not retyped into the
     /// instrument — the failure this guards is a hardcoded 128 still
     /// reporting comfortable headroom the day someone changes
     /// `twoFieldRouterOptions`.
     @Test func responseCapRowsCarryTheProductionCaps() async throws {
         let backend = makeBackend()
+        let known = idsOnDisk()
         await backend.runTokenCountPreflight(trials: 1)
-        let record = try #require(LocalChatBackend.batteryRunStore.loadRuns().first)
+        let record = try freshRun(after: known)
 
         let twoField = try #require(record.probes.first {
             $0.band == "response-cap" && $0.variant == "two-field"

@@ -995,6 +995,15 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("tokencount-preflight", trials: 3,
                                      label: "Token-count pre-flight (#257) (n=3)")
                 }
+                // #334 B: #324-W3's three device-only FM questions — the
+                // 4096-vs-8192 tokenCount boundary, the new beta5
+                // `variant.displayName`, and throw-vs-truncate under a binding
+                // response cap. Read-only; one beltless generation in the
+                // third band. ⚠️ beta5 runtimes ONLY (new-in-beta5 symbol).
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("fm-asymmetries", trials: 3,
+                                     label: "FM asymmetries (#324-W3) (n=3)")
+                }
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
                 // n=20 classifications; no tools, nothing created.

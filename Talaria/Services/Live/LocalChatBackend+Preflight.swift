@@ -246,5 +246,204 @@ extension LocalChatBackend {
         Self.batteryEmit("preflight: TOKENCOUNT PREFLIGHT DONE (#257/#334)")
         Self.batteryRecorder.endRun()
     }
+
+    // MARK: - #334 B: `fm-asymmetries` (#324-W3)
+
+    /// The filler sentence the boundary band is built from. Pinned and
+    /// deterministic — a random or lorem payload would make two runs of the
+    /// same instrument incomparable, and the whole question is whether the
+    /// SAME text counts differently at two sizes.
+    nonisolated static let asymmetryFillerSentence =
+        "The quick brown fox jumps over the lazy dog beside the river at dawn. "
+
+    /// Roughly `approximateTokens` tokens of that filler.
+    ///
+    /// ~4 characters per token is a working ratio for this tokenizer family,
+    /// and the instrument does not depend on it being right: every row records
+    /// the TARGET, the character count and the MEASURED count, so a wrong
+    /// ratio shows up as a number rather than silently moving the boundary
+    /// the band exists to straddle.
+    nonisolated static func asymmetryFiller(approximateTokens: Int,
+                                            charsPerToken: Int = 4) -> String {
+        let target = max(1, approximateTokens * charsPerToken)
+        var text = ""
+        text.reserveCapacity(target + asymmetryFillerSentence.count)
+        while text.count < target { text += asymmetryFillerSentence }
+        return text
+    }
+
+    /// The plain-generation probe for the cap band. Instructions and prompt
+    /// are pinned so the only variable is the cap.
+    nonisolated static let responseCapProbeInstructions =
+        "You are a helpful assistant. Answer in prose."
+    nonisolated static let responseCapProbePrompt =
+        "Write a paragraph about the sea."
+    /// Deliberately far below anything a paragraph could fit in — #208
+    /// measured real turns at 25–49 output tokens, so 8 is guaranteed to
+    /// BIND, which is the precondition Apple's own "a strict cap can lead to
+    /// malformed results" warning needs before it means anything.
+    nonisolated static let responseCapProbeCap = 8
+
+    /// #334 B / #324-W3 — the three FoundationModels behaviours the beta5 SDK
+    /// audit could not settle off-device, each its own labeled band.
+    ///
+    /// The audit's own words on why this needs hardware: on the simulator
+    /// `tokenCount` **throws** (`ModelManagerError 1026`) and `contextSize`
+    /// reads **0**, so the boundary question is *"device asymmetry
+    /// unmeasurable off-device"* in as many words. Everything here therefore
+    /// produces error rows on a sim and real numbers on a device — and the
+    /// rows say which, rather than reporting an absent measurement as a
+    /// finding.
+    ///
+    /// 1. **`boundary`** — the same pinned filler text sized for ~4096 and
+    ///    ~8192 tokens. The asymmetry question is whether counting behaves
+    ///    differently across that boundary; the row records both counts, the
+    ///    character counts, and BOTH ratios, because a tokenizer that clamps
+    ///    at the window shows up as `tokenRatio < charRatio` and a tokenizer
+    ///    that refuses shows up as an error tally.
+    /// 2. **`variant`** — `SystemLanguageModel.variant.displayName`, new in
+    ///    beta5. The row's numeric value is the string's LENGTH; the
+    ///    measurement itself is the string, in `notes`.
+    ///    **⚠️ This symbol is why the whole app must run on a beta5 runtime:**
+    ///    a beta5-built binary referencing a new-in-beta5 symbol dies at dyld
+    ///    launch on a beta4 27.0 runtime (#324, proven), and `@available`
+    ///    cannot weak-link between betas of one version.
+    /// 3. **`response-cap-behavior`** — one plain generation under a cap far
+    ///    below the answer it asks for. GUIDED generation is known to THROW
+    ///    when the schema cannot fit its cap; plain generation is unmeasured,
+    ///    and "throws" vs "truncates" changes what a caller must handle. The
+    ///    band classifies what THIS build does and records the evidence —
+    ///    the error for a throw, the output length for a truncation.
+    ///
+    /// **Ordering is load-bearing:** the generating band runs LAST, after
+    /// every tokenizer round trip has returned. `tokenCount()` concurrent
+    /// with a live turn kills the turn (ModelManagerError 1001, measured), so
+    /// the two are never in flight together here.
+    func runFMAsymmetriesProbe(trials: Int) async {
+        guard await Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let repeats = max(1, trials)
+        let model = self.model
+        Self.batteryEmit("preflight: FM ASYMMETRIES START repeats=\(repeats) (#324-W3/#334)")
+        Self.batteryRecorder.beginRun(
+            trialsPerCell: repeats,
+            cells: ["boundary", "variant", "response-cap-behavior"],
+            kind: "fm-asymmetries")
+
+        // Band 1 — the 4096 / 8192 boundary.
+        let near4096 = Self.asymmetryFiller(approximateTokens: 4096)
+        let near8192 = Self.asymmetryFiller(approximateTokens: 8192)
+        let lower = await measureRepeatedly(repeats) {
+            try await model.tokenCount(for: Prompt(near4096))
+        }
+        var lowerMetrics: [String: Double] = ["targetTokens": 4096, "chars": Double(near4096.count)]
+        if let value = lower.values.first, value > 0 {
+            lowerMetrics["measuredCharsPerToken"] = Double(near4096.count) / Double(value)
+        }
+        recordMeasurementRow(lower, probe: "synthetic payload sized for ~4096 tokens",
+                             band: "boundary", variant: "4096", extraMetrics: lowerMetrics)
+
+        let upper = await measureRepeatedly(repeats) {
+            try await model.tokenCount(for: Prompt(near8192))
+        }
+        var upperMetrics: [String: Double] = ["targetTokens": 8192, "chars": Double(near8192.count),
+                                              "charRatioVs4096": Double(near8192.count) / Double(near4096.count)]
+        if let value = upper.values.first, value > 0 {
+            upperMetrics["measuredCharsPerToken"] = Double(near8192.count) / Double(value)
+        }
+        if let low = lower.values.first, let high = upper.values.first, low > 0 {
+            // The comparison the band exists for: a tokenizer that simply
+            // counts returns this ~equal to `charRatioVs4096`; one that clamps
+            // at the window returns it LOWER. Recorded, never interpreted here.
+            upperMetrics["tokenRatioVs4096"] = Double(high) / Double(low)
+        }
+        recordMeasurementRow(upper, probe: "synthetic payload sized for ~8192 tokens",
+                             band: "boundary", variant: "8192", extraMetrics: upperMetrics)
+
+        // Band 2 — the new beta5 variant surface. Reading it cannot throw, so
+        // this row's errors are 0 by construction; what makes it worth
+        // recording is the STRING, which no sim can produce meaningfully.
+        let variantName = model.variant.displayName
+        let variantRead = await measureRepeatedly(repeats) { model.variant.displayName.count }
+        recordMeasurementRow(variantRead,
+                             probe: "SystemLanguageModel.variant.displayName (length; the string is in notes)",
+                             band: "variant",
+                             extraMetrics: ["contextSize": Double(model.contextSize)],
+                             notes: ["displayName": variantName,
+                                     "isCore3": String(model.variant == .core3),
+                                     "isCoreAdvanced3": String(model.variant == .coreAdvanced3),
+                                     "availability": String(describing: model.availability)])
+
+        // Band 3 — throw vs truncate, and it GENERATES, so it goes last.
+        var truncatedCount = 0
+        var threwCount = 0
+        var timedOutCount = 0
+        var outputTokens: [Int] = []
+        var outputChars: [Int] = []
+        var firstError: String?
+        for trial in 1...repeats {
+            let session = LanguageModelSession(
+                model: model,
+                instructions: Instructions(Self.responseCapProbeInstructions))
+            let respondTask = Task {
+                try await session.respond(
+                    to: Prompt(Self.responseCapProbePrompt),
+                    options: GenerationOptions(maximumResponseTokens: Self.responseCapProbeCap))
+            }
+            let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+            do {
+                let response = try await respondTask.value
+                timeoutTask.cancel()
+                truncatedCount += 1
+                outputTokens.append(response.usage.output.totalTokenCount)
+                outputChars.append(response.content.count)
+                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TRUNCATED outTok=\(response.usage.output.totalTokenCount) chars=\(response.content.count) text=\(response.content.replacingOccurrences(of: "\n", with: " / ").prefix(200))")
+            } catch is CancellationError {
+                timeoutTask.cancel()
+                timedOutCount += 1
+                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TIMEOUT — guillotined at 35s")
+            } catch {
+                timeoutTask.cancel()
+                threwCount += 1
+                if firstError == nil { firstError = String(String(describing: error).prefix(200)) }
+                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) THREW error=\(String(String(describing: error).prefix(200)))")
+            }
+        }
+        // "none" is a real, reportable outcome: a band where every trial timed
+        // out has measured NOTHING, and must not be read as "it truncated".
+        let behavior: String
+        switch (threwCount > 0, truncatedCount > 0) {
+        case (true, true): behavior = "mixed"
+        case (true, false): behavior = "threw"
+        case (false, true): behavior = "truncated"
+        case (false, false): behavior = "none"
+        }
+        var capMetrics: [String: Double] = [
+            "cap": Double(Self.responseCapProbeCap),
+            "truncated": Double(truncatedCount),
+            "threw": Double(threwCount),
+            "timedOut": Double(timedOutCount),
+            "scored": Double(truncatedCount + threwCount),
+            "errors": Double(threwCount + timedOutCount),
+        ]
+        if let low = outputTokens.min() { capMetrics["outputTokensMin"] = Double(low) }
+        if let high = outputTokens.max() { capMetrics["outputTokensMax"] = Double(high) }
+        if let high = outputChars.max() { capMetrics["outputCharsMax"] = Double(high) }
+        var capNotes = ["behavior": behavior]
+        if let firstError { capNotes["firstError"] = firstError }
+        Self.batteryEmit("preflight: [response-cap-behavior] SUMMARY behavior=\(behavior) truncated=\(truncatedCount)/\(repeats) threw=\(threwCount)/\(repeats) timedOut=\(timedOutCount)/\(repeats) cap=\(Self.responseCapProbeCap) outTok=\(outputTokens.map(String.init).joined(separator: ","))")
+        Self.batteryRecorder.recordProbe(
+            probe: "plain generation under maximumResponseTokens=\(Self.responseCapProbeCap)",
+            expected: true, correct: truncatedCount, trials: repeats,
+            variant: "plain", band: "response-cap-behavior",
+            errors: threwCount + timedOutCount,
+            metrics: capMetrics, notes: capNotes)
+
+        Self.batteryEmit("preflight: FM ASYMMETRIES DONE (#324-W3/#334)")
+        Self.batteryRecorder.endRun()
+    }
 }
 #endif

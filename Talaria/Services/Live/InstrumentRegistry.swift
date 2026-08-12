@@ -571,6 +571,32 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runTokenCountPreflight(trials: trials)
                        }),
+        // #334 B — #324-W3's three device-only FM questions, one labeled band
+        // each. READ-ONLY: two bands are tokenizer round trips and the third
+        // is a SINGLE plain generation with no tools registered and no
+        // confirmation reachable, so nothing can be created or reaped. The
+        // beta5 SDK audit could not settle any of these off-device in its own
+        // words — on a sim `tokenCount` throws 1026 and `contextSize` reads 0.
+        // Bands: the 4096-vs-8192 counting boundary (both counts and both
+        // ratios, because clamping shows up as tokenRatio < charRatio); the
+        // new `SystemLanguageModel.variant.displayName`; and whether a binding
+        // `maximumResponseTokens` THROWS or TRUNCATES on plain generation
+        // (guided generation is known to throw — plain is unmeasured).
+        //
+        // ⚠️ The variant band references a NEW-IN-BETA5 symbol, and #324
+        // proved a beta5-built binary referencing one dies at DYLD LAUNCH on a
+        // beta4 27.0 runtime — the whole app, not the instrument. Every target
+        // device must be on beta5 before this entry is run.
+        //
+        // Surface: read-only — tokenizer round trips plus one beltless
+        // generation; nothing is written.
+        // Button: `instrumentButton("fm-asymmetries", …)`.
+        InstrumentSpec(name: "fm-asymmetries", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runFMAsymmetriesProbe(trials: trials)
+                       }),
         // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
         // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
         // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools
