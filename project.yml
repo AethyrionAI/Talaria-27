@@ -505,6 +505,14 @@ targets:
         # did.
         BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: true
+        # #316 chore 2: a device test run died at "Signing for 'TalariaTests'
+        # requires a development team" — only the app target carried a team.
+        # Same recipe as the app/widgets/share targets above: CODE_SIGN_STYLE
+        # is what makes XcodeGen emit a TargetAttributes ProvisioningStyle
+        # entry alongside DevelopmentTeam; DEVELOPMENT_TEAM alone is not
+        # enough. Simulator builds are signing-exempt and unaffected.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "DNL25ZFSD2"
 
   TalariaUITests:
     type: bundle.ui-testing
@@ -518,3 +526,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.uitests
         TEST_TARGET_NAME: Talaria
         GENERATE_INFOPLIST_FILE: true
+        # #316 chore 2: see TalariaTests above — same signing fix, same reason.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "DNL25ZFSD2"

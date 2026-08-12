@@ -6249,6 +6249,40 @@ weaken the tests.
 > above — one bar, RED, with the fix direction already ruled and the diagnostic
 > re-run owed first.
 
+> **🔧 SIGNING FIX APPLIED, SIM-VERIFIED, DEVICE-UNVERIFIED — 2026-08-11
+> (chore lane, branch `t27-chores-316-testteam`).** `project.yml` now sets
+> `CODE_SIGN_STYLE: Automatic` **and** `DEVELOPMENT_TEAM: "DNL25ZFSD2"` on
+> both `TalariaTests` and `TalariaUITests` (previously app-target-only),
+> matching the recipe the app/widgets/share targets already use.
+> `DEVELOPMENT_TEAM` alone is not sufficient — XcodeGen only emits the
+> `TargetAttributes` `ProvisioningStyle = Automatic;` entry (alongside
+> `DevelopmentTeam`) when `CODE_SIGN_STYLE` is present too; confirmed by
+> diffing `project.pbxproj`'s `TargetAttributes` block before/after: the two
+> test targets' entries now carry `DevelopmentTeam = DNL25ZFSD2;
+> ProvisioningStyle = Automatic;` next to their existing `TestTargetID`.
+> `xcodegen generate` was run (two consecutive runs produced a byte-identical
+> `project.pbxproj` — #319 idempotency held) and the regenerated project is
+> committed.
+>
+> **Verified:** a Debug, generic-iOS-Simulator `xcodebuild … build` (app
+> target) and a `build-for-testing` (compiles `TalariaTests` +
+> `TalariaUITests`, the two targets this change touched) both succeeded —
+> `** BUILD SUCCEEDED **` / `** TEST BUILD SUCCEEDED **` — neither required a
+> booted simulator, so the sim path is confirmed unaffected without spending
+> any of the hard 3-boot cap.
+>
+> **NOT verified: the actual device signing fix, and this entry's
+> command-line-override text is deliberately left standing until it is.**
+> Owen was running a manual test pass on `whoGoesThere` for the duration of
+> this lane, so the command this entry itself prescribes —
+> `-only-testing:TalariaTests/CondenserFidelityTests` on
+> `id=91CBCB90-B313-5B09-A405-E0FE284C9D75`, **without** the
+> `DEVELOPMENT_TEAM=DNL25ZFSD2 -allowProvisioningUpdates` override — was never
+> run. A `project.yml` setting that was never exercised on the failing path is
+> exactly the kind of thing that looks fixed and isn't. **Until that device
+> run happens and passes signing, keep using the override** — striking it now
+> would assert something only a device run, not a simulator build, can show.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
@@ -6324,6 +6358,33 @@ lane on it.
 **Cross-references:** **#298** (archived; the lane that found it), **#114** and
 **#247/#248** (the two commits whose interleaving produced it), **#287** (the
 sibling finding from the same sweep — the *executable* form of this shape).
+
+> **✅ RELOCATED 2026-08-11 (chore lane, branch `t27-chores-316-testteam`).**
+> Read in full before moving anything: the block is genuinely NOT a misfile —
+> it describes `handleActiveProfileChanged` ("Re-homes the app onto a newly
+> activated profile...") exactly as this entry says, and was orphaned exactly
+> as described, sitting above the `#247 B2` MARK with the `GatewayProbeVerdict`
+> enum, `profileSwitchNotice` property/state, and the two `nonisolated static`
+> probe/notice functions in between. Moved verbatim to sit directly above
+> `handleActiveProfileChanged`, ahead of the function's own pre-existing `#285`
+> doc paragraph — the two now read as one contiguous doc comment (paragraph
+> break via a blank `///` line, the same convention the block already used
+> internally for its `#298` paragraph). The `// MARK: - Lane M: profile
+> switching…` section header stays where it was; it still correctly labels
+> the section that follows.
+>
+> **One sentence was dropped, not moved — the disposition's permitted
+> exception.** The block's closing sentence ("NOTE: this doc block is
+> ORPHANED from the function it describes — `handleActiveProfileChanged` now
+> sits ~66 lines below, behind the `#247 B2` MARK that was inserted between
+> them") was true only because the block was displaced; relocating the block
+> makes that sentence false about the code it now sits above, which is the one
+> case the dispatch instructions named as grounds to edit prose during a pure
+> relocation. Every other sentence is untouched.
+>
+> **No bars, as filed** — comment-only, zero behaviour change. Verified by a
+> Debug, generic-iOS-Simulator `xcodebuild … build`: `** BUILD SUCCEEDED **`.
+> A full gate was judged unnecessary for a doc-comment move and was not run.
 
 ---
 
