@@ -63,9 +63,11 @@ Every one of these has failed silently at least once on this project.
 > TIMEOUT (store snapshots auto-fetched for the post-mortem, on-device app terminated);
 > exit 3 = precondition (incl. a LOCKED device — it fails fast rather than burning the
 > timeout). Artifacts land in `~/.talaria-instrument-runs/<stamp>-<instrument>/`.
-> Registry names: see `InstrumentRegistry.swift` (45 entries; **16 unattended-eligible —
+> Registry names: see `InstrumentRegistry.swift` (~~45 entries; **16 unattended-eligible**~~
+> **48 entries since #334, 2026-08-12; 19 unattended-eligible** — the three new
+> FM measurement instruments write nothing, so all three are eligible on the iPad —
 > alarm-writing instruments refuse unattended by Owen's ruling, and the iPad refuses all
-> EventKit writers in-app**). Run the harness BACKGROUNDED with an absolute project path
+> EventKit writers in-app). Run the harness BACKGROUNDED with an absolute project path
 > and a tool timeout above `--timeout`. Steps 1–2 and 6 below still apply verbatim.
 
 1. Pick the host by §1. If the instrument has *any* write cell, it is the phone.
@@ -129,11 +131,10 @@ Roughly in value order. Host per §1.
 
 | bar | instrument | host | note |
 |---|---|---|---|
-| #257 tokenCount pre-flight | never built — build it as part of the first run | iPad | must run outside a live turn |
-| #324-W3 | FM asymmetries: `tokenCount` 4096-vs-8192, `variant.displayName`, `maximumResponseTokens` throw-vs-truncate | iPad | pure measurement, no UI |
+| #257 tokenCount pre-flight | ~~never built~~ **`tokencount-preflight`** (#334, 2026-08-12) | iPad | runs outside any turn by construction — no generation at all |
+| #324-W3 | ~~not built~~ **`fm-asymmetries`** (#334) — all three bands in one run: `tokenCount` 4096-vs-8192, `variant.displayName`, `maximumResponseTokens` throw-vs-truncate | iPad | ⚠️ **beta5 runtimes ONLY** — the variant band is a new-in-beta5 symbol and a beta4 runtime kills the app at dyld launch (#324) |
 | #211A | offer-instead-of-act on READ paths | iPad | read-only prompts by construction |
-| #210A | does ONE forced condensation fit 8,192? | iPad | original observation is n=2 |
-| #210 residual | the condensation budget itself | iPad | never measured |
+| #210A / #210 residual | ~~never measured~~ **`condensation-fit`** (#334) — one instrument answers both: does ONE forced condensation fit 8,192? | iPad | a trial scores only if ARMED (pre-count measured >8,192); if none arms, the residual stays open |
 | #205E | ctx-a long-row probe | iPad | ~3,500-char prior turn + words-only counterpart |
 | #208 | D4 corruption re-suspect | iPad | exploratory; the class has no standing suspect |
 | #225 B1–B4 | the spiral cap: ≤12 calls, non-empty, honest, no collateral | **phone** | B4 writes a reminder; B3's honesty clause needs a human read — log the transcript |

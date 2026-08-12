@@ -584,10 +584,23 @@ extension LocalChatBackend {
 
             let armed = pre.map { $0 > ceiling }
             let fits = post.map { $0 <= ceiling }
+            // FIVE outcomes, not three. "Armed but the post count threw" is
+            // NOT the same claim as "armed and over" — collapsing them would
+            // put an unmeasured trial on record as a failure, which is the
+            // same laundering of unknown into finding that #213's error tally
+            // exists to prevent. Only ARMED+FITS scores.
+            let verdict: String
             switch (armed, fits) {
-            case (.some(true), .some(true)): armedTrials += 1; fittingTrials += 1
-            case (.some(true), .some(false)): armedTrials += 1
-            default: unknownTrials += 1
+            case (.some(true), .some(true)):
+                verdict = "ARMED+FITS"; armedTrials += 1; fittingTrials += 1
+            case (.some(true), .some(false)):
+                verdict = "ARMED+OVER"; armedTrials += 1
+            case (.some(true), .none):
+                verdict = "ARMED+FIT-UNKNOWN"; unknownTrials += 1
+            case (.some(false), _):
+                verdict = "UNARMED"; unknownTrials += 1
+            case (.none, _):
+                verdict = "ARMING-UNKNOWN"; unknownTrials += 1
             }
 
             var metrics: [String: Double] = [
@@ -605,12 +618,12 @@ extension LocalChatBackend {
             if let armed { metrics["armed"] = armed ? 1 : 0 }
             if let fits { metrics["fits"] = fits ? 1 : 0 }
             var notes: [String: String] = [
-                "verdict": armed == true ? (fits == true ? "ARMED+FITS" : "ARMED+OVER") : "UNARMED-OR-UNKNOWN",
+                "verdict": verdict,
                 "escalationOfferFired": String(offerFired),
                 "hasCondensedMemory": String(blueprint.condensedMemory != nil),
             ]
             if let firstError { notes["firstError"] = firstError }
-            Self.batteryEmit("preflight: [condensation-fit] t=\(trial) pre=\(pre.map(String.init) ?? "—") post=\(post.map(String.init) ?? "—") ceiling=\(ceiling) armed=\(armed.map(String.init) ?? "—") fits=\(fits.map(String.init) ?? "—") preChars=\(preChars) postChars=\(postChars) condensed=\(turns.count - blueprint.verbatimTurns.count)/\(turns.count) memoryChars=\(blueprint.condensedMemory?.count ?? 0) errors=\(errors) offerFired=\(offerFired)")
+            Self.batteryEmit("preflight: [condensation-fit] t=\(trial) verdict=\(verdict) pre=\(pre.map(String.init) ?? "—") post=\(post.map(String.init) ?? "—") ceiling=\(ceiling) armed=\(armed.map(String.init) ?? "—") fits=\(fits.map(String.init) ?? "—") preChars=\(preChars) postChars=\(postChars) condensed=\(turns.count - blueprint.verbatimTurns.count)/\(turns.count) memoryChars=\(blueprint.condensedMemory?.count ?? 0) errors=\(errors) offerFired=\(offerFired)")
             Self.batteryRecorder.recordProbe(
                 probe: "forced condensation of a \(turns.count)-turn overflow transcript, trial \(trial)",
                 expected: true, correct: (armed == true && fits == true) ? 1 : 0, trials: 1,

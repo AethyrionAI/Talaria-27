@@ -230,7 +230,14 @@ struct PreflightInstrumentRunTests {
         #expect(preChars > postChars, "forced condensation must shrink the payload")
         #expect(row.metrics?["condensedTurns"] ?? 0 > 0, "forceCondense must actually condense turns")
         let verdict = try #require(row.notes?["verdict"])
-        #expect(["ARMED+FITS", "ARMED+OVER", "UNARMED-OR-UNKNOWN"].contains(verdict))
+        // FIVE outcomes: "armed but the post count threw" is not "armed and
+        // over", and neither is "we could not tell whether it was armed".
+        #expect(["ARMED+FITS", "ARMED+OVER", "ARMED+FIT-UNKNOWN",
+                 "UNARMED", "ARMING-UNKNOWN"].contains(verdict))
+        // On a sim the tokenizer throws, so this run can only be the
+        // arming-unknown case — a verdict that claimed anything else here
+        // would be the instrument inventing a measurement.
+        if row.metrics?["preTokens"] == nil { #expect(verdict == "ARMING-UNKNOWN") }
         // The armed/fits keys are ABSENT rather than zero when the tokenizer
         // refused — nil means not measured (#213), and a 0 here would read as
         // a measured failure.

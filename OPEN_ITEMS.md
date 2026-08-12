@@ -192,7 +192,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
-- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling). The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #334 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#334** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight` (#257's owed `21F0C10D` gate), `fm-asymmetries` (#324-W3's three device-only questions), `condensation-fit` (#210's "still owed" residual). All three `.none`/no-writes, so all three are unattended- and iPad-eligible. **BUILT sim+unit 2026-08-12; every number comes from the iPad runs, which have not happened.** Bars 334-A..H pre-registered before any run. ⚠️ `fm-asymmetries` references the new-in-beta5 `SystemLanguageModel.variant` — a beta4 iPad would die at DYLD LAUNCH, taking the other two runs with it
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
@@ -9213,7 +9213,12 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > call alarm-bounded; three-state baseline).
 >
 > **Standing facts for the next runner session:**
-> - **16 of 45 instruments are unattended-eligible** (all read-only probes + the
+> - ~~**16 of 45 instruments are unattended-eligible**~~ → **19 of 48 as of 2026-08-12
+>   (#334)**, which added three read-only FM measurement instruments
+>   (`tokencount-preflight`, `fm-asymmetries`, `condensation-fit`) — all `.none`, no
+>   writes, so all three are unattended- AND iPad-eligible. The original counts are
+>   struck rather than overwritten: they were true of the registry this entry shipped.
+>   (all read-only probes + the
 >   decline-mode batteries). The 29 alarm-writing accept batteries refuse unattended by
 >   design — Owen's ruling, enforced in code. Unattended-eligible ≠ iPad-eligible only
 >   for EventKit reasons; on the iPad the write set is refused entirely.
@@ -9278,6 +9283,16 @@ covers the other two runs on that device as well: confirm the iPad is on iOS 27
 **beta5** before running any of the three. If it is on beta4, run A and C only
 from a build with B's variant band removed — do not "try it and see", the
 failure mode is a launch that produces no artifact and no crash log.
+
+> **✅ CHECKED 2026-08-12, read-only, before any run: the iPad IS on beta5.**
+> `xcrun devicectl device info details --device 4822A154-…` reports
+> **OS Version 27.0, OS Build Update `24A5408d`** — the beta5 runtime build, the
+> same one the lane's `CC-334-iPhone-Air` simulator boots (verified from its
+> `DYLD_ROOT_PATH`, `SimulatorRuntime-v24.1.5408.4`). The dyld precondition is
+> therefore SATISFIED as of this date and all three instruments may run on that
+> device. It is checked rather than assumed because the failure is invisible: a
+> beta4 iPad would kill the app at launch with no `.ips` and no artifact, and
+> the harness would report a timeout that looks like a hung instrument.
 
 **BARS — pre-registered 2026-08-12, before any run.** A–E are this lane's
 (sim/unit); F–H are the DEVICE bars the controller's runs score.
