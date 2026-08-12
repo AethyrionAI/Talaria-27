@@ -38,5 +38,23 @@ struct InstrumentLaunchIntentTests {
         #expect(InstrumentLaunchIntent.parse(["TALARIA_TRIALS": "5"]).isEmpty)
         #expect(InstrumentLaunchIntent.parse(["TALARIA_AUTO_BATTERY": "many"]).isEmpty)
     }
+
+    @Test func legacyPairAndNewVarCoexistLegacyOrderFirst() {
+        // #333 supersedes #196 without duplicating it: all three vars can be
+        // set on one launch (e.g. a #196-shaped CI invocation alongside a new
+        // registry run) and every one fires, legacy pair first in its own
+        // #196 order, the new var last.
+        let intents = InstrumentLaunchIntent.parse([
+            "TALARIA_AUTO_BATTERY": "3",
+            "TALARIA_AUTO_ROUTER_PROBE": "4",
+            "TALARIA_RUN_INSTRUMENT": "action",
+            "TALARIA_TRIALS": "5",
+        ])
+        #expect(intents == [
+            InstrumentLaunchIntent(name: "shape", trials: 3, cells: nil),
+            InstrumentLaunchIntent(name: "router-probe", trials: 4, cells: nil),
+            InstrumentLaunchIntent(name: "action", trials: 5, cells: nil),
+        ])
+    }
 }
 #endif

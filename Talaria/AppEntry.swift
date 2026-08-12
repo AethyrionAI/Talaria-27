@@ -130,10 +130,13 @@ struct TalariaApp: App {
                     // top of the route we just chose.
                     consumePendingControlDestination()
                     #if DEBUG
-                    // #196 battery 4: headless battery/probe runs, armed
-                    // only by launch environment. Last — everything above
-                    // is the production launch path, untouched.
-                    await container.runAutoBatteryIfArmed()
+                    // #333 instrument trigger: headless registry-instrument
+                    // runs, armed only by launch environment (the #196 pair
+                    // — TALARIA_AUTO_BATTERY / TALARIA_AUTO_ROUTER_PROBE —
+                    // still works, mapped onto the same registry). Last —
+                    // everything above is the production launch path,
+                    // untouched.
+                    await container.runAutoInstrumentsIfArmed()
                     #endif
                 }
                 .onChange(of: container.settingsStore.settings) { oldSettings, newSettings in
