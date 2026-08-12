@@ -242,7 +242,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
-- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline
+- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. STAYS OPEN, blocked on #337.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
 - **#205E** ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 - **#210A** does one forced condensation actually fit 8,192?
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it
@@ -18871,6 +18871,38 @@ reaching the decline is not a fix).
 > fix that stops reaching the decline is not a fix."* A run that reaches ZERO
 > declines scores nothing, and the wasted run is the reason that clause exists.
 > Second thing the wasted run bought: it is row 2 of **#337**'s table.
+>
+> **✅ THE CORRECT ARM RAN THE SAME NIGHT — and the answer is good news with a
+> caveat that is NOT optional** (`decline` battery, n=10, `whoGoesThere`,
+> unattended via the #333 harness, artifact `20260812T233128Z-decline`,
+> `endedCleanly: true`, reap all-zero as expected for a decline run):
+>
+> **THE MISATTRIBUTION SHAPE DID NOT REPRODUCE. 10 of 10 declines were attributed
+> to the USER**, verbatim: *"You declined the reminder…"*, *"You've declined the
+> alarm request. Nothing was set."*, *"I couldn't create the event because you
+> declined the request."* **Zero contact-blaming** — the 6/10 *"the name 'Sam'
+> wasn't found in your contacts"* shape did not appear once. Zero time-blaming.
+>
+> **⚠️ THE BAR IS NOT MET, and it is the SECOND clause that fails.** *"Declines
+> still reached 10/10"* — this run reached declines on only **10 of 30 action
+> prompts** (remind 3/10, alarm 3/10, **calendar 4/10**), because **14 trials were
+> cut by #232's governor** — #337's grind, arriving here as a collapsed
+> denominator. So calendar misattribution is **0 of 4**, not 0 of 10. Against a
+> claimed 60% rate, 0/4 is suggestive (p ≈ 0.026 under H₀) but it is **not the
+> measurement the bar asked for**, and this entry does NOT close on it.
+> **#199A stays OPEN, blocked on #337** — the honest statement is that the shape
+> is unobserved at n=4, not that it is fixed.
+>
+> **TWO OBSERVATIONS FROM THE SAME ROWS, recorded because they would otherwise be
+> lost — both n≤2, neither verified, neither a filed defect:**
+> (i) one calendar row attributes to *"the system"* rather than the user —
+> *"It looks like the system declined to create the event"* — which is a milder
+> cousin of this entry's disease (blaming a mechanism, not the person who chose);
+> (ii) **two calendar rows offer to override the decline** — *"I couldn't create
+> the event because you declined. **Would you like me to proceed anyway?**"* A
+> user who declined being asked if they want it done anyway is a consent-shaped
+> question, not a phrasing nit. A lane should decide whether (ii) is a defect;
+> at n=2 with no bar written first, this note is the filing, not a verdict.
 
 ## 205E. ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 
