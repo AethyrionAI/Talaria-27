@@ -27,6 +27,12 @@ struct PreflightInstrumentRegistryTests {
         #expect(spec.confirmationMode == .none)
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
+
+    @Test func condensationFitIsRegisteredReadOnly() throws {
+        let spec = try #require(InstrumentRegistry.spec(named: "condensation-fit"))
+        #expect(spec.confirmationMode == .none)
+        #expect(!spec.writesEventKit && !spec.writesAlarms)
+    }
 }
 
 /// The record change #334 needed: two optional dictionaries on
@@ -185,6 +191,59 @@ struct PreflightInstrumentRunTests {
         // On the sim the generation throws, so the evidence must be the error
         // text — the row cannot claim a behaviour it did not observe.
         if behavior == "threw" { #expect(row.notes?["firstError"] != nil) }
+    }
+
+    @Test func condensationFitSealsARunWithPerTrialRowsAndASummary() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+
+        await backend.runCondensationFitProbe(trials: 2)
+
+        let record = try freshRun(after: known)
+        #expect(record.endedCleanly == true)
+        #expect(record.kind == "condensation-fit")
+        #expect(record.probes.filter { $0.band == "condensation-fit" }.count == 2,
+                "one row PER TRIAL — #210's question is asked of each trial, not pooled")
+        #expect(record.probes.contains { $0.band == "summary" })
+        // The conservative-direction caveat is only honest if the number that
+        // supports it is in the record.
+        #expect(record.probes.contains { $0.band == "reference" && $0.variant == "toolless" })
+    }
+
+    /// #215's rule in arithmetic: a trial that was never ARMED is not a pass,
+    /// and the record has to be able to say so. On the sim the tokenizer
+    /// throws, so `armed` is unknowable — and the row must report that rather
+    /// than defaulting to a verdict.
+    @Test func condensationFitRowsCarryTheirArmingEvidenceOrSayTheyCannot() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+        await backend.runCondensationFitProbe(trials: 1)
+        let record = try freshRun(after: known)
+
+        let row = try #require(record.probes.first { $0.band == "condensation-fit" })
+        #expect(row.errors != nil)
+        #expect(row.metrics?["ceiling"] == 8192, "the verdict line is #210's recorded ceiling")
+        // Character counts are knowable WITHOUT a model, so they are never the
+        // missing half — the payload provably shrank even where tokenCount died.
+        let preChars = try #require(row.metrics?["preChars"])
+        let postChars = try #require(row.metrics?["postChars"])
+        #expect(preChars > postChars, "forced condensation must shrink the payload")
+        #expect(row.metrics?["condensedTurns"] ?? 0 > 0, "forceCondense must actually condense turns")
+        let verdict = try #require(row.notes?["verdict"])
+        #expect(["ARMED+FITS", "ARMED+OVER", "UNARMED-OR-UNKNOWN"].contains(verdict))
+        // The armed/fits keys are ABSENT rather than zero when the tokenizer
+        // refused — nil means not measured (#213), and a 0 here would read as
+        // a measured failure.
+        if row.metrics?["preTokens"] == nil { #expect(row.metrics?["armed"] == nil) }
+    }
+
+    /// The one side effect production's condenser has is #30's escalation
+    /// offer; a measurement puts back what it perturbed.
+    @Test func condensationFitLeavesTheEscalationOfferFlagWhereItFoundIt() async throws {
+        let backend = makeBackend()
+        let before = backend.shouldOfferPrivateCloudEscalation
+        await backend.runCondensationFitProbe(trials: 1)
+        #expect(backend.shouldOfferPrivateCloudEscalation == before)
     }
 
     /// The caps are READ from the production constants, not retyped into the

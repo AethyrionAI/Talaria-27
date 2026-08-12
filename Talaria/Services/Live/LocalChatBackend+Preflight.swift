@@ -445,5 +445,200 @@ extension LocalChatBackend {
         Self.batteryEmit("preflight: FM ASYMMETRIES DONE (#324-W3/#334)")
         Self.batteryRecorder.endRun()
     }
+
+    // MARK: - #334 C: `condensation-fit` (#210's residual)
+
+    /// #210's recorded ceiling — the device said *"Provided 8,583 tokens, but
+    /// the maximum allowed is 8,192"*. Pinned as the verdict line so the
+    /// instrument answers the question that was actually asked; the RUNTIME
+    /// budget is recorded beside every row, so a reader can re-score against
+    /// the real window without re-running anything.
+    nonisolated static let condensationFitCeiling = 8192
+
+    /// A synthetic transcript engineered to overflow that ceiling.
+    ///
+    /// Synthetic BY DESIGN. Reading the user's real `ChatStore` would measure
+    /// whatever happened to be in the app that day, could not be re-run, and
+    /// would answer a question about one conversation rather than about the
+    /// mechanism — and #210's residual is about the mechanism. 12 turns at
+    /// ~900 tokens is ~10,800 tokens, comfortably over 8,192, and each turn is
+    /// numbered so the condensed memory block is readable rather than a wall
+    /// of identical filler.
+    nonisolated static func condensationOverflowTranscript(
+        turnCount: Int = 12, approximateTokensPerTurn: Int = 900
+    ) -> [TranscriptTurn] {
+        (0 ..< turnCount).map { index in
+            TranscriptTurn(
+                role: index.isMultiple(of: 2) ? .user : .assistant,
+                text: "Turn \(index + 1). " + asymmetryFiller(approximateTokens: approximateTokensPerTurn))
+        }
+    }
+
+    /// #334 C / #210 — **does one forced condensation actually get an
+    /// over-budget conversation back under the window?**
+    ///
+    /// #210's own *Still owed*, verbatim: *"the condensation budget itself is
+    /// untouched and unmeasured. The guard now FIRES; whether one forced
+    /// condensation actually gets a real long-conversation turn under 8,192 is
+    /// a separate question and needs a measured run, not an assumption."*
+    /// This is that run's instrument.
+    ///
+    /// **It calls production's condenser, it does not model one.**
+    /// `sessionBlueprint(for:hasImageInContext:forceCondense:)` is the same
+    /// function `rebuildSession` calls on the #26/#229 retry path; the only
+    /// difference is where the turns come from. A reimplementation would be a
+    /// measurement of a lookalike, which measures nothing.
+    ///
+    /// Per trial the record carries: the pre-condensation count (the ARMING
+    /// evidence — a trial only counts if it is over the ceiling, MEASURED, per
+    /// #215's rule that an unarmed cell measures a configuration the app never
+    /// enters), the post-condensation count, how the split fell
+    /// (condensed/verbatim turn counts), the runtime window and budget, the
+    /// fits verdict, and the throw tally. Character counts ride along because
+    /// they are knowable WITHOUT a model — on a sim, where every tokenCount
+    /// throws, the record still shows the payload shrank rather than showing
+    /// nothing at all.
+    ///
+    /// **Known limit, stated here rather than discovered later.** This is the
+    /// PRE-TURN condensation shape: the instructions are whatever
+    /// `effectiveInstructionsText` gives this backend right now, i.e. the
+    /// belt-bearing text. #229's mid-turn overflow RETRY additionally disarms
+    /// the belt, so its payload is strictly SMALLER than what this measures —
+    /// the verdict here is therefore conservative, and the toolless
+    /// instructions' own cost is recorded as a `reference` row so the
+    /// difference is computable rather than guessed at.
+    func runCondensationFitProbe(trials: Int) async {
+        guard await Self.beginBatteryRun() else {
+            Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
+            return
+        }
+        defer { Self.endBatteryRun() }
+        let repeats = max(1, trials)
+        let model = self.model
+        let ceiling = Self.condensationFitCeiling
+        let turns = Self.condensationOverflowTranscript()
+        let contextSize = model.contextSize
+        let budget = max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
+        Self.batteryEmit("preflight: CONDENSATION FIT START repeats=\(repeats) turns=\(turns.count) ceiling=\(ceiling) contextSize=\(contextSize) budget=\(budget) tier=\(activeTier.rawValue) (#210/#334)")
+        Self.batteryRecorder.beginRun(trialsPerCell: repeats,
+                                      cells: ["condensation-fit"],
+                                      kind: "condensation-fit")
+
+        // Reference rows — the window, and the two instruction shapes, so the
+        // conservative-direction caveat above is a NUMBER rather than a claim.
+        let armedInstructions = effectiveInstructionsText(hasImageInContext: false)
+        let toollessInstructions = Self.productionToollessInstructions(
+            deviceContext: Self.deviceContextLine(), hasImageTools: false)
+        let armedInstructionTokens = await measureRepeatedly(1) {
+            try await model.tokenCount(for: Instructions(armedInstructions))
+        }
+        recordMeasurementRow(armedInstructionTokens,
+                             probe: "instructions this backend would send (belt-bearing)",
+                             band: "reference", variant: "armed",
+                             extraMetrics: ["chars": Double(armedInstructions.count),
+                                            "contextSize": Double(contextSize),
+                                            "budget": Double(budget),
+                                            "ceiling": Double(ceiling)])
+        let toollessInstructionTokens = await measureRepeatedly(1) {
+            try await model.tokenCount(for: Instructions(toollessInstructions))
+        }
+        recordMeasurementRow(toollessInstructionTokens,
+                             probe: "production toolless instructions (#229's retry shape)",
+                             band: "reference", variant: "toolless",
+                             extraMetrics: ["chars": Double(toollessInstructions.count)])
+
+        var armedTrials = 0
+        var fittingTrials = 0
+        var unknownTrials = 0
+        for trial in 1 ... repeats {
+            var errors = 0
+            var firstError: String?
+            func count(_ entries: [Transcript.Entry]) async -> Int? {
+                do { return try await model.tokenCount(for: entries) } catch {
+                    errors += 1
+                    if firstError == nil { firstError = String(String(describing: error).prefix(200)) }
+                    return nil
+                }
+            }
+
+            let preInstructions = effectiveInstructionsText(hasImageInContext: false)
+            let preEntries = Self.transcriptEntries(instructions: preInstructions, verbatimTurns: turns)
+            let preChars = preInstructions.count + turns.reduce(0) { $0 + $1.text.count }
+            let pre = await count(preEntries)
+
+            // PRODUCTION's condenser. The offer flag is sampled and restored
+            // around it: arming #30's one-per-conversation escalation offer is
+            // the one side effect this call has, and a measurement should not
+            // leave the user an offer they never earned.
+            let offerBefore = shouldOfferPrivateCloudEscalation
+            let blueprint = await sessionBlueprint(for: turns, hasImageInContext: false,
+                                                   forceCondense: true)
+            let offerFired = shouldOfferPrivateCloudEscalation && !offerBefore
+            restorePrivateCloudEscalationOffer(offerBefore)
+
+            let postEntries = Self.transcriptEntries(instructions: blueprint.instructions,
+                                                     verbatimTurns: blueprint.verbatimTurns)
+            let postChars = blueprint.instructions.count
+                + blueprint.verbatimTurns.reduce(0) { $0 + $1.text.count }
+            let post = await count(postEntries)
+
+            let armed = pre.map { $0 > ceiling }
+            let fits = post.map { $0 <= ceiling }
+            switch (armed, fits) {
+            case (.some(true), .some(true)): armedTrials += 1; fittingTrials += 1
+            case (.some(true), .some(false)): armedTrials += 1
+            default: unknownTrials += 1
+            }
+
+            var metrics: [String: Double] = [
+                "preChars": Double(preChars), "postChars": Double(postChars),
+                "condensedTurns": Double(turns.count - blueprint.verbatimTurns.count),
+                "verbatimTurns": Double(blueprint.verbatimTurns.count),
+                "totalTurns": Double(turns.count),
+                "contextSize": Double(contextSize), "budget": Double(budget),
+                "ceiling": Double(ceiling),
+                "scored": Double(2 - errors), "errors": Double(errors),
+                "memoryChars": Double(blueprint.condensedMemory?.count ?? 0),
+            ]
+            if let pre { metrics["preTokens"] = Double(pre) }
+            if let post { metrics["postTokens"] = Double(post) }
+            if let armed { metrics["armed"] = armed ? 1 : 0 }
+            if let fits { metrics["fits"] = fits ? 1 : 0 }
+            var notes: [String: String] = [
+                "verdict": armed == true ? (fits == true ? "ARMED+FITS" : "ARMED+OVER") : "UNARMED-OR-UNKNOWN",
+                "escalationOfferFired": String(offerFired),
+                "hasCondensedMemory": String(blueprint.condensedMemory != nil),
+            ]
+            if let firstError { notes["firstError"] = firstError }
+            Self.batteryEmit("preflight: [condensation-fit] t=\(trial) pre=\(pre.map(String.init) ?? "—") post=\(post.map(String.init) ?? "—") ceiling=\(ceiling) armed=\(armed.map(String.init) ?? "—") fits=\(fits.map(String.init) ?? "—") preChars=\(preChars) postChars=\(postChars) condensed=\(turns.count - blueprint.verbatimTurns.count)/\(turns.count) memoryChars=\(blueprint.condensedMemory?.count ?? 0) errors=\(errors) offerFired=\(offerFired)")
+            Self.batteryRecorder.recordProbe(
+                probe: "forced condensation of a \(turns.count)-turn overflow transcript, trial \(trial)",
+                expected: true, correct: (armed == true && fits == true) ? 1 : 0, trials: 1,
+                variant: "forced", band: "condensation-fit", errors: errors,
+                metrics: metrics, notes: notes)
+        }
+
+        // The summary row. `correct` counts trials that were ARMED AND FIT —
+        // #215's rule in arithmetic: an unarmed trial is not a pass, it is not
+        // a measurement, and it is counted separately so a run of them cannot
+        // pool into a verdict.
+        Self.batteryEmit("preflight: [condensation-fit] SUMMARY armed=\(armedTrials)/\(repeats) fits=\(fittingTrials)/\(armedTrials) unarmedOrUnknown=\(unknownTrials)/\(repeats) ceiling=\(ceiling)")
+        Self.batteryRecorder.recordProbe(
+            probe: "condensation fit summary (armed trials only)",
+            expected: true, correct: fittingTrials, trials: repeats,
+            variant: "forced", band: "summary", errors: unknownTrials,
+            metrics: ["armedTrials": Double(armedTrials),
+                      "fittingTrials": Double(fittingTrials),
+                      "unarmedOrUnknownTrials": Double(unknownTrials),
+                      "ceiling": Double(ceiling),
+                      "contextSize": Double(contextSize),
+                      "budget": Double(budget)],
+            notes: ["verdict": armedTrials == 0
+                    ? "NO TRIAL ARMED — #210's residual stays open; this run scores nothing"
+                    : (fittingTrials == armedTrials ? "every armed trial fit" : "at least one armed trial did NOT fit")])
+
+        Self.batteryEmit("preflight: CONDENSATION FIT DONE (#210/#334)")
+        Self.batteryRecorder.endRun()
+    }
 }
 #endif

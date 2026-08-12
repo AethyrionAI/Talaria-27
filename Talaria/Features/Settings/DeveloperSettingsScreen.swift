@@ -1004,6 +1004,14 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("fm-asymmetries", trials: 3,
                                      label: "FM asymmetries (#324-W3) (n=3)")
                 }
+                // #334 C: #210's residual — does ONE forced condensation get an
+                // over-8,192 transcript back under the window? Production's own
+                // condenser, a synthetic overflow transcript, nothing written
+                // and nothing generated.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("condensation-fit", trials: 3,
+                                     label: "Condensation fit (#210) (n=3)")
+                }
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
                 // n=20 classifications; no tools, nothing created.

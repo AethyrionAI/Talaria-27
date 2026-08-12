@@ -13122,6 +13122,22 @@ constant with a raised cap, pinned by test — never raise
 load-bearing); (3) instrument the error path regardless — the probe emits a
 router-throw tally and `scored=<n>/<trials>` beside every ratio.
 
+> **2026-08-12 (#334): the pre-flight now HAS A VEHICLE — and has still not
+> been run.** Step (1) is the registry instrument **`tokencount-preflight`**
+> (`LocalChatBackend+Preflight.swift`), runnable unattended on a device
+> through #333's harness. It prices exactly the payload this probe submits —
+> production's router instructions, the prompt envelope for the longest of the
+> pinned baseline rows, both generation schemas, their sum against
+> `contextSize` — and, on the side a `maximumResponseTokens` cap actually
+> governs, the worst-case response JSON for each schema against the cap READ
+> from `twoFieldRouterOptions` / `toolIntentRouterOptions`. Bars 334-A..F are
+> pre-registered in #334, including this entry's step (2) as the
+> **pre-registered response if the response does not fit**: every
+> capability-probe result to date is void and the fix is a raised cap in the
+> two-field route's OWN constant, never `toolIntentRouterOptions`. **The gate
+> is still UNMET until the device run happens — an instrument is not a
+> measurement.**
+
 **Sequencing (both steps free, both BEFORE router code):** (i) render the
 block in a unit test and put the exact string in front of Owen — if a canned
 paragraph in a chat bubble reads wrong to him, the lever dies before a line of
@@ -18484,6 +18500,22 @@ guard now FIRES; whether one forced condensation actually gets a real
 long-conversation turn under 8,192 is a separate question and needs a measured
 run, not an assumption. n on the original observation remains 2.
 
+> **2026-08-12 (#334): that measured run now has an instrument, and has not yet
+> been run.** **`condensation-fit`** (`LocalChatBackend+Preflight.swift`,
+> registry entry, unattended-eligible) drives a synthetic 12-turn transcript
+> engineered past this entry's recorded 8,583/8,192 overflow through
+> **production's own condenser** — `sessionBlueprint(…forceCondense: true)`,
+> the same function `rebuildSession` calls here — and prices the condensed
+> payload with the model's own tokenizer. Per trial it records the
+> pre-condensation count (the ARMING evidence: a trial scores only if it is
+> measured above 8,192, per #215), the post-condensation count, the split, and
+> the throw tally. Conservative by construction: it measures the PRE-TURN
+> shape, whose instructions still carry the belt, while #229's mid-turn retry
+> additionally disarms — so its payload is strictly smaller than what this
+> records, and the toolless instructions' own cost rides in a reference row so
+> the difference is a number. **Bars 334-H pre-registered in #334: if no trial
+> arms, this residual STAYS OPEN rather than being scored on an unarmed cell.**
+
 ## 208. (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
 **VERDICT FILED 2026-07-31. Run `B6ADBF28`, `endedCleanly: true`, sealed
@@ -18648,6 +18680,15 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
   device fresh install on it. See #301's dated 2026-08-11 block.]** FM tokenCount 4096-vs-8192
   asymmetry + `variant.displayName` on device; maximumResponseTokens throw-vs-truncate (still
   device-only).
+  - **2026-08-12 (#334): all three now live in ONE instrument, `fm-asymmetries`, and none has
+    been run.** Three labeled bands — the 4096-vs-8192 boundary (both counts, both ratios, so
+    a clamp reads as `tokenRatio < charRatio`), `SystemLanguageModel.variant.displayName`, and
+    a plain generation under `maximumResponseTokens: 8` classified THREW / TRUNCATED / MIXED /
+    NONE with the error text or the output length as evidence. Read-only, unattended-eligible,
+    runnable via `run-instrument.sh --instrument fm-asymmetries`. Bar 334-G places no bar on
+    WHICH behaviour — it is a measurement — only that the band must not come back "none".
+    ⚠️ The variant band is why every target device must be on **beta5**: this bullet's own
+    dyld finding, three bullets up, applies to the app as a whole.
 - **324-W4** The FM b4-vs-b5 error-identity comparison is measurement-only (same-binary control
   is dyld-impossible; beta4's Code=5000 finding stands as recorded — do not treat the 1026 shape
   as contradicting it).

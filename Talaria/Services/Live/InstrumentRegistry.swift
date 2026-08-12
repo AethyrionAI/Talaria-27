@@ -597,6 +597,29 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runFMAsymmetriesProbe(trials: trials)
                        }),
+        // #334 C — #210's own "Still owed", made runnable: *"whether one
+        // forced condensation actually gets a real long-conversation turn
+        // under 8,192 is a separate question and needs a measured run, not an
+        // assumption."* READ-ONLY: no generation at all, no tools, nothing
+        // created; the transcript is SYNTHETIC and the user's real ChatStore
+        // is never read (that would measure whatever was in the app that day
+        // and could not be re-run). It calls PRODUCTION's condenser —
+        // `sessionBlueprint(…forceCondense: true)`, the same function
+        // `rebuildSession` calls on the #26/#229 retry — rather than modelling
+        // one, because a measurement of a lookalike measures nothing. A trial
+        // scores only if it is ARMED: pre-condensation count above the 8,192
+        // ceiling, MEASURED, per #215's rule that an unarmed cell measures a
+        // configuration the app never enters.
+        //
+        // Surface: read-only — tokenizer round trips and one condenser call;
+        // nothing generated, nothing written.
+        // Button: `instrumentButton("condensation-fit", …)`.
+        InstrumentSpec(name: "condensation-fit", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCondensationFitProbe(trials: trials)
+                       }),
         // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
         // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
         // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools
