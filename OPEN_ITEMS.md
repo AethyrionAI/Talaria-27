@@ -187,6 +187,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
 - **#326** 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — same commit, 5/5 on one sim and 2 failures on another; it red-gated a clean tree and held a publish. The assertion adapts to the environment but hides a premise (that `Activity.request` succeeds whenever ActivityKit reports enabled). **Fourth distinct non-product failure signature seen 2026-08-11. NOT STARTED; bars 326-A..E pre-registered**
 - **#327** 🐛 A Stop in the RECONCILE WINDOW leaves in-flight tool activities UNMARKED, so a killed call renders `✓` — the marker block is gated on `streamingMessageID != nil`, which is `nil` for the whole window. **MEASURED on device 2026-08-11; NOT #296 reopening (the rail is right, the Stop path is wrong). It also exposed that #321's 321-C projection omitted tool state. Owen's marker ruling gates the lane; bars 327-A..E pre-registered**
+- **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -6915,22 +6916,33 @@ not a feature.**
 > absent and never as "CTX 0%". **The prior run's numbers were NOT held**,
 > which is the defect this item exists to remove.
 >
-> **⚠️ But it never showed THAT run's numbers either, and that is the
-> limitation this lane recorded in advance.** The turn was a host run on the
-> **sessions plane** (`HERMES` profile, KIMI-K3). Whether a sessions-plane run
-> id is addressable on `/v1/runs/{id}` was filed as **UNVERIFIED** at merge, and
-> this sitting is the first data point consistent with "it is not": a read that
-> 404s or returns no usage produces precisely the absent gauge seen here.
-> **So on the plane the phone actually uses, the feature may be delivering its
-> failure arm every time — honest, and a no-op.** That is not a falsification of
-> any bar (322-B's failure arms are met by an absent gauge) and it is not a
-> defect; it is a live probe now worth running, because the difference between
-> "correct" and "correct and useless" is one HTTP call.
+> **⚠️ CORRECTED THE SAME EVENING — the first version of this paragraph got the
+> MECHANISM wrong, and the code is more definite than the guess.** It read this
+> as "the first data point consistent with a sessions-plane run id not being
+> addressable on `/v1/runs/{id}` — a 404 producing the absent gauge", and
+> proposed a probe to settle it. **No probe is needed and there is no 404.**
+> `SessionsHermesClient.activeRunID` is `activeRunContext?.runID`
+> (`SessionsHermesClient+RunsTransport.swift:1281`), and `activeRunContext`
+> exists **only for turns taken on the `/v1/runs` transport** (#283 slice 3A,
+> behind the Developer switch). Owen's turn was an ordinary sessions
+> `chat/stream` turn, so there is **no run id in the first place** — nothing is
+> requested, nothing 404s, and `finalRunUsage` is never called. The protocol's
+> own default says it outright: *"nil is HONEST rather than a gap: a plane
+> [without run ids] …"*.
 >
-> **The probe, for whoever runs it:** take a run id minted by the sessions plane
-> and `GET /v1/runs/{id}` against `:8642` directly. If it 404s, this item's
-> value is confined to the runs plane (#283's transport) and the entry should
-> say so where a reader will hit it.
+> **What that means for this item, stated plainly where a reader will hit it:**
+> #322 operates **only when the runs transport is on.** On the default sessions
+> plane it is a permanent no-op — correct, honest, and delivering nothing,
+> because there is nothing to read. That is not a defect in this lane and no bar
+> is falsified (322-B's failure arms are exactly an absent gauge); it is a scope
+> fact that was not written down, and the value of this item is therefore tied
+> to #283's rollout rather than standing alone.
+>
+> **The lesson is the one this file keeps re-learning:** an hour after merging
+> this lane I wrote a plausible mechanism into the tracker from a screenshot
+> instead of reading the client. It was wrong in a way no reader could have
+> caught without doing the read themselves, and it would have sent someone
+> chasing a 404 that never happens.
 
 
 ## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` — bars 321-A..F ALL MET, RED witnessed by restoring `ChatStore.swift` to its `5c8fed7` bytes (34 tests / 2 suites, 35 issues); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #322. NOT MERGED — awaiting review.**
@@ -7297,6 +7309,21 @@ this joins).
 > **📱 DEVICE SITTING 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`) —
 > 321-B PASSES ON DEVICE, AND 321-C IS QUALIFIED BY THE SAME RUN.**
 >
+> **✅ RULING (a)'s DECIDING FACT IS CONFIRMED ON THE REAL PATH — and it is
+> confirmed for a reason that couples it to a defect.** The ruling rested on
+> *"abandoning the reconcile does not burn a host-side answer — a run that
+> completed anyway still arrives through the normal transcript merge on a later
+> fetch"*, which was ARGUED, never measured. Measured now: Owen stopped a
+> `sleep 90 && echo Done` in the window, saw no answer, reopened the thread, and
+> **the completion was there.** Nothing was lost.
+>
+> **⚠️ Read the two facts together before "improving" anything.** The answer
+> survived precisely BECAUSE the host was never stopped — on the sessions plane
+> `hardStopActiveRun()` guard-returns and no stop is sent (see **#328**). A
+> future lane that makes the window Stop genuinely hard-stop the host would
+> silently invalidate the deciding fact this ruling stands on. If that lane
+> happens, ruling (a) must be RE-PUT to Owen, not inherited.
+>
 > **321-B — CONFIRMED on device.** After a Stop taken in the reconcile window
 > the composer was free and a new message sent normally (*"Yes. I was able to
 > send Hi and got a response"*). The ruled behaviour — abandon outright, free
@@ -7398,6 +7425,83 @@ slightly untrue. Three routes, none picked:
 **#278** (the window itself), **#180** (honest degradation — a control that
 reports success for work that was killed is squarely in this family),
 **#203** (the stall hint that tells the user to press Stop).
+
+## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. NOT STARTED; bars pre-register here before any code.**
+
+**Measured, not inferred.** Owen ran `sleep 90 && echo Done` on the `HERMES`
+profile (KIMI-K3, ordinary sessions `chat/stream`), lost the stream, and pressed
+Stop in the reconcile window. The composer freed (#321 working). Ninety seconds
+later, nothing. He reopened the thread and **the completion was sitting there** —
+the agent had run the whole command and answered. His words: *"going back into
+the thread, I get the completion message to the sleep 90."*
+
+**The mechanism, one line.**
+
+```swift
+func hardStopActiveRun() {
+    guard let context = activeRunContext else { return }   // ← the whole story
+```
+
+`activeRunContext` is set **only for turns taken on the `/v1/runs` transport**
+(#283 slice 3A, behind a Developer switch). Every ordinary sessions
+`chat/stream` turn — the default, the one the phone uses — has none, so the
+guard returns and **no stop request is ever sent to the host.** `cancelStreaming`
+still does its local work (task cancellation, routing lock, Live Activity,
+speech, `pendingRun`), which is why the UI looks like it obeyed.
+
+**This is not a regression and #321 did not cause it.** It is the pre-existing
+shape of the sessions plane, made visible by #321 putting a Stop control in
+front of the reconcile window for the first time. #304 proved
+`POST /v1/runs/{id}/stop` is a REAL hard interrupt, device-proven, host logging
+`exit_code 130` / `interrupted_by_user` — **that capability exists only on the
+plane we are not using by default.**
+
+**Why it matters beyond tidiness.** Owen's own ruling on #321 was *"Stop means
+STOP"*, and one extra tap was accepted as the price of that. On the default
+plane the guarantee is not delivered: the host keeps computing, keeps spending
+tokens against a paid provider, and keeps any side effects its tools were mid-way
+through. A user who stops a runaway (#225's 64-call spiral is the shape) has not
+stopped it.
+
+**⚠️ THE COUPLING THAT MUST NOT BE MISSED — this defect is currently holding up
+another ruling.** #321's ruling (a) rests on the deciding fact that abandoning
+the window does not burn a host-side answer, and that fact is TRUE TODAY ONLY
+BECAUSE the host is never stopped. Owen's `Done` arrived for exactly this
+reason. **Fixing #328 makes that answer stop arriving.** The two cannot be
+decided separately, and #321's entry now carries the same warning.
+
+**⚖️ OWEN'S CALL, and it is a genuine product question, not a bug triage:**
+1. **Make Stop reach the host on the sessions plane** — if the plane offers any
+   interrupt at all. Requires a route probe first: there is no known stop
+   endpoint for `chat/stream` in the 37-route table, so this may be
+   **impossible without #283's transport**, which would make it a reason to
+   accelerate that rollout rather than a fix in itself.
+2. **Say what is true instead.** Stop keeps its local meaning and the UI stops
+   implying more — the honest-degradation answer, cheap, and it makes the
+   limitation legible where the user meets it.
+3. **Both**, sequenced: (2) now, (1) with #283.
+
+**BARS — pre-registered 2026-08-11, before any code, and deliberately thin
+because the shape depends on the ruling above.**
+- **328-A — the route question answered by PROBE, not by reading.** Does
+  `:8642` expose any interrupt for a `chat/stream` turn? Probe live against a
+  real session; a negative is a finding and settles route 1's feasibility.
+  (Read `_http_route_table()` first — never claim a `:8642` route from a
+  `web_server.py` grep.)
+- **328-B — RED witnessed for whichever route is chosen.** For (1): a stopped
+  sessions turn leaves the host NOT completing. For (2): the surface stops
+  claiming a host stop, pinned in a test rather than by eye.
+- **328-C — #321's ruling (a) is RE-PUT to Owen in the same lane if route 1 is
+  taken**, with the coupling in view. It is not inherited.
+- **328-D — the runs plane is untouched.** #304's real hard stop and its
+  device-proven behaviour re-run green.
+- **328-E — `GATE: PASS`**, count moved.
+
+**Cross-references:** **#321** (surfaced it; its deciding fact is coupled to
+this), **#304** (the real hard stop, runs plane only), **#283** (the transport
+that would carry it), **#225** (the runaway this would have to stop),
+**#180** (honest degradation), **#327** (the other thing that window Stop does
+not do), **#223** (the plane-consolidation arc this argues into).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
