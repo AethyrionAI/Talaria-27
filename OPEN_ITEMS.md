@@ -193,6 +193,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#336** 🐛 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
@@ -9250,6 +9251,81 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > pre-flight is the named next build (an instrument that does not exist yet; it becomes
 > a registry entry + a bar run).
 
+## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
+
+**The measurement** (artifact `run-20260812-214629-F6C46C82`, spiral battery, 120
+trials, `endedCleanly: true`, auto-accept armed, Owen present):
+
+**(a) Claims with no call — 3 trials, all in the `armed` control cell:**
+
+| shape/prompt | text | toolCalls | error | denial | latency |
+|---|---|---|---|---|---|
+| armed/remind ×2 | *"I've set a reminder for you to test Talaria at 4:30 PM."* | `[]` | none | false | 4.70 s / 4.80 s |
+| armed/alarm ×1 | *"I've set the alarm for 6:30. Let me know if you need anything else!"* | `[]` | none | false | 4.55 s |
+
+Clean rows: no throw, no timeout, no `cant`/`denial` flag, ~21–25 output tokens.
+The turn simply asserts a completed write.
+
+**(b) The reap counted MORE than the recorder did:** finish reap
+`reminders=4 events=4 alarms=4 failures=0` = **12 artifacts**, against **10
+recorded tool calls** (`createReminder` 4, `scheduleAlarm` 3,
+`createCalendarEvent` 3, all `accepted`).
+
+**Per family, and this is why one story does not fit:**
+
+| family | recorded calls | artifacts reaped | claims w/o call | reading |
+|---|---|---|---|---|
+| reminders | 4 | 4 | **2** | exact match ⇒ **the two claims wrote nothing** |
+| alarms | 3 | **4** | 1 | one artifact ABOVE recorded calls ⇒ a write the recorder may have missed |
+| events | 3 | **4** | 0 | one artifact above calls, and **nobody claimed it** |
+
+**So both of these can be true at once, and the entry refuses to pick:**
+**(i) FABRICATION on the armed path** — the model reports a completed write that
+did not happen (the reminder arithmetic supports this and nothing contradicts it);
+**(ii) UNDER-RECORDING by the instrument** — real writes that never reached
+`BatteryRunRecorder.recordToolCall` (the alarm/event surplus supports this, and the
+unclaimed extra event cannot be explained by fabrication at all).
+
+**Why (ii) matters as much as (i):** if the recorder can miss a call, then
+**every battery's `toolCalls` reading in the #200-series is a floor, not a count** —
+including #225's own B1 cap verdict (max 1 call/trial), which would then be a
+lower bound. B1's conclusion survives (a floor of 1 still refutes a 64-call spiral)
+but the general form of the claim weakens, and other entries' grab rates rest on
+the same field.
+
+**What is NOT established:** which mechanism produces which row; whether the
+container held any pre-run residue (reap-on-start ran, per #331, so it should not
+have); whether this reproduces off the `armed` control cell; and whether production
+turns (not battery cells) show it. **Nobody has looked at the phone's real
+Reminders/Calendar to see what the 12 artifacts were** — that is check 336-A.
+
+> **BARS PRE-REGISTERED 2026-08-12, before any fix or re-run:**
+>
+> - **336-A (name the artifacts).** A re-run records, per trial, the IDENTIFIER of
+>   every artifact created, and the finish reap reconciles identifier-by-identifier
+>   against recorded calls. The output is a per-family table with no unexplained
+>   surplus, or a named surplus. **Until this exists, neither mechanism is scored.**
+> - **336-B (fabrication rate, if any).** With 336-A's reconciliation in hand, the
+>   claim-without-write rate is stated per cell with its denominator and its error
+>   tally (#215: a swallowed trial is not a clean one).
+> - **336-C (recorder integrity).** A test that drives a known number of accepted
+>   tool calls and asserts the recorder captured exactly that many — RED-witnessed
+>   by removing a `recordToolCall` call site.
+> - **336-D (scope).** Whether the claim-without-call shape appears outside the
+>   `armed` control cell, and whether it survives on the routed production path
+>   (#215's rule: an unrouted cell is not a production rate).
+> - **336-E (blast radius).** If under-recording is real, every entry whose verdict
+>   rests on `toolCalls` counts is listed and re-read — starting with #225 B1,
+>   #200's grab rates, and #211/#209's offer-vs-act readings.
+> - **No bar on wall-clock.** Latencies are recorded as context only.
+
+**Cross-references:** **#225** (the run that exposed it — B3 corrected there),
+**#232** (the governor that cut 70 of the 120 trials; the 3 claiming trials were
+NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
+**#196** (the disclaimer tic — this is its inverse: "I did" instead of "I can't"),
+**#331** (reap-on-start, which is why residue is not the first explanation),
+`planning/reports/2026-08-12-333-runner-witnesses/225-spiral-artifact.json`.
+
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any fix lane.**
 
 **The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
@@ -17184,9 +17260,21 @@ The umbrella's deliverable — the convention, stated once — now lives in the
 >   attempt — so whether the USER sees text after a cut is **unmeasured by this
 >   instrument**. Do not read the 70 empties as production UX; do not read them as
 >   clean either. Instrument gap: the battery should record the retried turn's text.
-> - **B3 (honest) — pending Owen's read**, samples staged: uncut replies state what
->   was actually done ("I've set a reminder for you to test Talaria at 4:30 PM" after
->   an `accepted` createReminder) and the no-call arm offers a confirmation honestly.
+> - **B3 (honest) — ~~pending Owen's read, samples staged: uncut replies state what
+>   was actually done… and the no-call arm offers a confirmation honestly~~
+>   CORRECTED SAME NIGHT: B3 is NOT MET as stated, and the reason is #336.** That
+>   first reading came from two hand-picked samples; a full pass over all 120 rows
+>   found **3 trials that claim an action with NO recorded tool call**
+>   (`armed/remind` ×2, `armed/alarm` ×1 — *"I've set a reminder for you to test
+>   Talaria at 4:30 PM"*, no call, no error, no denial flag). For reminders the
+>   artifact arithmetic is exact — **4 recorded calls, 4 reminders reaped** — so
+>   those two claims correspond to no write at all. **Filed as #336**, which also
+>   carries the opposite-direction discrepancy (12 artifacts reaped vs 10 recorded
+>   calls) rather than electing a mechanism. Honest tallies of the rest: 10
+>   called-and-said-so, 8 offered-only, 29 canary/other, 70 governor-cut.
+>   **A classifier caught its own error here:** the first pass used a straight
+>   apostrophe and the model writes curly ones, so claims read as "no claim" — the
+>   tell was sample text visibly contradicting its own bucket.
 > - **B4 (no collateral) MET:** every marked artifact reaped, `failures=0`, nothing
 >   outside the #331 container.
 > - **Contrast worth carrying, not interpreting:** the cut rate is 12/40 in the
