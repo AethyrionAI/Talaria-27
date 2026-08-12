@@ -7292,7 +7292,7 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 - **Gate:** `scripts/mac/lane-gate.sh` green (Debug suite + Release build) with a dedicated `TALARIA_SIM_NAME`, and Calendar + Reminders TCC granted before the run.
 
 **Cross-references:** **#320** (the lane that measured this and routed around it for one badge; its close-out points here), **#49** (the data-driven palette catalog — the reason a fix is data and not switch arms, and the file this entry deliberately did not edit), **#18** (the no-silent-substitution rule whose `LOCAL VOICE` badge is the worst-affected surface — cited the way the surrounding code and #180's 180-D use the number; note that **tracker** item 18 in `OPEN_ITEMS-ARCHIVE.md` is the session-shelf scrim, so this is the GitHub-sequence collision CLAUDE.md warns about), **#112** (Midnight Marquee — ships three of the seven failing palettes and the adaptive Comic Book theme that reaches one of them automatically), **#84** (the mic-health hint, one of the affected surfaces), **#180** (honest degradation — a warning the user cannot read is the family's shape, arriving through the design system rather than through copy).
-## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is ~~SIMULATOR-DEPENDENT~~ **CONTENTION-DEPENDENT** — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. → ✅ WORKED SAME DAY: 326-A/B/C/D MET, no production code touched. CORRECTED BY ITS OWN LANE: the two sims are indistinguishable on this axis (identical readings, both formerly-failing tests pass on both), and the measured mechanism is a five-slot ActivityKit budget shared PER APP across every suite in one parallel test host — a per-RUN condition, not a per-SIM one. `Activity.request` is the side that diverges; `areActivitiesEnabled` reads `true` everywhere measured. Full readings + the discarded inherited design in the WORKED block below.**
+## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is ~~SIMULATOR-DEPENDENT~~ **CONTENTION-DEPENDENT** — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. → ✅ WORKED + CLOSED SAME DAY: **326-A/B/C/D/E ALL MET, `GATE: PASS — 2116 tests / 161 suites` (count deliberately unmoved; no tests added), no production code touched.** CORRECTED BY ITS OWN LANE: the two sims are indistinguishable on this axis (identical readings, both formerly-failing tests pass on both), and the measured mechanism is a five-slot ActivityKit budget shared PER APP across every suite in one parallel test host — a per-RUN condition, not a per-SIM one. `Activity.request` is the side that diverges; `areActivitiesEnabled` reads `true` everywhere measured. Full readings + the discarded inherited design in the WORKED block below.**
 
 **What happened.** The final combined gate on merged `main` (`d470c0d`) returned
 `GATE: FAIL (4 checks)` on `CC-320-iPhone-Air`:
@@ -7472,8 +7472,11 @@ this joins).
 > without the other. Second, under it the tests **PASS on a host that refuses
 > to vend**, so the suite quietly stops proving that a throwaway activity
 > appears at all — which is 250T-B's actual content — and **nothing in the
-> gate output says so**. A visible skip is worth more than a green that has
-> gone hollow. Its companion test (fill the budget with a foreign attributes
+> gate output says so**. Put plainly, and this is the part worth carrying to
+> the next lane that reaches for the same move: **it is a change that REMOVES
+> COVERAGE WHILE LOOKING LIKE IT ADDS IT** — more production state, more
+> assertions, more green, less proven. A visible skip is worth more than a
+> green that has gone hollow. Its companion test (fill the budget with a foreign attributes
 > type, assert the new equality) came out with it: **it holds all five slots
 > of a process-global resource for the length of its body inside a parallel
 > test host**, which is precisely the starvation it documents, and it would
@@ -7503,9 +7506,42 @@ this joins).
 >   `LiveActivityService.endAllActivities()`, which ends **every** activity of
 >   our type in the process — including ones another suite's `ChatStore` is
 >   mid-use of. It predates this lane and nothing currently asserts on those,
->   so it is a live hazard rather than a live defect.
+>   so it is a live hazard rather than a live defect. **A HYPOTHESIS, flagged
+>   as unproven so nobody later cites it as a result:** cross-suite ActivityKit
+>   interference of this kind — a five-slot budget plus a drain that reaches
+>   into other suites' activities — is a candidate mechanism for some flakes
+>   this project has attributed to machine load. It would look exactly like
+>   load does: intermittent, whole-run-dependent, gone when the suite is run
+>   alone. **Nothing here measures that**, and #326-A's own experience is the
+>   warning: the plausible-and-tidy explanation for the CC-320 red was the
+>   simulator, and it was wrong.
 >
-> **326-E — see the gate block below.**
+> **326-E — MET.**
+>
+> ```
+> GATE: PASS — logs in .../scratchpad/gate1
+>   Swift Testing tests run — 2116   (Test run with 2116 tests in 161 suites passed)
+>   XCUITest tests run — 14
+>   Release build succeeded, no Swift compile errors
+>   2 test(s) SKIPPED — the known-permanent CondenserFidelity pair, and only that pair
+> ```
+>
+> On `CC-321-iPhone-Air` (`86DCEFF3-8D8D-4C58-B7F5-50ED3BB98026`), TCC calendar
+> + reminders re-granted after boot, at `4a44a86`. **The count did NOT move —
+> 2116/161 before and after — and that is the correct result here**, because
+> this lane added no tests and renamed none; the two throwaway probes were
+> deleted before the fix commit. Since an unmoved count is also the
+> stale-binary signature, it was discriminated rather than assumed: the suite
+> log shows `SwiftCompile normal arm64 …/ThrowawayLiveActivityHarnessTests.swift`
+> in this run, so the edited file really was rebuilt.
+>
+> **All five tests in the suite PASSED and none of them skipped** — so on this
+> host the `.enabled` conditions measured a vend and the tests ran for real;
+> the new skip path was not exercised by this gate and remains proven only by
+> construction. **The ActivityKit state this green covers:** iOS 27.0 sim,
+> `areActivitiesEnabled = true`, a free slot measured immediately before each
+> tap. A future reader comparing against this run should read it as "the
+> unstarved state", which is the whole reason the state is written down.
 >
 > **The ActivityKit state of every run in this block, so a future green is
 > interpretable:** both sims iOS 27.0 sim runtime under Xcode-beta5,
