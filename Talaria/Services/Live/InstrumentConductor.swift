@@ -14,6 +14,16 @@ import UIKit
 /// iPad (Shelley's-device rule, enforced by hardware class rather than by
 /// trusting the caller). A refusal still writes an artifact naming the reason,
 /// so the harness reads REFUSED rather than timing out.
+///
+/// **`completed` MEANS "a new `BatteryRunRecord` exists and is embedded"**
+/// (review fix, post-Task-4): `spec.run` can return having done nothing —
+/// `LocalChatBackend.beginBatteryRun()`'s mutex refuses a second concurrent
+/// battery, or a legacy caller races one in — and a conductor that reported
+/// `.completed` on the strength of "the closure returned" would hand the
+/// harness a false positive for the one signal it exists to make trustworthy.
+/// So completion is verified, not assumed: the run-store's newest id is
+/// sampled before and after `spec.run`, and only a NEW record earns
+/// `.completed`; no new record is `.failed` with a reason naming the mutex.
 @MainActor
 final class InstrumentConductor {
     private let confirmationCenter: ToolConfirmationCenter
@@ -21,17 +31,25 @@ final class InstrumentConductor {
     private let artifactWriter: InstrumentArtifactWriter
     private let idiom: UIUserInterfaceIdiom
     private let env: [String: String]
+    /// #333 fix (review finding): the store-read seam. Defaulted to the real
+    /// store so production callers say nothing; tests inject a closure that
+    /// can simulate "the instrument ran but no record appeared" — the
+    /// `beginBatteryRun()` mutex-refusal / recorder-bypass case a plain
+    /// completion would otherwise lie about.
+    private let loadRuns: @MainActor () -> [BatteryRunRecord]
 
     init(confirmationCenter: ToolConfirmationCenter,
          backend: LocalChatBackend?,
          artifactWriter: InstrumentArtifactWriter = InstrumentArtifactWriter(directory: InstrumentArtifactWriter.defaultDirectory),
          idiom: UIUserInterfaceIdiom = UIDevice.current.userInterfaceIdiom,
-         env: [String: String] = ProcessInfo.processInfo.environment) {
+         env: [String: String] = ProcessInfo.processInfo.environment,
+         loadRuns: @escaping @MainActor () -> [BatteryRunRecord] = { LocalChatBackend.batteryRunStore.loadRuns() }) {
         self.confirmationCenter = confirmationCenter
         self.backend = backend
         self.artifactWriter = artifactWriter
         self.idiom = idiom
         self.env = env
+        self.loadRuns = loadRuns
     }
 
     @discardableResult
@@ -78,12 +96,13 @@ final class InstrumentConductor {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
-        let priorNewestID = LocalChatBackend.batteryRunStore.loadRuns().first?.id
+        let priorNewestID = loadRuns().first?.id
         await spec.run(backend, trials, cells)
-        if let newest = LocalChatBackend.batteryRunStore.loadRuns().first, newest.id != priorNewestID {
+        if let newest = loadRuns().first, newest.id != priorNewestID {
             envelope.runRecord = newest
+            return finish(.completed)
         }
-        return finish(.completed)
+        return finish(.failed, reason: "instrument produced no run record — battery mutex refusal or recorder bypass")
     }
 }
 #endif
