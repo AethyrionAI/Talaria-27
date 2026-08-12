@@ -59,6 +59,22 @@ extension LocalChatBackend {
             deviceContext: deviceContext, date: date, hasImageTools: hasImageTools))
     }
 
+    /// The three ACTION prompts every #200-series and #337 number is
+    /// denominated in — `runActionBattery`'s default set, hoisted out of that
+    /// function so the #337 instruments can ride the SAME strings rather than
+    /// a copy of them.
+    ///
+    /// A copy would have been the obvious move and it is the one that goes
+    /// wrong: #215's `routedTrialShape` exists because a battery kept speaking
+    /// a text production had stopped speaking, and a duplicated prompt list
+    /// fails the same way silently — two instruments reporting rates on
+    /// "the action prompts" that are not the same prompts.
+    nonisolated static let actionBatteryDefaultPrompts: [(tag: String, text: String)] = [
+        ("remind", "Remind me to test Talaria at 4:30pm"),
+        ("alarm", "Set an alarm for 6:30"),
+        ("calendar", "Put lunch with Sam on my calendar Friday at noon"),
+    ]
+
     /// The fourth battery's cell list (#196 cure lane): control, the two
     /// payload candidates, and the routed production candidate. Battery-3's
     /// decomposition cells and battery-2's treatment cells stay in the enum
@@ -744,11 +760,7 @@ extension LocalChatBackend {
         // has ever exercised `readHealth` or `currentWeather` end to end.
         // `promptSet` lets a lane supply its own; the default is unchanged, so
         // every existing button keeps its pinned denominator.
-        var prompts: [(tag: String, text: String)] = promptSet ?? [
-            ("remind", "Remind me to test Talaria at 4:30pm"),
-            ("alarm", "Set an alarm for 6:30"),
-            ("calendar", "Put lunch with Sam on my calendar Friday at noon"),
-        ]
+        var prompts: [(tag: String, text: String)] = promptSet ?? Self.actionBatteryDefaultPrompts
         if includeGrabCanary, promptSet == nil {
             prompts.append(("haiku", "Write a haiku about sledding"))
         }

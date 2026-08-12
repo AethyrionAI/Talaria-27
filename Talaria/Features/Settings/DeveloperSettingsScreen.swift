@@ -1018,6 +1018,14 @@ struct DeveloperSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("cross-chat-recall-probe", trials: 2, label: "Cross-chat recall routing A-1 (n=20)")
                 }
+                // #337 bar 337-D: what the refusals that trigger #232's cut
+                // actually SAY, verbatim, plus the post-cut toolless retry's
+                // text (#225 B2's gap). Auto-DECLINE — nothing is written, so
+                // no grants and nothing to reap. Two cells x 3 prompts x n.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("refusal-words", trials: 10,
+                                     label: "Refusal words (#337-D) n=10 (60)")
+                }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
                 }

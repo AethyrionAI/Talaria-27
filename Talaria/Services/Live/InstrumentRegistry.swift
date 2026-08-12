@@ -697,6 +697,33 @@ enum InstrumentRegistry {
                            await backend.runHonestyBattery(
                                 trials: trials, cells: LocalChatBackend.honestyV2BatteryCells)
                        }),
+        // #337 bar 337-D — the refusal-words instrument. #232 filed the grind
+        // and #337 measured its rate (69/90, 74/90) without either ever
+        // recording what a refusal SAYS. Captures each refusal verbatim with
+        // the governor counters that produced it, whether the cut fired, and
+        // — bar 337-B / #225 B2's named instrument gap — the POST-CUT toolless
+        // retry's text, so a cut trial stops reading as an empty row.
+        //
+        // Two cells, differing in ONE line: `turn-reset` calls
+        // `relay.beginTurn()` before every trial, which is what production's
+        // two send loops do; `leaked` calls it once per cell, which is what
+        // `runActionBattery`'s trial loop does today (it never calls it at
+        // all). Read #337's cut rates against that contrast.
+        //
+        // Surface: auto-DECLINE, so nothing is written — a declined call is
+        // still an EXECUTED call as far as the governor is concerned, which is
+        // the whole mechanism this measures, so the grind is fully reachable
+        // without arming a single write. That is what makes it
+        // unattended-eligible; the cost is that trials where the model DOES
+        // call a tool then reason about a decline, and the row records
+        // `toolCallsAdmitted` so those can be partitioned out.
+        // Button: `instrumentButton("refusal-words", …)`.
+        InstrumentSpec(name: "refusal-words", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runRefusalWordsInstrument(trials: trials)
+                       }),
     ]
 
     static func spec(named name: String) -> InstrumentSpec? {
