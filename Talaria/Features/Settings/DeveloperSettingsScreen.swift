@@ -985,7 +985,7 @@ struct DeveloperSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("capability-detection-probe", trials: 10, label: "Capability detection (#257) (350)")
                 }
-                // #334 A: #257's owed pre-flight — what the two-field
+                // #335 A: #257's owed pre-flight — what the two-field
                 // capability router's payload COSTS on the device's own
                 // tokenizer, outside any turn, against the caps read from the
                 // production constants. No generation, nothing created. `n`
@@ -995,7 +995,7 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("tokencount-preflight", trials: 3,
                                      label: "Token-count pre-flight (#257) (n=3)")
                 }
-                // #334 B: #324-W3's three device-only FM questions — the
+                // #335 B: #324-W3's three device-only FM questions — the
                 // 4096-vs-8192 tokenCount boundary, the new beta5
                 // `variant.displayName`, and throw-vs-truncate under a binding
                 // response cap. Read-only; one beltless generation in the
@@ -1004,7 +1004,7 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("fm-asymmetries", trials: 3,
                                      label: "FM asymmetries (#324-W3) (n=3)")
                 }
-                // #334 C: #210's residual — does ONE forced condensation get an
+                // #335 C: #210's residual — does ONE forced condensation get an
                 // over-8,192 transcript back under the window? Production's own
                 // condenser, a synthetic overflow transcript, nothing written
                 // and nothing generated.

@@ -308,7 +308,7 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     #if DEBUG
-    /// #334 `// harness-visible`: put the #30 escalation-offer flag back where
+    /// #335 `// harness-visible`: put the #30 escalation-offer flag back where
     /// the instrument found it.
     ///
     /// `condensation-fit` calls production's own condenser, and arming this
@@ -1108,7 +1108,7 @@ final class LocalChatBackend: HermesClientProtocol {
         let condensedMemory: String?
     }
 
-    /// **Widened from `private` by #334 — `// harness-visible`, private in
+    /// **Widened from `private` by #335 — `// harness-visible`, private in
     /// spirit.** Swift's `private` is FILE-scoped and the `condensation-fit`
     /// instrument lives in `LocalChatBackend+Preflight.swift`; this is the ONE
     /// seam that lets a SYNTHETIC transcript into production's real condenser,

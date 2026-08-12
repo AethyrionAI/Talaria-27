@@ -141,7 +141,7 @@ struct RouterProbeRecord: Codable, Equatable {
     /// "NOT RECORDED" line, which reports unsampled rows rather than counting
     /// them clean. A deterministic row that cannot throw passes `errors: 0`.
     var errors: Int? = nil
-    /// #334: named NUMERIC measurements for the read-only FM instruments —
+    /// #335: named NUMERIC measurements for the read-only FM instruments —
     /// token counts, the cap a count must fit under, computed headroom,
     /// ratios, `contextSize`.
     ///
@@ -152,7 +152,7 @@ struct RouterProbeRecord: Codable, Equatable {
     /// verdict depends on it, it belongs in the record) with #213's corollary
     /// attached: **nil means NOT MEASURED, never zero.**
     var metrics: [String: Double]? = nil
-    /// #334: named STRING measurements — the model variant's `displayName`,
+    /// #335: named STRING measurements — the model variant's `displayName`,
     /// the class of a thrown error, which of two behaviours a band observed.
     /// Same nil-means-not-measured rule as `metrics`.
     var notes: [String: String]? = nil

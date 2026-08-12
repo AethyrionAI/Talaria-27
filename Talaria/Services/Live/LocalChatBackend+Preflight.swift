@@ -3,7 +3,7 @@ import FoundationModels
 import UIKit
 import os
 
-// #334: the READ-ONLY FoundationModels measurement instruments — the three
+// #335: the READ-ONLY FoundationModels measurement instruments — the three
 // that measure the MODEL rather than its behaviour on prompts.
 //
 // They live here rather than in `LocalChatBackend+Battery.swift` because they
@@ -25,7 +25,7 @@ import os
 #if DEBUG
 extension LocalChatBackend {
 
-    // MARK: - #334 shared measurement plumbing
+    // MARK: - #335 shared measurement plumbing
 
     /// One measurement taken `repeats` times, with the FAILURE PATH COUNTED
     /// rather than swallowed.
@@ -107,10 +107,10 @@ extension LocalChatBackend {
             metrics: metrics, notes: notes.isEmpty ? nil : notes)
     }
 
-    // MARK: - #334 A: `tokencount-preflight` (#257's mandatory pre-flight)
+    // MARK: - #335 A: `tokencount-preflight` (#257's mandatory pre-flight)
 
     /// #257's **MANDATORY PRE-FLIGHT — the `21F0C10D` gate**, finally
-    /// instrumented (#334).
+    /// instrumented (#335).
     ///
     /// #257 queued this before any capability-detection run and it has been
     /// owed since: *"measure the two-field schema's real cost with
@@ -153,7 +153,7 @@ extension LocalChatBackend {
         defer { Self.endBatteryRun() }
         let repeats = max(1, trials)
         let model = self.model
-        Self.batteryEmit("preflight: TOKENCOUNT PREFLIGHT START repeats=\(repeats) (#257/#334)")
+        Self.batteryEmit("preflight: TOKENCOUNT PREFLIGHT START repeats=\(repeats) (#257/#335)")
         Self.batteryRecorder.beginRun(trialsPerCell: repeats,
                                       cells: ["tokencount-preflight"],
                                       kind: "tokencount-preflight")
@@ -243,11 +243,11 @@ extension LocalChatBackend {
                              band: "response-cap", variant: "one-field", cap: oneFieldCap,
                              notes: ["json": oneFieldResponse])
 
-        Self.batteryEmit("preflight: TOKENCOUNT PREFLIGHT DONE (#257/#334)")
+        Self.batteryEmit("preflight: TOKENCOUNT PREFLIGHT DONE (#257/#335)")
         Self.batteryRecorder.endRun()
     }
 
-    // MARK: - #334 B: `fm-asymmetries` (#324-W3)
+    // MARK: - #335 B: `fm-asymmetries` (#324-W3)
 
     /// The filler sentence the boundary band is built from. Pinned and
     /// deterministic — a random or lorem payload would make two runs of the
@@ -284,7 +284,7 @@ extension LocalChatBackend {
     /// malformed results" warning needs before it means anything.
     nonisolated static let responseCapProbeCap = 8
 
-    /// #334 B / #324-W3 — the three FoundationModels behaviours the beta5 SDK
+    /// #335 B / #324-W3 — the three FoundationModels behaviours the beta5 SDK
     /// audit could not settle off-device, each its own labeled band.
     ///
     /// The audit's own words on why this needs hardware: on the simulator
@@ -327,7 +327,7 @@ extension LocalChatBackend {
         defer { Self.endBatteryRun() }
         let repeats = max(1, trials)
         let model = self.model
-        Self.batteryEmit("preflight: FM ASYMMETRIES START repeats=\(repeats) (#324-W3/#334)")
+        Self.batteryEmit("preflight: FM ASYMMETRIES START repeats=\(repeats) (#324-W3/#335)")
         Self.batteryRecorder.beginRun(
             trialsPerCell: repeats,
             cells: ["boundary", "variant", "response-cap-behavior"],
@@ -442,11 +442,11 @@ extension LocalChatBackend {
             errors: threwCount + timedOutCount,
             metrics: capMetrics, notes: capNotes)
 
-        Self.batteryEmit("preflight: FM ASYMMETRIES DONE (#324-W3/#334)")
+        Self.batteryEmit("preflight: FM ASYMMETRIES DONE (#324-W3/#335)")
         Self.batteryRecorder.endRun()
     }
 
-    // MARK: - #334 C: `condensation-fit` (#210's residual)
+    // MARK: - #335 C: `condensation-fit` (#210's residual)
 
     /// #210's recorded ceiling — the device said *"Provided 8,583 tokens, but
     /// the maximum allowed is 8,192"*. Pinned as the verdict line so the
@@ -474,7 +474,7 @@ extension LocalChatBackend {
         }
     }
 
-    /// #334 C / #210 — **does one forced condensation actually get an
+    /// #335 C / #210 — **does one forced condensation actually get an
     /// over-budget conversation back under the window?**
     ///
     /// #210's own *Still owed*, verbatim: *"the condensation budget itself is
@@ -519,7 +519,7 @@ extension LocalChatBackend {
         let turns = Self.condensationOverflowTranscript()
         let contextSize = model.contextSize
         let budget = max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
-        Self.batteryEmit("preflight: CONDENSATION FIT START repeats=\(repeats) turns=\(turns.count) ceiling=\(ceiling) contextSize=\(contextSize) budget=\(budget) tier=\(activeTier.rawValue) (#210/#334)")
+        Self.batteryEmit("preflight: CONDENSATION FIT START repeats=\(repeats) turns=\(turns.count) ceiling=\(ceiling) contextSize=\(contextSize) budget=\(budget) tier=\(activeTier.rawValue) (#210/#335)")
         Self.batteryRecorder.beginRun(trialsPerCell: repeats,
                                       cells: ["condensation-fit"],
                                       kind: "condensation-fit")
@@ -650,7 +650,7 @@ extension LocalChatBackend {
                     ? "NO TRIAL ARMED — #210's residual stays open; this run scores nothing"
                     : (fittingTrials == armedTrials ? "every armed trial fit" : "at least one armed trial did NOT fit")])
 
-        Self.batteryEmit("preflight: CONDENSATION FIT DONE (#210/#334)")
+        Self.batteryEmit("preflight: CONDENSATION FIT DONE (#210/#335)")
         Self.batteryRecorder.endRun()
     }
 }

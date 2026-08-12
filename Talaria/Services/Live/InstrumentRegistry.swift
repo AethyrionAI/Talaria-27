@@ -545,7 +545,7 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runCapabilityDetectionProbe(trials: trials)
                        }),
-        // #334 A — #257's MANDATORY PRE-FLIGHT (the `21F0C10D` gate), which
+        // #335 A — #257's MANDATORY PRE-FLIGHT (the `21F0C10D` gate), which
         // has been owed since the capability lane was routed. READ-ONLY in
         // the strongest sense available: tokenizer round trips ONLY, no
         // generation at all, no tools registered, nothing created or reaped.
@@ -571,7 +571,7 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runTokenCountPreflight(trials: trials)
                        }),
-        // #334 B — #324-W3's three device-only FM questions, one labeled band
+        // #335 B — #324-W3's three device-only FM questions, one labeled band
         // each. READ-ONLY: two bands are tokenizer round trips and the third
         // is a SINGLE plain generation with no tools registered and no
         // confirmation reachable, so nothing can be created or reaped. The
@@ -597,7 +597,7 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runFMAsymmetriesProbe(trials: trials)
                        }),
-        // #334 C — #210's own "Still owed", made runnable: *"whether one
+        // #335 C — #210's own "Still owed", made runnable: *"whether one
         // forced condensation actually gets a real long-conversation turn
         // under 8,192 is a separate question and needs a measured run, not an
         // assumption."* READ-ONLY: no generation at all, no tools, nothing

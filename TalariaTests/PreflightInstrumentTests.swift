@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import Talaria
 
-/// #334: the read-only FM measurement instruments, tested STRUCTURALLY.
+/// #335: the read-only FM measurement instruments, tested STRUCTURALLY.
 ///
 /// Structural is not a compromise here, it is the only honest option: the
 /// simulator cannot generate at all (beta5 — an un-bridged
@@ -35,7 +35,7 @@ struct PreflightInstrumentRegistryTests {
     }
 }
 
-/// The record change #334 needed: two optional dictionaries on
+/// The record change #335 needed: two optional dictionaries on
 /// `RouterProbeRecord`. Additive-optional is a claim about DECODING as much
 /// as encoding — the store holds runs going back to #196 — so both directions
 /// are pinned here.
@@ -54,7 +54,7 @@ struct PreflightRecordShapeTests {
         #expect(decoded.metrics?["headroom"] == 107)
     }
 
-    /// A pre-#334 row carries neither field, and must still decode — with
+    /// A pre-#335 row carries neither field, and must still decode — with
     /// **nil, meaning NOT MEASURED**, never a zero that would read as a
     /// measurement of nothing (#213's distinction, applied to the new fields).
     @Test func legacyRowsWithoutMetricsStillDecode() throws {
@@ -100,7 +100,7 @@ struct PreflightInstrumentRunTests {
     /// back as "newest" and three assertions failed for a reason that had
     /// nothing to do with the instrument. A set difference names MY run
     /// whatever the clock did. (#333's conductor reads `first` — see the watch
-    /// note in OPEN_ITEMS #334; harmless there because separate launches are
+    /// note in OPEN_ITEMS #335; harmless there because separate launches are
     /// never a second apart, and named rather than left to be rediscovered.)
     private func idsOnDisk() -> Set<UUID> {
         Set(LocalChatBackend.batteryRunStore.loadRuns().map(\.id))

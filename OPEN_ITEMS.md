@@ -192,8 +192,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
-- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #334 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
-- **#334** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight` (#257's owed `21F0C10D` gate), `fm-asymmetries` (#324-W3's three device-only questions), `condensation-fit` (#210's "still owed" residual). All three `.none`/no-writes, so all three are unattended- and iPad-eligible. **BUILT sim+unit 2026-08-12; every number comes from the iPad runs, which have not happened.** Bars 334-A..H pre-registered before any run. ⚠️ `fm-asymmetries` references the new-in-beta5 `SystemLanguageModel.variant` — a beta4 iPad would die at DYLD LAUNCH, taking the other two runs with it
+- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight` (#257's owed `21F0C10D` gate), `fm-asymmetries` (#324-W3's three device-only questions), `condensation-fit` (#210's "still owed" residual). All three `.none`/no-writes, so all three are unattended- and iPad-eligible. **BUILT sim+unit 2026-08-12; every number comes from the iPad runs, which have not happened.** Bars 335-A..H pre-registered before any run. ⚠️ `fm-asymmetries` references the new-in-beta5 `SystemLanguageModel.variant` — a beta4 iPad would die at DYLD LAUNCH, taking the other two runs with it
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -9214,7 +9214,7 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 >
 > **Standing facts for the next runner session:**
 > - ~~**16 of 45 instruments are unattended-eligible**~~ → **19 of 48 as of 2026-08-12
->   (#334)**, which added three read-only FM measurement instruments
+>   (#335)**, which added three read-only FM measurement instruments
 >   (`tokencount-preflight`, `fm-asymmetries`, `condensation-fit`) — all `.none`, no
 >   writes, so all three are unattended- AND iPad-eligible. The original counts are
 >   struck rather than overwritten: they were true of the registry this entry shipped.
@@ -9237,7 +9237,7 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > pre-flight is the named next build (an instrument that does not exist yet; it becomes
 > a registry entry + a bar run).
 
-## 334. 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS — `tokencount-preflight` (#257's owed gate), `fm-asymmetries` (#324-W3), `condensation-fit` (#210's residual) — **FILED 2026-08-12, the day the #333 runner made them runnable. BARS BELOW PRE-REGISTERED BEFORE ANY RUN — the build is sim + unit only, by instruction; every number these produce comes from the iPad afterwards.**
+## 335. 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS — `tokencount-preflight` (#257's owed gate), `fm-asymmetries` (#324-W3), `condensation-fit` (#210's residual) — **FILED 2026-08-12, the day the #333 runner made them runnable. BARS BELOW PRE-REGISTERED BEFORE ANY RUN — the build is sim + unit only, by instruction; every number these produce comes from the iPad afterwards.**
 
 **Why these three, and why now.** #333 shipped the unattended runner and its own
 close-out named the next build: *"#257's tokenCount pre-flight is the named next
@@ -9264,7 +9264,7 @@ device-only, and blocked on nothing but a vehicle:
   under 8,192 is a separate question and needs a measured run, not an
   assumption."* The recorded overflow was 8,583 tokens against 8,192.
 
-**What was built (2026-08-12, `t27-334-fm-instruments`).** Three registry
+**What was built (2026-08-12, `t27-335-fm-instruments`).** Three registry
 entries, three Developer-screen buttons through #333's generic factory, three
 methods in a new `LocalChatBackend+Preflight.swift`, and two additive optional
 fields on `RouterProbeRecord` (`metrics`, `notes`) so a token count can be
@@ -9297,30 +9297,30 @@ failure mode is a launch that produces no artifact and no crash log.
 **BARS — pre-registered 2026-08-12, before any run.** A–E are this lane's
 (sim/unit); F–H are the DEVICE bars the controller's runs score.
 
-- **334-A (registry).** Three entries resolve by name with
+- **335-A (registry).** Three entries resolve by name with
   `.none` / no-EventKit / no-alarm flags, each is reachable from the Developer
   screen through `instrumentButton`, and the `everyConvertedButtonNameResolves`
   literal list plus the registry-count pin move in the SAME commit as the entry
   (#333 Task 6's tripwire, honoured rather than tripped).
-- **334-B (the runner's contract — the one that matters).** Each method opens a
+- **335-B (the runner's contract — the one that matters).** Each method opens a
   `BatteryRunRecord` and SEALS it (`endedCleanly == true`, non-empty rows) **in
   an environment where every FM call throws**, because #333's conductor calls a
   run `completed` only when a new record appears. Verified on the sim, which is
   that environment. **Negative control required**: removing `endRun()` must red
   exactly these tests — a post-hoc test pinned to something the code already did
   is the failure mode (`tests-written-after-a-defect`).
-- **334-C (error path instrumented).** Every recorded row carries `errors` and a
+- **335-C (error path instrumented).** Every recorded row carries `errors` and a
   `scored` count. `21F0C10D`'s rule: a band with no error counter reports
   fail-safe noise as data, and a constant denominator lets swallowed trials read
   as clean.
-- **334-D (no retyped constants).** The caps come from `twoFieldRouterOptions`
+- **335-D (no retyped constants).** The caps come from `twoFieldRouterOptions`
   and `toolIntentRouterOptions`, the window from the runtime `contextSize`, the
   condenser from production's own `sessionBlueprint` — pinned by test, so a
   hardcoded 128 cannot keep reporting comfortable headroom the day the constant
   changes.
-- **334-E (gate).** `scripts/mac/lane-gate.sh` PASS — units AND Release — with
+- **335-E (gate).** `scripts/mac/lane-gate.sh` PASS — units AND Release — with
   the unit count MOVED from 2167.
-- **334-F (A's device bar).** The pre-flight ANSWERS #257's question with
+- **335-F (A's device bar).** The pre-flight ANSWERS #257's question with
   numbers: the worst-case two-field response JSON measured against
   `twoFieldRouterOptions`' cap, headroom stated as an integer, `distinct == 1` on
   every row (token counts are deterministic — the repeats are what prove it),
@@ -9329,7 +9329,7 @@ failure mode is a launch that produces no artifact and no crash log.
   unmeasurable), and the fix is #257 step (2) — the two-field route gets a
   raised cap in its OWN constant, pinned by test, **never** by raising
   `toolIntentRouterOptions`, whose 64 is a measured #196/#217 artifact.
-- **334-G (B's device bar).** Each of the three bands produces either a value or
+- **335-G (B's device bar).** Each of the three bands produces either a value or
   a counted error, and the record says which: the boundary band reports both
   token counts AND their ratio against the char ratio (a tokenizer that clamps
   at the window shows up as ratio < charRatio); the variant band reports a
@@ -9338,7 +9338,7 @@ failure mode is a launch that produces no artifact and no crash log.
   — this is a measurement, not a hypothesis test. The falsifiable part is that
   the band must not come back "none": a run where every trial timed out has
   measured nothing and says so.
-- **334-H (C's device bar).** A trial counts only if it is **ARMED — measured
+- **335-H (C's device bar).** A trial counts only if it is **ARMED — measured
   pre-condensation count > 8,192, never assumed** (#215's rule: an unarmed cell
   measures a configuration the app never enters). The verdict per armed trial is
   post-condensation ≤ 8,192, aggregated over trials. **If no trial arms** (e.g.
@@ -13137,7 +13137,7 @@ constant with a raised cap, pinned by test — never raise
 load-bearing); (3) instrument the error path regardless — the probe emits a
 router-throw tally and `scored=<n>/<trials>` beside every ratio.
 
-> **2026-08-12 (#334): the pre-flight now HAS A VEHICLE — and has still not
+> **2026-08-12 (#335): the pre-flight now HAS A VEHICLE — and has still not
 > been run.** Step (1) is the registry instrument **`tokencount-preflight`**
 > (`LocalChatBackend+Preflight.swift`), runnable unattended on a device
 > through #333's harness. It prices exactly the payload this probe submits —
@@ -13145,8 +13145,8 @@ router-throw tally and `scored=<n>/<trials>` beside every ratio.
 > pinned baseline rows, both generation schemas, their sum against
 > `contextSize` — and, on the side a `maximumResponseTokens` cap actually
 > governs, the worst-case response JSON for each schema against the cap READ
-> from `twoFieldRouterOptions` / `toolIntentRouterOptions`. Bars 334-A..F are
-> pre-registered in #334, including this entry's step (2) as the
+> from `twoFieldRouterOptions` / `toolIntentRouterOptions`. Bars 335-A..F are
+> pre-registered in #335, including this entry's step (2) as the
 > **pre-registered response if the response does not fit**: every
 > capability-probe result to date is void and the fix is a raised cap in the
 > two-field route's OWN constant, never `toolIntentRouterOptions`. **The gate
@@ -18515,7 +18515,7 @@ guard now FIRES; whether one forced condensation actually gets a real
 long-conversation turn under 8,192 is a separate question and needs a measured
 run, not an assumption. n on the original observation remains 2.
 
-> **2026-08-12 (#334): that measured run now has an instrument, and has not yet
+> **2026-08-12 (#335): that measured run now has an instrument, and has not yet
 > been run.** **`condensation-fit`** (`LocalChatBackend+Preflight.swift`,
 > registry entry, unattended-eligible) drives a synthetic 12-turn transcript
 > engineered past this entry's recorded 8,583/8,192 overflow through
@@ -18528,7 +18528,7 @@ run, not an assumption. n on the original observation remains 2.
 > shape, whose instructions still carry the belt, while #229's mid-turn retry
 > additionally disarms — so its payload is strictly smaller than what this
 > records, and the toolless instructions' own cost rides in a reference row so
-> the difference is a number. **Bars 334-H pre-registered in #334: if no trial
+> the difference is a number. **Bars 335-H pre-registered in #335: if no trial
 > arms, this residual STAYS OPEN rather than being scored on an unarmed cell.**
 
 ## 208. (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
@@ -18695,12 +18695,12 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
   device fresh install on it. See #301's dated 2026-08-11 block.]** FM tokenCount 4096-vs-8192
   asymmetry + `variant.displayName` on device; maximumResponseTokens throw-vs-truncate (still
   device-only).
-  - **2026-08-12 (#334): all three now live in ONE instrument, `fm-asymmetries`, and none has
+  - **2026-08-12 (#335): all three now live in ONE instrument, `fm-asymmetries`, and none has
     been run.** Three labeled bands — the 4096-vs-8192 boundary (both counts, both ratios, so
     a clamp reads as `tokenRatio < charRatio`), `SystemLanguageModel.variant.displayName`, and
     a plain generation under `maximumResponseTokens: 8` classified THREW / TRUNCATED / MIXED /
     NONE with the error text or the output length as evidence. Read-only, unattended-eligible,
-    runnable via `run-instrument.sh --instrument fm-asymmetries`. Bar 334-G places no bar on
+    runnable via `run-instrument.sh --instrument fm-asymmetries`. Bar 335-G places no bar on
     WHICH behaviour — it is a measurement — only that the band must not come back "none".
     ⚠️ The variant band is why every target device must be on **beta5**: this bullet's own
     dyld finding, three bullets up, applies to the app as a whole.
