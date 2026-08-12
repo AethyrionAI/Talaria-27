@@ -7332,6 +7332,42 @@ discovered later. Anchors resolved at `506a319`: `cancelStreaming`
 > four still correct at `5c8fed7`. The file also moved: it is
 > `Talaria/Stores/ChatStore.swift`, not `Talaria/Chat/ChatStore.swift`.
 
+---
+
+> **📌 321-C AMENDED A SECOND TIME — 2026-08-11, by `t27-327-328-stop-honesty`
+> (#327 + #328 route 2). Read this with the 321-C bullet above; that bullet's
+> verdict stands, its projection does not.**
+>
+> **(1) The projection was too broad, and #327 is what it cost.** `StopOutcome`
+> omitted **tool-activity state** — the one field where the two Stop paths
+> actually diverged — so it could not fail on the divergence and reported
+> equality honestly while #327 shipped underneath it. It now carries, per row,
+> `activities: [(label, isActive, failure, renderedState)]` plus
+> `summaryState`, where `renderedState` is `ToolActivityRail.state(of:)`'s real
+> answer rather than a re-derivation.
+> **The demonstration, from #327's own RED run and worth keeping:** with the
+> field added but the FIXTURE unchanged (no tool call in flight), the
+> comparison **still passed**. It only went RED on a fixture where a call was
+> unresolved. *Naming a field is necessary; exercising it is what makes the bar
+> bite.* Both fixtures are now pinned — the original test keeps its no-tools
+> arm, and `bothStopsAgreeOnWhatHappenedToAnUnresolvedToolCall` carries the
+> tool-call arm.
+>
+> **(2) The row count in that test moved 1 → 2, and ruling (b) is intact.**
+> #328 route 2 appends a `.system` notice when a Stop issued no host stop.
+> On the sessions plane **neither** arm issues one, so **both** arms get the
+> row — the equality that ruling (b) demands is unaffected, which is exactly
+> why the count could move without the bar failing. A count that had moved on
+> only one arm would have failed the equality assertion, and that is the
+> assertion that matters.
+>
+> **(3) Ruling (a)'s deciding fact is UNCHANGED and still uninherited.**
+> #328's coupling warning ("fixing #328 makes that answer stop arriving")
+> applies to **route 1 only**. Route 2 changes nothing about whether the host
+> keeps running — it only stops the app implying otherwise — so abandoning the
+> window still does not burn a host-side answer, and #328's bar 328-C (re-put
+> ruling (a) to Owen) remains **untriggered** and waiting for route 1.
+
 ## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.**
 
 **The measurement.** WCAG 2.1 relative luminance (sRGB linearisation, `L = 0.2126R + 0.7152G + 0.0722B`, ratio `(L₁+0.05)/(L₂+0.05)`) computed over every `(ThemeID × AccentSlot)` pair in `Shared/ThemePaletteCore.swift`, comparing the resolved `palette.forge` (= `Design.Brand.forge`, the warning token) against the resolved `palette.background`. 30 themes × 3 slots = **90 cells; 88 reachable** — Terminal's `lockedAccentSlot: .cyan` pin makes its amber and violet variants unreachable by construction. Run first on the #320 lane 2026-08-11, then **re-derived from scratch at filing time by a second parse of the same file: every figure below reproduced exactly.**
@@ -7694,7 +7730,7 @@ this joins).
 > and flags it compared really are equal, and it never compared the tools.
 
 
-## 327. 🐛 A Stop taken in the RECONCILE WINDOW leaves every in-flight tool activity UNMARKED — the killed call renders `✓` as though it succeeded — **FILED 2026-08-11 from Owen's device sitting, MEASURED not inferred, and the mechanism is code-read at `6b9e7e2`. This is #296's rendering with a different cause: the rail is right, the Stop path is wrong. NOT STARTED; bars pre-register here before any code.**
+## 327. 🐛 A Stop taken in the RECONCILE WINDOW leaves every in-flight tool activity UNMARKED — the killed call renders `✓` as though it succeeded — **FILED 2026-08-11 from Owen's device sitting, MEASURED not inferred, and the mechanism is code-read at `6b9e7e2`. This is #296's rendering with a different cause: the rail is right, the Stop path is wrong. ✅ FIXED 2026-08-11 on `t27-327-328-stop-honesty` — bars 327-A (AMENDED on measured evidence, see below), B, C, D, E ALL MET; RED witnessed at `f7c493d` by removing the two call sites with the equivalence PROVED by stripped body diff (31 tests / 1 suite, 12 issues); `GATE: PASS`, 2123 tests / 161 suites. Shipped in one commit with #328 route 2. NOT MERGED — awaiting review. ⚠️ The "mechanism, exactly" paragraph below was HALF WRONG and is corrected in place, dated, rather than rewritten.**
 
 **What Owen saw.** A host turn (`HERMES`, KIMI-K3) running
 `sleep 90 && echo Done`; the stream dropped; he pressed Stop inside the
@@ -7702,6 +7738,24 @@ reconcile window. The run stopped and the composer freed — #321 working as
 ruled — but the transcript kept a **`✓ TERMINAL`** chip for the call that was
 killed, with no answer and nothing resolved. His words: *"It didn't continue
 the run, but it didn't wipe it in reconcile. It still shows."*
+
+> **⚠️ THE PARAGRAPH DIRECTLY BELOW IS HALF WRONG — corrected 2026-08-11 by
+> the `t27-327-328-stop-honesty` lane, by measurement, and left in place rather
+> than rewritten so the correction is legible.** What it says about the CODE is
+> true: the marker block really does sit inside
+> `else if let sid = streamingMessageID, …`, and that branch really is never
+> entered in the window. What it says about the CONSEQUENCE is wrong: it
+> asserts that this is why the ✓ Owen saw was left unmarked, and it is not.
+> **There was never an activity there to mark.** `armPendingRunRecovery`
+> removes the placeholder — and its tool activities with it — on the way INTO
+> the window, and it is one of only two writers of `pendingRun` (the other is
+> `#if DEBUG`), so **no production path can put an active tool activity in
+> front of a window Stop.** The chip Owen photographed is built by
+> `SessionsHermesClient.decodeStoredMessage`, which rebuilds history chips from
+> the server transcript's `tool_calls` with **`isActive: false, failure: nil`
+> hardcoded** — a DEFAULT, not an observation, on a row the decoder
+> deliberately keeps even when it is tool-calls-only. Evidence and full
+> reasoning in the measurement block below.
 
 **The mechanism, exactly.** `ChatStore.cancelStreaming` writes the marker —
 
@@ -7751,10 +7805,27 @@ slightly untrue. Three routes, none picked:
    it, and calling that a system interruption is the larger lie of the three.
 
 **BARS — pre-registered 2026-08-11 BEFORE any code.**
-- **327-A — RED witnessed on the real path.** A test that puts the store in the
-  window (`streamingMessageID == nil`, live `pendingRun`) with an ACTIVE tool
-  activity, Stops, and asserts the activity carries a failure marker. It must
-  fail at `6b9e7e2`.
+- **327-A — RED witnessed on the real path.** ~~A test that puts the store in
+  the window (`streamingMessageID == nil`, live `pendingRun`) with an ACTIVE
+  tool activity, Stops, and asserts the activity carries a failure marker. It
+  must fail at `6b9e7e2`.~~
+  **⚖️ AMENDED 2026-08-11, BEFORE the fix was written, on measured evidence —
+  and this is a bar CORRECTION, not a bar redefinition. The distinction, for a
+  reader who was not here:** a redefinition moves the goalposts so a fix can
+  pass. This amendment moves them because **the original fixture describes a
+  state the app can never be in** — the probe below proved the window's
+  placeholder, and every activity on it, is destroyed on entry. Building
+  "an ACTIVE tool activity in the window" would have meant hand-assembling a
+  configuration production never enters, which is #215's named fiction; the
+  test would have gone green and proved nothing about Owen's phone. **The bar
+  got HARDER, not easier** — it now has to reproduce the defect through the
+  real refresh merge rather than by construction.
+  **AMENDED TEXT:** a test that puts the store in the window
+  (`streamingMessageID == nil`, live `pendingRun`) with the run's tool activity
+  present **as production actually puts it there — restored from server history
+  through the ordinary refresh merge, therefore `isActive: false` and
+  `failure: nil`** — Stops, and asserts the activity carries a failure marker.
+  It must fail at `f7c493d`.
 - **327-B — the rail then draws the truth.** `ToolActivityRail.state(of:)`
   returns `.interrupted` and `summaryState` follows, asserted through the real
   store rather than on a hand-built `ToolActivity` (the #296 C1-D precedent:
@@ -7767,13 +7838,159 @@ slightly untrue. Three routes, none picked:
   and #296's bars re-run green; this lane adds a path, it does not re-plumb one.
 - **327-E — `GATE: PASS`**, count moved.
 
+---
+
+> **🔬 MEASURED 2026-08-11 BEFORE WRITING THE FIX — and it falsifies half of
+> this entry's own mechanism paragraph. The guard is real; the thing it was
+> assumed to be failing to mark is not there.**
+>
+> The `t27-327-328-stop-honesty` lane ran a throwaway probe
+> (`probeWhatTheWindowHoldsAfterAToolCall`, on `f7c493d`) that drives a real
+> turn, yields `tool.started terminal`, drops the stream with `.interrupted`,
+> and dumps the transcript at three points. Verbatim:
+>
+> ```
+> midStream = [user/'sleep 90 && echo Done'/sending/acts:[],
+>              hermes/''/sending/acts:["terminal:active=true:fail=nil"]]
+> inWindow  = [user/'sleep 90 && echo Done'/working/acts:[]]
+> afterStop = [user/'sleep 90 && echo Done'/delivered/acts:[]]
+> ```
+>
+> **The assistant row — and its active tool activity with it — is GONE before
+> the window opens.** `armPendingRunRecovery` removes the placeholder (that is
+> #295's design; it preserves `partialReasoning` and nothing else), and it is
+> one of only **two** writers of `pendingRun` in the whole store, the other
+> being `seedPendingRunForTesting` under `#if DEBUG`. So the reconcile window
+> can never be entered with the run's placeholder still in the transcript, and
+> **no production path can put an ACTIVE tool activity in front of a window
+> Stop.**
+>
+> **Consequence for bar 327-A as written** (*"…with an ACTIVE tool activity,
+> Stops, and asserts the activity carries a failure marker"*): that state is
+> unreachable. A test that constructs it would be a hand-built fixture for a
+> configuration the app never enters — the #215 shape, and exactly the kind of
+> fiction this project's bars exist to prevent. The bar's INTENT survives
+> intact; its stated fixture does not.
+>
+> **So where did Owen's `✓ TERMINAL` come from?** The only other producer of
+> tool activities in the app: **history restore.**
+> `SessionsHermesClient.decodeStoredMessage` rebuilds chips from the server
+> transcript's `tool_calls` with **`isActive: false`, `failure: nil`,
+> hardcoded** — and it deliberately keeps a **tool-calls-only assistant row**
+> (`guard !text.isEmpty || !activities.isEmpty`, "the text lands on a later
+> row"). `ToolActivityRail.state(of:)` reads not-failed-and-not-active as
+> `.completed` and draws the checkmark. That is a chip with **no answer beside
+> it**, which is precisely what Owen described, and it arrives on any
+> transcript refresh during or after the window.
+>
+> **The `isActive: false` on a restored chip is a DEFAULT, not an observation.**
+> It is not a `tool.completed` the client saw; the session transcript carries
+> no per-call outcome at all. So the window's own rows — which are, by the
+> measurement above, *only ever* history-restored — carry no evidence that any
+> of their calls finished, and a `✓` there asserts a completion the app never
+> witnessed. That is what makes marking them on a user Stop honest rather than
+> over-reach, and it is why the fix keys on **unresolved** (`failure == nil`)
+> rather than on `isActive`: keying on `isActive` would be a no-op against the
+> only case that actually occurs.
+>
+> **296-B is preserved by SCOPE, not by the `isActive` test.** The marking is
+> confined to assistant rows with `timestamp > pendingRun.sentAt` — the
+> reconcile's own "belongs to this run" filter — so an earlier turn's orphaned
+> activity (the case `ToolActivityRail.summaryState`'s comment names and
+> deliberately renders `.completed`) is never touched.
+
+---
+
+> **✅ FIXED 2026-08-11 on `t27-327-328-stop-honesty` — bars 327-A (as amended),
+> B, C, D, E ALL MET. Shipped in one commit with #328 route 2. NOT MERGED —
+> awaiting review.**
+>
+> **HOW THE RED WAS WITNESSED, and why not the #321 way.** #321's method —
+> `git checkout <base> -- Talaria/Stores/ChatStore.swift` — is unavailable
+> here: the new #328 tests reference `ChatStore.hostKeepsRunningAfterStopNotice`
+> by name, so a full-file revert does not COMPILE, and **a compile failure is
+> not a RED, it is no verdict at all.** Instead the two CALL SITES were removed
+> (`markAbandonedRunToolActivitiesStopped(abandoned)` and
+> `appendHostKeepsRunningNotice()`) and the equivalence was **proved rather
+> than asserted** — both functions extracted from the RED tree and from
+> `f7c493d`, comments and blank lines stripped, diffed:
+> ```
+> abandonReconcileWindowOnStop()  →  IDENTICAL (12 statements each)
+> cancelStreaming(hardStopHost:)  →  74 vs 75 statements, delta:
+>     + var hostStopWasIssued = false
+>     - hermesClient.hardStopActiveRun()
+>     + hostStopWasIssued = hermesClient.hardStopActiveRun()
+> ```
+> `hostStopWasIssued` is written and never read in that tree (verified by
+> grep — its only other occurrence is a doc comment), so the delta is a dead
+> store over the same call in the same order. **The RED tree executes
+> `f7c493d`'s behaviour on both Stop paths.**
+>
+> **The RED, verbatim** (`CC-327-iPhone-Air`, iOS 27.0 24A5408d, Xcode-beta5):
+> ```
+> ✘ Test run with 31 tests in 1 suite failed after 2.052 seconds with 12 issues.
+> ✘ aWindowStopMarksTheKilledCallInsteadOfLeavingItCompleted() recorded an issue at
+>   MessageQueueTerminalsTests.swift:1139:9: Expectation failed:
+>   after.failure == ToolActivity.stoppedByUser
+> ✘ bothStopsAgreeOnWhatHappenedToAnUnresolvedToolCall() recorded an issue at
+>   MessageQueueTerminalsTests.swift:1251:9: Expectation failed: liveChip == windowChip
+> ```
+>
+> - **327-A MET (as amended above)** — the first line quoted is the bar. The
+>   chip arrives through the real refresh merge, not by construction.
+> - **327-B MET** — same test: `ToolActivityRail.state(of: after) == .interrupted`
+>   and `summaryState(of:) == .interrupted`, both RED at `f7c493d`, both asserted
+>   through the real mapping on the store's own activity rather than on a
+>   hand-built `ToolActivity` (#296 C1-D's precedent). **`ToolActivityRail` was
+>   not edited** — 296-B's requirement, and the entry's own ruling.
+> - **327-C MET, and the RED is the most informative result in the lane.** In
+>   the SAME run, `aWindowStopProducesTheSameTranscriptStateAsALiveStreamStop`
+>   — 321-C's original no-tools fixture, now running through the WIDENED
+>   projection — **still reported the two Stops EQUAL.** The widened
+>   comparison on a fixture with a tool call unresolved went RED. That is the
+>   claim in this entry demonstrated rather than argued: *a projection that
+>   omits a field will report equality forever*, and the field only bites on a
+>   fixture that exercises it. `StopOutcome.Row` now carries
+>   `activities: [(label, isActive, failure, renderedState)]` and
+>   `summaryState`.
+> - **327-D MET** — the live-stream Stop's own marker behaviour is asserted
+>   inside 327-C's test (`liveChip.map(\.failure) == ["Stopped"]`) and #296's
+>   suite re-ran green by name (`ToolActivityStateTests`, in the 74/4 green run
+>   below).
+> - **327-A's scope guard MET, and it is 296-B re-run rather than argued** (the
+>   orchestrator's instruction). `aWindowStopLeavesAnEarlierTurnsToolActivityAlone`
+>   seeds a settled earlier turn holding both a resolved activity AND the
+>   orphaned-but-active one `ToolActivityRail.summaryState`'s comment names,
+>   then Stops the window: both keep `failure == nil`, the orphan keeps
+>   `isActive == true`, and the abandoned run's own call is marked in the same
+>   call. **At `f7c493d` this test failed on its last assertion only** — the
+>   296-B halves passed there, which is what makes it a real control rather
+>   than a test that can only ever agree with the fix.
+> - **327-E MET** — see the gate block at #328 (one gate covers both halves;
+>   `GATE: PASS`, **2116 → 2123 Swift Testing tests**, 161 suites unchanged
+>   because every new test joined `MessageQueueTerminalsTests`).
+>
+> **What this lane FALSIFIES in its own text (close-out rule).** The mechanism
+> paragraph above — corrected in place with a dated banner rather than
+> rewritten, so the error stays legible. Its author's summary of the error:
+> *"true about the code and wrong about which producer creates the ✓ the user
+> actually sees."*
+>
+> **Left OPEN by this fix, and named rather than absorbed:** a history-restored
+> chip on a run **nobody stopped** still renders `✓` with no evidence behind it,
+> because `decodeStoredMessage` has no per-call outcome to read. This lane only
+> corrects the case where the user pressed Stop. Whether the app should stop
+> claiming completion for ALL restored chips is a real question and is NOT
+> filed here — it needs Owen, and it is entangled with #328 route 1 (if a Stop
+> ever reaches the host, the host's own record becomes the answer).
+
 **Cross-references:** **#321** (the lane that shipped the window Stop and whose
 321-C is amended by this), **#296** (the rendering, correctly untouched),
 **#278** (the window itself), **#180** (honest degradation — a control that
 reports success for work that was killed is squarely in this family),
 **#203** (the stall hint that tells the user to press Stop).
 
-## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. NOT STARTED; bars pre-register here before any code.**
+## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; NOT MERGED — awaiting review) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.**
 
 **Measured, not inferred.** Owen ran `sleep 90 && echo Done` on the `HERMES`
 profile (KIMI-K3, ordinary sessions `chat/stream`), lost the stream, and pressed
@@ -7851,6 +8068,129 @@ because the shape depends on the ruling above.**
 - **328-D — the runs plane is untouched.** #304's real hard stop and its
   device-proven behaviour re-run green.
 - **328-E — `GATE: PASS`**, count moved.
+
+---
+
+**ROUTE 2's OWN BARS — pre-registered 2026-08-11 by the `t27-327-328-stop-honesty`
+lane, BEFORE any route-2 code, because 328-B above is deliberately thin and a
+thin bar is not a contract. Route 1 is NOT in this lane: it stays gated on
+328-A's probe and this lane must not read as closing it.**
+
+- **328-R2-A — the outcome becomes legible at the seam, and it is the OUTCOME
+  that is read, never a build flag.** `hardStopActiveRun()` returns `Void` and
+  guard-returns silently today, so no caller can tell a delivered stop from a
+  swallowed one. It must answer whether a stop request was ISSUED: `false` on
+  an ordinary sessions `chat/stream` turn (no `activeRunContext`), `true` when
+  a run was in flight and the POST went out. Pinned in a test on both arms.
+  **`true` means "we asked", not "the host stopped"** — the POST is
+  fire-and-forget and a transport failure deliberately marks nothing — and the
+  code must say so where it is declared, or the next reader will over-read it.
+- **328-R2-B — RED witnessed.** With no host stop issued, a user Stop on a
+  server-recoverable turn must leave an honest statement in the transcript
+  that the agent may still be running. The test asserting it must FAIL against
+  `f7c493d`, where no such surface exists.
+- **328-R2-C — and it must NOT appear where the Stop is real or where nothing
+  is left running.** Three negative arms, each pinned rather than argued:
+  (i) a run whose stop WAS issued (the `/v1/runs` plane, #304's device-proven
+  hard interrupt) gets **no caveat** — the dispatch's own constraint, and the
+  bar that keeps this from becoming an apology attached to every Stop;
+  (ii) a turn on a plane with no host still generating (the on-device brain,
+  `currentRunIsServerRecoverable == false`) gets none — cancelling really did
+  stop everything; (iii) the continued-send EXPIRATION (`hardStopHost: false`,
+  the system revoking a background budget) gets none — it is not a user Stop
+  and #295 deliberately leaves the host alone there.
+- **328-R2-D — #322's single-read contract is not weakened.** `cancelledRunID`
+  and `turnIsServerRecoverable` are still captured BEFORE `hardStopActiveRun()`
+  clears `activeRunContext` and before `abandonActiveRun()` releases the
+  router's lock. `CancelFinalStatusReadTests` re-runs green by name.
+- **328-R2-E — route 1 is untouched and still open.** No host route is added,
+  probed or claimed by this lane; #304's runs-plane stop and its bars re-run
+  green (that is 328-D, re-run here rather than restated).
+
+---
+
+> **✅ ROUTE 2 SHIPPED 2026-08-11 on `t27-327-328-stop-honesty` — bars
+> 328-R2-A..E ALL MET. 🔴 THE ITEM STAYS OPEN: route 1 is untouched and still
+> gated on 328-A's route probe, which nobody has run.** Shipped in one commit
+> with #327. NOT MERGED — awaiting review.
+>
+> **What changed, in one sentence:** `hardStopActiveRun()` now returns whether
+> it actually ISSUED a stop, and when it did not — which is every ordinary
+> sessions `chat/stream` turn — the transcript says so instead of letting a
+> freed composer imply a host that stopped.
+>
+> - **328-R2-A MET.** `@discardableResult func hardStopActiveRun() -> Bool`
+>   across the protocol, its default, and all three forwarders
+>   (`SessionsHermesClient+RunsTransport`, `ChatBackendRouter`,
+>   `ResilientHermesClient`). `theStopSeamReportsWhetherItActuallyIssuedAHostStop`
+>   pins both arms. **Honest note on this bar's RED: there isn't one, and there
+>   could not be** — at `f7c493d` the method returned `Void`, so a test
+>   asserting its value would not compile. This bar adds a capability rather
+>   than fixing a defect; its evidence is the two-arm test plus the four bars
+>   below that consume it. **The `true`-means-"we asked" caveat is documented at
+>   the protocol requirement, at the default, and at the runs implementation's
+>   `return true`** — the bar required that, because the POST is fire-and-forget
+>   and its `catch` deliberately marks nothing.
+> - **328-R2-B MET, RED witnessed on both Stop paths.** Verbatim at `f7c493d`:
+>   ```
+>   ✘ aStopThatNeverReachedTheHostSaysSo() recorded an issue at
+>     MessageQueueTerminalsTests.swift:1293:9: Expectation failed: notice?.sender == .system
+>   ✘ aWindowStopThatNeverReachedTheHostSaysSoToo() recorded an issue at
+>     MessageQueueTerminalsTests.swift:1313:9: Expectation failed:
+>     store.conversation?.messages.last?.content == ChatStore.hostKeepsRunningAfterStopNotice
+>   ```
+>   The surface is a `.system` row carrying
+>   `ChatStore.hostKeepsRunningAfterStopNotice` — a constant, so the store that
+>   writes it and the tests that assert it cannot drift (#296's `stoppedByUser`
+>   precedent): *"Stopped here. This connection can't interrupt a turn the host
+>   is already running, so the agent may still be working — its reply will
+>   appear in this thread if it lands."* Three clauses, no fourth: what Stop
+>   did, what it did not, what follows.
+> - **328-R2-C MET — all three negative arms GREEN, and green at `f7c493d`
+>   too**, which is what makes them controls rather than echoes of the fix.
+>   `theHonestNoticeStaysAwayWhereTheStopIsRealOrNothingIsRunning`: (i) a stop
+>   that WAS issued (`hostStopIsIssuable = true`, the `/v1/runs` shape) gets no
+>   caveat — #304's device-proven hard interrupt keeps its clean story;
+>   (ii) `currentRunIsServerRecoverable == false` (the on-device brain) gets
+>   none; (iii) `cancelStreaming(hardStopHost: false)`, the continued-send
+>   expiration, gets none.
+> - **328-R2-D MET.** `cancelledRunID` and `turnIsServerRecoverable` are still
+>   captured above the call; the new read stores into a local and changes no
+>   ordering. `CancelFinalStatusReadTests` re-ran green by name — including
+>   its read-before-clear pin (*"the run id must be captured BEFORE
+>   hardStopActiveRun() clears it"*).
+> - **328-R2-E MET.** No host route was added, probed, or claimed. The runs
+>   plane's stop is byte-unchanged apart from returning `true` after the POST
+>   is dispatched; `RunsPlaneTransportTests` and `ChatBackendRouterTests` re-ran
+>   green (that is 328-D, re-run rather than restated).
+>
+> **THE GATE (covers #327's 327-E and this item's 328-E).**
+> `TALARIA_SIM_NAME=CC-327-iPhone-Air scripts/mac/lane-gate.sh` on
+> `CC-327-iPhone-Air` (iOS 27.0 24A5408d, Xcode-beta5 27A5237l), verbatim:
+> ```
+>   PASS  Test run reported TEST SUCCEEDED
+>   PASS  Swift Testing tests run — 2123
+>   PASS  XCUITest tests run — 14
+>   PASS  Release build succeeded
+>   PASS  no Swift compile errors in Release
+> GATE: PASS
+> ```
+> **Unit count MOVED 2116 → 2123** (seven new tests, all added to the existing
+> `MessageQueueTerminalsTests`, so the suite count stays **161**) — so this is
+> not a stale `.xctest` reporting an old number. Targeted green re-run of the
+> four suites this change could regress —
+> `MessageQueueTerminalsTests`, `CancelFinalStatusReadTests`,
+> `ToolActivityStateTests`, `ChatBackendRouterTests` —
+> `✔ Test run with 74 tests in 4 suites passed after 5.399 seconds.`
+>
+> **⚠️ WHAT ROUTE 2 DOES NOT DO, stated here so no reader mistakes this for a
+> close.** The host still runs. Owen's `sleep 90 && echo Done` would still
+> complete, still spend tokens, and still answer on reopen — the app is now
+> honest about that rather than fixed. **#321's ruling (a) is therefore still
+> safe and still uninherited:** its deciding fact (abandoning the window does
+> not burn a host-side answer) remains TRUE precisely because the host is never
+> stopped, so 328-C's requirement to RE-PUT that ruling to Owen is **not
+> triggered by this lane** and stands for whoever takes route 1.
 
 **Cross-references:** **#321** (surfaced it; its deciding fact is coupled to
 this), **#304** (the real hard stop, runs plane only), **#283** (the transport

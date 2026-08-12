@@ -516,9 +516,14 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// `cancelStreaming()` calls immediately afterward, is what releases it.
     /// Splitting the two means a plain walk-away (no Stop tap) can release
     /// the lock without ever reaching the network.
-    func hardStopActiveRun() {
-        guard let brain = runningBrain else { return }
-        backend(for: brain).hardStopActiveRun()
+    ///
+    /// #328 route 2: forwards the ISSUED/NOT-ISSUED answer too. No routing
+    /// lock means no run to stop, which is `false` — the honest absence, not
+    /// a failure.
+    @discardableResult
+    func hardStopActiveRun() -> Bool {
+        guard let brain = runningBrain else { return false }
+        return backend(for: brain).hardStopActiveRun()
     }
 
     /// #322: the in-flight run's id, forwarded by routing lock exactly like

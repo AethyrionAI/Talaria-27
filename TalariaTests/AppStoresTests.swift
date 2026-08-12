@@ -2528,9 +2528,14 @@ struct AppStoresTests {
                 currentRunIsServerRecoverable = false
             }
 
-            func hardStopActiveRun() {
+            @discardableResult
+            func hardStopActiveRun() -> Bool {
                 currentRunIsServerRecoverable = false
+                return hostStopIsIssuable
             }
+            /// #328 route 2: whether this double's plane can issue a real host
+            /// stop. Default false — the sessions `chat/stream` shape.
+            var hostStopIsIssuable = false
 
             func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
                 Message(sender: .hermes, content: "unused", status: .delivered)
@@ -4750,9 +4755,13 @@ struct AppStoresTests {
             abandonActiveRunCallCount += 1
         }
 
-        func hardStopActiveRun() {
+        @discardableResult
+        func hardStopActiveRun() -> Bool {
             hardStopActiveRunCallCount += 1
+            return hostStopIsIssuable
         }
+        /// #328 route 2: default false — nothing was issued.
+        var hostStopIsIssuable = false
 
         func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "unused", status: .delivered)

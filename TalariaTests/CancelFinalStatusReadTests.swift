@@ -62,10 +62,14 @@ struct CancelFinalStatusReadTests {
         var clearsRunIDOnHardStop = false
         private(set) var hardStopCalls = 0
 
-        func hardStopActiveRun() {
+        @discardableResult
+        func hardStopActiveRun() -> Bool {
             hardStopCalls += 1
             if clearsRunIDOnHardStop { liveRunID = nil }
+            return hostStopIsIssuable
         }
+        /// #328 route 2: default false — nothing was issued.
+        var hostStopIsIssuable = false
 
         var finalRead: FinalRead = .empty
         private(set) var finalUsageCalls: [String] = []
