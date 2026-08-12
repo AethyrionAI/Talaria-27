@@ -100,7 +100,17 @@ struct CondenserFidelityTests {
 
         // The essentials survived at all — a brief that prunes everything is
         // no context transplant.
-        #expect(brief.contains("chicago"), "lost the conversation's core subject")
+        // #313 DIAGNOSTIC (2026-08-11, temporary): the assertion below has
+        // failed 2/2 on device and the entry's fix direction is "tune
+        // `condensedContextBrief`'s instructions, do NOT weaken the test" —
+        // which is unactionable without knowing HOW the model referred to the
+        // destination. The message carries the composed brief so the failure
+        // output is the diagnostic. Revert once the wording question is
+        // answered; a permanently large failure message is its own nuisance.
+        #expect(
+            brief.contains("chicago"),
+            "lost the conversation's core subject — COMPOSED BRIEF FOLLOWS >>>\(composition.text)<<< END BRIEF"
+        )
     }
 
     @Test(
