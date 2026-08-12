@@ -166,3 +166,45 @@ at 2 m 42 s) — but that was a **debugger-attached** session, not an XCUITest r
 has established whether a test-launched app suspends normally. This decides whether #A2 and
 every future backgrounding row can be automated at all, and a wrong assumption produces a
 confident false PASS of exactly the §F8 shape. One throwaway measurement settles it.
+
+## 9. The second device — Shelley's iPad Air (M3), and a HARD constraint on it
+
+**Standing rule, Owen 2026-08-11: NO calendar, reminder or alarm tests on the iPad. Ever.**
+It is Shelley's device and her iCloud; test writes do not go there, container or no
+container. This is not a preference to be re-litigated by a later lane looking for a free
+runner — if a row writes to EventKit or AlarmKit, it belongs on `whoGoesThere` behind
+#331's container.
+
+**Also corrected here, because it was asserted wrongly in conversation:** there is **no M5
+iPad**. A `devicectl` JSON parse that did not filter on the Reality field surfaced a
+*simulator* (`iPad Pro 13-inch (M5)`, UUID-style identifier) and it was reported as
+hardware. The real inventory is Owen's 1st-gen iPad Pro (**cannot run iOS 27 at all**) and
+Shelley's **iPad Air 11-inch (M3)** on iPadOS 27, updating to beta 5, on the tailnet, with
+Developer Mode on and prior installs. Filter on Reality, or read the table rather than the
+JSON.
+
+**What the split therefore is:**
+
+| host | role |
+|---|---|
+| **iPad (M3)** | **write-free FM measurement only.** Anything needing real on-device generation that touches no personal data. |
+| **`whoGoesThere`** | everything that writes (behind #331), plus every iPhone-only surface — Dynamic Island, CarPlay, Action button, Control Center layout, cellular/airplane. |
+
+**What the iPad can host under that rule:** #324-W3's FM asymmetries (`tokenCount`
+4096-vs-8192, `variant.displayName`, `maximumResponseTokens`), #257's never-built
+tokenCount pre-flight, #61's card generation, #205E's ctx-a probe, #210 / #210A's
+condensation budget, #211A's read-path battery (read-only prompts by construction), #208's
+exploratory re-suspect, #229's log-grep rider, and #222's image experiment **provided the
+image is a bundled test asset rather than her photo library**.
+
+**What it must NOT host, under the rule:** #199A (calendar misattribution — writes),
+#225's B1–B4 (B4 writes a reminder), C4's thermal replication (auto-accept writes), A1c
+(schedules a real alarm), #33 (writes a Note), #170 / #162-CRUD (host jobs — allowed only
+because those write to Owen's *host*, not to her device).
+
+**Before planning on it, four checks, none skippable:** generate once (not "available" —
+*generate*; availability has lied twice, `Code=5000` on sim and an un-bridged
+`LanguageModelError -1` on beta5); install and launch a beta5 build watching for the
+dyld-death signature (#324 — no `.ips`, empty stdout, so a silent death looks like
+nothing); confirm tailnet reach for host-touching rows; and confirm Apple Intelligence is
+actually enabled after the update.
