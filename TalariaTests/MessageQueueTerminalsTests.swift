@@ -991,4 +991,33 @@ struct MessageQueueTerminalsTests {
                 "321-E: the hold keeps HOLDING while the reconcile still owns the run (#306 row 3)")
         #expect(store.pendingComposerSeed == nil)
     }
+
+    // MARK: - #327 PROBE (temporary — deleted before the fix lands)
+
+    @Test @MainActor
+    func probeWhatTheWindowHoldsAfterAToolCall() async throws {
+        let persistence = Self.makePersistence()
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: persistence)
+        store.composerLiveText = { "" }
+        store.reconcileWallClockBudget = .seconds(30)
+        store.reconcilePollInterval = .seconds(30)
+        let sendTask = await startTurn("sleep 90 && echo Done", store: store, client: client)
+        client.continuations.last?.yield(.toolActivity(ToolCallEvent(name: "terminal", phase: .started, detail: "sleep 90")))
+        try? await Task.sleep(for: .milliseconds(80))
+        let midStream = (store.conversation?.messages ?? []).map {
+            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
+        }
+        client.continuations.last?.yield(.interrupted(sessionId: "S327", runId: "R327"))
+        client.continuations.last?.finish()
+        _ = await sendTask.value
+        let inWindow = (store.conversation?.messages ?? []).map {
+            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
+        }
+        store.cancelStreaming()
+        let afterStop = (store.conversation?.messages ?? []).map {
+            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
+        }
+        #expect(Bool(false), "PROBE327 midStream=\(midStream) | inWindow=\(inWindow) | afterStop=\(afterStop)")
+    }
 }
