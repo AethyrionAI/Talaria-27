@@ -171,7 +171,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen — **✅ INVESTIGATED + FIX MERGED 2026-08-10 (PR #300, `179d506`): the trap is NOT device-only (that recorded claim is falsified), the site is `ensureSpeechAuthorization()`'s completion closure, and the discriminator is authorized-vs-notDetermined. OPEN only for 301-C's negative control — device row §V2 (fresh install) or the queued sim re-run**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
-- **#312** 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once
+- **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); (f) NOT RUN (the status card's Priming row, one tap on the CTX gauge)**
 - **#313** 🔬 `CondenserFidelityTests` — **✅ IT RAN 2026-08-11 on `whoGoesThere`, first time ever; "has never run" is DISCHARGED. 6/7 passed and ONE BAR IS RED:** the model-condensed brief keeps the trip's details and drops its SUBJECT (`brief.contains("chicago")` failed) — #89's residual risk firing exactly where this entry predicted. Corrections, distractor pruning and budget all held. Fix direction already ruled: tune `condensedContextBrief`'s instructions, do NOT weaken the test — and a re-run that LOGS the brief comes first, since how the model referred to the city is unmeasured. Also named: device test runs need `DEVELOPMENT_TEAM=DNL25ZFSD2`, since `project.yml` teams the app target only
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
@@ -188,6 +188,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#326** 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — same commit, 5/5 on one sim and 2 failures on another; it red-gated a clean tree and held a publish. The assertion adapts to the environment but hides a premise (that `Activity.request` succeeds whenever ActivityKit reports enabled). **Fourth distinct non-product failure signature seen 2026-08-11. NOT STARTED; bars 326-A..E pre-registered**
 - **#327** 🐛 A Stop in the RECONCILE WINDOW leaves in-flight tool activities UNMARKED, so a killed call renders `✓` — the marker block is gated on `streamingMessageID != nil`, which is `nil` for the whole window. **MEASURED on device 2026-08-11; NOT #296 reopening (the rail is right, the Stop path is wrong). It also exposed that #321's 321-C projection omitted tool state. Owen's marker ruling gates the lane; bars 327-A..E pre-registered**
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
+- **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -7574,6 +7575,80 @@ this), **#304** (the real hard stop, runs plane only), **#283** (the transport
 that would carry it), **#225** (the runaway this would have to stop),
 **#180** (honest degradation), **#327** (the other thing that window Stop does
 not do), **#223** (the plane-consolidation arc this argues into).
+
+## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. NOT STARTED; bars pre-register here before any code.**
+
+**What was run, and it was run twice with the second trial as a control.** Owen
+asked a question on a Hermes thread, then **force-quit the app** while the turn
+was in flight.
+
+- **Trial 1 — the defect.** Relaunched; the thread offered **Retry**. He tapped
+  it. The reply rendered and looked correct. He switched threads, came back, and
+  **the turn was DUPLICATED** — because the original run had never stopped and
+  its answer landed alongside the retry's.
+- **Trial 2 — the control, and it is what makes this a diagnosis rather than a
+  guess.** Same setup, and he **did not tap Retry**. Waited ~60 s, switched
+  threads, came back — **the answer was simply there, correct and single.**
+
+*"It's really still going in the background."* His words, and they are the whole
+finding.
+
+**What that pair proves, separately:** the reconcile machinery (#235 / #278 /
+#295) **works** — an interrupted turn's answer is recovered on its own, which
+trial 2 shows end to end. The defect is entirely upstream of it: **on cold
+launch the app classifies an in-flight turn as FAILED and presents a failure
+affordance for work that is still succeeding.** Retry is then not a retry; it is
+a second submission of a live question.
+
+**Root cause is #328's, one level up.** On the sessions plane the app cannot see
+that the host is still working — the same blindness that makes `hardStopActiveRun()`
+a no-op there. A cold launch loses the in-memory `pendingRun`, restores the row
+from disk, finds no live stream, and concludes failure. Nothing consults the
+host, because on that plane there is nothing to consult.
+
+**Related but NOT the same, and the distinctions are load-bearing:**
+- **Airplane mode is CORRECT** — tested the same evening (#312 item (e)): the
+  message parks as **queued**, shows **no Retry**, and auto-sends exactly once on
+  reconnect, *"almost instantly, like it was waiting on me."* So the app's
+  classification is right when the failure is local and knowable, and wrong when
+  the turn is alive somewhere it cannot see. **That contrast is the sharpest
+  statement of this defect** and any fix should preserve the airplane-mode arm
+  exactly as it is.
+- **#279** (retry duplicates the USER row) is FIXED and is a different mechanism —
+  that was `retryMessage` removing the failed row without adopting. Here the user
+  row is fine; it is the ANSWER that arrives twice.
+- **#237** (the recovered reply arrived twice) is the closest sibling and its
+  no-dupes half was device-MET on 2026-08-04. **A lane here must re-run 237-E
+  rather than assume it still holds** — this is the same collision from a new
+  entry point.
+- **#328** is the shared root; **#312 (a)** is the bar this came from and stays
+  RED until it is fixed.
+
+**BARS — pre-registered 2026-08-11 BEFORE any code.**
+- **329-A — RED witnessed, and it must reproduce the DUPLICATE, not just the
+  button.** A cold launch over an in-flight turn offers Retry; tapping it yields
+  two answers once the original resolves. If only the button can be reproduced in
+  test and not the duplication, say so — a fix aimed at the button alone would
+  leave the collision intact for any other path that resubmits.
+- **329-B — the airplane-mode arm is UNCHANGED.** Queued, no Retry, fires exactly
+  once on reconnect. This is the regression pin: the fix must not make honest
+  local failures stop offering a retry.
+- **329-C — the classification is the fix, not the label.** A turn that may still
+  be alive host-side is not presented as failed. Whether that is a distinct
+  "still running" state, a suppressed Retry, or a reconcile-first-then-decide is
+  the design question — **and it interacts with #328's route-2 surface, which is
+  in flight; do not design them apart.**
+- **329-D — #237's no-dupes bar re-run**, not assumed.
+- **329-E — `GATE: PASS`**, count moved.
+- **329-F (device, Owen) — the closing bar:** repeat trial 1 exactly — force-quit
+  mid-turn, relaunch, tap whatever the app now offers — and get **one** answer.
+
+**Cross-references:** **#328** (the shared blindness, and its route-2 surface
+must be designed with this), **#312** (item (a), which this keeps RED),
+**#235 / #278 / #295** (the recovery that works and must not be disturbed),
+**#237** (the sibling duplicate), **#279** (fixed, different mechanism),
+**#180** (honest degradation — a failure affordance on succeeding work is
+squarely this family).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
