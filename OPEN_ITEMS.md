@@ -8977,6 +8977,18 @@ toggle stops gating — witnessed, not assumed.
 > fully met: sim positive control on every gate + device skip witnessed. **332-b(1)
 > remains owed** — it needs `whoGoesThere` (the pre-existing-donations condition lives
 > there), and the narrow command below still applies for that half.
+>
+> **✅ 332-b(1) SCORED ON `whoGoesThere` LATER THE SAME EVENING — and the run it rode
+> in on is the project's FIRST FULLY GREEN DEVICE SUITE:** `main` @ `d4ebbe2`, full
+> `-only-testing:TalariaTests` on the phone — **`✔ Test run with 2181 tests in 169
+> suites passed after 83.136 seconds`**, `** TEST SUCCEEDED **`.
+> `donationIsGatedByTheToggle() passed` with the fixed test's own freshness line
+> reading **`#332-b PRE-EXISTING DONATED SESSION ENTITIES ON THIS HOST: 484`** — the
+> gate assertion was exercised against a genuinely non-empty index (N=484 > 0, so the
+> bar's "green with pre-existing donations" condition is met by evidence, not by
+> vacuity). The device skip line for 332-a appeared in the same log; zero `Code=260`.
+> **332-a and 332-b are both CLOSED, both halves each. 332-c stays open** (iPad
+> downscale — the one remaining red class, not exercised by this phone run).
 
 Neither device half was scored by the fixing lane, which touched no hardware by
 instruction. Both close in one device run. Run from the repo root with
