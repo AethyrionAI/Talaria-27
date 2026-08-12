@@ -18,42 +18,83 @@ struct InstrumentSpec {
     let run: @MainActor (LocalChatBackend?, _ trials: Int, _ cells: [String]?) async -> Void
 }
 
+/// Every instrument the Developer screen can launch, and the ONLY place a
+/// launch is described. Each entry carries the measurement rationale that
+/// used to sit above the button's `@ViewBuilder` factory — those comments are
+/// the lane history for the run they describe, so the #333 sweep MOVED them
+/// here rather than deleting them with the factories.
+///
+/// **The capability flags describe what the INSTRUMENT writes, not what the
+/// button armed.** Every accept-mode button set `alarmWritesAttended = true`
+/// identically, so copying the button would have told us nothing; these were
+/// derived by reading each backend method through to its prompt set. The
+/// #200-family batteries delegate to `runActionBattery` with the DEFAULT
+/// prompts, and that set contains `("alarm", "Set an alarm for 6:30")`
+/// beside the reminder and calendar creates — so they write EventKit AND
+/// AlarmKit, and per Owen's 2026-08-11 ruling none of them may run
+/// unattended. The three read-only exceptions in that family
+/// (`read-tool`, `motion-scope`, `motion-redirect`) pass their own prompt
+/// set and write nothing.
 enum InstrumentRegistry {
     static let all: [InstrumentSpec] = [
-        // #196: composition/decline battery. Headless sessions can never answer
-        // a confirmation card, so grabs auto-decline — which also measures
-        // post-denial recovery. Button: DeveloperSettingsScreen.swift:644,
-        // `await backend.runShapeBattery(trials: trials)` — trials only.
+        // #196 second battery: one launcher, two powers — n=10 resolves the
+        // reminder-grab question (8/10 -> ~0 is unmissable); n=20 is required
+        // for a significant composition verdict (4/10 vs 8/10 at n=10 is
+        // p~0.17 — the exact underpowering behind the afternoon's overturned
+        // n=4 conviction).
+        //
+        // Surface: nothing. Auto-decline is checked FIRST in
+        // `ToolConfirmationCenter.requestConfirmation`, so no action tool ever
+        // executes and the reap is a no-op.
+        // The #196 shape battery's own prompt set, run under decline.
+        // Button: `instrumentButton("shape", …)`.
         InstrumentSpec(name: "shape", confirmationMode: .autoDecline,
                        writesEventKit: false, writesAlarms: false,
                        run: { backend, trials, _ in
                            guard let backend else { return }
                            await backend.runShapeBattery(trials: trials)
                        }),
-        // #200: the action-SUCCESS path — real EventKit/AlarmKit writes,
-        // marker-tagged, reaped (#331 container). Button:
-        // DeveloperSettingsScreen.swift:681, `await backend.runActionBattery(trials:
-        // trials)` — trials only, `cells` untouched at its `[.armed]` default.
+        // #200 action battery: the action-SUCCESS path. Auto-ACCEPT armed —
+        // every staged confirmation approves, so appropriate creates EXECUTE:
+        // real EventKit/AlarmKit writes, every artifact marker-tagged by the
+        // gate, all reaped before the DONE line. Run with Reminders/Calendar
+        // permissions GRANTED (the observed #200 failure post-dates the grant).
+        // Shares the batteryRunning guard with the other instruments.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
+        // alarm / calendar creates, executed for real under auto-accept.
         // `runActionBattery`'s real `cells:` parameter is `[ActionBatteryCell]`,
         // not `[String]` — the button never supplies one, so this entry does not
         // either; inventing a conversion here would be an argument the button
-        // doesn't pass.
+        // does not pass.
+        // Button: `instrumentButton("action", …)`.
         InstrumentSpec(name: "action", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
                        run: { backend, trials, _ in
                            guard let backend else { return }
                            await backend.runActionBattery(trials: trials)
                        }),
-        // Read-only tools; nothing to accept or decline. Button:
-        // DeveloperSettingsScreen.swift:895, trials only.
+        // #209 read-tool battery: production vs the pinned read-tool rollback on
+        // prompts where OMITTING the field is correct. READ tools only — nothing
+        // is written, so no auto-accept is needed and the reap is a no-op.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Its own `readToolBatteryPrompts` (weather / health) replace the create
+        // prompts, so no confirmation can fire and the reap is a no-op.
+        // Button: `instrumentButton("read-tool", …)`.
         InstrumentSpec(name: "read-tool", confirmationMode: .none,
                        writesEventKit: false, writesAlarms: false,
                        run: { backend, trials, _ in
                            guard let backend else { return }
                            await backend.runReadToolBattery(trials: trials)
                        }),
-        // #196: router classification probe — FM-only, no tool execution.
-        // Button: DeveloperSettingsScreen.swift:1741, trials only.
+        // #196 battery 4: router-accuracy probe — no tools execute (pure
+        // classification), so no confirmation auto-decline is needed; the
+        // shared batteryRunning guard keeps the two instruments from
+        // overlapping on the model.
+        //
+        // Surface: read-only — classifications or READ tools; nothing is written.
+        // Button: `instrumentButton("router-probe", …)`.
         InstrumentSpec(name: "router-probe", confirmationMode: .none,
                        writesEventKit: false, writesAlarms: false,
                        run: { backend, trials, _ in

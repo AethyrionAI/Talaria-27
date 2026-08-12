@@ -617,73 +617,25 @@ struct DeveloperSettingsScreen: View {
     // #196: guards the one-tap rate battery against double-fires.
     @State private var batteryRunning = false
 
-    // #196 second battery: one launcher, two powers — n=10 resolves the
-    // reminder-grab question (8/10 -> ~0 is unmissable); n=20 is required
-    // for a significant composition verdict (4/10 vs 8/10 at n=10 is
-    // p~0.17 — the exact underpowering behind the afternoon's overturned
-    // n=4 conviction).
+    // #333: ONE factory for every instrument button. The action is the same
+    // conductor call the launch-env trigger makes — bar 333-B's "one code
+    // path" is this line, not a resemblance between two of them. The
+    // conductor owns ALL flag discipline (accept / decline / attended-alarms)
+    // and the idle-timer lock, so a button sets none of them: that is why the
+    // deleted factories' twelve hand-copied flag lines apiece are gone rather
+    // than moved. `batteryRunning` stays a UI-only double-fire guard; the real
+    // mutex is backend-owned (`beginBatteryRun`).
     @ViewBuilder
-    private func batteryButton(trials: Int, label: String) -> some View {
+    private func instrumentButton(_ name: String, trials: Int, label: String) -> some View {
         Button {
-            guard !batteryRunning, let backend = container.localChatBackend else { return }
+            guard !batteryRunning,
+                  let backend = container.localChatBackend,
+                  let spec = InstrumentRegistry.spec(named: name) else { return }
             batteryRunning = true
-            // Headless battery sessions can never answer a confirmation
-            // card (non-cancellable continuation), so action-tool grabs
-            // auto-decline for the run — which also measures post-denial
-            // recovery behavior. The auto-modes are mutually exclusive:
-            // clearing accept here (and both at run end) keeps the #200
-            // launcher and this one from ever overlapping flags.
-            container.toolConfirmationCenter.autoAcceptForBattery = false
-            BatteryTestContainer.alarmWritesAttended = false
-            container.toolConfirmationCenter.autoDeclineForBattery = true
-            // A ~20-minute n=20 must survive auto-lock — work-desk runs
-            // (#196 results-page lane) have no cable keeping the screen
-            // awake, and a locked screen suspends the run mid-battery.
-            UIApplication.shared.isIdleTimerDisabled = true
             Task {
-                await backend.runShapeBattery(trials: trials)
-                container.toolConfirmationCenter.autoDeclineForBattery = false
-                container.toolConfirmationCenter.autoAcceptForBattery = false
-                BatteryTestContainer.alarmWritesAttended = false
-                UIApplication.shared.isIdleTimerDisabled = false
-                batteryRunning = false
-            }
-        } label: {
-            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
-                      size: 10, tracking: Design.Tracking.mono,
-                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
-        }
-        .disabled(batteryRunning)
-    }
-
-    // #200 action battery: the action-SUCCESS path. Auto-ACCEPT armed —
-    // every staged confirmation approves, so appropriate creates EXECUTE:
-    // real EventKit/AlarmKit writes, every artifact marker-tagged by the
-    // gate, all reaped before the DONE line. Run with Reminders/Calendar
-    // permissions GRANTED (the observed #200 failure post-dates the grant).
-    // Shares the batteryRunning guard with the other instruments.
-    @ViewBuilder
-    private func actionBatteryButton(trials: Int, label: String) -> some View {
-        Button {
-            guard !batteryRunning, let backend = container.localChatBackend else { return }
-            batteryRunning = true
-            // Mutually exclusive with the decline mode — decline would
-            // measure the #196 contract, not action success.
-            container.toolConfirmationCenter.autoDeclineForBattery = false
-            container.toolConfirmationCenter.autoAcceptForBattery = true
-            // #331: a tap is a human. Harness ALARM writes are attended-only
-            // (they ring through Silent mode and have no container to nuke), so
-            // nothing but this launcher path may arm them.
-            BatteryTestContainer.alarmWritesAttended = true
-            // Same auto-lock guard as the shape battery.
-            UIApplication.shared.isIdleTimerDisabled = true
-            Task {
-                await backend.runActionBattery(trials: trials)
-                // Both flags cleared at run end, whatever this run armed.
-                container.toolConfirmationCenter.autoAcceptForBattery = false
-                BatteryTestContainer.alarmWritesAttended = false
-                container.toolConfirmationCenter.autoDeclineForBattery = false
-                UIApplication.shared.isIdleTimerDisabled = false
+                let conductor = InstrumentConductor(
+                    confirmationCenter: container.toolConfirmationCenter, backend: backend)
+                await conductor.run(spec: spec, trials: trials, cells: nil, unattended: false)
                 batteryRunning = false
             }
         } label: {
@@ -871,28 +823,6 @@ struct DeveloperSettingsScreen: View {
                 container.toolConfirmationCenter.autoAcceptForBattery = false
                 BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
-                UIApplication.shared.isIdleTimerDisabled = false
-                batteryRunning = false
-            }
-        } label: {
-            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
-                      size: 10, tracking: Design.Tracking.mono,
-                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
-        }
-        .disabled(batteryRunning)
-    }
-
-    // #209 read-tool battery: production vs the pinned read-tool rollback on
-    // prompts where OMITTING the field is correct. READ tools only — nothing
-    // is written, so no auto-accept is needed and the reap is a no-op.
-    @ViewBuilder
-    private func readToolBatteryButton(trials: Int, label: String) -> some View {
-        Button {
-            guard !batteryRunning, let backend = container.localChatBackend else { return }
-            batteryRunning = true
-            UIApplication.shared.isIdleTimerDisabled = true
-            Task {
-                await backend.runReadToolBattery(trials: trials)
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
             }
@@ -1725,31 +1655,6 @@ struct DeveloperSettingsScreen: View {
         .disabled(batteryRunning)
     }
 
-    // #196 battery 4: router-accuracy probe — no tools execute (pure
-    // classification), so no confirmation auto-decline is needed; the
-    // shared batteryRunning guard keeps the two instruments from
-    // overlapping on the model.
-    @ViewBuilder
-    private func routerProbeButton(trials: Int, label: String) -> some View {
-        Button {
-            guard !batteryRunning, let backend = container.localChatBackend else { return }
-            batteryRunning = true
-            // Same auto-lock guard as the battery button — 200 router
-            // generations take minutes, not seconds.
-            UIApplication.shared.isIdleTimerDisabled = true
-            Task {
-                await backend.runRouterProbe(trials: trials)
-                UIApplication.shared.isIdleTimerDisabled = false
-                batteryRunning = false
-            }
-        } label: {
-            MonoLabel(batteryRunning ? "Battery running… watch Console" : label,
-                      size: 10, tracking: Design.Tracking.mono,
-                      color: batteryRunning ? Design.Colors.mutedForeground : Design.Colors.foregroundBright)
-        }
-        .disabled(batteryRunning)
-    }
-
     // #202A: same shape as the #196 router probe — pure classification, so
     // no confirmation auto-decline and nothing to sweep afterwards. The
     // idle-timer lock matters here too: ~585 generations is ~10 minutes.
@@ -1990,11 +1895,11 @@ struct DeveloperSettingsScreen: View {
                 // probe measures classification accuracy alone (lines
                 // prefixed "router:"). No force-quit cycling needed.
                 HStack(spacing: Design.Spacing.sm) {
-                    batteryButton(trials: 10, label: "Battery n=10 (~120 trials)")
-                    batteryButton(trials: 20, label: "Battery n=20 (~240)")
+                    instrumentButton("shape", trials: 10, label: "Battery n=10 (~120 trials)")
+                    instrumentButton("shape", trials: 20, label: "Battery n=20 (~240)")
                 }
                 HStack(spacing: Design.Spacing.sm) {
-                    routerProbeButton(trials: 20, label: "Router probe n=20 (200)")
+                    instrumentButton("router-probe", trials: 20, label: "Router probe n=20 (200)")
                 }
                 // #200 action battery: 1 armed cell × 3 create prompts × n,
                 // auto-ACCEPT — real writes, [T27-battery]-tagged, reaped
@@ -2002,8 +1907,8 @@ struct DeveloperSettingsScreen: View {
                 // the crash-repro power (both 2026-07-28 n=20 attempts died
                 // mid-run); n=20 is the measurement power.
                 HStack(spacing: Design.Spacing.sm) {
-                    actionBatteryButton(trials: 5, label: "Action battery n=5 (15)")
-                    actionBatteryButton(trials: 20, label: "Action battery n=20 (60)")
+                    instrumentButton("action", trials: 5, label: "Action battery n=5 (15)")
+                    instrumentButton("action", trials: 20, label: "Action battery n=20 (60)")
                 }
                 // #209: production vs the pinned read-tool rollback, on prompts
                 // where omitting the field is CORRECT. 2 cells × 4 prompts × n.
@@ -2013,7 +1918,7 @@ struct DeveloperSettingsScreen: View {
                 }
                 weatherKitProbeResultRow
                 HStack(spacing: Design.Spacing.sm) {
-                    readToolBatteryButton(trials: 10, label: "Read-tool battery n=10 (80)")
+                    instrumentButton("read-tool", trials: 10, label: "Read-tool battery n=10 (80)")
                 }
                 // #211: control vs the scoped readMotion description, on the
                 // step question the app currently answers wrong 20/20.
