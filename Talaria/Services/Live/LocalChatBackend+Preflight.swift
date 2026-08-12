@@ -51,6 +51,17 @@ extension LocalChatBackend {
         var distinct: Int { Set(values).count }
     }
 
+    /// #335: "we cancelled this trial" as a fact we OWN, rather than a fact we
+    /// try to read back out of whatever error the SDK hands us.
+    ///
+    /// A reference type because the timeout `Task`'s closure escapes and a
+    /// captured `var` cannot be mutated from inside it. One flag per trial —
+    /// sharing one across trials would let a late guillotine from trial N mark
+    /// trial N+1 as timed out.
+    final class GuillotineFlag {
+        var tripped = false
+    }
+
     /// Runs `body` `repeats` times, collecting values and counting throws.
     func measureRepeatedly(_ repeats: Int,
                            _ body: () async throws -> Int) async -> RepeatedMeasurement {
@@ -379,6 +390,7 @@ extension LocalChatBackend {
 
         // Band 3 — throw vs truncate, and it GENERATES, so it goes last.
         var truncatedCount = 0
+        var withinCapCount = 0
         var threwCount = 0
         var timedOutCount = 0
         var outputTokens: [Int] = []
@@ -393,40 +405,83 @@ extension LocalChatBackend {
                     to: Prompt(Self.responseCapProbePrompt),
                     options: GenerationOptions(maximumResponseTokens: Self.responseCapProbeCap))
             }
-            let timeoutTask = Task { try? await Task.sleep(for: .seconds(35)); respondTask.cancel() }
+            // The guillotine raises its OWN flag, and that flag is what
+            // classifies a timed-out trial — never the shape of the error that
+            // comes back. `catch is CancellationError` was a guess about SDK
+            // error identity: FoundationModels may wrap cancellation in its
+            // own type, and typed FM catches have already gone blind between
+            // betas once (#324 — `as? LanguageModelError` does not fire on the
+            // un-bridged NSError the beta5 sim returns). A guillotined trial
+            // misfiled as a throw would manufacture a THREW finding out of a
+            // slow one, in the band whose entire output is that word.
+            let guillotine = GuillotineFlag()
+            let timeoutTask = Task {
+                try? await Task.sleep(for: .seconds(35))
+                guillotine.tripped = true
+                respondTask.cancel()
+            }
             do {
                 let response = try await respondTask.value
                 timeoutTask.cancel()
-                truncatedCount += 1
-                outputTokens.append(response.usage.output.totalTokenCount)
+                let outputTokenCount = response.usage.output.totalTokenCount
+                outputTokens.append(outputTokenCount)
                 outputChars.append(response.content.count)
-                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TRUNCATED outTok=\(response.usage.output.totalTokenCount) chars=\(response.content.count) text=\(response.content.replacingOccurrences(of: "\n", with: " / ").prefix(200))")
-            } catch is CancellationError {
-                timeoutTask.cancel()
-                timedOutCount += 1
-                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TIMEOUT — guillotined at 35s")
+                // TRUNCATION IS EVIDENCE, not the absence of a throw. A reply
+                // that stopped because it had nothing left to say is a
+                // completion that finished UNDER the cap, and calling that
+                // "truncated" would report the cap as binding on a trial where
+                // it never bound — the same error as scoring an unarmed cell
+                // (#215). The discriminator is the usage count against the cap
+                // the request actually carried.
+                if outputTokenCount >= Self.responseCapProbeCap {
+                    truncatedCount += 1
+                    Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TRUNCATED outTok=\(outputTokenCount)>=cap=\(Self.responseCapProbeCap) chars=\(response.content.count) text=\(response.content.replacingOccurrences(of: "\n", with: " / ").prefix(200))")
+                } else {
+                    withinCapCount += 1
+                    Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) RETURNED-WITHIN-CAP outTok=\(outputTokenCount)<cap=\(Self.responseCapProbeCap) chars=\(response.content.count) text=\(response.content.replacingOccurrences(of: "\n", with: " / ").prefix(200))")
+                }
             } catch {
                 timeoutTask.cancel()
-                threwCount += 1
-                if firstError == nil { firstError = String(String(describing: error).prefix(200)) }
-                Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) THREW error=\(String(String(describing: error).prefix(200)))")
+                if guillotine.tripped {
+                    timedOutCount += 1
+                    Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) TIMEOUT — guillotined at 35s")
+                } else {
+                    threwCount += 1
+                    if firstError == nil { firstError = String(String(describing: error).prefix(200)) }
+                    Self.batteryEmit("preflight: [response-cap-behavior] t=\(trial) THREW error=\(String(String(describing: error).prefix(200)))")
+                }
             }
         }
         // "none" is a real, reportable outcome: a band where every trial timed
         // out has measured NOTHING, and must not be read as "it truncated".
+        // `returned-within-cap` is the other honest non-answer — the cap did
+        // not bind, so this build's throw-vs-truncate behaviour is simply not
+        // exercised and the band says so instead of picking one.
         let behavior: String
-        switch (threwCount > 0, truncatedCount > 0) {
-        case (true, true): behavior = "mixed"
-        case (true, false): behavior = "threw"
-        case (false, true): behavior = "truncated"
-        case (false, false): behavior = "none"
+        if threwCount > 0 && (truncatedCount > 0 || withinCapCount > 0) {
+            behavior = "mixed"
+        } else if threwCount > 0 {
+            behavior = "threw"
+        } else if truncatedCount > 0 {
+            behavior = "truncated"
+        } else if withinCapCount > 0 {
+            behavior = "returned-within-cap"
+        } else {
+            behavior = "none"
         }
+        // NOTE on this row's `errors`: elsewhere in these instruments `errors`
+        // means "the measurement did not happen". HERE a throw IS the finding
+        // — it is one of the two behaviours the band exists to tell apart — so
+        // `errors` carries THREW plus the trials the guillotine took, and
+        // `threw` / `timedOut` are recorded separately so the two can never be
+        // read as one number.
         var capMetrics: [String: Double] = [
             "cap": Double(Self.responseCapProbeCap),
             "truncated": Double(truncatedCount),
+            "returnedWithinCap": Double(withinCapCount),
             "threw": Double(threwCount),
             "timedOut": Double(timedOutCount),
-            "scored": Double(truncatedCount + threwCount),
+            "scored": Double(truncatedCount + withinCapCount + threwCount),
             "errors": Double(threwCount + timedOutCount),
         ]
         if let low = outputTokens.min() { capMetrics["outputTokensMin"] = Double(low) }
@@ -434,7 +489,7 @@ extension LocalChatBackend {
         if let high = outputChars.max() { capMetrics["outputCharsMax"] = Double(high) }
         var capNotes = ["behavior": behavior]
         if let firstError { capNotes["firstError"] = firstError }
-        Self.batteryEmit("preflight: [response-cap-behavior] SUMMARY behavior=\(behavior) truncated=\(truncatedCount)/\(repeats) threw=\(threwCount)/\(repeats) timedOut=\(timedOutCount)/\(repeats) cap=\(Self.responseCapProbeCap) outTok=\(outputTokens.map(String.init).joined(separator: ","))")
+        Self.batteryEmit("preflight: [response-cap-behavior] SUMMARY behavior=\(behavior) truncated=\(truncatedCount)/\(repeats) withinCap=\(withinCapCount)/\(repeats) threw=\(threwCount)/\(repeats) timedOut=\(timedOutCount)/\(repeats) cap=\(Self.responseCapProbeCap) outTok=\(outputTokens.map(String.init).joined(separator: ","))")
         Self.batteryRecorder.recordProbe(
             probe: "plain generation under maximumResponseTokens=\(Self.responseCapProbeCap)",
             expected: true, correct: truncatedCount, trials: repeats,
@@ -517,6 +572,13 @@ extension LocalChatBackend {
         let model = self.model
         let ceiling = Self.condensationFitCeiling
         let turns = Self.condensationOverflowTranscript()
+        // REFERENCE ONLY, and deliberately not the number the condenser uses.
+        // `sessionBlueprint` budgets against `activeContextSize()`, which is
+        // identical to this on device (the on-device window) but resolves to
+        // PCC's 32K when that tier is active. Recording the on-device read
+        // keeps the row comparable across runs and honest about which number
+        // it is; the VERDICT is scored against #210's 8,192 ceiling, not
+        // against either of these.
         let contextSize = model.contextSize
         let budget = max(1024, contextSize - Self.responseHeadroomTokens(for: activeTier))
         Self.batteryEmit("preflight: CONDENSATION FIT START repeats=\(repeats) turns=\(turns.count) ceiling=\(ceiling) contextSize=\(contextSize) budget=\(budget) tier=\(activeTier.rawValue) (#210/#335)")

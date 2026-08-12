@@ -9213,15 +9213,15 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > call alarm-bounded; three-state baseline).
 >
 > **Standing facts for the next runner session:**
-> - ~~**16 of 45 instruments are unattended-eligible**~~ → **19 of 48 as of 2026-08-12
->   (#335)**, which added three read-only FM measurement instruments
->   (`tokencount-preflight`, `fm-asymmetries`, `condensation-fit`) — all `.none`, no
->   writes, so all three are unattended- AND iPad-eligible. The original counts are
->   struck rather than overwritten: they were true of the registry this entry shipped.
->   (all read-only probes + the
->   decline-mode batteries). The 29 alarm-writing accept batteries refuse unattended by
->   design — Owen's ruling, enforced in code. Unattended-eligible ≠ iPad-eligible only
->   for EventKit reasons; on the iPad the write set is refused entirely.
+> - ~~**16 of 45 instruments are unattended-eligible**~~ (all read-only probes + the
+>   decline-mode batteries) → **19 of 48 as of 2026-08-12 (#335)**, which added three
+>   read-only FM measurement instruments (`tokencount-preflight`, `fm-asymmetries`,
+>   `condensation-fit`) — all `.none`, no writes, so all three are unattended- AND
+>   iPad-eligible. The original counts are struck rather than overwritten: they were
+>   true of the registry this entry shipped. The 29 alarm-writing accept batteries
+>   refuse unattended by design — Owen's ruling, enforced in code. Unattended-eligible
+>   ≠ iPad-eligible only for EventKit reasons; on the iPad the write set is refused
+>   entirely.
 > - **`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
 >   cells; `runActionBattery`'s cells are `[ActionBatteryCell]`, not strings). Reserved,
 >   documented, inert.
@@ -9333,8 +9333,11 @@ failure mode is a launch that produces no artifact and no crash log.
   a counted error, and the record says which: the boundary band reports both
   token counts AND their ratio against the char ratio (a tokenizer that clamps
   at the window shows up as ratio < charRatio); the variant band reports a
-  non-empty `displayName`; the cap band classifies **THREW** (with the error) or
-  **TRUNCATED** (with the output length). **No bar is placed on WHICH behaviour**
+  non-empty `displayName`; the cap band classifies ~~**THREW** (with the error) or
+  **TRUNCATED** (with the output length)~~ **THREW / TRUNCATED /
+  RETURNED-WITHIN-CAP / MIXED / NONE** (amended by the 2026-08-12 review pass —
+  "did not throw" is not evidence of truncation; TRUNCATED now requires the
+  response's own output-token usage to have REACHED the cap). **No bar is placed on WHICH behaviour**
   — this is a measurement, not a hypothesis test. The falsifiable part is that
   the band must not come back "none": a run where every trial timed out has
   measured nothing and says so.
@@ -9344,6 +9347,80 @@ failure mode is a launch that produces no artifact and no crash log.
   post-condensation ≤ 8,192, aggregated over trials. **If no trial arms** (e.g.
   the tokenizer refuses the oversized payload), the instrument reports that and
   #210's residual STAYS OPEN — it is not scored on an unarmed cell.
+
+### SCORED 2026-08-12 — A–E MET (sim + unit). F–H are PENDING DEVICE and nothing here anticipates them.
+
+Branch `worktree-agent-aa61aad7264853b92`, commits `428e5a4` · `9c15096` ·
+`1faa117` · `0f63624` (+ the review pass). Simulator `CC-334-iPhone-Air`,
+iOS 27.0 build **24A5408d** (beta5, confirmed from the booted runtime's
+`DYLD_ROOT_PATH`), TCC calendar+reminders granted immediately before each run.
+
+- **335-A — MET.** `tokencount-preflight`, `fm-asymmetries` and
+  `condensation-fit` resolve through `InstrumentRegistry.spec(named:)` with
+  `.none` / `writesEventKit: false` / `writesAlarms: false`; three buttons go
+  through `instrumentButton`; registry **45 → 48** with the count pin and the
+  `everyConvertedButtonNameResolves` literal list moved in the same commits.
+  `PreflightInstrumentRegistryTests` (3 tests) pins the flags.
+- **335-B — MET, with the negative control WITNESSED.** All three seal a
+  `BatteryRunRecord` (`endedCleanly == true`, non-empty rows) on the sim, where
+  every FM call throws — measured error identity there is
+  `LanguageModelError -1` wrapping `ModelManagerError 1026`, and `contextSize`
+  reads 0. **Control:** `endRun()` commented out in all three methods →
+  **exactly three tests red, one per instrument, all on
+  `endedCleanly == true` (9 tests / 3 issues), nothing else moved.** The
+  records still APPEAR under the mutation (per-row snapshots persist with
+  `endedCleanly=false`), so the freshness assertions stayed green and only the
+  seal flag fell over — the tests are pinned to the property #333's conductor
+  actually reads. Mutation reverted, 3 `endRun()` calls restored.
+- **335-C — MET.** Every recorded row carries `errors` and a `scored` count;
+  `everyPreflightRowCarriesItsErrorTallyAndScoredCount` asserts it row by row
+  rather than in aggregate. On the sim `tokencount-preflight` records
+  `errors=2/2` on each tokenizer row and `errors=0` on the `contextSize` row —
+  the failure path reported as failure, not as a zero. **One deliberate
+  exception, labelled in code and in the record:** the `response-cap-behavior`
+  row's `errors` carries THREW, because there a throw is one of the two
+  findings the band exists to distinguish; `threw` and `timedOut` are also
+  recorded separately so they can never be read as one number.
+- **335-D — MET.** `responseCapRowsCarryTheProductionCaps` reads the row's
+  `cap` back out of the record and compares it to
+  `twoFieldRouterOptions.maximumResponseTokens` / `toolIntentRouterOptions`
+  themselves (128 / 64 on this build) — a retyped constant fails the test. The
+  window comes from the runtime `contextSize`, and the condensation payload
+  from production's own `sessionBlueprint`, widened `private` → internal
+  (`// harness-visible`) rather than reimplemented.
+- **335-E — MET. `GATE: PASS 2167→2181 + 14 XCUITest + Release`** on
+  `CC-334-iPhone-Air`: Test run reported TEST SUCCEEDED · Swift Testing
+  **2181 tests in 169 suites** (was 2167 at #333's merge; +14 = 3 registry, 2
+  record-shape incl. a legacy-row decode, 9 run-level) · XCUITest **14** ·
+  Release build succeeded · no Swift compile errors in Release. Run twice — once
+  before the five-outcome verdict fix and once after; the second is the
+  authoritative one, and both passed.
+- **335-F, 335-G, 335-H — PENDING DEVICE. Not scored, not estimated.** No
+  number in this lane came from hardware: the simulator cannot generate, so
+  every FM row it produced is an error row by construction. The three harness
+  commands are in `planning/UNATTENDED-RUNS-HANDOFF.md` §6. **335-G's wording
+  is amended by the review pass:** the cap band now classifies **THREW /
+  TRUNCATED / RETURNED-WITHIN-CAP / MIXED / NONE**, because "did not throw" is
+  not evidence of truncation — see the review note below.
+
+**REVIEW PASS 2026-08-12 (pre-merge, three Important + four minors).** Two of
+the three were measurement-honesty defects in code that had already passed its
+gate, which is the argument for the review:
+
+1. **The cap band called every non-throwing generation TRUNCATED.** A reply
+   that stopped because it had nothing more to say is a completion that
+   finished UNDER the cap, and reporting it as truncation would have claimed
+   the cap bound on a trial where it never bound — #215's unarmed-cell error in
+   a different band. Truncation is now derived from evidence: the response's
+   own output-token usage `>=` the cap it was submitted under; otherwise
+   `RETURNED-WITHIN-CAP`. Raw counts stay in the row either way.
+2. **`catch is CancellationError` guessed SDK error identity.** FoundationModels
+   may wrap cancellation, and typed FM catches have already gone blind between
+   betas once (#324: `as? LanguageModelError` does not fire on the beta5 sim's
+   un-bridged NSError). The guillotine now raises its own per-trial flag and
+   classification reads THAT — a timed-out trial can no longer inflate
+   `threwCount` and manufacture a THREW finding out of a slow one.
+3. Bars A–E scored here rather than living only in a hand-off report.
 
 **WATCH (found while building, 2026-08-12) — #333's completion check reads
 `loadRuns().first`, and "newest" has SECOND granularity.** `BatteryRunStore`
@@ -18425,6 +18502,20 @@ guard, at twice the latency.
 
 **Owed:** a measured run, not an assumption. Note `n` on the original observation
 is **2** — the smallest number in the program that anything rests on.
+
+> **2026-08-12 (#335): the vehicle exists; the run does not.** Same claim as
+> #210's "Still owed" — it lives in two homes, so the pointer goes in both.
+> **`condensation-fit`** (registry instrument, `LocalChatBackend+Preflight.swift`,
+> unattended- and iPad-eligible) drives a synthetic 12-turn overflow transcript
+> through **production's own condenser** (`sessionBlueprint(…forceCondense: true)`
+> — the same function `rebuildSession` calls on this entry's retry path) and
+> prices the condensed payload with the model's own tokenizer. Per trial it
+> records the pre-condensation count (the ARMING evidence — the trial scores
+> only if measured above 8,192, per #215), the post count, the split, and the
+> throw tally, with a five-way verdict that keeps "armed but the post count
+> threw" distinct from "armed and over". Bars 335-F/G/H are pre-registered in
+> #335 and **none has been run — an instrument is not a measurement**, and `n`
+> on the original observation is still 2.
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it
 

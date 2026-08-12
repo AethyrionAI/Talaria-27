@@ -185,12 +185,21 @@ struct PreflightInstrumentRunTests {
 
         let row = try #require(record.probes.first { $0.band == "response-cap-behavior" })
         let behavior = try #require(row.notes?["behavior"])
-        #expect(["threw", "truncated", "mixed", "none"].contains(behavior))
+        #expect(["threw", "truncated", "returned-within-cap", "mixed", "none"].contains(behavior))
         #expect(row.metrics?["cap"].map(Int.init) == LocalChatBackend.responseCapProbeCap)
         #expect(row.errors != nil)
         // On the sim the generation throws, so the evidence must be the error
         // text — the row cannot claim a behaviour it did not observe.
         if behavior == "threw" { #expect(row.notes?["firstError"] != nil) }
+        // TRUNCATED is a claim about the cap BINDING, so it may only be said
+        // when the usage count reached it. A completion that finished under
+        // the cap is `returned-within-cap` and is not truncation evidence —
+        // the two counters are kept apart in the row for exactly that reason.
+        #expect(row.metrics?["returnedWithinCap"] != nil)
+        if let maxOut = row.metrics?["outputTokensMax"], behavior == "truncated" {
+            #expect(maxOut >= Double(LocalChatBackend.responseCapProbeCap),
+                    "TRUNCATED claimed with no trial reaching the cap")
+        }
     }
 
     @Test func condensationFitSealsARunWithPerTrialRowsAndASummary() async throws {
