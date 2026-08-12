@@ -180,6 +180,7 @@
 		47AC470D1D4B4BFBA0F71624 /* Icon-HoloSushi@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FEF4DC986BD45CCA162C8FD /* Icon-HoloSushi@3x.png */; };
 		47CFEAEB6A737963ECFC811B /* ToolActivityStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C5013854AA5BEDDBACE8A0E /* ToolActivityStateTests.swift */; };
 		4805439DA2901ABBA5815ED8 /* TalariaAlarmMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */; };
+		498F494D8E44FE972E89C30C /* BatteryTestContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F55FA4A1689E35683E70D4A /* BatteryTestContainerTests.swift */; };
 		4AEF1AF1F96F850BFAE6ADFC /* SelectedIconHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABF6ED023952DF5A80472D3 /* SelectedIconHandoff.swift */; };
 		4BB52E0CCE60FA2B2FC1062F /* HermesControlIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 372A065CA7C63D2317AEC9E2 /* HermesControlIntents.swift */; };
 		4BC23867516A49731D7575B6 /* AppRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C85FA7AD7546950A9A3BEBD /* AppRootView.swift */; };
@@ -489,6 +490,7 @@
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
 		E439FDB038C23E457B6E0C25 /* CancelFinalStatusReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */; };
+		E45F71157C5A6EB2F220C677 /* BatteryTestContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172C886B0ACCD7BFDB590DCC /* BatteryTestContainer.swift */; };
 		E4EE52A039E47EBA8881069D /* Icon-MidnightAquarium@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8BD8C35FF4AC86391DCCFEC4 /* Icon-MidnightAquarium@2x.png */; };
 		E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */; };
 		E5838375ED9AD3D0BDF55F70 /* ConversationCardInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F534300B8AB31C540006B3 /* ConversationCardInputTests.swift */; };
@@ -645,6 +647,7 @@
 		155687D43485517170C466D8 /* MockLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockLocationService.swift; sourceTree = "<group>"; };
 		158695134A208F419A6A9E49 /* HermesClientProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesClientProtocol.swift; sourceTree = "<group>"; };
 		162F451F83C4AC21B06C1920 /* MediaServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaServiceProtocol.swift; sourceTree = "<group>"; };
+		172C886B0ACCD7BFDB590DCC /* BatteryTestContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryTestContainer.swift; sourceTree = "<group>"; };
 		17A9783DF0DB78DE9E409FD1 /* StatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIndicator.swift; sourceTree = "<group>"; };
 		17EF240E4C67102BB6FF22F1 /* HostReachability.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostReachability.swift; sourceTree = "<group>"; };
 		18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementServiceProtocol.swift; sourceTree = "<group>"; };
@@ -724,6 +727,7 @@
 		3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHealthWidget.swift; sourceTree = "<group>"; };
 		3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoresTests.swift; sourceTree = "<group>"; };
 		3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenUsage.swift; sourceTree = "<group>"; };
+		3F55FA4A1689E35683E70D4A /* BatteryTestContainerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryTestContainerTests.swift; sourceTree = "<group>"; };
 		3FC2B649BFFE249B53929459 /* DeeplinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeeplinkRouter.swift; sourceTree = "<group>"; };
 		3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaraokeSupernova@3x.png"; sourceTree = "<group>"; };
 		40715ACFEED629379C8F24E1 /* BackendProfilesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendProfilesStore.swift; sourceTree = "<group>"; };
@@ -1264,6 +1268,7 @@
 				F4E4E4E79B398DB1BEC0E4A8 /* BackendProfilesTests.swift */,
 				B37699B2D4090F1A7924AA99 /* BatteryReapEventKitProbeTests.swift */,
 				D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */,
+				3F55FA4A1689E35683E70D4A /* BatteryTestContainerTests.swift */,
 				B101F84B43323E854C1B5F28 /* BriefingTests.swift */,
 				DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */,
 				25178BA15FDBAB257A89412B /* CapabilityRegistryTests.swift */,
@@ -1855,6 +1860,7 @@
 		AF31C27AA3D6C561D9397B0C /* DeviceTools */ = {
 			isa = PBXGroup;
 			children = (
+				172C886B0ACCD7BFDB590DCC /* BatteryTestContainer.swift */,
 				705D5719310AF183CF384014 /* CapabilityRegistry.swift */,
 				9E6487FFA0217D2BC5B6C9C5 /* DeviceActionTools.swift */,
 				7EC64740ACEB2CBFC10CB13C /* DeviceCalendarTools.swift */,
@@ -2379,6 +2385,7 @@
 				43FE22BBDB759478A2CC34D3 /* BackgroundTaskService.swift in Sources */,
 				7E684A7F10A754DC9BD54738 /* BatteryResultsScreen.swift in Sources */,
 				B300923A26AF30147810EBA1 /* BatteryRunStore.swift in Sources */,
+				E45F71157C5A6EB2F220C677 /* BatteryTestContainer.swift in Sources */,
 				3B2A2C9EB08B03298E7A3501 /* BriefingDetailScreen.swift in Sources */,
 				25EF11D1C18E00F67325380F /* CapabilitiesSheet.swift in Sources */,
 				3FD7C2A490B0F879343C1B97 /* CapabilityRegistry.swift in Sources */,
@@ -2670,6 +2677,7 @@
 				BF3A59E064993200D79CC8E0 /* BackendProfilesTests.swift in Sources */,
 				54B2F585874181F300A86D0C /* BatteryReapEventKitProbeTests.swift in Sources */,
 				B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */,
+				498F494D8E44FE972E89C30C /* BatteryTestContainerTests.swift in Sources */,
 				D78D0D8D86345D8E41B110B4 /* BriefingTests.swift in Sources */,
 				E439FDB038C23E457B6E0C25 /* CancelFinalStatusReadTests.swift in Sources */,
 				14ABBD71B2BFF8ED31904FA1 /* CapabilityRegistryTests.swift in Sources */,
