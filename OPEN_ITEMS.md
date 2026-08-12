@@ -7292,7 +7292,7 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 - **Gate:** `scripts/mac/lane-gate.sh` green (Debug suite + Release build) with a dedicated `TALARIA_SIM_NAME`, and Calendar + Reminders TCC granted before the run.
 
 **Cross-references:** **#320** (the lane that measured this and routed around it for one badge; its close-out points here), **#49** (the data-driven palette catalog — the reason a fix is data and not switch arms, and the file this entry deliberately did not edit), **#18** (the no-silent-substitution rule whose `LOCAL VOICE` badge is the worst-affected surface — cited the way the surrounding code and #180's 180-D use the number; note that **tracker** item 18 in `OPEN_ITEMS-ARCHIVE.md` is the session-shelf scrim, so this is the GitHub-sequence collision CLAUDE.md warns about), **#112** (Midnight Marquee — ships three of the seven failing palettes and the adaptive Comic Book theme that reaches one of them automatically), **#84** (the mic-health hint, one of the affected surfaces), **#180** (honest degradation — a warning the user cannot read is the family's shape, arriving through the design system rather than through copy).
-## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. NOT STARTED; bars pre-register here before any fix.**
+## 326. 🎲 `ThrowawayLiveActivityHarnessTests` is ~~SIMULATOR-DEPENDENT~~ **CONTENTION-DEPENDENT** — the same commit passes 5/5 on one sim and fails 2/5 on another, and it held a publish — **FILED 2026-08-11 from the wave-2 close-out gate. MEASURED with a discriminator, not inferred. → ✅ WORKED SAME DAY: 326-A/B/C/D MET, no production code touched. CORRECTED BY ITS OWN LANE: the two sims are indistinguishable on this axis (identical readings, both formerly-failing tests pass on both), and the measured mechanism is a five-slot ActivityKit budget shared PER APP across every suite in one parallel test host — a per-RUN condition, not a per-SIM one. `Activity.request` is the side that diverges; `areActivitiesEnabled` reads `true` everywhere measured. Full readings + the discarded inherited design in the WORKED block below.**
 
 **What happened.** The final combined gate on merged `main` (`d470c0d`) returned
 `GATE: FAIL (4 checks)` on `CC-320-iPhone-Air`:
@@ -7368,6 +7368,152 @@ assertion serves), **#324-W2** (signature 2), **#254** (signature 3, and the
 TCC-does-not-survive-a-reboot rule), **#300** (the gate advice that must
 discriminate rather than guess), **#182 / #219 / #236** (the flaky-test family
 this joins).
+
+> **✅ WORKED 2026-08-11 — lane `t27-326-activitykit-dependency`, base
+> `f7c493d`. 326-A is ANSWERED, and its answer contradicts this entry's own
+> headline: THE TWO SIMS DO NOT DIFFER.**
+>
+> **326-A — MET. The readings, verbatim.** Same commit, both sims, the suite
+> run ALONE (three tests via `-only-testing`), a throwaway probe reporting
+> through `Issue.record` because that is the only channel that reliably lands
+> text in an xcodebuild log:
+>
+> ```
+> CC-320  0971A517-66BD-48EA-91C1-AB99A05BC2FC
+> CC-321  86DCEFF3-8D8D-4C58-B7F5-50ED3BB98026
+>
+>   enabled_at_entry=true | frequentPushes=true | preexisting_ours=0
+>   states=[] | after_drain_ours=0 | enabled_after_drain=true
+>   direct_request=SUCCEEDED | service.isAvailable=true
+>   service.hasActiveActivity=true
+> ```
+>
+> **Character for character identical on both sims, and both formerly-failing
+> tests PASSED on both.** So the `areActivitiesEnabled` side did not diverge —
+> it reads `true` everywhere measured. **The diverging side is the REQUEST,
+> and that is forced as well as measured:** `isAvailable == false` with a
+> handle is unreachable, because production's `guard isAvailable else
+> { return }` returns before anything can set `currentActivity`, so the only
+> reachable failure of the equality is *enabled, and no handle* — a refused
+> request.
+>
+> **What could NOT be measured, said plainly: the original CC-320 state is
+> GONE.** That sim was rebooted at **20:50:43 today**, after the failing gate
+> and before this lane started (`launchd_sim` start time). The specific
+> trigger of the 2026-08-11 red is therefore **UNPROVEN and now unprovable**;
+> what follows is a measured, reachable mechanism that produces exactly the
+> observed signature, not a reconstruction of that morning.
+>
+> **326-B — MET. RED reproduced deliberately, on `CC-321`, verbatim:**
+>
+> ```
+> foreign_refused_at=5 domain=com.apple.ActivityKit.ActivityAuthorization
+> code=5 raw=targetMaximumExceeded | foreign_vended=5 |
+> enabled_under_load=true | ours_visible=0 | isAvailable=true |
+> hasActiveActivity=false | OLD_ASSERTION_HOLDS=false |
+> ours_request=THREW domain=com.apple.ActivityKit.ActivityAuthorization
+> code=5 raw=targetMaximumExceeded
+> ```
+>
+> The ceiling is **five concurrent Live Activities per APP, shared across
+> attributes types** — five activities of an unrelated type starve
+> `HermesActivityAttributes` completely, and `adoptExistingActivityIfNeeded()`
+> only adopts activities of OUR type, so there is nothing to adopt either. The
+> sixth request throws while `areActivitiesEnabled` still reads `true`. In
+> that state the old assertion reads `false == true`. **The hidden premise
+> this entry named is false by measurement.**
+>
+> **🔴 AND THE STATE IS ORDINARY, NOT EXOTIC — this is the part that changes
+> the entry's framing.** The test host is **one app running many suites in
+> parallel**, and other suites vend real Live Activities through the same
+> production path: `AppStoresTests` drives real `ChatStore`s, and `ChatStore`'s
+> `tool.started` handling calls `chatLiveActivity.startToolCall(...)`
+> (`ChatStore.swift:769`) — including one scripted stream that deliberately
+> never finishes. **A free activity slot is a contended, process-global
+> resource, not a property of a simulator.** That is consistent with every
+> reading here: the suite passes when run alone on BOTH sims, and failed
+> inside a 2116-test gate.
+>
+> **So this entry's headline is CORRECTED at its home** (see the header edit
+> above): the honest description is **contention-dependent**, not
+> simulator-dependent. **The original discriminator is not retracted** — it
+> moved one named variable and it is why the code was exonerated rather than
+> argued about, which was the right instinct. But the variable it moved was
+> **confounded with fresh per-run scheduling**, and the two arms are now shown
+> to be indistinguishable on the axis the entry named. The "uncomfortable
+> corollary" needs the same correction: past gates did not pass because those
+> sims "happened to hold ActivityKit in the state this test expects" —
+> **characterising a simulator buys nothing here, because the state is
+> per-run.**
+>
+> **326-C — MET, and NO PRODUCTION CODE CHANGED.** The two premise-laden
+> equalities are gone. The three tests that need a vend now (a) carry an
+> `.enabled` condition that **measures** a vend — requests one activity of the
+> real production type and hands it straight back — so a host that refuses
+> **SKIPS visibly**, which the gate already prints, counts and demands name a
+> tracker item; (b) re-establish a free slot immediately before the tap with a
+> bounded retry, so ordinary cross-suite contention is ridden out instead of
+> reported as a defect, and a sustained refusal is reported **with the
+> ActivityKit error attached** rather than as a bare boolean mismatch; and (c)
+> assert the strong, premise-free `service.hasActiveActivity`. The 250T-B pin
+> is intact and is now stronger than the equality it replaces: it fails loudly
+> if the harness stops driving the production service, and it can no longer be
+> satisfied by nothing having happened.
+>
+> **The inherited work was DISCARDED, deliberately, and its measurements were
+> kept.** A previous agent on this lane (interrupted mid-edit; its tree is
+> preserved verbatim at `2e13ae6`) had added a production
+> `LiveActivityService.StartOutcome` enum + `lastStartOutcome` property so the
+> test could assert `hasActiveActivity == lastStartOutcome.leftAHandle`. It is
+> a real design, and it came out for two reasons about **what the suite would
+> then prove**. First, that equality compares two variables production writes
+> **on adjacent lines in the same branches** — it checks bookkeeping
+> consistency, not behaviour, and can only fail if a future edit sets one
+> without the other. Second, under it the tests **PASS on a host that refuses
+> to vend**, so the suite quietly stops proving that a throwaway activity
+> appears at all — which is 250T-B's actual content — and **nothing in the
+> gate output says so**. A visible skip is worth more than a green that has
+> gone hollow. Its companion test (fill the budget with a foreign attributes
+> type, assert the new equality) came out with it: **it holds all five slots
+> of a process-global resource for the length of its body inside a parallel
+> test host**, which is precisely the starvation it documents, and it would
+> have made other suites flaky. Its factual claims were **re-measured
+> independently by this lane** before being discarded and are the numbers
+> above.
+>
+> **326-D — MET. The sweep, and everything it found is named.**
+> - `== service.isAvailable` occurs **exactly twice** in the whole tree, both
+>   in `ThrowawayLiveActivityHarnessTests.swift` (the two lines that failed).
+>   Both are gone. **No other test asserts against an availability flag.**
+> - **One relative of the same shape, in the same file, FIXED rather than
+>   merely named:** `aSecondStartWhileRunningDoesNotStackActivities` asserts
+>   `Activity<…>.activities.count <= 1`. A BOUND, not an equality, so it never
+>   carried the premise — but on a refusing host it is satisfied **vacuously
+>   by 0**, which is a green that proves nothing. It now takes the same
+>   measured precondition, and asserts the vend happened.
+> - **One relative OUTSIDE ActivityKit, named not fixed:**
+>   `ConversationCardInputTests.swift:207` records the identical premise class
+>   for FoundationModels — *`isAvailable` is true but generation throws
+>   `Code=5000`*. It is a comment, not an assertion, so nothing is red; it is
+>   named here because **"available implies it works" has now been falsified
+>   in two different frameworks in this codebase**, and the next reader should
+>   treat any availability flag as gating the ATTEMPT only.
+> - **A cross-suite interaction found while sweeping, filed as knowledge, not
+>   fixed:** this suite's `drainExistingActivities()` calls
+>   `LiveActivityService.endAllActivities()`, which ends **every** activity of
+>   our type in the process — including ones another suite's `ChatStore` is
+>   mid-use of. It predates this lane and nothing currently asserts on those,
+>   so it is a live hazard rather than a live defect.
+>
+> **326-E — see the gate block below.**
+>
+> **The ActivityKit state of every run in this block, so a future green is
+> interpretable:** both sims iOS 27.0 sim runtime under Xcode-beta5,
+> `areActivitiesEnabled = true`, `frequentPushesEnabled = true`, zero
+> pre-existing activities at entry, and a direct `Activity.request`
+> **succeeding** — i.e. the ordinary, non-starved state. `CC-320` was booted
+> at 20:50:43 and `CC-321` at 21:16 on 2026-08-11; TCC calendar + reminders
+> granted after boot on both.
 
 
 > **📱 DEVICE SITTING 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`) —
@@ -13412,6 +13558,34 @@ lane opens.
 > the sim test host, and the run log shows real activity UUIDs
 > (`[api] Updating content for activity …`). **The sim host really does vend
 > Live Activities, so the equality is asserting `true == true`.**
+>
+> > **🔴 CORRECTION 2026-08-11 (#326 lane) — the last sentence of the
+> > paragraph above is FALSE as a standing claim, and the trap this lane
+> > believed it had disarmed fired six days later.** The probe was real and
+> > its reading was true *at that instant*; what does not follow is *"so the
+> > equality is asserting `true == true`"*. **The sim host vends Live
+> > Activities only while a slot is free, and a slot is a contended
+> > process-global resource** — the ceiling is five concurrent activities per
+> > APP, shared across attributes types, and the sixth request throws
+> > `targetMaximumExceeded` (`com.apple.ActivityKit.ActivityAuthorization`,
+> > code 5) **while `areActivitiesEnabled` still reads `true`** (measured
+> > verbatim, #326-B). Other suites in the same test host vend through this
+> > same path — `AppStoresTests` drives real `ChatStore`s whose `tool.started`
+> > handling calls `startToolCall`.
+> >
+> > **The check was aimed at one direction only.** It asked whether the
+> > equality could be vacuously satisfied by `false == false`, and answered
+> > that well. It did not ask whether the equality could be **violated** by
+> > `false == true` — enabled, but refused — which is the state that turned a
+> > clean `main` red on 2026-08-11 and held a publish. **A one-shot probe
+> > establishes a value, never an invariant**, and the generalising word in
+> > that sentence is *"really does"*.
+> >
+> > The two `== service.isAvailable` assertions are gone as of the #326 lane;
+> > the tests now MEASURE whether ActivityKit will vend, skip visibly when it
+> > will not, and assert `hasActiveActivity` outright. **250T-B's pin is
+> > intact and strictly stronger** — it can no longer be satisfied by nothing
+> > having happened. No production code changed. See **#326**.
 >
 > **250T-C: OWED on device, and NOT claimed by this lane.** The sim bars prove
 > the trigger drives the real service and leaks nothing; **they verify no
