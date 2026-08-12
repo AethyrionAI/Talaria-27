@@ -186,6 +186,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#322** 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 (Owen's ruling, knowingly superseding the 08-09 acceptance under archived #292)** **→ ✅ BUILT 2026-08-11 on `t27-321-322-stop-completes` (with #321, one commit): bars 322-A..E ALL MET, ONE request pinned at BOTH the client seam and the wire; kill clause did not fire (#25's gauge-hide already IS the honest-unknown state); GATE: PASS, 2100/160 + 14 XCUITest + Release. NOT MERGED — awaiting review.**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
 - **#326** 🎲 `ThrowawayLiveActivityHarnessTests` is SIMULATOR-DEPENDENT — same commit, 5/5 on one sim and 2 failures on another; it red-gated a clean tree and held a publish. The assertion adapts to the environment but hides a premise (that `Activity.request` succeeds whenever ActivityKit reports enabled). **Fourth distinct non-product failure signature seen 2026-08-11. NOT STARTED; bars 326-A..E pre-registered**
+- **#327** 🐛 A Stop in the RECONCILE WINDOW leaves in-flight tool activities UNMARKED, so a killed call renders `✓` — the marker block is gated on `streamingMessageID != nil`, which is `nil` for the whole window. **MEASURED on device 2026-08-11; NOT #296 reopening (the rail is right, the Stop path is wrong). It also exposed that #321's 321-C projection omitted tool state. Owen's marker ruling gates the lane; bars 327-A..E pre-registered**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -212,7 +213,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#253** 💡 AUTO ROUTING: per-message on-device/server brain routing — **FILED 2026-08-05 as a MAYBE (Owen: "file it …
 - **#252** 🎨 SETTINGS REDESIGN "Subsystem Channels" — **SHIPPED 2026-08-05, bars A–F met; residual bars 252R-A/B/C ALL MET 2026-08-09 (Voice accent fixed, predicates extracted + pinned, `GATE: PASS`). NO DEFECT REMAINS — it stays open only pending Owen's §7.3 routing call (close outright, or hold as the umbrella for the 1b settings-search follow-on, which has no number of its own)**
 - **#251** 🚀 THE PLUGIN VENTURE: replace relay + connector + MCP server + venv CLIs with ONE Hermes plugin — **FILED …
-- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴→✅ 250T-C RAN 2026-08-10 AND MISSED, cause found and FIXED the same sitting: the scale-1.0 handoff image arrives 120 pt wide and the 14 pt compact slot won't draw it — a regression #250 itself shipped. Fix device-proven on `t27-250-island-compact-icon`; bars + gate + re-run owed before merge** **→ FIX BARS 250F-A..E PRE-REGISTERED 2026-08-11; gate + merge READY, closing bar 250F-E is device (Owen).**
+- **#250** ✨ Icon identity — **BUILT + MERGED 2026-08-05 (PR #269), bars A/B/C met; ~~STAYS OPEN only for 250-D's island watch~~ → 🔴→✅ 250T-C RAN 2026-08-10 AND MISSED, cause found and FIXED the same sitting: the scale-1.0 handoff image arrives 120 pt wide and the 14 pt compact slot won't draw it — a regression #250 itself shipped. Fix device-proven on `t27-250-island-compact-icon`; bars + gate + re-run owed before merge** **→ ✅ CLOSED 2026-08-11: 250F-A..D MET and merged (`5bfcd81`), and **250F-E MET ON DEVICE** the same evening — Owen, `whoGoesThere`, build `6b9e7e2`: *"Compact Island: Pass - shows on trip, changed icon: Pass. New icon renders."* Both halves of the closing bar — the slot draws the selected icon, and it FOLLOWS a switch on the next render. Nothing outstanding; sweep to the archive at the next pass.**
 - **#249** 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the …
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#237** 🐛 The recovered reply arrived TWICE — both copies marked, two local notifications: the #235 reconcile can …
@@ -6901,6 +6902,37 @@ not a feature.**
 > append-only block (per #317 carve-out (a)) recording that the supersession is
 > now built, not merely ruled.
 
+
+> **📱 DEVICE SITTING 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`) — the
+> gauge is HONEST, and the same observation lands on this item's own open
+> question.**
+>
+> **Observed:** after a Stop in the reconcile window the CTX gauge was
+> **absent**, and it reappeared at **3%** only after the next completed turn
+> (*"Ctx gauge showed up at 3% after my hi"*). Absent-then-repopulated is
+> exactly 322-B's honest-unknown contract — `currentContextTokens == nil` hides
+> the gauge, and #25's own rule is that an unknown numerator must read as
+> absent and never as "CTX 0%". **The prior run's numbers were NOT held**,
+> which is the defect this item exists to remove.
+>
+> **⚠️ But it never showed THAT run's numbers either, and that is the
+> limitation this lane recorded in advance.** The turn was a host run on the
+> **sessions plane** (`HERMES` profile, KIMI-K3). Whether a sessions-plane run
+> id is addressable on `/v1/runs/{id}` was filed as **UNVERIFIED** at merge, and
+> this sitting is the first data point consistent with "it is not": a read that
+> 404s or returns no usage produces precisely the absent gauge seen here.
+> **So on the plane the phone actually uses, the feature may be delivering its
+> failure arm every time — honest, and a no-op.** That is not a falsification of
+> any bar (322-B's failure arms are met by an absent gauge) and it is not a
+> defect; it is a live probe now worth running, because the difference between
+> "correct" and "correct and useless" is one HTTP call.
+>
+> **The probe, for whoever runs it:** take a run id minted by the sessions plane
+> and `GET /v1/runs/{id}` against `:8642` directly. If it 404s, this item's
+> value is confined to the runs plane (#283's transport) and the entry should
+> say so where a reader will hit it.
+
+
 ## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` — bars 321-A..F ALL MET, RED witnessed by restoring `ChatStore.swift` to its `5c8fed7` bytes (34 tests / 2 suites, 35 issues); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #322. NOT MERGED — awaiting review.**
 
 **What changed to make this reachable.** #315 moved the composer's commit door
@@ -7260,6 +7292,112 @@ assertion serves), **#324-W2** (signature 2), **#254** (signature 3, and the
 TCC-does-not-survive-a-reboot rule), **#300** (the gate advice that must
 discriminate rather than guess), **#182 / #219 / #236** (the flaky-test family
 this joins).
+
+
+> **📱 DEVICE SITTING 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`) —
+> 321-B PASSES ON DEVICE, AND 321-C IS QUALIFIED BY THE SAME RUN.**
+>
+> **321-B — CONFIRMED on device.** After a Stop taken in the reconcile window
+> the composer was free and a new message sent normally (*"Yes. I was able to
+> send Hi and got a response"*). The ruled behaviour — abandon outright, free
+> the composer immediately — does what it says on the real path, not only in
+> test.
+>
+> **🔴 321-C — THE BAR PASSED WHILE THE CLAIM IT MADE WAS TOO BROAD, and the
+> phone is what caught it.** The bar asserted that a window Stop produces "the
+> same transcript state as a live-stream Stop", proven by an `Equatable`
+> `StopOutcome` projection over row sender/content/status/isStreaming plus six
+> store flags. **That projection does not include tool-activity state**, and
+> that is exactly where the two paths differ: a live-stream Stop writes
+> `ToolActivity.stoppedByUser` onto every active call, a window Stop writes
+> nothing, so a killed tool renders `✓`. See **#327**, filed from this sitting.
+>
+> **The lesson, which is the reusable part:** an `Equatable` projection is only
+> as strong as its field list, and a projection that omits a field cannot fail
+> on it — it will report equality forever and read as rigorous while doing so.
+> Naming the fields IS the bar; "the same state" is not a measurement. 321-C's
+> verdict is amended from MET to **MET-AS-MEASURED, SCOPE CORRECTED**: the rows
+> and flags it compared really are equal, and it never compared the tools.
+
+
+## 327. 🐛 A Stop taken in the RECONCILE WINDOW leaves every in-flight tool activity UNMARKED — the killed call renders `✓` as though it succeeded — **FILED 2026-08-11 from Owen's device sitting, MEASURED not inferred, and the mechanism is code-read at `6b9e7e2`. This is #296's rendering with a different cause: the rail is right, the Stop path is wrong. NOT STARTED; bars pre-register here before any code.**
+
+**What Owen saw.** A host turn (`HERMES`, KIMI-K3) running
+`sleep 90 && echo Done`; the stream dropped; he pressed Stop inside the
+reconcile window. The run stopped and the composer freed — #321 working as
+ruled — but the transcript kept a **`✓ TERMINAL`** chip for the call that was
+killed, with no answer and nothing resolved. His words: *"It didn't continue
+the run, but it didn't wipe it in reconcile. It still shows."*
+
+**The mechanism, exactly.** `ChatStore.cancelStreaming` writes the marker —
+
+```swift
+let marker = hardStopHost ? ToolActivity.stoppedByUser : ToolActivity.interruptedBySystem
+for i in … where conv.messages[idx].toolActivities[i].isActive {
+    conv.messages[idx].toolActivities[i].failure = marker
+}
+```
+
+— but that block lives inside `else if let sid = streamingMessageID, … let idx
+= …`. **In the reconcile window `streamingMessageID` is `nil` by definition** —
+that is what the window *is* (#278) — so the branch is never entered and no
+marker is written. `ToolActivityRail.state(of:)` then reads
+`activity.failure != nil ? .interrupted : (isActive ? .running : .completed)`,
+finds `failure == nil`, and draws the checkmark.
+
+**Why this is NOT #296 reopening.** #296 was the host sending `error` as a
+Boolean and our parser dropping it on a type mismatch; that fix is merged and
+its bars stand. Here the host says nothing at all, because we stopped it — the
+rail renders correctly from the data it was given, and the data is wrong. The
+rail's own comment predicted this shape and deliberately declined to fix it
+(*"a finished turn holding an activity nobody ever resolved … `.completed` here
+preserves exactly what shipped, and 296-B is the bar that says it must"*).
+**The rail was right to stay out of it. The fix belongs on the Stop path.**
+
+**What it cost, and the reusable lesson.** #321's bar 321-C asserted that a
+window Stop produces the same transcript state as a live-stream Stop, proven by
+an `Equatable` `StopOutcome` projection — which **omitted tool-activity state**,
+so it could not fail on the one field where the paths actually diverge. It
+passed, honestly, while being too broad. **A projection that omits a field will
+report equality forever and read as rigorous doing it; naming the fields IS the
+bar.** Recorded at #321 as well, per the close-out rule.
+
+**⚖️ THE QUESTION THAT GATES THE LANE — Owen's, raised at the sitting and NOT
+answered yet.** The live path already has two markers: `stoppedByUser` (a real
+Stop) and `interruptedBySystem` (an expiration that could not be resumed). A
+window Stop is arguably a **third** thing — the user stopped it, *and* we had
+already lost the stream — and reusing either existing marker states something
+slightly untrue. Three routes, none picked:
+1. **Reuse `stoppedByUser`.** Simplest, one Stop story, matches #321's ruling
+   (b) that the transcript treatment is identical. Slight overclaim: it implies
+   we were watching when we stopped.
+2. **A third marker** naming the window honestly. Most accurate, adds a string
+   and a state every reader must now understand.
+3. **Reuse `interruptedBySystem`.** Rejected in advance here: the user DID stop
+   it, and calling that a system interruption is the larger lie of the three.
+
+**BARS — pre-registered 2026-08-11 BEFORE any code.**
+- **327-A — RED witnessed on the real path.** A test that puts the store in the
+  window (`streamingMessageID == nil`, live `pendingRun`) with an ACTIVE tool
+  activity, Stops, and asserts the activity carries a failure marker. It must
+  fail at `6b9e7e2`.
+- **327-B — the rail then draws the truth.** `ToolActivityRail.state(of:)`
+  returns `.interrupted` and `summaryState` follows, asserted through the real
+  store rather than on a hand-built `ToolActivity` (the #296 C1-D precedent:
+  pin the mapping, not just the ends).
+- **327-C — 321-C's projection is WIDENED in the same commit** to include
+  tool-activity state, so the bar that missed this can never miss it again. It
+  must be shown RED against `6b9e7e2` before the fix — otherwise the widening
+  is untested too.
+- **327-D — the live-stream Stop is unchanged.** Its existing marker behaviour
+  and #296's bars re-run green; this lane adds a path, it does not re-plumb one.
+- **327-E — `GATE: PASS`**, count moved.
+
+**Cross-references:** **#321** (the lane that shipped the window Stop and whose
+321-C is amended by this), **#296** (the rendering, correctly untouched),
+**#278** (the window itself), **#180** (honest degradation — a control that
+reports success for work that was killed is squarely in this family),
+**#203** (the stall hint that tells the user to press Stop).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
@@ -13570,6 +13708,20 @@ anchor. That is the pattern project.yml's own #58 note prescribes, and the move
 is byte-identical apart from the access-level widening (verified by diffing the
 excised region against the new file). `xcodegen generate` ran and its output is
 committed; the scheme was NOT rewritten, so #319's idempotence holds.
+
+
+> **✅ 250F-E MET ON DEVICE — 2026-08-11, and #250 CLOSES WITH IT.** Owen on
+> `whoGoesThere`, Debug build of `main` @ `6b9e7e2` installed upgrade-in-place:
+> *"Compact Island: Pass - shows on trip, changed icon: Pass. New icon
+> renders."* Both halves scored — the compact leading slot draws the currently
+> selected icon rather than the grey placeholder, and it follows an icon switch
+> on the next activity render.
+>
+> **The lane's honesty clause survives closure and is not discharged by it:**
+> the redraw changed point size, scale and provenance together, and **which of
+> the three is load-bearing remains UNPROVEN.** This bar proves the fix works,
+> not why. A future lane touching `HermesBrandIcon` inherits that open question
+> rather than a settled mechanism.
 
 ## 249. 🐛 "Remind me at 8" (asked ~9:15 PM) staged a card for 9:00 PM — twice — on the local brain; the hour on the card is not the hour the user said — **INSTRUMENTED 2026-08-04 night; discriminator run pending; readings pre-registered below BEFORE the evidence** *(header's 9 PM is the as-filed observation — CORRECTED to 8:00 AM in the dated note below)*
 
