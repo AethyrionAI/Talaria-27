@@ -21,14 +21,45 @@ import Testing
 ///   leaked throwaway would make the REAL run activity flaky, and that failure
 ///   would read as a #250 regression while being the harness's fault.
 ///
-/// **On `service.isAvailable`:** whether ActivityKit will vend an activity is a
-/// property of the host, not of this code — the test host can have Live
-/// Activities disabled. So the start assertion is written as an equality
-/// against `isAvailable` rather than a bare `== true`: production's own
-/// `guard isAvailable else { return }` means an activity exists *exactly when*
-/// activities are enabled. That keeps the assertion total — it can fail in
-/// either direction — instead of a conditional that silently skips on the
-/// host where it would have caught something.
+/// **On what the start assertion may compare against — corrected by #326,
+/// 2026-08-11, after this suite red-gated a clean tree.** It used to read
+/// `hasActiveActivity == service.isAvailable`, reasoning that production's
+/// `guard isAvailable else { return }` makes an activity exist *exactly when*
+/// activities are enabled. The instinct was right — an environment-adaptive
+/// assertion beats a bare `== true` — but the equality covered only half the
+/// path. **`isAvailable` gates the ATTEMPT and says nothing about whether the
+/// attempt SUCCEEDS**, and the equality quietly asserted that it always does.
+///
+/// Measured (#326-B, on `CC-321-iPhone-Air`, iOS 27.0 sim, verbatim):
+///
+///     foreign_refused_at=5 domain=com.apple.ActivityKit.ActivityAuthorization
+///     code=5 raw=targetMaximumExceeded | foreign_vended=5 |
+///     enabled_under_load=true | isAvailable=true | hasActiveActivity=false |
+///     OLD_ASSERTION_HOLDS=false
+///
+/// So: the ceiling is **five concurrent activities per APP**, shared across
+/// attributes types, and the sixth request throws while `areActivitiesEnabled`
+/// still reads `true`. In that state the old equality read `false == true`.
+///
+/// **Why that state is reachable in a gate run rather than exotic.** This test
+/// host is ONE app running many suites in parallel, and other suites vend real
+/// Live Activities through the same production path: `AppStoresTests` drives
+/// real `ChatStore`s, and `ChatStore`'s `tool.started` handling calls
+/// `chatLiveActivity.startToolCall(...)`. A free slot is therefore a contended,
+/// process-global resource, not a constant — which is also why the two tests
+/// below failed in a 2116-test gate and passed 5/5 when the suite was run
+/// alone, on the same commit, on both sims (#326-A).
+///
+/// **What replaced the premise, and why not something simpler.** Deleting the
+/// assertion was not available: it is the only thing pinning the throwaway to
+/// the production start path, which is 250T-B's whole content. The three tests
+/// that need a vend now (a) carry an `.enabled` condition that MEASURES whether
+/// ActivityKit will vend on this host instead of predicting it from a flag, so
+/// a host that refuses SKIPS visibly — the gate prints and counts skips — and
+/// (b) re-establish a free slot immediately before the tap, so ordinary
+/// cross-suite contention is ridden out rather than reported as a defect. The
+/// assertion itself is then the strong, premise-free `hasActiveActivity` — it
+/// still fails loudly if the harness ever stops driving the production service.
 @Suite(.serialized)
 struct ThrowawayLiveActivityHarnessTests {
 
@@ -60,11 +91,75 @@ struct ThrowawayLiveActivityHarnessTests {
         }
     }
 
+    /// Asks ActivityKit the question the old assertion only inferred: **will a
+    /// request actually succeed right now?** Requests one activity of the real
+    /// production type and hands it straight back.
+    ///
+    /// Returns `nil` when a vend succeeded, or the refusal verbatim when it did
+    /// not — so a caller can say WHY instead of printing a bare boolean
+    /// mismatch, which is what the 2026-08-11 red gate left its reader with.
+    ///
+    /// Bounded-retry, because the ceiling is per app and this host runs suites
+    /// in parallel: a slot occupied by another suite's `ChatStore` activity is
+    /// an ordinary transient, not a verdict.
+    @MainActor
+    static func vendRefusal(attempts: Int = 120) async -> String? {
+        var last = "no attempt was made"
+        for _ in 0..<max(1, attempts) {
+            guard ActivityAuthorizationInfo().areActivitiesEnabled else {
+                return "areActivitiesEnabled == false (Live Activities are switched off on this host)"
+            }
+            do {
+                let probe = try Activity.request(
+                    attributes: HermesActivityAttributes(agentName: "Hermes"),
+                    content: .init(
+                        state: .init(status: "vend probe", toolName: nil, elapsedSeconds: 0,
+                                     startDate: .now, sessionType: "tool"),
+                        staleDate: nil),
+                    pushType: nil)
+                await probe.end(nil, dismissalPolicy: .immediate)
+                return nil
+            } catch {
+                last = String(describing: error)
+                try? await Task.sleep(for: .milliseconds(25))
+            }
+        }
+        return last
+    }
+
+    /// The in-test half of the precondition. The `.enabled` condition proved a
+    /// vend was possible when the test was SELECTED; this proves it again
+    /// immediately before the tap and leaves the system list empty, so the
+    /// service vends rather than adopting the probe.
+    ///
+    /// Records an issue naming the refusal if the slot never frees — five
+    /// seconds of sustained starvation inside one test host is a fact worth
+    /// seeing, and it now arrives with its cause attached.
+    @MainActor
+    private func requireAFreeActivitySlot() async {
+        if let refusal = await Self.vendRefusal() {
+            Issue.record("ActivityKit would not vend for the whole precondition window — last refusal: \(refusal)")
+        }
+        await drainExistingActivities()
+    }
+
+    /// Skip reason shared by every test below that needs ActivityKit to vend.
+    /// A skip is not a pass: the gate prints and counts these, and the tracker
+    /// item named here carries the measurement behind the condition.
+    /// Typed as `Comment` on purpose: `.enabled(_:)` takes a `Comment?`, and a
+    /// bare `String` variable does not implicitly convert (a string *literal*
+    /// does, which is why the sibling suites get away with inlining theirs).
+    static let vendRequired: Comment = "ActivityKit must actually VEND on this host — measured, not inferred from areActivitiesEnabled (OPEN_ITEMS #326)"
+
     // MARK: - 250T-B: it ends on a second tap
 
     @MainActor
-    @Test func aSecondTapEndsTheThrowawayAndLeavesNoZombie() async {
+    @Test(.enabled(ThrowawayLiveActivityHarnessTests.vendRequired) {
+        await ThrowawayLiveActivityHarnessTests.vendRefusal() == nil
+    })
+    func aSecondTapEndsTheThrowawayAndLeavesNoZombie() async {
         await drainExistingActivities()
+        await requireAFreeActivitySlot()
         let service = LiveActivityService()
         // A long window so the timeout cannot be what ends this one — the
         // second tap has to be doing the work.
@@ -75,8 +170,8 @@ struct ThrowawayLiveActivityHarnessTests {
 
         harness.toggle()   // first tap
         #expect(harness.isRunning)
-        #expect(service.hasActiveActivity == service.isAvailable,
-                "the throwaway must go through the production start path: an activity exists exactly when ActivityKit is enabled")
+        #expect(service.hasActiveActivity,
+                "the throwaway must go through the production start path — a free slot was measured immediately above, so a missing handle means the tap never reached LiveActivityService")
 
         harness.toggle()   // second tap
         #expect(harness.isRunning == false)
@@ -94,14 +189,19 @@ struct ThrowawayLiveActivityHarnessTests {
     // MARK: - 250T-B: it ends on the timeout, with nobody tapping
 
     @MainActor
-    @Test func theAutoEndWindowEndsAThrowawayNobodyTappedAgain() async {
+    @Test(.enabled(ThrowawayLiveActivityHarnessTests.vendRequired) {
+        await ThrowawayLiveActivityHarnessTests.vendRefusal() == nil
+    })
+    func theAutoEndWindowEndsAThrowawayNobodyTappedAgain() async {
         await drainExistingActivities()
+        await requireAFreeActivitySlot()
         let service = LiveActivityService()
         let harness = ThrowawayLiveActivityHarness(service: service, autoEndAfter: .milliseconds(50))
 
         harness.start()
         #expect(harness.isRunning)
-        #expect(service.hasActiveActivity == service.isAvailable)
+        #expect(service.hasActiveActivity,
+                "same pin as the second-tap test: a free slot was measured, so no handle means no production start path")
 
         // Nothing taps. The budget guard has to fire on its own.
         let ended = await waitUntil("the auto-end window to fire") { harness.isRunning == false }
@@ -145,8 +245,17 @@ struct ThrowawayLiveActivityHarnessTests {
     /// `endActivity()` clears only what it holds — that untracked activity is
     /// the leak shape.
     @MainActor
-    @Test func aSecondStartWhileRunningDoesNotStackActivities() async {
+    @Test(.enabled(ThrowawayLiveActivityHarnessTests.vendRequired) {
+        await ThrowawayLiveActivityHarnessTests.vendRefusal() == nil
+    })
+    func aSecondStartWhileRunningDoesNotStackActivities() async {
         await drainExistingActivities()
+        // #326-D named this one too. `count <= 1` is a BOUND, not an equality,
+        // so it never carried the premise the two tests above did — but on a
+        // host where ActivityKit refuses it is satisfied VACUOUSLY by count 0,
+        // and a bound that passes when nothing happened is not coverage. The
+        // precondition is what makes the bound mean something.
+        await requireAFreeActivitySlot()
         let service = LiveActivityService()
         let harness = ThrowawayLiveActivityHarness(service: service, autoEndAfter: .seconds(600))
 
@@ -154,6 +263,8 @@ struct ThrowawayLiveActivityHarnessTests {
         harness.start()
         harness.start()
         #expect(harness.isRunning)
+        #expect(service.hasActiveActivity,
+                "the first of the three taps must have vended — otherwise the bound below is vacuous")
         #expect(Activity<HermesActivityAttributes>.activities.count <= 1,
                 "three taps must not leave three activities burning the system budget")
 
@@ -176,120 +287,5 @@ struct ThrowawayLiveActivityHarnessTests {
         #expect(ThrowawayLiveActivityHarness.toolLabel.contains("#250"),
                 "the label should say which item put it on screen")
     }
-
-    // MARK: - #326-A THROWAWAY PROBE — DELETE BEFORE CLOSE-OUT
-    //
-    // Records, rather than assumes, which side of `hasActiveActivity ==
-    // isAvailable` diverges on a given simulator. It always fails, by design:
-    // `Issue.record` is the only channel guaranteed to land the readings in
-    // the xcodebuild log.
-    @MainActor
-    @Test func probe326AReadings() async {
-        var lines: [String] = []
-        let info = ActivityAuthorizationInfo()
-        lines.append("enabled_at_entry=\(info.areActivitiesEnabled)")
-        lines.append("frequentPushes=\(info.frequentPushesEnabled)")
-        let pre = Activity<HermesActivityAttributes>.activities
-        lines.append("preexisting_ours=\(pre.count) states=\(pre.map { String(describing: $0.activityState) })")
-
-        await drainExistingActivities()
-        lines.append("after_drain_ours=\(Activity<HermesActivityAttributes>.activities.count)")
-        lines.append("enabled_after_drain=\(ActivityAuthorizationInfo().areActivitiesEnabled)")
-
-        // The request side, direct — the half the old assertion never measured.
-        do {
-            let a = try Activity.request(
-                attributes: HermesActivityAttributes(agentName: "Hermes"),
-                content: .init(
-                    state: .init(status: "probe", toolName: "#326-A", elapsedSeconds: 0,
-                                 startDate: .now, sessionType: "tool"),
-                    staleDate: nil),
-                pushType: nil)
-            lines.append("direct_request=SUCCEEDED")
-            await a.end(nil, dismissalPolicy: .immediate)
-        } catch {
-            let ns = error as NSError
-            lines.append("direct_request=THREW domain=\(ns.domain) code=\(ns.code) raw=\(String(describing: error)) desc=\(ns.localizedDescription)")
-        }
-        await drainExistingActivities()
-
-        // And the production path, which is what the failing assertion read.
-        let service = LiveActivityService()
-        service.startToolCall(toolName: "#326-A probe")
-        lines.append("service.isAvailable=\(service.isAvailable)")
-        lines.append("service.hasActiveActivity=\(service.hasActiveActivity)")
-        service.endActivity()
-        await drainExistingActivities()
-
-        let readings = lines.joined(separator: " | ")
-        Issue.record("326-A READINGS :: \(readings)")
-    }
-
-    // MARK: - #326-B THROWAWAY PROBE — DELETE BEFORE CLOSE-OUT
-    @MainActor
-    @Test func probe326BBudget() async {
-        await drainExistingActivities()
-        var lines: [String] = []
-
-        // How many activities of a FOREIGN attributes type will ActivityKit
-        // vend to this app, and what does it say when it stops?
-        var foreign: [Activity<ForeignBudgetProbeAttributes>] = []
-        for i in 0..<12 {
-            do {
-                foreign.append(try Activity.request(
-                    attributes: ForeignBudgetProbeAttributes(name: "#326 filler \(i)"),
-                    content: .init(state: .init(n: i), staleDate: nil),
-                    pushType: nil))
-            } catch {
-                let ns = error as NSError
-                lines.append("foreign_refused_at=\(i) domain=\(ns.domain) code=\(ns.code) raw=\(String(describing: error))")
-                break
-            }
-        }
-        lines.append("foreign_vended=\(foreign.count)")
-        lines.append("enabled_under_load=\(ActivityAuthorizationInfo().areActivitiesEnabled)")
-        lines.append("ours_visible=\(Activity<HermesActivityAttributes>.activities.count)")
-
-        // With the budget full of a foreign type, what does the PRODUCTION
-        // start path do, and does the OLD assertion hold?
-        let service = LiveActivityService()
-        let harness = ThrowawayLiveActivityHarness(service: service, autoEndAfter: .seconds(600))
-        harness.start()
-        lines.append("isAvailable=\(service.isAvailable)")
-        lines.append("hasActiveActivity=\(service.hasActiveActivity)")
-        lines.append("OLD_ASSERTION_HOLDS=\(service.hasActiveActivity == service.isAvailable)")
-        harness.end(.secondTap)
-
-        // The error our own type gets, verbatim.
-        do {
-            let a = try Activity.request(
-                attributes: HermesActivityAttributes(agentName: "Hermes"),
-                content: .init(
-                    state: .init(status: "probe", toolName: "#326-B", elapsedSeconds: 0,
-                                 startDate: .now, sessionType: "tool"),
-                    staleDate: nil),
-                pushType: nil)
-            lines.append("ours_request=SUCCEEDED")
-            await a.end(nil, dismissalPolicy: .immediate)
-        } catch {
-            let ns = error as NSError
-            lines.append("ours_request=THREW domain=\(ns.domain) code=\(ns.code) raw=\(String(describing: error))")
-        }
-
-        for a in foreign { await a.end(nil, dismissalPolicy: .immediate) }
-        _ = await waitUntil("foreign fillers to drain") {
-            Activity<ForeignBudgetProbeAttributes>.activities.isEmpty
-        }
-        await drainExistingActivities()
-
-        let readings = lines.joined(separator: " | ")
-        Issue.record("326-B READINGS :: \(readings)")
-    }
-}
-
-// #326 THROWAWAY PROBE TYPE — DELETE BEFORE CLOSE-OUT
-struct ForeignBudgetProbeAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable { var n: Int }
-    var name: String
 }
 #endif
