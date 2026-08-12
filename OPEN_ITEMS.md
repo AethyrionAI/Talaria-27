@@ -172,7 +172,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
 - **#312** 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once
-- **#313** 🔬 `CondenserFidelityTests` has NEVER RUN — the #93 fidelity acceptance is a DEVICE bar, not a Mac bar
+- **#313** 🔬 `CondenserFidelityTests` — **✅ IT RAN 2026-08-11 on `whoGoesThere`, first time ever; "has never run" is DISCHARGED. 6/7 passed and ONE BAR IS RED:** the model-condensed brief keeps the trip's details and drops its SUBJECT (`brief.contains("chicago")` failed) — #89's residual risk firing exactly where this entry predicted. Corrections, distractor pruning and budget all held. Fix direction already ruled: tune `condensedContextBrief`'s instructions, do NOT weaken the test — and a re-run that LOGS the brief comes first, since how the model referred to the city is unmeasured. Also named: device test runs need `DEVELOPMENT_TEAM=DNL25ZFSD2`, since `project.yml` teams the app target only
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
 - **#310** 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no …
@@ -6183,6 +6183,70 @@ weaken the tests.
 > `scripts/mac/lane-gate-classify-test.sh` fails if the pointer stops
 > resolving.
 
+
+> **🔬 IT RAN — 2026-08-11, FOR THE FIRST TIME, ON `whoGoesThere`. THE "NEVER
+> RUN" STATUS IS DISCHARGED, AND THE SUITE FAILED ONE BAR.** Owen plugged the
+> phone in and handed it over; the run was driven from the Mac against the
+> device, Debug, `main` @ `4280dc8`. **The suite RAN rather than skipping** —
+> which is the whole thing this entry has been asking for since 2026-08-09.
+>
+> **Result: 6 of 7 passed; ONE assertion failed, and it is the last one in the
+> test.**
+> ```
+> ✘ "Condensed priming: latest corrected values, no distractors, in budget"
+>   CondenserFidelityTests.swift:103: Expectation failed: brief.contains("chicago")
+>   — "lost the conversation's core subject"
+> ✔ "Condensed priming stays in budget on a long journal"  (123.018 s of real model work)
+> ✔ fallbackKeepsNewestTurnsAndCorrections / fallbackHoldsBudgetAndCutsOldestFirst
+> ✔ fallbackSurvivesSingleOversizedTurn / primingTextCarriesThePayloadBehindThePreamble
+> ✔ renderedLinesNameTheSpeakers
+> ✘ Test run with 7 tests in 1 suite failed after 124.858 s with 1 issue
+> ```
+>
+> **What PASSED is as informative as what failed, and it is most of the hard
+> part.** Corrections held at their LATEST value and the superseded ones stayed
+> out (`4:30` in, `3 pm` out; `palmer house` in, `drake` out). All three
+> distractors were pruned (octopus, three hearts, waffles). Budget was respected,
+> measured with the same tokenizer the composer used. **The condenser is not
+> broken — it is over-pruning.**
+>
+> **The failure, stated exactly:** the model-condensed brief kept the trip's
+> DETAILS and dropped the trip's SUBJECT. A priming brief that says "arrive
+> 4:30, Palmer House" without naming Chicago has lost the anchor every one of
+> those details hangs on. **This is #89's residual risk firing, precisely where
+> this entry predicted it** — and this entry's own instruction governs the fix:
+> **tune `condensedContextBrief`'s instructions; do NOT weaken the test.**
+> Nothing about the assertion is unfair — a transplant that prunes the subject is
+> not a transplant.
+>
+> **What is NOT known, and must not be guessed:** the brief's actual text was not
+> captured — the test asserts against it but never prints it. So *how* the model
+> referred to the destination (implicitly as "the trip", by an airport code, by a
+> pronoun, or not at all) is **UNMEASURED**, and that is the single most useful
+> input to tuning the instructions. A re-run that logs the composed brief should
+> come before any wording change.
+>
+> **⚙️ AND THE REASON THIS SAT UN-RUNNABLE IS NOW NAMED — it was never only the
+> simulator.** The documented instruction ("run the full suite on `whoGoesThere`
+> corded") **fails before it reaches a test**:
+> ```
+> error: Signing for "TalariaTests" requires a development team.
+> error: Signing for "TalariaUITests" requires a development team.
+> ```
+> `project.yml` sets a team on the APP target only, so a device test run dies at
+> signing. It runs with an explicit override —
+> `DEVELOPMENT_TEAM=DNL25ZFSD2 -allowProvisioningUpdates` — which is what this
+> run used. **Anyone repeating this needs that flag, and the honest fix is to
+> give the test targets a team in `project.yml`** so the instruction in this
+> entry is executable as written rather than only by someone who already knows.
+> Filed as a residual of this item rather than a separate lane, because it is
+> the same "kept it un-runnable for four weeks" cause.
+>
+> **STATUS: this entry stays OPEN, and its shape has changed.** "Has never run"
+> is discharged and must not be restated. What remains is the fidelity failure
+> above — one bar, RED, with the fix direction already ruled and the diagnostic
+> re-run owed first.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
@@ -7480,6 +7544,14 @@ decided separately, and #321's entry now carries the same warning.
    implying more — the honest-degradation answer, cheap, and it makes the
    limitation legible where the user meets it.
 3. **Both**, sequenced: (2) now, (1) with #283.
+
+> **✅ OWEN'S RULING 2026-08-11 — ROUTE 3, both, sequenced.** *"Yeah, 3 seems
+> best. Try to stop it, be honest."* So: the honest surface lands first and does
+> not wait on anything, and the reach-the-host half is sequenced behind 328-A's
+> probe and, if the plane cannot carry it, behind #283's transport. **The lane
+> is ungated for route 2 and gated for route 1 on the probe's answer.**
+> 328-C stands: if route 1 is ever taken, #321's ruling (a) is RE-PUT to him
+> with the coupling in view, never inherited.
 
 **BARS — pre-registered 2026-08-11, before any code, and deliberately thin
 because the shape depends on the ruling above.**
