@@ -8517,6 +8517,91 @@ deliberately DEFERRED until this exists ("we can do those later").
 recommends moving to a simulator), and the instrument-trigger build the triage
 names as build #1 — **this must land before that one runs unattended.**
 
+> **BARS PRE-REGISTERED (bars written first, before any code) — 2026-08-11,
+> lane `t27-331-test-container` off `main` @ `e80a8be`.** Owen's contract above
+> is the constraint set; these are the falsifiable forms of it. A missed bar is
+> a falsification, not a redefinition.
+>
+> **Vehicle:** the gate suite on `CC-331-iPhone-Air` (iOS 27.0, beta5
+> toolchain), calendar + reminders TCC pre-granted. Every bar is a SIM test —
+> this item ships containment, not a measurement, so no device trial is owed.
+>
+> - **331-A (writes land in the container, never in the default).** With the
+>   harness armed (`autoAcceptForBattery == true`), a reminder create lands in
+>   the harness's dedicated reminders list and an event create lands in the
+>   harness's dedicated calendar. **Threshold:** for both engines, the saved
+>   item's `calendar.calendarIdentifier` equals the harness container's
+>   identifier AND does **not** equal the store's default-for-new
+>   events/reminders identifier. Both assertions, or the bar is missed.
+> - **331-B (THE NEGATIVE BAR — the default calendar and the default list are
+>   never deleted from). This is the whole item.** Seed one event in the
+>   DEFAULT calendar and one reminder in the DEFAULT list, both carrying
+>   `[T27-battery]` in the title — the worst case, an item today's
+>   marker-matching reap would happily destroy. Run the container reap.
+>   **Threshold: both survive, still resolvable by identifier, 0 deletions
+>   outside the container.** Procedural condition, not optional: the test must
+>   be **witnessed RED before the guard exists** — restore/retain the
+>   marker-matching sweep as the destroying step, watch the test fail for the
+>   right reason (the seeded default-calendar item deleted), then land the
+>   guard. A green-from-birth negative test does not satisfy this bar.
+> - **331-C (the delete is provably scoped, and wholesale).** The container is
+>   removed by ONE store operation (`removeCalendar`), not by enumerating and
+>   deleting items — per-item reaping is the thing that fails mid-flight.
+>   Ownership is decided by a **pure predicate** taking explicit inputs, pinned
+>   by test with a widening detector: a candidate that matches the harness
+>   TITLE ALONE is NOT owned; a candidate that is the default calendar/list is
+>   NOT owned; a candidate on a source the harness did not create on is NOT
+>   owned; a candidate whose identifier is not the harness's persisted one is
+>   owned only via the explicitly-enumerated orphan-adoption clause.
+>   **Threshold:** every one of those cases asserted false, and an assertion
+>   that fails if the predicate is widened to title-only.
+> - **331-D (reap on START as well as on finish, structurally).** Start-of-run
+>   cleanup must not be something a call site can forget: it lives INSIDE the
+>   one chokepoint every battery already passes through
+>   (`LocalChatBackend.beginBatteryRun`), so a battery that starts without a
+>   start reap is unrepresentable. **Threshold:** (i) a test proves a container
+>   seeded and abandoned by a "crashed" previous run is gone after the next
+>   `beginBatteryRun`; (ii) every `beginBatteryRun` call site goes through the
+>   reaping form — asserted by the compiler (the signature changes), not by
+>   grep.
+> - **331-E (add-only access fails LOUDLY, never silently skips).** A reap
+>   needs full access; #186 leaves add-only calendar access reachable. A pure
+>   readiness function maps auth state to a decision. **Threshold:**
+>   `.fullAccess` ⇒ ready; `.writeOnly`, `.denied`, `.restricted`,
+>   `.notDetermined` ⇒ a REFUSE carrying a reason string, and the battery
+>   emits a classifiable refusal line and **does not run**. No path may write
+>   under the harness while unable to reap. 0 silent skips.
+> - **331-F (alarms get a real answer, and it is not a pretend container).**
+>   AlarmKit exposes no per-list concept and — re-verified against the beta5
+>   SDK, not recalled — `public struct Alarm` carries `id`/`schedule`/
+>   `countdownDuration`/`state` and **no label or metadata**, so enumeration
+>   cannot tell a battery alarm from a real one. The answer is therefore a
+>   **durable harness-owned ID ledger**: IDs are persisted at schedule time and
+>   swept at start and finish, so a crashed run's alarms die at the next start.
+>   **Threshold:** the ledger round-trips through persistent storage (written,
+>   re-read through a fresh reader, consumed by the start reap) — i.e. it is no
+>   longer the process-lifetime `static var` whose loss is documented in
+>   `AlarmService` as "leaves marker-labeled alarms behind for manual cleanup";
+>   and the entry states the answer in plain words at close-out.
+> - **331-G (production is unchanged with the harness off).** With
+>   `autoAcceptForBattery == false`, the reminder engine still resolves
+>   `defaultCalendarForNewReminders()` and the event engine still resolves
+>   `defaultCalendarForNewEvents`, and their success strings are unchanged.
+>   **Threshold:** pinned by test, plus the whole container surface compiled
+>   out of Release (`#if DEBUG`) and the gate's Release half green — #218's
+>   corollary, a green Debug suite cannot see a mis-set gate.
+> - **331-H (the gate).** `TALARIA_SIM_NAME=CC-331-iPhone-Air
+>   scripts/mac/lane-gate.sh` PASSES, and the **test count MOVES** from the
+>   baseline **2123 tests / 161 suites** — an unmoved count means the new tests
+>   did not run (the stale-`.xctest` trap).
+>
+> **Pre-registered responses:** 331-B missed ⇒ the lane does not land, full
+> stop — a reap that can touch real data is worse than no reap. 331-A, C, D or
+> E missed ⇒ the containment is not a containment story; land nothing and route
+> to Owen. 331-F missed ⇒ the alarm half is written up as **"alarm-writing rows
+> stay attended"** and says so in the entry, which the contract explicitly
+> permits; the calendar/reminders half may still land. 331-G missed ⇒ revert.
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
