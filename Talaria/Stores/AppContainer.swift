@@ -2180,19 +2180,6 @@ final class AppContainer {
 
     // MARK: - Lane M: profile switching (M-6) + dormant freshness (M-9)
 
-    /// Re-homes the app onto a newly activated profile. NON-DESTRUCTIVE by
-    /// construction: nothing is cleared — the previous profile's pairing,
-    /// tokens, and sessions stay in their slots, and the current conversation
-    /// keeps working via its birth-profile affinity (M-5). Only the
-    /// relay-plane interactive surfaces (inbox, host status) and the
-    /// shim/model surfaces re-resolve.
-    ///
-    /// #298: "push watch arming" was in that list until #238 deleted the
-    /// notification plane out from under it (same dead surface as #226,
-    /// retired MOOT for the same reason). Struck 2026-08-09 rather than
-    /// silently dropped. NOTE: this doc block is ORPHANED from the function
-    /// it describes — `handleActiveProfileChanged` now sits ~66 lines below,
-    /// behind the `#247 B2` MARK that was inserted between them.
     // MARK: - #247 B2: the profile-switch verdict
 
     /// What a 5s gateway probe concluded. Mirrors the #151 Test Connection
@@ -2254,6 +2241,18 @@ final class AppContainer {
         }
     }
 
+    /// Re-homes the app onto a newly activated profile. NON-DESTRUCTIVE by
+    /// construction: nothing is cleared — the previous profile's pairing,
+    /// tokens, and sessions stay in their slots, and the current conversation
+    /// keeps working via its birth-profile affinity (M-5). Only the
+    /// relay-plane interactive surfaces (inbox, host status) and the
+    /// shim/model surfaces re-resolve.
+    ///
+    /// #298: "push watch arming" was in that list until #238 deleted the
+    /// notification plane out from under it (same dead surface as #226,
+    /// retired MOOT for the same reason). Struck 2026-08-09 rather than
+    /// silently dropped.
+    ///
     /// #285: this handler runs inside `BackendProfilesStore`'s serialized
     /// activation chain. A newer switch CANCELS this task and waits for it to
     /// exit, so `Task.isCancelled` is the supersession signal — every

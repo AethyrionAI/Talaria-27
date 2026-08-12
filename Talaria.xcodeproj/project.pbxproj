@@ -2178,9 +2178,13 @@
 						ProvisioningStyle = Automatic;
 					};
 					23F486750C75CAACFBF51049 = {
+						DevelopmentTeam = DNL25ZFSD2;
+						ProvisioningStyle = Automatic;
 						TestTargetID = 1E8262A30297B30A6BC1DDAA;
 					};
 					F0FA28CB15B9B08CBC809F0D = {
+						DevelopmentTeam = DNL25ZFSD2;
+						ProvisioningStyle = Automatic;
 						TestTargetID = 1E8262A30297B30A6BC1DDAA;
 					};
 				};
@@ -2910,6 +2914,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -3015,6 +3021,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -3055,6 +3063,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -3072,6 +3082,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = DNL25ZFSD2;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
