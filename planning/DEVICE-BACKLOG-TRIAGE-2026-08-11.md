@@ -127,9 +127,32 @@ Reminders and Alarm writes**, reaped before the DONE line. **An interrupted unat
 leaves residue in Owen's real data.** Eight further rows carry ⚠️DATA independently (#33,
 #137, #162-CRUD, #170, #186, #199A, #225-B4, #249F-D).
 
-Before anything runs unattended overnight, one of: an abort-time reap that survives a
-crashed run; a dedicated test calendar/reminder list the reap can nuke wholesale; or a
-throwaway Apple ID. **This is a decision, not a build detail.**
+**✅ RULED BY OWEN 2026-08-11, and it is narrower than this section assumed — the
+per-device rules differ and must not be collapsed into one.**
+
+**On `whoGoesThere` (his phone):**
+- **Reminders — ALLOWED.** *"Reminders are fine and I'm not worried about stragglers."*
+- **Calendar — ALLOWED.** He has pointed it at a calendar he does not care about, and
+  **it is not shared**. That is the containment, and it already exists.
+- **Alarms — the ONLY real constraint.** *"Please don't have surprise alarms for me while
+  I'm at work."* Not a ban: a ban on surprises.
+- **Apple Notes (#33) is NOT covered by this ruling** — he named reminders, calendar and
+  alarms. Do not infer Notes from it; ask before running #33.
+
+**On Shelley's iPad: NONE OF IT.** Unchanged and unqualified — see §9.
+
+**What this changes.** This section previously called data containment "the hazard that
+gates unattended running". **That framing is now wrong for his phone.** The
+calendar/reminder rows can run unattended today, with no new infrastructure, because the
+containment is a setting he has already made. What remains is:
+
+1. **Alarms, which need a real answer** — AlarmKit alarms **ring through Silent mode** and
+   have no container to nuke. Standing rule: **alarm-writing rows never run unattended.**
+   They run only when Owen has said go and is around. A start-of-run sweep of
+   Talaria-created alarms helps with residue but cannot cover the window between "created"
+   and "crashed", which is the honest reason to keep them attended rather than clever.
+2. **#331 survives as hygiene and as the alarm answer**, not as a gate. Downgraded
+   accordingly; it no longer blocks the instrument-trigger build.
 
 ## 6. Cross-resolution — what running two readers bought
 
