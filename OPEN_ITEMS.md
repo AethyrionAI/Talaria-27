@@ -6283,6 +6283,44 @@ weaken the tests.
 > run happens and passes signing, keep using the override** — striking it now
 > would assert something only a device run, not a simulator build, can show.
 
+
+> **✅ 2026-08-11, LATER THE SAME EVENING — TWO THINGS SETTLED: the signing
+> blocker is GONE, and the fidelity failure REPRODUCES 2/2.**
+>
+> **The override is no longer needed.** `project.yml` now teams
+> `TalariaTests` and `TalariaUITests` (`DEVELOPMENT_TEAM` **plus**
+> `CODE_SIGN_STYLE` — XcodeGen emits neither `TargetAttributes` entry without
+> the second, established by diffing the block rather than assuming). Verified
+> on device by running the command **without** `DEVELOPMENT_TEAM=…`: four
+> `Signing Identity: "Apple Development: James Jones (8RJ9C6466D)"` lines and
+> zero `requires a development team`. **The instruction in this entry is now
+> executable as written**, which it was not for four weeks. Merged as
+> `0fa002d`.
+>
+> **And the fidelity RED is not sampling noise.** The second device run — a
+> different invocation, an hour later, a quieter box — failed **the same single
+> assertion at the same line**:
+> ```
+> ✘ "Condensed priming: latest corrected values, no distractors, in budget"
+>   CondenserFidelityTests.swift:103: Expectation failed: brief.contains("chicago")
+> ✘ Test run with 7 tests in 1 suite failed after 22.695 s with 1 issue
+> ```
+> **2 of 2, same assertion, 6/7 passing both times.** For a brief the model
+> composes fresh each run, reproducing the *same omission* twice is the
+> evidence that matters: the condenser is not occasionally dropping the
+> subject, it drops it reliably. Corrections, distractor pruning and budget
+> held in both runs.
+>
+> *(Incidental, recorded because someone will otherwise read it as a
+> regression: the long-journal budget test took **123.0 s** on the first run
+> and **20.9 s** on the second. Same test, same device — the first ran while
+> the box was loaded. Model wall-clock on this hardware is not a stable
+> measurement and should not be pinned as one.)*
+>
+> **Unchanged: the brief's TEXT is still uncaptured**, so *how* the model
+> referred to the destination remains the open question and the diagnostic
+> re-run still comes before any instruction tuning.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
