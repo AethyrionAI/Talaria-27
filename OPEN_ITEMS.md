@@ -9415,6 +9415,33 @@ denominators differ (those runs executed; these do not).
 >   shape tracks the tool-description clause: an A/B with the clause removed from
 >   the descriptions, same prompts, same cells. Bars written before the run. Do not
 >   edit the descriptions in production on the strength of the hypothesis alone.
+>
+>   **⚙️ AMENDED 2026-08-12 by the instrument build (SHARPENED, not weakened —
+>   the manipulation gets wider and the readings get finer; the original
+>   two-arm A/B is arm B below and is run unchanged).** Building it surfaced
+>   three things the bar as written could not have known:
+>   1. **The phrase has a SECOND home in the model's context.** Besides the
+>      three tool descriptions (`DeviceActionTools.swift`), production's armed
+>      instructions say *"Every action tool shows the user a confirmation card
+>      first; if they decline, accept it gracefully."*
+>      (`LocalChatBackend.swift:2015`). A two-arm A/B could therefore only ever
+>      produce an interpretable POSITIVE — a null would be equally consistent
+>      with "the descriptions never taught it" and "the blurb kept teaching
+>      it." So the instrument runs **three** arms: `control`,
+>      `tools-stripped` (the pre-registered manipulation), and
+>      `tools-blurb-stripped`.
+>   2. **The promoted card-narration clause is held CONSTANT in every arm, on
+>      purpose.** #200J/#200K's *"The confirmation card is shown automatically
+>      when you call an action tool — never write the card out…"* is a
+>      COUNTERMEASURE (measured 3 narrations → 0 in 40 trials), not a teaching;
+>      removing it would confound this manipulation with rolling back a
+>      promotion. **It still contains the phrase, so NO arm here is a
+>      zero-exposure arm** — a null in arm C bounds the description hypothesis
+>      and exonerates the phrase of nothing.
+>   3. **Two readings, never collapsed:** whether the reply carries the
+>      imitation shape (mechanism) and whether a tool call executed
+>      (behaviour). A clause that stops the prose without producing the call
+>      has moved one and not the other, and one number could not say which.
 > - **337-B (what the user sees).** The instrument records the POST-cut retried
 >   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
 >   report a cut trial as a user-visible outcome.
@@ -9424,10 +9451,121 @@ denominators differ (those runs executed; these do not).
 >   trigger the cut — captured verbatim, per cell. A cut with no refusal text
 >   recorded is a measurement that names its own blind spot (#232 filed the grind;
 >   nobody has read the grind's words at n≥90).
+>
+>   **⚙️ AMENDED 2026-08-12 by the instrument build (SHARPENED — strictly more
+>   is captured than the bar asked for, and one imprecision in its wording is
+>   corrected).**
+>   1. **Correction of fact:** the refusal string is written by the GOVERNOR,
+>      not by the model (`ToolCallGovernor.admit`). The model's contribution is
+>      the CALL that got refused. The instrument therefore captures four things
+>      per refusal, not one: the text verbatim, **which branch produced it**
+>      (per-turn budget vs same-tool repeat — they say different things and
+>      #225 pins that), **the tool the model was reaching for**, and **the
+>      governor's two counters at that instant**.
+>   2. **Why the counters are load-bearing:** a refusal whose `callsThisTurn`
+>      sits at the ceiling while `callsOfThisTool` is **0** is a turn being
+>      refused for calls it never made. Without those two numbers that is
+>      indistinguishable from a real grind — and see the LEAK finding below,
+>      which is exactly that shape.
+>   3. **337-B is folded into this instrument rather than owed separately:**
+>      every cut trial runs production's own post-cut toolless retry (through
+>      #215's `routedTrialShape` seam, so it cannot drift from what `send`
+>      does) and records its text. A cut trial may no longer be filed as an
+>      empty row.
 > - **337-E (variance).** 11% vs 0% execution 75 minutes apart on one phone is
 >   itself unexplained; a third run says whether the floor is zero or the rate is
 >   unstable. Report both runs' numbers, never a pooled average.
 > - **No bar on wall-clock.**
+
+> ## 🔧 THE TWO INSTRUMENTS ARE BUILT — 2026-08-12. **NEITHER HAS BEEN RUN.**
+> ## No number in this entry moves on the strength of this block.
+>
+> Branch `worktree-agent-ad4ee85589b5724ad`, two commits, gate green. Both are
+> registered `InstrumentSpec`s, so they launch from the Developer screen and
+> from the #333 conductor through the same code path, and both write their
+> results INTO a `BatteryRunRecord` — which is what the conductor's
+> `completed` verdict actually means (a run that measured beautifully into the
+> console and opened no recorder run is a FAILED run to the harness).
+>
+> - **`refusal-words` (337-D)** — auto-DECLINE · `writesEventKit: false` ·
+>   `writesAlarms: false` · **unattended-eligible.** Three action prompts ×
+>   two cells × n. Per trial it records: the refusal count, **each refusal
+>   verbatim with its branch, its tool and the governor's counters**, whether
+>   the cut fired, admitted tool calls, the armed reply-or-error, and the
+>   **post-cut toolless retry's text** (337-B). Per cell it records counted
+>   attempts, cuts, refusals, generation errors, timeouts, retries, retry
+>   errors and user-visible replies — no constant denominators, per #215.
+>   - **Unattended came free, and the reason is mechanical:** a DECLINED call
+>     is an EXECUTED call as far as the governor is concerned, so the grind is
+>     fully reachable with nothing armed to write. **What it costs:** on trials
+>     where the model DOES call a tool it then reasons about a decline where
+>     production would have had an approval. `toolCallsAdmitted` is recorded
+>     per trial so those can be partitioned out — and #337-A's own turn called
+>     nothing, which is the population the decline never touches.
+> - **`card-clause` (337-F)** — auto-DECLINE · `writesEventKit: false` ·
+>   `writesAlarms: false` · **unattended-eligible.** Three arms (above) × three
+>   prompts × n. Per trial: the imitation shape if any, admitted tool calls,
+>   whether the reply claims creation, the cut flag, and the retry's text with
+>   its own imitation flag (the retry is BELTLESS in every arm, so an imitation
+>   there is evidence about the instructions and never about the descriptions).
+>   Per arm, before any trial runs, a **manipulation-check row**: how many tool
+>   descriptions were actually swapped and whether the blurb removal changed
+>   anything — **a treatment that silently failed to apply must not read as a
+>   null.**
+>   - **Production's descriptions are unchanged.** The treatment strings are
+>     `#if DEBUG` constants derived BY REMOVAL from production's own statics
+>     (`DeviceActionClauses.strippingCardClause`), and `CalendarEventTool` /
+>     `AlarmTool` gained the `var description` seam `ReminderCreateTool` has
+>     had since #196 — same default, byte-identical shipping belt.
+>
+> ### 🔴 TWO CODE FINDINGS from building these. **Mechanisms with code
+> ### pointers — NOT elected, and they do not rewrite the table above.**
+>
+> **(1) The battery never opens a TURN, so the governor's per-turn budget
+> accumulates across trials — and across runs in one app launch.**
+> `beginToolTurn()` → `relay.beginTurn()` → `governor.beginTurn()` is called at
+> exactly two sites, `LocalChatBackend.swift:382` and `:559`, which are the two
+> PRODUCTION send loops. `runActionBattery`'s trial loop calls
+> `session.respond` directly and never calls it at all; `installTools`
+> (`AppContainer.swift:996`) builds ONE governor per app launch. So after the
+> twelfth admitted call of a run every later call is refused on the budget
+> branch, three refusals become a cut, and the cut then fires on every trial in
+> which the model reaches for a tool at all.
+> - **This is a grep-verifiable code fact. That it ACCOUNTS for the 77%/82%
+>   rates is an inference, and it is exactly what `refusal-words`' two cells
+>   measure** — `turn-reset` calls `beginTurn()` before every trial (what
+>   production does), `leaked` calls it once per cell (what the battery does).
+>   One line of difference, which is the only shape that can attribute
+>   anything.
+> - The arithmetic is consistent, which is why it is filed rather than
+>   dismissed: run 1's **10 recorded calls** sit just under the budget of 12,
+>   its 11 uncut-and-uncalled trials are turns where nothing was ever admitted
+>   (no admission attempt ⇒ no refusal ⇒ no cut), and run 2's **0/90** is what
+>   a budget already spent by run 1 looks like. Consistency is not proof; the
+>   run is.
+> - **Nothing was fixed here.** Changing `runActionBattery` would silently
+>   change the meaning of every #200-series number in the tracker, and that is
+>   a decision, not a lane's to take. Filed for Owen.
+>
+> **(2) The warm-up pass creates real artifacts that no recorder row can see —
+> which is #336's opposite-direction discrepancy, arithmetically.**
+> `runActionBattery`'s #200V warm-up runs the full prompt list BEFORE
+> `beginRun`, and every recorder mutator guards on an open run, so warm-up
+> trials are recorder-inert BY DESIGN (that inertness is pinned by its own
+> test). But its artifacts are real, its per-trial sweeps fold into
+> `perTrialReminders/Events/Alarms`, and those counts land in the run's REAP
+> summary. **So a warm-up create is counted in the reap and invisible in the
+> record — the exact shape of #336's "12 artifacts reaped against 10 recorded
+> calls."** `batteryWarmupDefault` is `true`, so it was on.
+> - **And it fits PER FAMILY, which is the part that made this worth filing:**
+>   #336's own table reads reminders 4 recorded / 4 reaped (exact), alarms 3/4
+>   (**+1**), events 3/4 (**+1**). A warm-up pass that created one alarm and
+>   one event and no reminder produces precisely that, including the
+>   *"unclaimed extra event"* #336 says fabrication cannot explain at all.
+> - **Still NOT elected.** #336 owns that verdict, this is a fit rather than a
+>   proof, and it says nothing about #336's OTHER half — the 3 armed trials
+>   claiming an action with no recorded call, whose reminder arithmetic is
+>   exact and which this explains not at all.
 
 **Cross-references:** **#232** (the governor doing the cutting — this is its rate at
 scale, which its own filing never had), **#225** (B1's cap verdict and B2's
@@ -9473,6 +9611,20 @@ did not happen (the reminder arithmetic supports this and nothing contradicts it
 **(ii) UNDER-RECORDING by the instrument** — real writes that never reached
 `BatteryRunRecorder.recordToolCall` (the alarm/event surplus supports this, and the
 unclaimed extra event cannot be explained by fabrication at all).
+
+> **➡️ 2026-08-12, from the #337 instrument build — a NAMED CANDIDATE for half
+> (ii), with a code pointer and a per-family fit. NOT elected; this entry keeps
+> its verdict.** `runActionBattery`'s #200V warm-up pass runs the whole prompt
+> list BEFORE `beginRun`, and every recorder mutator guards on an open run — so
+> warm-up trials are **recorder-inert by design** while their artifacts are
+> real and their sweeps fold into the run's REAP counts. A warm-up create is
+> therefore counted in the reap and invisible in the record.
+> `batteryWarmupDefault` is `true`. The fit is per-family exact: one warm-up
+> alarm and one warm-up event, no warm-up reminder, reproduces reminders 4/4,
+> alarms 3/4, events 3/4 — **including the unclaimed extra event.** Half (i)
+> is untouched by this. Full write-up and the second finding (the governor's
+> per-turn budget never being reset by the battery) live in **#337**'s
+> instrument block.
 
 **Why (ii) matters as much as (i):** if the recorder can miss a call, then
 **every battery's `toolCalls` reading in the #200-series is a floor, not a count** —
@@ -17478,6 +17630,21 @@ The umbrella's deliverable — the convention, stated once — now lives in the
 >   **A classifier caught its own error here:** the first pass used a straight
 >   apostrophe and the model writes curly ones, so claims read as "no claim" — the
 >   tell was sample text visibly contradicting its own bucket.
+>
+>   > **➡️ 2026-08-12 — B2's named instrument gap is CLOSED IN CODE (not yet
+>   > run), and the 70 empties acquire a candidate explanation.** #337's
+>   > `refusal-words` instrument runs production's own post-cut toolless retry
+>   > (through #215's `routedTrialShape` seam) and records its text, so a cut
+>   > trial can no longer be filed as an empty row — that is bar 337-B, folded
+>   > into 337-D's instrument. Separately, and more awkwardly for the reading
+>   > of "70/120 cut": **`runActionBattery` never calls `relay.beginTurn()`**,
+>   > so #225's own per-turn budget accumulates across a run's trials rather
+>   > than resetting — the failure mode `theBudgetResetsForEachTurn` calls
+>   > "the obvious way for this fix to become a worse bug than the one it
+>   > fixes," present on the INSTRUMENT path rather than the production one.
+>   > The cut COUNT stands; what it measures is now an open question, and
+>   > #337-D's `turn-reset`-vs-`leaked` cells are the measurement that settles
+>   > it. Code pointers and the arithmetic are in **#337**.
 > - **B4 (no collateral) MET:** every marked artifact reaped, `failures=0`, nothing
 >   outside the #331 container.
 > - **Contrast worth carrying, not interpreting:** the cut rate is 12/40 in the

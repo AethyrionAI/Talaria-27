@@ -10464,6 +10464,25 @@ max per tool); the grind is a REFUSAL loop, a distinct third mechanism.
 > - **232-E:** the cut logs an always-on `.notice` (same convention as #26's
 >   condense line), so a cut turn is visible without verbose.
 
+> **➡️ APPENDED 2026-08-12 (#261/#317 pointer block — the entry's original
+> bytes above are untouched). NOTHING HERE REOPENS #232; its closure was about
+> PRODUCTION on the Gulfport prompt and stands.**
+> - **Somebody finally built the thing this entry never had: a capture of what
+>   a refusal SAYS.** `ToolCallGovernor.RefusalCapture` (DEBUG-only, sink nil
+>   in every normal run) records each refusal verbatim with its branch, the
+>   tool the model reached for, and the governor's two counters at that
+>   instant. It feeds #337's `refusal-words` instrument (bar 337-D). Built
+>   2026-08-12, **not yet run.**
+> - **And a caution for anyone quoting this cut's RATE at scale.** #337
+>   measured 69/90 and 74/90 action turns ending in `ToolPhaseCutError` — but
+>   those are BATTERY turns, and `runActionBattery` never calls
+>   `relay.beginTurn()`, so the per-turn budget this cut sits behind
+>   accumulates across a run's trials instead of resetting. That is bar 3 of
+>   this very entry (`theBudgetResetsForEachTurn`) holding in production and
+>   not on the instrument path. **The cut mechanism is unchanged; what a
+>   battery-measured cut rate MEANS is open**, and #337-D's
+>   `turn-reset`-vs-`leaked` cells are the measurement.
+
 ## 231. 🐛 RELEASE-ONLY: the chat screen scrambles — transcript collapses, identity strip lands on the input bar. Debug is fine, so every check we run was blind to it (#218's family, for UI) — **✅ CLOSED 2026-08-03 night: 231-C's captured-log half met in the corded coda; all four bars now met**
 
 > **✅ 231-C LOG HALF MET — the corded coda's `log collect` archive shows the
