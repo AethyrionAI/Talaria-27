@@ -724,6 +724,32 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runRefusalWordsInstrument(trials: trials)
                        }),
+        // #337 bar 337-F — the confirmation-card A/B. #337-A's production turn
+        // printed "**Confirmation card:** … has been created" with no card and
+        // no call; the candidate mechanism, filed with a text pointer and NOT
+        // elected, is that the action tools' own descriptions teach the
+        // phrase. Three arms: production verbatim, the clause removed from the
+        // three tool DESCRIPTIONS, and that plus the armed blurb's own
+        // confirmation-card sentence — the third exists because a null in the
+        // tools-only arm would be uninterpretable while the blurb kept
+        // teaching it.
+        //
+        // **Production's descriptions do not change.** The stripped strings
+        // are `#if DEBUG` constants derived by removal from production's own
+        // statics, and the manipulation-check row records how many
+        // descriptions were actually swapped — a treatment that silently
+        // failed to apply must not read as a null.
+        //
+        // Surface: auto-DECLINE, so nothing is written. The phenomenon lives
+        // on ZERO-TOOL turns, where the confirmation mode is unreachable, so
+        // the mode does not touch the arm that matters.
+        // Button: `instrumentButton("card-clause", …)`.
+        InstrumentSpec(name: "card-clause", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runCardClauseAB(trials: trials)
+                       }),
     ]
 
     static func spec(named name: String) -> InstrumentSpec? {

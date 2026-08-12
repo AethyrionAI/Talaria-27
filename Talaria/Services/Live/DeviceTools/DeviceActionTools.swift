@@ -7,6 +7,54 @@ import FoundationModels
 // executed only on explicit approve. Deny returns a "user declined" result
 // the model reacts to conversationally; nothing is ever created silently.
 
+// MARK: - #337-F: the confirmation-card clause, named
+
+/// The sentence every action tool's description ends with, isolated so a
+/// measurement can remove it without retyping the description around it.
+///
+/// **This is a MEASUREMENT seam, not a fix.** #337-A's production turn replied
+/// *"**Confirmation card:** A reminder to 'take out the trash' at 8 AM has been
+/// created"* — the app's own affordance, imitated in prose, with no card and no
+/// tool call. The candidate mechanism, filed with a text pointer and explicitly
+/// NOT elected, is that the phrase is taught by these very descriptions. 337-F
+/// measures that; nothing here changes what production ships, and the stripped
+/// variants that use it live behind `#if DEBUG`.
+///
+/// Deliberately NOT `#if DEBUG` itself: production reads nothing from this
+/// enum, but a text constant that only exists in Debug is one refactor away
+/// from #218's failure — `main` unable to build in Release for two days
+/// because a promoted clause stayed inside a DEBUG block. Costing Release an
+/// unused enum is the cheaper side of that trade.
+enum DeviceActionClauses {
+
+    /// The clause as it appears on `createReminder` and `createCalendarEvent`.
+    static let cardClauseCreated =
+        " The user sees a confirmation card and can edit or cancel before anything is created."
+
+    /// The clause as it appears on `scheduleAlarm` — same sentence, different
+    /// final verb. Two constants rather than a regex: an A/B whose
+    /// manipulation is defined by a pattern is an A/B that can silently start
+    /// matching more or less than it did.
+    static let cardClauseScheduled =
+        " The user sees a confirmation card and can edit or cancel before anything is scheduled."
+
+    /// The armed INSTRUCTIONS' own mention, which no tool description carries.
+    /// The 337-F treatment arms remove the tool-description clause; this is
+    /// the second exposure site, and naming it is what lets the entry say
+    /// honestly that a null result in the tools-only arm exonerates nothing.
+    static let armedBlurbCardSentence =
+        " Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+
+    /// Removes whichever of the two clause forms is present, and NOTHING else.
+    /// A description with neither comes back unchanged — which is a fact the
+    /// caller is expected to check rather than assume away.
+    static func strippingCardClause(from description: String) -> String {
+        description
+            .replacingOccurrences(of: cardClauseCreated, with: "")
+            .replacingOccurrences(of: cardClauseScheduled, with: "")
+    }
+}
+
 // MARK: - Shared parsing (unit-tested)
 
 enum DeviceActionParsing {
@@ -114,6 +162,18 @@ struct ReminderCreateTool: Tool {
     /// targets the stall at the tool level. Measurement cells only;
     /// production ships it ONLY after a battery verdict.
     static let destalledDescription200 = productionDescription + " Create it immediately with the details given; missing fields default — never ask a clarifying question first."
+
+    /// #337 bar 337-F treatment: production's description with the
+    /// confirmation-card sentence REMOVED, and nothing else touched.
+    ///
+    /// Derived by removal rather than retyped, because a retyped "identical
+    /// except for one clause" is one typo away from measuring two changes.
+    /// `DeviceActionClauses.cardClauseCreated` is the exact substring; a test
+    /// asserts the removal actually removed something, which is the guard
+    /// against the whole A/B silently becoming a no-op the day someone
+    /// rewords production.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
     #endif
     /// `var` + init default (#196): the battery's shaped belt copies this
     /// tool and swaps ONLY this string; production call sites never pass it.
@@ -442,7 +502,17 @@ struct CalendarEventTool: Tool {
     /// optional-field copy can be pinned as production-identical on
     /// everything except the two field types.
     static let productionDescription = "Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created."
-    let description = CalendarEventTool.productionDescription
+    #if DEBUG
+    /// #337 bar 337-F treatment — see `ReminderCreateTool.cardClauseStripped337`.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
+    #endif
+    /// `var` + init default, the #196 seam this tool did not have: #337-F
+    /// needs to swap ONLY this string on a copy, and a `let` cannot be
+    /// swapped. **The default is the same static production shipped before,
+    /// so the shipping belt is byte-identical** — production call sites never
+    /// pass a description.
+    var description: String = CalendarEventTool.productionDescription
     /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
     /// default matches the framework default; production never passes it.
     var includesSchemaInInstructions: Bool = true
@@ -691,7 +761,21 @@ struct CalendarEventToolRequiredFields: Tool {
 
 struct AlarmTool: Tool {
     let name = "scheduleAlarm"
-    let description = "Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled."
+    /// Production description text, hoisted to a static for the same reason
+    /// the other two action tools hoisted theirs: a measurement cell must be
+    /// able to name production's exact bytes rather than a copy of them.
+    static let productionDescription = "Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled."
+    #if DEBUG
+    /// #337 bar 337-F treatment — see `ReminderCreateTool.cardClauseStripped337`.
+    /// The alarm clause ends "…before anything is **scheduled**", which is why
+    /// the stripper matches both endings rather than one.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
+    #endif
+    /// `var` + init default, the #196 seam this tool did not have (#337-F).
+    /// The default is production's own static, so the shipping belt is
+    /// byte-identical; production call sites never pass a description.
+    var description: String = AlarmTool.productionDescription
     /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
     /// default matches the framework default; production never passes it.
     var includesSchemaInInstructions: Bool = true

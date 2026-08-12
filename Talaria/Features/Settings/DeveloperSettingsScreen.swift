@@ -1026,6 +1026,13 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("refusal-words", trials: 10,
                                      label: "Refusal words (#337-D) n=10 (60)")
                 }
+                // #337 bar 337-F: does the "Confirmation card:" prose shape
+                // track the tool-description clause? 3 arms x 3 prompts x n.
+                // Auto-DECLINE — nothing written, nothing to grant or reap.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("card-clause", trials: 10,
+                                     label: "Card clause A/B (#337-F) n=10 (90)")
+                }
                 HStack(spacing: Design.Spacing.sm) {
                     alarmSweepButton
                 }
