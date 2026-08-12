@@ -7484,6 +7484,67 @@ slightly untrue. Three routes, none picked:
   and #296's bars re-run green; this lane adds a path, it does not re-plumb one.
 - **327-E — `GATE: PASS`**, count moved.
 
+---
+
+> **🔬 MEASURED 2026-08-11 BEFORE WRITING THE FIX — and it falsifies half of
+> this entry's own mechanism paragraph. The guard is real; the thing it was
+> assumed to be failing to mark is not there.**
+>
+> The `t27-327-328-stop-honesty` lane ran a throwaway probe
+> (`probeWhatTheWindowHoldsAfterAToolCall`, on `f7c493d`) that drives a real
+> turn, yields `tool.started terminal`, drops the stream with `.interrupted`,
+> and dumps the transcript at three points. Verbatim:
+>
+> ```
+> midStream = [user/'sleep 90 && echo Done'/sending/acts:[],
+>              hermes/''/sending/acts:["terminal:active=true:fail=nil"]]
+> inWindow  = [user/'sleep 90 && echo Done'/working/acts:[]]
+> afterStop = [user/'sleep 90 && echo Done'/delivered/acts:[]]
+> ```
+>
+> **The assistant row — and its active tool activity with it — is GONE before
+> the window opens.** `armPendingRunRecovery` removes the placeholder (that is
+> #295's design; it preserves `partialReasoning` and nothing else), and it is
+> one of only **two** writers of `pendingRun` in the whole store, the other
+> being `seedPendingRunForTesting` under `#if DEBUG`. So the reconcile window
+> can never be entered with the run's placeholder still in the transcript, and
+> **no production path can put an ACTIVE tool activity in front of a window
+> Stop.**
+>
+> **Consequence for bar 327-A as written** (*"…with an ACTIVE tool activity,
+> Stops, and asserts the activity carries a failure marker"*): that state is
+> unreachable. A test that constructs it would be a hand-built fixture for a
+> configuration the app never enters — the #215 shape, and exactly the kind of
+> fiction this project's bars exist to prevent. The bar's INTENT survives
+> intact; its stated fixture does not.
+>
+> **So where did Owen's `✓ TERMINAL` come from?** The only other producer of
+> tool activities in the app: **history restore.**
+> `SessionsHermesClient.decodeStoredMessage` rebuilds chips from the server
+> transcript's `tool_calls` with **`isActive: false`, `failure: nil`,
+> hardcoded** — and it deliberately keeps a **tool-calls-only assistant row**
+> (`guard !text.isEmpty || !activities.isEmpty`, "the text lands on a later
+> row"). `ToolActivityRail.state(of:)` reads not-failed-and-not-active as
+> `.completed` and draws the checkmark. That is a chip with **no answer beside
+> it**, which is precisely what Owen described, and it arrives on any
+> transcript refresh during or after the window.
+>
+> **The `isActive: false` on a restored chip is a DEFAULT, not an observation.**
+> It is not a `tool.completed` the client saw; the session transcript carries
+> no per-call outcome at all. So the window's own rows — which are, by the
+> measurement above, *only ever* history-restored — carry no evidence that any
+> of their calls finished, and a `✓` there asserts a completion the app never
+> witnessed. That is what makes marking them on a user Stop honest rather than
+> over-reach, and it is why the fix keys on **unresolved** (`failure == nil`)
+> rather than on `isActive`: keying on `isActive` would be a no-op against the
+> only case that actually occurs.
+>
+> **296-B is preserved by SCOPE, not by the `isActive` test.** The marking is
+> confined to assistant rows with `timestamp > pendingRun.sentAt` — the
+> reconcile's own "belongs to this run" filter — so an earlier turn's orphaned
+> activity (the case `ToolActivityRail.summaryState`'s comment names and
+> deliberately renders `.completed`) is never touched.
+
 **Cross-references:** **#321** (the lane that shipped the window Stop and whose
 321-C is amended by this), **#296** (the rendering, correctly untouched),
 **#278** (the window itself), **#180** (honest degradation — a control that
@@ -7568,6 +7629,44 @@ because the shape depends on the ruling above.**
 - **328-D — the runs plane is untouched.** #304's real hard stop and its
   device-proven behaviour re-run green.
 - **328-E — `GATE: PASS`**, count moved.
+
+---
+
+**ROUTE 2's OWN BARS — pre-registered 2026-08-11 by the `t27-327-328-stop-honesty`
+lane, BEFORE any route-2 code, because 328-B above is deliberately thin and a
+thin bar is not a contract. Route 1 is NOT in this lane: it stays gated on
+328-A's probe and this lane must not read as closing it.**
+
+- **328-R2-A — the outcome becomes legible at the seam, and it is the OUTCOME
+  that is read, never a build flag.** `hardStopActiveRun()` returns `Void` and
+  guard-returns silently today, so no caller can tell a delivered stop from a
+  swallowed one. It must answer whether a stop request was ISSUED: `false` on
+  an ordinary sessions `chat/stream` turn (no `activeRunContext`), `true` when
+  a run was in flight and the POST went out. Pinned in a test on both arms.
+  **`true` means "we asked", not "the host stopped"** — the POST is
+  fire-and-forget and a transport failure deliberately marks nothing — and the
+  code must say so where it is declared, or the next reader will over-read it.
+- **328-R2-B — RED witnessed.** With no host stop issued, a user Stop on a
+  server-recoverable turn must leave an honest statement in the transcript
+  that the agent may still be running. The test asserting it must FAIL against
+  `f7c493d`, where no such surface exists.
+- **328-R2-C — and it must NOT appear where the Stop is real or where nothing
+  is left running.** Three negative arms, each pinned rather than argued:
+  (i) a run whose stop WAS issued (the `/v1/runs` plane, #304's device-proven
+  hard interrupt) gets **no caveat** — the dispatch's own constraint, and the
+  bar that keeps this from becoming an apology attached to every Stop;
+  (ii) a turn on a plane with no host still generating (the on-device brain,
+  `currentRunIsServerRecoverable == false`) gets none — cancelling really did
+  stop everything; (iii) the continued-send EXPIRATION (`hardStopHost: false`,
+  the system revoking a background budget) gets none — it is not a user Stop
+  and #295 deliberately leaves the host alone there.
+- **328-R2-D — #322's single-read contract is not weakened.** `cancelledRunID`
+  and `turnIsServerRecoverable` are still captured BEFORE `hardStopActiveRun()`
+  clears `activeRunContext` and before `abandonActiveRun()` releases the
+  router's lock. `CancelFinalStatusReadTests` re-runs green by name.
+- **328-R2-E — route 1 is untouched and still open.** No host route is added,
+  probed or claimed by this lane; #304's runs-plane stop and its bars re-run
+  green (that is 328-D, re-run here rather than restated).
 
 **Cross-references:** **#321** (surfaced it; its deciding fact is coupled to
 this), **#304** (the real hard stop, runs plane only), **#283** (the transport
