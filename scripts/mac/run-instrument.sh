@@ -135,6 +135,16 @@ STATUS=""; FIRST_STARTED=""
 SECONDS=0
 while (( SECONDS < TIMEOUT )); do
   sleep 20
+  # Fail FAST on a refused launch instead of burning the whole timeout: a locked
+  # device rejects the open ("device was not, or could not be, unlocked" /
+  # FBSOpenApplicationServiceErrorDomain), the streamer exits, and no artifact
+  # will ever appear. Observed live on the first #333 iPad run (2026-08-12).
+  if ! kill -0 "$LAUNCH_PID" 2>/dev/null \
+     && grep -qiE "failed to launch|FBSOpenApplication|could not be, unlocked" "$OUT_DIR/console.log" 2>/dev/null; then
+    echo "PRECONDITION: app launch was refused by the device (locked?) — see console.log:" | tee -a "$OUT_DIR/run.log"
+    tail -3 "$OUT_DIR/console.log" | tee -a "$OUT_DIR/run.log"
+    exit 3
+  fi
   fetch_latest || continue
   S=$(status_of "$OUT_DIR/latest.json"); STARTED=$(started_of "$OUT_DIR/latest.json")
   # Arm FIRST_STARTED only once we observe a startedAt that DIFFERS from the
