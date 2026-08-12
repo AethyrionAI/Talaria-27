@@ -103,7 +103,10 @@ for ATTEMPT in 1 2 3; do
     BASELINE_ESTABLISHED=1
     break
   fi
-  if grep -qiE "couldn.t be found|No such file|does not exist" "$OUT_DIR/baseline-fetch.stderr" 2>/dev/null; then
+  # "Failed to retrieve the file node" / CoreDeviceError 7000 is devicectl's REAL
+  # missing-file signature, observed live on the first #333 device run (2026-08-12);
+  # the other patterns are kept as belt-and-braces for future toolchain wording.
+  if grep -qiE "Failed to retrieve the file node|CoreDeviceError error 7000|couldn.t be found|No such file|does not exist" "$OUT_DIR/baseline-fetch.stderr" 2>/dev/null; then
     BASELINE_ESTABLISHED=1
     break
   fi
