@@ -1,0 +1,277 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "d5fbc59",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "endedAt" : "2026-08-12T20:05:34Z",
+  "instrument" : "long-context-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "ctx-a-long"
+    ],
+    "endedCleanly" : true,
+    "id" : "1798A777-D068-48A5-AD5D-6D449E4C5F9A",
+    "kind" : "router-context",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "accept",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "seconds" : 2.1723184108734133,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Say that again more briefly",
+        "seconds" : 1.8137097835540772,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "words-only",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Say that again more briefly",
+        "seconds" : 1.1076558113098145,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "seconds" : 2.1686861991882322,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "accept",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "seconds" : 1.301899790763855,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "accept",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "seconds" : 1.4055171966552735,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Here are three haiku about rain. The first: Silver threads descend, drumming on the windowpane, the garden drinks deep. The second: Grey light through the glass, puddles holding broken sky, a bus hisses past. And the third: After the downpour, every leaf a small mirror, the street smells of earth. I leaned into the sensory details in each one — sound in the first, light in the second, smell in the third — because rain is one of those subjects where the obvious images have been used a great deal, and the specific physical detail is what keeps it from feeling secondhand.",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "seconds" : 1.4326525926589966,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period.",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Summarize that in one sentence",
+        "seconds" : 1.4827473878860473,
+        "trials" : 5,
+        "variant" : "ctx-a-long"
+      },
+      {
+        "band" : "accept",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "seconds" : 1.5427345991134644,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Say that again more briefly",
+        "seconds" : 1.5671875953674317,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "words-only",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Say that again more briefly",
+        "seconds" : 1.5337471961975098,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period. That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "seconds" : 1.675959014892578,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "accept",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "seconds" : 1.5718891859054565,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "accept",
+        "context" : "That is a really common one — dentists tend to call during working hours, which is exactly when it is hardest to pick up, and then the callback slips because there is no natural prompt to do it. The trick that usually works is attaching it to something already fixed in your day rather than trusting yourself to remember it cold. Since their office almost certainly opens at nine, first thing in the morning is the moment you are most likely to actually get through to a person. Would you like me to set a reminder to call the dentist tomorrow at 9am?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "seconds" : 1.6378057956695558,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Here are three haiku about rain. The first: Silver threads descend, drumming on the windowpane, the garden drinks deep. The second: Grey light through the glass, puddles holding broken sky, a bus hisses past. And the third: After the downpour, every leaf a small mirror, the street smells of earth. I leaned into the sensory details in each one — sound in the first, light in the second, smell in the third — because rain is one of those subjects where the obvious images have been used a great deal, and the specific physical detail is what keeps it from feeling secondhand.",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "seconds" : 1.659532403945923,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 with the financial crisis of the ancien régime and the calling of the Estates-General, moved through the storming of the Bastille and the abolition of feudal privileges, and produced the Declaration of the Rights of Man and of the Citizen. The constitutional monarchy collapsed in 1792, the Republic was declared, and the Terror followed under the Committee of Public Safety, ending with Robespierre's fall in 1794. The Directory governed until 1799, when Napoleon's coup of 18 Brumaire brought it down and effectively ended the revolutionary period.",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Summarize that in one sentence",
+        "seconds" : 1.6910582065582276,
+        "trials" : 5,
+        "variant" : "ctx-a-long-capped"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "seconds" : 1.4957201957702637,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to add that to your calendar?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes",
+        "seconds" : 1.5602895975112916,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      },
+      {
+        "band" : "accept",
+        "context" : "Should I set an alarm for 6:30?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "seconds" : 1.6123152017593383,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      },
+      {
+        "band" : "accept",
+        "context" : "I can create that reminder — shall I?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Go ahead",
+        "seconds" : 1.5449512004852295,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to put that on your calendar?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Please do",
+        "seconds" : 1.6122285842895507,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to remind you about it?",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "yeah",
+        "seconds" : 1.6560656070709228,
+        "trials" : 5,
+        "variant" : "ctx-a-short"
+      }
+    ],
+    "startedAt" : "2026-08-12T20:02:38Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 5
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T20:02:38Z",
+  "status" : "completed",
+  "trialsRequested" : 5,
+  "unattended" : true
+}
