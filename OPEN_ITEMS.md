@@ -171,7 +171,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#301** 🐛 libdispatch main-queue assertion kills the app in the NATIVE VOICE path — **and it fired on the SIMULATOR**, which the known device-only isolation trap says should not happen — **✅ INVESTIGATED + FIX MERGED 2026-08-10 (PR #300, `179d506`): the trap is NOT device-only (that recorded claim is falsified), the site is `ensureSpeechAuthorization()`'s completion closure, and the discriminator is authorized-vs-notDetermined. OPEN only for 301-C's negative control — device row §V2 (fresh install) or the queued sim re-run**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
-- **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); (f) NOT RUN (the status card's Priming row, one tap on the CTX gauge)**
+- **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
 - **#313** 🔬 `CondenserFidelityTests` — **✅ IT RAN 2026-08-11 on `whoGoesThere`, first time ever; "has never run" is DISCHARGED. 6/7 passed and ONE BAR IS RED:** the model-condensed brief keeps the trip's details and drops its SUBJECT (`brief.contains("chicago")` failed) — #89's residual risk firing exactly where this entry predicted. Corrections, distractor pruning and budget all held. Fix direction already ruled: tune `condensedContextBrief`'s instructions, do NOT weaken the test — and a re-run that LOGS the brief comes first, since how the model referred to the city is unmeasured. Also named: device test runs need `DEVELOPMENT_TEAM=DNL25ZFSD2`, since `project.yml` teams the app target only
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
@@ -189,6 +189,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#327** 🐛 A Stop in the RECONCILE WINDOW leaves in-flight tool activities UNMARKED, so a killed call renders `✓` — the marker block is gated on `streamingMessageID != nil`, which is `nil` for the whole window. **MEASURED on device 2026-08-11; NOT #296 reopening (the rail is right, the Stop path is wrong). It also exposed that #321's 321-C projection omitted tool state. Owen's marker ruling gates the lane; bars 327-A..E pre-registered**
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
+- **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -7649,6 +7650,100 @@ must be designed with this), **#312** (item (a), which this keeps RED),
 **#237** (the sibling duplicate), **#279** (fixed, different mechanism),
 **#180** (honest degradation — a failure affordance on succeeding work is
 squarely this family).
+
+## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any code.**
+
+**What was seen.** On the thread from #312 item (d) — the one that had announced
+`[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` twenty minutes
+earlier — the status card (CTX gauge → #46's toggle) renders:
+
+```
+CONNECTION  Online
+MESSAGES    7
+SESSION     4BF53B9D
+LAST TURN   INPUT 155,932 tokens · OUTPUT 2,459 · TOTAL 158,391
+```
+
+and then it **ends**. There is no `SESSION` section — which is where
+`Metered turns`, session `Input`/`Output`, `Model time`, **`Priming (N hops)`**
+and **`Est. cost`** all live (`StatusCardView.swift:83-113`).
+
+**The discriminator, run before calling it a defect.** The obvious innocent
+explanation is a clipped or unscrolled card. Owen checked: **that card does not
+scroll, and cards on other threads DO.** Other threads are longer precisely
+because they carry the SESSION block. So the section is absent, not hidden.
+
+**What that implies, from the code and nothing else.**
+`ChatStore.sessionUsageTotals` (`:187`) returns nil only when
+`meteredTurns == 0 && primingHops == 0`. So on this thread BOTH counters are
+zero — and both should be non-zero:
+- `meteredTurns` counts `message.sender == .hermes` rows carrying `usage`. The
+  transcript on that very thread renders per-turn receipts
+  (`IN 155.9K · OUT 2.5K · 1M 39S · ~$0.02`), and `MessageBubble.swift:314`
+  renders those **from `message.usage`** — so message-level usage demonstrably
+  exists.
+- `primingHops` counts `message.isContextPriming`. A transplant demonstrably
+  happened; the notice is in the transcript.
+
+**MECHANISM: UNKNOWN. Candidates, none asserted, listed so the next reader does
+not have to re-derive them:**
+1. The card reads a **different or stale `conversation`** than the transcript
+   renders.
+2. The post-transplant replies **do not satisfy `sender == .hermes`**, so
+   `meteredTurns` stays 0 **while receipts still render** — the receipt checks
+   only `usage`, never the sender.
+3. The priming notice is **not a `conversation.messages` row** carrying
+   `isContextPriming` (rendered some other way), so `primingHops` never
+   increments.
+4. The transplant's fresh session **replaced the message array** with rows that
+   lost `usage` / `isContextPriming` on the way through persistence.
+
+**A second observation, recorded but NOT explained:** the thread header read
+**9 MESSAGES at 9:03 PM and 7 at 9:29 PM**, with no deletion in between. A
+dropping message count on a settled thread may be adoption/merge collapsing
+rows — or may be the same cause as the missing totals. It is noted here rather
+than filed separately because guessing they are unrelated is as unfounded as
+guessing they are the same.
+
+**⚠️ THE STRUCTURAL NOTE, which outlives whichever candidate is right.** The
+per-turn receipt and the session totals read the same underlying data through
+**different predicates** — the receipt asks only "is there `usage`?", the totals
+ask "is the sender `.hermes` AND is there `usage`?". That is exactly how a thread
+can display per-turn costs on every reply and no session cost at all, and it is
+why this went unnoticed: **the surface that is easiest to eyeball is the one
+with the weaker predicate.**
+
+**Why it matters beyond one card.** This is #122's session cost & usage surface
+(shipped, PR #121) going silently absent, and #312 item (f) — "session totals
+show the PRIMING row + cost" — is RED because of it. Priming is real spend:
+36,939 tokens in this instance, invisible in the only place the app totals
+spend.
+
+**BARS — pre-registered 2026-08-11 BEFORE any code.**
+- **330-A — name the cause by MEASUREMENT, not by election.** Instrument
+  `sessionUsageTotals`' inputs on a transplanted thread and report which of
+  `meteredTurns` / `primingHops` is zero and why. The candidates above are a
+  starting list, not a menu to pick from; if it is none of them, say so.
+- **330-B — RED reproduced in test** from a transplanted-thread fixture built
+  the way the app actually builds one. **If the fixture cannot be reached the way
+  production reaches it, stop** — a test over a state production never enters is
+  #215's fiction, the same trap that made #327's first bar unreachable.
+- **330-C — the predicates converge, or the divergence is deliberate and
+  documented.** Receipt and totals must not disagree about what a metered turn
+  is. If they must differ, the reason is a comment at both sites.
+- **330-D — the priming row appears with its hops and tokens** on a transplanted
+  thread, and `Est. cost` returns with it.
+- **330-E — the message-count observation is resolved or explicitly deferred**
+  with a reason. Do not leave it dangling.
+- **330-F — `GATE: PASS`**, count moved.
+- **330-G (device, Owen) — the closing bar:** transplant a thread, open the
+  status card, see a Priming row with tokens and a session cost.
+
+**Cross-references:** **#312** (item (f), RED until this is fixed), **#122**
+(the cost surface going absent), **#93 / #90** (priming's origin — "priming is
+not free and must be visible" is that lane's own sentence, in the code at
+`StatusCardView.swift:94`), **#46** (the card and its CTX-gauge toggle),
+**#215** (why 330-B has a stop condition), **#180** (honest degradation).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
