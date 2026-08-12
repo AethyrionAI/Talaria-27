@@ -260,6 +260,27 @@ struct RefusalWordsInstrumentRunTests {
         }
     }
 
+    /// **#200V's warm-up is on by default and must be INVISIBLE.** It runs
+    /// before `beginRun` and every recorder mutator guards on an open run, so
+    /// the recorded run has to be byte-for-byte what a warm-up-free run would
+    /// have produced. A warm-up that leaked rows would inflate every
+    /// denominator in the artifact by three.
+    @Test func theWarmupPassAddsNoRowsToTheRecord() async throws {
+        let backend = makeBackend()
+        let known = idsOnDisk()
+        await backend.runRefusalWordsInstrument(trials: 1, warmup: true)
+        let warmed = try freshRun(after: known)
+
+        let known2 = idsOnDisk()
+        await backend.runRefusalWordsInstrument(trials: 1, warmup: false)
+        let cold = try freshRun(after: known2)
+
+        #expect(warmed.trials.count == cold.trials.count)
+        #expect(warmed.probes.count == cold.probes.count)
+        #expect(!warmed.trials.contains { $0.shape == "warmup" },
+                "a warm-up trial reached the record")
+    }
+
     /// The sink is global; a run that left it installed would keep capturing
     /// into a dead buffer and attribute the NEXT battery's refusals to this
     /// instrument.

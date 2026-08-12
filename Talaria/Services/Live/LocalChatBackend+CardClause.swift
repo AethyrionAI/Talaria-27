@@ -159,7 +159,8 @@ extension LocalChatBackend {
     /// across its whole run; an A/B run under that condition would be mostly
     /// phase cuts and would measure the cut rather than the clause. This
     /// instrument resets, which is what production does.
-    func runCardClauseAB(trials: Int, arms: [CardClauseArm] = CardClauseArm.allCases) async {
+    func runCardClauseAB(trials: Int, arms: [CardClauseArm] = CardClauseArm.allCases,
+                         warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
@@ -178,7 +179,14 @@ extension LocalChatBackend {
             hasImageTools: false
         )
         let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
-        Self.batteryEmit("battery: START trials=\(trials) arms=\(arms.count) prompts=\(prompts.count) (#337-F card-clause)")
+        Self.batteryEmit("battery: START trials=\(trials) arms=\(arms.count) prompts=\(prompts.count) warmup=\(warmup) (#337-F card-clause)")
+        // #200V: through the CONTROL's construction, because the control is
+        // arm 1 and a cold control against two warm treatments is a confound
+        // sitting exactly where this A/B's effect would be.
+        if warmup {
+            await runDiscardedWarmup(belt: base, instructions: productionInstructions,
+                                     options: options, item: "#337-F")
+        }
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: arms.map(\.rawValue),
                                       kind: "card-clause")
 

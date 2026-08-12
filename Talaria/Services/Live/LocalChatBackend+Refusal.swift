@@ -73,9 +73,46 @@ extension LocalChatBackend {
     }
 
     /// The trial-tag grammar, pinned here so the emit lines and the probe row
-    /// names cannot drift apart.
+    /// names cannot drift apart. Shared by both #337 instruments — one grammar
+    /// or two classifiers.
     nonisolated static func refusalTrialTag(cell: String, prompt: String, trial: Int) -> String {
         "shape=\(cell) p=\(prompt) t=\(trial)"
+    }
+
+    /// #200V's discarded warm-up, for the #337 instruments.
+    ///
+    /// **Not optional politeness — it removes a rival explanation this lane
+    /// would otherwise ship with.** In #200S, #200T and #200U the FIRST cell
+    /// posted the lowest calendar number, so slot 1 was paying a cold-start
+    /// cost the later slots did not. Both #337 instruments put their control
+    /// first: 337-F's control arm would be the cold one and its two treatments
+    /// warm, which is a confound sitting exactly on top of the effect the A/B
+    /// is for.
+    ///
+    /// **Recorder-inert by construction:** it runs BEFORE `beginRun`, and
+    /// every recorder mutator guards on an open run — the same property
+    /// `runActionBattery`'s warm-up relies on. Under auto-decline it also
+    /// writes nothing, so unlike the action battery's warm-up it leaves no
+    /// artifacts to reap and cannot contribute to a reap-vs-record mismatch.
+    /// It DOES spend governor budget, which is why the `leaked` cell takes its
+    /// own turn boundary at its start rather than inheriting whatever the
+    /// warm-up left.
+    func runDiscardedWarmup(belt: [any Tool], instructions: String,
+                            options: GenerationOptions, item: String) async {
+        let prompts = Self.actionBatteryDefaultPrompts
+        Self.batteryEmit("battery: WARMUP begin prompts=\(prompts.count) (\(item) / #200V)")
+        for (tag, prompt) in prompts {
+            ToolEventRelay.batteryTrialTag = Self.batteryWarmupTag(prompt: tag)
+            toolRelay?.beginTurn()
+            let session = LanguageModelSession(model: model, tools: belt,
+                                               instructions: Instructions(instructions))
+            let task = Task { try await session.respond(to: Prompt(prompt), options: options) }
+            let guillotine = Task { try? await Task.sleep(for: .seconds(35)); task.cancel() }
+            _ = try? await task.value
+            guillotine.cancel()
+        }
+        ToolEventRelay.batteryTrialTag = nil
+        Self.batteryEmit("battery: WARMUP done — discarded, not counted (\(item) / #200V)")
     }
 
     /// #337-D. Action prompts through the PRODUCTION armed construction, with
@@ -105,7 +142,8 @@ extension LocalChatBackend {
     /// production had stopped speaking; going through it is what stops this
     /// instrument repeating that.
     func runRefusalWordsInstrument(trials: Int,
-                                   cells: [RefusalWordsCell] = RefusalWordsCell.allCases) async {
+                                   cells: [RefusalWordsCell] = RefusalWordsCell.allCases,
+                                   warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
         guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
@@ -124,7 +162,11 @@ extension LocalChatBackend {
             hasImageTools: false
         )
         let options = Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape)
-        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) (#337-D refusal-words)")
+        Self.batteryEmit("battery: START trials=\(trials) cells=\(cells.count) prompts=\(prompts.count) warmup=\(warmup) (#337-D refusal-words)")
+        if warmup {
+            await runDiscardedWarmup(belt: base, instructions: instructions,
+                                     options: options, item: "#337-D")
+        }
         Self.batteryRecorder.beginRun(trialsPerCell: trials, cells: cells.map(\.rawValue),
                                       kind: "refusal-words")
 

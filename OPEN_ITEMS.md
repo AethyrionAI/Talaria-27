@@ -9502,6 +9502,13 @@ denominators differ (those runs executed; these do not).
 >     production would have had an approval. `toolCallsAdmitted` is recorded
 >     per trial so those can be partitioned out — and #337-A's own turn called
 >     nothing, which is the population the decline never touches.
+>   - **Both instruments run #200V's discarded warm-up first**, because both
+>     put their control in slot 1 and #200S/#200T/#200U all found slot 1
+>     paying a cold-start cost the later slots did not. For 337-F that
+>     confound would sit exactly on top of the effect the A/B is for. It is
+>     recorder-inert (it runs before `beginRun`) and, under auto-decline,
+>     creates nothing — so unlike the action battery's warm-up it cannot
+>     contribute to a reap-vs-record mismatch (finding 2 below).
 > - **`card-clause` (337-F)** — auto-DECLINE · `writesEventKit: false` ·
 >   `writesAlarms: false` · **unattended-eligible.** Three arms (above) × three
 >   prompts × n. Per trial: the imitation shape if any, admitted tool calls,
