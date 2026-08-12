@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
-- **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight` (#257's owed `21F0C10D` gate), `fm-asymmetries` (#324-W3's three device-only questions), `condensation-fit` (#210's "still owed" residual). All three `.none`/no-writes, so all three are unattended- and iPad-eligible. **BUILT sim+unit 2026-08-12; every number comes from the iPad runs, which have not happened.** Bars 335-A..H pre-registered before any run. ⚠️ `fm-asymmetries` references the new-in-beta5 `SystemLanguageModel.variant` — a beta4 iPad would die at DYLD LAUNCH, taking the other two runs with it
+- **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -9488,6 +9488,29 @@ that day and could not be re-run. (iii) The one side effect the real condenser
 has is #30's one-per-conversation PCC escalation offer; C restores that flag
 after each trial and records whether it fired.
 
+> **✅ F–H SCORED 2026-08-12, same day — the iPad runs (merged `e637bc4`, three
+> unattended #333-harness runs, every artifact `status: "completed"`, every band
+> `errors=0`, every count `distinct=1`):**
+>
+> - **335-F MET.** `tokencount-preflight` n=3 (`20260812T212657Z`): two-field
+>   response JSON **14 tokens vs cap 128 — headroom 114**; one-Bool 8 vs 64 —
+>   headroom 56; full payload 367 vs `contextSize` 4096 — headroom 3,729. The
+>   does-not-fit contingency does not fire; #257 step (2) is NOT needed.
+> - **335-G MET.** `fm-asymmetries` n=3 (`20260812T212739Z`): boundary band
+>   **tokenRatioVs4096 = 1.9952** against charRatio 1.9957 (linear counting, no
+>   window clamp; ~4.665 chars/token both sides); variant band
+>   **`displayName = "AFM 3 Core"`** (`isCore3`, `contextSize` 4096 on device);
+>   cap band **TRUNCATED 3/3** (output usage 16 ≥ cap 8, chars 47 — evidence
+>   rule fired, zero throws, zero timeouts; not "none").
+> - **335-H MET.** `condensation-fit` n=3 (`20260812T212823Z`): **armed 3/3 —
+>   preTokens 9,932 > 8,192 measured, never assumed**; ONE forced condensation →
+>   **postTokens 2,046 ≤ 8,192** (12 turns → 1 verbatim + 11 condensed into a
+>   3,389-char memory); verdict `ARMED+FITS` on every trial;
+>   `escalationOfferFired=false` each time and the flag restored.
+>
+> **#335 CLOSES: bars A–H all met.** Downstream scoring recorded the same day at
+> #257 (gate DISCHARGED), #324 (W3 answered), #210/#210A (residual measured).
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -13263,7 +13286,17 @@ router-throw tally and `scored=<n>/<trials>` beside every ratio.
 > (merge-time, 2026-08-12): "the payload this probe submits" carries an EMPTY
 > context — #334, filed the same day, measured the same router over 4,073-char
 > ctx-a contexts, so this pre-flight prices the probe's floor, not production's
-> ceiling.** Bars 335-A..F are
+> ceiling.**
+>
+> **✅ THE GATE IS DISCHARGED — RUN ON DEVICE 2026-08-12, same day** (iPad,
+> #333 harness, artifact `20260812T212657Z-tokencount-preflight`, n=3,
+> `errors=0`, `distinct=1` on every row): the two-field response JSON costs
+> **14 tokens against the 128 cap — headroom 114**; the one-Bool response 8 vs
+> 64 (headroom 56); the full router payload 367 vs `contextSize` 4096
+> (headroom 3,729). **Step (2)'s raised-cap constant is NOT needed** — the
+> pre-registered does-not-fit response does not fire, and
+> `capability-detection-probe` results are no longer gated on this question.
+> Numbers scored at #335 (bar F). Bars 335-A..F are
 > pre-registered in #335, including this entry's step (2) as the
 > **pre-registered response if the response does not fit**: every
 > capability-probe result to date is void and the fix is a raised cap in the
@@ -18577,6 +18610,17 @@ is **2** — the smallest number in the program that anything rests on.
 > threw" distinct from "armed and over". Bars 335-F/G/H are pre-registered in
 > #335 and **none has been run — an instrument is not a measurement**, and `n`
 > on the original observation is still 2.
+>
+> **✅ MEASURED 2026-08-12, same day — the iPad run answers this entry's
+> question** (artifact `20260812T212823Z-condensation-fit`, n=3, `errors=0`):
+> every trial **ARMED by measurement — preTokens 9,932 > 8,192** (above even the
+> recorded ~8,583 failure) — and **ONE forced condensation landed at postTokens
+> 2,046 ≤ 8,192**, verdict `ARMED+FITS` on 3/3 (12 turns → 1 verbatim + 11
+> condensed into a 3,389-char memory; 45,619 → 9,021 chars;
+> `escalationOfferFired=false` each trial, flag restored). **One condensation
+> does fit a real overflow under the ceiling, with ~6,100 tokens of headroom —
+> measured, no longer resting on n=2.** Same-day note at #210's "Still owed";
+> numbers scored at #335 (bar H).
 
 ## 211A. offer-instead-of-act on READ paths, where no confirmation gate excuses it
 
@@ -18682,6 +18726,13 @@ run, not an assumption. n on the original observation remains 2.
 > records, and the toolless instructions' own cost rides in a reference row so
 > the difference is a number. **Bars 335-H pre-registered in #335: if no trial
 > arms, this residual STAYS OPEN rather than being scored on an unarmed cell.**
+>
+> **✅ THE RESIDUAL IS MEASURED — 2026-08-12, same day, on the iPad:** 3/3 trials
+> armed by measurement (preTokens **9,932 > 8,192**), one forced condensation →
+> postTokens **2,046**, verdict `ARMED+FITS` every trial, `errors=0`. **The
+> condensation budget holds with ~6,100 tokens of headroom.** Full numbers at
+> #210A's dated block and #335 (bar H); artifact
+> `20260812T212823Z-condensation-fit`. This entry's residual CLOSES.
 
 ## 208. (Lane 4) — the token cap is NOT the D4 mechanism. Hypothesis falsified; #102's cap stays.
 
@@ -18856,6 +18907,15 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
     WHICH behaviour — it is a measurement — only that the band must not come back "none".
     ⚠️ The variant band is why every target device must be on **beta5**: this bullet's own
     dyld finding, three bullets up, applies to the app as a whole.
+  - **✅ 324-W3 ANSWERED 2026-08-12, same day — the iPad run** (artifact
+    `20260812T212739Z-fm-asymmetries`, n=3, `errors=0`, `distinct=1`): **(1) NO
+    counting asymmetry** — `tokenRatioVs4096 = 1.9952` against charRatio 1.9957 for a
+    2× payload (~4.665 chars/token both sides; no window clamp); **(2)
+    `variant.displayName = "AFM 3 Core"`** (`isCore3=true`, availability available,
+    `contextSize` 4096 on device); **(3) plain generation TRUNCATES, not throws** —
+    3/3 `TRUNCATED` by the evidence rule (output usage 16 ≥ cap 8, 47 chars; zero
+    throws, zero timeouts). Guided-gen's throw behaviour stands as separately
+    recorded — this band measured PLAIN generation only. Scored at #335 (bar G).
 - **324-W4** The FM b4-vs-b5 error-identity comparison is measurement-only (same-binary control
   is dyld-impossible; beta4's Code=5000 finding stands as recorded — do not treat the 1026 shape
   as contradicting it).

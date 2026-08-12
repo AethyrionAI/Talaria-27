@@ -1,0 +1,126 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "e637bc4",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "endedAt" : "2026-08-12T21:27:44Z",
+  "instrument" : "fm-asymmetries",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "boundary",
+      "variant",
+      "response-cap-behavior"
+    ],
+    "endedCleanly" : true,
+    "id" : "7853EF9C-3CD0-4265-9536-AEF823B5F9A4",
+    "kind" : "fm-asymmetries",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "boundary",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "chars" : 16450,
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 3527,
+          "measuredCharsPerToken" : 4.664020413949532,
+          "min" : 3527,
+          "scored" : 3,
+          "targetTokens" : 4096,
+          "value" : 3527
+        },
+        "probe" : "synthetic payload sized for ~4096 tokens",
+        "trials" : 3,
+        "variant" : "4096"
+      },
+      {
+        "band" : "boundary",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "charRatioVs4096" : 1.995744680851064,
+          "chars" : 32830,
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 7037,
+          "measuredCharsPerToken" : 4.665340343896546,
+          "min" : 7037,
+          "scored" : 3,
+          "targetTokens" : 8192,
+          "tokenRatioVs4096" : 1.9951800396937907,
+          "value" : 7037
+        },
+        "probe" : "synthetic payload sized for ~8192 tokens",
+        "trials" : 3,
+        "variant" : "8192"
+      },
+      {
+        "band" : "variant",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "contextSize" : 4096,
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 10,
+          "min" : 10,
+          "scored" : 3,
+          "value" : 10
+        },
+        "notes" : {
+          "availability" : "available",
+          "displayName" : "AFM 3 Core",
+          "isCore3" : "true",
+          "isCoreAdvanced3" : "false"
+        },
+        "probe" : "SystemLanguageModel.variant.displayName (length; the string is in notes)",
+        "trials" : 3
+      },
+      {
+        "band" : "response-cap-behavior",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "cap" : 8,
+          "errors" : 0,
+          "outputCharsMax" : 47,
+          "outputTokensMax" : 16,
+          "outputTokensMin" : 16,
+          "returnedWithinCap" : 0,
+          "scored" : 3,
+          "threw" : 0,
+          "timedOut" : 0,
+          "truncated" : 3
+        },
+        "notes" : {
+          "behavior" : "truncated"
+        },
+        "probe" : "plain generation under maximumResponseTokens=8",
+        "trials" : 3,
+        "variant" : "plain"
+      }
+    ],
+    "startedAt" : "2026-08-12T21:27:40Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 3
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T21:27:40Z",
+  "status" : "completed",
+  "trialsRequested" : 3,
+  "unattended" : true
+}

@@ -1,0 +1,187 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "e637bc4",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "endedAt" : "2026-08-12T21:28:58Z",
+  "instrument" : "condensation-fit",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "condensation-fit"
+    ],
+    "endedCleanly" : true,
+    "id" : "90D01791-682E-4C4A-8087-FB27BA528D08",
+    "kind" : "condensation-fit",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "reference",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "budget" : 3072,
+          "ceiling" : 8192,
+          "chars" : 1840,
+          "contextSize" : 4096,
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 450,
+          "min" : 450,
+          "scored" : 1,
+          "value" : 450
+        },
+        "probe" : "instructions this backend would send (belt-bearing)",
+        "trials" : 1,
+        "variant" : "armed"
+      },
+      {
+        "band" : "reference",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "chars" : 1313,
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 340,
+          "min" : 340,
+          "scored" : 1,
+          "value" : 340
+        },
+        "probe" : "production toolless instructions (#229's retry shape)",
+        "trials" : 1,
+        "variant" : "toolless"
+      },
+      {
+        "band" : "condensation-fit",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "armed" : 1,
+          "budget" : 3072,
+          "ceiling" : 8192,
+          "condensedTurns" : 11,
+          "contextSize" : 4096,
+          "errors" : 0,
+          "fits" : 1,
+          "memoryChars" : 3389,
+          "postChars" : 9021,
+          "postTokens" : 2046,
+          "preChars" : 45619,
+          "preTokens" : 9932,
+          "scored" : 2,
+          "totalTurns" : 12,
+          "verbatimTurns" : 1
+        },
+        "notes" : {
+          "escalationOfferFired" : "false",
+          "hasCondensedMemory" : "true",
+          "verdict" : "ARMED+FITS"
+        },
+        "probe" : "forced condensation of a 12-turn overflow transcript, trial 1",
+        "trials" : 1,
+        "variant" : "forced"
+      },
+      {
+        "band" : "condensation-fit",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "armed" : 1,
+          "budget" : 3072,
+          "ceiling" : 8192,
+          "condensedTurns" : 11,
+          "contextSize" : 4096,
+          "errors" : 0,
+          "fits" : 1,
+          "memoryChars" : 3389,
+          "postChars" : 9021,
+          "postTokens" : 2046,
+          "preChars" : 45619,
+          "preTokens" : 9932,
+          "scored" : 2,
+          "totalTurns" : 12,
+          "verbatimTurns" : 1
+        },
+        "notes" : {
+          "escalationOfferFired" : "false",
+          "hasCondensedMemory" : "true",
+          "verdict" : "ARMED+FITS"
+        },
+        "probe" : "forced condensation of a 12-turn overflow transcript, trial 2",
+        "trials" : 1,
+        "variant" : "forced"
+      },
+      {
+        "band" : "condensation-fit",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "armed" : 1,
+          "budget" : 3072,
+          "ceiling" : 8192,
+          "condensedTurns" : 11,
+          "contextSize" : 4096,
+          "errors" : 0,
+          "fits" : 1,
+          "memoryChars" : 3389,
+          "postChars" : 9021,
+          "postTokens" : 2046,
+          "preChars" : 45619,
+          "preTokens" : 9932,
+          "scored" : 2,
+          "totalTurns" : 12,
+          "verbatimTurns" : 1
+        },
+        "notes" : {
+          "escalationOfferFired" : "false",
+          "hasCondensedMemory" : "true",
+          "verdict" : "ARMED+FITS"
+        },
+        "probe" : "forced condensation of a 12-turn overflow transcript, trial 3",
+        "trials" : 1,
+        "variant" : "forced"
+      },
+      {
+        "band" : "summary",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "armedTrials" : 3,
+          "budget" : 3072,
+          "ceiling" : 8192,
+          "contextSize" : 4096,
+          "fittingTrials" : 3,
+          "unarmedOrUnknownTrials" : 0
+        },
+        "notes" : {
+          "verdict" : "every armed trial fit"
+        },
+        "probe" : "condensation fit summary (armed trials only)",
+        "trials" : 3,
+        "variant" : "forced"
+      }
+    ],
+    "startedAt" : "2026-08-12T21:28:24Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 3
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T21:28:24Z",
+  "status" : "completed",
+  "trialsRequested" : 3,
+  "unattended" : true
+}
