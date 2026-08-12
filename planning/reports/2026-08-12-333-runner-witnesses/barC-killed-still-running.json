@@ -1,0 +1,16 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "b755552",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "instrument" : "router-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T19:12:42Z",
+  "status" : "running",
+  "trialsRequested" : 20,
+  "unattended" : true
+}

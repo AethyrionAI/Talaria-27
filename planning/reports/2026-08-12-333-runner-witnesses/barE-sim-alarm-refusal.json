@@ -1,0 +1,14 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-12T18:56:15Z",
+  "instrument" : "action",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "refusalReason" : "alarm-writing instruments never run unattended (Owen 2026-08-11; #331)",
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T18:56:15Z",
+  "status" : "refused",
+  "trialsRequested" : 1,
+  "unattended" : true
+}
