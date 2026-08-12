@@ -6321,6 +6321,80 @@ weaken the tests.
 > referred to the destination remains the open question and the diagnostic
 > re-run still comes before any instruction tuning.
 
+
+> **🔬 THE DIAGNOSTIC RAN 2026-08-11 — AND IT FALSIFIES THIS ENTRY'S OWN
+> READING OF THE FAILURE, INCLUDING MINE. THE CONDENSER DID NOT DROP THE
+> SUBJECT.** The brief was captured by carrying it in the failing assertion's
+> message (no new logging, no production change, no extra run — the assertion
+> already failed, so its message was a free channel). Verbatim:
+>
+> ```
+> [CONTEXT TRANSPLANT — this is turn zero of a continued conversation.]
+> The notes below carry the context of this conversation so far, from the
+> user's device journal. Treat them as established conversation memory: every
+> fact is already stated at its most recent corrected value. Do not re-answer
+> or re-open anything below. Acknowledge in one short sentence and wait for
+> the user's next message.
+>
+> - Flight lands at 4:30 on Friday at O'Hare.
+> - Staying at the Palmer House.
+> - Plan dinner near the Palmer House.
+> ```
+>
+> **It named the destination as `O'Hare`.** Plus the Palmer House, twice. The
+> trip is fully identified; a reader or a model resuming from this brief knows
+> exactly where they are. What failed is `brief.contains("chicago")` — a
+> **literal-substring proxy** for the property the test's own comment states:
+> *"The essentials survived at all — a brief that prunes everything is no
+> context transplant."* **The essentials survived. The proxy did not.**
+>
+> **This retracts what was written here twice today**, by me, and stated to
+> Owen twice: *"it kept the trip's DETAILS and dropped the trip's SUBJECT"* and
+> *"a brief that says arrive 4:30, Palmer House with no Chicago in it has lost
+> the anchor."* **The brief does not say that.** Both readings were inferences
+> from a red assertion whose text nobody had looked at — the exact shape this
+> entry demanded be fixed before tuning anything, which is why the diagnostic
+> came first. It is also the third time tonight a mechanism inferred without
+> reading the artifact turned out wrong (see #322's retracted 404, #326's
+> retracted "simulator-dependent").
+>
+> **The 2/2 reproduction is NOT retracted and now means something different:**
+> the condenser reliably prefers the airport to the city name, which is
+> stable behaviour rather than sampling noise. Whether that preference is
+> *desirable* is a different question from whether it is a defect.
+>
+> **⚖️ THIS IS NOW A BAR QUESTION FOR OWEN, and it is genuinely not obvious.**
+> This entry's standing instruction is *"tune `condensedContextBrief`'s
+> instructions — do NOT weaken the tests."* That instruction was written for a
+> real fidelity failure. This is not one, so applying it literally would tune
+> the model to say a word it had no need to say. But loosening the assertion is
+> exactly what "weaken the test" is meant to prevent, and **overfitting it to
+> this run's wording** (adding `o'hare` to an allow-list) would be the worst of
+> both — it would pass this brief and still fail the next synonym.
+>
+> Routes, none taken:
+> 1. **Assert the PROPERTY, not the token.** The destination is identifiable —
+>    a small set of equivalent identifiers (`chicago` / `o'hare` / `ord`),
+>    justified in a comment as standing for one property. Honest, still
+>    falsifiable, and it survives a wording change the allow-list anticipates.
+> 2. **Drop this assertion entirely.** The three preceding assertions
+>    (corrections held, distractors pruned, budget respected) plus `palmer
+>    house` already prove a transplant occurred. Risk: nothing then catches a
+>    brief that prunes the subject *and* keeps a hotel name.
+> 3. **Tune the instructions** so the brief names the city explicitly. Follows
+>    the standing rule literally; costs tokens to say something the brief
+>    already conveys, and shapes the model to satisfy a test rather than a user.
+> 4. **Accept it RED as a known, documented characterisation** — the condenser
+>    prefers airports; the bar stays red as a live reminder rather than being
+>    resolved.
+>
+> **Recorded incidentally from the same log, unrelated to the bar:** the app
+> attempted `http://ojamd:8642/api/sessions` during the run and got
+> `NSURLErrorDomain Code=-1001 request timed out` → `listSessions: 'OJAMD'
+> unreachable`. That is the paired-host probe on a host that is off, handled
+> honestly. Noted only so a future reader of this log does not mistake it for
+> part of the fidelity failure.
+
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 
 An `.unreachable` turn carrying attachments takes the honest `.failed`
