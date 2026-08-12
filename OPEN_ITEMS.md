@@ -193,6 +193,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling). The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
+- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -9231,6 +9232,42 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 > pre-flight is the named next build (an instrument that does not exist yet; it becomes
 > a registry entry + a bar run).
 
+## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any fix lane.**
+
+**The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
+n=5, production router probed directly — these are router-classification rates, not armed
+cells; #215's unrouted caveat does not apply):
+
+| prompt (expected toolless) | ctxlen | uncapped | capped |
+|---|---|---|---|
+| `'Write another one'` | 575 | **5/5** | **5/5** |
+| `'Write another one'` | 4,073 | **0/5** | **0/5** |
+| `'Say that again more briefly'` | 551 | **0/5** | **0/5** |
+| `'Say that again more briefly'` | 4,073 | **0/5** | **0/5** |
+| `'Summarize that in one sentence'` | 586 | 5/5 | 5/5 |
+| every accept-band row incl. 4,073 | — | 5/5 | 5/5 |
+
+**Two distinct shapes, and they must not be collapsed:** (a) a genuinely
+**length-dependent** flip — `'Write another one'` is perfect at ~575 and total at 4,073,
+capped and uncapped alike (so the context CAP is not the lever); (b) a
+**length-independent** miss — `'Say that again more briefly'` fails at ~551 too, which the
+~590-char-era verdicts did not record; whether that row was ever green is a history
+question a lane should answer from the #205-series artifacts before assuming regression.
+
+**Why it matters (production stakes):** the router IS `routeNeedsDeviceTool`'s classifier —
+a words-only turn routed armed re-enters exactly the belt-armed composition territory
+#215 measured (6/10 grabs, 4/10 disclaimer tics on the unrouted arm). A user who asks for
+"another one" after a long answer with an offer tail gets an armed turn.
+
+**What is NOT established:** no mechanism (offer-tail salience vs sheer length vs
+token-position effects — name it by measurement, not election); no claim about the phone
+(this artifact is iPad-only); no claim that capped-vs-uncapped ever diverges (they agreed
+on every row).
+
+**Cross-references:** #205E (the run that exposed it — bars quoted there), #215 (why
+armed words-only turns cost), #333 (the runner that made the measurement one command),
+`~/.talaria-instrument-runs/20260812T200237Z-long-context-probe/` (the full artifact).
+
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
 **The evidence that makes this real:** production's one-Bool router routes "What can you do?" TOOLLESS (device check 2026-08-08, build 2225, fresh chat: reply named ZERO capability families — it is the toolless-lic2 self-description; IN=500 tokens = a beltless turn). The #284 registry-generated armed enumeration is unreachable on this question. Note the probe nuance recorded in #284's correction: the VECTOR schema routes capability-meta armed-all-groups, but the vector never shipped — production's router is the operative one.
@@ -18249,6 +18286,26 @@ this is the cheapest possible check against a context blow-up in production.
 >   they are recorded as context only — model wall-clock on this hardware measured
 >   123.0/20.9/16.9 s for the same test and is not a stable measurand.
 > - Scoring lands here, same day, artifact quoted.
+>
+> **SCORED 2026-08-12, same day — the run that closed this entry's question OPENED
+> #334.** Unattended on the iPad via the #333 runner (`long-context-probe`, n=5, 22
+> bands, artifact `20260812T200237Z-long-context-probe`, `status: "completed"`):
+>
+> - **205E-A MET.** The offer-shaped accept rows are UNMOVED by length: `'Yes please'`
+>   5/5 at ctxlen 4073, capped AND uncapped; every accept band in the grid 5/5.
+>   No context blow-up on the path this entry feared.
+> - **205E-B FALSIFIED — a missed bar, filed as #334, not redefined.** Both long
+>   words-only rows scored **0/5** (`'Say that again more briefly'` and
+>   `'Write another one'` at ctxlen 4073, in BOTH capped and uncapped variants), and
+>   `'Say that again more briefly'` also scored **0/5 at ctxlen 551**. The clean
+>   contrast: `'Write another one'` is **5/5 at ctxlen 575 → 0/5 at 4073**.
+> - **205E-C MET as a reading:** `errors=0` on all 22 bands, denominators intact
+>   (every band 5 recorded trials).
+> - **205E-D honored:** no timing scored.
+>
+> **This entry's own question is answered** (no truncation cliff, accept path flat to
+> 4k chars) **and the entry closes into #334**, which owns the words-only misroute the
+> same artifact exposed.
 
 ## 210A. does one forced condensation actually fit 8,192?
 
