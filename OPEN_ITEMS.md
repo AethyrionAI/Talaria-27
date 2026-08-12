@@ -18230,6 +18230,26 @@ question) plus its words-only counterpart are already in the baseline probe grid
 chars — but **"flat over one order of magnitude" is not "flat forever"**, and
 this is the cheapest possible check against a context blow-up in production.
 
+> **BARS PRE-REGISTERED 2026-08-12, before the run (bars written first).** Vehicle:
+> the `long-context-probe` instrument (#333 runner), n=5, unattended on the iPad
+> (verified FM host, §9a) — the grid's `veryLongOffer` context measures **4,073
+> chars** in code, the entry's "~3,500" estimated the same row before the code was
+> re-read.
+>
+> - **205E-A** — the long-row band (offer-shaped, `veryLongOffer` context) classifies
+>   at **≥ 80% correct** (≥ 4/5 per row), i.e. no cliff vs the ~590-char baseline
+>   bands in the same artifact.
+> - **205E-B** — the **words-only counterpart** rows on the same long context
+>   (`expected: false`) hold at ≥ 4/5 — the long context does not flip words-only
+>   turns to armed.
+> - **205E-C** — **error path instrumented:** the artifact's error/timeout tallies are
+>   read and reported per band; a band that threw its trials away scores NOT RUN,
+>   never clean (#215 discipline; constant denominators forbidden).
+> - **205E-D** — **no bar on wall-clock.** The instrument emits `secs=` figures;
+>   they are recorded as context only — model wall-clock on this hardware measured
+>   123.0/20.9/16.9 s for the same test and is not a stable measurand.
+> - Scoring lands here, same day, artifact quoted.
+
 ## 210A. does one forced condensation actually fit 8,192?
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list.
