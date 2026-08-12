@@ -191,6 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
+- **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -8516,6 +8517,111 @@ deliberately DEFERRED until this exists ("we can do those later").
 (auto-accept action battery), **#137 / #186** (⚠️DATA rows the triage also
 recommends moving to a simulator), and the instrument-trigger build the triage
 names as build #1 — **this must land before that one runs unattended.**
+
+## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. NOT STARTED; bars per finding below.**
+
+**The run.** `-only-testing:TalariaTests` on each device, `main` @ `7699c43`.
+- **`whoGoesThere`** — 2123 tests / 161 suites, **2 issues**, 69.5 s.
+- **iPad Air M3** — 2066 tests / 157 suites, **5 issues**, 68.9 s (fewer tests: four
+  EventKit/AlarmKit suites skipped by Owen's absolute no-writes rule for that device;
+  verified afterwards — those four suites report 0 runs there and the log shows zero
+  EventKit activity).
+
+The same commit is green on the simulator. **Three separate causes, none of which a
+simulator can express.**
+
+---
+
+### 332-a — a bar that CANNOT be scored on a device, and fails rather than skipping
+**Both devices.** `approvalPathSourcesNeverReferenceALanguageModelSession()`
+(`Phase0ActionCautionTests.swift:352`) →
+`NSCocoaErrorDomain Code=260 "The file 'LocalChatBackend+IntentRout…' couldn't be opened
+because there is no such file"`.
+
+This is **#224's bar 0F**, landed 2026-08-11. It proves no `LanguageModelSession` is
+constructed on the approval path by **reading the Swift source files at runtime** — which
+works in a simulator, because the sim shares the Mac's filesystem, and **cannot work on a
+device**, where the sources do not exist. Its own lane recorded *"the source-scan approach
+works from the simulator sandbox (it read all four files)"* without noticing that was a
+property of the sandbox rather than of the test.
+
+**Why it matters beyond one red:** the bar is a genuinely good idea — it carries a positive
+control asserting the scan still finds the constructions it expects — but as built it
+**reds every device suite run forever**, and a permanently red test is one people learn to
+skip past. It must either skip explicitly on device with a reason naming this item, or be
+re-expressed as something a device can check.
+
+**332-a bars:** (1) the test no longer fails on device — it either passes or skips with a
+reason; (2) the sim arm keeps its positive control, so the #224 ruling 5 guarantee is not
+weakened; (3) whichever route is taken is stated at #224's entry, because that entry
+currently claims 0F is MET without qualification.
+
+### 332-b — a test that assumes a clean Spotlight index
+**Phone only.** `donationIsGatedByTheToggle()` (`SpotlightIndexingTests.swift:64`) →
+`Expectation failed: service.sessionEntities.isEmpty`.
+
+On a real phone the Spotlight index is **not** empty — a device log from this same evening
+reads `[SpotlightIndexing] donated 108 session entities`. The test asserts emptiness as a
+precondition of the gate check, which holds on a fresh simulator and does not hold on a
+device that has been used.
+
+**This is test isolation, not a product defect** — real system state bleeding into an
+assertion. But it is exactly the class that makes device suites look flaky and then get
+ignored.
+
+**332-b bars:** (1) the test asserts the *gate's behaviour* rather than global index
+emptiness, and is green on a device with pre-existing donations; (2) it still fails if the
+toggle stops gating — witnessed, not assumed.
+
+### 332-c — 🔬 THE INTERESTING ONE: three attachment assertions are SCREEN-SCALE dependent
+**iPad only**, three failures in `AttachmentDownscaleTests`, all green on the phone and on
+the sim:
+
+```
+inlinedPayloadIsAtMostHalfThePreFixSize   :148  dataURL.utf8.count * 3 → 534021
+                                                legacyPayload * 2      → 355968
+fourImagesNoLongerOverrunTheAggregateBudget :166  legacyTotal > aggregateAttachmentBudget → false
+reportsEncodedSizeForTheRecord              :233  after.count < before.count → false
+```
+
+Read the first one: the downscaled payload came out at ≈178 KB against a legacy baseline of
+≈178 KB. **On the iPad the downscale saved nothing**, and the second failure says the
+legacy path did not even overrun the budget the test exists to defend.
+
+**The probable mechanism, NOT yet proven:** the iPad Air is a **2× device** and the iPhone
+17 Pro Max is **3×**. A fixture image built from points renders to fewer pixels on the
+iPad, so it is already at or under the downscale target and there is nothing to save —
+which makes all three assertions vacuous there rather than wrong.
+
+**What points AWAY from a product defect:** `stagedImageIsDownscaledInPixelsNotPoints()`
+— #132's fix — **passed on the iPad**, immediately above these failures. The production
+path is scale-aware; the suspicion is that the **fixtures** are not.
+
+**Do not treat that reading as established.** The failing assertions are about *sizes*, and
+a device that silently stops downscaling attachments would be a real regression with a real
+cost. **332-c's first bar is to tell those two apart**, and the entry must not be edited to
+assume the benign answer before that measurement exists.
+
+**332-c bars:** (1) **name the cause by measurement** — instrument the fixture's actual
+pixel dimensions and the encoder's output on both devices, and say whether the fixture or
+the production path differs; (2) if it is the fixture, make it scale-independent so the
+assertion is meaningful on every device rather than only on 3×; (3) if it is the production
+path, that is a defect and gets its own item; (4) the phone and sim arms stay green.
+
+---
+
+**What this run bought, stated plainly:** three findings, from a suite that has been green
+2,123 times on a simulator, in 70 seconds per device. Two are test-infrastructure defects
+that would have made future device runs look flaky; one may be a real behavioural
+difference between hardware classes. **None of them was reachable from a simulator**, and
+the exercise that found them was "run the thing we already have somewhere we had never run
+it".
+
+**Cross-references:** **#224** (0F is the bar 332-a breaks), **#132** (the pixels-not-points
+fix whose test passes on both, and is the reason 332-c leans toward fixtures), **#326** (the
+sibling lesson — a failure that looked device-specific and was really contention),
+**#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
+`planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
