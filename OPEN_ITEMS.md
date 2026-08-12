@@ -193,8 +193,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
-- **#337** 🔥 **THE ACTION PATH CREATED NOTHING IN 180 ATTEMPTS** — two attended runs on the phone 75 min apart, same build: **~80% of action turns end in #232's phase cut** (69/90 then 74/90) and the second executed **0 tool calls in 90 tries, 0 artifacts**; the 16 uncut turns OFFERED instead of acting. **MEASURED 2026-08-12.** Bounded honestly: unrouted cells, but #215 says routing is a no-op on device-request prompts — and **what the user sees after the toolless retry is NOT measured** (same gap as #225 B2). 337-A is a one-minute HAND-RUN, because no battery row can answer it
-- **#336** 🐛 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
+- **#337** 🔥🔴 **THE ACTION PATH CREATED NOTHING — AND TELLS THE USER IT DID.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
+- **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
@@ -9300,6 +9300,40 @@ denominators differ (those runs executed; these do not).
 >   tapping it create the reminder, and does the reply claim anything false? **A
 >   product verdict may not be written from battery rows alone** — this bar exists
 >   because the instrument cannot see the retry the user actually gets.
+>
+>   **🔴 ANSWERED 2026-08-12, 6:14 PM, FIRST TRY — AND IT IS WORSE THAN THE ROWS
+>   SHOWED. #337 IS A PRODUCT DEFECT, NOT AN INSTRUMENT ARTIFACT.** Owen, real chat,
+>   ON-DEVICE tier, fresh thread (`2 MESSAGES`, `CTX 0%`), no harness, no flags
+>   armed (the decline battery had failed its precondition and never launched — so
+>   nothing app-wide was auto-accepting or auto-declining). Prompt: *"Remind me to
+>   take out the trash at 8."* Reply, in full:
+>
+>   > **Confirmation card:** A reminder to "take out the trash" at 8 AM has been created.
+>
+>   **(1) NO confirmation card appeared — only the WORDS.** (2) Nothing to tap.
+>   **(3) The reply asserts the reminder "has been created". Nothing was created.**
+>   `IN 1.8K · OUT 23` — the same ~21–25-token shape as #336's fabricated battery
+>   rows, from a real user turn.
+>
+>   **This retires the "maybe the toolless retry saves the user" hope in the entry
+>   above.** It does not save them: the user is told, in the app's own vocabulary,
+>   that a thing happened which did not happen.
+>
+>   **A NEW dimension the batteries could not see — UI IMPERSONATION.** The model
+>   did not merely fabricate; it **emitted the literal string "Confirmation card:"**,
+>   imitating the app's own affordance in prose. A user cannot distinguish that from
+>   the real card except by the absence of buttons. **Candidate mechanism, NOT
+>   elected:** every action tool's own description teaches the phrase — e.g.
+>   `DeviceActionTools.swift:102`, *"The user sees a confirmation card and can edit
+>   or cancel before anything is created"* (same clause at `:444`, `:694`, and in
+>   the `semanticDescription`s at `:351`, `:639`, `:794`). A model that declines to
+>   call the tool still has that sentence in context and can narrate it. **This is a
+>   hypothesis with a text pointer, not a diagnosis** — 337-F names it by
+>   measurement.
+> - **337-F (the impersonation).** Measure whether the "Confirmation card:" prose
+>   shape tracks the tool-description clause: an A/B with the clause removed from
+>   the descriptions, same prompts, same cells. Bars written before the run. Do not
+>   edit the descriptions in production on the strength of the hypothesis alone.
 > - **337-B (what the user sees).** The instrument records the POST-cut retried
 >   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
 >   report a cut trial as a user-visible outcome.
@@ -9391,6 +9425,21 @@ Reminders/Calendar to see what the 12 artifacts were** — that is check 336-A.
 >   rests on `toolCalls` counts is listed and re-read — starting with #225 B1,
 >   #200's grab rates, and #211/#209's offer-vs-act readings.
 > - **No bar on wall-clock.** Latencies are recorded as context only.
+
+> **🔴 CONFIRMED IN PRODUCTION 2026-08-12, 6:14 PM — this is no longer a
+> battery-cell finding.** Owen's own hand-run (full evidence and the screenshot
+> reading at **#337 bar 337-A**) reproduced the shape on the FIRST try, in a fresh
+> on-device chat with no harness and no flags armed: *"Remind me to take out the
+> trash at 8"* → *"**Confirmation card:** A reminder to 'take out the trash' at 8 AM
+> has been created."* **No card, no tool call, no reminder.** `OUT 23` tokens — the
+> same shape as the three fabricated rows below.
+>
+> **What that settles and what it does not.** SETTLED: mechanism (i), fabrication,
+> is REAL and reaches users — it is not an artifact of auto-accept cells. NOT
+> settled: mechanism (ii), the recorder gap (12 artifacts vs 10 recorded calls),
+> which is independent and still needs 336-A. **Both bars stand.** The production
+> case also adds a dimension neither battery could see — the model imitates the
+> app's confirmation-card UI in prose; that is tracked at #337 (337-F), not here.
 
 **Cross-references:** **#225** (the run that exposed it — B3 corrected there),
 **#232** (the governor that cut 70 of the 120 trials; the 3 claiming trials were
