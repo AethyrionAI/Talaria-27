@@ -53,15 +53,51 @@ struct SpotlightIndexingTests {
         #expect(SpotlightIndexingService.agentFileEntities(in: nil).isEmpty)
     }
 
+    /// The gate: a disabled toggle records NOTHING, whatever it is offered.
+    ///
+    /// **#332-b (2026-08-12).** This used to assert
+    /// `service.sessionEntities.isEmpty` — global index emptiness as a stand-in
+    /// for the gate holding. That is true on a fresh simulator and false on a
+    /// phone anyone has used: the service rehydrates its session cache from
+    /// `UserDefaults` in `init`, and a device log from the first device suite
+    /// run read `donated 108 session entities`. Real system state bled into the
+    /// precondition and red-ed a passing gate.
+    ///
+    /// So assert the gate's BEHAVIOUR instead — a delta, not an absolute. The
+    /// offered id is unique per run, so no pre-existing donation can satisfy or
+    /// defeat the check: with the gate holding, that id is absent afterwards and
+    /// the donated set is byte-for-byte the one we found; if the gate stops
+    /// gating, the id appears and the set moves, on a clean simulator and on a
+    /// phone with 108 donations alike.
+    ///
+    /// Deliberately NOT done: clearing the cache first to manufacture the empty
+    /// world the old assertion wanted. The test host IS the app, so on a device
+    /// that would delete the owner's real donations to make a test convenient.
     @Test @MainActor
     func donationIsGatedByTheToggle() async throws {
         let service = SpotlightIndexingService()
         service.isEnabled = { false }
+
+        let before = Set(service.sessionEntities.keys)
+        // Printed so a DEVICE run evidences its own precondition instead of it
+        // being inferred: bar 332-b(1) is "green on a device with pre-existing
+        // donations", and only this number says whether the run exercised a
+        // dirty index or an empty one. On a fresh simulator it reads 0, which
+        // is honest rather than a failure — the delta below is what is scored.
+        print("#332-b PRE-EXISTING DONATED SESSION ENTITIES ON THIS HOST: \(before.count)")
+        let offeredID = "gate-probe-\(UUID().uuidString)"
+        #expect(!before.contains(offeredID),
+                "the probe id must not already be donated, or this check proves nothing")
+
         service.donateSessions([
-            HermesSessionInfo(id: "sess-1", title: "T", preview: nil, model: nil,
+            HermesSessionInfo(id: offeredID, title: "T", preview: nil, model: nil,
                               source: nil, messageCount: 1, lastActive: nil, isActive: true),
         ])
-        #expect(service.sessionEntities.isEmpty, "disabled toggle must block donation entirely")
+
+        #expect(service.sessionEntities[offeredID] == nil,
+                "disabled toggle must block donation entirely — the offered session was recorded anyway")
+        #expect(Set(service.sessionEntities.keys) == before,
+                "a disabled toggle must leave the donated set exactly as it found it")
     }
 
     @Test func spotlightIndexingDefaultsOff() async throws {
