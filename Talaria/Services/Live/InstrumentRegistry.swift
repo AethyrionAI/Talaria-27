@@ -545,6 +545,32 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runCapabilityDetectionProbe(trials: trials)
                        }),
+        // #334 A — #257's MANDATORY PRE-FLIGHT (the `21F0C10D` gate), which
+        // has been owed since the capability lane was routed. READ-ONLY in
+        // the strongest sense available: tokenizer round trips ONLY, no
+        // generation at all, no tools registered, nothing created or reaped.
+        // What it prices is the payload `capability-detection-probe` submits
+        // — production's router instructions, the prompt envelope for the
+        // longest pinned baseline row, and BOTH generation schemas — plus the
+        // worst-case response JSON against the cap each schema really
+        // generates under, read from `twoFieldRouterOptions` /
+        // `toolIntentRouterOptions` rather than retyped. The hazard: the
+        // router's catch arm fails safe to ARMED, so a response that outgrows
+        // its cap routes every capability question armed and reads as
+        // "detection doesn't work" while the instrument is dead — that is
+        // `21F0C10D` exactly, 165/165 instrument errors scored as behaviour.
+        // `trials` is a REPEAT count; token counts should be deterministic
+        // and the repeats are what turn "should" into a measured `distinct`.
+        //
+        // Surface: read-only — tokenizer round trips; nothing is generated
+        // and nothing is written.
+        // Button: `instrumentButton("tokencount-preflight", …)`.
+        InstrumentSpec(name: "tokencount-preflight", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runTokenCountPreflight(trials: trials)
+                       }),
         // #101 bar 101-A1 — Shape A's falsifier. READ-ONLY, classifications
         // only: ten pinned cross-chat-recall rows x n through PRODUCTION's own
         // `routeTurn`, armed-vs-toolless tallied per row. No belt, no tools

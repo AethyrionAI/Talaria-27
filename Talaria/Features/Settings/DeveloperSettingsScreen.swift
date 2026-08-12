@@ -985,6 +985,16 @@ struct DeveloperSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("capability-detection-probe", trials: 10, label: "Capability detection (#257) (350)")
                 }
+                // #334 A: #257's owed pre-flight — what the two-field
+                // capability router's payload COSTS on the device's own
+                // tokenizer, outside any turn, against the caps read from the
+                // production constants. No generation, nothing created. `n`
+                // is a REPEAT count: the counts should be deterministic and
+                // the repeats are what prove it.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("tokencount-preflight", trials: 3,
+                                     label: "Token-count pre-flight (#257) (n=3)")
+                }
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
                 // n=20 classifications; no tools, nothing created.

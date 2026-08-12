@@ -87,6 +87,7 @@
 		1D37AEBCF3A802E72DF6706D /* SessionUsageIndexStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 712CB7E063819A3CB9521687 /* SessionUsageIndexStore.swift */; };
 		1D65E5AB7B2A5160256979EE /* TalariaLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6968AE7D731EB530E8784AAB /* TalariaLog.swift */; };
 		1D7CCB0E442AE322296D4680 /* PermissionType.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2A60186C884A91C050A0E77 /* PermissionType.swift */; };
+		1E063508199EBBDBBFCFF2BE /* LocalChatBackend+Preflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CDBC9C25C77FD0F587AD8F5 /* LocalChatBackend+Preflight.swift */; };
 		20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */; };
 		20C96A75186B18743C7F200A /* ChakraPetch-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */; };
 		21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDA88A494348CA2669EA79C /* HermesHostStore.swift */; };
@@ -276,6 +277,7 @@
 		7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */; };
 		7F8401F607B2A269FDAB040B /* IconPreview-GraffitiGalaxy.png in Resources */ = {isa = PBXBuildFile; fileRef = 2ACB4CFB03940283DB799C62 /* IconPreview-GraffitiGalaxy.png */; };
 		7F9E2BA498E2251B686F2490 /* SessionUsageIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6E6E416EE333488CD973437 /* SessionUsageIndex.swift */; };
+		7FAA9188B56A1915D645DAAC /* PreflightInstrumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */; };
 		812024189A6D1A74E4EF89EF /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 130E0FA1859ADE8DE9A33188 /* ShareViewController.swift */; };
 		812F1205E4E375A65F1AADD3 /* ProfileSwitchAtomicityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */; };
 		815EE6171D00F62DD34EB321 /* HostEnrollmentCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3023E1DA6E802BB58BCA27C /* HostEnrollmentCode.swift */; };
@@ -731,6 +733,7 @@
 		3C32704D09D8549CF9B13C88 /* PermissionsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionsScreen.swift; sourceTree = "<group>"; };
 		3C88FFD7A8182163808414B5 /* Icon-PulpNoir@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-PulpNoir@2x.png"; sourceTree = "<group>"; };
 		3CC4169ED78CE4C1D595AEB4 /* AppEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppEntry.swift; sourceTree = "<group>"; };
+		3CDBC9C25C77FD0F587AD8F5 /* LocalChatBackend+Preflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LocalChatBackend+Preflight.swift"; sourceTree = "<group>"; };
 		3D7F1F57C2248CD2244E3562 /* LiveSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionBootstrapService.swift; sourceTree = "<group>"; };
 		3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStorePersistenceTests.swift; sourceTree = "<group>"; };
 		3EA2C8619D3D07F4F39E95AD /* MockVoiceSessionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockVoiceSessionService.swift; sourceTree = "<group>"; };
@@ -978,6 +981,7 @@
 		A88AB9163181C0B8A64A98F2 /* Icon-Terminal@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-Terminal@3x.png"; sourceTree = "<group>"; };
 		A8B0819CCDD35E5401F1BFC3 /* MarkdownChartTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownChartTests.swift; sourceTree = "<group>"; };
 		A933916A6EFB3A25618640A2 /* IconPreview-ComicFunnies.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-ComicFunnies.png"; sourceTree = "<group>"; };
+		A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreflightInstrumentTests.swift; sourceTree = "<group>"; };
 		A98E68D1390AD8BF008416C4 /* LiveCameraOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCameraOverlay.swift; sourceTree = "<group>"; };
 		A9DBDFE28E0878C10BBAFF97 /* AppSessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSessionStore.swift; sourceTree = "<group>"; };
 		AA13657305C577F4DC6CD814 /* AppLockCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockCore.swift; sourceTree = "<group>"; };
@@ -1213,6 +1217,7 @@
 				B7CECEC242D4039ADB9F5150 /* LocalChatBackend+Battery.swift */,
 				E3898F88AB0B7488B69F77EF /* LocalChatBackend+Harnesses.swift */,
 				C29A2A27A33E264942D362BD /* LocalChatBackend+IntentRouting.swift */,
+				3CDBC9C25C77FD0F587AD8F5 /* LocalChatBackend+Preflight.swift */,
 				9C6A4A5B1356C64A3A6476FA /* LocalIntelligenceService.swift */,
 				64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */,
 				947F9265A84F63468EABA014 /* PhoneQueryResponder.swift */,
@@ -1355,6 +1360,7 @@
 				F32CC922458D966FE602A7AE /* NativeVoicePipelineTests.swift */,
 				CEEFD2EBDFDDF14AEF7CE5B1 /* Phase0ActionCautionTests.swift */,
 				C24F92920F1F5B9D7941E6D6 /* PhoneQueryResponderTests.swift */,
+				A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */,
 				239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */,
 				0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */,
 				58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */,
@@ -2528,6 +2534,7 @@
 				C9306A3B5CFAD81410F38D83 /* LocalChatBackend+Battery.swift in Sources */,
 				C78D8850D85EC87A933C0E35 /* LocalChatBackend+Harnesses.swift in Sources */,
 				A804CF0F7D07E1E03C330CC7 /* LocalChatBackend+IntentRouting.swift in Sources */,
+				1E063508199EBBDBBFCFF2BE /* LocalChatBackend+Preflight.swift in Sources */,
 				ED33B71C2B3ABA8004FE43B1 /* LocalChatBackend.swift in Sources */,
 				50B980315F65B561C2ED69E8 /* LocalIntelligenceService.swift in Sources */,
 				375ECB9BBF434C4BB80B60AC /* LocalSessionStoring.swift in Sources */,
@@ -2772,6 +2779,7 @@
 				D4119C70E30AA74F01F0D237 /* NativeVoicePipelineTests.swift in Sources */,
 				4FA7FCCEC0D4C5751BF88585 /* Phase0ActionCautionTests.swift in Sources */,
 				25FA14BE9CCB64B9F56E8BA4 /* PhoneQueryResponderTests.swift in Sources */,
+				7FAA9188B56A1915D645DAAC /* PreflightInstrumentTests.swift in Sources */,
 				265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */,
 				812F1205E4E375A65F1AADD3 /* ProfileSwitchAtomicityTests.swift in Sources */,
 				840B88B41CCC59999D67655D /* ProvisioningServiceTests.swift in Sources */,
