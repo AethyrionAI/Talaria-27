@@ -2,6 +2,20 @@
 
 **Written 2026-08-11 at Owen's request.** Target: ready to dispatch tomorrow after work.
 
+> **✅ FILED AND ADJUSTED 2026-08-12 — this is now tracker #333; read that entry for the
+> current design.** Four deltas, decided after a code-map pass and approved by Owen the
+> same day: (1) §3b's serializer is mostly BUILT — `BatteryRunStore` already writes atomic
+> JSON with an `endedCleanly` completion flag; the build adds header fields + a fixed-path
+> result envelope, and **`TALARIA_RESULT_PATH` is dropped** in favour of a fixed
+> `Documents/InstrumentRuns/` path. (2) §3a's trigger generalizes #196's shipped
+> `runAutoBatteryIfArmed` precedent through an instrument REGISTRY with capability flags,
+> and env delivery on device is already proven (`DEVICECTL_CHILD_*`,
+> `HANDOFF-2026-07-28-OVERNIGHT.md`). (3) §5's device refusal is sharpened: alarm-flagged
+> instruments refuse under the trigger unconditionally; EventKit-flagged refuse on any
+> iPad; a refusal writes a REFUSED artifact. (4) a Mac-side harness script
+> (`scripts/mac/run-instrument.sh`) with a hard timeout is a first-class deliverable.
+> Bars 333-A..H pre-registered at the entry supersede §4's sketch.
+
 **What it is not.** This is **not** #331. #331 is data *containment* — a dedicated
 calendar/reminders list, wholesale reap, and the alarm answer; it makes writes safe. This
 plan makes the instruments **reachable**. Neither substitutes for the other, and after

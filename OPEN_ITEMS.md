@@ -192,6 +192,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding
+- **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — the launch-env trigger + artifact + harness that makes the ~42 existing instruments reachable without a human tapping the Developer screen; unlocks ~13 device bars (`UNATTENDED-INSTRUMENT-RUNNER-PLAN.md`). **FILED 2026-08-12 — the plan was committed 2026-08-11 without a number (#268). Owen's go 2026-08-12; bars 333-A..H pre-registered in the entry before code. Design deltas from the committed plan recorded in the entry: fixed artifact path (no `TALARIA_RESULT_PATH`), registry generalizes #196's `runAutoBatteryIfArmed` precedent, alarm/iPad refusals enforced in-app**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -8900,6 +8901,82 @@ fix whose test passes on both, and is the reason 332-c leans toward fixtures), *
 sibling lesson — a failure that looked device-specific and was really contention),
 **#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
+
+## 333. 🔧 THE UNATTENDED INSTRUMENT RUNNER — launch-env trigger + artifact + Mac-side harness — **FILED 2026-08-12 (the plan predates the number by a day — #268's rule applied late rather than never). Owen's go 2026-08-12: "Go — build it as described." Bars below pre-registered BEFORE code.**
+
+**The problem** (from `planning/UNATTENDED-INSTRUMENT-RUNNER-PLAN.md`, committed `7699c43`):
+the ~42 instruments in `LocalChatBackend+Battery.swift` are **unreachable, not unbuilt** —
+each is a Developer-screen `Button` with no accessibility identifier, and nothing reads
+`BatteryRunStore` back out programmatically. This build is the two ends of the pipe.
+
+**Design deltas from the committed plan, decided 2026-08-12 after a code-map pass, with
+Owen's approval of the adjusted design:**
+
+1. **The way out is mostly BUILT.** `BatteryRunStore` already writes one atomic JSON per
+   run (`.atomic`, temp-free but atomic at the syscall level), crash-survivable snapshots
+   after nearly every mutation, and an `endedCleanly: Bool?` that flips true only at
+   `endRun()` — the plan's §3b "positive completion signal" exists. The build ADDS: missing
+   header fields (instrument name, build sha, device model, ended-at), and a small **result
+   envelope at a fixed path** (`Documents/InstrumentRuns/`) the harness fetches. The plan's
+   `TALARIA_RESULT_PATH` env var is **dropped** — a fixed well-known path is simpler and
+   `devicectl device copy from` always knows where to look.
+2. **The way in generalizes a proven precedent rather than inventing one.** #196's
+   `runAutoBatteryIfArmed()` (`AppContainer.swift:2487`) already reads `TALARIA_AUTO_BATTERY`
+   from launch env, and `planning/HANDOFF-2026-07-28-OVERNIGHT.md` proves delivery on device
+   via `DEVICECTL_CHILD_*` prefixes on `devicectl device process launch` — headless, ~20 min.
+   The new `TALARIA_RUN_INSTRUMENT=<name>` + `TALARIA_TRIALS=<n>` (+ optional
+   `TALARIA_CELLS=`) dispatch goes through an **instrument registry**: name → the same
+   backend call the button makes (plan §3a's one-code-path rule) + capability flags
+   (`writesEventKit`, `writesAlarms`). The two old vars keep working, mapped onto the
+   registry — no second mechanism, nothing falsified in the 07-28 handoff.
+3. **Refusals are enforced in-app, by device, not by caller convention** (plan §5's
+   requirement, sharpened): an instrument flagged `writesAlarms` is **refused by the
+   trigger unconditionally** — a triggered run is unattended by definition and Owen's
+   2026-08-11 ruling is that alarm writes never run unattended; the trigger never sets
+   `BatteryTestContainer.alarmWritesAttended` (that flag means "a human tapped").
+   An instrument flagged `writesEventKit` is refused on **any iPad**
+   (`userInterfaceIdiom == .pad` — Shelley's iPad rule, made structural). **A refusal still
+   writes an artifact saying why**, so the harness reads REFUSED, never a timeout.
+4. **A Mac-side harness script is a first-class deliverable** (`scripts/mac/run-instrument.sh`):
+   preconditions (device present, app installed) → launch with `DEVICECTL_CHILD_*` env →
+   poll with a **hard timeout** (the TCC hang parked a suite ~20 min with no tell; a hang
+   must be detected by the harness, not by a human noticing a quiet log) → fetch via
+   `devicectl device copy from` → **verify the positive completion flag before reading any
+   numbers** → print artifact path + summary.
+
+**What it composes with, not reimplements:** every `run*` method funnels through
+`beginBatteryRun()`/`endBatteryRun()` (`LocalChatBackend+Battery.swift:106-124`), so the
+#331 reap-on-start, the write-armed refusal, and the mutex are inherited by calling the
+existing entry points. The trigger sets `autoAcceptForBattery`/`autoDeclineForBattery`
+explicitly per instrument (never inheriting), exactly as the buttons do.
+
+**BARS — pre-registered 2026-08-12, before any code:**
+
+- **333-A** — the trigger runs a named instrument end-to-end **on a physical device, with
+  no UI interaction and nobody watching**, and produces the artifact. Witnessed by an
+  actual unattended run, not a sim rehearsal.
+- **333-B** — the button and the trigger drive the **same code path**, asserted
+  structurally (both resolve through the same registry entry to the same backend call),
+  not by inspection.
+- **333-C** — an aborted run is distinguishable from a completed one **in the artifact**
+  (`endedCleanly`), and a partial file is never mistaken for a finished one. **Witnessed by
+  killing a run mid-flight**, not by reasoning about it.
+- **333-D** — `autoAcceptForBattery` / `autoDeclineForBattery` /
+  `alarmWritesAttended` are set explicitly on every trigger path and cleared on every
+  exit **including the abort path**. The trigger never sets `alarmWritesAttended = true`.
+- **333-E** — the refusal rules hold in-app and are **witnessed, not asserted**: an
+  alarm-flagged instrument under the trigger, and an EventKit-flagged instrument on an
+  iPad, each produce a REFUSED artifact naming the reason; neither performs a write.
+- **333-F** — production unchanged: no trigger surface outside `#if DEBUG`, and the
+  **Release build proves it** (#218's rule — a green Debug suite cannot see a mis-set gate).
+- **333-G** — the harness reports a run whose completion marker never arrives as
+  **TIMEOUT**, never as success, and fetches whatever snapshot exists for the post-mortem.
+- **333-H** — `GATE: PASS`, count moved.
+
+**Cross-references:** #196 (the narrow precedent this generalizes), #331 (the containment
+this composes with), #332 (the device-suite reds being fixed in a parallel lane so device
+runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this unlocks),
+`planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` §3 (build order #1).
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
