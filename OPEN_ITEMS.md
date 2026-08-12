@@ -191,7 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
-- **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding
+- **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#297** 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12)
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#290** 📝 Two BEHAVIORAL decisions deferred out of #283's review-fix pass — history-vs-body-budget trimming, and a whole-`send()` deadline on the runs sync …
@@ -5479,6 +5479,24 @@ value. **No user-facing control ships.**
   carries a **positive control** — it asserts the scan still FINDS the
   constructions in `LocalChatBackend+IntentRouting.swift` — because a scan that
   has never fired is indistinguishable from one that cannot fire.
+  - **⚠️ QUALIFIED 2026-08-12 (#332-a): half (ii) is a SIMULATOR-ONLY bar, and
+    "MET" above should be read as "met on the simulator".** Reading the repo's
+    Swift sources at runtime works only where the test process shares the Mac's
+    filesystem. On a device the sources do not exist, and this test red-ed the
+    first device suite run this project ever did — on BOTH devices,
+    `NSCocoaErrorDomain 260` — and would have red-ed every one after it. The
+    lane that landed it recorded *"the source-scan approach works from the
+    simulator sandbox (it read all four files)"* without noticing that was a
+    property of the SANDBOX, not of the test.
+  - **The fix keeps the bar and narrows its claim** (#332-a, same date): the
+    body is unchanged — positive control included — and the test now carries
+    `.enabled(if: repoSourcesAreReadableAtRuntime, …)`, a compile-time
+    `#if targetEnvironment(simulator)` discriminator, so off-simulator it
+    **skips with a reason naming #332-a** instead of failing. **Consequence for
+    reading this entry:** ruling 5's *source-scan* half is scored on every gate
+    run and on NO device run. Half (i) — the synchronous, non-`async` pin — is
+    unaffected and is scored everywhere, which is why 0F was written in two
+    halves in the first place.
 - **224-0G — MET.** Verbatim, `/tmp/gate-224p0.log`:
   ```
     PASS  Test run reported TEST SUCCEEDED
@@ -8796,7 +8814,7 @@ names as build #1 — **this must land before that one runs unattended.**
 >   against it without an account. That was the riskiest assumption in the
 >   design and it held.
 
-## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. NOT STARTED; bars per finding below.**
+## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. ~~NOT STARTED~~ → **332-a and 332-b FIXED 2026-08-12 on `t27-332ab-device-suite-test-fixes`** — both are sim-verified with witnessed negative controls, and each has ONE half left that only hardware can score, deferred to the next central device pass (this lane touched no device, by instruction). **332-c STAYS OPEN and is untouched** — its first bar is a measurement nobody has taken yet, and the entry must not be edited to assume the benign answer. Bars per finding below.**
 
 **The run.** `-only-testing:TalariaTests` on each device, `main` @ `7699c43`.
 - **`whoGoesThere`** — 2123 tests / 161 suites, **2 issues**, 69.5 s.
@@ -8834,6 +8852,50 @@ reason; (2) the sim arm keeps its positive control, so the #224 ruling 5 guarant
 weakened; (3) whichever route is taken is stated at #224's entry, because that entry
 currently claims 0F is MET without qualification.
 
+> **▶ 332-a FIXED 2026-08-12 (`t27-332ab-device-suite-test-fixes`). Route taken: an
+> EXPLICIT SKIP, not a re-expression.** The test keeps its body — every scan, the
+> positive control, the loud failure on an unreadable file — and gains a
+> `.enabled(if:)` trait whose condition is a file-scope `let` resolved by
+> `#if targetEnvironment(simulator)`. The discriminator is **compile-time on
+> purpose**: the test bundle is built per destination, so nothing is sniffed at
+> runtime and there is no device-only code path to drift.
+>
+> - **Bar (1) — the MECHANISM is witnessed; the DEVICE RUN is not.** The skip was
+>   observed by forcing the discriminator to its off-simulator value and running
+>   from the simulator, which is the same shape as 332-b's RED witness rather than
+>   an assumption. Verbatim, `witness.log:276`:
+>   ```
+>   ➜ Test approvalPathSourcesNeverReferenceALanguageModelSession() skipped:
+>     "#332-a: this bar proves ruling 5 by READING the repo's Swift sources at
+>      runtime, so it can only be scored where the test process shares the Mac's
+>      filesystem — a simulator. …"
+>   ```
+>   Skipped, with a reason naming this item — not failed. The test bundle also
+>   **compiles for a real-device destination** (`build-for-testing`,
+>   `generic/platform=iOS`), so the `#else` arm is proven to build, not merely
+>   written. **What is NOT scored here: an actual device suite run.** No device was
+>   touched by this lane, by instruction; bar (1) closes at the next central device
+>   pass. The exact command is in that pass's list.
+> - **Bar (2) — MET, and re-measured rather than argued.** The simulator arm is
+>   byte-unchanged inside the function. Targeted run on `CC-332-iPhone-Air`:
+>   `✔ Test approvalPathSourcesNeverReferenceALanguageModelSession() passed after
+>   0.034 seconds`, inside `✔ Test run with 26 tests in 3 suites passed`, with **no
+>   skips**. The positive control still asserts the scan finds the constructions in
+>   `LocalChatBackend+IntentRouting.swift`, so #224's ruling-5 guarantee is scored
+>   on every gate run exactly as before.
+> - **Bar (3) — MET.** #224's 0F block carries a dated qualification in this same
+>   commit.
+>
+> **One finding this lane nearly shipped a false green on, worth more than the fix.**
+> The first targeted run selected `-only-testing:TalariaTests/Phase0ActionCautionTests`
+> and reported `✔ Test run with 17 tests in 2 suites passed` — a clean green that
+> **never executed the test being fixed**. 0F lives in `ApprovalModeScaffoldTests`,
+> a second suite in the same FILE; a file name is not a suite name. The tell was
+> grepping the log for the test's own name and finding nothing. Same family as
+> `-only-testing:` without the trailing `()` matching zero tests and printing
+> TEST SUCCEEDED: **after any targeted run, grep the log for the specific test
+> name — a suite-level pass is not evidence that your test ran.**
+
 ### 332-b — a test that assumes a clean Spotlight index
 **Phone only.** `donationIsGatedByTheToggle()` (`SpotlightIndexingTests.swift:64`) →
 `Expectation failed: service.sessionEntities.isEmpty`.
@@ -8850,6 +8912,123 @@ ignored.
 **332-b bars:** (1) the test asserts the *gate's behaviour* rather than global index
 emptiness, and is green on a device with pre-existing donations; (2) it still fails if the
 toggle stops gating — witnessed, not assumed.
+
+> **▶ 332-b FIXED 2026-08-12 (`t27-332ab-device-suite-test-fixes`).** The assertion is
+> now a **delta, not an absolute**: snapshot the donated ids, offer one whose id is
+> unique per run (`gate-probe-<UUID>`), then require that the offered id is absent
+> afterwards AND that the donated set is exactly the one we found. Pre-existing
+> donations can neither satisfy nor defeat that — 0 donations and 108 read the same.
+>
+> - **Bar (1) — the ASSERTION is fixed and sim-green; the DEVICE RUN is pending.**
+>   It no longer reads global emptiness, and the id is unique per run, so a phone
+>   carrying 108 entities passes by construction rather than by luck. Green in the
+>   targeted run and in the gate. **No device was touched by this lane** — bar (1)'s
+>   device half closes at the next central device pass.
+> - **Bar (2) — MET, WITNESSED.** The `isEnabled?() == true` guard was removed from
+>   `SpotlightIndexingService.donateSessions` and the test re-run; it went RED on
+>   **both** new expectations, then the guard was restored and it went green.
+>   Verbatim:
+>   ```
+>   ✘ Test donationIsGatedByTheToggle() recorded an issue at
+>     SpotlightIndexingTests.swift:91:9: Expectation failed:
+>     service.sessionEntities[offeredID] == nil
+>   ↳ disabled toggle must block donation entirely — the offered session was recorded anyway
+>   ↳   service.sessionEntities[offeredID] → ChatSessionEntity(id: "gate-probe-8E46E269-…")
+>   ✘ Test donationIsGatedByTheToggle() recorded an issue at
+>     SpotlightIndexingTests.swift:93:9: Expectation failed:
+>     Set(service.sessionEntities.keys) == before
+>   ↳ a disabled toggle must leave the donated set exactly as it found it
+>   ↳   Set(service.sessionEntities.keys) → ["gate-probe-8E46E269-…"]
+>   ↳   before → []
+>   ✘ Test donationIsGatedByTheToggle() failed after 0.031 seconds with 2 issues.
+>   ```
+>
+> **The obvious fix that was deliberately NOT taken:** clearing the session cache
+> (or `UserDefaults`) at the top of the test to manufacture the empty world the old
+> assertion wanted. **The test host IS the app** — on a device that would delete the
+> owner's real Spotlight donations to make a test convenient. A test that destroys
+> user data to establish its own precondition is worse than the red it fixes.
+> Related, and the reason the entity id is a UUID rather than `"sess-1"`: a fixed id
+> could collide with a real donation and turn the check vacuous.
+>
+> **The test now PRINTS its own precondition** —
+> `#332-b PRE-EXISTING DONATED SESSION ENTITIES ON THIS HOST: N` — because bar (1)
+> says "green on a device with pre-existing donations" and a green alone cannot tell
+> a dirty index from an empty one. On the simulator that number is 0 and the run is
+> still valid (the delta is what is scored); on `whoGoesThere` it should be nonzero,
+> and if it is 0 there, bar (1) is NOT met by that run and the device's Spotlight
+> toggle needs checking before re-running. That is the `#257 CAPABILITY BLOCK`
+> precedent: print the thing the reader would otherwise have to assume.
+
+---
+
+### 332 — THE DEVICE-PASS COMMANDS for 332-a(1) and 332-b(1)
+Neither device half was scored by the fixing lane, which touched no hardware by
+instruction. Both close in one device run. Run from the repo root with
+`export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer`:
+
+```bash
+# Narrow — the two tests this lane changed. Note the trailing "()" on each
+# Swift Testing name: without it -only-testing matches ZERO tests and still
+# prints TEST SUCCEEDED.
+xcodebuild test -project Talaria.xcodeproj -scheme Talaria \
+  -destination 'platform=iOS,name=whoGoesThere' \
+  -only-testing:'TalariaTests/ApprovalModeScaffoldTests/approvalPathSourcesNeverReferenceALanguageModelSession()' \
+  -only-testing:'TalariaTests/SpotlightIndexingTests/donationIsGatedByTheToggle()' \
+  2>&1 | tee /tmp/332-device-narrow.log
+
+# Wide — the full unit suite, i.e. a repeat of the run that filed this item.
+# This is also what re-scores 332-c, so prefer it if the iPad is in the sitting.
+xcodebuild test -project Talaria.xcodeproj -scheme Talaria \
+  -destination 'platform=iOS,name=whoGoesThere' \
+  -only-testing:TalariaTests \
+  2>&1 | tee /tmp/332-device-suite.log
+```
+
+**Scoring — three greps, and a green verdict alone does not settle any of them:**
+```bash
+# 332-a(1): SKIPPED with a reason naming the item, and NOT failed.
+grep -E '➜ Test approvalPathSourcesNeverReferenceALanguageModelSession\(\) skipped' /tmp/332-device-*.log
+grep -c 'NSCocoaErrorDomain.*260' /tmp/332-device-*.log      # must be 0
+
+# 332-b(1): passed, AND against a non-empty index.
+grep -E '✔ Test donationIsGatedByTheToggle\(\) passed'        /tmp/332-device-*.log
+grep -E '#332-b PRE-EXISTING DONATED SESSION ENTITIES'        /tmp/332-device-*.log
+```
+A missing skip line is as much a miss as a failure line: it would mean the
+discriminator did not resolve the way `#if targetEnvironment(simulator)` says it
+must. `N = 0` on the second grep means 332-b(1) was not exercised, not that it
+passed.
+
+**GATE for the 332-a/332-b fix — PASS**, sim `CC-332-iPhone-Air`
+(`A730C5A2-2F06-40D0-AF44-54E83B74FBD8`), calendar + reminders TCC granted
+immediately before the run:
+```
+  PASS  Test run reported TEST SUCCEEDED
+  PASS  Swift Testing tests run — 2145
+  PASS  XCUITest tests run — 14
+  NOTE  2 test(s) SKIPPED — the known-permanent CondenserFidelityTests pair
+  PASS  Release build succeeded
+  PASS  no Swift compile errors in Release
+GATE: PASS
+```
+
+> **⚠️ THE TEST COUNT DID NOT MOVE — 2145 before and after — and that is CORRECT
+> here, which makes the usual staleness check useless.** This lane rewrote two
+> existing tests and added none, so "confirm the count MOVED" cannot distinguish a
+> fresh binary from `test-without-building` re-running the old `.xctest`. The
+> freshness proof used instead is a **string that exists only in the new code**:
+> the suite log contains `#332-b PRE-EXISTING DONATED SESSION ENTITIES ON THIS
+> HOST: 1`, which the previous binary could not have printed. **Generalise this:
+> when a lane edits tests without changing their number, the count check is
+> vacuous and a new string in the log is the substitute.**
+>
+> And that `1` is not noise — it is the RED-witness's probe entity, persisted into
+> the lane simulator's `UserDefaults` while the gate was deliberately broken. So
+> the gate run scored the fixed assertion **against a non-empty index**, which is a
+> small simulator-side rehearsal of exactly the device condition 332-b(1) names.
+> The junk row is left in place on `CC-332-iPhone-Air` deliberately; deleting it
+> would only make the next run less like a device.
 
 ### 332-c — 🔬 THE INTERESTING ONE: three attachment assertions are SCREEN-SCALE dependent
 **iPad only**, three failures in `AttachmentDownscaleTests`, all green on the phone and on

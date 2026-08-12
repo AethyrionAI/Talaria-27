@@ -11,6 +11,24 @@ import Testing
 //     this lane;
 //   * the MODE scaffold, which ships unreachable on purpose.
 
+/// #332-a's discriminator. It is COMPILE-TIME on purpose: the test bundle is
+/// built per destination, so this is decided by the build rather than sniffed
+/// at runtime.
+///
+/// A simulator process shares the Mac's filesystem, so `#filePath` still
+/// resolves to the real repo there and a test may read the project's own Swift
+/// sources. On a device it cannot — the sources were never copied into the
+/// bundle — and the read fails with `NSCocoaErrorDomain 260`. That is a
+/// property of the sandbox, not of the code under test, so the bar it guards is
+/// UNSCORABLE on a device rather than failed.
+private let repoSourcesAreReadableAtRuntime: Bool = {
+    #if targetEnvironment(simulator)
+    return true
+    #else
+    return false
+    #endif
+}()
+
 /// 224-0A / 224-0B / 224-0D — the caution rules the two un-cautioned action
 /// tools gain, their boundaries, and the wording constraint.
 @MainActor
@@ -349,7 +367,31 @@ struct ApprovalModeScaffoldTests {
     /// and treating one as the other is this project's most expensive
     /// recurring mistake. If a later lane MOVES one of these files, this test
     /// breaks on purpose: the list IS the definition of "the approval path".
-    @Test func approvalPathSourcesNeverReferenceALanguageModelSession() throws {
+    ///
+    /// **#332-a (2026-08-12).** That loud failure is correct in a simulator and
+    /// wrong on a device, where the sources are absent by construction and the
+    /// read can only ever 260. As landed, this bar red-ed the FIRST device suite
+    /// run this project ever did, on both devices, and would have red-ed every
+    /// one after it — and a permanently red test is one people learn to skip
+    /// past. So it is SKIPPED off-simulator, explicitly and with a reason,
+    /// rather than failed. Nothing about the simulator arm changes: the
+    /// positive control and all three scans run exactly as before, so #224's
+    /// ruling-5 guarantee is as strong as it was and is scored on every gate
+    /// run. What a device run no longer does is pretend to score it.
+    @Test(
+        .enabled(
+            if: repoSourcesAreReadableAtRuntime,
+            """
+            #332-a: this bar proves ruling 5 by READING the repo's Swift sources at \
+            runtime, so it can only be scored where the test process shares the Mac's \
+            filesystem — a simulator. Off-simulator the sources do not exist and the \
+            read fails with NSCocoaErrorDomain 260, which measures the sandbox and not \
+            the approval path. Skipped rather than failed; the simulator arm (positive \
+            control included) is unchanged and runs on every gate.
+            """
+        )
+    )
+    func approvalPathSourcesNeverReferenceALanguageModelSession() throws {
         let repoRoot = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // TalariaTests/
             .deletingLastPathComponent()   // repo root
