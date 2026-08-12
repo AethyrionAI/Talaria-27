@@ -272,6 +272,13 @@ struct InstrumentLaunchIntent: Equatable {
 
 ### Task 3: `InstrumentRegistry` — three canonical entries
 
+> **Corrected by reality 2026-08-12 (Task 3 execution):** `runActionBattery`'s `cells:` is
+> `[ActionBatteryCell]`, not `[String]`, and the button never passes it — the shipped
+> "action" entry ignores the cells argument and calls `runActionBattery(trials:)` exactly
+> as the button does. And `InstrumentSpec.run`'s backend parameter is `LocalChatBackend?`
+> (the Interfaces block was right; this section's sample below shows the pre-correction
+> non-optional form). The committed code, not the sample, is authoritative.
+
 **Files:**
 - Create: `Talaria/Services/Live/InstrumentRegistry.swift`
 - Test: `TalariaTests/InstrumentRegistryTests.swift`
