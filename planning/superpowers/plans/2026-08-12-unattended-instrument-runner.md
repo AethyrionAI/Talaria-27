@@ -13,7 +13,7 @@
 - **Tracker:** this is #333; bars 333-A..H are pre-registered in `OPEN_ITEMS.md` — read them before starting. A missed bar is a falsification, not a redefinition.
 - `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
 - **All new app code inside `#if DEBUG`** (bar 333-F; Release build proves it — #218).
-- **New Swift files ⇒ `xcodegen generate` is mandatory** and the regenerated project is committed (it is idempotent since #319).
+- **New Swift files ⇒ `xcodegen generate` is mandatory IN THE TASK THAT CREATES THEM, immediately after creating them and before running tests** (an explicit-listing project cannot see a file it wasn't regenerated with); commit the regenerated `project.pbxproj` with the files (idempotent since #319). Task 7's regen is then a no-op verification.
 - The trigger **never** sets `BatteryTestContainer.alarmWritesAttended = true` (that flag means "a human tapped" — #331). Alarm-flagged instruments are refused when `unattended`. EventKit-flagged instruments are refused on any iPad (`userInterfaceIdiom == .pad`).
 - Do not touch `beginBatteryRun`/`endBatteryRun`, the reap, or `BatteryRunRecorder` internals — containment is inherited by calling the existing `run*` methods (#331 composition).
 - Do not run anything on a physical device except in Task 9. Never run EventKit/AlarmKit anything on Shelley's iPad.
