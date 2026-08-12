@@ -956,16 +956,21 @@ struct DeviceToolBeltTests {
     /// (interleaved cells, cross-attributed tool calls, an FM -1/1001
     /// error storm from model contention). The mutex is backend-owned:
     /// one battery at a time, whatever the UI thinks.
-    @Test @MainActor func batteryMutexAdmitsOneRunAtATime() {
+    ///
+    /// #331 made `beginBatteryRun` async — the start reap lives inside it,
+    /// so no launcher can skip it — and the mutex now has to hold ACROSS
+    /// that suspension. That is why the claim happens before the await and
+    /// is released again only on refusal.
+    @Test @MainActor func batteryMutexAdmitsOneRunAtATime() async {
         // Isolate from any state another test left behind.
         LocalChatBackend.endBatteryRun()
 
-        #expect(LocalChatBackend.beginBatteryRun())
+        #expect(await LocalChatBackend.beginBatteryRun())
         // A second begin while active must be refused.
-        #expect(!LocalChatBackend.beginBatteryRun())
+        #expect(!(await LocalChatBackend.beginBatteryRun()))
         LocalChatBackend.endBatteryRun()
         // Released — the next run may begin.
-        #expect(LocalChatBackend.beginBatteryRun())
+        #expect(await LocalChatBackend.beginBatteryRun())
         LocalChatBackend.endBatteryRun()
     }
 

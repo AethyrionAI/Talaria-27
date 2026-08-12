@@ -267,6 +267,27 @@ struct ReminderCreateTool: Tool {
                 [.year, .month, .day, .hour, .minute], from: finalDue
             )
         }
+        #if DEBUG
+        // #331: under the harness EVERY write lands in the dedicated test
+        // list — the container beats a model-named list, because containment
+        // that a generated argument can steer out of is not containment. A
+        // container we cannot provision is a hard stop, never a quiet
+        // fall-through to the user's real list.
+        if await confirmations.autoAcceptForBattery {
+            do {
+                reminder.calendar = try BatteryTestContainer.ensureContainer(for: .reminder, in: store)
+            } catch {
+                return "The #331 battery test list could not be provisioned (\(error.localizedDescription)) — nothing was created."
+            }
+        } else if !listName.isEmpty,
+                  let match = store.calendars(for: .reminder).first(where: {
+                      $0.title.localizedCaseInsensitiveCompare(listName) == .orderedSame
+                  }) {
+            reminder.calendar = match
+        } else {
+            reminder.calendar = store.defaultCalendarForNewReminders()
+        }
+        #else
         if !listName.isEmpty,
            let match = store.calendars(for: .reminder).first(where: {
                $0.title.localizedCaseInsensitiveCompare(listName) == .orderedSame
@@ -275,6 +296,7 @@ struct ReminderCreateTool: Tool {
         } else {
             reminder.calendar = store.defaultCalendarForNewReminders()
         }
+        #endif
         guard let calendarTitle = reminder.calendar?.title else {
             return "No Reminders list is available on this device — nothing was created."
         }
@@ -577,9 +599,28 @@ struct CalendarEventTool: Tool {
         event.startDate = finalStart
         event.endDate = finalStart.addingTimeInterval(TimeInterval(finalMinutes * 60))
         if !finalLocation.isEmpty { event.location = finalLocation }
-        guard let calendar = store.defaultCalendarForNewEvents else {
+        // #331: under the harness the event lands in the dedicated test
+        // calendar; production resolves the default exactly as before, and
+        // the whole container branch compiles out of Release.
+        let calendar: EKCalendar
+        #if DEBUG
+        if await confirmations.autoAcceptForBattery {
+            do {
+                calendar = try BatteryTestContainer.ensureContainer(for: .event, in: store)
+            } catch {
+                return "The #331 battery test calendar could not be provisioned (\(error.localizedDescription)) — nothing was created."
+            }
+        } else if let resolved = store.defaultCalendarForNewEvents {
+            calendar = resolved
+        } else {
             return "No calendar is available for new events — nothing was created."
         }
+        #else
+        guard let resolved = store.defaultCalendarForNewEvents else {
+            return "No calendar is available for new events — nothing was created."
+        }
+        calendar = resolved
+        #endif
         event.calendar = calendar
         do {
             try store.save(event, span: .thisEvent, commit: true)

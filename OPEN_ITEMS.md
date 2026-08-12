@@ -8477,11 +8477,21 @@ not free and must be visible" is that lane's own sentence, in the code at
 `StatusCardView.swift:94`), **#46** (the card and its CTX-gauge toggle),
 **#215** (why 330-B has a stop condition), **#180** (honest degradation).
 
-## 331. 🧪 A DEDICATED TEST CONTAINER for calendar / reminders / alarms — the gate on running anything unattended — **FILED 2026-08-11 on Owen's instruction ("make a dedicated test for those, and we can do those later"). The containment decision is RULED; the lane pre-registers its own bars before code.**
+## 331. 🧪 A DEDICATED TEST CONTAINER for calendar / reminders / alarms — ~~the gate on running anything unattended~~ **DOWNGRADED to hygiene for calendar/reminders; the live constraint is ALARMS** — **FILED 2026-08-11 on Owen's instruction ("make a dedicated test for those, and we can do those later"). The containment decision is RULED; the lane pre-registers its own bars before code.**
+
+> **⚠️ HEADER AND PREMISE CORRECTED 2026-08-11 (same day, by Owen's ruling —
+> see the re-scope block below the bars).** *"The gate on running anything
+> unattended"* is **false for his phone**: test reminders are fine by him, and
+> he had already pointed the app at a throwaway, unshared calendar. Calendar
+> and reminder containment is worth having and it is not a blocker. **Alarms
+> are — and the answer for them is not a container but a rule: harness alarm
+> writes never run unattended.** Read the strikethrough as retired, not as
+> history to be re-argued. Shelley's iPad remains off-limits for all three.
 
 **Why this exists.** The 2026-08-11 device-backlog triage
 (`planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` §5) found the one thing that
-gates unattended device running, and it is not a capability gap — it is data.
+~~gates unattended device running~~ *(retired above)* leaves residue, and it is
+not a capability gap — it is data.
 `runActionBattery` and its ~20 siblings arm `autoAcceptForBattery = true` and
 perform **real Calendar, Reminders and Alarm writes**, reaped only at the DONE
 line. **An interrupted run — a crash, a dropped USB cable, a killed test host,
@@ -8489,8 +8499,11 @@ an overnight box reboot — leaves residue in Owen's real data.** Eight further
 device rows carry the same hazard independently (#33, #137, #162-CRUD, #170,
 #186, #199A, #225-B4, #249F-D).
 
-Today that hazard is survivable because a human is watching. Unattended, it is
-not, and "the reap usually runs" is not a containment story.
+Today that hazard is survivable because a human is watching. ~~Unattended, it is
+not, and "the reap usually runs" is not a containment story.~~ **Corrected: for
+calendar and reminders he has accepted the residue and pre-arranged for it. For
+ALARMS the sentence still stands, and no sweep repairs it — an alarm can ring
+before any next run exists to sweep it.**
 
 **✅ OWEN'S RULING 2026-08-11 — a DEDICATED TEST CONTAINER**, chosen over an
 abort-time reap and over a throwaway Apple ID. The data rows themselves are
@@ -8517,6 +8530,271 @@ deliberately DEFERRED until this exists ("we can do those later").
 (auto-accept action battery), **#137 / #186** (⚠️DATA rows the triage also
 recommends moving to a simulator), and the instrument-trigger build the triage
 names as build #1 — **this must land before that one runs unattended.**
+
+> **BARS PRE-REGISTERED (bars written first, before any code) — 2026-08-11,
+> lane `t27-331-test-container` off `main` @ `e80a8be`.** Owen's contract above
+> is the constraint set; these are the falsifiable forms of it. A missed bar is
+> a falsification, not a redefinition.
+>
+> **Vehicle:** the gate suite on `CC-331-iPhone-Air` (iOS 27.0, beta5
+> toolchain), calendar + reminders TCC pre-granted. Every bar is a SIM test —
+> this item ships containment, not a measurement, so no device trial is owed.
+>
+> - **331-A (writes land in the container, never in the default).** With the
+>   harness armed (`autoAcceptForBattery == true`), a reminder create lands in
+>   the harness's dedicated reminders list and an event create lands in the
+>   harness's dedicated calendar. **Threshold:** for both engines, the saved
+>   item's `calendar.calendarIdentifier` equals the harness container's
+>   identifier AND does **not** equal the store's default-for-new
+>   events/reminders identifier. Both assertions, or the bar is missed.
+> - **331-B (THE NEGATIVE BAR — the default calendar and the default list are
+>   never deleted from). This is the whole item.** Seed one event in the
+>   DEFAULT calendar and one reminder in the DEFAULT list, both carrying
+>   `[T27-battery]` in the title — the worst case, an item today's
+>   marker-matching reap would happily destroy. Run the container reap.
+>   **Threshold: both survive, still resolvable by identifier, 0 deletions
+>   outside the container.** Procedural condition, not optional: the test must
+>   be **witnessed RED before the guard exists** — restore/retain the
+>   marker-matching sweep as the destroying step, watch the test fail for the
+>   right reason (the seeded default-calendar item deleted), then land the
+>   guard. A green-from-birth negative test does not satisfy this bar.
+> - **331-C (the delete is provably scoped, and wholesale).** The container is
+>   removed by ONE store operation (`removeCalendar`), not by enumerating and
+>   deleting items — per-item reaping is the thing that fails mid-flight.
+>   Ownership is decided by a **pure predicate** taking explicit inputs, pinned
+>   by test with a widening detector: a candidate that matches the harness
+>   TITLE ALONE is NOT owned; a candidate that is the default calendar/list is
+>   NOT owned; a candidate on a source the harness did not create on is NOT
+>   owned; a candidate whose identifier is not the harness's persisted one is
+>   owned only via the explicitly-enumerated orphan-adoption clause.
+>   **Threshold:** every one of those cases asserted false, and an assertion
+>   that fails if the predicate is widened to title-only.
+> - **331-D (reap on START as well as on finish, structurally).** Start-of-run
+>   cleanup must not be something a call site can forget: it lives INSIDE the
+>   one chokepoint every battery already passes through
+>   (`LocalChatBackend.beginBatteryRun`), so a battery that starts without a
+>   start reap is unrepresentable. **Threshold:** (i) a test proves a container
+>   seeded and abandoned by a "crashed" previous run is gone after the next
+>   `beginBatteryRun`; (ii) every `beginBatteryRun` call site goes through the
+>   reaping form — asserted by the compiler (the signature changes), not by
+>   grep.
+> - **331-E (add-only access fails LOUDLY, never silently skips).** A reap
+>   needs full access; #186 leaves add-only calendar access reachable. A pure
+>   readiness function maps auth state to a decision. **Threshold:**
+>   `.fullAccess` ⇒ ready; `.writeOnly`, `.denied`, `.restricted`,
+>   `.notDetermined` ⇒ a REFUSE carrying a reason string, and the battery
+>   emits a classifiable refusal line and **does not run**. No path may write
+>   under the harness while unable to reap. 0 silent skips.
+> - **331-F (alarms get a real answer, and it is not a pretend container).**
+>   AlarmKit exposes no per-list concept and — re-verified against the beta5
+>   SDK, not recalled — `public struct Alarm` carries `id`/`schedule`/
+>   `countdownDuration`/`state` and **no label or metadata**, so enumeration
+>   cannot tell a battery alarm from a real one. The answer is therefore a
+>   **durable harness-owned ID ledger**: IDs are persisted at schedule time and
+>   swept at start and finish, so a crashed run's alarms die at the next start.
+>   **Threshold:** the ledger round-trips through persistent storage (written,
+>   re-read through a fresh reader, consumed by the start reap) — i.e. it is no
+>   longer the process-lifetime `static var` whose loss is documented in
+>   `AlarmService` as "leaves marker-labeled alarms behind for manual cleanup";
+>   and the entry states the answer in plain words at close-out.
+> - **331-G (production is unchanged with the harness off).** With
+>   `autoAcceptForBattery == false`, the reminder engine still resolves
+>   `defaultCalendarForNewReminders()` and the event engine still resolves
+>   `defaultCalendarForNewEvents`, and their success strings are unchanged.
+>   **Threshold:** pinned by test, plus the whole container surface compiled
+>   out of Release (`#if DEBUG`) and the gate's Release half green — #218's
+>   corollary, a green Debug suite cannot see a mis-set gate.
+> - **331-H (the gate).** `TALARIA_SIM_NAME=CC-331-iPhone-Air
+>   scripts/mac/lane-gate.sh` PASSES, and the **test count MOVES** from the
+>   baseline **2123 tests / 161 suites** — an unmoved count means the new tests
+>   did not run (the stale-`.xctest` trap).
+>
+> **Pre-registered responses:** 331-B missed ⇒ the lane does not land, full
+> stop — a reap that can touch real data is worse than no reap. 331-A, C, D or
+> E missed ⇒ the containment is not a containment story; land nothing and route
+> to Owen. 331-F missed ⇒ the alarm half is written up as **"alarm-writing rows
+> stay attended"** and says so in the entry, which the contract explicitly
+> permits; the calendar/reminders half may still land. 331-G missed ⇒ revert.
+
+> **⚠️ BARS RE-SCOPED MID-LANE BY OWEN'S RULING — 2026-08-11, after the bars
+> above were written and after the code was built.** This is a correction
+> with evidence, not a redefinition, and the two are distinguishable here on
+> purpose: the bars above are left standing verbatim so a reader can see what
+> changed and why. Nothing below relaxes a threshold; the ruling removed a
+> premise.
+>
+> **What Owen ruled**, on his phone `whoGoesThere`:
+> - **Reminders — ALLOWED.** *"Reminders are fine and I'm not worried about
+>   stragglers."*
+> - **Calendar — ALLOWED.** He has already pointed the app at a calendar he
+>   does not care about, and it is **not shared**. The containment this item
+>   was filed to build for calendar/reminders **already existed as a setting
+>   he had made**, which nobody had asked him about.
+> - **Alarms — the only live constraint**, and it is not a ban: *"please don't
+>   have surprise alarms for me while I'm at work."*
+> - **Apple Notes is NOT covered** — he named three apps and Notes was not one.
+> - **Shelley's iPad: none of it, unchanged.** No calendar, reminder or alarm
+>   test there, ever. That device is now provisioned and running a build, so
+>   the rule matters more than when it was hypothetical, not less.
+>
+> **What that does to this item.** The header's *"the gate on unattended
+> device running"* is **FALSE for his phone** and is retired as a framing;
+> the triage doc's §5 is corrected at its own home. This is no longer a
+> blocker. It is hygiene, plus the one thing that still genuinely needs
+> solving.
+>
+> **Bar dispositions:**
+> - **331-A, 331-B, 331-C, 331-D, 331-E, 331-G, 331-H — UNCHANGED and still
+>   scored.** Clean reaping is worth having on its own, and the negative bar
+>   is the strongest thing in the lane: it is the difference between a reap
+>   that is scoped and a reap that merely happens not to have hit anything
+>   yet. What changes is only the claim they support — they buy hygiene, not
+>   an unblocking.
+> - **331-F — SUPERSEDED, and its premise retired.** As written it said the
+>   durable ID ledger *is* the alarm answer. **It is not, and the lane should
+>   not have believed it was.** A ledger swept at the next run's START cannot
+>   un-ring an alarm that fires before that start, and an AlarmKit alarm
+>   rings **through Silent mode and Focus**. The ledger is real and it lands
+>   (residue hygiene, and the write is now recorded BEFORE the schedule call
+>   rather than after, closing the ordinary crash window) — but it is
+>   demoted from "the answer" to "cleanup". The bar it replaces:
+>   - **331-F′ (the alarm answer): harness alarm writes NEVER run
+>     unattended.** Encoded as a default-CLOSED gate, not as prose:
+>     `BatteryTestContainer.alarmWritesAttended` is `false` at launch,
+>     `AlarmService.schedule` throws `unattendedHarnessWrite` for any
+>     battery-marked request while it is false, and the flag is armed by a
+>     Developer-screen tap and by nothing else — a tap being the one signal
+>     in this app that a human is present. **Threshold:** the pure rule
+>     (`alarmWriteIsPermitted`) refuses a marked label when unattended,
+>     permits it when attended, and **never governs a real user alarm**;
+>     the refusal carries a readable reason; and an automated trigger that
+>     never visits the Developer screen cannot schedule one.
+>
+> **The honest limit, stated rather than engineered around:** the start sweep
+> cannot cover the window between "created" and "crashed" in the sense that
+> matters — not because the ledger is lossy (it is written first now), but
+> because a stranded alarm can FIRE before any next start exists to sweep it.
+> That gap is the reason alarm-writing rows stay attended. It is not a reason
+> to make the sweep cleverer.
+
+> **✅ RESULTS — 2026-08-11, branch `t27-331-test-container`, head `02c25b6`
+> (off `main` @ `e80a8be`). ALL BARS MET; 331-F superseded and its
+> replacement met. Sim-only lane, no device time owed.**
+>
+> **`GATE: PASS — logs in /var/folders/0z/b07gxktx30s5cm8506x55py40000gn/T/talaria-gate.wOCzimHMJ5`**
+> — `TALARIA_SIM_NAME=CC-331-iPhone-Air scripts/mac/lane-gate.sh`, Xcode-beta5,
+> Debug suite + XCUITest + Release build all PASS. **Count MOVED: 2123 tests /
+> 161 suites → 2145 tests / 162 suites** (+22 tests, +1 suite), so the new
+> tests demonstrably ran rather than a stale `.xctest` re-reporting.
+>
+> - **331-A MET** — `harnessWritesLandInTheContainerAndNotInTheDefault`. Both
+>   shipped engines driven with the gate armed; the event lands in
+>   `[T27-battery] TEST CALENDAR — safe to delete` and the reminder in
+>   `[T27-battery] TEST REMINDERS — safe to delete`, and both identifiers
+>   differ from the store's defaults. The reminder arm deliberately passes the
+>   REAL default list's name as the tool's `list` argument and the container
+>   still wins — containment a generated argument can steer out of is not
+>   containment.
+> - **331-B MET, and witnessed RED first — the procedural condition is
+>   satisfied with a citable log.** At `b497256` (container built, destroying
+>   step NOT yet scoped) the same suite ran **22 tests / 2 suites with exactly
+>   two issues, both in this bar**:
+>   ```
+>   BatteryReapEventKitProbeTests.swift:170:9: Expectation failed:
+>     after.event(withIdentifier: canaryEventID ?? "") != nil
+>     ↳ the reap deleted an event from the user's DEFAULT calendar
+>   BatteryReapEventKitProbeTests.swift:172:9: Expectation failed:
+>     after.calendarItem(withIdentifier: canaryReminderID) != nil
+>     ↳ the reap deleted a reminder from the user's DEFAULT list
+>   ```
+>   That is the shipped pre-#331 teardown caught destroying default-container
+>   data, not a synthetic failure. At `02c25b6`, with the two queries scoped:
+>   **24 tests / 2 suites, 0 issues** — both canaries resolvable afterwards,
+>   both default containers still standing, and the harness's own artifact
+>   gone container and all. **The hazard was real and is now closed.**
+> - **331-C MET** — `theContainerReapRemovesTheCalendarAndEverythingInIt`
+>   seeds three **deliberately UNMARKED** events in the container, so only
+>   container membership can explain their removal and no marker sweep can
+>   take credit; one `removeCalendar` (`eventCalendars == 1`) takes all three.
+>   The widening detector is `titleAloneIsNeverEnoughToOwnAContainer` plus
+>   `aDefaultContainerIsNeverOwnedEvenWhenEveryOtherSignalMatches` — the
+>   latter passes a *matching recorded identifier* alongside `isDefault:
+>   true` and still demands `false`, so the default-rejection clause cannot
+>   be reached past. Four near-miss titles are covered too.
+> - **331-D MET** — `beginBatteryRun` is now `async` and performs the start
+>   reap itself, so **all 13 battery call sites** were forced through the
+>   reaping form by the compiler rather than by grep.
+>   `aCrashedRunsContainerIsGoneAfterTheNextRunBegins` provisions a container,
+>   strands an event and an alarm ID in it, runs no teardown, and finds both
+>   gone after the next `beginBatteryRun`. The mutex still admits one run at a
+>   time across the added suspension (claim-before-await, release on refusal)
+>   — pinned by `batteryMutexAdmitsOneRunAtATime` and
+>   `beginBatteryRunStillHoldsTheMutexAcrossTheStartReap`.
+> - **331-E MET** — `readinessIsReadyOnlyForFullAccessOnBothEntities` walks
+>   `.writeOnly / .denied / .restricted / .notDetermined` on both entity types
+>   and requires a refusal for each; `readinessRefusalNamesTheAddOnlyTrap`
+>   pins that the add-only message says so in words. A writing run whose
+>   container cannot be provisioned is **REFUSED at `beginBatteryRun`** and
+>   the individual write returns "nothing was created" — no path writes while
+>   unable to reap. The reap deliberately never calls `requestFullAccess…`:
+>   a permission prompt inside a reap is the fresh-simulator hang, so it reads
+>   `authorizationStatus` only.
+> - **331-F SUPERSEDED (see the re-scope block) → 331-F′ MET.**
+>   `harnessAlarmWritesAreRefusedUnlessAttended` pins the rule in all six
+>   directions, including the two that matter most: a battery-marked label is
+>   refused when unattended, and a **real user alarm is never governed by the
+>   gate at all**. `theUnattendedAlarmRefusalExplainsItself` pins that the
+>   refusal is loud. The ledger half also landed as hygiene and is durable
+>   (`theAlarmLedgerSurvivesAFreshReader`,
+>   `theAlarmServiceLedgerIsTheDurableOne`), with the write moved to BEFORE
+>   the `AlarmManager.schedule` call — it used to run after, so a process
+>   death between "AlarmKit has the alarm" and "the ledger knows" produced
+>   exactly the untracked residue the ledger exists to prevent.
+> - **331-G MET** — `writesWithTheHarnessOffStillLandInTheDefaultCalendar`:
+>   same engine, gate not armed, card staged and approved the normal way, the
+>   reply names the user's default calendar, and **no container is
+>   provisioned**. The whole `BatteryTestContainer` surface is inside
+>   `#if DEBUG`, and the gate's Release half is green (#218's corollary).
+> - **331-H MET** — the `GATE:` line and the count above.
+>
+> **THE ALARM ANSWER, in plain words, since the contract deliberately left it
+> open:** *there is no container, we did not invent one, and the containment
+> is a person.* AlarmKit has no per-list concept and — checked against the
+> **beta5 SDK swiftinterface rather than recalled** — `public struct Alarm`
+> exposes `id` / `schedule` / `countdownDuration` / `state` and **no label or
+> metadata**, so enumeration genuinely cannot tell a battery alarm from a real
+> one; the long-standing code comment saying so is CONFIRMED, not stale. Two
+> things follow. (1) Cleanup is a durable ID ledger, written before the
+> schedule call and drained at both reaps — real, but only hygiene. (2) **The
+> rule is that harness alarm writes never run unattended**, encoded
+> default-CLOSED as `BatteryTestContainer.alarmWritesAttended` (armed by a
+> Developer-screen tap, by nothing else; 29 arm sites, 33 disarm sites — the
+> asymmetry is the fail-safe direction). The reason is not squeamishness: an
+> AlarmKit alarm **rings through Silent mode and Focus**, and a sweep at the
+> next run's start cannot un-ring one that already fired. That is a gap no
+> engineering closes, so it is written down instead of coded around.
+>
+> **What the contract did not anticipate, recorded because the next lane
+> cannot infer it:**
+> - **Two suites mutating one EventKit database race each other.** The #200
+>   probe suite seeds a `[T27-battery]` event and then deletes every marked
+>   event in writable calendars; run in parallel with #331's canaries it
+>   destroys them — a failure indistinguishable from the product defect this
+>   item exists to detect. `BatteryReapEventKitProbeTests` is therefore
+>   `@Suite(.serialized)` now, and **any future test that writes to the real
+>   store belongs in that suite** for the same reason.
+> - **`predicateForEvents` over a decades-wide span returns EMPTY rather than
+>   erroring.** A first cut of 331-A queried epoch→now+3y and read as a
+>   containment failure when the write had in fact landed correctly. Bracket
+>   the staged date narrowly.
+> - **The `#200` REAP line's `skipped(no-access)` form nearly became a lie.**
+>   Folding "no container exists yet" into the access flags would have made a
+>   perfectly readable store report as unreadable. Access flags track access;
+>   an empty container is an honest zero.
+> - **The container provisions fine on a bare simulator** — `sources` yields a
+>   local source, and both an event calendar and a reminders list save
+>   against it without an account. That was the riskiest assumption in the
+>   design and it held.
 
 ## 332. 🎲 THE FIRST DEVICE SUITE RUN — three failures the simulator has been hiding, on two devices at once — **FILED 2026-08-11. The full unit suite had NEVER run on hardware; every green in this project's history came from a simulator. It ran on both `whoGoesThere` and Shelley's iPad in the same sitting and failed on both, differently. NOT STARTED; bars per finding below.**
 

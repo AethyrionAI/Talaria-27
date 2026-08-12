@@ -79,7 +79,20 @@ final class ToolConfirmationCenter {
     /// discipline; if both are ever set, decline wins (fail-safe:
     /// never-create, matching the gate's default-closed design). Never set
     /// outside the battery.
-    var autoAcceptForBattery = false
+    ///
+    /// `@ObservationIgnored` because no view reads it (only tool code does)
+    /// and because #331 hangs a `didSet` off it — the macro's tracked storage
+    /// and property observers do not mix.
+    @ObservationIgnored var autoAcceptForBattery = false {
+        didSet { Self.batteryWritesArmed = autoAcceptForBattery }
+    }
+
+    /// #331: a process-wide mirror of the armed flag. The containment gate
+    /// lives in `LocalChatBackend.beginBatteryRun`, which is a static with no
+    /// reference to this instance, and it has to know whether the run about
+    /// to start will WRITE — a battery that only measures text must not be
+    /// refused for want of calendar access it never needs.
+    nonisolated(unsafe) static var batteryWritesArmed = false
 
     /// #200: every artifact created under auto-accept carries this marker —
     /// injected into the "title"/"request" field at approval — so the run

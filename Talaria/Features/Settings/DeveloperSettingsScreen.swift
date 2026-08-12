@@ -634,6 +634,7 @@ struct DeveloperSettingsScreen: View {
             // clearing accept here (and both at run end) keeps the #200
             // launcher and this one from ever overlapping flags.
             container.toolConfirmationCenter.autoAcceptForBattery = false
+            BatteryTestContainer.alarmWritesAttended = false
             container.toolConfirmationCenter.autoDeclineForBattery = true
             // A ~20-minute n=20 must survive auto-lock — work-desk runs
             // (#196 results-page lane) have no cable keeping the screen
@@ -643,6 +644,7 @@ struct DeveloperSettingsScreen: View {
                 await backend.runShapeBattery(trials: trials)
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
             }
@@ -669,12 +671,17 @@ struct DeveloperSettingsScreen: View {
             // measure the #196 contract, not action success.
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             // Same auto-lock guard as the shape battery.
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runActionBattery(trials: trials)
                 // Both flags cleared at run end, whatever this run armed.
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -699,10 +706,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDestallBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -726,10 +738,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runInstrfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -753,10 +770,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runToolmodeBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -779,10 +801,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCommunityBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -804,10 +831,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runFindfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -829,10 +861,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runSpiralBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -876,10 +913,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runScopedV2Battery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -901,10 +943,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runRoutedActionBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -926,10 +973,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runRoutedScopedBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1110,10 +1162,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runSpiralfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1136,10 +1193,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCardfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1161,10 +1223,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDatefixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1186,10 +1253,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCalendarBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1210,10 +1282,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadendBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1235,10 +1312,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadendVerifyBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1260,10 +1342,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runGrabfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1285,10 +1372,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runStallfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1310,10 +1402,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runSchemafixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1335,10 +1432,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadendReversedBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1360,10 +1462,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadendReconsiderBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1385,10 +1492,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCalRollbackVerifyBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1411,10 +1523,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCalfixWarmBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1436,10 +1553,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadendConfirmBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1461,10 +1583,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeadend2Battery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1486,10 +1613,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runCalfixBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1511,10 +1643,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runSchemaReverifyBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1645,10 +1782,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runTwoTurnBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1712,11 +1854,13 @@ struct DeveloperSettingsScreen: View {
             guard !batteryRunning, let backend = container.localChatBackend else { return }
             batteryRunning = true
             container.toolConfirmationCenter.autoAcceptForBattery = false
+            BatteryTestContainer.alarmWritesAttended = false
             container.toolConfirmationCenter.autoDeclineForBattery = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runDeclineBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false
@@ -1738,10 +1882,15 @@ struct DeveloperSettingsScreen: View {
             batteryRunning = true
             container.toolConfirmationCenter.autoDeclineForBattery = false
             container.toolConfirmationCenter.autoAcceptForBattery = true
+            // #331: a tap is a human. Harness ALARM writes are attended-only
+            // (they ring through Silent mode and have no container to nuke), so
+            // nothing but this launcher path may arm them.
+            BatteryTestContainer.alarmWritesAttended = true
             UIApplication.shared.isIdleTimerDisabled = true
             Task {
                 await backend.runClauseReverifyBattery(trials: trials)
                 container.toolConfirmationCenter.autoAcceptForBattery = false
+                BatteryTestContainer.alarmWritesAttended = false
                 container.toolConfirmationCenter.autoDeclineForBattery = false
                 UIApplication.shared.isIdleTimerDisabled = false
                 batteryRunning = false

@@ -21,6 +21,12 @@ final class AlarmService {
     enum AlarmSchedulingError: LocalizedError {
         case notAuthorized
         case invalidTime
+        #if DEBUG
+        /// #331: a battery-marked alarm was staged while the harness was not
+        /// attended-armed. Loud by design — the caller surfaces this string,
+        /// so a run that tries it says so instead of quietly scheduling.
+        case unattendedHarnessWrite
+        #endif
 
         var errorDescription: String? {
             switch self {
@@ -28,6 +34,10 @@ final class AlarmService {
                 return "Alarms aren't authorized for Talaria — enable them in Settings."
             case .invalidTime:
                 return "That time couldn't be turned into a schedule."
+            #if DEBUG
+            case .unattendedHarnessWrite:
+                return "harness alarm writes are attended-only (#331) — nothing was scheduled"
+            #endif
             }
         }
     }
@@ -177,6 +187,40 @@ final class AlarmService {
         let alert = AlarmPresentation.Alert(title: titleResource)
         let metadata = TalariaAlarmMetadata(label: request.label)
 
+        #if DEBUG
+        if request.label?.contains(ToolConfirmationCenter.batteryArtifactMarker) == true {
+            // #331 (re-scoped 2026-08-11 by Owen's ruling): **a harness
+            // alarm write never happens unattended.** Owen's constraint is
+            // "please don't have surprise alarms for me while I'm at work",
+            // and an alarm is different in kind from a calendar event: it
+            // RINGS THROUGH SILENT MODE, and AlarmKit has no container to
+            // nuke. A start-of-run sweep cannot un-ring an alarm that fires
+            // before the next run starts, so no sweep can make this row safe
+            // to leave running — only a human present can. Default-closed:
+            // the flag is armed by a tap in the Developer screen and by
+            // nothing else.
+            guard BatteryTestContainer.alarmWriteIsPermitted(
+                label: request.label,
+                attended: BatteryTestContainer.alarmWritesAttended) else {
+                throw AlarmSchedulingError.unattendedHarnessWrite
+            }
+            // AlarmKit's `Alarm` carries no label back on enumeration, so
+            // marker-matching can't find battery alarms after the fact —
+            // track their IDs at schedule time instead. The marker reaches
+            // the label via the gate's auto-accept request suffix.
+            //
+            // #331 moved this BEFORE the schedule call. It used to run
+            // after, which meant a process death in the window between
+            // "AlarmKit has the alarm" and "the ledger knows about it"
+            // produced exactly the untracked residue the ledger exists to
+            // prevent. Recording first can over-record (an ID for an alarm
+            // that failed to schedule); cancelling an ID AlarmKit never had
+            // is a counted no-op, so the over-record is free and the
+            // under-record was not.
+            Self.batteryScheduledAlarmIDs.append(request.id)
+        }
+        #endif
+
         switch request.kind {
         case .fixedTime(let hour, let minute):
             guard let fireDate = Self.nextOccurrence(hour: hour, minute: minute) else {
@@ -213,23 +257,27 @@ final class AlarmService {
             alarmLog.notice("scheduled countdown timer (\(Int(seconds))s)")
         }
 
-        #if DEBUG
-        // #200 action battery: AlarmKit's `Alarm` carries no label back on
-        // enumeration, so marker-matching can't find battery alarms after
-        // the fact — track their IDs at schedule time instead. The marker
-        // reaches the label via the gate's auto-accept request suffix.
-        if request.label?.contains(ToolConfirmationCenter.batteryArtifactMarker) == true {
-            Self.batteryScheduledAlarmIDs.append(request.id)
-        }
-        #endif
     }
 
     #if DEBUG
     /// #200: IDs of alarms scheduled under battery auto-accept, in schedule
-    /// order. Process-lifetime only — a run that dies before its teardown
-    /// leaves marker-labeled alarms behind for manual cleanup (they ring as
-    /// "[T27-battery]", visibly instrument residue).
-    static var batteryScheduledAlarmIDs: [UUID] = []
+    /// order.
+    ///
+    /// **#331 — this is the alarm answer, and it is not a container.**
+    /// AlarmKit has no per-list concept, and `Alarm` carries no label or
+    /// metadata back on enumeration (re-verified against the beta5 SDK), so
+    /// a battery alarm cannot be told apart from a real `/alarm` one after
+    /// the fact. What replaces a container is this ledger — and it is now
+    /// **DURABLE**, backed by `BatteryTestContainer.alarmLedger`. It used to
+    /// be a process-lifetime `static var`, so "a run that dies before its
+    /// teardown leaves marker-labeled alarms behind for manual cleanup" was
+    /// the documented outcome. Persisting it means the START reap of the
+    /// NEXT run cancels them, which is the same property the calendar
+    /// container buys.
+    static var batteryScheduledAlarmIDs: [UUID] {
+        get { BatteryTestContainer.alarmLedger }
+        set { BatteryTestContainer.alarmLedger = newValue }
+    }
 
     /// #200 teardown: cancel every battery-scheduled alarm. `cancel` also
     /// removes an already-fired alarm's remnant; a throw (e.g. the user

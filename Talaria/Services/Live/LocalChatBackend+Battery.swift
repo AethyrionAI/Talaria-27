@@ -86,9 +86,36 @@ extension LocalChatBackend {
     private static var batteryActive = false
 
     /// True = this caller owns the run and MUST call `endBatteryRun`.
-    static func beginBatteryRun() -> Bool {
+    ///
+    /// **#331 made this async, and that is the point.** Reap-on-START is the
+    /// half that makes a PREVIOUS crashed run harmless, and abort-time
+    /// reaping cannot provide it — so it lives inside the one chokepoint
+    /// every battery already passes through rather than at fourteen call
+    /// sites that could each forget it. Changing the signature is what makes
+    /// the compiler, not a grep, the thing that proves no launcher skipped
+    /// the reap.
+    ///
+    /// Two ordering details that are load-bearing:
+    /// - the mutex is CLAIMED before the awaited reap, and released again on
+    ///   refusal — otherwise the suspension opens a window where a second tap
+    ///   passes the `!batteryActive` guard, which is the #200B contamination
+    ///   this mutex was built to stop;
+    /// - a run that will WRITE and cannot reap is REFUSED, not skipped. A
+    ///   silent skip is the failure mode where residue accumulates while the
+    ///   suite reports success.
+    static func beginBatteryRun() async -> Bool {
         guard !batteryActive else { return false }
         batteryActive = true
+        let writesArmed = ToolConfirmationCenter.batteryWritesArmed
+        let outcome = BatteryTestContainer.reap(reason: "start")
+        let outsideMarked = writesArmed ? BatteryTestContainer.markedEventsOutsideContainers(in: EKEventStore()) : 0
+        batteryEmit(BatteryTestContainer.reapLine(reason: "start", outcome: outcome,
+                                                  outsideMarked: outsideMarked))
+        if case .refused = outcome, writesArmed {
+            batteryEmit("battery: REFUSED — the #331 test container is unavailable and this run writes device data")
+            batteryActive = false
+            return false
+        }
         return true
     }
 
@@ -149,7 +176,7 @@ extension LocalChatBackend {
     /// branch denies arithmetic (toolless canary 0/20), so the canary is
     /// itself a measurement in the no-instructions cells.
     func runShapeBattery(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -708,7 +735,7 @@ extension LocalChatBackend {
                           includeGrabCanary: Bool = false,
                           promptSet: [(tag: String, text: String)]? = nil,
                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -781,7 +808,7 @@ extension LocalChatBackend {
                     options: Self.shapedGenerationOptions(Self.chatGenerationOptions(for: activeTier), shape: shape),
                     shape: "warmup", promptTag: tag, prompt: prompt, trial: 0
                 )
-                let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+                let sweep = await Self.sweepMarkedRemindersAndEvents(emitSteps: false)
                 let alarmSweep = AlarmService.reapBatteryAlarms()
                 perTrialReminders += sweep.reminders
                 perTrialEvents += sweep.events
@@ -983,7 +1010,7 @@ extension LocalChatBackend {
                     // to sweep by hand to keep working. Tracked-ID cancel
                     // is idempotent, so the end-of-run reap stays as
                     // backstop and its count folds in.
-                    let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+                    let sweep = await Self.sweepMarkedRemindersAndEvents(emitSteps: false)
                     let alarmSweep = AlarmService.reapBatteryAlarms()
                     perTrialReminders += sweep.reminders
                     perTrialEvents += sweep.events
@@ -1607,7 +1634,9 @@ extension LocalChatBackend {
     /// #200F: one marker sweep's accounting. `hadAccess` false means the
     /// store could not be enumerated — the summary shows a skip, never a
     /// silent zero.
-    private struct MarkerSweepCounts {
+    /// harness-visible (#331): the negative bar drives the real sweep, so
+    /// its counts have to be nameable from the test target.
+    struct MarkerSweepCounts {
         var reminders = 0
         var events = 0
         var failures = 0
@@ -1620,7 +1649,11 @@ extension LocalChatBackend {
     /// line is the accounting) and the end-of-run backstop (`emitSteps:
     /// true`, the #200 REAP-STEP grammar). Alarms are NOT here: they are
     /// tracked-ID, not marker-matched, and stay end-of-run.
-    private func sweepMarkedRemindersAndEvents(emitSteps: Bool) async -> MarkerSweepCounts {
+    /// harness-visible (#331) and `static` because it reads no instance
+    /// state: the negative bar has to exercise THIS function, not a copy of
+    /// it in a test — a copy could drift and quietly turn a widened scope
+    /// back into a pass.
+    static func sweepMarkedRemindersAndEvents(emitSteps: Bool) async -> MarkerSweepCounts {
         let marker = ToolConfirmationCenter.batteryArtifactMarker
         let store = EKEventStore()
         var counts = MarkerSweepCounts()
@@ -1647,10 +1680,25 @@ extension LocalChatBackend {
         // every device run died. @Sendable severs the actor-context
         // inheritance; ReminderReadTool's twin closure never needed it
         // because Tool.call is nonisolated.
+        //
+        // #331 SCOPE GUARD: `calendars:` is the harness's OWN lists, never
+        // `nil`. Passing nil searched every list on the device, so a marked
+        // item in the user's default list was deleted by a title match —
+        // proven, not theorised: `defaultCalendarAndListSurviveTheWholeDestroyingSurface`
+        // was RED on exactly that at `b497256`. An empty owned set means
+        // there is nothing of ours to sweep, which is a zero, not a licence
+        // to widen the search.
+        let ownedLists = BatteryTestContainer.ownedContainers(for: .reminder, in: store)
+        // `remindersAccess` still tracks ACCESS and only access — the REAP
+        // line's `skipped(no-access)` form must keep meaning what it says,
+        // so "full access, no container yet" reports an honest zero rather
+        // than a skip.
         if EKEventStore.authorizationStatus(for: .reminder) == .fullAccess {
             counts.remindersAccess = true
+        }
+        if counts.remindersAccess, !ownedLists.isEmpty {
             let predicate = store.predicateForIncompleteReminders(
-                withDueDateStarting: nil, ending: nil, calendars: nil
+                withDueDateStarting: nil, ending: nil, calendars: ownedLists
             )
             let markedIDs: [String] = await withCheckedContinuation { continuation in
                 store.fetchReminders(matching: predicate) { @Sendable found in
@@ -1687,12 +1735,21 @@ extension LocalChatBackend {
         // scope-correctness: it is the minimal honest query for what the
         // reap needs.) events(matching:) here is SYNCHRONOUS on the
         // calling thread — no cross-queue closure, no isolation hazard.
+        //
+        // #331 SCOPE GUARD, the second half: `writable` was every modifiable
+        // calendar on the device, which is how a marked event in the user's
+        // DEFAULT calendar got deleted. It is now the harness's own
+        // containers and nothing else. Marked items found elsewhere are
+        // counted by `BatteryTestContainer.markedEventsOutsideContainers`
+        // and reported in the CONTAINER-REAP line — never removed.
+        let ownedCalendars = BatteryTestContainer.ownedContainers(for: .event, in: store)
         if EKEventStore.authorizationStatus(for: .event) == .fullAccess {
             counts.eventsAccess = true
+        }
+        if counts.eventsAccess, !ownedCalendars.isEmpty {
             let start = Date().addingTimeInterval(-1 * 86_400)
             let end = Date().addingTimeInterval(14 * 86_400)
-            let writable = store.calendars(for: .event).filter(\.allowsContentModifications)
-            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: writable)
+            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: ownedCalendars)
             let marked = store.events(matching: predicate).filter { ($0.title ?? "").contains(marker) }
             if emitSteps { Self.batteryEmit("battery: REAP-STEP events fetched marked=\(marked.count) (#200)") }
             for event in marked {
@@ -1735,7 +1792,18 @@ extension LocalChatBackend {
     private func reapBatteryArtifacts(perTrialReminders: Int = 0, perTrialEvents: Int = 0,
                                       perTrialAlarms: Int = 0,
                                       perTrialFailures: Int = 0) async -> String {
-        let backstop = await sweepMarkedRemindersAndEvents(emitSteps: true)
+        let backstop = await Self.sweepMarkedRemindersAndEvents(emitSteps: true)
+        // #331: the wholesale half. The per-item sweep above keeps the #200
+        // counts honest DURING a run; this removes the containers themselves
+        // in one store operation each, so what survives a crash is a
+        // container the NEXT run's start reap deletes without having to
+        // enumerate anything. It runs before the alarm step so the emitted
+        // #200 REAP line still reads last.
+        let containerOutcome = BatteryTestContainer.reap(reason: "finish", includeAlarms: false)
+        Self.batteryEmit(BatteryTestContainer.reapLine(
+            reason: "finish", outcome: containerOutcome,
+            outsideMarked: BatteryTestContainer.markedEventsOutsideContainers(in: EKEventStore())
+        ))
         Self.batteryEmit("battery: REAP-STEP alarms begin (#200)")
 
         let alarmReap = AlarmService.reapBatteryAlarms()
@@ -1953,7 +2021,7 @@ extension LocalChatBackend {
     /// Every arm also re-runs the #196 baseline, because an arm that fixes
     /// images by arming everything is not a fix and re-opens #196.
     func runImageRoutingProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2029,7 +2097,7 @@ extension LocalChatBackend {
     }
 
     func runRouterProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2090,7 +2158,7 @@ extension LocalChatBackend {
     /// every misclassification into a disarmed turn — strictly worse than the
     /// full belt we ship today, and not worth 2.6 seconds.
     func runIntentRouterProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2172,7 +2240,7 @@ extension LocalChatBackend {
     /// pre-written annotation), and `META` (measurement only, no bar —
     /// spec §4's open question about capability-meta questions).
     func runVectorRouterProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2342,7 +2410,7 @@ extension LocalChatBackend {
     /// than every existing caller. Inlining an equivalent trial loop here
     /// keeps the shared helper — and its four dependents — untouched.
     func runToollessIndexBattery(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2534,7 +2602,7 @@ extension LocalChatBackend {
     /// measure the two-field schema's real cost with `tokenCount` ON DEVICE,
     /// outside a live turn — see `twoFieldRouterOptions`' comment.
     func runCapabilityDetectionProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2737,7 +2805,7 @@ extension LocalChatBackend {
     /// READ-ONLY: classifications only. No belt, no tools registered, nothing
     /// created and nothing to reap.
     func runCrossChatRecallProbe(trials: Int = 2) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2903,7 +2971,7 @@ extension LocalChatBackend {
     /// (pure classification, no writes) and it closes the one gap #202A left
     /// in the candidate that is about to be promoted.
     func runLongContextProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -2977,7 +3045,7 @@ extension LocalChatBackend {
     /// the mechanism is measured here and the end-to-end consequence is
     /// left to #202B's expensive two-turn run.
     func runRouterContextProbe(trials: Int) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -3250,7 +3318,7 @@ extension LocalChatBackend {
     func runTwoTurnBattery(trials: Int, cells: [TwoTurnCell] = LocalChatBackend.twoTurnBatteryCells,
                            naturalTrials: Int = 5,
                            warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
@@ -3278,7 +3346,7 @@ extension LocalChatBackend {
         var perTrialFailures = 0
 
         func reap(tag: String) async {
-            let sweep = await sweepMarkedRemindersAndEvents(emitSteps: false)
+            let sweep = await Self.sweepMarkedRemindersAndEvents(emitSteps: false)
             let alarmSweep = AlarmService.reapBatteryAlarms()
             perTrialReminders += sweep.reminders
             perTrialEvents += sweep.events
@@ -3437,7 +3505,7 @@ extension LocalChatBackend {
     func runHonestyBattery(trials: Int, ticTrials: Int = 4,
                            cells: [HonestyCell] = LocalChatBackend.honestyBatteryCells,
                            warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
-        guard Self.beginBatteryRun() else {
+        guard await Self.beginBatteryRun() else {
             Self.batteryEmit("battery: REFUSED — another battery is already running (#200B mutex)")
             return
         }
