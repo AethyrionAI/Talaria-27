@@ -6163,7 +6163,7 @@ Tailscale surfaces `.timedOut` → honest `.failed`, by design); (f) session
 totals show the PRIMING row + cost. **Batch with Group 6** (both need
 host-side gateway stop/restart); ~25–30 min corded.
 
-## 313. 🔬 `CondenserFidelityTests` has NEVER RUN — the #93 fidelity acceptance is a DEVICE bar, not a Mac bar — **FILED 2026-08-09 (successor B of #93's split).**
+## 313. ✅ `CondenserFidelityTests` — ~~has NEVER RUN~~ **RUNS AND PASSES 7/7 ON DEVICE (2026-08-11); the #93 fidelity acceptance is MET. CLOSED.** Original header follows: has NEVER RUN — the #93 fidelity acceptance is a DEVICE bar, not a Mac bar — **FILED 2026-08-09 (successor B of #93's split).**
 
 The suite self-gates on a genuinely model-condensed trial composition
 (`CondenserFidelityTests.swift:52-59` — deliberately honest, since
@@ -6394,6 +6394,41 @@ weaken the tests.
 > unreachable`. That is the paired-host probe on a host that is off, handled
 > honestly. Noted only so a future reader of this log does not mistake it for
 > part of the fidelity failure.
+
+> **✅ #313 CLOSES 2026-08-11 — the suite RUNS and PASSES on device, 7/7,
+> `** TEST SUCCEEDED **` (22.066 s, `whoGoesThere`).** The #93 fidelity
+> acceptance is met for the first time, four weeks after it was written.
+>
+> **Owen's ruling, given with the four routes in front of him:** remove the
+> `chicago` assertion, on the redundancy argument — **not** the standing
+> "tune the instructions" rule, which was written for a real fidelity failure
+> and this was not one. His instinct against an allow-list was the deciding
+> input: adding `o'hare` would have passed this brief and failed the next
+> synonym.
+>
+> **Why removal is not weakening, in one line:**
+> `#expect(brief.contains("palmer house"))` already guards the same property
+> and is **strictly stronger** — the hotel is both an essential AND a corrected
+> value, so it fails if the brief over-prunes *or* regresses to the superseded
+> "Drake". A brief that pruned everything could never pass it. The removed
+> assertion was a second, weaker proxy for a property that already had a better
+> guard, and that guard passed in all three runs.
+>
+> The reasoning is written into the test file where the assertion used to be —
+> including the captured brief — so it is not restored reflexively by someone
+> reading a thinner diff.
+>
+> **Kept as a CHARACTERISATION, not a bar:** the condenser reliably prefers
+> airports to city names (2/2 before the change). Any future prompt work
+> assuming city names appear verbatim should know that first.
+>
+> **What this item leaves behind, all of it real:** the suite now runs on device
+> (it never had); `project.yml` teams the test targets so the entry's own
+> instruction is executable; and the diagnostic technique — carry the artifact
+> in the failing assertion's own message — cost nothing and answered in one run
+> what two runs of verdicts could not.
+>
+> **Sweep to the archive at the next pass.**
 
 ## 314. 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined — **FILED 2026-08-09 (successor C of #93's split; low priority).**
 

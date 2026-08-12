@@ -98,9 +98,33 @@ struct CondenserFidelityTests {
             "priming measured \(measured) tokens against a budget of \(ContextTransplanter.primingTokenBudget)"
         )
 
-        // The essentials survived at all — a brief that prunes everything is
-        // no context transplant.
-        #expect(brief.contains("chicago"), "lost the conversation's core subject")
+        // #313, 2026-08-11: a `brief.contains("chicago")` assertion USED to sit
+        // here, guarding "the essentials survived at all — a brief that prunes
+        // everything is no context transplant." It is REMOVED, on evidence, and
+        // this comment is the record of why so nobody restores it reflexively.
+        //
+        // It failed 2/2 on device. Captured, the brief read:
+        //
+        //     - Flight lands at 4:30 on Friday at O'Hare.
+        //     - Staying at the Palmer House.
+        //     - Plan dinner near the Palmer House.
+        //
+        // The condenser did not prune the subject — it named the destination by
+        // its AIRPORT. `contains("chicago")` was a literal-substring PROXY for
+        // "the core subject survived", and the proxy failed while the property
+        // held completely.
+        //
+        // It is removed rather than loosened because **it was redundant all
+        // along**: `brief.contains("palmer house")` above already guards the
+        // same property and is strictly stronger — the hotel is both an
+        // essential AND a corrected value, so it fails if the brief over-prunes
+        // *or* if it regresses to the superseded "Drake". A brief that pruned
+        // everything cannot pass that assertion. Adding "o'hare" to an
+        // allow-list would have passed this brief and failed the next synonym.
+        //
+        // CHARACTERISATION worth keeping, not a bar: the condenser reliably
+        // prefers airports to city names (2/2). Any future prompt work that
+        // assumes city names appear verbatim should know that first.
     }
 
     @Test(
