@@ -18729,6 +18729,19 @@ never broken, and it is a trust failure rather than a capability one. Alarm's
 misattribution ≤ 1/10 with declines still reached 10/10 (a fix that stops
 reaching the decline is not a fix).
 
+> **2026-08-12 — A RUN WAS SPENT ON THE WRONG INSTRUMENT, and that is worth
+> recording rather than quietly re-running.** The `calendar` battery was tapped for
+> this entry (artifact `A7AB9960`). It **cannot** score 199A: it is an
+> **auto-ACCEPT** instrument, so it never reaches a decline — and the artifact
+> confirms it, `denial: 0` across all 120 trials. **This entry needs an auto-DECLINE
+> vehicle**, which the registry has as `decline` (`runDeclineBattery`,
+> `.autoDecline`, writes nothing — therefore unattended-eligible and runnable
+> without a human tap). Re-run launched the same night on `whoGoesThere`.
+> **The bar's own clause is what caught this**: *"declines still reached 10/10 — a
+> fix that stops reaching the decline is not a fix."* A run that reaches ZERO
+> declines scores nothing, and the wasted run is the reason that clause exists.
+> Second thing the wasted run bought: it is row 2 of **#337**'s table.
+
 ## 205E. ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 
 **FILED 2026-08-01** from the audit's unfiled-lanes list. Rows already exist; only
