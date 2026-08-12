@@ -329,9 +329,14 @@ struct ChatBackendRouterTests {
             abandonActiveRunCallCount += 1
         }
 
-        func hardStopActiveRun() {
+        @discardableResult
+        func hardStopActiveRun() -> Bool {
             hardStopActiveRunCallCount += 1
+            return hostStopIsIssuable
         }
+        /// #328 route 2: the backend's ISSUED/NOT-ISSUED answer, so the
+        /// router's forwarding of it can be pinned.
+        var hostStopIsIssuable = false
 
         func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "never", status: .delivered)

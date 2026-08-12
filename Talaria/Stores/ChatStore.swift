@@ -1440,8 +1440,25 @@ final class ChatStore {
         let turnIsServerRecoverable = hermesClient.currentRunIsServerRecoverable
         streamingTask?.cancel()
         streamingTask = nil
+        // #328 route 2 (Owen's ruling: "Try to stop it, be honest"). We still
+        // try — this call is unchanged. What changed is that we now READ the
+        // answer: `hardStopActiveRun()` guard-returns without sending anything
+        // whenever there is no `activeRunContext`, which is EVERY ordinary
+        // sessions `chat/stream` turn (the default, the one the phone uses).
+        // That was invisible before, and it is why Owen's `sleep 90 && echo
+        // Done` kept running on the host and answered on reopen.
+        //
+        // Keyed on the OUTCOME, deliberately, not on a build flag or on which
+        // transport the Developer switch selected: the question the surface
+        // below has to answer is "did a stop actually go out for THIS turn",
+        // and only the call itself knows. Note this read costs nothing of
+        // #322's read-before-clear contract — `cancelledRunID` and
+        // `turnIsServerRecoverable` are both captured ABOVE, before this line
+        // clears `activeRunContext` and before `abandonActiveRun()` releases
+        // the router's lock (bar 328-R2-D).
+        var hostStopWasIssued = false
         if hardStopHost {
-            hermesClient.hardStopActiveRun()
+            hostStopWasIssued = hermesClient.hardStopActiveRun()
         }
         // #192: the stopped run is over from the consumer's side — release
         // the router's routing lock so the brain toggle re-derives now.
@@ -1642,6 +1659,13 @@ final class ChatStore {
                 resolveHeldTurn(after: armedRecovery ? .expiredRecoverable : .expiredUnrecoverable)
             }
         }
+        // #328 route 2 — say what is true, and only where it IS true.
+        if hardStopHost,
+           !hostStopWasIssued,
+           turnIsServerRecoverable,
+           terminatedALiveTurn || abandonsTheReconcileWindow {
+            appendHostKeepsRunningNotice()
+        }
         streamingMessageID = nil
         // #295: whatever this stream's captured identifiers were, this
         // function is itself a terminal path for it.
@@ -1719,6 +1743,7 @@ final class ChatStore {
         pendingRun = nil
         pendingMessageSentAt = nil
         settleAbandonedUserRow(abandoned.userMessageID)
+        markAbandonedRunToolActivitiesStopped(abandoned)
         onRunResolved?(abandoned.sessionId)
         chatLog.notice(
             "#321: Stop abandoned the reconcile window for session '\(abandoned.sessionId, privacy: .public)' — composer freed, live recovery ended"
@@ -1750,6 +1775,112 @@ final class ChatStore {
         conv.messages[idx].status = .delivered
         conversation = conv
     }
+
+    /// #327 — a Stop taken in the reconcile window must not leave the run's
+    /// tool calls rendering `✓`.
+    ///
+    /// **Why this is not simply the live path's sweep with the guard removed,
+    /// and the measurement that settled it** (probe on `f7c493d`, recorded at
+    /// #327): the window can never hold an ACTIVE tool activity.
+    /// `armPendingRunRecovery` removes the placeholder — and its activities
+    /// with it — on the way in, and it is one of only two writers of
+    /// `pendingRun` (the other is `#if DEBUG`). Every tool activity a window
+    /// Stop can ever meet therefore came from HISTORY RESTORE
+    /// (`SessionsHermesClient.decodeStoredMessage`), which rebuilds chips from
+    /// the server transcript's `tool_calls` with **`isActive: false` and
+    /// `failure: nil` hardcoded** — and keeps a tool-calls-only assistant row,
+    /// so the chip can be the entire message. A sweep keyed on `isActive`
+    /// would be a no-op against the only case that occurs.
+    ///
+    /// **So the test is `failure == nil` — UNRESOLVED — not `isActive`.** The
+    /// `isActive: false` on a restored chip is a DEFAULT, not an observation:
+    /// the session transcript carries no per-call outcome, so the app never
+    /// saw those calls finish. A `✓` there asserts a completion nobody
+    /// witnessed, on a run the user just stopped. `stoppedByUser` is Owen's
+    /// ruling — the same marker a live Stop writes, one Stop story, no third
+    /// marker.
+    ///
+    /// **296-B is preserved by SCOPE, and scope is the whole safety argument.**
+    /// Only assistant rows with `timestamp > pending.sentAt` are touched —
+    /// the reconcile's own "belongs to this run" filter. An earlier turn's
+    /// orphaned activity (the case `ToolActivityRail.summaryState`'s comment
+    /// names and deliberately renders `.completed`) is a different turn's
+    /// business and stays exactly as it shipped.
+    ///
+    /// The two-pass read-before-clear discipline that governs the live path's
+    /// sweep does NOT apply here and its absence is deliberate: this loop
+    /// keys on `failure`, which it then writes, so there is no flag being
+    /// tested and cleared in the same pass. Writing `isActive = false`
+    /// alongside cannot hide a row from the predicate.
+    private func markAbandonedRunToolActivitiesStopped(_ pending: PendingRun) {
+        guard var conv = conversation else { return }
+        var marked = 0
+        for messageIndex in conv.messages.indices
+        where conv.messages[messageIndex].sender == .hermes
+            && conv.messages[messageIndex].timestamp > pending.sentAt {
+            for activityIndex in conv.messages[messageIndex].toolActivities.indices
+            where conv.messages[messageIndex].toolActivities[activityIndex].failure == nil {
+                conv.messages[messageIndex].toolActivities[activityIndex].failure =
+                    ToolActivity.stoppedByUser
+                conv.messages[messageIndex].toolActivities[activityIndex].isActive = false
+                marked += 1
+            }
+        }
+        guard marked > 0 else { return }
+        conversation = conv
+        chatLog.notice(
+            "#327: window Stop marked \(marked, privacy: .public) unresolved tool activit\(marked == 1 ? "y" : "ies", privacy: .public) on the abandoned run — a killed call no longer renders as completed"
+        )
+    }
+
+    /// #328 route 2 — the honest surface, and the exact claim it makes.
+    ///
+    /// Owen's ruling was *"Try to stop it, be honest."* The trying is
+    /// unchanged (`hardStopActiveRun()` is still called on every explicit
+    /// Stop). This is the honesty: when that call issued **nothing** — which
+    /// is every ordinary sessions `chat/stream` turn, because
+    /// `activeRunContext` exists only for `/v1/runs` turns — the transcript
+    /// says so, rather than letting a freed composer imply a host that
+    /// stopped. Owen measured the gap on device: the host ran his whole
+    /// `sleep 90 && echo Done` and the answer was waiting when he reopened
+    /// the thread.
+    ///
+    /// **Three things it deliberately is not.** It is not an apology — #180's
+    /// bar is that the user can TELL what Stop did, not that Stop is sorry.
+    /// It is not attached to a Stop that worked: the runs plane's stop is a
+    /// real, device-proven hard interrupt (#304) and must not acquire a
+    /// caveat it does not need — the call site gates on
+    /// `hostStopWasIssued == false`. And it is not shown when nothing is left
+    /// running: a local-brain turn (`currentRunIsServerRecoverable == false`)
+    /// really does stop when the app stops watching, and the continued-send
+    /// expiration is not a user Stop at all.
+    ///
+    /// A `.system` row rather than new chrome, on purpose: it costs no new
+    /// rendered state, it survives the transcript cache like any other row,
+    /// and BOTH Stop paths (live stream and reconcile window) produce it
+    /// identically — so #321's ruling (b), one Stop story, still holds and
+    /// 321-C's equality is unaffected.
+    private func appendHostKeepsRunningNotice() {
+        guard var conv = conversation else { return }
+        conv.messages.append(
+            Message(sender: .system, content: Self.hostKeepsRunningAfterStopNotice, status: .delivered)
+        )
+        conversation = conv
+        chatLog.notice(
+            "#328: Stop did not reach the host — no stop request was issued for this turn, so the transcript says the agent may still be running"
+        )
+    }
+
+    /// #328 route 2. A constant so the store that writes it and the tests that
+    /// assert it cannot drift — the #296 `stoppedByUser` precedent.
+    ///
+    /// Says three things in order, and no fourth: what Stop DID do (ended it
+    /// here), what it did not (reach the host), and what follows (the reply
+    /// may still land in this thread — which is true, via the ordinary
+    /// transcript merge, and is the same fact #321's ruling (a) rests on).
+    static let hostKeepsRunningAfterStopNotice =
+        "Stopped here. This connection can't interrupt a turn the host is already running, "
+        + "so the agent may still be working — its reply will appear in this thread if it lands."
 
     /// #322 — the cancellation path's ONE final status read.
     ///

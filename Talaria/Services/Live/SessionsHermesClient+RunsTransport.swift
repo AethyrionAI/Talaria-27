@@ -1242,8 +1242,14 @@ extension SessionsHermesClient {
     /// ordinary, successful `data` and IS success for our purposes: the host
     /// heard the stop attempt (there was simply nothing left to stop), so
     /// `markSelfStopped` still fires on that arm.
-    func hardStopActiveRun() {
-        guard let context = activeRunContext else { return }
+    /// #328 route 2: returns whether a stop request was actually ISSUED. The
+    /// guard below is the whole of #328 — `activeRunContext` exists only for
+    /// `/v1/runs` turns, so an ordinary sessions `chat/stream` turn falls out
+    /// here having sent nothing. It used to do that silently; now the caller
+    /// can tell, and can stop implying a host stop it did not deliver.
+    @discardableResult
+    func hardStopActiveRun() -> Bool {
+        guard let context = activeRunContext else { return false }
         clearActiveRunContext(matchingRunID: context.runID)
         let runID = context.runID
         // #285: the stop rides the run's own frozen endpoint — a stop issued
@@ -1272,6 +1278,11 @@ extension SessionsHermesClient {
                 )
             }
         }
+        // #328 route 2: the request is out. `true` is "we asked", not "the
+        // host stopped" — the POST above is fire-and-forget and its `catch`
+        // deliberately marks nothing, so this cannot promise delivery. It
+        // promises only that a stop was ISSUED for a run we really had.
+        return true
     }
 
     // MARK: - #322: the cancellation path's ONE final status read

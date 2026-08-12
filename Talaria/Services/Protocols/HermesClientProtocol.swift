@@ -177,7 +177,28 @@ protocol HermesClientProtocol {
     /// to reconcile against) it finalizes the placeholder instead, same as
     /// an explicit Stop. See `ChatStore.cancelStreaming(hardStopHost:)`'s
     /// doc for the full account.
-    func hardStopActiveRun()
+    ///
+    /// **#328 route 2 — the return value is the whole point of this signature
+    /// change, and it is deliberately narrow.** `true` means a stop request
+    /// was ISSUED to the host for a run this client actually had in flight.
+    /// `false` means nothing was sent at all — no run context, no runs plane,
+    /// no network call. That distinction was previously invisible: the method
+    /// returned `Void` and guard-returned silently, so **every ordinary
+    /// sessions `chat/stream` turn — the default, the one the phone uses —
+    /// had its Stop swallowed here while the UI looked like it obeyed.** Owen
+    /// measured it on device (`sleep 90 && echo Done`: the host ran the whole
+    /// command and answered on reopen). The caller needs to know so it can
+    /// say what is true.
+    ///
+    /// **`true` is NOT a promise the host stopped**, and must never be read as
+    /// one. The POST is fire-and-forget (see the runs implementation): a
+    /// transport failure is logged and deliberately does not mark the run
+    /// self-stopped. The honest reading of `true` is *"we asked"* — which is
+    /// exactly the claim the UI is allowed to make. Route 1 (making a
+    /// sessions-plane Stop actually reach the host) is a separate question,
+    /// gated on #328's bar 328-A route probe.
+    @discardableResult
+    func hardStopActiveRun() -> Bool
 
     /// #322: the id of the run this client currently has in flight, if its
     /// plane has run ids at all.
@@ -266,7 +287,12 @@ extension HermesClientProtocol {
     // overrides this explicitly rather than relying on the default.
     var currentRunIsServerRecoverable: Bool { false }
     func abandonActiveRun() {}
-    func hardStopActiveRun() {}
+    // #328 route 2: `false` — this default IS the swallowed Stop. A client
+    // with nothing to interrupt server-side (mock / relay / the on-device
+    // brain) sends no request, and now says so instead of returning Void and
+    // letting the caller assume otherwise.
+    @discardableResult
+    func hardStopActiveRun() -> Bool { false }
     // #322: no runs plane, so no run id and nothing to read a final status
     // from. Both defaults are the honest absence the caller renders as an
     // unknown gauge — never a fabricated zero and never the prior number.
