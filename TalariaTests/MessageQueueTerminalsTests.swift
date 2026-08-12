@@ -41,6 +41,14 @@ struct MessageQueueTerminalsTests {
         var autoAccept = true
         var reconcileConversation: Conversation?
         private(set) var reconcileCallCount = 0
+        /// #328 route 2: whether this client's plane can issue a real host
+        /// stop. Default **false** — the ordinary sessions `chat/stream`
+        /// shape, which is what the phone actually uses and what #328 is
+        /// about. Set true to stand in for the `/v1/runs` plane.
+        var hostStopIsIssuable = false
+
+        @discardableResult
+        func hardStopActiveRun() -> Bool { hostStopIsIssuable }
 
         func connect() async {}
         func disconnect() async {}
@@ -773,12 +781,32 @@ struct MessageQueueTerminalsTests {
     /// can compare two Stops for equality instead of eyeballing two lists of
     /// assertions. Row identity (`UUID`) is deliberately excluded — it differs
     /// between two independent runs by construction and is not user-visible.
+    ///
+    /// **#327 bar 327-C — WIDENED to carry tool-activity state, and this is
+    /// the whole reason #327 exists.** The projection shipped omitting it, so
+    /// it could not fail on the ONE field where the two Stop paths actually
+    /// diverge: 321-C passed, honestly, while being too broad. A projection
+    /// that omits a field will report equality forever and read as rigorous
+    /// doing it — **naming the fields IS the bar.** `Activity` carries exactly
+    /// what `ToolActivityRail.state(of:)` reads, plus the label, so a
+    /// divergence names the tool it happened on.
     private struct StopOutcome: Equatable, CustomStringConvertible {
+        struct Activity: Equatable {
+            let label: String
+            let isActive: Bool
+            let failure: String?
+            /// The rendered answer, not a re-derivation of it — bar 327-B's
+            /// "assert through the real mapping" clause, pinned inside the
+            /// projection so no future comparison can drop it.
+            let renderedState: ToolActivityRail.StepState
+        }
         struct Row: Equatable {
             let sender: MessageSender
             let content: String
             let status: MessageStatus
             let isStreaming: Bool
+            let activities: [Activity]
+            let summaryState: ToolActivityRail.StepState?
         }
         let rows: [Row]
         let isStreaming: Bool
@@ -789,14 +817,36 @@ struct MessageQueueTerminalsTests {
         let heldTurnPhase: ComposeOutboxState.Phase?
 
         var description: String {
-            "rows=\(rows.map { "\($0.sender)/\($0.content)/\($0.status)/streaming:\($0.isStreaming)" }) "
+            let renderedRows = rows.map { row in
+                let acts = row.activities
+                    .map { "\($0.label)[active:\($0.isActive) fail:\($0.failure ?? "nil") → \($0.renderedState)]" }
+                    .joined(separator: ",")
+                return "\(row.sender)/\(row.content)/\(row.status)/streaming:\(row.isStreaming)"
+                    + "/acts:[\(acts)]/summary:\(row.summaryState.map { "\($0)" } ?? "none")"
+            }
+            return "rows=\(renderedRows) "
                 + "streaming=\(isStreaming) busy=\(isTranscriptBusy) pendingRun=\(hasPendingRun) "
                 + "reconcileLoop=\(hasActiveReconcileLoop) seed=\(composerSeed ?? "nil") held=\(String(describing: heldTurnPhase))"
         }
 
         @MainActor init(_ store: ChatStore) {
-            rows = (store.conversation?.messages ?? []).map {
-                Row(sender: $0.sender, content: $0.content, status: $0.status, isStreaming: $0.isStreaming)
+            rows = (store.conversation?.messages ?? []).map { message in
+                Row(
+                    sender: message.sender,
+                    content: message.content,
+                    status: message.status,
+                    isStreaming: message.isStreaming,
+                    activities: message.toolActivities.map {
+                        Activity(
+                            label: $0.label,
+                            isActive: $0.isActive,
+                            failure: $0.failure,
+                            renderedState: ToolActivityRail.state(of: $0)
+                        )
+                    },
+                    summaryState: message.toolActivities.isEmpty
+                        ? nil : ToolActivityRail.summaryState(of: message.toolActivities)
+                )
             }
             isStreaming = store.isStreaming
             isTranscriptBusy = store.isTranscriptBusy
@@ -893,9 +943,19 @@ struct MessageQueueTerminalsTests {
         )
         // Named explicitly so a future regression says WHICH half moved
         // rather than only that the two diverged.
-        #expect(windowStopped.rows.count == 1)
+        //
+        // **Row count amended 2026-08-11 by #328 route 2, and the amendment is
+        // the point of the bar rather than an exception to it.** It was 1 (the
+        // user row alone). It is now 2: neither arm's Stop reaches the host on
+        // the sessions plane, so BOTH append the honest `.system` notice — and
+        // the fact that both do is exactly what keeps ruling (b)'s one Stop
+        // story true. A count that moved on only ONE arm would fail the
+        // equality above, which is the assertion that matters.
+        #expect(windowStopped.rows.count == 2)
         #expect(windowStopped.rows.first?.status == .delivered,
                 "321-C: the abandoned turn's user row settles where a stopped turn's does")
+        #expect(windowStopped.rows.last?.sender == .system,
+                "#328 route 2: the honest notice is the second row, on both arms")
         #expect(windowStopped.hasPendingRun == false)
         #expect(windowStopped.isTranscriptBusy == false)
     }
@@ -992,32 +1052,319 @@ struct MessageQueueTerminalsTests {
         #expect(store.pendingComposerSeed == nil)
     }
 
-    // MARK: - #327 PROBE (temporary — deleted before the fix lands)
+    // MARK: - #327: a Stop in the window must not leave a killed call as ✓
 
+    /// The one tool activity a reconcile-window Stop can EVER meet, built the
+    /// way production builds it.
+    ///
+    /// **Measured, not assumed** (probe on `f7c493d`, recorded at #327): the
+    /// window cannot hold an ACTIVE activity, because `armPendingRunRecovery`
+    /// removes the placeholder — and its activities with it — on the way in,
+    /// and it is one of only two writers of `pendingRun`. So the chip has to
+    /// arrive the other way: from HISTORY RESTORE, through the ordinary
+    /// refresh merge, on a tool-calls-only assistant row.
+    ///
+    /// The row's shape is copied from `SessionsHermesClient.decodeStoredMessage`
+    /// rather than invented — `isActive: false`, `failure: nil`, `.delivered`,
+    /// empty content (that decoder explicitly keeps a tool-calls-only row:
+    /// *"the text lands on a later row"*). If that decoder ever stops
+    /// hardcoding those, this fixture is what should be updated to match it.
+    @MainActor
+    private static func historyRestoredToolCallRow(
+        _ label: String, at timestamp: Date
+    ) -> Message {
+        Message(
+            sender: .hermes,
+            content: "",
+            timestamp: timestamp,
+            status: .delivered,
+            toolActivities: [ToolActivity(label: label, startedAt: timestamp, isActive: false)]
+        )
+    }
+
+    /// Drives the window and then lets a refresh land the run's history row,
+    /// exactly as a foreground/appear refresh does on device.
+    @MainActor
+    private func enterWindowThenRefreshHistory(
+        turn: String,
+        toolLabel: String,
+        store: ChatStore,
+        client: ManualStreamClient
+    ) async throws {
+        try await enterReconcileWindow(turn: turn, store: store, client: client)
+        var server = Conversation(title: Conversation.defaultTitle)
+        server.messages = [
+            Message(sender: .user, content: turn, status: .delivered),
+            Self.historyRestoredToolCallRow(toolLabel, at: .now)
+        ]
+        client.currentConversation = server
+        await store.loadConversation()
+        #expect(store.pendingRunSessionId == "S315",
+                "fixture: the refresh must not have resolved the window — the run is still live")
+    }
+
+    /// **327-A + 327-B.** The finding and the fix.
+    ///
+    /// RED at `f7c493d`: `cancelStreaming` writes its marker only inside
+    /// `else if let sid = streamingMessageID …`, and `streamingMessageID` is
+    /// nil for the whole window by definition (#278) — so nothing was marked,
+    /// `failure` stayed nil, and `ToolActivityRail.state(of:)` drew the
+    /// checkmark on a call the user had just killed. That is what Owen saw.
+    ///
+    /// 327-B is asserted through the REAL mapping (`state(of:)` and
+    /// `summaryState(of:)` on the store's own activity), not on a hand-built
+    /// `ToolActivity` — the #296 C1-D precedent: pin the mapping, not the ends.
     @Test @MainActor
-    func probeWhatTheWindowHoldsAfterAToolCall() async throws {
-        let persistence = Self.makePersistence()
+    func aWindowStopMarksTheKilledCallInsteadOfLeavingItCompleted() async throws {
         let client = ManualStreamClient()
-        let store = ChatStore(hermesClient: client, persistence: persistence)
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
         store.composerLiveText = { "" }
-        store.reconcileWallClockBudget = .seconds(30)
-        store.reconcilePollInterval = .seconds(30)
-        let sendTask = await startTurn("sleep 90 && echo Done", store: store, client: client)
-        client.continuations.last?.yield(.toolActivity(ToolCallEvent(name: "terminal", phase: .started, detail: "sleep 90")))
-        try? await Task.sleep(for: .milliseconds(80))
-        let midStream = (store.conversation?.messages ?? []).map {
-            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
+        try await enterWindowThenRefreshHistory(
+            turn: "sleep 90 && echo Done", toolLabel: "terminal", store: store, client: client
+        )
+
+        let before = try #require(
+            store.conversation?.messages.first(where: { !$0.toolActivities.isEmpty })?.toolActivities.first,
+            "fixture: the refresh must have landed the run's tool-call row"
+        )
+        #expect(ToolActivityRail.state(of: before) == .completed,
+                "fixture: history restores a chip as ✓ — that is the state the Stop has to correct")
+
+        store.cancelStreaming()
+
+        let after = try #require(
+            store.conversation?.messages.first(where: { !$0.toolActivities.isEmpty })?.toolActivities.first,
+            "327-A: the Stop must not delete the row it cannot resolve"
+        )
+        #expect(after.failure == ToolActivity.stoppedByUser,
+                "327-A: RED at f7c493d — the window Stop wrote no marker at all, so a killed call kept rendering ✓")
+        #expect(after.isActive == false)
+        #expect(ToolActivityRail.state(of: after) == .interrupted,
+                "327-B: the rail then draws the truth, through the real mapping")
+        #expect(
+            ToolActivityRail.summaryState(of:
+                store.conversation?.messages.first(where: { !$0.toolActivities.isEmpty })?.toolActivities ?? []
+            ) == .interrupted,
+            "327-B: and the collapsed chip follows"
+        )
+    }
+
+    /// **327-A's scope guard, and it is 296-B restated.** The marking is
+    /// confined to the ABANDONED RUN's rows (`timestamp > pendingRun.sentAt`).
+    /// An earlier turn's activity — including the orphaned-but-active case
+    /// `ToolActivityRail.summaryState`'s own comment names and deliberately
+    /// renders `.completed` — is a different turn's business and must survive
+    /// this Stop untouched.
+    ///
+    /// Without the scope this test is RED in the other direction: a blanket
+    /// sweep would stamp "Stopped" on work that finished before the user ever
+    /// pressed anything.
+    @Test @MainActor
+    func aWindowStopLeavesAnEarlierTurnsToolActivityAlone() async throws {
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        store.composerLiveText = { "" }
+
+        // An older turn, settled long before this run was sent.
+        var seeded = Conversation(title: Conversation.defaultTitle)
+        let old = Date(timeIntervalSinceNow: -3600)
+        seeded.messages = [
+            Message(sender: .user, content: "earlier question", timestamp: old, status: .delivered),
+            Message(
+                sender: .hermes, content: "earlier answer", timestamp: old, status: .delivered,
+                toolActivities: [
+                    ToolActivity(label: "read_file", startedAt: old, isActive: false),
+                    // The orphan: a `tool.started` nobody ever resolved. 296-B
+                    // says it stays `.completed`; this Stop must not touch it.
+                    ToolActivity(label: "orphaned_call", startedAt: old, isActive: true)
+                ]
+            )
+        ]
+        client.currentConversation = seeded
+        await store.loadConversation()
+
+        try await enterWindowThenRefreshHistory(
+            turn: "sleep 90 && echo Done", toolLabel: "terminal", store: store, client: client
+        )
+        store.cancelStreaming()
+
+        let earlier = try #require(
+            store.conversation?.messages.first(where: { $0.content == "earlier answer" })
+        )
+        #expect(earlier.toolActivities.map(\.failure) == [nil, nil],
+                "296-B: an earlier turn's activities are not this Stop's business")
+        #expect(earlier.toolActivities.last?.isActive == true,
+                "296-B: including the orphan — it stays exactly as it shipped")
+        #expect(
+            store.conversation?.messages.last(where: { $0.toolActivities.contains { $0.label == "terminal" } })?
+                .toolActivities.first?.failure == ToolActivity.stoppedByUser,
+            "327-A: the abandoned run's own call IS marked, in the same call"
+        )
+    }
+
+    /// **327-C — the widened projection, shown RED.**
+    ///
+    /// 321-C compared an `Equatable` `StopOutcome` that omitted tool-activity
+    /// state, so it could not fail on the one field where the two Stop paths
+    /// diverge. It passed while being too broad, and #327 shipped underneath
+    /// it. With the field named, the same comparison — a live-stream Stop and
+    /// a window Stop, each taken with a tool call unresolved — is RED at
+    /// `f7c493d`: the live arm's chip reads `Stopped`/`.interrupted`, the
+    /// window arm's reads `nil`/`.completed`.
+    ///
+    /// The two arms converge on the same rendered row after the fix, which is
+    /// ruling (b)'s one Stop story holding for the case that actually broke it.
+    @Test @MainActor
+    func bothStopsAgreeOnWhatHappenedToAnUnresolvedToolCall() async throws {
+        let liveStopped: StopOutcome
+        do {
+            let client = ManualStreamClient()
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            let sendTask = await startTurn("sleep 90 && echo Done", store: store, client: client)
+            client.continuations.last?.yield(
+                .toolActivity(ToolCallEvent(name: "terminal", phase: .started, detail: "sleep 90"))
+            )
+            _ = await pollUntil {
+                store.conversation?.messages.contains { !$0.toolActivities.isEmpty } == true
+            }
+            store.cancelStreaming()
+            client.continuations.last?.finish()
+            _ = await sendTask.value
+            liveStopped = StopOutcome(store)
         }
-        client.continuations.last?.yield(.interrupted(sessionId: "S327", runId: "R327"))
+
+        let windowStopped: StopOutcome
+        do {
+            let client = ManualStreamClient()
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            try await enterWindowThenRefreshHistory(
+                turn: "sleep 90 && echo Done", toolLabel: "terminal", store: store, client: client
+            )
+            store.cancelStreaming()
+            windowStopped = StopOutcome(store)
+        }
+
+        let liveChip = liveStopped.rows.flatMap(\.activities)
+        let windowChip = windowStopped.rows.flatMap(\.activities)
+        #expect(
+            liveChip == windowChip,
+            "327-C: the two Stops must agree about the call they both killed.\n  window: \(windowChip)\n  live:   \(liveChip)"
+        )
+        #expect(windowChip.map(\.renderedState) == [.interrupted],
+                "327-C: and the agreed answer is the honest one, not the checkmark")
+        #expect(liveChip.map(\.failure) == [ToolActivity.stoppedByUser],
+                "327-D: the live-stream Stop's own marker behaviour is unchanged by this lane")
+    }
+
+    // MARK: - #328 route 2: say what Stop actually did
+
+    /// **328-R2-A.** The seam reports its outcome, and the outcome is what the
+    /// surface keys on. `false` is the ordinary sessions `chat/stream` turn —
+    /// no `activeRunContext`, nothing sent — which is the default path the
+    /// phone uses and the whole of #328.
+    @Test @MainActor
+    func theStopSeamReportsWhetherItActuallyIssuedAHostStop() async throws {
+        let client = ManualStreamClient()
+        #expect(client.hardStopActiveRun() == false,
+                "328-R2-A: a sessions chat/stream turn issues nothing — and now says so")
+        client.hostStopIsIssuable = true
+        #expect(client.hardStopActiveRun() == true,
+                "328-R2-A: a plane that can issue one reports true")
+    }
+
+    /// **328-R2-B — RED at `f7c493d`.** Owen ran `sleep 90 && echo Done`,
+    /// pressed Stop, and the host ran the whole command and answered on
+    /// reopen. The composer freed, so the app looked like it obeyed. Nothing
+    /// in the transcript said otherwise; now something does.
+    @Test @MainActor
+    func aStopThatNeverReachedTheHostSaysSo() async throws {
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        store.composerLiveText = { "" }
+        let sendTask = await startTurn("sleep 90 && echo Done", store: store, client: client)
+
+        store.cancelStreaming()
         client.continuations.last?.finish()
         _ = await sendTask.value
-        let inWindow = (store.conversation?.messages ?? []).map {
-            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
-        }
+
+        let notice = store.conversation?.messages.last
+        #expect(notice?.sender == .system,
+                "328-R2-B: RED at f7c493d — the app said nothing about a stop it never delivered")
+        #expect(notice?.content == ChatStore.hostKeepsRunningAfterStopNotice)
+        #expect(notice?.content.contains("may still be working") == true,
+                "328-R2-B: and what it says is the true part — the agent is not necessarily stopped")
+    }
+
+    /// **328-R2-B, the window arm.** Owen's actual sitting was a Stop taken in
+    /// the reconcile window, so the surface has to be there too — and it is
+    /// the same surface, because it keys on the outcome rather than on which
+    /// Stop path ran.
+    @Test @MainActor
+    func aWindowStopThatNeverReachedTheHostSaysSoToo() async throws {
+        let client = ManualStreamClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        store.composerLiveText = { "" }
+        try await enterReconcileWindow(turn: "sleep 90 && echo Done", store: store, client: client)
+
         store.cancelStreaming()
-        let afterStop = (store.conversation?.messages ?? []).map {
-            "\($0.sender)/'\($0.content)'/\($0.status)/acts:\($0.toolActivities.map { a in "\(a.label):active=\(a.isActive):fail=\(a.failure ?? "nil")" })"
+
+        #expect(store.conversation?.messages.last?.content == ChatStore.hostKeepsRunningAfterStopNotice)
+    }
+
+    /// **328-R2-C — the three arms where it must NOT appear.** A caveat
+    /// attached to every Stop would be an apology, and #180's bar is that the
+    /// user can TELL what Stop did, not that Stop is sorry for existing.
+    @Test @MainActor
+    func theHonestNoticeStaysAwayWhereTheStopIsRealOrNothingIsRunning() async throws {
+        // (i) The runs plane: #304's stop is a real, device-proven hard
+        // interrupt. It must not acquire a caveat it does not need.
+        do {
+            let client = ManualStreamClient()
+            client.hostStopIsIssuable = true
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            let sendTask = await startTurn("real stop", store: store, client: client)
+            store.cancelStreaming()
+            client.continuations.last?.finish()
+            _ = await sendTask.value
+            #expect(
+                store.conversation?.messages.contains { $0.sender == .system } != true,
+                "328-R2-C(i): a Stop that WAS issued says nothing extra"
+            )
         }
-        #expect(Bool(false), "PROBE327 midStream=\(midStream) | inWindow=\(inWindow) | afterStop=\(afterStop)")
+
+        // (ii) Nothing is left generating — the on-device brain finishes or
+        // dies in-process the moment the app stops watching.
+        do {
+            let client = ManualStreamClient()
+            client.currentRunIsServerRecoverable = false
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            let sendTask = await startTurn("local turn", store: store, client: client)
+            store.cancelStreaming()
+            client.continuations.last?.finish()
+            _ = await sendTask.value
+            #expect(
+                store.conversation?.messages.contains { $0.sender == .system } != true,
+                "328-R2-C(ii): no host is still running, so there is nothing to caveat"
+            )
+        }
+
+        // (iii) The continued-send expiration is the SYSTEM revoking a
+        // background budget — not a user Stop, and #295 deliberately leaves
+        // the host alone there.
+        do {
+            let client = ManualStreamClient()
+            let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+            store.composerLiveText = { "" }
+            try await enterReconcileWindow(store: store, client: client)
+            store.cancelStreaming(hardStopHost: false)
+            #expect(
+                store.conversation?.messages.contains { $0.sender == .system } != true,
+                "328-R2-C(iii): an expiration is not a Stop and must not speak as one"
+            )
+        }
     }
 }
