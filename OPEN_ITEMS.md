@@ -9480,7 +9480,11 @@ denominators differ (those runs executed; these do not).
 > ## 🔧 THE TWO INSTRUMENTS ARE BUILT — 2026-08-12. **NEITHER HAS BEEN RUN.**
 > ## No number in this entry moves on the strength of this block.
 >
-> Branch `worktree-agent-ad4ee85589b5724ad`, two commits, gate green. Both are
+> Branch `worktree-agent-ad4ee85589b5724ad`, four commits, **`GATE: PASS` at
+> `84c9cf6` — Swift Testing 2209 (moved from 2181, +28 = this lane's tests),
+> XCUITest 14/14, Release build clean.** (The first gate run FAILED on a host
+> at `load average 604` with six lanes' simulators booted; both runs are
+> recorded under #219, and not one `✘` appeared in either.) Both instruments are
 > registered `InstrumentSpec`s, so they launch from the Developer screen and
 > from the #333 conductor through the same code path, and both write their
 > results INTO a `BatteryRunRecord` — which is what the conductor's
@@ -18987,6 +18991,28 @@ is on main and working, and whose mechanism is a bare `.exists` racing a
 dismissal animation with captured 50ms timings. **Filed separately rather than
 folded into an existing item it does not match** — merging two flakes with
 different mechanisms into one counter is how both become unfixable.
+
+> **Occurrence (dated), 2026-08-12, #337's instrument lane — BOTH RUNS RECORDED
+> per the gate's own instruction, and this one has a MEASURED cause rather than
+> a suspected one.**
+> - **Run 1, 18:57, `GATE: FAIL`.** 12 × *"Restarting after unexpected exit,
+>   crash, or test timeout"*; 10 of them consecutive, in the XCUITest phase,
+>   with no test starting between them. The classifier's verdict was right on
+>   its face — **not one `✘` anywhere in the 1.4 MB log**, so every "failing
+>   test" it listed (2 Swift Testing, 12 XCUITest) had no assertion locus
+>   because no assertion ever failed. The Swift Testing count read **223**,
+>   which is the LAST launch's chunk and not a suite.
+> - **The cause, measured rather than inferred: `load average 604.45`**, with
+>   **six** booted `CC-*` simulators from concurrent lanes. That is CLAUDE.md's
+>   *"a dedicated sim does not buy you a free host"* happening — the test host
+>   simply could not stay up.
+> - **Run 2, 19:29, same commit `84c9cf6`, nothing changed but the load
+>   (1-min average down to ~10): `GATE: PASS`** — Swift Testing **2209**,
+>   XCUITest **14/14**, Release build clean.
+> - **Worth keeping for the next reader:** load is a one-command check
+>   (`uptime`) and it discriminates this family from a real failure faster than
+>   reading the log does. A run whose log contains zero `✘` and a nonzero
+>   restart count is a host problem until proven otherwise.
 
 **Also not #195** (`typeText` keyboard race), despite `MessageIdentityUITests`
 appearing in the list: #195 is one test with an assertion, this took all four
