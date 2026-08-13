@@ -197,7 +197,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#342** 📋 **KANBAN SUPPORT** — Owen's request 2026-08-12. **A read-only view SHIPPED the same night** (`scripts/oi-kanban.py`, never writes to the tracker). **Its measurement is the real input: 97 of 138 open cards (70%) are UNCLASSIFIABLE** — their state lives only in prose — and the 41 it does place are placed by keyword, crudely (#338 reads as "Blocked" because its text says "needs Owen", while it is merged with one bar owed). **So the question is whether entries get a machine-readable status at all, which changes how every entry is written — Owen's call, not a lane's.** Five design questions in the entry; bars pre-register before any format change
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
-- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..H. **337-G RAN 2026-08-13 and carries TWO corrections to my own bar: the `armed-cardfix` cell is IDENTITY WITH PRODUCTION post-#200K (wrong instrument — the clause-removed arm is `armed-cardrollback`), and 'the within-run contrast survives the confound' was FALSE (cells run sequentially, cuts climbed 14/40→22/40).** What it still established, clause held CONSTANT and ON: **the literal `Confirmation card:` specimen occurred TWICE where beta4 measured 0/40** ~~— the clause does not hold on beta5~~; and on the unconfounded first cell (`armed/remind`, zero cuts) **3/10 FABRICATED, 2/10 executed, 5/10 offered** — the first defensible rate for #336/#337. **⚠️ "THE CLAUSE DOES NOT HOLD ON beta5" IS WITHDRAWN 2026-08-13 by 337-G-2** (two separate launches, `decline`, 40 trials each): clause-ON scored **0/40** narrations — reproducing #200J — and the clause-REMOVED arm ALSO scored **0/40**, so the A/B cannot see the clause at all (2/120 pooled beta5 clause-ON vs beta4 0/40, p = 1.0; #200J's own promoting contrast was p = 0.24). **What the A/B DID establish: fabrication is IDENTICAL with and without the clause — 3 per 30 action turns in both arms — so the promoted prose does not touch the class that harms users, which is the case for #338's guard being the right layer.** Also: batteries CANNOT witness the #338 guard (they bypass its settle point) **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. ~~The toolless-retry hope is RETIRED — the retry is what lies.~~ **⚠️ FALSIFIED 2026-08-13 by 337-D's first run — 9 of 9 post-cut retries were HONEST and NONE claimed success (*"I can't set an alarm for you right now…"*). The cut path is honest-but-unhelpful; the lying is on other paths — claiming after a DECLINE (4 trials, #199's shape) and fabricating on turns never cut at all.** **AND 337-D SIZES THE CONFOUND: `turn-reset` (what production does) took 0/30 cuts with 25/30 calls admitted, against `leaked` (what every battery does) at 9/30 cuts and 12/30 — with the leak visible in the raw counters (`callsThisTurn` 4→8→12 ACROSS trials).** Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
+- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..H. **337-G RAN 2026-08-13 and carries TWO corrections to my own bar: the `armed-cardfix` cell is IDENTITY WITH PRODUCTION post-#200K (wrong instrument — the clause-removed arm is `armed-cardrollback`), and 'the within-run contrast survives the confound' was FALSE (cells run sequentially, cuts climbed 14/40→22/40).** What it still established, clause held CONSTANT and ON: **the literal `Confirmation card:` specimen occurred TWICE where beta4 measured 0/40** ~~— the clause does not hold on beta5~~; and on the unconfounded first cell (`armed/remind`, zero cuts) **3/10 FABRICATED, 2/10 executed, 5/10 offered** — the first defensible rate for #336/#337. **⚠️ "THE CLAUSE DOES NOT HOLD ON beta5" IS WITHDRAWN 2026-08-13 by 337-G-2** (two separate launches, `decline`, 40 trials each): clause-ON scored **0/40** narrations — reproducing #200J — and the clause-REMOVED arm ALSO scored **0/40**, so the A/B cannot see the clause at all (2/120 pooled beta5 clause-ON vs beta4 0/40, p = 1.0; #200J's own promoting contrast was p = 0.24). **What the A/B DID establish: fabrication is IDENTICAL with and without the clause — 3 per 30 action turns in both arms — so the promoted prose does not touch the class that harms users, which is the case for #338's guard being the right layer.** Also: batteries CANNOT witness the #338 guard (they bypass its settle point) **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. ~~The toolless-retry hope is RETIRED — the retry is what lies.~~ **⚠️ FALSIFIED 2026-08-13 by 337-D's first run — 9 of 9 post-cut retries were HONEST and NONE claimed success (*"I can't set an alarm for you right now…"*). The cut path is honest-but-unhelpful; the lying is on other paths — claiming after a DECLINE (4 trials, #199's shape) and fabricating on turns never cut at all.** **AND 337-D SIZES THE CONFOUND: `turn-reset` (what production does) took 0/30 cuts with 25/30 calls admitted, against `leaked` (what every battery does) at 9/30 cuts and 12/30 — with the leak visible in the raw counters (`callsThisTurn` 4→8→12 ACROSS trials).** ~~Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`).~~ **⚠️ REFUTED 2026-08-13 by 337-F's first run (90 trials, 3 arms, manipulation checks recorded): stripping the phrase from all three tool DESCRIPTIONS moved imitation 4/30 → 7/30 (p = 0.51). Removing production's own armed blurb as well (*"Every action tool shows the user a confirmation card first…"*, `LocalChatBackend.swift:2015`) took imitation to 0/30 AND tool calls to 30/30 (vs control 23/30, p = 0.0105) — mechanism and behaviour moving together. Isolation is incomplete (no arm removes the blurb ALONE — that is 337-F-2, one enum case) so nothing is promoted on this yet. NOTE: 337-F resets the turn per trial, so it is FREE of the leak — its control arm's 23/30 = 77% executed is the most production-like action rate measured to date.** Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
@@ -10039,6 +10039,60 @@ denominators differ (those runs executed; these do not).
 >      (behaviour). A clause that stops the prose without producing the call
 >      has moved one and not the other, and one number could not say which.
 >
+>   **🔴 337-F RAN 2026-08-13 19:56 UTC — FIRST RUN, on `whoGoesThere`
+>   (`unattended: true`, 90 trials, `endedCleanly: true`, artifact `52415F92`).
+>   THE FILED CANDIDATE MECHANISM IS REFUTED, AND THE THIRD ARM — the one added
+>   by the build, not by this bar — FOUND THE TEXT THAT IS ACTUALLY DOING IT.**
+>
+>   | arm | manipulation check | imitations | tool calls | cuts | errors |
+>   |---|---|---|---|---|---|
+>   | `control` | 0 swaps, blurb present | 4/30 | 23/30 | 0 | 0 |
+>   | `tools-stripped` | **3 swaps**, blurb present | **7/30** | 20/30 | 0 | 0 |
+>   | `tools-blurb-stripped` | 3 swaps **+ blurb removed** | **0/30** | **30/30** | 0 | 0 |
+>
+>   **(1) THE TOOL DESCRIPTIONS ARE NOT THE SOURCE.** Stripping the phrase from
+>   all three action-tool descriptions — the manipulation this bar pre-registered,
+>   with the text pointer at `DeviceActionTools.swift:102` — moved imitation
+>   **4/30 → 7/30 (p = 0.51)**, i.e. nowhere, if anything the wrong way. **The
+>   candidate mechanism filed on 2026-08-12 is refuted**, and the entry's own
+>   instruction ("do not edit the descriptions in production on the strength of
+>   the hypothesis alone") turns out to have been protecting us from editing the
+>   wrong string.
+>
+>   **(2) THE ARMED BLURB IS IMPLICATED, AND THE EFFECT IS ON BOTH READINGS.**
+>   Removing production's own sentence — *"Every action tool shows the user a
+>   confirmation card first; if they decline, accept it gracefully"*
+>   (`LocalChatBackend.swift:2015`) — took imitation to **0/30** (vs
+>   `tools-stripped` 7/30, **p = 0.0105**) **and tool calls to 30/30** (vs 20/30,
+>   **p = 0.0008**; vs control 23/30, **p = 0.0105**). **The mechanism reading and
+>   the behaviour reading moved together**, which is exactly the pair amendment
+>   (3) insisted on never collapsing — and they moved the same way, so this is not
+>   a clause that silences the prose while leaving the call unmade.
+>
+>   **(3) ORDER AND THERMAL RUN AGAINST THE RESULT, so they cannot explain it.**
+>   `tools-blurb-stripped` ran THIRD and at `serious` thermal from start to end —
+>   the worst position in the run — and posted the best numbers on both readings.
+>   A confound that disadvantages later cells cannot manufacture that.
+>
+>   **(4) WHAT THIS RUN IS *NOT* ABLE TO SAY — the isolation is incomplete by
+>   construction.** Arm 3 removes the descriptions AND the blurb. Arm 2 says the
+>   descriptions do nothing, so the blurb carries the effect by elimination, but
+>   **no arm removes the blurb ALONE.** That fourth arm — call it **337-F-2** — is
+>   one enum case and is the thing to run before anyone promotes a text change.
+>   **The promoted `cardNarrationClause` was held CONSTANT and ON in all three
+>   arms** (recorded in every manipulation check as `residualExposure`), so no arm
+>   here is a zero-exposure arm and the phrase survives in context throughout.
+>
+>   **(5) 🔑 AND THIS INSTRUMENT IS FREE OF THE LEAK — it calls
+>   `toolRelay?.beginTurn()` before every trial (`+CardClause.swift:239`), which
+>   is what production does and what no #200-series battery has ever done.**
+>   `cutTrials = 0` across all 90 trials, independently corroborating 337-D's
+>   `turn-reset` cell. **So its control arm is the most production-like action
+>   rate this project has measured: 23/30 = 77% executed** — against the
+>   confounded "0/90 in the second run" that framed this entry. That number is a
+>   measurement of the instrument's own semantics being fixed, not of the app
+>   changing.
+>
 > **🔑 2026-08-12, THE ARCHAEOLOGY — THIS SPECIMEN WAS KILLED ONCE AND HAS COME
 > BACK. It is the strongest evidence yet that something changed underneath us,
 > and it came out of our own records, not out of guessing at Apple.**
@@ -10375,12 +10429,14 @@ denominators differ (those runs executed; these do not).
 > ## 🔧 THE TWO INSTRUMENTS ARE BUILT — 2026-08-12. ~~**NEITHER HAS BEEN RUN.**~~
 > ## No number in this entry moves on the strength of this block.
 >
-> > **✅ SUPERSEDED 2026-08-13: MERGED AND HALF RUN.** The branch is merged to
+> > **✅ SUPERSEDED 2026-08-13: MERGED AND BOTH RUN.** The branch is merged to
 > > `main` (`c2269dc`, `GATE: PASS` on the merged tree — Swift Testing 2268, +59
 > > from `main`'s own 2209, so not a stale binary). **`refusal-words` (337-D) RAN
 > > the same afternoon on `whoGoesThere` — results under the 337-D bar above, and
 > > they falsify this entry's "the retry is what lies".** **`card-clause` (337-F)
-> > is merged and STILL UNRUN.** The block below describes the build and stays
+> > **RAN TOO, the same afternoon — results under the 337-F bar above. Its
+> > pre-registered manipulation is REFUTED and its third arm found the text that
+> > is actually doing the work.** The block below describes the build and stays
 > > accurate about it.
 >
 > Branch `worktree-agent-ad4ee85589b5724ad`, four commits, **`GATE: PASS` at
