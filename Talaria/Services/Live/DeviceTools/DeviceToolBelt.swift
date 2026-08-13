@@ -166,12 +166,33 @@ final class ToolEventRelay {
         return true
     }
 
+    /// #338 — conversation-scoped, the same lifetime as the #233/#249 latches
+    /// above and reset in the same one place.
+    ///
+    /// **Why the honesty guard needs a CONVERSATION fact and not just a turn
+    /// fact.** The guard's one input was this turn's executed calls, so the
+    /// commonest honest exchange in the app fired it: the user taps Confirm on
+    /// turn 1 (the reminder is really written) and asks *"did that go
+    /// through?"* on turn 2 — a turn with zero tool calls by construction. The
+    /// honest answer *"Yes, the reminder is set for 8 PM"* then collected the
+    /// correction *"Nothing was created."*
+    ///
+    /// **What this flag does and does NOT mean.** It means an action tool
+    /// STARTED — i.e. a real confirmation card was staged. It does not mean the
+    /// user accepted it, because `started` is emitted before the confirmation
+    /// is awaited. That is deliberately the same approximation bar 338-D
+    /// already makes for the current turn; widening the guard past it would
+    /// need the confirmation outcome, which is a different lane.
+    private(set) var actionToolExecutedThisConversation = false
+
     /// #233: the conversation-boundary reset. Turn-scoped state belongs in
     /// beginTurn(); anything conversation-scoped resets here instead.
     func endConversationToolState() {
         earlyMorningAskIssued = false
         pastDueAskIssued = false
         eveningClockAskIssued = false
+        // #338: a fresh conversation has no earlier turn to license anything.
+        actionToolExecutedThisConversation = false
     }
 
     /// #228: NOT `#if DEBUG` — #218's lesson is that an all-Debug stack is
@@ -238,6 +259,11 @@ final class ToolEventRelay {
             }
         }
         executedCallsThisTurn += 1
+        // #338: the conversation-scoped latch, set at the ONE place an admitted
+        // call is counted — so it can never disagree with the per-turn count.
+        if DeviceToolBelt.actionToolNames.contains(name) {
+            actionToolExecutedThisConversation = true
+        }
         if TalariaLog.isVerbose {
             Self.instrumentLogger.notice("\(Self.callLogLine(sequence: self.executedCallsThisTurn, name: name, detail: detail), privacy: .public)")
         }

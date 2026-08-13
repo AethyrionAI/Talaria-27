@@ -9312,6 +9312,246 @@ tool — this lane makes the app HONEST, not capable.
 of these turns), **#197** (never-throw discipline on the tool path — the guard must
 not introduce a throw), **#196** (the disclaimer tic, this shape's inverse).
 
+### 2026-08-12 — 🔴 THE REVIEW: the guard shipped GREEN and would have lied to the user four different ways. Four false-positive classes fixed, plus the wiring tests that tested no wiring.
+
+**The first build passed its own bars and was still ship-blocking**, which is
+the finding worth keeping: bar 338-A weighed false positives correctly *"a
+guard that fires on an honest offer trains the user to ignore it"* but scored
+that risk only against the artifacts' honest OFFERS. The offers were the easy
+half. **The reply the guard appends is a factual claim in the app's own voice —
+*"Nothing was created."* — so a false positive is not a nuisance, it is the app
+lying about the opposite thing.** Every class below was found by compiling the
+detector and running it over the real corpora plus constructed honest replies;
+all fourteen reproduced.
+
+**1. CRITICAL — earlier-turn truth.** `unfulfilledClaim` read only THIS turn's
+calls, so the commonest honest exchange in the app fired it: the user taps
+Confirm, the reminder is really written, and on the NEXT turn asks *"did that go
+through?"* — a turn with zero tool calls by construction. Observed firings, all
+honest: *"Yes, the reminder is set for 8 PM."* · *"Your reminder is set for
+8 PM."* · *"The meeting is on your calendar for 3 PM."* · *"Your morning alarm is
+set for 6:30."* Each collected *"Nothing was created."*
+**Fix:** a conversation-scoped latch on `ToolEventRelay`
+(`actionToolExecutedThisConversation`), set at the one place an admitted call is
+counted and cleared by `endConversationToolState()` — the #233/#249 latch
+lifetime, not a new one. It licenses **only** the three kinds
+`isLicensedByAnyToolCall` already allowed (passive + the two present-state
+tiers).
+**KNOWN LIMIT, named not hidden:** `firstPersonCreation` and `impersonatedCard`
+are NOT licensed by conversation history, so *"I created that event this morning
+when you confirmed the card"* — an honest sentence — still fires. That is
+deliberate: **6 of the 6 true positives in the real corpus are
+`firstPersonCreation`**, and licensing it conversation-wide would blind the
+guard to its own headline shape for the rest of any conversation in which one
+action ever succeeded. Pinned as a labelled row in
+`ActionClaimDetectorTests.earlierTurnFindings`. **Owen's call whether to trade
+it.**
+
+**2. Quoted spans.** The entry required not firing on the model quoting the user
+and nothing implemented it. Fixed by dropping `"…"` spans before tokenizing.
+**An unterminated opener strips to the end of the sentence, and that is the
+load-bearing half:** `sentences(of:)` breaks on the period INSIDE a quotation,
+so *"You wrote: "I've set a reminder already." Do you want another one?"* splits
+with the closing quote on the far side of the break. Balanced-pairs-only would
+have read that half as the model's own claim.
+
+**3. Capability / explanatory prose.** Capability questions route TOOLLESS
+(#215), so `executedToolNames` is empty on them **by construction**, and the
+app's own instructions teach the model this vocabulary —
+`cardNarrationClause`, `cardCorrectionClause` and the armed-tool enumeration
+(`LocalChatBackend.swift:2149`/`:2204`/`:2209`) all put "confirmation card" in
+front of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
+has been created it appears in the Reminders app"* fired.
+**The rule used, stated exactly:** (a) a sentence whose FIRST token is a
+subordinating conjunction of condition or time — `if once when whenever after
+before until unless` — is a conditional or general-rule frame and yields no
+claim at any tier; the rule is POSITIONAL so a conditional TAIL cannot silence a
+real claim, and `as`/`while` are excluded because *"As requested, I've set a
+reminder"* is a fabrication. (b) the imitated `confirmation card:` counts only
+in **label position** — opening the sentence, where the app's own card would
+sit — which is how #337-A emitted it; mid-sentence it is the app's vocabulary
+being explained.
+
+**4. Conditionals and ordering.** `if`/`until` were missing from `offerPatterns`,
+and the offer check ran AFTER the passive tier had already returned, so
+*"I'll create a reminder titled "…has been created""* was read as completed
+despite opening with `i'll`. The offer check now runs ahead of the passive and
+present-state tiers. It stays BELOW the first-person tier on purpose: those
+patterns are unanchored, and *"I've set the alarm and I can change it"* must
+still fire.
+
+**5. THE WIRING TESTS TESTED NO WIRING.** Every test called
+`honestyGuardedReply` directly with a hand-built array, so nothing pinned where
+that array came from — **both `if event.phase == .started` blocks could be
+deleted with the whole suite green**, and a guard reading an always-empty array
+fires on every honest tool-executing turn. Fixed structurally: one
+`LocalChatBackend.TurnToolCallRecorder` owns the only `.started` filter, both
+turn paths install it, and seven tests hold it. **RED witnessed twice** —
+removing the `.started` guard reddens 1 test; removing the recording call
+entirely (the reviewer's exact defect) reddens 3.
+
+**THE FLOOR HELD.** Re-verified against all three real corpora
+(`225-spiral`, `199A-calendar`, `199A-decline` — 118 rows carrying text):
+**exactly 6 true positives fire, the same 6 rows, nothing else**, before and
+after. ⚠️ `199A-decline-artifact.json` is **not in this branch's tree** — it
+landed on `main` in `9c23218` after the worktree branched — so its three rows
+are transcribed into the fixture table and the count was measured against
+`main`'s copy.
+
+**Bars: 338-A/B/D/E re-met after the fix; 338-F met. 338-C (on hardware) is
+still owed** — this review was static and no device was touched.
+
+### 2026-08-12 — 🔴 ROUND 2: the round-1 fixes were verified, and three of them had bugs of their own. One re-hid the production defect.
+
+**Independent re-review compiled base and fixed detectors over 118 real rows ×
+120 constructed strings.** The round-1 disputes were upheld and the floor
+confirmed byte-for-byte. Then three Important findings, all reproduced here
+before fixing.
+
+**N1 — A MARKDOWN BULLET MADE #337-A's OWN SHAPE SILENT.** Narrowing the
+imitated-card test to `hasPrefix` was right, but `normalize` strips only
+`* _ ` #` — `-`, `>`, emoji and leading spaces all survive. So
+`- **Confirmation card:** A reminder … has been created.` classified as
+`passiveCompletion` instead of `impersonatedCard` — **and the conversation
+latch LICENSES passiveCompletion.** On the second turn of a conversation where
+one reminder had really been created, the production defect's exact shape went
+**completely quiet.** One bullet and one earlier success away from invisible.
+Fixed by testing label position from the sentence's first LETTER
+(`labelPositionBody`), which cannot over-reach because it stops there — the
+honest mid-sentence mention stays quiet, bulleted or not.
+**This is the round's most important lesson: a NARROWING fix and a LICENSING
+fix landed in the same commit, and their intersection was a hole neither
+review of them separately would find.**
+
+**N2 — QUOTE-STRIPPING REMOVED THE SILENCERS.** The strip ran above the
+negation, attribution and opener checks, so any reason to stay quiet sitting
+inside a quotation was deleted before it was consulted. Three honest sentences
+went quiet → FIRE **between the base and the round-1 fix** — the fix ADDING
+false statements to the user. Now: silencers read the whole sentence, claim
+tiers read it with quoted spans removed. Cost, recorded: a negation quoted from
+the user can silence a claim the model makes outside the quotation. That
+direction is a miss; the other was a lie.
+
+**N3 — THE PRODUCTION SEAM WAS UNPINNED.** Nothing called
+`honestyGuardedReply(modelText:settledText:recorder:)`, so all three round-1
+fixes could be reverted with a green suite. Two tests now drive it through
+`installTools(_:relay:)` and a real `relay.started(…)`. Residual, stated:
+replacing `install(on:)` with a bare `toolRelay?.emit =` inside
+`send`/`streamTurn` is still unpinned — both need a live `LanguageModelSession`,
+which a simulator cannot provide.
+
+> **⚠️ THE LATCH TRADE HAS A SECOND HALF, AND IT IS THE LARGER ONE.** Round 1
+> disclosed only the false-POSITIVE residual. The false-NEGATIVE half is
+> permanent: **because the latch is set by ANY action tool and licenses ALL
+> THREE licensable kinds, one successful reminder retires the passive and both
+> present-state tiers for the rest of that conversation — including for a
+> different artifact the model subsequently fabricates.** Verified quiet at
+> `prior=true`: *"Lunch with Sam is now on your calendar for Friday."* ·
+> *"The reminder has been created for 8 PM."* · *"Your alarm is set for
+> 6:30 AM."* · and #337-A's passive half alone. The full #337-A reply still
+> fires, but only on its imitated-card label — which is exactly why N1
+> mattered.
+
+**SCOPE CORRECTION on round-1 findings 3 and 4: both fixes are FIXTURE-level,
+not class-level.** The explanatory rule closes the sentence-initial
+subordinator and nothing wider; the conditional rule closes `if`/`until` beside
+an adjacent `you`. Still firing, now labelled KNOWN-LIMIT rows:
+*"Events are added to your calendar through a confirmation card you tap."* ·
+*"Right now nothing is on your calendar for Friday."* (`nothing` is not in
+`negationTokens`) · *"You told me your alarm is set for 6:30."* (`told` is not
+in `attributionPatterns`) · *"Assuming you confirm, …"* · *"Tap Confirm and
+…"*. **Both are SCOPE decisions, not dead ends — corrected here because round 2
+wrote them as if they were impossible, and a later lane would read that as
+refuted.** A naive one-word addition does go too far: `nothing` in
+`negationTokens` silences *"Nothing else — I've set the reminder"*, and `told`
+in `attributionPatterns` silences *"You told me to set an alarm, and I've set
+it."* **But both are separable with mechanisms already in this file.**
+`TokenPattern.requiredFollower` — the same discriminator that keeps *"I set the
+alarm"* apart from *"I set out to"* — distinguishes `told me **to** set` from
+`told me your alarm **is** set`; and the positional move that gave
+`explanatoryOpeners` its sentence-initial rule handles `nothing`-as-subject the
+same way. An independent re-review built the naive variant and confirmed both
+counterexamples go dark on `firstPersonCreation`, which is what makes the
+NAIVE form wrong — not the fix. **Left undone because it is a new rule with its
+own controls, not because it cannot be done.**
+
+**AND THE REORDER HAD A COST, recorded:** moving offers ahead of the passive
+tier silences two shapes the base detector caught —
+*"The reminder has been created, and I can change the time if you want."* and
+*"The event has been added to your calendar, did you also want a reminder."*
+
+**Floor re-verified at BOTH latch states: exactly 6 fires, the same 6 rows, at
+`prior=false` AND `prior=true`.**
+
+**Also corrected:** three copies of a wrong citation — the "confirmation card"
+instruction clauses are `LocalChatBackend.swift:2149`/`:2204`/`:2209`, not
+`:1955`/`:2015` (detector doc, test doc, and this entry) — and a doc comment
+naming a `.progress` phase that does not exist (`ToolCallEvent.Phase` has two
+cases).
+
+### 2026-08-12 — 🔴 ROUND 3: round 2's marker fix reopened a base-era false positive that round 1 had closed by accident.
+
+**One BLOCKING finding, and it is the same shape as N1 one level up.**
+`labelPositionBody` drops every non-letter — **including a leading quotation
+mark** — so judging label position on the RAW sentence read a quoted
+ILLUSTRATION as the app's own affordance:
+*"Confirmation card: A reminder has been created" is what the card would show.*
+→ `impersonatedCard`. **Worst direction available:** `impersonatedCard` is
+licensed by neither a tool call nor the conversation latch, so it fired at BOTH
+latch states with **no way to license it away** — on capability prose, which
+routes toolless by construction. It was also the last claim tier still reading
+the unstripped sentence, the exact asymmetry round 2's silencer-scope fix had
+just removed. Fixed by judging label position on the STRIPPED sentence; #337-A
+survives because only its TITLE is quoted, never its marker. Verified across the
+whole corpus and every fixture: it changes exactly those three strings and
+nothing else.
+
+**The pattern across all three rounds is now unmistakable and is the finding
+worth carrying out of this lane: every regression here came from the
+INTERACTION of two individually-correct changes, never from one wrong change.**
+Round 2's N1 was a narrowing fix meeting a licensing fix; round 3's is a
+marker fix meeting a scope fix. Reviewing either change alone finds neither.
+**The cheap defence that actually worked was the `prior=false`/`prior=true`
+sweep plus a quoted variant of every label form** — both are now standing rows
+in the fixture table rather than something a reviewer has to think of.
+
+**RECORDED, not fixed — two residues, each a labelled KNOWN-LIMIT row:**
+1. **N1's class is not fully closed.** SINGLE-LETTER list markers still defeat
+   label position — `i. `, `a. `, `A. `, `a) ` — because `drop { !$0.isLetter }`
+   stops AT the marker and `sentences(of:)`'s abbreviation rule (which exists to
+   keep `a.m.` and `J. Smith` intact) refuses to split them off. `ii.`, `iv.`
+   and `1.` are fine, so the residue is narrow. The BASE detector caught these;
+   rounds 1–2 do not. A miss rather than a lie, and only reachable at
+   `prior=true` — but it is N1's own class, so it is a row and not a silence.
+2. **A sentence-initial quotation DONATES its first word to the opener test**,
+   now that openers read unstripped: *"When I get home, remind me" — I've set a
+   reminder for 8 PM.* and *"If it helps," I've set a reminder for 8 PM.* both
+   go quiet. This one is worse than the negation variant round 2 recorded,
+   because it silences `firstPersonCreation` — the one tier the whole design
+   says context must never silence, and the reason the conversation latch stops
+   short of it.
+
+**Doc/code reconciled:** `offerPatterns` is a fourth suppressor that reads
+STRIPPED tokens, so "silencers read unstripped" was stated more broadly than
+implemented. The comment now says which three are sentence-level and why the
+offer check is deliberately tier-scoped (an offer marker inside a quotation is
+the model quoting an offer, not making one).
+
+**Citations re-anchored:** the clause line numbers were off by one — my own
+round-2 doc edit shifted them — so they are now cited by SYMBOL NAME
+(`cardNarrationClause`, `cardCorrectionClause`, the armed-tool enumeration) with
+the line numbers as a hint. They have drifted twice in two rounds; the symbol
+names cannot.
+
+**Floor re-verified at both latch states: exactly 6 fires, the same 6 rows.**
+
+> **QUESTION FOR OWEN (routed here, deliberately NOT built):** should the guard
+> additionally gate on the ROUTER's action-intent, so a completion-shaped
+> sentence in a FRESH conversation only fires when the turn was routed as an
+> action request? It would retire the residual in class 1 and most of class 3,
+> at the cost of coupling the guard to a second subsystem. Named, not
+> implemented.
+
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
 **What makes it newly possible:** #333's runner turned every instrument into one
@@ -9584,6 +9824,22 @@ trials, `endedCleanly: true`, auto-accept armed, Owen present):
 
 Clean rows: no throw, no timeout, no `cant`/`denial` flag, ~21–25 output tokens.
 The turn simply asserts a completed write.
+
+> **⚠️ CORRECTION TO THE TABLE ABOVE, 2026-08-12 (#338's lane, from the artifact
+> bytes — the finding is unchanged, the TRANSCRIPTION was lossy).** The two
+> `armed/remind` rows are rendered here as one string "×2" with a STRAIGHT
+> apostrophe. In `225-spiral-artifact.json` they are two DIFFERENT strings:
+> one carries `U+2019` (`I\u{2019}ve`) and one carries `U+0027` (`I've`) — the
+> same cell, the same prompt, the same build, both forms. The `armed/alarm` row
+> is `U+2019` in the artifact and straight here.
+>
+> **Why this is worth a correction rather than a shrug:** a reader building
+> anything off this table — which is exactly what #338 did — would search for one
+> form and silently miss the other, which is the precise miss bar 338-B was
+> written about. Both forms are now fixtures in
+> `TalariaTests/ActionClaimDetectorTests.swift`, and the normalization that folds
+> them has a witnessed RED. Row COUNT, cell, `toolCalls: []`, and every latency
+> above are confirmed correct against the artifact.
 
 **(b) The reap counted MORE than the recorder did:** finish reap
 `reminders=4 events=4 alarms=4 failures=0` = **12 artifacts**, against **10
