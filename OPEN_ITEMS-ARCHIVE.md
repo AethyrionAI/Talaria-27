@@ -7538,6 +7538,27 @@ whole run returns only those three control trials. The clause did exactly what
 it was written to do, and the remind rate moved with it: **5/10 → 8/10, +3,
 the largest single-seam remind gain since the #200D promotion.**
 
+> **📌 2026-08-12 pointer (append-only, #317 ruling (a) — the bytes above are
+> untouched): "THE SPECIMEN IS DEAD" NO LONGER HOLDS ON beta5.** The
+> `cardNarrationClause` still ships (`LocalChatBackend.swift:1955`,
+> `includeCardNarrationClause: Bool = true` at `:1871` — production default,
+> unchanged since this verdict). With it in force, a **production** turn on
+> 2026-08-12 6:14 PM answered *"Remind me to take out the trash at 8"* with
+> **"Confirmation card: A reminder to 'take out the trash' at 8 AM has been
+> created."** — the specimen this entry buried, on the **remind** prompt where
+> it lived, first try, no harness. Filed as **#337** (bar 337-A).
+>
+> **What changed between the two observations, none elected:** the runtime
+> (this verdict ran on **24A5390f / beta4**; the production turn on
+> **24A5408d / beta5**, model `AFM 3 Core`), and the #232 governor landed
+> 2026-08-02 (`5e919269`) between them. **What did NOT change: the clause.**
+>
+> **The decisive re-run is this entry's own instrument** — the `cardfix`
+> battery A/B, same cells, same prompts — on beta5, compared against the table
+> above. Same-run control-vs-treatment means the #337 battery confound hits
+> both arms equally. Do not read the beta5 hypothesis as established until that
+> runs: this pointer records a reappearance, not a cause.
+
 **Bar check (delta-based against the SAME RUN's control, the #200I lesson):**
 remind ≥ control+3 → 8 vs 5, **PASS (exactly at the bar)**. Narration trials ≤
 half of control → 0 vs 3, **PASS**. Alarm 10/10 → **PASS** (ceiling intact,

@@ -9448,6 +9448,47 @@ denominators differ (those runs executed; these do not).
 >   shape tracks the tool-description clause: an A/B with the clause removed from
 >   the descriptions, same prompts, same cells. Bars written before the run. Do not
 >   edit the descriptions in production on the strength of the hypothesis alone.
+>
+> **🔑 2026-08-12, THE ARCHAEOLOGY — THIS SPECIMEN WAS KILLED ONCE AND HAS COME
+> BACK. It is the strongest evidence yet that something changed underneath us,
+> and it came out of our own records, not out of guessing at Apple.**
+>
+> Card narration is **not new and not undiagnosed**. It was found and measured as
+> **#200J on 2026-07-29** (archived; append-only pointer added there today), and a
+> countermeasure was written and promoted: **`cardNarrationClause`**
+> (`LocalChatBackend.swift:1955`) — *"The confirmation card is shown automatically
+> when you call an action tool — never write the card out, list the details back
+> for approval, or ask whether to proceed; make the call and let the card do the
+> asking."* Its production gate is `includeCardNarrationClause: Bool = true`
+> (`:1871`) — **on by default, and unchanged since**.
+>
+> **What #200J measured** (cardfix battery n=10, 80 trials, zero exclusions,
+> runtime **24A5390f = beta4**): card narration occurred **3 times in 40 control
+> trials — all zero-tool, all on `remind` — and ZERO times in 40 treated trials on
+> any prompt.** Remind creates moved **5/10 → 8/10**. The entry's own words:
+> *"THE SPECIMEN IS DEAD."*
+>
+> **What 337-A observed** (2026-08-12, runtime **24A5408d = beta5**, model
+> `AFM 3 Core`, production, clause in force): the specimen, **first try, on
+> `remind`, zero-tool** — plus the completion claim that #200J's control never
+> made.
+>
+> **So the honest frame for #337 is not "a new defect" but "a promoted
+> countermeasure that no longer holds."** Two variables moved between the
+> observations and NEITHER is elected: the runtime (beta4 → beta5) and the #232
+> governor (landed 2026-08-02, `5e919269`). The clause itself did not move.
+>
+> - **337-G (THE DECISIVE RE-RUN, and it is cheap because the instrument already
+>   exists).** Re-run the **`cardfix`** battery — #200J's own A/B, same cells, same
+>   prompts, same classifier — on beta5, and compare against the archived table.
+>   **Control-vs-treatment live in the SAME run, so #337's leaked-budget confound
+>   hits both arms equally** and the within-run contrast survives it. Bar: the
+>   treated cell's narration count. **0/40 reproduces #200J and exonerates the
+>   model; anything above 0 says the clause has lost efficacy on this runtime**,
+>   which is a finding about beta5 that no amount of release-note reading can
+>   supply. It is an accept battery, so it is ATTENDED — Owen's tap.
+>   **337-F stays worth running regardless:** it tests the tool-DESCRIPTIONS'
+>   contribution, which is a different text from this clause.
 > - **337-B (what the user sees).** The instrument records the POST-cut retried
 >   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
 >   report a cut trial as a user-visible outcome.
