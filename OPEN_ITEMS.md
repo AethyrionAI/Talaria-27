@@ -9352,6 +9352,33 @@ tool — this lane makes the app HONEST, not capable.
 > **338-C is the only bar left and it needs Owen**: the guard must be witnessed on
 > hardware producing an honest outcome on a turn that reproduces #337-A. Nothing
 > in three rounds touched a device. The build is on the phone.
+>
+> **338-C ATTEMPT 1, 2026-08-12 9:45 PM — NOT MET, because the defect did not
+> reproduce.** Same prompt shape on the guard build (*"Remind me to take out the
+> trash at 11"*): the model **called the tool**, the real confirmation card
+> rendered, and **the guard correctly stayed silent.** That is the right behaviour
+> and it is NOT the bar — 338-C needs a turn that reproduces #337-A, and this turn
+> did not. **Do not record this as the bar met.**
+>
+> **What it DID buy, and it is worth more than a tidy score:**
+> 1. **The action path demonstrably works on this build** — a real
+>    `createReminder` call with the real card. Any reading of #337 as "the app
+>    never creates" is refuted by this turn, and #337's confounded battery rates
+>    already had no standing to claim it.
+> 2. **The fabrication is INTERMITTENT, not deterministic** — 337-A fabricated on
+>    the first try; this turn did not. So #337's real rate is somewhere strictly
+>    between, unmeasured, and **337-G's cardfix A/B is now the only thing that can
+>    supply it.**
+> 3. **A partial 338-D confirmation ON HARDWARE**: the guard did not false-fire on
+>    an honest tool-executing turn — the one property whose failure would ship a
+>    false statement to the user.
+> 4. It surfaced a separate defect on the same screenshot — the empty DUE field —
+>    recorded at **#249**.
+>
+> **Next attempt:** 338-C stays open. The honest way to score it is not to keep
+> re-asking and hoping for a fabrication, but to run **337-G's cardfix battery**,
+> whose control cell reproduces the narration by construction — if the guard is
+> installed, that run witnesses both the rate AND the correction in one sitting.
 
 **Cross-references:** **#337** (the defect this mitigates; 337-A is the evidence),
 **#336** (the fabrication mechanism), **#232** (the governor whose cut precedes most
@@ -16660,6 +16687,32 @@ log line has ever fired):**
 
 **Severity:** moderate — a reminder an hour off is worse than none; it fails
 silently at the exact moment the user trusted it.
+
+> **🆕 A DIFFERENT SHAPE, OBSERVED 2026-08-12 9:45 PM on `whoGoesThere`
+> (production, on-device, guard build): the card came up with DUE EMPTY.** Owen
+> asked *"Remind me to take out the trash at **11**"*; the model **did call
+> `createReminder`** (tool-activity row `1 STEP`, `running`), the REAL confirmation
+> card rendered — and TITLE was `Take out the trash` while **DUE and LIST both show
+> placeholder text, i.e. no due date at all.**
+>
+> **This is not this entry's header symptom.** #249 is *"the hour on the card is
+> not the hour the user said."* This is *no hour whatsoever*, on a prompt that
+> plainly carried one. It is adjacent to reading **(c)** above (raw
+> empty/unparseable) but WITHOUT the display bug — the card honestly shows empty.
+> A reminder with `dueDateComponents` unset never fires; the user gets a bare
+> to-do, which fails in exactly the silent way this entry's severity line
+> describes.
+>
+> **Mechanism NOT elected. The discriminator is two taps and has not been run:**
+> APPROVE the card, then look in Reminders — **a time there** means the card's
+> DUE field is a display gap; **no time there** means the model passed no due
+> argument, which is a model/`@Guide` question and lands in the #196/#200
+> discipline (ships only behind a battery verdict). `finalDue` is optional at
+> `DeviceActionTools.swift:264` — `if let finalDue` — so nil genuinely produces a
+> dateless reminder rather than a default.
+>
+> **n = 1.** If the discriminator shows a mechanism distinct from (a)/(b)/(c), it
+> gets its own number that day rather than living under this header.
 
 **⚠️ OBSERVATION CORRECTED same night (Owen, with screenshots): the cards
 say 8:00 AM, not 9 PM** — *"I originally misspoke. when going to gather the
