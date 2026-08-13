@@ -9489,6 +9489,63 @@ denominators differ (those runs executed; these do not).
 >   supply. It is an accept battery, so it is ATTENDED — Owen's tap.
 >   **337-F stays worth running regardless:** it tests the tool-DESCRIPTIONS'
 >   contribution, which is a different text from this clause.
+>
+> **📚 2026-08-12 RESEARCH — the "beta5 fixed spiraling" claim has a REAL primary
+> source, and it is the OPPOSITE symptom.** Two Sonnet lanes ran: web/primary
+> sources, and a byte-level SDK diff. Findings, tiered as the project requires:
+>
+> - **FIRST-PARTY, verified twice against Apple's own release-notes data
+>   endpoint:** iOS & iPadOS 27 **Beta 5 → Foundation Models → Resolved Issues**:
+>   *"Fixed: When using the on-device Apple Foundation Model for both tool calling
+>   and guided generation, some prompts might cause the model to call tools
+>   **excessively**. (177748926)"* So Owen's secondhand tip is **not
+>   confabulated** — Apple did ship a tool-calling fix in beta5. **But it fixes
+>   OVER-calling; we are seeing UNDER-calling.** Nothing in any tier addresses
+>   refusal-to-call or narration-instead-of-invocation.
+> - **The tempting inference is NOT licensed:** "a fix aimed at over-calling could
+>   make the model conservative about calling at all" is coherent and *consistent*
+>   with what we measured — and **no source states it.** Recorded as a hypothesis
+>   with a named author (the research lane's), not as a finding.
+> - **FIRST-PARTY:** beta4 carried an Apple-confirmed "tool hungry" Known Issue
+>   (forum 840236, Apple staff: *"a known model issue in Beta 4 that we are
+>   actively working on"*). Plausibly the same bug ID end-to-end; **not textually
+>   proven**, because Apple's live page does not preserve superseded known-issue
+>   text.
+> - **Cuts AGAINST a simple "beta5 is more reliable" story:** a NEW beta5
+>   tool-calling regression is reported (forum 841654, 2026-08-11) — every
+>   tools-bearing `LanguageModelSession` throwing *"Unrecognized system-instruction
+>   prefix ID: `com.apple.fm_api.tool_calls_override`"*, working on beta4, broken
+>   on beta5, Apple staff suspecting incomplete model-asset download. **We are not
+>   seeing that error**, but it says beta5's tool plane moved.
+> - **SECONDHAND, and the closest match in kind to our symptom:** an independent
+>   developer reports the model *"hallucinat[ing] calling my tools… without ever
+>   calling the tools"* and narrating the call — **on beta4**. So the narration
+>   CLASS is not beta5-exclusive, which agrees with our own #200J control (3/40 on
+>   beta4). What changed is whether our clause suppresses it.
+> - **SDK DIFF — the tool surface is byte-identical.** `Tool`, `ToolCallingMode`,
+>   every `tools:` initializer, `GenerationOptions`, `LanguageModelError`,
+>   `GenerationError`, `Transcript.ToolCalls`/`ToolOutput`, and the
+>   `_Vision_FoundationModels` overlay: unchanged. Only `Transcript.ToolCall.metadata`
+>   was re-typed to `GeneratedContent` (the same typing sweep #324 recorded; not a
+>   surface we touch). **Caveat stated honestly: beta4 is GONE from disk**, so the
+>   lane used the CLT `MacOSX27.0.sdk` copy (swiftlang 6.4.0.27.1 — an exact match
+>   to #324's recorded beta4 compiler, mtime Jul 24) as a proxy, and validated the
+>   proxy by proving FoundationModels' interface is target-triple-agnostic within
+>   beta5. **API-identical is not behaviour-identical** — the interface cannot see
+>   the weights, and the sim cannot generate, so only a device run settles this.
+>
+> - **337-H (a REMEDY the research surfaced, not just a diagnosis).**
+>   `GenerationOptions.toolCallingMode` (`.allowed` / `.required` / `.disallowed`)
+>   is iOS-27 API that moves tool-use from model-decided to developer-set.
+>   **Production does NOT set it** — `chatGenerationOptions` (`:84-89`) passes
+>   samplingMode/temperature/maximumResponseTokens only, so every production turn
+>   runs the default. We already use `.disallowed` in the toolless harness and
+>   already own an instrument (`toolmode`, plus `toolmodeMode(after:)`
+>   `+Battery.swift:1063`). **The candidate: on a turn the router has ALREADY
+>   classified as needing a device tool, set `.required`** — the model may still
+>   choose the wrong tool, so this is a measurement, not an obvious win, and the
+>   bar is written before the run. This is the first #337 remedy that does not
+>   depend on persuading the model with prose.
 > - **337-B (what the user sees).** The instrument records the POST-cut retried
 >   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
 >   report a cut trial as a user-visible outcome.

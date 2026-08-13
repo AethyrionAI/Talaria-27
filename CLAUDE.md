@@ -432,7 +432,15 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
   Release Xcode still can't build iOS 27.
   `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
-  **Beta4 (27A5228h) remains on disk as the A/B fallback**; `Xcode-beta.app`/`Xcode-beta3.app`
+  ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
+  2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
+  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remain).
+  There is NO beta4 A/B fallback.** The nearest surviving beta4-vintage artifact is
+  the CLT SDK at `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`
+  (swiftlang 6.4.0.27.1, matching #324's recorded beta4 compiler) — an interface-only
+  proxy, no toolchain, no runtime. Consequence: any A/B that needs a beta4 BUILD now
+  requires re-downloading it, and #324-W4's "same-binary control is dyld-impossible"
+  is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
   were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
   iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
   needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
