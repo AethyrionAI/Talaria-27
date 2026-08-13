@@ -195,7 +195,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#338** 🛡️ **THE HONESTY GUARD** — a turn that CLAIMS a device action while executing ZERO tool calls must never reach the user as-is. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
-- **#337** 🔥🔴 **THE ACTION PATH CREATED NOTHING — AND TELLS THE USER IT DID.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
+- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..F; A answered, D/F instruments built (unrun), the leaked-budget fix is Owen's call because it would move every #200-series number **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
@@ -9335,8 +9335,41 @@ routinely-red or routinely-ignored gate is worse than none.
 
 ## 337. 🔥 THE ACTION PATH CREATED **NOTHING** IN 180 ATTEMPTS — ~80% of action turns end in #232's phase cut, the survivors offer instead of acting, and the second run executed **0/90** — **MEASURED 2026-08-12 on `whoGoesThere`, TWO runs 75 minutes apart, same build, same auto-accept arming. The most product-facing number of the day. NOT STARTED; the first bar is a HAND-RUN turn, because no instrument here can see what a real user sees.**
 
+> **🔴 CORRECTION, 2026-08-12 SAME NIGHT — THE CUT RATE AND THE 0/90 ARE
+> INSTRUMENT-CONFOUNDED. The production defect is NOT.** Found by the #337-D/F
+> instrument lane and verified independently before this correction was written:
+> **`beginToolTurn()` has exactly TWO call sites — `LocalChatBackend.swift:382`
+> and `:559`, both production send loops. No battery calls it.** So
+> `ToolCallGovernor`'s per-turn refusal budget **is never reset between battery
+> trials, and one governor is built per app launch** — the budget accumulates
+> across a run, and across runs within one launch. A battery's later trials are
+> therefore cut on a budget the earlier trials spent, which is exactly the shape
+> of run 2's 0/90.
+>
+> **What this DOES falsify:** the table below as a PRODUCTION rate. "~80% of
+> action turns end in a phase cut" and "0 writes in 90 attempts" describe an
+> instrument whose governor never resets — production resets every turn.
+> **Those two numbers must not be quoted as product behaviour**, including
+> anywhere they have already been quoted.
+>
+> **What this does NOT touch:** **337-A**, the production hand-run — a real user
+> turn, fresh chat, no harness, which fabricated a completed reminder. That is
+> untouched by this confound and remains the reason this entry exists. **#336's
+> fabrication mechanism likewise stands** (those three trials had NO tool call at
+> all — a budget confound cannot manufacture a false claim).
+>
+> **What is now UNKNOWN and was previously stated as measured:** the RATE at which
+> production fails to execute an action, and the rate at which it fabricates. The
+> honest position is one confirmed production occurrence and no rate.
+>
+> **NOT FIXED, deliberately.** Making the batteries call `beginToolTurn()` would
+> silently change every #200-series number ever recorded — that is Owen's call,
+> not a lane's, and 337-D ships `turn-reset` vs `leaked` cells so the size of the
+> effect can be MEASURED before anyone decides. Until then, treat every armed
+> battery rate in this tracker as carrying this confound.
+
 **The two runs, action prompts only (`remind` / `alarm` / `calendar`; the `haiku`
-canary excluded):**
+canary excluded) — READ THE CORRECTION ABOVE BEFORE QUOTING ANY OF THIS:**
 
 | run | action trials | #232 phase-cut | executed a tool call | artifacts reaped |
 |---|---|---|---|---|
