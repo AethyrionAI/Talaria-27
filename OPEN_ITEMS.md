@@ -194,6 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#342** 📋 **KANBAN SUPPORT** — Owen's request 2026-08-12. **A read-only view SHIPPED the same night** (`scripts/oi-kanban.py`, never writes to the tracker). **Its measurement is the real input: 97 of 138 open cards (70%) are UNCLASSIFIABLE** — their state lives only in prose — and the 41 it does place are placed by keyword, crudely (#338 reads as "Blocked" because its text says "needs Owen", while it is merged with one bar owed). **So the question is whether entries get a machine-readable status at all, which changes how every entry is written — Owen's call, not a lane's.** Five design questions in the entry; bars pre-register before any format change
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
 - **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..H. **337-G RAN 2026-08-13 and carries TWO corrections to my own bar: the `armed-cardfix` cell is IDENTITY WITH PRODUCTION post-#200K (wrong instrument — the clause-removed arm is `armed-cardrollback`), and 'the within-run contrast survives the confound' was FALSE (cells run sequentially, cuts climbed 14/40→22/40).** What it still established, clause held CONSTANT and ON: **the literal `Confirmation card:` specimen occurred TWICE where beta4 measured 0/40** — the clause does not hold on beta5; and on the unconfounded first cell (`armed/remind`, zero cuts) **3/10 FABRICATED, 2/10 executed, 5/10 offered** — the first defensible rate for #336/#337. Also: batteries CANNOT witness the #338 guard (they bypass its settle point) **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
@@ -9743,6 +9744,59 @@ and #215's routed-vs-unrouted rule governs which cells may be compared at all;
 where the baselines live; and who reads a red. **Bars pre-register here when a lane
 opens.** The hazard to design against is the one this project already names: a
 routinely-red or routinely-ignored gate is worse than none.
+
+## 342. 📋 KANBAN SUPPORT FOR THE TRACKER — **FILED 2026-08-12 on Owen's request ("add Kanban support… I'd like to investigate that tomorrow"). A READ-ONLY VIEW SHIPPED THE SAME NIGHT; the structural question is deliberately NOT decided, because it is his.**
+
+**What shipped (additive, reversible, zero risk to the tracker):**
+`scripts/oi-kanban.py` — reads the board bullets and prints columns. **It never
+writes to `OPEN_ITEMS.md`**, so it cannot corrupt the one file this project
+trusts, and deleting it leaves no trace. `--unclassified` and `--column NAME`
+narrow the view.
+
+**THE MEASUREMENT IT EXISTS TO PRODUCE, and it is the real input to any decision
+here: 97 of 138 open cards (70%) are UNCLASSIFIABLE.** Their state lives only in
+prose a human must read. The 41 it does place are placed by keyword
+(`MERGED`, `NOT MERGED`, `bars pre-registered`, `blocked on`, `NOT STARTED`), and
+even those are crude — **#338 lands in "Blocked" because its text says "needs
+Owen", while it is in fact merged with one bar owed.** That misfire is not a bug
+to patch; it is the finding. A board built on inference from prose will be
+confidently wrong about items whose prose is rich, which in this tracker is
+exactly the important ones.
+
+**So the question is not "which board tool" — it is whether items get a
+machine-readable status token at all**, and that is a change to how every entry is
+written. Owen's call, not a lane's. **DO NOT sweep 138 entries into a new format
+on inference; that would rewrite the file this project's whole discipline rests
+on.**
+
+**Design questions to investigate (none answered here):**
+1. **Columns.** The seven the script guesses are a straw man, not a proposal:
+   Done · In review · In progress (built, unrun) · Blocked · Ready (bars written) ·
+   Measured/needs a ruling · Backlog. **This project's real states may not be
+   these** — "bars pre-registered but unrun", "measured but unruled", and "merged
+   with a bar owed" are all distinct here and all common, and no generic Kanban
+   has columns for them.
+2. **Where state lives.** A token on the board line (`[ready]`), YAML frontmatter
+   per entry, or a sidecar file. **The tracker's counting rules and #261's split
+   invariants must survive it** — `scripts/oi-split-verify.py` is the guard, and
+   whatever lands must keep passing it.
+3. **Who moves cards, and when.** A status that only a human updates goes stale
+   silently — this project has already been bitten by headers that said one thing
+   while the dated notes said another (the #317 reconciliation audit). A status
+   nobody is obliged to update is worse than none.
+4. **Whether it replaces or supplements the board list.** The bullet list at the
+   top IS a board today; the honest option "we already have one, it just isn't
+   columnar" deserves a real hearing before anything is built.
+5. **Sub-items.** #199A, #210A, #332-a/b/c and friends are cards in their own
+   right but hang off parents. A flat board loses that; a nested one needs a
+   parent field.
+
+**Bars pre-register here before any change to how entries are written.**
+
+**Cross-references:** **#261** (the split and its counting rules any format must
+preserve), **#317** (headers drifting from dated notes — the failure a stale
+status column would reproduce at scale), **#339** (the regression-gate idea, which
+would want machine-readable state for the same reason).
 
 ## 341. 🔌 `TALARIA_CELLS` WIRED — one cell per launch, so #337's pending A/B can run as TWO launches instead of one order-confounded run — **BUILT 2026-08-12 on Owen's instruction (*"run it as two separate launches"*). Structural build + unit lane only; no device run, no numbers. The #335 review's "reserved, documented, inert" is now superseded at its own home (above).**
 
