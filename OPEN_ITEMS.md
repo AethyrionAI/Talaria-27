@@ -194,6 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
 - **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..F; A answered, D/F instruments built (unrun), the leaked-budget fix is Owen's call because it would move every #200-series number **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
@@ -9624,6 +9625,77 @@ names cannot.
 > action request? It would retire the residual in class 1 and most of class 3,
 > at the cost of coupling the guard to a second subsystem. Named, not
 > implemented.
+
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.**
+
+**The measurement** (production, on-device, guard build, Owen's own device,
+three screenshots):
+
+1. Prompt: *"Remind me to empty the dishwasher **at 11**."*
+2. `createReminder` **executed** — tool-activity row `1 STEP`, then `✓ CREATEREMINDER`.
+   The staged card read **TITLE `Empty the dishwasher`, DUE EMPTY, LIST empty.**
+3. Owen **approved**.
+4. Reply, verbatim: **"I've set a reminder to empty the dishwasher at 11. You'll
+   see it in your 'Stuff' list."** (`IN 3.6K · OUT 56`)
+5. Reminders app, **Scheduled** view, one minute later: the item is **absent** —
+   the only entry is an unrelated `Water the plants!!` (Stuff, 9:00 PM, past due
+   from Aug 10). **A reminder with no `dueDateComponents` cannot appear in
+   Scheduled**, which is exactly what its absence demonstrates.
+
+**So the reminder exists and will never fire, and the user was told it is set for
+11.** The failure is silent at the moment of maximum trust — the user watched a
+confirmation card, approved it, and read a confirmation sentence.
+
+**This RESOLVES the discriminator filed at #249 the same night** (the empty-DUE
+observation at 9:45 PM): **it is NOT a card display gap.** The card was empty
+because the argument was empty, and the created artifact genuinely carries no
+time. `finalDue` is optional at `DeviceActionTools.swift:264` (`if let finalDue`),
+so a nil due produces a dateless reminder rather than a default — no app-side
+defaulting stands between the model's omission and the user.
+
+**🔴 WHY THIS IS NOT #337 AND NOT COVERED BY #338.** #337/#336 are *no tool call
+at all*; here the call executed and the artifact is real. **#338's guard cannot
+fire on this by construction** — bar 338-D REQUIRES it to stay silent whenever an
+action tool executed, precisely so it never contradicts a real write. That rule is
+right for "did anything happen" and **blind to "did what you were told happen."**
+The guard checks EXISTENCE; this is a lie about CONTENT. A content-level check
+would have to compare the claim against the tool's ARGUMENTS — a different, harder
+detector, and one nobody has scoped.
+
+**⚠️ AN OPEN QUESTION THIS RAISES ABOUT THE WHOLE #200 SERIES, stated as a
+question because it is not yet checked:** the batteries count a create as a
+success when a tool call is recorded and an artifact is reaped. **Nothing in that
+chain inspects the due date.** If dateless creates have been scoring as clean
+creates, then "creates 10/10" and every sibling rate mean "a reminder was made",
+not "the reminder the user asked for was made". **Check before quoting any create
+rate again** — the trial records carry a `detail` string per tool call, so the
+answer is in the artifacts already on disk.
+
+> **BARS PRE-REGISTERED 2026-08-12, before any fix:**
+>
+> - **340-A (rate, not anecdote).** Across the timed-prompt cells of an existing
+>   battery, the share of executed creates whose recorded arguments carry NO due
+>   date — with the error path instrumented and denominators stated (#215).
+>   **This is a re-read of artifacts already on disk before it is a new run.**
+> - **340-B (the claim, paired).** For the same trials, whether the reply asserts
+>   a time. The defect is the PAIR — dateless artifact + time claimed — and the
+>   bar is scored on the pair, never on either alone.
+> - **340-C (mechanism, not elected).** Whether the model omits the argument, or
+>   emits one the tool fails to parse. The tool records what it received; a run
+>   that cannot distinguish these two has not answered 340-C.
+> - **340-D (the #200-series audit).** Answer the open question above from stored
+>   artifacts: do historical create counts include dateless creates? If yes, the
+>   affected entries are listed and corrected at their own homes (close-out rule).
+> - **340-E (scope for #338).** Whether a content-level check is worth building —
+>   explicitly OWEN'S call, because it means the guard would begin judging tool
+>   ARGUMENTS, a materially larger surface than existence, with its own false-positive
+>   risk against a user who genuinely asked for no time.
+> - **No bar on wall-clock.**
+
+**Cross-references:** **#249** (whose new-shape discriminator this resolves; the
+wrong-hour header is a different symptom in the same subsystem), **#338**
+(structurally blind here — 338-D is why), **#337/#336** (the no-call family this
+is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:264`.
 
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
