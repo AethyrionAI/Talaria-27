@@ -15,7 +15,18 @@ struct InstrumentSpec {
     let confirmationMode: ConfirmationMode
     let writesEventKit: Bool
     let writesAlarms: Bool
-    let run: @MainActor (LocalChatBackend?, _ trials: Int, _ cells: [String]?) async -> Void
+    /// #341: the `ActionBatteryCell` list this instrument runs when the launch
+    /// environment names none — i.e. its pinned default, referenced as the SAME
+    /// symbol the backend wrapper defaults to, so the two cannot drift.
+    ///
+    /// **`nil` means "this instrument has no `ActionBatteryCell` dimension"**,
+    /// and the conductor REFUSES a `TALARIA_CELLS` request for it rather than
+    /// ignoring one. It is load-bearing, not documentation: the conductor
+    /// substitutes it when nothing is requested, so a wrong value here is a
+    /// wrong run rather than a stale comment.
+    var defaultCells: [LocalChatBackend.ActionBatteryCell]? = nil
+    let run: @MainActor (LocalChatBackend?, _ trials: Int,
+                         _ cells: [LocalChatBackend.ActionBatteryCell]?) async -> Void
 }
 
 /// Every instrument the Developer screen can launch, and the ONLY place a
@@ -35,6 +46,13 @@ struct InstrumentSpec {
 /// unattended. The three read-only exceptions in that family
 /// (`read-tool`, `motion-scope`, `motion-redirect`) pass their own prompt
 /// set and write nothing.
+///
+/// **#341: `defaultCells` is the second load-bearing column.** An entry that
+/// declares one accepts `TALARIA_CELLS` and runs exactly those cells; an entry
+/// that leaves it nil REFUSES a cell request rather than ignoring it (`shape`,
+/// `two-turn`, the honesty pair and the probes take other cell types or none).
+/// The declared list and the wrapper's own default are the SAME symbol, so
+/// they cannot drift apart.
 enum InstrumentRegistry {
     static let all: [InstrumentSpec] = [
         // #196 second battery: one launcher, two powers — n=10 resolves the
@@ -65,16 +83,21 @@ enum InstrumentRegistry {
         //
         // Surface: `runActionBattery` on the DEFAULT prompt set — remind /
         // alarm / calendar creates, executed for real under auto-accept.
-        // `runActionBattery`'s real `cells:` parameter is `[ActionBatteryCell]`,
+        // ~~`runActionBattery`'s real `cells:` parameter is `[ActionBatteryCell]`,
         // not `[String]` — the button never supplies one, so this entry does not
         // either; inventing a conversion here would be an argument the button
-        // does not pass.
+        // does not pass.~~ SUPERSEDED 2026-08-12 (#341): the conversion is no
+        // longer "invented" — it is `ActionBatteryCellSelection`, which fails
+        // loudly on an unknown name, and the conductor substitutes
+        // `defaultCells` when the launch env names none. The button still
+        // supplies nothing and still gets exactly this list.
         // Button: `instrumentButton("action", …)`.
         InstrumentSpec(name: "action", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runActionBattery(trials: trials)
+                       defaultCells: LocalChatBackend.actionBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runActionBattery(trials: trials, cells: cells)
                        }),
         // #209 read-tool battery: production vs the pinned read-tool rollback on
         // prompts where OMITTING the field is correct. READ tools only — nothing
@@ -86,9 +109,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("read-tool", …)`.
         InstrumentSpec(name: "read-tool", confirmationMode: .none,
                        writesEventKit: false, writesAlarms: false,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runReadToolBattery(trials: trials)
+                       defaultCells: LocalChatBackend.readToolBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runReadToolBattery(trials: trials, cells: cells)
                        }),
         // #196 battery 4: router-accuracy probe — no tools execute (pure
         // classification), so no confirmation auto-decline is needed; the
@@ -114,9 +138,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("destall", …)`.
         InstrumentSpec(name: "destall", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDestallBattery(trials: trials)
+                       defaultCells: LocalChatBackend.destallBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDestallBattery(trials: trials, cells: cells)
                        }),
         // #200C instrfix battery: control vs the INSTRUCTIONS-level de-stall
         // clause (#200B falsified the tool-text seam — the stall fires before
@@ -128,9 +153,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("instrfix", …)`.
         InstrumentSpec(name: "instrfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runInstrfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.instrfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runInstrfixBattery(trials: trials, cells: cells)
                        }),
         // #200E toolmode battery: promoted-production control vs the structural
         // `.required` treatment (DynamicProfile with the mandatory demote-after-
@@ -142,9 +168,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("toolmode", …)`.
         InstrumentSpec(name: "toolmode", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runToolmodeBattery(trials: trials)
+                       defaultCells: LocalChatBackend.toolmodeBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runToolmodeBattery(trials: trials, cells: cells)
                        }),
         // #200F community battery: promoted-production control vs the three
         // survey-derived treatments (per-intent scoped belt, create-only belt,
@@ -155,9 +182,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("community", …)`.
         InstrumentSpec(name: "community", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCommunityBattery(trials: trials)
+                       defaultCells: LocalChatBackend.communityBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCommunityBattery(trials: trials, cells: cells)
                        }),
         // #200G findfix re-verify: promoted control vs explicit-true findfix
         // (identity — both halves measure production and pool).
@@ -167,9 +195,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("findfix", …)`.
         InstrumentSpec(name: "findfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runFindfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.findfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runFindfixBattery(trials: trials, cells: cells)
                        }),
         // #200H spiral battery: promoted control vs the lookup-spiral
         // carve-out (instructions) and the third-strike demote (structural).
@@ -179,9 +208,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("spiral", …)`.
         InstrumentSpec(name: "spiral", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runSpiralBattery(trials: trials)
+                       defaultCells: LocalChatBackend.spiralBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runSpiralBattery(trials: trials, cells: cells)
                        }),
         // #214 THE structural lane: production vs per-intent belt + composition
         // licensing. Creates real artifacts — auto-ACCEPT, reaped before DONE.
@@ -191,9 +221,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("scoped-v2", …)`.
         InstrumentSpec(name: "scoped-v2", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runScopedV2Battery(trials: trials)
+                       defaultCells: LocalChatBackend.scopedV2BatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runScopedV2Battery(trials: trials, cells: cells)
                        }),
         // #215 THE missing denominator: unrouted control vs production's routed
         // configuration. Creates real artifacts — auto-ACCEPT, reaped before DONE.
@@ -203,9 +234,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("routed", …)`.
         InstrumentSpec(name: "routed", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runRoutedActionBattery(trials: trials)
+                       defaultCells: LocalChatBackend.routedActionBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runRoutedActionBattery(trials: trials, cells: cells)
                        }),
         // #216 the narrow belt re-tried where it cannot lose: both arms routed,
         // only the armed belt differs. Creates real artifacts — auto-ACCEPT, reaped.
@@ -215,9 +247,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("routed-scoped", …)`.
         InstrumentSpec(name: "routed-scoped", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runRoutedScopedBattery(trials: trials)
+                       defaultCells: LocalChatBackend.routedScopedBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runRoutedScopedBattery(trials: trials, cells: cells)
                        }),
         // #200I spiralfix re-measure: promoted control vs the event-scoped
         // reword of the lookup-spiral carve-out. Strikefix is parked (its
@@ -228,9 +261,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("spiralfix", …)`.
         InstrumentSpec(name: "spiralfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runSpiralfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.spiralfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runSpiralfixBattery(trials: trials, cells: cells)
                        }),
         // #200J: promoted control vs the card-narration clause — the
         // treatment for #200I's largest failure bucket (zero-tool trials that
@@ -241,9 +275,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("cardfix", …)`.
         InstrumentSpec(name: "cardfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCardfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.cardfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCardfixBattery(trials: trials, cells: cells)
                        }),
         // #200K: the promoted control + the (now identity) cardfix cell —
         // pooled as the production re-verify — plus the datefix treatment.
@@ -253,9 +288,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("datefix", …)`.
         InstrumentSpec(name: "datefix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDatefixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.datefixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDatefixBattery(trials: trials, cells: cells)
                        }),
         // #200L: promoted production vs the pinned card-clause rollback vs
         // the #200I spiral carve-out — the calendar lane.
@@ -265,9 +301,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("calendar", …)`.
         InstrumentSpec(name: "calendar", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCalendarBattery(trials: trials)
+                       defaultCells: LocalChatBackend.calendarBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCalendarBattery(trials: trials, cells: cells)
                        }),
         // #200M: production vs the v3 dead-end carve-out vs v2, same run.
         //
@@ -276,9 +313,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend", …)`.
         InstrumentSpec(name: "deadend", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadendBattery(trials: trials)
+                       defaultCells: LocalChatBackend.deadendBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadendBattery(trials: trials, cells: cells)
                        }),
         // #200N: the v3 confirmation A/B — production vs the dead-end
         // carve-out only, second independent run before any promotion.
@@ -288,9 +326,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend-verify", …)`.
         InstrumentSpec(name: "deadend-verify", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadendVerifyBattery(trials: trials)
+                       defaultCells: LocalChatBackend.deadendVerifyBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadendVerifyBattery(trials: trials, cells: cells)
                        }),
         // #200O: the promoted control + the (now identity) deadendfix cell
         // pooled as the production re-verify, plus the grabfix treatment.
@@ -300,9 +339,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("grabfix", …)`.
         InstrumentSpec(name: "grabfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runGrabfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.grabfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runGrabfixBattery(trials: trials, cells: cells)
                        }),
         // #200P: production vs the card-correction clause — the conserved
         // zero-tool stall, treated as a class rather than field by field.
@@ -312,9 +352,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("stallfix", …)`.
         InstrumentSpec(name: "stallfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runStallfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.stallfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runStallfixBattery(trials: trials, cells: cells)
                        }),
         // #200Q: production vs the reminder tool whose optional fields are
         // optional in the SCHEMA — the stall's structural seam.
@@ -324,9 +365,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("schemafix", …)`.
         InstrumentSpec(name: "schemafix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runSchemafixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.schemafixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runSchemafixBattery(trials: trials, cells: cells)
                        }),
         // #200S: pooled production re-verify (control + the now-identity
         // schemafix cell) vs the pinned pre-promotion rollback.
@@ -336,9 +378,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("schema-reverify", …)`.
         InstrumentSpec(name: "schema-reverify", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runSchemaReverifyBattery(trials: trials)
+                       defaultCells: LocalChatBackend.schemaReverifyBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runSchemaReverifyBattery(trials: trials, cells: cells)
                        }),
         // #200T: production control vs the calendar tool with its two
         // undefaultable fields optional in the schema.
@@ -348,9 +391,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("calfix", …)`.
         InstrumentSpec(name: "calfix", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCalfixBattery(trials: trials)
+                       defaultCells: LocalChatBackend.calfixBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCalfixBattery(trials: trials, cells: cells)
                        }),
         // #200U: control vs the contact not-found RESULT carrying continuation,
         // plus the ceiling probe with the tool absent.
@@ -360,9 +404,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend2", …)`.
         InstrumentSpec(name: "deadend2", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadend2Battery(trials: trials)
+                       defaultCells: LocalChatBackend.deadend2BatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadend2Battery(trials: trials, cells: cells)
                        }),
         // #200V: #200U's three arms REVERSED (production last) after a discarded
         // warm-up pass — the confirmation run that tests the cell-order confound.
@@ -372,9 +417,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend-confirm", …)`.
         InstrumentSpec(name: "deadend-confirm", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadendConfirmBattery(trials: trials)
+                       defaultCells: LocalChatBackend.deadendConfirmBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadendConfirmBattery(trials: trials, cells: cells)
                        }),
         // #200W: #200T's calendar arms re-run WARM with production last. The
         // primaries are the location-spiral and invented-location counts, not the
@@ -385,9 +431,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("calfix-warm", …)`.
         InstrumentSpec(name: "calfix-warm", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCalfixWarmBattery(trials: trials)
+                       defaultCells: LocalChatBackend.calfixWarmBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCalfixWarmBattery(trials: trials, cells: cells)
                        }),
         // #200X: the promoted calendar tool against its OWN pinned rollback,
         // warm, production last — the confidence run the promotion is owed.
@@ -397,9 +444,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("cal-rollback-verify", …)`.
         InstrumentSpec(name: "cal-rollback-verify", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runCalRollbackVerifyBattery(trials: trials)
+                       defaultCells: LocalChatBackend.calRollbackVerifyBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runCalRollbackVerifyBattery(trials: trials, cells: cells)
                        }),
         // #201: #200U's contact fix re-measured at n=20, production last — the
         // primary is a dead-end COUNT, which n=10 could not carry.
@@ -411,9 +459,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend-reconsider", …)`.
         InstrumentSpec(name: "deadend-reconsider", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadendReconsiderBattery(trials: trials)
+                       defaultCells: LocalChatBackend.deadendReconsiderBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadendReconsiderBattery(trials: trials, cells: cells)
                        }),
         // #201B: the same two arms REVERSED — production first, in the cool slot,
         // so the run doubles as the thermal control.
@@ -423,9 +472,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("deadend-reversed", …)`.
         InstrumentSpec(name: "deadend-reversed", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeadendReversedBattery(trials: trials)
+                       defaultCells: LocalChatBackend.deadendReversedBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeadendReversedBattery(trials: trials, cells: cells)
                        }),
         // #202B two-turn battery: an offer, then a bare affirmative. Auto-ACCEPT
         // so an appropriate create EXECUTES and is countable as an artifact —
@@ -451,9 +501,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("clause-reverify", …)`.
         InstrumentSpec(name: "clause-reverify", confirmationMode: .autoAccept,
                        writesEventKit: true, writesAlarms: true,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runClauseReverifyBattery(trials: trials)
+                       defaultCells: LocalChatBackend.clauseReverifyBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runClauseReverifyBattery(trials: trials, cells: cells)
                        }),
         // #199: the DECLINE lane. auto-DECLINE is mutually exclusive with
         // auto-accept — declining is the whole measurement, so no artifact can
@@ -465,9 +516,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("decline", …)`.
         InstrumentSpec(name: "decline", confirmationMode: .autoDecline,
                        writesEventKit: false, writesAlarms: false,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runDeclineBattery(trials: trials)
+                       defaultCells: LocalChatBackend.declineBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDeclineBattery(trials: trials, cells: cells)
                        }),
         // #211 motion-scope: control vs the scoped readMotion description.
         //
@@ -477,9 +529,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("motion-scope", …)`.
         InstrumentSpec(name: "motion-scope", confirmationMode: .none,
                        writesEventKit: false, writesAlarms: false,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runMotionScopeBattery(trials: trials)
+                       defaultCells: LocalChatBackend.motionScopeBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runMotionScopeBattery(trials: trials, cells: cells)
                        }),
         // #211 follow-on: promoted vs promoted-plus-boundary. READ tools only.
         //
@@ -488,9 +541,10 @@ enum InstrumentRegistry {
         // Button: `instrumentButton("motion-redirect", …)`.
         InstrumentSpec(name: "motion-redirect", confirmationMode: .none,
                        writesEventKit: false, writesAlarms: false,
-                       run: { backend, trials, _ in
-                           guard let backend else { return }
-                           await backend.runMotionRedirectBattery(trials: trials)
+                       defaultCells: LocalChatBackend.motionRedirectBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runMotionRedirectBattery(trials: trials, cells: cells)
                        }),
         // #217 intent-router probe: READ-ONLY, no tools registered, nothing
         // created or reaped. Just classifications.

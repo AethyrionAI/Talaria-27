@@ -432,7 +432,15 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
   Release Xcode still can't build iOS 27.
   `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
-  **Beta4 (27A5228h) remains on disk as the A/B fallback**; `Xcode-beta.app`/`Xcode-beta3.app`
+  ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
+  2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
+  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remain).
+  There is NO beta4 A/B fallback.** The nearest surviving beta4-vintage artifact is
+  the CLT SDK at `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`
+  (swiftlang 6.4.0.27.1, matching #324's recorded beta4 compiler) — an interface-only
+  proxy, no toolchain, no runtime. Consequence: any A/B that needs a beta4 BUILD now
+  requires re-downloading it, and #324-W4's "same-binary control is dyld-impossible"
+  is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
   were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
   iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
   needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
@@ -488,9 +496,24 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     Sharing one booted sim across concurrent lanes fails as
     `Simulator device failed to launch …xctrunner` / *"Application failed
     preflight checks"* (**Busy**) — which looks like a product failure and is
-    not. Make one: `xcrun simctl create "CC-<item>-iPhone-Air"
-    com.apple.CoreSimulator.SimDeviceType.iPhone-Air
-    com.apple.CoreSimulator.SimRuntime.iOS-27-0`.
+    not.
+  - **⛔ DO NOT create a per-item `CC-<item>-iPhone-Air`. Use the FIXED POOL:
+    `CC-lane-1`, `CC-lane-2`, `CC-lane-3`** (iPhone Air, iOS 27.0). **Corrected
+    2026-08-12 — the old per-item instruction that stood here is what caused the
+    sprawl:** every lane created a sim, nothing ever deleted one, and Owen found
+    ~30 accumulated and cleared them by hand. A lane claims a free pool member and
+    leaves it in place; the pool is reused forever, and three is the ceiling
+    anyway because **>3 booted locks this Mac up**. Recreate a missing member with
+    `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
+    com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
+    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5408d
+    (beta5)** unless someone set an A/B override, so verify with
+    `xcrun simctl runtime match list` when it matters.
+  - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
+    (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
+    with "Unable to find a device matching the provided destination specifier".
+    `lane-gate.sh` resolves the name itself, so `TALARIA_SIM_NAME` is fine there;
+    a hand-rolled `xcodebuild` invocation is not.
   - **And a dedicated sim does not buy you a free host.** With six lanes
     building at once the Mac ran out of process capacity: the test host failed
     to launch with *"did not return a process handle nor launch error"*

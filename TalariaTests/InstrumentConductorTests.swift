@@ -51,10 +51,14 @@ struct InstrumentConductorTests {
 
     private func spec(_ name: String, mode: InstrumentSpec.ConfirmationMode,
                       eventKit: Bool = false, alarms: Bool = false,
-                      run: @escaping @MainActor (LocalChatBackend?, Int, [String]?) async -> Void = { _, _, _ in })
+                      defaultCells: [LocalChatBackend.ActionBatteryCell]? = nil,
+                      run: @escaping @MainActor (LocalChatBackend?, Int,
+                                                 [LocalChatBackend.ActionBatteryCell]?) async -> Void
+                        = { _, _, _ in })
         -> InstrumentSpec {
         InstrumentSpec(name: name, confirmationMode: mode,
                        writesEventKit: eventKit, writesAlarms: alarms,
+                       defaultCells: defaultCells,
                        run: { b, t, c in await run(b, t, c) })
     }
 
@@ -126,7 +130,7 @@ struct InstrumentConductorTests {
             recordID = record.id
             box.records = [record]
         }
-        _ = await conductor.run(spec: s, trials: 2, cells: ["a"], unattended: true)
+        _ = await conductor.run(spec: s, trials: 2, cells: nil, unattended: true)
         #expect(midRun?.status == .running)          // bar 333-C's schema half
         let final = try latest(in: dir)
         #expect(final.status == .completed)
@@ -156,5 +160,95 @@ struct InstrumentConductorTests {
         #expect(envelope.runRecord == nil)
     }
 
+    // MARK: - #341 cell selection
+
+    /// THE bar this lane exists for. A mistyped cell name must not produce a
+    /// run: the instrument is never invoked, so no `BatteryRunRecord` appears
+    /// and the artifact seals `failed` — and the reason names the typo rather
+    /// than blaming the battery mutex, which is what a downstream conversion
+    /// would have left in the file.
+    @Test func anUnknownCellNameFailsWithoutRunningTheInstrument() async throws {
+        var invoked = false
+        let (conductor, _, dir, box) = makeConductor()
+        let s = spec("t-cells", mode: .none, defaultCells: [.armed, .armedCardrollback]) { _, _, _ in
+            invoked = true
+            box.records = [self.minimalRunRecord()]
+        }
+        let status = await conductor.run(spec: s, trials: 1,
+                                         cells: ["armed-nosuchcell"], unattended: true)
+        #expect(status == .failed)
+        #expect(!invoked)
+        #expect(box.records.isEmpty)
+        let envelope = try latest(in: dir)
+        #expect(envelope.status == .failed)
+        #expect(envelope.refusalReason?.contains("armed-nosuchcell") == true)
+        #expect(envelope.refusalReason?.contains("mutex") == false)
+        #expect(envelope.runRecord == nil)
+        // The request itself survives into the artifact, so a reader can see
+        // what was asked for as well as why it was refused.
+        #expect(envelope.cells == ["armed-nosuchcell"])
+    }
+
+    /// A one-cell launch runs exactly that cell, and the embedded run record
+    /// says so — the whole point of #337's two-launch A/B is that a reader
+    /// can never mistake one arm for the full three-cell instrument.
+    @Test func aSingleCellRequestReachesTheInstrumentAndTheArtifact() async throws {
+        var seen: [LocalChatBackend.ActionBatteryCell]?
+        let (conductor, _, dir, box) = makeConductor()
+        let s = spec("t-cells", mode: .none,
+                     defaultCells: [.armed, .armedCardrollback, .armedSpiralfix]) { _, _, cells in
+            seen = cells
+            var record = self.minimalRunRecord()
+            // Mirrors what `runActionBattery` does: the recorder's run header
+            // carries the raw values of the cells it was handed.
+            record.cells = (cells ?? []).map(\.rawValue)
+            box.records = [record]
+        }
+        let status = await conductor.run(spec: s, trials: 10,
+                                         cells: ["armed"], unattended: true)
+        #expect(status == .completed)
+        #expect(seen == [.armed])
+        #expect(try latest(in: dir).runRecord?.cells == ["armed"])
+    }
+
+    /// The default path: nothing requested means the instrument's OWN pinned
+    /// list arrives at the closure, byte for byte.
+    @Test func noRequestHandsTheInstrumentItsDeclaredDefaultCells() async throws {
+        var seen: [LocalChatBackend.ActionBatteryCell]?
+        let (conductor, _, _, box) = makeConductor()
+        let pinned: [LocalChatBackend.ActionBatteryCell] = [.armed, .armedCardrollback, .armedSpiralfix]
+        let s = spec("t-cells", mode: .none, defaultCells: pinned) { _, _, cells in
+            seen = cells
+            box.records = [self.minimalRunRecord()]
+        }
+        _ = await conductor.run(spec: s, trials: 10, cells: nil, unattended: true)
+        #expect(seen == pinned)
+    }
+
+    /// An instrument with no cell dimension is refused a cell request rather
+    /// than running its default and ignoring the argument.
+    @Test func cellsRequestedOfACelllessInstrumentFailWithoutRunning() async throws {
+        var invoked = false
+        let (conductor, _, dir, _) = makeConductor()
+        let s = spec("t-nocells", mode: .none) { _, _, _ in invoked = true }
+        let status = await conductor.run(spec: s, trials: 1, cells: ["armed"], unattended: true)
+        #expect(status == .failed)
+        #expect(!invoked)
+        #expect(try latest(in: dir).refusalReason?.contains("t-nocells") == true)
+    }
+
+    /// The empty wire state (`TALARIA_CELLS` exported but unset by the runner)
+    /// is not a request, so a cell-less instrument still runs normally.
+    @Test func theEmptyWireStateIsNotARequest() async throws {
+        var invoked = false
+        let (conductor, _, _, box) = makeConductor()
+        let s = spec("t-nocells", mode: .none) { _, _, _ in
+            invoked = true
+            box.records = [self.minimalRunRecord()]
+        }
+        let status = await conductor.run(spec: s, trials: 1, cells: [], unattended: true)
+        #expect(status == .completed)
+        #expect(invoked)
+    }
 }
 #endif

@@ -193,9 +193,11 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#331** 🧪 A DEDICATED TEST CONTAINER for calendar/reminders/alarms — **the gate on unattended device running.** The batteries auto-accept and write REAL data, reaped only at the DONE line, so any interrupted run leaves residue in Owen's own calendar. **Ruled 2026-08-11: dedicated container, reap the container wholesale, reap on START as well as finish; alarms need their own answer since AlarmKit has no container.** Data rows deferred until this ships; bars pre-register in the entry
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
-- **#338** 🛡️ **THE HONESTY GUARD** — a turn that CLAIMS a device action while executing ZERO tool calls must never reach the user as-is. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#342** 📋 **KANBAN SUPPORT** — Owen's request 2026-08-12. **A read-only view SHIPPED the same night** (`scripts/oi-kanban.py`, never writes to the tracker). **Its measurement is the real input: 97 of 138 open cards (70%) are UNCLASSIFIABLE** — their state lives only in prose — and the 41 it does place are placed by keyword, crudely (#338 reads as "Blocked" because its text says "needs Owen", while it is merged with one bar owed). **So the question is whether entries get a machine-readable status at all, which changes how every entry is written — Owen's call, not a lane's.** Five design questions in the entry; bars pre-register before any format change
+- **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
-- **#337** 🔥🔴 **THE ACTION PATH CREATED NOTHING — AND TELLS THE USER IT DID.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
+- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..H. **337-G RAN 2026-08-13 and carries TWO corrections to my own bar: the `armed-cardfix` cell is IDENTITY WITH PRODUCTION post-#200K (wrong instrument — the clause-removed arm is `armed-cardrollback`), and 'the within-run contrast survives the confound' was FALSE (cells run sequentially, cuts climbed 14/40→22/40).** What it still established, clause held CONSTANT and ON: **the literal `Confirmation card:` specimen occurred TWICE where beta4 measured 0/40** — the clause does not hold on beta5; and on the unconfounded first cell (`armed/remind`, zero cuts) **3/10 FABRICATED, 2/10 executed, 5/10 offered** — the first defensible rate for #336/#337. Also: batteries CANNOT witness the #338 guard (they bypass its settle point) **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
@@ -242,7 +244,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
-- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline
+- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. STAYS OPEN, blocked on #337.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
 - **#205E** ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 - **#210A** does one forced condensation actually fit 8,192?
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it
@@ -9239,9 +9241,14 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 >   refuse unattended by design — Owen's ruling, enforced in code. Unattended-eligible
 >   ≠ iPad-eligible only for EventKit reasons; on the iPad the write set is refused
 >   entirely.
-> - **`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
+> - ~~**`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
 >   cells; `runActionBattery`'s cells are `[ActionBatteryCell]`, not strings). Reserved,
->   documented, inert.
+>   documented, inert.~~ **SUPERSEDED 2026-08-12 by #341 — it is now consumed.** The
+>   32 action-family entries declare a `defaultCells` list and take the resolved cases;
+>   `ActionBatteryCellSelection` does the string→case conversion and REFUSES an unknown
+>   name (or a cell request aimed at an instrument with no cell dimension) rather than
+>   dropping it. Everything else in this bullet was accurate when written; only the
+>   "inert" half is dead.
 > - Known post-merge minors, filed here so they aren't rediscovered: an unknown
 >   instrument name emits `instrument: UNKNOWN` to console but writes NO artifact (the
 >   harness burns its timeout on a typo); `runColdCalfixBattery` has no button and no
@@ -9307,10 +9314,415 @@ tool — this lane makes the app HONEST, not capable.
 >   re-derived from battery cells.
 > - **338-F** — `GATE: PASS`, count moved, Release built.
 
+> **✅ MERGED 2026-08-12 — bars 338-A/B/D/E/F MET; 338-C (device witness) NOT YET
+> MET and the entry stays OPEN until it is.** Three fix rounds, each closed by an
+> independent adversarial re-review that COMPILED the detector at every revision
+> and ran it over the real artifacts rather than reading it. Final verdict
+> SHIPPABLE. `GATE: PASS` at the merged commit, Swift Testing 2219 + XCUITest 14 +
+> Release, gate commit == HEAD, tree clean. Copy ruled by Owen (the tighter
+> correction; retry suggestion declined because #337 measured no successful
+> creations — inviting a retry would be a second broken promise).
+>
+> **THE LANE'S TRANSFERABLE FINDING, and it cost three rounds to learn:** every
+> round produced the same species of defect, and **not one of them was a wrong
+> change** — each was the INTERSECTION of two individually-correct changes.
+> R2: a narrowing fix (label position) met a licensing fix (the conversation
+> latch) ⇒ the production defect went completely silent. R3: a marker fix met a
+> scope fix (strip-before-tiers) ⇒ a base-era false positive reopened. **Reviewing
+> either change alone finds neither.** What caught both is now permanent in the
+> fixture table rather than dependent on a reviewer having the idea: **sweep every
+> claim at BOTH latch states, and keep a quoted variant of every label form.** The
+> final re-review crossed the round-3 change against the latch, the quote strip,
+> the silencer split, the offer ordering and the tier order, plus a 2,070-case
+> quote-injection mutation sweep, and could not find a third instance.
+>
+> **Verified at merge:** floor 6/6 at both latch states; **544** prefixed forms of
+> #337-A (bullets, blockquotes, emoji, numerals, NBSP, nested) still caught, zero
+> regressions vs round 2; **zero** new false positives across 112 unique real
+> replies at four latch × tool configurations; round-2's entire fixture set
+> re-run on the round-3 detector with **0 differences**.
+>
+> **RESIDUES RECORDED, none blocking, all miss-direction or unreachable by
+> realistic output** (from the final re-review, quoted rather than paraphrased):
+> **F1** a stray leading `"` before the marker silences the headline defect at both
+> latch states (unterminated-opener strips to end of sentence) — a miss, in the
+> file's declared preferred direction, but it was NOT recorded before now;
+> **F2** a quoted illustration containing a sentence-ending period splits, and the
+> half carrying the marker fires — same class round 3 closed, not fully closed,
+> identical at base so not a regression; **F3** a closed quoted span immediately
+> followed by the marker with ZERO letters between fires (any connector word kills
+> it; no corpus row or fixture reaches it); **F4** the quoted-opener KNOWN-LIMIT
+> says it silences `firstPersonCreation` — it also silences `impersonatedCard`,
+> one clause not a correction; **F5** the single-letter-marker enumeration
+> (`i. a. A. a)`) is not exhaustive — `[x] ` and `1a. ` are in-class.
+>
+> **338-C is the only bar left and it needs Owen**: the guard must be witnessed on
+> hardware producing an honest outcome on a turn that reproduces #337-A. Nothing
+> in three rounds touched a device. The build is on the phone.
+>
+> **338-C ATTEMPT 1, 2026-08-12 9:45 PM — NOT MET, because the defect did not
+> reproduce.** Same prompt shape on the guard build (*"Remind me to take out the
+> trash at 11"*): the model **called the tool**, the real confirmation card
+> rendered, and **the guard correctly stayed silent.** That is the right behaviour
+> and it is NOT the bar — 338-C needs a turn that reproduces #337-A, and this turn
+> did not. **Do not record this as the bar met.**
+>
+> **What it DID buy, and it is worth more than a tidy score:**
+> 1. **The action path demonstrably works on this build** — a real
+>    `createReminder` call with the real card. Any reading of #337 as "the app
+>    never creates" is refuted by this turn, and #337's confounded battery rates
+>    already had no standing to claim it.
+> 2. **The fabrication is INTERMITTENT, not deterministic** — 337-A fabricated on
+>    the first try; this turn did not. So #337's real rate is somewhere strictly
+>    between, unmeasured, and **337-G's cardfix A/B is now the only thing that can
+>    supply it.**
+> 3. **A partial 338-D confirmation ON HARDWARE**: the guard did not false-fire on
+>    an honest tool-executing turn — the one property whose failure would ship a
+>    false statement to the user.
+> 4. It surfaced a separate defect on the same screenshot — the empty DUE field —
+>    recorded at **#249**.
+>
+> **Next attempt:** 338-C stays open. The honest way to score it is not to keep
+> re-asking and hoping for a fabrication, but to run **337-G's cardfix battery**,
+> whose control cell reproduces the narration by construction — if the guard is
+> installed, that run witnesses both the rate AND the correction in one sitting.
+
 **Cross-references:** **#337** (the defect this mitigates; 337-A is the evidence),
 **#336** (the fabrication mechanism), **#232** (the governor whose cut precedes most
 of these turns), **#197** (never-throw discipline on the tool path — the guard must
 not introduce a throw), **#196** (the disclaimer tic, this shape's inverse).
+
+### 2026-08-12 — 🔴 THE REVIEW: the guard shipped GREEN and would have lied to the user four different ways. Four false-positive classes fixed, plus the wiring tests that tested no wiring.
+
+**The first build passed its own bars and was still ship-blocking**, which is
+the finding worth keeping: bar 338-A weighed false positives correctly *"a
+guard that fires on an honest offer trains the user to ignore it"* but scored
+that risk only against the artifacts' honest OFFERS. The offers were the easy
+half. **The reply the guard appends is a factual claim in the app's own voice —
+*"Nothing was created."* — so a false positive is not a nuisance, it is the app
+lying about the opposite thing.** Every class below was found by compiling the
+detector and running it over the real corpora plus constructed honest replies;
+all fourteen reproduced.
+
+**1. CRITICAL — earlier-turn truth.** `unfulfilledClaim` read only THIS turn's
+calls, so the commonest honest exchange in the app fired it: the user taps
+Confirm, the reminder is really written, and on the NEXT turn asks *"did that go
+through?"* — a turn with zero tool calls by construction. Observed firings, all
+honest: *"Yes, the reminder is set for 8 PM."* · *"Your reminder is set for
+8 PM."* · *"The meeting is on your calendar for 3 PM."* · *"Your morning alarm is
+set for 6:30."* Each collected *"Nothing was created."*
+**Fix:** a conversation-scoped latch on `ToolEventRelay`
+(`actionToolExecutedThisConversation`), set at the one place an admitted call is
+counted and cleared by `endConversationToolState()` — the #233/#249 latch
+lifetime, not a new one. It licenses **only** the three kinds
+`isLicensedByAnyToolCall` already allowed (passive + the two present-state
+tiers).
+**KNOWN LIMIT, named not hidden:** `firstPersonCreation` and `impersonatedCard`
+are NOT licensed by conversation history, so *"I created that event this morning
+when you confirmed the card"* — an honest sentence — still fires. That is
+deliberate: **6 of the 6 true positives in the real corpus are
+`firstPersonCreation`**, and licensing it conversation-wide would blind the
+guard to its own headline shape for the rest of any conversation in which one
+action ever succeeded. Pinned as a labelled row in
+`ActionClaimDetectorTests.earlierTurnFindings`. **Owen's call whether to trade
+it.**
+
+**2. Quoted spans.** The entry required not firing on the model quoting the user
+and nothing implemented it. Fixed by dropping `"…"` spans before tokenizing.
+**An unterminated opener strips to the end of the sentence, and that is the
+load-bearing half:** `sentences(of:)` breaks on the period INSIDE a quotation,
+so *"You wrote: "I've set a reminder already." Do you want another one?"* splits
+with the closing quote on the far side of the break. Balanced-pairs-only would
+have read that half as the model's own claim.
+
+**3. Capability / explanatory prose.** Capability questions route TOOLLESS
+(#215), so `executedToolNames` is empty on them **by construction**, and the
+app's own instructions teach the model this vocabulary —
+`cardNarrationClause`, `cardCorrectionClause` and the armed-tool enumeration
+(`LocalChatBackend.swift:2149`/`:2204`/`:2209`) all put "confirmation card" in
+front of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
+has been created it appears in the Reminders app"* fired.
+**The rule used, stated exactly:** (a) a sentence whose FIRST token is a
+subordinating conjunction of condition or time — `if once when whenever after
+before until unless` — is a conditional or general-rule frame and yields no
+claim at any tier; the rule is POSITIONAL so a conditional TAIL cannot silence a
+real claim, and `as`/`while` are excluded because *"As requested, I've set a
+reminder"* is a fabrication. (b) the imitated `confirmation card:` counts only
+in **label position** — opening the sentence, where the app's own card would
+sit — which is how #337-A emitted it; mid-sentence it is the app's vocabulary
+being explained.
+
+**4. Conditionals and ordering.** `if`/`until` were missing from `offerPatterns`,
+and the offer check ran AFTER the passive tier had already returned, so
+*"I'll create a reminder titled "…has been created""* was read as completed
+despite opening with `i'll`. The offer check now runs ahead of the passive and
+present-state tiers. It stays BELOW the first-person tier on purpose: those
+patterns are unanchored, and *"I've set the alarm and I can change it"* must
+still fire.
+
+**5. THE WIRING TESTS TESTED NO WIRING.** Every test called
+`honestyGuardedReply` directly with a hand-built array, so nothing pinned where
+that array came from — **both `if event.phase == .started` blocks could be
+deleted with the whole suite green**, and a guard reading an always-empty array
+fires on every honest tool-executing turn. Fixed structurally: one
+`LocalChatBackend.TurnToolCallRecorder` owns the only `.started` filter, both
+turn paths install it, and seven tests hold it. **RED witnessed twice** —
+removing the `.started` guard reddens 1 test; removing the recording call
+entirely (the reviewer's exact defect) reddens 3.
+
+**THE FLOOR HELD.** Re-verified against all three real corpora
+(`225-spiral`, `199A-calendar`, `199A-decline` — 118 rows carrying text):
+**exactly 6 true positives fire, the same 6 rows, nothing else**, before and
+after. ⚠️ `199A-decline-artifact.json` is **not in this branch's tree** — it
+landed on `main` in `9c23218` after the worktree branched — so its three rows
+are transcribed into the fixture table and the count was measured against
+`main`'s copy.
+
+**Bars: 338-A/B/D/E re-met after the fix; 338-F met. 338-C (on hardware) is
+still owed** — this review was static and no device was touched.
+
+### 2026-08-12 — 🔴 ROUND 2: the round-1 fixes were verified, and three of them had bugs of their own. One re-hid the production defect.
+
+**Independent re-review compiled base and fixed detectors over 118 real rows ×
+120 constructed strings.** The round-1 disputes were upheld and the floor
+confirmed byte-for-byte. Then three Important findings, all reproduced here
+before fixing.
+
+**N1 — A MARKDOWN BULLET MADE #337-A's OWN SHAPE SILENT.** Narrowing the
+imitated-card test to `hasPrefix` was right, but `normalize` strips only
+`* _ ` #` — `-`, `>`, emoji and leading spaces all survive. So
+`- **Confirmation card:** A reminder … has been created.` classified as
+`passiveCompletion` instead of `impersonatedCard` — **and the conversation
+latch LICENSES passiveCompletion.** On the second turn of a conversation where
+one reminder had really been created, the production defect's exact shape went
+**completely quiet.** One bullet and one earlier success away from invisible.
+Fixed by testing label position from the sentence's first LETTER
+(`labelPositionBody`), which cannot over-reach because it stops there — the
+honest mid-sentence mention stays quiet, bulleted or not.
+**This is the round's most important lesson: a NARROWING fix and a LICENSING
+fix landed in the same commit, and their intersection was a hole neither
+review of them separately would find.**
+
+**N2 — QUOTE-STRIPPING REMOVED THE SILENCERS.** The strip ran above the
+negation, attribution and opener checks, so any reason to stay quiet sitting
+inside a quotation was deleted before it was consulted. Three honest sentences
+went quiet → FIRE **between the base and the round-1 fix** — the fix ADDING
+false statements to the user. Now: silencers read the whole sentence, claim
+tiers read it with quoted spans removed. Cost, recorded: a negation quoted from
+the user can silence a claim the model makes outside the quotation. That
+direction is a miss; the other was a lie.
+
+**N3 — THE PRODUCTION SEAM WAS UNPINNED.** Nothing called
+`honestyGuardedReply(modelText:settledText:recorder:)`, so all three round-1
+fixes could be reverted with a green suite. Two tests now drive it through
+`installTools(_:relay:)` and a real `relay.started(…)`. Residual, stated:
+replacing `install(on:)` with a bare `toolRelay?.emit =` inside
+`send`/`streamTurn` is still unpinned — both need a live `LanguageModelSession`,
+which a simulator cannot provide.
+
+> **⚠️ THE LATCH TRADE HAS A SECOND HALF, AND IT IS THE LARGER ONE.** Round 1
+> disclosed only the false-POSITIVE residual. The false-NEGATIVE half is
+> permanent: **because the latch is set by ANY action tool and licenses ALL
+> THREE licensable kinds, one successful reminder retires the passive and both
+> present-state tiers for the rest of that conversation — including for a
+> different artifact the model subsequently fabricates.** Verified quiet at
+> `prior=true`: *"Lunch with Sam is now on your calendar for Friday."* ·
+> *"The reminder has been created for 8 PM."* · *"Your alarm is set for
+> 6:30 AM."* · and #337-A's passive half alone. The full #337-A reply still
+> fires, but only on its imitated-card label — which is exactly why N1
+> mattered.
+
+**SCOPE CORRECTION on round-1 findings 3 and 4: both fixes are FIXTURE-level,
+not class-level.** The explanatory rule closes the sentence-initial
+subordinator and nothing wider; the conditional rule closes `if`/`until` beside
+an adjacent `you`. Still firing, now labelled KNOWN-LIMIT rows:
+*"Events are added to your calendar through a confirmation card you tap."* ·
+*"Right now nothing is on your calendar for Friday."* (`nothing` is not in
+`negationTokens`) · *"You told me your alarm is set for 6:30."* (`told` is not
+in `attributionPatterns`) · *"Assuming you confirm, …"* · *"Tap Confirm and
+…"*. **Both are SCOPE decisions, not dead ends — corrected here because round 2
+wrote them as if they were impossible, and a later lane would read that as
+refuted.** A naive one-word addition does go too far: `nothing` in
+`negationTokens` silences *"Nothing else — I've set the reminder"*, and `told`
+in `attributionPatterns` silences *"You told me to set an alarm, and I've set
+it."* **But both are separable with mechanisms already in this file.**
+`TokenPattern.requiredFollower` — the same discriminator that keeps *"I set the
+alarm"* apart from *"I set out to"* — distinguishes `told me **to** set` from
+`told me your alarm **is** set`; and the positional move that gave
+`explanatoryOpeners` its sentence-initial rule handles `nothing`-as-subject the
+same way. An independent re-review built the naive variant and confirmed both
+counterexamples go dark on `firstPersonCreation`, which is what makes the
+NAIVE form wrong — not the fix. **Left undone because it is a new rule with its
+own controls, not because it cannot be done.**
+
+**AND THE REORDER HAD A COST, recorded:** moving offers ahead of the passive
+tier silences two shapes the base detector caught —
+*"The reminder has been created, and I can change the time if you want."* and
+*"The event has been added to your calendar, did you also want a reminder."*
+
+**Floor re-verified at BOTH latch states: exactly 6 fires, the same 6 rows, at
+`prior=false` AND `prior=true`.**
+
+**Also corrected:** three copies of a wrong citation — the "confirmation card"
+instruction clauses are `LocalChatBackend.swift:2149`/`:2204`/`:2209`, not
+`:1955`/`:2015` (detector doc, test doc, and this entry) — and a doc comment
+naming a `.progress` phase that does not exist (`ToolCallEvent.Phase` has two
+cases).
+
+### 2026-08-12 — 🔴 ROUND 3: round 2's marker fix reopened a base-era false positive that round 1 had closed by accident.
+
+**One BLOCKING finding, and it is the same shape as N1 one level up.**
+`labelPositionBody` drops every non-letter — **including a leading quotation
+mark** — so judging label position on the RAW sentence read a quoted
+ILLUSTRATION as the app's own affordance:
+*"Confirmation card: A reminder has been created" is what the card would show.*
+→ `impersonatedCard`. **Worst direction available:** `impersonatedCard` is
+licensed by neither a tool call nor the conversation latch, so it fired at BOTH
+latch states with **no way to license it away** — on capability prose, which
+routes toolless by construction. It was also the last claim tier still reading
+the unstripped sentence, the exact asymmetry round 2's silencer-scope fix had
+just removed. Fixed by judging label position on the STRIPPED sentence; #337-A
+survives because only its TITLE is quoted, never its marker. Verified across the
+whole corpus and every fixture: it changes exactly those three strings and
+nothing else.
+
+**The pattern across all three rounds is now unmistakable and is the finding
+worth carrying out of this lane: every regression here came from the
+INTERACTION of two individually-correct changes, never from one wrong change.**
+Round 2's N1 was a narrowing fix meeting a licensing fix; round 3's is a
+marker fix meeting a scope fix. Reviewing either change alone finds neither.
+**The cheap defence that actually worked was the `prior=false`/`prior=true`
+sweep plus a quoted variant of every label form** — both are now standing rows
+in the fixture table rather than something a reviewer has to think of.
+
+**RECORDED, not fixed — two residues, each a labelled KNOWN-LIMIT row:**
+1. **N1's class is not fully closed.** SINGLE-LETTER list markers still defeat
+   label position — `i. `, `a. `, `A. `, `a) ` — because `drop { !$0.isLetter }`
+   stops AT the marker and `sentences(of:)`'s abbreviation rule (which exists to
+   keep `a.m.` and `J. Smith` intact) refuses to split them off. `ii.`, `iv.`
+   and `1.` are fine, so the residue is narrow. The BASE detector caught these;
+   rounds 1–2 do not. A miss rather than a lie, and only reachable at
+   `prior=true` — but it is N1's own class, so it is a row and not a silence.
+2. **A sentence-initial quotation DONATES its first word to the opener test**,
+   now that openers read unstripped: *"When I get home, remind me" — I've set a
+   reminder for 8 PM.* and *"If it helps," I've set a reminder for 8 PM.* both
+   go quiet. This one is worse than the negation variant round 2 recorded,
+   because it silences `firstPersonCreation` — the one tier the whole design
+   says context must never silence, and the reason the conversation latch stops
+   short of it.
+
+**Doc/code reconciled:** `offerPatterns` is a fourth suppressor that reads
+STRIPPED tokens, so "silencers read unstripped" was stated more broadly than
+implemented. The comment now says which three are sentence-level and why the
+offer check is deliberately tier-scoped (an offer marker inside a quotation is
+the model quoting an offer, not making one).
+
+**Citations re-anchored:** the clause line numbers were off by one — my own
+round-2 doc edit shifted them — so they are now cited by SYMBOL NAME
+(`cardNarrationClause`, `cardCorrectionClause`, the armed-tool enumeration) with
+the line numbers as a hint. They have drifted twice in two rounds; the symbol
+names cannot.
+
+**Floor re-verified at both latch states: exactly 6 fires, the same 6 rows.**
+
+> **QUESTION FOR OWEN (routed here, deliberately NOT built):** should the guard
+> additionally gate on the ROUTER's action-intent, so a completion-shaped
+> sentence in a FRESH conversation only fires when the turn was routed as an
+> action request? It would retire the residual in class 1 and most of class 3,
+> at the cost of coupling the guard to a second subsystem. Named, not
+> implemented.
+
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.**
+
+**The measurement** (production, on-device, guard build, Owen's own device,
+three screenshots):
+
+1. Prompt: *"Remind me to empty the dishwasher **at 11**."*
+2. `createReminder` **executed** — tool-activity row `1 STEP`, then `✓ CREATEREMINDER`.
+   The staged card read **TITLE `Empty the dishwasher`, DUE EMPTY, LIST empty.**
+3. Owen **approved**.
+4. Reply, verbatim: **"I've set a reminder to empty the dishwasher at 11. You'll
+   see it in your 'Stuff' list."** (`IN 3.6K · OUT 56`)
+5. Reminders app, **Scheduled** view, one minute later: the item is **absent** —
+   the only entry is an unrelated `Water the plants!!` (Stuff, 9:00 PM, past due
+   from Aug 10). **A reminder with no `dueDateComponents` cannot appear in
+   Scheduled**, which is exactly what its absence demonstrates.
+
+**So the reminder exists and will never fire, and the user was told it is set for
+11.** The failure is silent at the moment of maximum trust — the user watched a
+confirmation card, approved it, and read a confirmation sentence.
+
+**This RESOLVES the discriminator filed at #249 the same night** (the empty-DUE
+observation at 9:45 PM): **it is NOT a card display gap.** The card was empty
+because the argument was empty, and the created artifact genuinely carries no
+time. `finalDue` is optional at `DeviceActionTools.swift:264` (`if let finalDue`),
+so a nil due produces a dateless reminder rather than a default — no app-side
+defaulting stands between the model's omission and the user.
+
+**🔴 WHY THIS IS NOT #337 AND NOT COVERED BY #338.** #337/#336 are *no tool call
+at all*; here the call executed and the artifact is real. **#338's guard cannot
+fire on this by construction** — bar 338-D REQUIRES it to stay silent whenever an
+action tool executed, precisely so it never contradicts a real write. That rule is
+right for "did anything happen" and **blind to "did what you were told happen."**
+The guard checks EXISTENCE; this is a lie about CONTENT. A content-level check
+would have to compare the claim against the tool's ARGUMENTS — a different, harder
+detector, and one nobody has scoped.
+
+**⚠️ AN OPEN QUESTION THIS RAISES ABOUT THE WHOLE #200 SERIES, stated as a
+question because it is not yet checked:** the batteries count a create as a
+success when a tool call is recorded and an artifact is reaped. **Nothing in that
+chain inspects the due date.** If dateless creates have been scoring as clean
+creates, then "creates 10/10" and every sibling rate mean "a reminder was made",
+not "the reminder the user asked for was made". **Check before quoting any create
+rate again** — the trial records carry a `detail` string per tool call, so the
+answer is in the artifacts already on disk.
+
+> **BARS PRE-REGISTERED 2026-08-12, before any fix:**
+>
+> - **340-A (rate, not anecdote).** Across the timed-prompt cells of an existing
+>   battery, the share of executed creates whose recorded arguments carry NO due
+>   date — with the error path instrumented and denominators stated (#215).
+>   **This is a re-read of artifacts already on disk before it is a new run.**
+> - **340-B (the claim, paired).** For the same trials, whether the reply asserts
+>   a time. The defect is the PAIR — dateless artifact + time claimed — and the
+>   bar is scored on the pair, never on either alone.
+> - **340-C (mechanism, not elected).** Whether the model omits the argument, or
+>   emits one the tool fails to parse. The tool records what it received; a run
+>   that cannot distinguish these two has not answered 340-C.
+> - **340-D (the #200-series audit).** ~~Answer the open question above from stored
+>   artifacts: do historical create counts include dateless creates?~~
+>   **⚠️ CORRECTED 2026-08-13, before anyone spent time on it — THE STORED
+>   ARTIFACTS CANNOT ANSWER THIS, and my "answerable from artifacts already on
+>   disk" was wrong.** Checked across every preserved artifact (28 recorded tool
+>   calls): the recorder's per-call `detail` is **the TITLE only** for the two
+>   families that matter —
+>   `createReminder → "Test Talaria"`, `createCalendarEvent → "Lunch with Sam"`.
+>   **No due date is captured anywhere in the trial record**, so no historical run
+>   can be re-read for date correctness. The question is not open, it is
+>   **unanswerable with existing data**, which is a different and more actionable
+>   state.
+>   - **The one thing the check DID establish, and it narrows the defect:**
+>     `scheduleAlarm`'s detail **is** the time (`"6:30"`, 9 calls). So alarms
+>     demonstrably carried their time while reminders and events recorded none —
+>     matching the production observation, which was a REMINDER. Whether that
+>     asymmetry is the recorder's or the model's is exactly what 340-C must
+>     separate; the alarm rows show the recorder CAN carry a time when one exists.
+>   - **340-D is therefore replaced by an instrument requirement:** the recorder
+>     must capture the tool call's ARGUMENTS, not a display string, before any
+>     create rate can be audited for correctness. Until it does, **every "creates
+>     N/10" figure in this tracker means "a create happened", never "the right
+>     create happened"** — and that caveat now belongs beside any such number that
+>     gets quoted.
+> - **340-E (scope for #338).** Whether a content-level check is worth building —
+>   explicitly OWEN'S call, because it means the guard would begin judging tool
+>   ARGUMENTS, a materially larger surface than existence, with its own false-positive
+>   risk against a user who genuinely asked for no time.
+> - **No bar on wall-clock.**
+
+**Cross-references:** **#249** (whose new-shape discriminator this resolves; the
+wrong-hour header is a different symptom in the same subsystem), **#338**
+(structurally blind here — 338-D is why), **#337/#336** (the no-call family this
+is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:264`.
 
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
@@ -9333,10 +9745,194 @@ where the baselines live; and who reads a red. **Bars pre-register here when a l
 opens.** The hazard to design against is the one this project already names: a
 routinely-red or routinely-ignored gate is worse than none.
 
+## 342. 📋 KANBAN SUPPORT FOR THE TRACKER — **FILED 2026-08-12 on Owen's request ("add Kanban support… I'd like to investigate that tomorrow"). A READ-ONLY VIEW SHIPPED THE SAME NIGHT; the structural question is deliberately NOT decided, because it is his.**
+
+**What shipped (additive, reversible, zero risk to the tracker):**
+`scripts/oi-kanban.py` — reads the board bullets and prints columns. **It never
+writes to `OPEN_ITEMS.md`**, so it cannot corrupt the one file this project
+trusts, and deleting it leaves no trace. `--unclassified` and `--column NAME`
+narrow the view.
+
+**THE MEASUREMENT IT EXISTS TO PRODUCE, and it is the real input to any decision
+here: 97 of 138 open cards (70%) are UNCLASSIFIABLE.** Their state lives only in
+prose a human must read. The 41 it does place are placed by keyword
+(`MERGED`, `NOT MERGED`, `bars pre-registered`, `blocked on`, `NOT STARTED`), and
+even those are crude — **#338 lands in "Blocked" because its text says "needs
+Owen", while it is in fact merged with one bar owed.** That misfire is not a bug
+to patch; it is the finding. A board built on inference from prose will be
+confidently wrong about items whose prose is rich, which in this tracker is
+exactly the important ones.
+
+**So the question is not "which board tool" — it is whether items get a
+machine-readable status token at all**, and that is a change to how every entry is
+written. Owen's call, not a lane's. **DO NOT sweep 138 entries into a new format
+on inference; that would rewrite the file this project's whole discipline rests
+on.**
+
+**Design questions to investigate (none answered here):**
+1. **Columns.** The seven the script guesses are a straw man, not a proposal:
+   Done · In review · In progress (built, unrun) · Blocked · Ready (bars written) ·
+   Measured/needs a ruling · Backlog. **This project's real states may not be
+   these** — "bars pre-registered but unrun", "measured but unruled", and "merged
+   with a bar owed" are all distinct here and all common, and no generic Kanban
+   has columns for them.
+2. **Where state lives.** A token on the board line (`[ready]`), YAML frontmatter
+   per entry, or a sidecar file. **The tracker's counting rules and #261's split
+   invariants must survive it** — `scripts/oi-split-verify.py` is the guard, and
+   whatever lands must keep passing it.
+3. **Who moves cards, and when.** A status that only a human updates goes stale
+   silently — this project has already been bitten by headers that said one thing
+   while the dated notes said another (the #317 reconciliation audit). A status
+   nobody is obliged to update is worse than none.
+4. **Whether it replaces or supplements the board list.** The bullet list at the
+   top IS a board today; the honest option "we already have one, it just isn't
+   columnar" deserves a real hearing before anything is built.
+5. **Sub-items.** #199A, #210A, #332-a/b/c and friends are cards in their own
+   right but hang off parents. A flat board loses that; a nested one needs a
+   parent field.
+
+**Bars pre-register here before any change to how entries are written.**
+
+**Cross-references:** **#261** (the split and its counting rules any format must
+preserve), **#317** (headers drifting from dated notes — the failure a stale
+status column would reproduce at scale), **#339** (the regression-gate idea, which
+would want machine-readable state for the same reason).
+
+## 341. 🔌 `TALARIA_CELLS` WIRED — one cell per launch, so #337's pending A/B can run as TWO launches instead of one order-confounded run — **BUILT 2026-08-12 on Owen's instruction (*"run it as two separate launches"*). Structural build + unit lane only; no device run, no numbers. The #335 review's "reserved, documented, inert" is now superseded at its own home (above).**
+
+**Why this exists, and why it is not a convenience feature.** #337 established that
+no battery calls `beginToolTurn()`, so `ToolCallGovernor`'s per-turn refusal budget
+accumulates across a whole run. Cells run SEQUENTIALLY, so the later cell is
+systematically starved — the measured shape was 14/40 phase cuts in cell 1 against
+22/40 in cell 2, with thermal rising alongside. **Every two-cell instrument is
+therefore order-confounded, and the confound grows with cell index.** The fix that
+does NOT move every #200-series number is to run each arm as its own launch, which
+requires selecting one cell per launch. `beginToolTurn()` and the governor are
+untouched here — that remains Owen's call under #337.
+
+**What was inert.** #333 shipped `TALARIA_CELLS` end to end except the last inch:
+`run-instrument.sh` exports it, `InstrumentLaunchIntent` parses it to `[String]`,
+`InstrumentConductor` threads it to `InstrumentSpec.run` — and every registry closure
+took `_`, because `runActionBattery`'s cells are `[ActionBatteryCell]`.
+
+**What was built.**
+- **`ActionBatteryCellSelection`** (`Talaria/Services/Live/`) — the one string→case
+  resolver. `resolve(requested:instrument:default:)` returns `.resolved([Cell]?)` or
+  `.refused(String)`, and the refusal text IS the artifact's `refusalReason`.
+- **`InstrumentSpec.defaultCells`** — the pinned list an instrument runs when the
+  launch env names none. It is load-bearing (the conductor substitutes it), not a
+  comment, and it references the SAME symbol the backend wrapper defaults to, so the
+  two cannot drift. `nil` means "no `ActionBatteryCell` dimension".
+- **32 action-family registry entries** wired; the 11 wrappers that carried inline
+  cell literals had them promoted to named `…BatteryCells` constants so there is one
+  symbol per list.
+- **Resolution happens in the conductor, before anything runs.** That placement is
+  the point: a per-entry conversion would either drop a mistyped cell silently or
+  leave the artifact blaming the battery mutex for an operator's typo.
+
+**The four rules, and the reason for each.**
+1. **An unknown name refuses the WHOLE request** — never partially applied. A
+   silently-dropped cell produces a run that looks fine and measures something else.
+2. **An empty request is the UNSET wire state, not "zero cells".**
+   `run-instrument.sh` exports `DEVICECTL_CHILD_TALARIA_CELLS="$CELLS"`
+   unconditionally, empty when `--cells` was not passed, so `[]` is the default state
+   of every existing invocation. Rejecting it would have broken every run that does
+   not name cells.
+3. **Cells requested of an instrument with no cell dimension refuse too** (`shape`,
+   `two-turn`, the honesty pair, the probes) — forwarding to them is the same silent
+   drop wearing a different hat.
+4. **Order and duplicates are preserved.** Cell order IS run order (#200V's warm-up
+   and #201B's thermal arguments both depend on which arm runs cold), and coalescing
+   a repeat would silently halve a requested denominator.
+
+**Status handling — no new status was invented.** An unresolvable request seals the
+artifact `failed` (not `refused`): `refused` is reserved for the two standing policy
+refusals (alarms-unattended, EventKit-on-iPad), and `failed` is what makes
+`run-instrument.sh` exit non-zero, which is what a mistyped cell deserves. The
+instrument is never invoked, so no `BatteryRunRecord` appears either way.
+
+**Artifact truth.** `BatteryRunRecord.cells` already carried
+`cells.map(\.rawValue)` from `beginRun` — passing the resolved cases through makes it
+truthful for a one-cell launch with no record-format change. The envelope's own
+`cells` keeps the REQUESTED strings, so a reader sees both what was asked for and
+what ran.
+
+**This lane registers no measurement bars, because it measures nothing** — the sim
+cannot generate, and by instruction no device was touched. Its tests are structural:
+every raw value round-trips; an unknown name is refused and named; one bad name kills
+the whole request; the empty wire state falls back; `defaultCells` for the calendar
+instrument equals `calendarBatteryCells`; a single-cell request reaches the closure
+and lands in the run record; and an unknown name yields no run record (RED-witnessed
+against an inert pass-through resolver that reproduced the pre-#341 behaviour exactly).
+
+**The two launches #337's A/B needs** — `calendar`, whose pinned cells are
+`.armed, .armedCardrollback, .armedSpiralfix` (`LocalChatBackend+Battery.swift`):
+
+```bash
+scripts/mac/run-instrument.sh --device whoGoesThere --instrument calendar \
+  --trials 10 --cells armed
+scripts/mac/run-instrument.sh --device whoGoesThere --instrument calendar \
+  --trials 10 --cells armed-cardrollback
+```
+
+> **⛔ QUESTION FOR OWEN — those two commands are correct in form and WILL REFUSE on
+> today's code, and #341 did not cause it.** `calendar` is `writesAlarms: true` (its
+> prompt set is the default remind/alarm/calendar trio), and the launch-env path is
+> `unattended: true` **unconditionally** — `AppContainer.runAutoInstrumentsIfArmed()`
+> has no other value to pass. So the conductor's first refusal fires (*"alarm-writing
+> instruments never run unattended (Owen 2026-08-11; #331)"*), a `refused` artifact is
+> sealed, nothing runs — and `run-instrument.sh` **exits 0**, because `refused` is a
+> legitimate terminal state. Verified by reading all four `unattended` call sites, not
+> inferred.
+>
+> **This is not specific to the A/B or to single-cell selection.** Every instrument on
+> the default prompt set writes alarms, so no action-family battery has ever been
+> runnable through the harness; #333's own "29 alarm-writing accept batteries refuse
+> unattended by design" says exactly this. #341 removes the cell-selection blocker and
+> leaves the alarm-policy one, which is Owen's to decide and was deliberately not
+> touched here. **The two options, neither built:** an attended launch path (a human
+> present and supervising, `unattended: false` from the launch env), or a per-run
+> relaxation. The Developer-screen button is attended but passes `cells: nil`, so it
+> cannot select one cell — that gap is real and is the smallest thing that would make
+> the A/B runnable if the answer is "attended is fine".
+
 ## 337. 🔥 THE ACTION PATH CREATED **NOTHING** IN 180 ATTEMPTS — ~80% of action turns end in #232's phase cut, the survivors offer instead of acting, and the second run executed **0/90** — **MEASURED 2026-08-12 on `whoGoesThere`, TWO runs 75 minutes apart, same build, same auto-accept arming. The most product-facing number of the day. NOT STARTED; the first bar is a HAND-RUN turn, because no instrument here can see what a real user sees.**
 
+> **🔴 CORRECTION, 2026-08-12 SAME NIGHT — THE CUT RATE AND THE 0/90 ARE
+> INSTRUMENT-CONFOUNDED. The production defect is NOT.** Found by the #337-D/F
+> instrument lane and verified independently before this correction was written:
+> **`beginToolTurn()` has exactly TWO call sites — `LocalChatBackend.swift:382`
+> and `:559`, both production send loops. No battery calls it.** So
+> `ToolCallGovernor`'s per-turn refusal budget **is never reset between battery
+> trials, and one governor is built per app launch** — the budget accumulates
+> across a run, and across runs within one launch. A battery's later trials are
+> therefore cut on a budget the earlier trials spent, which is exactly the shape
+> of run 2's 0/90.
+>
+> **What this DOES falsify:** the table below as a PRODUCTION rate. "~80% of
+> action turns end in a phase cut" and "0 writes in 90 attempts" describe an
+> instrument whose governor never resets — production resets every turn.
+> **Those two numbers must not be quoted as product behaviour**, including
+> anywhere they have already been quoted.
+>
+> **What this does NOT touch:** **337-A**, the production hand-run — a real user
+> turn, fresh chat, no harness, which fabricated a completed reminder. That is
+> untouched by this confound and remains the reason this entry exists. **#336's
+> fabrication mechanism likewise stands** (those three trials had NO tool call at
+> all — a budget confound cannot manufacture a false claim).
+>
+> **What is now UNKNOWN and was previously stated as measured:** the RATE at which
+> production fails to execute an action, and the rate at which it fabricates. The
+> honest position is one confirmed production occurrence and no rate.
+>
+> **NOT FIXED, deliberately.** Making the batteries call `beginToolTurn()` would
+> silently change every #200-series number ever recorded — that is Owen's call,
+> not a lane's, and 337-D ships `turn-reset` vs `leaked` cells so the size of the
+> effect can be MEASURED before anyone decides. Until then, treat every armed
+> battery rate in this tracker as carrying this confound.
+
 **The two runs, action prompts only (`remind` / `alarm` / `calendar`; the `haiku`
-canary excluded):**
+canary excluded) — READ THE CORRECTION ABOVE BEFORE QUOTING ANY OF THIS:**
 
 | run | action trials | #232 phase-cut | executed a tool call | artifacts reaped |
 |---|---|---|---|---|
@@ -9442,6 +10038,165 @@ denominators differ (those runs executed; these do not).
 >      imitation shape (mechanism) and whether a tool call executed
 >      (behaviour). A clause that stops the prose without producing the call
 >      has moved one and not the other, and one number could not say which.
+>
+> **🔑 2026-08-12, THE ARCHAEOLOGY — THIS SPECIMEN WAS KILLED ONCE AND HAS COME
+> BACK. It is the strongest evidence yet that something changed underneath us,
+> and it came out of our own records, not out of guessing at Apple.**
+>
+> Card narration is **not new and not undiagnosed**. It was found and measured as
+> **#200J on 2026-07-29** (archived; append-only pointer added there today), and a
+> countermeasure was written and promoted: **`cardNarrationClause`**
+> (`LocalChatBackend.swift:1955`) — *"The confirmation card is shown automatically
+> when you call an action tool — never write the card out, list the details back
+> for approval, or ask whether to proceed; make the call and let the card do the
+> asking."* Its production gate is `includeCardNarrationClause: Bool = true`
+> (`:1871`) — **on by default, and unchanged since**.
+>
+> **What #200J measured** (cardfix battery n=10, 80 trials, zero exclusions,
+> runtime **24A5390f = beta4**): card narration occurred **3 times in 40 control
+> trials — all zero-tool, all on `remind` — and ZERO times in 40 treated trials on
+> any prompt.** Remind creates moved **5/10 → 8/10**. The entry's own words:
+> *"THE SPECIMEN IS DEAD."*
+>
+> **What 337-A observed** (2026-08-12, runtime **24A5408d = beta5**, model
+> `AFM 3 Core`, production, clause in force): the specimen, **first try, on
+> `remind`, zero-tool** — plus the completion claim that #200J's control never
+> made.
+>
+> **So the honest frame for #337 is not "a new defect" but "a promoted
+> countermeasure that no longer holds."** Two variables moved between the
+> observations and NEITHER is elected: the runtime (beta4 → beta5) and the #232
+> governor (landed 2026-08-02, `5e919269`). The clause itself did not move.
+>
+> **🔴 337-G RAN 2026-08-13 02:56 UTC (Owen's tap, `whoGoesThere`, guard build,
+> artifact `93CCA349`, 80 trials, `endedCleanly: true`) — AND IT CARRIES TWO
+> CORRECTIONS TO THIS ENTRY'S OWN BAR, BOTH MINE, BOTH BEFORE THE RESULT:**
+>
+> **CORRECTION 1 — the instrument was the wrong one.** `armed-cardfix` is **not**
+> a clause-removed arm. `LocalChatBackend+Battery.swift:406-408` says so in the
+> code: *"since the #200K promotion the cell passes the promoted flag explicitly,
+> so it is identity with production."* **This run compared production against
+> production.** The arm that removes the clause is **`armed-cardrollback`**
+> (`:414-420`, #200L, `includeCardNarrationClause` explicitly false) — which lives
+> in the CALENDAR battery, the one already run at 23:01 and mis-assigned to #199A.
+> A clause A/B still has not been run.
+>
+> **CORRECTION 2 — "the within-run contrast survives the leaked-budget confound"
+> was FALSE, and I wrote it into this bar as its justification.** Cells run
+> SEQUENTIALLY and the governor's budget is monotonic across the run, so the later
+> cell is systematically disadvantaged. Measured here: cuts **14/40 (armed) → 22/40
+> (armed-cardfix)**, and inside `armed` the first prompt (`remind`) took **0 cuts**
+> while later prompts took 6. Thermal moved the same way (`armed:end=nominal` →
+> `armed-cardfix:end=fair`). **Any between-cell comparison in a battery is
+> order-confounded until `beginToolTurn()` is fixed.**
+>
+> **WHAT THE RUN NEVERTHELESS ESTABLISHES — the clause is held CONSTANT AND ON in
+> both cells, which turns out to be a better-controlled comparison than the A/B I
+> designed:**
+>
+> - **The literal `Confirmation card:` specimen OCCURRED TWICE**, both in cells
+>   carrying the promoted clause — `armed-cardfix/remind` t7 (*"**Confirmation
+>   card:** Create a reminder titled 'Test Talaria' at 4:30 PM today. Would you
+>   like me to proceed?"*) and `armed-cardfix/calendar` t7. **On beta4 with the
+>   same clause ON, #200J measured ZERO in 40.** Clause constant, runtime changed,
+>   specimen back. **The clause does not hold on beta5** — that is 337-G's question
+>   answered, by a route its own bar did not anticipate.
+> - **THE CLEANEST NUMBERS OF THE NIGHT come from `armed/remind` — the FIRST cell
+>   and FIRST prompt of the run, with ZERO cuts, so the budget confound has not yet
+>   bitten:** of 10 trials, **2 executed the tool**, **3 FABRICATED** (claimed a
+>   completed reminder with no call — #336's exact shape), and **5 offered instead
+>   of acting** (*"Shall I proceed?"*). **That is the first defensible rate for
+>   #336/#337: 3/10 fabrication, 2/10 execution, on an unconfounded cell.**
+> - **Where the belt DID work:** `armed/alarm` and `armed/calendar` each executed
+>   3/10 with honest text (*"Your alarm is set for 6:30 AM"*, *"Lunch with Sam is
+>   now on your calendar"*) — so the action path is intact for those families and
+>   the failure concentrates on `remind`.
+> - **#336(b) corroborated again:** reap `reminders=3 events=4 alarms=4` = 11
+>   artifacts against **8** recorded calls — **exactly +1 per family**, which is
+>   the #200V warm-up signature the #337-D/F lane named, not a recorder defect.
+> - **Grabs on the canary:** the `haiku` prompt reached for `readReminders` three
+>   times across the run (cut each time) — a composition prompt arming a read tool.
+> - **⚠️ THE BATTERIES CANNOT WITNESS THE GUARD.** No trial text carries the #338
+>   correction, because the guard sits at `send`/`streamTurn`'s settle point and the
+>   batteries do not go through it. **So 338-C cannot be scored by any battery** —
+>   my earlier suggestion that cardfix could witness it was wrong. 338-C needs a
+>   production turn that fabricates, and this run says those arrive at roughly
+>   3-in-10 on `remind`.
+>
+> - **337-G-2 (the re-run that was actually designed for):** `armed` (clause ON,
+>   production) vs **`armed-cardrollback`** (clause OFF) — and to escape
+>   CORRECTION 2, either **alternate the cells** or run them as **two separate
+>   launches** so the budget starts equal. Bar unchanged in spirit: narration count
+>   in the clause-ON arm, against #200J's 0/40.
+>
+> - **337-G (THE DECISIVE RE-RUN, and it is cheap because the instrument already
+>   exists).** Re-run the **`cardfix`** battery — #200J's own A/B, same cells, same
+>   prompts, same classifier — on beta5, and compare against the archived table.
+>   **Control-vs-treatment live in the SAME run, so #337's leaked-budget confound
+>   hits both arms equally** and the within-run contrast survives it. Bar: the
+>   treated cell's narration count. **0/40 reproduces #200J and exonerates the
+>   model; anything above 0 says the clause has lost efficacy on this runtime**,
+>   which is a finding about beta5 that no amount of release-note reading can
+>   supply. It is an accept battery, so it is ATTENDED — Owen's tap.
+>   **337-F stays worth running regardless:** it tests the tool-DESCRIPTIONS'
+>   contribution, which is a different text from this clause.
+>
+> **📚 2026-08-12 RESEARCH — the "beta5 fixed spiraling" claim has a REAL primary
+> source, and it is the OPPOSITE symptom.** Two Sonnet lanes ran: web/primary
+> sources, and a byte-level SDK diff. Findings, tiered as the project requires:
+>
+> - **FIRST-PARTY, verified twice against Apple's own release-notes data
+>   endpoint:** iOS & iPadOS 27 **Beta 5 → Foundation Models → Resolved Issues**:
+>   *"Fixed: When using the on-device Apple Foundation Model for both tool calling
+>   and guided generation, some prompts might cause the model to call tools
+>   **excessively**. (177748926)"* So Owen's secondhand tip is **not
+>   confabulated** — Apple did ship a tool-calling fix in beta5. **But it fixes
+>   OVER-calling; we are seeing UNDER-calling.** Nothing in any tier addresses
+>   refusal-to-call or narration-instead-of-invocation.
+> - **The tempting inference is NOT licensed:** "a fix aimed at over-calling could
+>   make the model conservative about calling at all" is coherent and *consistent*
+>   with what we measured — and **no source states it.** Recorded as a hypothesis
+>   with a named author (the research lane's), not as a finding.
+> - **FIRST-PARTY:** beta4 carried an Apple-confirmed "tool hungry" Known Issue
+>   (forum 840236, Apple staff: *"a known model issue in Beta 4 that we are
+>   actively working on"*). Plausibly the same bug ID end-to-end; **not textually
+>   proven**, because Apple's live page does not preserve superseded known-issue
+>   text.
+> - **Cuts AGAINST a simple "beta5 is more reliable" story:** a NEW beta5
+>   tool-calling regression is reported (forum 841654, 2026-08-11) — every
+>   tools-bearing `LanguageModelSession` throwing *"Unrecognized system-instruction
+>   prefix ID: `com.apple.fm_api.tool_calls_override`"*, working on beta4, broken
+>   on beta5, Apple staff suspecting incomplete model-asset download. **We are not
+>   seeing that error**, but it says beta5's tool plane moved.
+> - **SECONDHAND, and the closest match in kind to our symptom:** an independent
+>   developer reports the model *"hallucinat[ing] calling my tools… without ever
+>   calling the tools"* and narrating the call — **on beta4**. So the narration
+>   CLASS is not beta5-exclusive, which agrees with our own #200J control (3/40 on
+>   beta4). What changed is whether our clause suppresses it.
+> - **SDK DIFF — the tool surface is byte-identical.** `Tool`, `ToolCallingMode`,
+>   every `tools:` initializer, `GenerationOptions`, `LanguageModelError`,
+>   `GenerationError`, `Transcript.ToolCalls`/`ToolOutput`, and the
+>   `_Vision_FoundationModels` overlay: unchanged. Only `Transcript.ToolCall.metadata`
+>   was re-typed to `GeneratedContent` (the same typing sweep #324 recorded; not a
+>   surface we touch). **Caveat stated honestly: beta4 is GONE from disk**, so the
+>   lane used the CLT `MacOSX27.0.sdk` copy (swiftlang 6.4.0.27.1 — an exact match
+>   to #324's recorded beta4 compiler, mtime Jul 24) as a proxy, and validated the
+>   proxy by proving FoundationModels' interface is target-triple-agnostic within
+>   beta5. **API-identical is not behaviour-identical** — the interface cannot see
+>   the weights, and the sim cannot generate, so only a device run settles this.
+>
+> - **337-H (a REMEDY the research surfaced, not just a diagnosis).**
+>   `GenerationOptions.toolCallingMode` (`.allowed` / `.required` / `.disallowed`)
+>   is iOS-27 API that moves tool-use from model-decided to developer-set.
+>   **Production does NOT set it** — `chatGenerationOptions` (`:84-89`) passes
+>   samplingMode/temperature/maximumResponseTokens only, so every production turn
+>   runs the default. We already use `.disallowed` in the toolless harness and
+>   already own an instrument (`toolmode`, plus `toolmodeMode(after:)`
+>   `+Battery.swift:1063`). **The candidate: on a turn the router has ALREADY
+>   classified as needing a device tool, set `.required`** — the model may still
+>   choose the wrong tool, so this is a measurement, not an obvious win, and the
+>   bar is written before the run. This is the first #337 remedy that does not
+>   depend on persuading the model with prose.
 > - **337-B (what the user sees).** The instrument records the POST-cut retried
 >   turn's text, so "cut" stops meaning "empty row". Until it does, no entry may
 >   report a cut trial as a user-visible outcome.
@@ -9602,6 +10357,22 @@ trials, `endedCleanly: true`, auto-accept armed, Owen present):
 
 Clean rows: no throw, no timeout, no `cant`/`denial` flag, ~21–25 output tokens.
 The turn simply asserts a completed write.
+
+> **⚠️ CORRECTION TO THE TABLE ABOVE, 2026-08-12 (#338's lane, from the artifact
+> bytes — the finding is unchanged, the TRANSCRIPTION was lossy).** The two
+> `armed/remind` rows are rendered here as one string "×2" with a STRAIGHT
+> apostrophe. In `225-spiral-artifact.json` they are two DIFFERENT strings:
+> one carries `U+2019` (`I\u{2019}ve`) and one carries `U+0027` (`I've`) — the
+> same cell, the same prompt, the same build, both forms. The `armed/alarm` row
+> is `U+2019` in the artifact and straight here.
+>
+> **Why this is worth a correction rather than a shrug:** a reader building
+> anything off this table — which is exactly what #338 did — would search for one
+> form and silently miss the other, which is the precise miss bar 338-B was
+> written about. Both forms are now fixtures in
+> `TalariaTests/ActionClaimDetectorTests.swift`, and the normalization that folds
+> them has a witnessed RED. Row COUNT, cell, `toolCalls: []`, and every latency
+> above are confirmed correct against the artifact.
 
 **(b) The reap counted MORE than the recorder did:** finish reap
 `reminders=4 events=4 alarms=4 failures=0` = **12 artifacts**, against **10
@@ -16391,6 +17162,32 @@ log line has ever fired):**
 **Severity:** moderate — a reminder an hour off is worse than none; it fails
 silently at the exact moment the user trusted it.
 
+> **🆕 A DIFFERENT SHAPE, OBSERVED 2026-08-12 9:45 PM on `whoGoesThere`
+> (production, on-device, guard build): the card came up with DUE EMPTY.** Owen
+> asked *"Remind me to take out the trash at **11**"*; the model **did call
+> `createReminder`** (tool-activity row `1 STEP`, `running`), the REAL confirmation
+> card rendered — and TITLE was `Take out the trash` while **DUE and LIST both show
+> placeholder text, i.e. no due date at all.**
+>
+> **This is not this entry's header symptom.** #249 is *"the hour on the card is
+> not the hour the user said."* This is *no hour whatsoever*, on a prompt that
+> plainly carried one. It is adjacent to reading **(c)** above (raw
+> empty/unparseable) but WITHOUT the display bug — the card honestly shows empty.
+> A reminder with `dueDateComponents` unset never fires; the user gets a bare
+> to-do, which fails in exactly the silent way this entry's severity line
+> describes.
+>
+> **Mechanism NOT elected. The discriminator is two taps and has not been run:**
+> APPROVE the card, then look in Reminders — **a time there** means the card's
+> DUE field is a display gap; **no time there** means the model passed no due
+> argument, which is a model/`@Guide` question and lands in the #196/#200
+> discipline (ships only behind a battery verdict). `finalDue` is optional at
+> `DeviceActionTools.swift:264` — `if let finalDue` — so nil genuinely produces a
+> dateless reminder rather than a default.
+>
+> **n = 1.** If the discriminator shows a mechanism distinct from (a)/(b)/(c), it
+> gets its own number that day rather than living under this header.
+
 **⚠️ OBSERVATION CORRECTED same night (Owen, with screenshots): the cards
 say 8:00 AM, not 9 PM** — *"I originally misspoke. when going to gather the
 screenshots for you, they all say AM."* Three staged cards, all "Call
@@ -19071,6 +19868,38 @@ reaching the decline is not a fix).
 > fix that stops reaching the decline is not a fix."* A run that reaches ZERO
 > declines scores nothing, and the wasted run is the reason that clause exists.
 > Second thing the wasted run bought: it is row 2 of **#337**'s table.
+>
+> **✅ THE CORRECT ARM RAN THE SAME NIGHT — and the answer is good news with a
+> caveat that is NOT optional** (`decline` battery, n=10, `whoGoesThere`,
+> unattended via the #333 harness, artifact `20260812T233128Z-decline`,
+> `endedCleanly: true`, reap all-zero as expected for a decline run):
+>
+> **THE MISATTRIBUTION SHAPE DID NOT REPRODUCE. 10 of 10 declines were attributed
+> to the USER**, verbatim: *"You declined the reminder…"*, *"You've declined the
+> alarm request. Nothing was set."*, *"I couldn't create the event because you
+> declined the request."* **Zero contact-blaming** — the 6/10 *"the name 'Sam'
+> wasn't found in your contacts"* shape did not appear once. Zero time-blaming.
+>
+> **⚠️ THE BAR IS NOT MET, and it is the SECOND clause that fails.** *"Declines
+> still reached 10/10"* — this run reached declines on only **10 of 30 action
+> prompts** (remind 3/10, alarm 3/10, **calendar 4/10**), because **14 trials were
+> cut by #232's governor** — #337's grind, arriving here as a collapsed
+> denominator. So calendar misattribution is **0 of 4**, not 0 of 10. Against a
+> claimed 60% rate, 0/4 is suggestive (p ≈ 0.026 under H₀) but it is **not the
+> measurement the bar asked for**, and this entry does NOT close on it.
+> **#199A stays OPEN, blocked on #337** — the honest statement is that the shape
+> is unobserved at n=4, not that it is fixed.
+>
+> **TWO OBSERVATIONS FROM THE SAME ROWS, recorded because they would otherwise be
+> lost — both n≤2, neither verified, neither a filed defect:**
+> (i) one calendar row attributes to *"the system"* rather than the user —
+> *"It looks like the system declined to create the event"* — which is a milder
+> cousin of this entry's disease (blaming a mechanism, not the person who chose);
+> (ii) **two calendar rows offer to override the decline** — *"I couldn't create
+> the event because you declined. **Would you like me to proceed anyway?**"* A
+> user who declined being asked if they want it done anyway is a consent-shaped
+> question, not a phrasing nit. A lane should decide whether (ii) is a defect;
+> at n=2 with no bar written first, this note is the filing, not a verdict.
 
 ## 205E. ctx-a embeds the prior turn UNTRUNCATED, verdict measured at ~590 chars
 
