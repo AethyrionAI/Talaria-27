@@ -1,0 +1,226 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=10 cells=2 prompts=3 warmup=true (#337-D refusal-words)
+battery: WARMUP begin prompts=3 (#337-D / #200V)
+battery: tool=scheduleAlarm shape=warmup p=alarm t=0 detail=6:30
+battery: confirm=declined shape=warmup p=alarm t=0
+battery: tool=createCalendarEvent shape=warmup p=calendar t=0 detail=Lunch with Sam
+battery: confirm=declined shape=warmup p=calendar t=0
+battery: WARMUP done — discarded, not counted (#337-D / #200V)
+battery: THERMAL cell=turn-reset at=start state=fair (#201B)
+battery: BEGIN shape=turn-reset p=remind t=1
+battery: tool=createReminder shape=turn-reset p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=1
+battery: shape=turn-reset p=remind t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=2
+battery: tool=createReminder shape=turn-reset p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=2
+battery: shape=turn-reset p=remind t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=3
+battery: shape=turn-reset p=remind t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=4
+battery: tool=createReminder shape=turn-reset p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=4
+battery: shape=turn-reset p=remind t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=5
+battery: tool=createReminder shape=turn-reset p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=5
+battery: shape=turn-reset p=remind t=5 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=6
+battery: shape=turn-reset p=remind t=6 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=7
+battery: tool=createReminder shape=turn-reset p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=7
+battery: shape=turn-reset p=remind t=7 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=8
+battery: shape=turn-reset p=remind t=8 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=9
+battery: shape=turn-reset p=remind t=9 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=remind t=10
+battery: tool=createReminder shape=turn-reset p=remind t=10 detail=Test Talaria
+battery: confirm=declined shape=turn-reset p=remind t=10
+battery: shape=turn-reset p=remind t=10 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=1
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=1 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=1
+battery: shape=turn-reset p=alarm t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=2
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=2 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=2
+battery: shape=turn-reset p=alarm t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=3
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=3 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=3
+battery: shape=turn-reset p=alarm t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=4
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=4 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=4
+battery: shape=turn-reset p=alarm t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=5
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=5 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=5
+battery: shape=turn-reset p=alarm t=5 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=6
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=6 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=6
+battery: shape=turn-reset p=alarm t=6 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=7
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=7 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=7
+battery: shape=turn-reset p=alarm t=7 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=8
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=8 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=8
+battery: shape=turn-reset p=alarm t=8 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=9
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=9 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=9
+battery: shape=turn-reset p=alarm t=9 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=alarm t=10
+battery: tool=scheduleAlarm shape=turn-reset p=alarm t=10 detail=6:30
+battery: confirm=declined shape=turn-reset p=alarm t=10
+battery: shape=turn-reset p=alarm t=10 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=1
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=1
+battery: shape=turn-reset p=calendar t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=2
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=2
+battery: shape=turn-reset p=calendar t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=3
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=3
+battery: shape=turn-reset p=calendar t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=4
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=4
+battery: shape=turn-reset p=calendar t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=5
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=5
+battery: shape=turn-reset p=calendar t=5 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=6
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=6
+battery: shape=turn-reset p=calendar t=6 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=7
+battery: shape=turn-reset p=calendar t=7 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=8
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=8
+battery: shape=turn-reset p=calendar t=8 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=9
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=9
+battery: shape=turn-reset p=calendar t=9 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=turn-reset p=calendar t=10
+battery: tool=createCalendarEvent shape=turn-reset p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=turn-reset p=calendar t=10
+battery: shape=turn-reset p=calendar t=10 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: CELL turn-reset attempted=30 cut=0 refusals=0 genErrors=0 timeouts=0 retries=0 retryErrors=0 userVisible=30 (#337-D)
+battery: THERMAL cell=turn-reset at=end state=fair (#201B)
+battery: THERMAL cell=leaked at=start state=fair (#201B)
+battery: BEGIN shape=leaked p=remind t=1
+battery: shape=leaked p=remind t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=2
+battery: tool=createReminder shape=leaked p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=leaked p=remind t=2
+battery: shape=leaked p=remind t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=3
+battery: shape=leaked p=remind t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=4
+battery: shape=leaked p=remind t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=5
+battery: tool=createReminder shape=leaked p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=leaked p=remind t=5
+battery: shape=leaked p=remind t=5 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=6
+battery: shape=leaked p=remind t=6 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=7
+battery: shape=leaked p=remind t=7 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=8
+battery: tool=createReminder shape=leaked p=remind t=8 detail=test Talaria
+battery: confirm=declined shape=leaked p=remind t=8
+battery: shape=leaked p=remind t=8 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=9
+battery: tool=createReminder shape=leaked p=remind t=9 detail=Test Talaria
+battery: confirm=declined shape=leaked p=remind t=9
+battery: shape=leaked p=remind t=9 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=remind t=10
+battery: shape=leaked p=remind t=10 refusals=1 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: refusal#1 shape=leaked p=remind t=10 tool=createReminder reason=same-tool-repeat callsThisTurn=4 callsOfThisTool=4 text=You have already called createReminder several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=1
+battery: tool=scheduleAlarm shape=leaked p=alarm t=1 detail=6:30
+battery: confirm=declined shape=leaked p=alarm t=1
+battery: shape=leaked p=alarm t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=alarm t=2
+battery: tool=scheduleAlarm shape=leaked p=alarm t=2 detail=6:30
+battery: confirm=declined shape=leaked p=alarm t=2
+battery: shape=leaked p=alarm t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=alarm t=3
+battery: tool=scheduleAlarm shape=leaked p=alarm t=3 detail=6:30
+battery: confirm=declined shape=leaked p=alarm t=3
+battery: shape=leaked p=alarm t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=alarm t=4
+battery: tool=scheduleAlarm shape=leaked p=alarm t=4 detail=6:30
+battery: confirm=declined shape=leaked p=alarm t=4
+battery: shape=leaked p=alarm t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=alarm t=5
+battery: shape=leaked p=alarm t=5 refusals=1 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=5 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=6
+battery: shape=leaked p=alarm t=6 refusals=1 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=6 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=7
+battery: shape=leaked p=alarm t=7 refusals=1 cut=true outcome=cut-retry-answered retryChars=92 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=7 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=8
+battery: shape=leaked p=alarm t=8 refusals=1 cut=true outcome=cut-retry-answered retryChars=93 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=8 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=9
+battery: shape=leaked p=alarm t=9 refusals=1 cut=true outcome=cut-retry-answered retryChars=60 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=9 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=alarm t=10
+battery: shape=leaked p=alarm t=10 refusals=1 cut=true outcome=cut-retry-answered retryChars=85 (#337-D)
+battery: refusal#1 shape=leaked p=alarm t=10 tool=scheduleAlarm reason=same-tool-repeat callsThisTurn=8 callsOfThisTool=4 text=You have already called scheduleAlarm several times this turn and it is not getting you closer. Do not call it again — answer the user with what you have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=calendar t=1
+battery: tool=createCalendarEvent shape=leaked p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=leaked p=calendar t=1
+battery: shape=leaked p=calendar t=1 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=calendar t=2
+battery: tool=createCalendarEvent shape=leaked p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=leaked p=calendar t=2
+battery: shape=leaked p=calendar t=2 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=calendar t=3
+battery: tool=createCalendarEvent shape=leaked p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=leaked p=calendar t=3
+battery: shape=leaked p=calendar t=3 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=calendar t=4
+battery: tool=createCalendarEvent shape=leaked p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=leaked p=calendar t=4
+battery: shape=leaked p=calendar t=4 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=calendar t=5
+battery: shape=leaked p=calendar t=5 refusals=1 cut=true outcome=cut-retry-answered retryChars=59 (#337-D)
+battery: refusal#1 shape=leaked p=calendar t=5 tool=createCalendarEvent reason=per-turn-budget callsThisTurn=12 callsOfThisTool=4 text=You have used all the tool calls available for this turn. Answer the user now with what you already have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=calendar t=6
+battery: shape=leaked p=calendar t=6 refusals=0 cut=false outcome=answered retryChars=-1 (#337-D)
+battery: BEGIN shape=leaked p=calendar t=7
+battery: shape=leaked p=calendar t=7 refusals=1 cut=true outcome=cut-retry-answered retryChars=89 (#337-D)
+battery: refusal#1 shape=leaked p=calendar t=7 tool=createCalendarEvent reason=per-turn-budget callsThisTurn=12 callsOfThisTool=4 text=You have used all the tool calls available for this turn. Answer the user now with what you already have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=calendar t=8
+battery: shape=leaked p=calendar t=8 refusals=1 cut=true outcome=cut-retry-answered retryChars=75 (#337-D)
+battery: refusal#1 shape=leaked p=calendar t=8 tool=createCalendarEvent reason=per-turn-budget callsThisTurn=12 callsOfThisTool=4 text=You have used all the tool calls available for this turn. Answer the user now with what you already have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=calendar t=9
+battery: shape=leaked p=calendar t=9 refusals=1 cut=true outcome=cut-retry-answered retryChars=77 (#337-D)
+battery: refusal#1 shape=leaked p=calendar t=9 tool=createCalendarEvent reason=per-turn-budget callsThisTurn=12 callsOfThisTool=4 text=You have used all the tool calls available for this turn. Answer the user now with what you already have, and say plainly what you could not find out.
+battery: BEGIN shape=leaked p=calendar t=10
+battery: shape=leaked p=calendar t=10 refusals=1 cut=true outcome=cut-retry-answered retryChars=61 (#337-D)
+battery: refusal#1 shape=leaked p=calendar t=10 tool=createCalendarEvent reason=per-turn-budget callsThisTurn=12 callsOfThisTool=4 text=You have used all the tool calls available for this turn. Answer the user now with what you already have, and say plainly what you could not find out.
+battery: CELL leaked attempted=30 cut=9 refusals=12 genErrors=0 timeouts=0 retries=9 retryErrors=0 userVisible=30 (#337-D)
+battery: THERMAL cell=leaked at=end state=serious (#201B)
+battery: DONE (#337-D)
+instrument: COMPLETED refusal-words (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.
