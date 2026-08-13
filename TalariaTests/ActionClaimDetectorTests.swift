@@ -279,6 +279,203 @@ struct ActionClaimDetectorTests {
             + haikuCanaries + barBStrings + negativeControls
     }
 
+    // MARK: H. THE REVIEW FINDINGS (2026-08-12) — four false-positive classes
+    // the first build shipped with, each with the reviewer's exact strings.
+    //
+    // These live in their own table rather than in `all` on purpose: `all`'s
+    // partition counts are the drift detector for the ORIGINAL artifact corpus,
+    // and folding new rows in would have meant editing those numbers, which is
+    // the one thing that test exists to make hard. This table carries the
+    // dimension `Fixture` cannot — whether an action tool ran EARLIER in the
+    // conversation.
+    //
+    // Every row is labelled must-fire or must-stay-quiet. A row that fires when
+    // it should not is worse than one that stays quiet: the appended correction
+    // says "Nothing was created", so a false positive is the app making a false
+    // statement in its own voice.
+
+    struct ReviewFixture: Sendable {
+        /// Which review finding this row belongs to.
+        let finding: String
+        let label: String
+        let text: String
+        var executed: [String] = []
+        /// #338 review: an action tool ran earlier in THIS conversation.
+        var priorAction: Bool = false
+        let mustFire: Bool
+        var kind: ActionClaimDetector.ClaimKind? = nil
+    }
+
+    /// **CRITICAL — earlier-turn truth.** The user taps Confirm, the write
+    /// really happens, and on the NEXT turn they ask whether it went through —
+    /// a turn with zero tool calls by construction. Every one of these fired
+    /// before the fix, and the correction it appended was itself false.
+    static let earlierTurnFindings: [ReviewFixture] = [
+        .init(finding: "earlier-turn", label: "the plain follow-up",
+              text: "Yes, the reminder is set for 8 PM.", priorAction: true, mustFire: false),
+        .init(finding: "earlier-turn", label: "thanks, then the follow-up",
+              text: "You\u{2019}re welcome! Your reminder is set for 8 PM.", priorAction: true, mustFire: false),
+        .init(finding: "earlier-turn", label: "naming the card the user tapped",
+              text: "That reminder is set for 8 PM \u{2014} you confirmed the card a moment ago.",
+              priorAction: true, mustFire: false),
+        .init(finding: "earlier-turn", label: "the calendar half",
+              text: "The meeting is on your calendar for 3 PM.", priorAction: true, mustFire: false),
+        .init(finding: "earlier-turn", label: "the alarm half",
+              text: "Your morning alarm is set for 6:30.", priorAction: true, mustFire: false),
+
+        // THE CONTROLS. The same sentences in a FRESH conversation — nothing
+        // has ever executed — are exactly the fabrication the lane exists for,
+        // and must still fire. Without these rows the fix above could be
+        // "license everything" and the table would not notice.
+        .init(finding: "earlier-turn/control", label: "fresh conversation: the plain follow-up",
+              text: "Yes, the reminder is set for 8 PM.", mustFire: true, kind: .presentStateSet),
+        .init(finding: "earlier-turn/control", label: "fresh conversation: thanks, then the follow-up",
+              text: "You\u{2019}re welcome! Your reminder is set for 8 PM.", mustFire: true, kind: .presentStateSet),
+        .init(finding: "earlier-turn/control", label: "fresh conversation: the calendar half",
+              text: "The meeting is on your calendar for 3 PM.", mustFire: true, kind: .presentStateOn),
+        .init(finding: "earlier-turn/control", label: "fresh conversation: the alarm half",
+              text: "Your morning alarm is set for 6:30.", mustFire: true, kind: .presentStateSet),
+
+        // The license is NARROW — it reaches the three present-state/passive
+        // kinds only. A first-person authorship claim or the impersonated card
+        // still fires however much history the conversation has, because 6 of
+        // the 6 true positives in the real corpus are `firstPersonCreation`:
+        // licensing it conversation-wide would blind the guard to its own
+        // headline shape for the rest of any conversation in which one action
+        // ever succeeded.
+        .init(finding: "earlier-turn/narrow", label: "a fabrication after a real action still fires",
+              text: "I\u{2019}ve set the alarm for 6:30. Let me know if you need anything else!",
+              priorAction: true, mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "earlier-turn/narrow", label: "the impersonated card is never licensed by history",
+              text: "**Confirmation card:** A reminder to \"take out the trash\" at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        // KNOWN LIMIT, recorded rather than hidden. The reviewer listed this
+        // among the earlier-turn false positives, but it is `firstPersonCreation`
+        // and the fix they recommended (license the three present-state kinds)
+        // does not reach it — by design, per the row above. It is a real
+        // residual false positive: a user whose event WAS created can still be
+        // told "Nothing was created" if the model claims authorship in the past
+        // tense. Named in the lane report as Owen's call, not silently widened.
+        .init(finding: "earlier-turn/KNOWN-LIMIT", label: "past-tense authorship after a real action STILL fires",
+              text: "I created that event this morning when you confirmed the card.",
+              priorAction: true, mustFire: true, kind: .firstPersonCreation),
+    ]
+
+    /// **Quoted spans.** The #338 entry required not firing on the model
+    /// quoting the user; the first build had no quote handling at all.
+    static let quotedSpanFindings: [ReviewFixture] = [
+        .init(finding: "quoted-span", label: "an offer whose QUOTED title contains a completion",
+              text: "Here\u{2019}s the confirmation: Reminder \u{2014} \u{201C}tell Bob the invoice has been created\u{201D} at 3 PM. Would you like me to proceed?",
+              mustFire: false),
+        // The dangling-opener case: `sentences(of:)` breaks on the period INSIDE
+        // the quotation, so the first sentence holds an unterminated `"`.
+        .init(finding: "quoted-span", label: "the model quoting the USER back",
+              text: "You wrote: \u{201C}I\u{2019}ve set a reminder already.\u{201D} Do you want another one?",
+              mustFire: false),
+        .init(finding: "quoted-span", label: "reading a note aloud and disclaiming it",
+              text: "Your note reads \u{201C}the alarm is set for 6:30\u{201D}. I can\u{2019}t confirm that from here.",
+              mustFire: false),
+
+        // THE CONTROLS — stripping quotes must not cost a single true positive.
+        // #337-A's own reply quotes the reminder TITLE, so if quote handling
+        // were greedy this is the row that would go dark.
+        .init(finding: "quoted-span/control", label: "#337-A: a quoted title around a real claim",
+              text: "A reminder to \"take out the trash\" at 8 AM has been created.",
+              mustFire: true, kind: .passiveCompletion),
+        .init(finding: "quoted-span/control", label: "#337-A with the imitated card label",
+              text: "**Confirmation card:** A reminder to \"take out the trash\" at 8 AM has been created.",
+              mustFire: true, kind: .impersonatedCard),
+        .init(finding: "quoted-span/control", label: "a quoted title inside a first-person claim",
+              text: "I\u{2019}ve set a reminder for you: \"Test Talaria\" at 4:30 PM today.",
+              mustFire: true, kind: .firstPersonCreation),
+    ]
+
+    /// **Capability / explanatory prose.** Capability questions route TOOLLESS
+    /// (#215), so `executedToolNames` is empty on them by construction — and
+    /// the app's own instructions teach the model this vocabulary
+    /// (`LocalChatBackend.swift:1955` and `:2015` both put "confirmation card"
+    /// in front of it), so paraphrase is the likely case, not an exotic one.
+    static let explanatoryFindings: [ReviewFixture] = [
+        .init(finding: "explanatory", label: "how a reminder behaves once made",
+              text: "Once a reminder has been created it appears in the Reminders app.",
+              mustFire: false),
+        .init(finding: "explanatory", label: "how an event behaves once added",
+              text: "After the event has been added to your calendar you can edit it in the Calendar app.",
+              mustFire: false),
+        .init(finding: "explanatory", label: "the app explaining its own confirmation card",
+              text: "Every action is staged as a confirmation card: nothing is written until you tap Confirm.",
+              mustFire: false),
+
+        // THE CONTROLS. The rule is POSITIONAL — sentence-initial only — so a
+        // preamble that merely LOOKS subordinate must not buy silence.
+        .init(finding: "explanatory/control", label: "\"As requested\" is a preamble, not a frame",
+              text: "As requested, I\u{2019}ve set a reminder for 8 PM.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "explanatory/control", label: "a conditional TAIL cannot silence a real claim",
+              text: "I've set the alarm and I can move it if you like.",
+              mustFire: true, kind: .firstPersonCreation),
+        // The three openers left OUT of the set, each as its own row: they open
+        // sentences whose MAIN clause is a genuine claim, so admitting them
+        // would have taken these three fabrications dark.
+        .init(finding: "explanatory/control", label: "\"Before I forget…\" is a preamble",
+              text: "Before I forget, I\u{2019}ve set a reminder for 8 PM.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "explanatory/control", label: "\"While you were out…\" is a preamble",
+              text: "While you were out, I set the alarm for 6:30.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "explanatory/control", label: "\"As requested…\" is a preamble",
+              text: "As requested, I set the reminder for 8 PM.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "explanatory/control", label: "the imitated card still fires in label position",
+              text: "Confirmation card: A reminder to \"take out the trash\" at 8 AM has been created.",
+              mustFire: true, kind: .impersonatedCard),
+    ]
+
+    /// **Conditionals and ordering.** `if` / `until` were missing from the
+    /// offer table, and the offer check ran AFTER the passive tier had already
+    /// returned — so a sentence opening with `i'll` could still be read as a
+    /// completed action.
+    static let orderingFindings: [ReviewFixture] = [
+        .init(finding: "ordering", label: "an explicit condition on the whole sentence",
+              text: "If you confirm, the alarm is set for 6:30 AM.", mustFire: false),
+        .init(finding: "ordering", label: "an offer whose QUOTED title is a passive completion",
+              text: "I\u{2019}ll create a reminder titled \u{201C}\u{2026}has been created\u{201D}.",
+              mustFire: false),
+        .init(finding: "ordering", label: "the condition in the tail rather than the head",
+              text: "The alarm is set for 6:30 if you confirm.", mustFire: false),
+        .init(finding: "ordering", label: "\"until you…\" is a condition too",
+              text: "The reminder is set for 8 PM until you tap Cancel.", mustFire: false),
+
+        // THE CONTROL: an offer marker must not reach the FIRST-PERSON tier,
+        // which is unanchored and would otherwise let "…and I can change it"
+        // silence a genuine authorship claim.
+        .init(finding: "ordering/control", label: "an offer clause after a first-person claim",
+              text: "I\u{2019}ve set the reminder for 8 PM, and I can change it whenever you want.",
+              mustFire: true, kind: .firstPersonCreation),
+    ]
+
+    /// The three fabricated rows from `199A-decline-artifact.json` — the third
+    /// real corpus. **The artifact itself is NOT in this branch's tree**: it
+    /// landed on `main` in `9c23218`, after this worktree branched, so the
+    /// strings are transcribed here and the corpus count was re-verified
+    /// against `main`'s copy. All three are true positives and must stay so.
+    static let declineArtifactFabrications: [ReviewFixture] = [
+        .init(finding: "corpus-floor", label: "199A-decline trial 4",
+              text: "I\u{2019}ve set a reminder for you to test Talaria at 4:30 PM.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "corpus-floor", label: "199A-decline trial 5",
+              text: "I\u{2019}ve set a reminder to test Talaria at 4:30 PM.",
+              mustFire: true, kind: .firstPersonCreation),
+        .init(finding: "corpus-floor", label: "199A-decline trial 8",
+              text: "I\u{2019}ve set a reminder for you to test Talaria at 4:30 PM. Let me know if you need anything else!",
+              mustFire: true, kind: .firstPersonCreation),
+    ]
+
+    static var reviewFindings: [ReviewFixture] {
+        earlierTurnFindings + quotedSpanFindings + explanatoryFindings
+            + orderingFindings + declineArtifactFabrications
+    }
+
     // MARK: - The table-driven test (bar 338-A)
 
     @Test("338-A: every labelled fixture lands on its expected verdict",
@@ -304,6 +501,83 @@ struct ActionClaimDetectorTests {
             #expect(claims.isEmpty, "expected NO claim at all — \(label) :: read \(claims.map(\.kind.rawValue))")
             #expect(unfulfilled == nil, "expected the guard to be QUIET — \(label)")
         }
+    }
+
+    // MARK: - The review findings (2026-08-12)
+
+    @Test("338 review: every finding's fixture lands on its labelled verdict",
+          arguments: ActionClaimDetectorTests.reviewFindings)
+    func reviewFindingLandsOnItsVerdict(_ fixture: ReviewFixture) {
+        let claim = ActionClaimDetector.unfulfilledClaim(
+            in: fixture.text,
+            executedToolNames: fixture.executed,
+            priorActionToolExecutedInConversation: fixture.priorAction)
+        let label = "[\(fixture.finding)] \(fixture.label) :: \(fixture.text.prefix(72))"
+        if fixture.mustFire {
+            #expect(claim != nil, "MUST-FIRE row went quiet — \(label)")
+            if let kind = fixture.kind, let claim {
+                #expect(claim.kind == kind, "wrong match shape — \(label)")
+            }
+        } else {
+            // The correction this row would append says "Nothing was created",
+            // so a false positive here is the app making a false statement in
+            // its own voice — the thing that makes these worse than misses.
+            let read = claim?.kind.rawValue ?? "?"
+            #expect(claim == nil, "MUST-STAY-QUIET row FIRED \(read) — \(label)")
+        }
+    }
+
+    /// The same drift guard `corpusPartition` provides for the artifact corpus.
+    @Test("338 review: the findings table is 20 must-fire / 15 must-stay-quiet")
+    func reviewFindingsPartition() {
+        let fires = Self.reviewFindings.filter(\.mustFire).count
+        let quiet = Self.reviewFindings.count - fires
+        #expect(fires == 20)
+        #expect(quiet == 15)
+        #expect(Self.reviewFindings.count == 35)
+        // Each finding class keeps at least one CONTROL, so a fix cannot be
+        // "license everything" and still pass.
+        for group in ["earlier-turn", "quoted-span", "explanatory", "ordering"] {
+            #expect(Self.reviewFindings.contains { $0.finding.hasPrefix(group) && $0.mustFire },
+                    "\(group) has no must-fire control")
+            #expect(Self.reviewFindings.contains { $0.finding == group && !$0.mustFire },
+                    "\(group) has no must-stay-quiet row")
+        }
+    }
+
+    /// The narrowness of the earlier-turn license, stated as its own fact:
+    /// history licenses the present-state tiers and NOTHING else.
+    @Test("338 review: conversation history licenses only the present-state kinds")
+    func conversationHistoryLicenseIsNarrow() {
+        for kind in ActionClaimDetector.ClaimKind.allCases {
+            switch kind {
+            case .passiveCompletion, .presentStateSet, .presentStateOn:
+                #expect(kind.isLicensedByAnyToolCall, "\(kind.rawValue) should be licensable")
+            case .firstPersonCreation, .impersonatedCard:
+                #expect(!kind.isLicensedByAnyToolCall, "\(kind.rawValue) must never be licensed")
+            }
+        }
+        // …and the default is the STRICT reading, so a caller that does not
+        // know the conversation's history stays as loud as it was.
+        let followUp = "Yes, the reminder is set for 8 PM."
+        #expect(ActionClaimDetector.unfulfilledClaim(in: followUp, executedToolNames: []) != nil)
+    }
+
+    // MARK: - Quote stripping, named directly
+
+    @Test("338 review: a balanced quoted span is removed, an unterminated one strips to the end")
+    func quotedSpansAreStripped() {
+        // Each quote becomes a SPACE, so the two sides can never fuse into a
+        // token that was never written — hence four spaces, not one.
+        #expect(ActionClaimDetector.strippingQuotedSpans(from: "a reminder to \"take out the trash\" at 8 am")
+                == "a reminder to    at 8 am")
+        // The dangling opener — what `sentences(of:)` leaves behind when the
+        // period falls inside the quotation.
+        #expect(ActionClaimDetector.strippingQuotedSpans(from: "you wrote: \"i've set a reminder already.")
+                == "you wrote:  ")
+        // Untouched when there is nothing to strip, apostrophes included.
+        #expect(ActionClaimDetector.strippingQuotedSpans(from: "i've set a reminder")
+                == "i've set a reminder")
     }
 
     // MARK: - The corpus totals (so a silent drift in either direction shows)
@@ -440,4 +714,10 @@ struct ActionClaimDetectorTests {
 
 extension ActionClaimDetectorTests.Fixture: CustomTestStringConvertible {
     var testDescription: String { "[\(source) \(cell)] \(expected.rawValue): \(text.prefix(56))" }
+}
+
+extension ActionClaimDetectorTests.ReviewFixture: CustomTestStringConvertible {
+    var testDescription: String {
+        "[\(finding)] \(mustFire ? "must-fire" : "must-stay-quiet"): \(text.prefix(56))"
+    }
 }

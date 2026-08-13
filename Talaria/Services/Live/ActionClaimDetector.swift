@@ -108,17 +108,46 @@ enum ActionClaimDetector {
     ///   - executedToolNames: names of every tool call ADMITTED this turn, in
     ///     the order the relay emitted them. Refused calls are absent by
     ///     construction (`ToolEventRelay.started` returns before emitting).
+    ///   - priorActionToolExecutedInConversation: whether ANY action tool has
+    ///     executed at some point in THIS conversation — see the parameter's
+    ///     own note below. Defaults to `false`, which is the strict reading:
+    ///     a caller that does not know stays as loud as it was.
     /// - Returns: the first unfulfilled claim, or `nil` when the text is
     ///   honest — or when a tool call licenses it (bar 338-D).
-    static func unfulfilledClaim(in text: String, executedToolNames: [String]) -> Claim? {
+    ///
+    /// **THE EARLIER-TURN CORRECTION (review finding, 2026-08-12).** As first
+    /// shipped this read only THIS turn's calls, so the commonest honest
+    /// exchange in the app fired: the user taps Confirm, the reminder is really
+    /// written, and on the NEXT turn they ask *"did that go through?"* — a turn
+    /// with zero tool calls by construction. The app answered *"Yes, the
+    /// reminder is set for 8 PM"* and then appended *"Nothing was created."*
+    /// **A guard whose correction is itself false is worse than no guard.**
+    ///
+    /// The license is deliberately NARROW: it extends only to the three kinds
+    /// `isLicensedByAnyToolCall` already treats as licensable — the passive and
+    /// present-state tiers, which are exactly the shapes an honest follow-up
+    /// uses. `firstPersonCreation` and `impersonatedCard` are NOT licensed by
+    /// conversation history, because 6 of 6 true positives in the real corpus
+    /// are `firstPersonCreation`: licensing it for the rest of a conversation
+    /// in which one action ever succeeded would blind the guard to the exact
+    /// shape it exists to catch. The residual is recorded in the tests
+    /// (`reviewFindings`, the KNOWN-LIMIT row) rather than hidden.
+    static func unfulfilledClaim(
+        in text: String,
+        executedToolNames: [String],
+        priorActionToolExecutedInConversation: Bool = false
+    ) -> Claim? {
         // 338-D, the production-safety floor: a turn that executed an ACTION
         // tool staged a real confirmation card. Whatever it said afterwards,
         // this guard has nothing to add and must not fire.
         let executedAnAction = executedToolNames.contains { actionToolNames.contains($0) }
         if executedAnAction { return nil }
-        let executedAnything = !executedToolNames.isEmpty
+        // A call THIS turn, or an action tool anywhere in this conversation,
+        // both license the same three kinds — the difference between them is
+        // only which turn made the phrasing defensible.
+        let licensesPresentState = !executedToolNames.isEmpty || priorActionToolExecutedInConversation
         return claims(in: text).first { claim in
-            !(claim.kind.isLicensedByAnyToolCall && executedAnything)
+            !(claim.kind.isLicensedByAnyToolCall && licensesPresentState)
         }
     }
 
@@ -204,6 +233,38 @@ enum ActionClaimDetector {
     }
 
     // MARK: - Token matching
+
+    /// Drops every `"…"` span, so the model quoting the USER — or quoting a
+    /// reminder's own title — cannot arm a claim (#338's entry: *"It must NOT
+    /// fire … on the model quoting the user"*).
+    ///
+    /// Runs on NORMALIZED text, where the curly forms are already folded to
+    /// `"`. The apostrophe is untouched, so `i've` survives.
+    ///
+    /// **An unterminated opener strips to the end of the sentence**, and that
+    /// is not an edge case: `sentences(of:)` breaks on the period INSIDE a
+    /// quotation — *"You wrote: "I've set a reminder already." Do you want
+    /// another one?"* splits with the closing quote on the far side of the
+    /// break, leaving the first sentence holding a dangling opener. Balanced
+    /// pairs alone would read that half as the model's own claim.
+    ///
+    /// Each quote becomes a SPACE rather than nothing, so the spans on either
+    /// side cannot fuse into a token that never existed.
+    static func strippingQuotedSpans(from sentence: String) -> String {
+        guard sentence.contains("\"") else { return sentence }
+        var out = String()
+        out.reserveCapacity(sentence.count)
+        var insideQuotes = false
+        for character in sentence {
+            if character == "\"" {
+                insideQuotes.toggle()
+                out.append(" ")
+                continue
+            }
+            if !insideQuotes { out.append(character) }
+        }
+        return out
+    }
 
     /// Words of a sentence, apostrophes kept inside the word so `i've` stays
     /// one token and can never be confused with `i`.
@@ -322,13 +383,57 @@ enum ActionClaimDetector {
         .init(steps: [["shall", "should"], ["i"]], maxGap: 0),
         .init(steps: [["want", "like"], ["me"], ["to"]], maxGap: 0),
         .init(steps: [["going", "about"], ["to"]], maxGap: 0),
-        .init(steps: [["once", "after", "when"], ["you"]], maxGap: 1),
+        // Review finding: `if` and `until` were missing from this row, so
+        // *"…the alarm is set for 6:30 if you confirm"* read as a claim. The
+        // adjacent `you` is what keeps these narrow — an unanchored `after`
+        // would silence *"I've set a reminder for after you get home"*, which
+        // is a real fabrication shape.
+        .init(steps: [["once", "after", "when", "if", "until", "unless"], ["you"]], maxGap: 1),
+    ]
+
+    /// **The EXPLANATORY FRAME (review finding, 2026-08-12).** A sentence whose
+    /// FIRST word is a subordinating conjunction of condition or time is
+    /// describing how the feature works, or what will happen if the user acts —
+    /// it is not an assertion that anything happened this turn.
+    ///
+    /// **Why this matters more than it looks.** Capability questions route
+    /// TOOLLESS (#215), so `executedToolNames` is empty on them BY
+    /// CONSTRUCTION, and the app's own instructions teach the model this exact
+    /// vocabulary — *"The user sees a confirmation card…"* appears in every
+    /// action tool's description and again at `LocalChatBackend.swift:1955`
+    /// and `:2015`. A model paraphrasing its own instructions into *"Once a
+    /// reminder has been created it appears in the Reminders app"* is the
+    /// LIKELY case, not an exotic one, and the shipped detector fired on it.
+    ///
+    /// **The rule is POSITIONAL on purpose.** Only the sentence-initial slot
+    /// counts, because that is the slot that scopes the whole sentence as a
+    /// conditional or general rule. An unanchored keyword search would silence
+    /// *"I've set the alarm, and I can move it if you like"* — a real claim
+    /// with a conditional tail.
+    ///
+    /// **Three words are deliberately ABSENT, and the reasoning is the same
+    /// each time: they open sentences whose MAIN clause is commonly a genuine
+    /// claim.** `as` — *"As requested, I've set a reminder"*. `while` —
+    /// *"While you were out, I set the alarm"*. `before` — *"Before I forget,
+    /// I've set a reminder for 8"*. Every one of those is a fabrication this
+    /// guard exists to catch, and every one would go dark. The words that ARE
+    /// here scope the whole sentence rather than a preamble to it.
+    private static let explanatoryOpeners: Set<String> = [
+        "if", "once", "when", "whenever", "after", "until", "unless",
     ]
 
     /// The impersonated affordance, matched on the raw normalized sentence
     /// because the COLON is the tell — `Here's the confirmation:` is an honest
     /// offer preamble that appears 20+ times in the artifacts, while
     /// `Confirmation card:` is the app's own UI name being worn as prose.
+    ///
+    /// **It must OPEN the sentence (review finding, 2026-08-12).** #337-A's
+    /// production reply led with it — `**Confirmation card:** A reminder to…` —
+    /// and that LABEL POSITION is the impersonation: it is where the app's own
+    /// card would sit. Mid-sentence the same words are the app's vocabulary
+    /// being explained, and the shipped detector fired on the honest sentence
+    /// *"Every action is staged as a confirmation card: nothing is written
+    /// until you tap Confirm."*
     private static let impersonatedCardMarker = "confirmation card:"
 
     // MARK: - Per-sentence scoring
@@ -337,12 +442,20 @@ enum ActionClaimDetector {
         // A question is never an assertion of completion. This one line is
         // what keeps the 15 honest offers from A7AB9960 silent.
         if sentence.hasSuffix("?") { return [] }
-        let tokens = tokens(of: sentence)
+        // Review finding: everything below reads the sentence with its quoted
+        // spans REMOVED, so the model quoting the user cannot arm a claim.
+        let scannable = strippingQuotedSpans(from: sentence)
+        let tokens = tokens(of: scannable)
         if tokens.contains(where: negationTokens.contains) { return [] }
         if attributionPatterns.contains(where: { $0.matches(tokens) }) { return [] }
+        // Review finding: a sentence-initial `if` / `once` / `after` / … frames
+        // the whole sentence as a condition or a general rule. Checked here,
+        // ahead of EVERY tier including the perfect tenses, because the shape
+        // it catches — *"Once a reminder has been created…"* — is a passive.
+        if let opener = tokens.first, explanatoryOpeners.contains(opener) { return [] }
 
         var found: [Claim] = []
-        if sentence.contains(impersonatedCardMarker) {
+        if sentence.hasPrefix(impersonatedCardMarker) {
             found.append(Claim(kind: .impersonatedCard, sentence: sentence))
         }
         // Everything below has to be ABOUT a device artifact.
@@ -352,13 +465,18 @@ enum ActionClaimDetector {
             found.append(Claim(kind: .firstPersonCreation, sentence: sentence))
             return found
         }
+        // Review finding — ORDER. This ran AFTER the passive tier had already
+        // returned, so *"I'll create a reminder titled …has been created"* was
+        // read as a completed action despite opening with `i'll`. An offer
+        // marker anywhere in the sentence now beats the passive and
+        // present-state tiers alike. It stays BELOW the first-person tier on
+        // purpose: these patterns are unanchored, and *"I've set the alarm and
+        // I can change it"* must still fire.
+        if offerPatterns.contains(where: { $0.matches(tokens) }) { return found }
         if passivePatterns.contains(where: { $0.matches(tokens) }) {
             found.append(Claim(kind: .passiveCompletion, sentence: sentence))
             return found
         }
-        // Present-state tiers only, and only when nothing in the sentence
-        // frames the action as still to come.
-        if offerPatterns.contains(where: { $0.matches(tokens) }) { return found }
         if presentStateSetPatterns.contains(where: { $0.matches(tokens) }) {
             found.append(Claim(kind: .presentStateSet, sentence: sentence))
             return found
