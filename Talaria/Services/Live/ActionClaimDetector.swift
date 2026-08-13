@@ -413,8 +413,11 @@ enum ActionClaimDetector {
     /// TOOLLESS (#215), so `executedToolNames` is empty on them BY
     /// CONSTRUCTION, and the app's own instructions teach the model this exact
     /// vocabulary — *"The user sees a confirmation card…"* appears in every
-    /// action tool's description and again at `LocalChatBackend.swift:2148`,
-    /// `:2203` and `:2208`. A model paraphrasing its own instructions into *"Once a
+    /// action tool's description and again in the assembled instructions
+    /// (`cardNarrationClause`, `cardCorrectionClause`, and the armed-tool
+    /// enumeration — `LocalChatBackend.swift:2149`/`:2204`/`:2209` at this
+    /// commit; the SYMBOL NAMES are the durable citation, since these line
+    /// numbers have already drifted twice under edits above them). A model paraphrasing its own instructions into *"Once a
     /// reminder has been created it appears in the Reminders app"* is the
     /// LIKELY case, not an exotic one, and the shipped detector fired on it.
     ///
@@ -464,6 +467,18 @@ enum ActionClaimDetector {
     ///
     /// Dropping to the first letter cannot over-reach: it stops at the first
     /// letter, so a mid-sentence mention is still mid-sentence.
+    ///
+    /// **Two things this does NOT do, both found by later review and both
+    /// recorded rather than papered over.** It must be applied to the
+    /// QUOTE-STRIPPED sentence — a leading `"` is a non-letter, so on the raw
+    /// sentence a quoted illustration read as label position (round 3; see the
+    /// call site). And **single-letter list markers still defeat it**: `i. `,
+    /// `a. `, `A. `, `a) ` leave the first letter AS the marker, and
+    /// `sentences(of:)`'s abbreviation rule (which exists to keep `a.m.` and
+    /// `J. Smith` intact) refuses to split them off. `ii.`, `iv.` and `1.` are
+    /// fine. That is N1's own residue, a MISS rather than a lie, reachable
+    /// only at `priorActionToolExecutedInConversation == true` — pinned as a
+    /// KNOWN-LIMIT row in `ActionClaimDetectorTests`.
     static func labelPositionBody(of sentence: String) -> Substring {
         sentence.drop { !$0.isLetter }
     }
@@ -475,20 +490,29 @@ enum ActionClaimDetector {
         // what keeps the 15 honest offers from A7AB9960 silent.
         if sentence.hasSuffix("?") { return [] }
 
-        // **SILENCERS READ THE WHOLE SENTENCE; CLAIM TIERS READ IT WITH QUOTED
-        // SPANS REMOVED.** Round-2 review: the strip used to run first, above
-        // all three silencers, so a `not` / a `you asked` / an `Once…` sitting
-        // INSIDE a quotation was deleted before it could be consulted, and
-        // three honest sentences fired — *"Your note says "I have not set the
-        // alarm" and the alarm is set for 6:30."* among them. A silencer is a
-        // reason to stay quiet; deleting reasons to stay quiet can only ever
-        // add false positives, which is the error direction that makes the
-        // app's own correction the false statement.
+        // **THE THREE SENTENCE-LEVEL SILENCERS BELOW READ THE WHOLE SENTENCE;
+        // EVERYTHING AFTER THEM READS IT WITH QUOTED SPANS REMOVED.**
+        // Round-2 review: the strip used to run first, above all three, so a
+        // `not` / a `you asked` / an `Once…` sitting INSIDE a quotation was
+        // deleted before it could be consulted, and three honest sentences
+        // fired — *"Your note says "I have not set the alarm" and the alarm is
+        // set for 6:30."* among them. A silencer is a reason to stay quiet;
+        // deleting reasons to stay quiet can only ever add false positives,
+        // which is the error direction that makes the app's own correction the
+        // false statement.
         //
-        // The COST of reading silencers unstripped, stated because it is real:
-        // a negation quoted from the user can now silence a claim the model
-        // makes outside the quotation. That direction is a miss; the other was
-        // a lie.
+        // **`offerPatterns` is deliberately NOT one of these three** (round-3
+        // review noted the doc once read as though it were). It is a
+        // TIER-SCOPED suppressor and reads the stripped tokens, because an
+        // offer marker inside a quotation is the model quoting an offer, not
+        // making one: *"The card says "would you like me to set it" and the
+        // alarm is set for 6:30"* asserts the alarm outside the quotation.
+        //
+        // The COST of reading these three unstripped, stated because it is
+        // real: a negation — or an opener — quoted from the user can silence a
+        // claim the model makes outside the quotation. Both are labelled
+        // KNOWN-LIMIT rows in `ActionClaimDetectorTests`. That direction is a
+        // miss; the other was a lie.
         let rawTokens = tokens(of: sentence)
         if rawTokens.contains(where: negationTokens.contains) { return [] }
         if attributionPatterns.contains(where: { $0.matches(rawTokens) }) { return [] }
@@ -498,13 +522,27 @@ enum ActionClaimDetector {
         // it catches — *"Once a reminder has been created…"* — is a passive.
         if let opener = rawTokens.first, explanatoryOpeners.contains(opener) { return [] }
 
-        var found: [Claim] = []
-        if labelPositionBody(of: sentence).hasPrefix(impersonatedCardMarker) {
-            found.append(Claim(kind: .impersonatedCard, sentence: sentence))
-        }
         // From here on the quoted spans are gone, so the model quoting the
         // user — or quoting a reminder's own title — cannot arm a claim.
-        let tokens = tokens(of: strippingQuotedSpans(from: sentence))
+        let scannable = strippingQuotedSpans(from: sentence)
+
+        var found: [Claim] = []
+        // Round-3 review: label position is judged on the STRIPPED sentence.
+        // `labelPositionBody` drops every non-letter, INCLUDING a leading
+        // quotation mark, so judging it unstripped read a quoted illustration —
+        // *"Confirmation card: A reminder has been created" is what the card
+        // would show.* — as the app's own affordance being worn as prose. Worst
+        // possible direction: `impersonatedCard` is licensed by neither a tool
+        // call nor the conversation latch, so it fired at BOTH latch states
+        // with no way to license it away, on capability prose that routes
+        // toolless by construction. It was also the last claim tier still
+        // reading the unstripped sentence — the exact asymmetry the round-2
+        // silencer-scope fix removed. #337-A survives because only its TITLE is
+        // quoted, never its marker.
+        if labelPositionBody(of: scannable).hasPrefix(impersonatedCardMarker) {
+            found.append(Claim(kind: .impersonatedCard, sentence: sentence))
+        }
+        let tokens = tokens(of: scannable)
         // Everything below has to be ABOUT a device artifact.
         guard tokens.contains(where: artifactNouns.contains) else { return found }
 

@@ -393,8 +393,9 @@ struct ActionClaimDetectorTests {
     /// **Capability / explanatory prose.** Capability questions route TOOLLESS
     /// (#215), so `executedToolNames` is empty on them by construction — and
     /// the app's own instructions teach the model this vocabulary
-    /// (`LocalChatBackend.swift:2148`, `:2203` and `:2208` all put "confirmation
-    /// card" in front of it), so paraphrase is the likely case, not an exotic one.
+    /// (`cardNarrationClause`, `cardCorrectionClause` and the armed-tool
+    /// enumeration — `LocalChatBackend.swift:2149`/`:2204`/`:2209` at this
+    /// commit — all put "confirmation card" in front of it), so paraphrase is the likely case, not an exotic one.
     static let explanatoryFindings: [ReviewFixture] = [
         .init(finding: "explanatory", label: "how a reminder behaves once made",
               text: "Once a reminder has been created it appears in the Reminders app.",
@@ -506,6 +507,32 @@ struct ActionClaimDetectorTests {
         .init(finding: "label-position", label: "mid-sentence mention, bulleted, stays quiet",
               text: "- Every action is staged as a confirmation card: nothing is written until you tap Confirm.",
               mustFire: false),
+
+        // ROUND 3, BLOCKING: `labelPositionBody` drops every non-letter —
+        // INCLUDING a leading quotation mark — so judging label position on the
+        // RAW sentence read a quoted ILLUSTRATION as the app's own affordance.
+        // Round 1 had closed this by accident; round 2's marker fix reopened it.
+        // Worst direction available: `impersonatedCard` is licensed by neither
+        // a tool call nor the latch, so it fired at BOTH latch states with no
+        // way to license it away — on capability prose, which routes toolless
+        // by construction. Judged on the STRIPPED sentence now.
+        .init(finding: "label-position", label: "a QUOTED illustration is not label position",
+              text: "\"Confirmation card: A reminder has been created\" is what the card would show.",
+              mustFire: false),
+        .init(finding: "label-position", label: "…and still not, after a real action",
+              text: "\"Confirmation card: A reminder has been created\" is what the card would show.",
+              priorAction: true, mustFire: false),
+        .init(finding: "label-position", label: "curly quotes around the illustration",
+              text: "\u{201C}Confirmation card: A reminder has been created\u{201D} is what you would see.",
+              mustFire: false),
+        .init(finding: "label-position", label: "a bulleted quoted illustration",
+              text: "- \"Confirmation card: A reminder has been created\" is the format.",
+              mustFire: false),
+        // …and the control that makes the remedy safe: #337-A quotes its TITLE,
+        // never its marker, so stripping cannot reach the label.
+        .init(finding: "label-position", label: "#337-A quotes its title, not its marker — still fires",
+              text: "**Confirmation card:** A reminder to \u{201C}take out the trash\u{201D} at 8 AM has been created.",
+              mustFire: true, kind: .impersonatedCard),
     ]
 
     /// **N2 — quote-stripping removed the SILENCERS.** The strip ran above the
@@ -568,9 +595,13 @@ struct ActionClaimDetectorTests {
         // --- The explanatory rule is FIXTURE-level, not class-level: it closes
         // the sentence-initial subordinator, and these honest shapes still fire.
         // `nothing` is absent from `negationTokens` and `told` from
-        // `attributionPatterns` — both look like one-word fixes and neither is:
+        // `attributionPatterns`. The NAIVE one-word addition is wrong —
         // "Nothing else — I've set the reminder" and "You told me to set an
-        // alarm, and I've set it" would go dark.
+        // alarm, and I've set it" go dark, verified. But both are SEPARABLE
+        // with mechanisms already in this file: `requiredFollower` splits
+        // `told me TO set` from `told me your alarm IS set`, and the
+        // sentence-initial rule handles `nothing`-as-subject. Left undone as
+        // SCOPE — a new rule needs its own controls — not as impossible.
         .init(finding: "KNOWN-LIMIT/explanatory-residual", label: "capability prose with no subordinator",
               text: "Events are added to your calendar through a confirmation card you tap.",
               mustFire: true, kind: .presentStateOn),
@@ -599,12 +630,45 @@ struct ActionClaimDetectorTests {
               text: "The event has been added to your calendar, did you also want a reminder.",
               mustFire: false),
 
-        // --- What reading silencers UNSTRIPPED costs: a negation quoted from
-        // the user now silences a claim the model makes outside the quotation.
-        // Adopted knowingly — that direction is a miss, the other was a lie.
+        // --- What reading silencers UNSTRIPPED costs: a negation — or an
+        // OPENER — quoted from the user now silences a claim the model makes
+        // outside the quotation. Adopted knowingly: that direction is a miss,
+        // the other was a lie.
         .init(finding: "KNOWN-LIMIT/unstripped-silencer-cost", label: "a quoted negation silences an unquoted claim",
               text: "Your note says \"no reminder yet\" but I\u{2019}ve set one for 8 PM.",
               mustFire: false),
+        // The opener variant is the worse of the two and gets its own rows: a
+        // sentence-initial quotation DONATES its first word to the opener test,
+        // and that silences `firstPersonCreation` — the one tier the design
+        // says context must never silence (it is why the conversation latch
+        // stops short of it). Round-3 review.
+        .init(finding: "KNOWN-LIMIT/unstripped-silencer-cost", label: "a quoted opener silences first-person authorship",
+              text: "\"When I get home, remind me\" \u{2014} I\u{2019}ve set a reminder for 8 PM.",
+              mustFire: false),
+        .init(finding: "KNOWN-LIMIT/unstripped-silencer-cost", label: "…even a short quoted opener",
+              text: "\"If it helps,\" I\u{2019}ve set a reminder for 8 PM.",
+              mustFire: false),
+
+        // --- N1's OWN RESIDUE: the class is not fully closed. A SINGLE-LETTER
+        // list marker leaves the first letter AS the marker, so
+        // `labelPositionBody` stops there — and `sentences(of:)`'s abbreviation
+        // rule (which keeps `a.m.` and `J. Smith` intact) refuses to split it
+        // off. The BASE detector caught these; rounds 1–2 do not. A miss rather
+        // than a lie, and only reachable at prior=true, but it is the same
+        // class N1 named, so it is a row rather than a silence.
+        .init(finding: "KNOWN-LIMIT/label-position-residue", label: "lowercase roman marker",
+              text: "i. Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: false),
+        .init(finding: "KNOWN-LIMIT/label-position-residue", label: "lettered marker",
+              text: "a. Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: false),
+        .init(finding: "KNOWN-LIMIT/label-position-residue", label: "parenthesised lettered marker",
+              text: "a) Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: false),
+        // …and the boundary: TWO letters are enough, so the residue is narrow.
+        .init(finding: "KNOWN-LIMIT/label-position-residue", label: "a two-letter marker is FINE",
+              text: "ii. Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
     ]
 
     static var reviewFindings: [ReviewFixture] {
@@ -665,13 +729,13 @@ struct ActionClaimDetectorTests {
     }
 
     /// The same drift guard `corpusPartition` provides for the artifact corpus.
-    @Test("338 review: the findings table is 32 must-fire / 26 must-stay-quiet")
+    @Test("338 review: the findings table is 34 must-fire / 35 must-stay-quiet")
     func reviewFindingsPartition() {
         let fires = Self.reviewFindings.filter(\.mustFire).count
         let quiet = Self.reviewFindings.count - fires
-        #expect(fires == 32)
-        #expect(quiet == 26)
-        #expect(Self.reviewFindings.count == 58)
+        #expect(fires == 34)
+        #expect(quiet == 35)
+        #expect(Self.reviewFindings.count == 69)
         // No assertion may appear twice: these counts are a drift detector, and
         // a duplicated row would let a deletion elsewhere balance out.
         let texts = Self.reviewFindings.map { "\($0.text)|\($0.priorAction)|\($0.executed)" }

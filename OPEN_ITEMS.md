@@ -9358,8 +9358,9 @@ have read that half as the model's own claim.
 **3. Capability / explanatory prose.** Capability questions route TOOLLESS
 (#215), so `executedToolNames` is empty on them **by construction**, and the
 app's own instructions teach the model this vocabulary —
-`LocalChatBackend.swift:2148`, `:2203` and `:2208` all put "confirmation card"
-in front of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
+`cardNarrationClause`, `cardCorrectionClause` and the armed-tool enumeration
+(`LocalChatBackend.swift:2149`/`:2204`/`:2209`) all put "confirmation card" in
+front of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
 has been created it appears in the Reminders app"* fired.
 **The rule used, stated exactly:** (a) a sentence whose FIRST token is a
 subordinating conjunction of condition or time — `if once when whenever after
@@ -9459,10 +9460,20 @@ an adjacent `you`. Still firing, now labelled KNOWN-LIMIT rows:
 *"Right now nothing is on your calendar for Friday."* (`nothing` is not in
 `negationTokens`) · *"You told me your alarm is set for 6:30."* (`told` is not
 in `attributionPatterns`) · *"Assuming you confirm, …"* · *"Tap Confirm and
-…"*. **The two that look like one-word fixes are not:** adding `nothing` would
-silence *"Nothing else — I've set the reminder"*, and adding `told` would
-silence *"You told me to set an alarm, and I've set it."* Both were declined
-for that reason rather than overlooked.
+…"*. **Both are SCOPE decisions, not dead ends — corrected here because round 2
+wrote them as if they were impossible, and a later lane would read that as
+refuted.** A naive one-word addition does go too far: `nothing` in
+`negationTokens` silences *"Nothing else — I've set the reminder"*, and `told`
+in `attributionPatterns` silences *"You told me to set an alarm, and I've set
+it."* **But both are separable with mechanisms already in this file.**
+`TokenPattern.requiredFollower` — the same discriminator that keeps *"I set the
+alarm"* apart from *"I set out to"* — distinguishes `told me **to** set` from
+`told me your alarm **is** set`; and the positional move that gave
+`explanatoryOpeners` its sentence-initial rule handles `nothing`-as-subject the
+same way. An independent re-review built the naive variant and confirmed both
+counterexamples go dark on `firstPersonCreation`, which is what makes the
+NAIVE form wrong — not the fix. **Left undone because it is a new rule with its
+own controls, not because it cannot be done.**
 
 **AND THE REORDER HAD A COST, recorded:** moving offers ahead of the passive
 tier silences two shapes the base detector caught —
@@ -9473,10 +9484,66 @@ tier silences two shapes the base detector caught —
 `prior=false` AND `prior=true`.**
 
 **Also corrected:** three copies of a wrong citation — the "confirmation card"
-instruction clauses are `LocalChatBackend.swift:2148`/`:2203`/`:2208`, not
+instruction clauses are `LocalChatBackend.swift:2149`/`:2204`/`:2209`, not
 `:1955`/`:2015` (detector doc, test doc, and this entry) — and a doc comment
 naming a `.progress` phase that does not exist (`ToolCallEvent.Phase` has two
 cases).
+
+### 2026-08-12 — 🔴 ROUND 3: round 2's marker fix reopened a base-era false positive that round 1 had closed by accident.
+
+**One BLOCKING finding, and it is the same shape as N1 one level up.**
+`labelPositionBody` drops every non-letter — **including a leading quotation
+mark** — so judging label position on the RAW sentence read a quoted
+ILLUSTRATION as the app's own affordance:
+*"Confirmation card: A reminder has been created" is what the card would show.*
+→ `impersonatedCard`. **Worst direction available:** `impersonatedCard` is
+licensed by neither a tool call nor the conversation latch, so it fired at BOTH
+latch states with **no way to license it away** — on capability prose, which
+routes toolless by construction. It was also the last claim tier still reading
+the unstripped sentence, the exact asymmetry round 2's silencer-scope fix had
+just removed. Fixed by judging label position on the STRIPPED sentence; #337-A
+survives because only its TITLE is quoted, never its marker. Verified across the
+whole corpus and every fixture: it changes exactly those three strings and
+nothing else.
+
+**The pattern across all three rounds is now unmistakable and is the finding
+worth carrying out of this lane: every regression here came from the
+INTERACTION of two individually-correct changes, never from one wrong change.**
+Round 2's N1 was a narrowing fix meeting a licensing fix; round 3's is a
+marker fix meeting a scope fix. Reviewing either change alone finds neither.
+**The cheap defence that actually worked was the `prior=false`/`prior=true`
+sweep plus a quoted variant of every label form** — both are now standing rows
+in the fixture table rather than something a reviewer has to think of.
+
+**RECORDED, not fixed — two residues, each a labelled KNOWN-LIMIT row:**
+1. **N1's class is not fully closed.** SINGLE-LETTER list markers still defeat
+   label position — `i. `, `a. `, `A. `, `a) ` — because `drop { !$0.isLetter }`
+   stops AT the marker and `sentences(of:)`'s abbreviation rule (which exists to
+   keep `a.m.` and `J. Smith` intact) refuses to split them off. `ii.`, `iv.`
+   and `1.` are fine, so the residue is narrow. The BASE detector caught these;
+   rounds 1–2 do not. A miss rather than a lie, and only reachable at
+   `prior=true` — but it is N1's own class, so it is a row and not a silence.
+2. **A sentence-initial quotation DONATES its first word to the opener test**,
+   now that openers read unstripped: *"When I get home, remind me" — I've set a
+   reminder for 8 PM.* and *"If it helps," I've set a reminder for 8 PM.* both
+   go quiet. This one is worse than the negation variant round 2 recorded,
+   because it silences `firstPersonCreation` — the one tier the whole design
+   says context must never silence, and the reason the conversation latch stops
+   short of it.
+
+**Doc/code reconciled:** `offerPatterns` is a fourth suppressor that reads
+STRIPPED tokens, so "silencers read unstripped" was stated more broadly than
+implemented. The comment now says which three are sentence-level and why the
+offer check is deliberately tier-scoped (an offer marker inside a quotation is
+the model quoting an offer, not making one).
+
+**Citations re-anchored:** the clause line numbers were off by one — my own
+round-2 doc edit shifted them — so they are now cited by SYMBOL NAME
+(`cardNarrationClause`, `cardCorrectionClause`, the armed-tool enumeration) with
+the line numbers as a hint. They have drifted twice in two rounds; the symbol
+names cannot.
+
+**Floor re-verified at both latch states: exactly 6 fires, the same 6 rows.**
 
 > **QUESTION FOR OWEN (routed here, deliberately NOT built):** should the guard
 > additionally gate on the ROUTER's action-intent, so a completion-shaped
