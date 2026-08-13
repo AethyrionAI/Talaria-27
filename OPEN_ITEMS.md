@@ -9312,6 +9312,101 @@ tool — this lane makes the app HONEST, not capable.
 of these turns), **#197** (never-throw discipline on the tool path — the guard must
 not introduce a throw), **#196** (the disclaimer tic, this shape's inverse).
 
+### 2026-08-12 — 🔴 THE REVIEW: the guard shipped GREEN and would have lied to the user four different ways. Four false-positive classes fixed, plus the wiring tests that tested no wiring.
+
+**The first build passed its own bars and was still ship-blocking**, which is
+the finding worth keeping: bar 338-A weighed false positives correctly *"a
+guard that fires on an honest offer trains the user to ignore it"* but scored
+that risk only against the artifacts' honest OFFERS. The offers were the easy
+half. **The reply the guard appends is a factual claim in the app's own voice —
+*"Nothing was created."* — so a false positive is not a nuisance, it is the app
+lying about the opposite thing.** Every class below was found by compiling the
+detector and running it over the real corpora plus constructed honest replies;
+all fourteen reproduced.
+
+**1. CRITICAL — earlier-turn truth.** `unfulfilledClaim` read only THIS turn's
+calls, so the commonest honest exchange in the app fired it: the user taps
+Confirm, the reminder is really written, and on the NEXT turn asks *"did that go
+through?"* — a turn with zero tool calls by construction. Observed firings, all
+honest: *"Yes, the reminder is set for 8 PM."* · *"Your reminder is set for
+8 PM."* · *"The meeting is on your calendar for 3 PM."* · *"Your morning alarm is
+set for 6:30."* Each collected *"Nothing was created."*
+**Fix:** a conversation-scoped latch on `ToolEventRelay`
+(`actionToolExecutedThisConversation`), set at the one place an admitted call is
+counted and cleared by `endConversationToolState()` — the #233/#249 latch
+lifetime, not a new one. It licenses **only** the three kinds
+`isLicensedByAnyToolCall` already allowed (passive + the two present-state
+tiers).
+**KNOWN LIMIT, named not hidden:** `firstPersonCreation` and `impersonatedCard`
+are NOT licensed by conversation history, so *"I created that event this morning
+when you confirmed the card"* — an honest sentence — still fires. That is
+deliberate: **6 of the 6 true positives in the real corpus are
+`firstPersonCreation`**, and licensing it conversation-wide would blind the
+guard to its own headline shape for the rest of any conversation in which one
+action ever succeeded. Pinned as a labelled row in
+`ActionClaimDetectorTests.earlierTurnFindings`. **Owen's call whether to trade
+it.**
+
+**2. Quoted spans.** The entry required not firing on the model quoting the user
+and nothing implemented it. Fixed by dropping `"…"` spans before tokenizing.
+**An unterminated opener strips to the end of the sentence, and that is the
+load-bearing half:** `sentences(of:)` breaks on the period INSIDE a quotation,
+so *"You wrote: "I've set a reminder already." Do you want another one?"* splits
+with the closing quote on the far side of the break. Balanced-pairs-only would
+have read that half as the model's own claim.
+
+**3. Capability / explanatory prose.** Capability questions route TOOLLESS
+(#215), so `executedToolNames` is empty on them **by construction**, and the
+app's own instructions teach the model this vocabulary —
+`LocalChatBackend.swift:1955` and `:2015` both put "confirmation card" in front
+of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
+has been created it appears in the Reminders app"* fired.
+**The rule used, stated exactly:** (a) a sentence whose FIRST token is a
+subordinating conjunction of condition or time — `if once when whenever after
+before until unless` — is a conditional or general-rule frame and yields no
+claim at any tier; the rule is POSITIONAL so a conditional TAIL cannot silence a
+real claim, and `as`/`while` are excluded because *"As requested, I've set a
+reminder"* is a fabrication. (b) the imitated `confirmation card:` counts only
+in **label position** — opening the sentence, where the app's own card would
+sit — which is how #337-A emitted it; mid-sentence it is the app's vocabulary
+being explained.
+
+**4. Conditionals and ordering.** `if`/`until` were missing from `offerPatterns`,
+and the offer check ran AFTER the passive tier had already returned, so
+*"I'll create a reminder titled "…has been created""* was read as completed
+despite opening with `i'll`. The offer check now runs ahead of the passive and
+present-state tiers. It stays BELOW the first-person tier on purpose: those
+patterns are unanchored, and *"I've set the alarm and I can change it"* must
+still fire.
+
+**5. THE WIRING TESTS TESTED NO WIRING.** Every test called
+`honestyGuardedReply` directly with a hand-built array, so nothing pinned where
+that array came from — **both `if event.phase == .started` blocks could be
+deleted with the whole suite green**, and a guard reading an always-empty array
+fires on every honest tool-executing turn. Fixed structurally: one
+`LocalChatBackend.TurnToolCallRecorder` owns the only `.started` filter, both
+turn paths install it, and seven tests hold it. **RED witnessed twice** —
+removing the `.started` guard reddens 1 test; removing the recording call
+entirely (the reviewer's exact defect) reddens 3.
+
+**THE FLOOR HELD.** Re-verified against all three real corpora
+(`225-spiral`, `199A-calendar`, `199A-decline` — 118 rows carrying text):
+**exactly 6 true positives fire, the same 6 rows, nothing else**, before and
+after. ⚠️ `199A-decline-artifact.json` is **not in this branch's tree** — it
+landed on `main` in `9c23218` after the worktree branched — so its three rows
+are transcribed into the fixture table and the count was measured against
+`main`'s copy.
+
+**Bars: 338-A/B/D/E re-met after the fix; 338-F met. 338-C (on hardware) is
+still owed** — this review was static and no device was touched.
+
+> **QUESTION FOR OWEN (routed here, deliberately NOT built):** should the guard
+> additionally gate on the ROUTER's action-intent, so a completion-shaped
+> sentence in a FRESH conversation only fires when the turn was routed as an
+> action request? It would retire the residual in class 1 and most of class 3,
+> at the cost of coupling the guard to a second subsystem. Named, not
+> implemented.
+
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
 **What makes it newly possible:** #333's runner turned every instrument into one

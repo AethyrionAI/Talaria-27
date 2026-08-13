@@ -408,13 +408,13 @@ final class LocalChatBackend: HermesClientProtocol {
         // that ran before the phase cut staged a real confirmation card, and
         // the guard must stay quiet for that turn even though the retried leg
         // ran toolless.
-        let executedToolNames = OSAllocatedUnfairLock(initialState: [String]())
+        //
+        // Created ONCE, outside the retry loop below, which is what makes the
+        // accumulation-across-legs property true rather than incidental.
+        let toolCallRecorder = TurnToolCallRecorder()
         let previousEmit = toolRelay?.emit
-        toolRelay?.emit = { event in
+        toolCallRecorder.install(on: toolRelay) { event in
             sawToolActivity.withLock { $0 = true }
-            if event.phase == .started {
-                executedToolNames.withLock { $0.append(event.name) }
-            }
             previousEmit?(event)
         }
         defer { toolRelay?.emit = previousEmit }
@@ -450,7 +450,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 let guarded = honestyGuardedReply(
                     modelText: collapsed,
                     settledText: content,
-                    executedToolNames: executedToolNames.withLock { $0 })
+                    recorder: toolCallRecorder)
                 let reply = Message(sender: .hermes, content: guarded, status: .delivered)
                 appendAssistantMessage(reply, usage: usage)
                 return reply
@@ -595,16 +595,14 @@ final class LocalChatBackend: HermesClientProtocol {
         // main actor.
         let sawObservableActivity = OSAllocatedUnfairLock(initialState: false)
         // #338: see `send` — the honesty guard's one input, admitted calls
-        // only, accumulated across any retry leg.
-        let executedToolNames = OSAllocatedUnfairLock(initialState: [String]())
+        // only, accumulated across any retry leg because the recorder is
+        // created ONCE, outside the loop below.
+        let toolCallRecorder = TurnToolCallRecorder()
 
         // #28: tool invocations surface on the existing toolActivity channel
         // for the duration of this turn — the tool-chip UI renders them free.
-        toolRelay?.emit = { event in
+        toolCallRecorder.install(on: toolRelay) { event in
             sawObservableActivity.withLock { $0 = true }
-            if event.phase == .started {
-                executedToolNames.withLock { $0.append(event.name) }
-            }
             continuation.yield(.toolActivity(event))
         }
         defer { toolRelay?.emit = nil }
@@ -676,7 +674,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 let guarded = honestyGuardedReply(
                     modelText: latestFull,
                     settledText: settled,
-                    executedToolNames: executedToolNames.withLock { $0 })
+                    recorder: toolCallRecorder)
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
@@ -1444,6 +1442,59 @@ final class LocalChatBackend: HermesClientProtocol {
 
     // MARK: - #338: the honesty guard
 
+    /// **The honesty guard's ONE input, and the only place in the app where
+    /// `.started` is filtered for it.**
+    ///
+    /// It exists as a type rather than two inline closures because the review
+    /// of #338 found that both `.started` blocks could be DELETED with the
+    /// whole suite still green: every test called `honestyGuardedReply`
+    /// directly with a hand-built array, so nothing pinned where that array
+    /// came from — and a guard reading an always-empty array fires on every
+    /// honest tool-executing turn. One shared filter is one thing a test can
+    /// hold (`HonestyGuardWiringTests.theRecorder…`).
+    ///
+    /// Three properties it owns, each pinned by test:
+    /// - **`.started` only.** `.completed` and `.progress` describe the same
+    ///   call; counting them would triple a turn's apparent tool count.
+    /// - **Admitted calls only**, which is free: `ToolEventRelay.started`
+    ///   returns before emitting when the #225 governor refuses, so a refused
+    ///   call never reaches this at all.
+    /// - **Never reset mid-turn.** A tool that ran before #232's phase cut
+    ///   staged a real confirmation card, so the guard must stay quiet for the
+    ///   whole turn even though the retried leg ran toolless. Production gets
+    ///   this by creating the recorder OUTSIDE the retry loop.
+    ///
+    /// Lock-backed rather than actor-isolated because tools emit off the main
+    /// actor — the same reason the activity flags beside it are locked.
+    final class TurnToolCallRecorder: Sendable {
+        private let recorded = OSAllocatedUnfairLock(initialState: [String]())
+
+        /// Admitted tool-call names this turn, in emit order.
+        var executedToolNames: [String] { recorded.withLock { $0 } }
+
+        /// The filter. Everything above depends on this one `guard`.
+        func record(_ event: ToolCallEvent) {
+            guard event.phase == .started else { return }
+            recorded.withLock { $0.append(event.name) }
+        }
+
+        /// Installs the recorder on the relay for the duration of a turn,
+        /// forwarding every event on to the caller's own observer.
+        ///
+        /// Recording happens BEFORE forwarding so a forwarding closure that
+        /// throws or traps cannot silently cost the guard its input.
+        @MainActor
+        func install(
+            on relay: ToolEventRelay?,
+            forwardingTo forward: @escaping (ToolCallEvent) -> Void
+        ) {
+            relay?.emit = { [self] event in
+                record(event)
+                forward(event)
+            }
+        }
+    }
+
     /// **THE USER-FACING CORRECTION. This string is OWEN'S RULING, not the
     /// lane's — it is deliberately the ONE place the copy lives, so approving
     /// or changing it is a one-line edit with no other consequence.**
@@ -1494,6 +1545,10 @@ final class LocalChatBackend: HermesClientProtocol {
     ///     own output back in.
     ///   - settledText: the composed reply the correction attaches to.
     ///   - executedToolNames: admitted tool calls this turn, in emit order.
+    ///   - priorActionToolExecutedInConversation: whether an action tool ran
+    ///     EARLIER in this conversation. Production reads it off the relay's
+    ///     conversation-scoped latch; the default keeps every existing test
+    ///     honest at the strictest setting.
     ///
     /// Never throws and never returns less than it was given (#197: the tool
     /// path gains no throw; #338: the model's text is never rewritten or
@@ -1502,15 +1557,37 @@ final class LocalChatBackend: HermesClientProtocol {
     func honestyGuardedReply(  // harness-visible
         modelText: String,
         settledText: String,
-        executedToolNames: [String]
+        executedToolNames: [String],
+        priorActionToolExecutedInConversation: Bool = false
     ) -> String {
         guard let claim = ActionClaimDetector.unfulfilledClaim(
-            in: modelText, executedToolNames: executedToolNames
+            in: modelText,
+            executedToolNames: executedToolNames,
+            priorActionToolExecutedInConversation: priorActionToolExecutedInConversation
         ) else { return settledText }
         honestyGuardFireCount += 1
         lastHonestyGuardClaim = claim
         Self.logger.notice("\(Self.honestyGuardLogLine(kind: claim.kind, executedCalls: executedToolNames.count, fireCount: self.honestyGuardFireCount), privacy: .public)")
         return Self.appendingHonestyCorrection(to: settledText)
+    }
+
+    /// **The production entry point** — the overload both turn paths call, and
+    /// the ONE place the guard's two inputs are read from live state.
+    ///
+    /// Separated from the pure overload above so the recorder and the relay
+    /// latch are read HERE rather than at two call sites that could drift
+    /// apart. The pure overload stays the unit-testable core.
+    func honestyGuardedReply(  // harness-visible
+        modelText: String,
+        settledText: String,
+        recorder: TurnToolCallRecorder
+    ) -> String {
+        honestyGuardedReply(
+            modelText: modelText,
+            settledText: settledText,
+            executedToolNames: recorder.executedToolNames,
+            priorActionToolExecutedInConversation:
+                toolRelay?.actionToolExecutedThisConversation ?? false)
     }
 
     // MARK: - Conversation bookkeeping

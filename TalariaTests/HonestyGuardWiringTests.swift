@@ -170,6 +170,192 @@ struct HonestyGuardWiringTests {
 
     // MARK: - The defect, end to end through the production composition
 
+    // MARK: - THE WIRING ITSELF (review finding, 2026-08-12)
+    //
+    // Every test above this line hands `honestyGuardedReply` an array it built
+    // by hand, so NOTHING pinned where production's array comes from. The
+    // reviewer's demonstration: delete both `if event.phase == .started`
+    // blocks and the whole suite stayed green — while the guard, now reading an
+    // always-empty array, fires on every honest tool-executing turn and tells
+    // the user "Nothing was created" about a reminder that exists.
+    //
+    // `TurnToolCallRecorder` exists so there is ONE such filter, and these
+    // tests hold it. RED witness for each is named in its own comment.
+
+    private func makeRelay() -> ToolEventRelay {
+        let relay = ToolEventRelay()
+        relay.governor = ToolCallGovernor()
+        return relay
+    }
+
+    @Test("338 wiring: the recorder is populated from .started events — and ONLY those")
+    func theRecorderReadsStartedEventsOnly() throws {
+        let relay = makeRelay()
+        let recorder = LocalChatBackend.TurnToolCallRecorder()
+        recorder.install(on: relay) { _ in }
+
+        // The real emit path, not a hand-built event: `started` is what the
+        // tools call, and it is what decides whether anything is emitted.
+        try relay.started("createReminder", detail: "test Talaria")
+        #expect(recorder.executedToolNames == ["createReminder"])
+
+        // RED WITNESS for the `.started` filter: remove the guard in
+        // `TurnToolCallRecorder.record` and `completed` doubles every name.
+        relay.completed("createReminder")
+        #expect(recorder.executedToolNames == ["createReminder"],
+                "a completed event describes the SAME call — counting it inflates the turn's tool count")
+
+        try relay.started("getCalendarEvents")
+        relay.completed("getCalendarEvents")
+        #expect(recorder.executedToolNames == ["createReminder", "getCalendarEvents"],
+                "names accumulate in emit order")
+    }
+
+    @Test("338 wiring: the recorder forwards every event to the caller's observer")
+    func theRecorderForwardsWhatItObserves() throws {
+        let relay = makeRelay()
+        let recorder = LocalChatBackend.TurnToolCallRecorder()
+        // Production's forwarding closure is what paints tool chips and sets
+        // the #197 activity flag — recording must not consume the event.
+        final class Box: @unchecked Sendable { var events: [ToolCallEvent] = [] }
+        let box = Box()
+        recorder.install(on: relay) { box.events.append($0) }
+
+        try relay.started("createReminder")
+        relay.completed("createReminder")
+        #expect(box.events.count == 2, "the chip channel must still see both phases")
+        let phases = box.events.map { event -> String in
+            switch event.phase {
+            case .started: "started"
+            case .completed: "completed"
+            }
+        }
+        #expect(phases == ["started", "completed"])
+    }
+
+    @Test("338 wiring: a governor-REFUSED call never reaches the recorder")
+    func refusedCallsAreAbsentByConstruction() throws {
+        let relay = makeRelay()
+        let recorder = LocalChatBackend.TurnToolCallRecorder()
+        recorder.install(on: relay) { _ in }
+        relay.beginTurn()
+
+        // Drive the #225 governor past its same-tool repeat cap, then confirm
+        // the refused calls left no trace. A refused call that recorded would
+        // silence the guard on exactly the turns #337 is about — the model
+        // asks, is refused, and claims it did it anyway.
+        //
+        // Bounded below #232's throw: refusals 1…3 stay strings, the fourth
+        // throws, so six attempts is safely inside the string arm.
+        var admitted = 0
+        var refused = 0
+        for _ in 0..<6 {
+            let admission = try relay.started("createReminder")
+            if case .refused = admission { refused += 1 } else { admitted += 1 }
+        }
+        #expect(refused > 0, "the governor must actually refuse for this test to mean anything")
+        #expect(admitted > 0, "…and admit some, or the comparison below is vacuous")
+        #expect(recorder.executedToolNames.count == admitted,
+                "refused calls are absent by construction — `started` returns before emitting")
+        #expect(recorder.executedToolNames.allSatisfy { $0 == "createReminder" })
+    }
+
+    @Test("338 wiring: the recorder survives a #232 phase-cut retry")
+    func theRecorderSurvivesThePhaseCutRetry() throws {
+        // The property that makes production correct across #232 / #229 / #197:
+        // ONE recorder for the whole turn, created outside the retry loop. A
+        // tool that ran before the cut staged a real confirmation card, so the
+        // guard must stay quiet for that turn even though the retried leg runs
+        // toolless.
+        //
+        // RED WITNESS: move `let toolCallRecorder = TurnToolCallRecorder()`
+        // inside `while true` in either turn path and the retried leg starts
+        // from empty — this test's final expectation goes red.
+        let backend = makeBackend()
+        let relay = makeRelay()
+        let recorder = LocalChatBackend.TurnToolCallRecorder()
+        recorder.install(on: relay) { _ in }
+
+        // Leg 1: the tool runs, then the turn is cut.
+        try relay.started("createReminder", detail: "take out the trash")
+        // Leg 2: the retried, toolless leg. The relay is re-armed exactly as
+        // production re-enters the loop — the RECORDER is not replaced.
+        recorder.install(on: relay) { _ in }
+        #expect(recorder.executedToolNames == ["createReminder"],
+                "the pre-cut call must survive into the retried leg")
+
+        // …and the guard, given that recorder, is silent on the retried leg's
+        // claim, because the card really was staged.
+        let claim = "I\u{2019}ve set a reminder to take out the trash at 8 PM."
+        #expect(backend.honestyGuardedReply(
+            modelText: claim, settledText: claim,
+            executedToolNames: recorder.executedToolNames) == claim)
+        #expect(backend.honestyGuardFireCount == 0)
+    }
+
+    @Test("338 wiring: an EMPTY recorder is what makes the guard fire — the failure mode itself")
+    func anEmptyRecorderIsTheFailureMode() {
+        // States the reviewer's point as an assertion: if the `.started` filter
+        // is broken so nothing is ever recorded, THIS is what the user gets on
+        // an honest tool-executing turn. The test above is what prevents it.
+        let backend = makeBackend()
+        let honest = "I\u{2019}ve set a reminder to take out the trash at 8 PM."
+        let withRecording = backend.honestyGuardedReply(
+            modelText: honest, settledText: honest, executedToolNames: ["createReminder"])
+        let withoutRecording = backend.honestyGuardedReply(
+            modelText: honest, settledText: honest, executedToolNames: [])
+        #expect(withRecording == honest)
+        #expect(withoutRecording.contains(LocalChatBackend.honestyCorrectionNotice))
+        #expect(withRecording != withoutRecording,
+                "the recorder is load-bearing: these two differ by a false statement to the user")
+    }
+
+    // MARK: - The conversation-scoped latch (the earlier-turn fix)
+
+    @Test("338 wiring: an executed ACTION tool sets the conversation latch; a read tool does not")
+    func theConversationLatchTracksActionTools() throws {
+        let relay = makeRelay()
+        #expect(!relay.actionToolExecutedThisConversation)
+
+        try relay.started("getCalendarEvents")
+        #expect(!relay.actionToolExecutedThisConversation,
+                "reading does not license a completion claim in a later turn")
+
+        try relay.started("createReminder")
+        #expect(relay.actionToolExecutedThisConversation)
+
+        // Conversation-scoped, NOT turn-scoped — the whole point.
+        relay.beginTurn()
+        #expect(relay.actionToolExecutedThisConversation,
+                "a new TURN must not clear it — the follow-up question is the next turn")
+
+        relay.endConversationToolState()
+        #expect(!relay.actionToolExecutedThisConversation,
+                "a fresh conversation has no earlier turn to license anything")
+    }
+
+    @Test("338 wiring: the honest follow-up about an EARLIER turn's reminder is not corrected")
+    func theEarlierTurnFollowUpIsNotCorrected() {
+        // The exchange this fix exists for, end to end through the production
+        // composition: turn 1 created the reminder, turn 2 executes nothing.
+        let backend = makeBackend()
+        let followUp = "Yes, the reminder is set for 8 PM."
+        let settled = LocalChatBackend.settledReplyContent(
+            followUp, appendingCapabilityAnswer: false)
+
+        let corrected = backend.honestyGuardedReply(
+            modelText: followUp, settledText: settled, executedToolNames: [],
+            priorActionToolExecutedInConversation: false)
+        #expect(corrected.contains(LocalChatBackend.honestyCorrectionNotice),
+                "with no history at all this IS a fabrication and must be corrected")
+
+        let honest = backend.honestyGuardedReply(
+            modelText: followUp, settledText: settled, executedToolNames: [],
+            priorActionToolExecutedInConversation: true)
+        #expect(honest == settled, "the reminder exists — appending \"Nothing was created\" would be a lie")
+        #expect(backend.honestyGuardFireCount == 1, "only the first call fired")
+    }
+
     @Test("338: the #337-A reply composed through the settle point comes out honest")
     func theProductionDefectIsCorrected() {
         let backend = makeBackend()
