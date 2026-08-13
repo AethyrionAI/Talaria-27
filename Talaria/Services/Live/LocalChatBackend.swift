@@ -101,6 +101,16 @@ final class LocalChatBackend: HermesClientProtocol {
     /// token cap), so every recovery logs a notice and lands here where
     /// Diagnostics can read it.
     private(set) var toolDecodeRetryCount = 0
+    /// #338-E — how many turns the honesty guard corrected in this process.
+    ///
+    /// Counted, not merely logged, so #337's fabrication rate can be read from
+    /// PRODUCTION behaviour instead of re-derived from battery cells. Same
+    /// reasoning as `toolDecodeRetryCount` above: a mitigation that hides its
+    /// own defect is worse than the defect.
+    private(set) var honestyGuardFireCount = 0  // harness-visible
+    /// #338-E — the last claim the guard caught, for the instruments and for a
+    /// device-log reader who wants the offending sentence without the log.
+    private(set) var lastHonestyGuardClaim: ActionClaimDetector.Claim?  // harness-visible
     var currentConversation: Conversation?
 
     var model: SystemLanguageModel { SystemLanguageModel.default }  // harness-visible
@@ -389,9 +399,22 @@ final class LocalChatBackend: HermesClientProtocol {
         // again. Chained (not replaced) so a harness's observer survives.
         // Locked because tools may emit off the main actor.
         let sawToolActivity = OSAllocatedUnfairLock(initialState: false)
+        // #338: the honesty guard's one input — the names of the tool calls
+        // that ACTUALLY ran this turn, read off the same relay events the tool
+        // chips ride. Refused calls never reach here (`ToolEventRelay.started`
+        // returns before emitting), so this is admitted calls only.
+        //
+        // Deliberately accumulated ACROSS a #232 / #229 / #197 retry: a tool
+        // that ran before the phase cut staged a real confirmation card, and
+        // the guard must stay quiet for that turn even though the retried leg
+        // ran toolless.
+        let executedToolNames = OSAllocatedUnfairLock(initialState: [String]())
         let previousEmit = toolRelay?.emit
         toolRelay?.emit = { event in
             sawToolActivity.withLock { $0 = true }
+            if event.phase == .started {
+                executedToolNames.withLock { $0.append(event.name) }
+            }
             previousEmit?(event)
         }
         defer { toolRelay?.emit = previousEmit }
@@ -421,7 +444,14 @@ final class LocalChatBackend: HermesClientProtocol {
                 // check (so an append can never read as a degenerate tail).
                 let content = Self.settledReplyContent(
                     collapsed, appendingCapabilityAnswer: turnAppendsCapabilityAnswer)
-                let reply = Message(sender: .hermes, content: content, status: .delivered)
+                // #338: the honesty guard. Reads the MODEL's text (never our
+                // own appended blocks) and appends a correction when the turn
+                // claimed a device action nothing executed.
+                let guarded = honestyGuardedReply(
+                    modelText: collapsed,
+                    settledText: content,
+                    executedToolNames: executedToolNames.withLock { $0 })
+                let reply = Message(sender: .hermes, content: guarded, status: .delivered)
                 appendAssistantMessage(reply, usage: usage)
                 return reply
             } catch {
@@ -564,11 +594,17 @@ final class LocalChatBackend: HermesClientProtocol {
         // would restart mid-bubble. Locked because tools may emit off the
         // main actor.
         let sawObservableActivity = OSAllocatedUnfairLock(initialState: false)
+        // #338: see `send` — the honesty guard's one input, admitted calls
+        // only, accumulated across any retry leg.
+        let executedToolNames = OSAllocatedUnfairLock(initialState: [String]())
 
         // #28: tool invocations surface on the existing toolActivity channel
         // for the duration of this turn — the tool-chip UI renders them free.
         toolRelay?.emit = { event in
             sawObservableActivity.withLock { $0 = true }
+            if event.phase == .started {
+                executedToolNames.withLock { $0.append(event.name) }
+            }
             continuation.yield(.toolActivity(event))
         }
         defer { toolRelay?.emit = nil }
@@ -632,10 +668,19 @@ final class LocalChatBackend: HermesClientProtocol {
                 // appears once in the bubble and once in stored history.
                 let settled = Self.settledReplyContent(
                     latestFull, appendingCapabilityAnswer: turnAppendsCapabilityAnswer)
+                // #338: the honesty guard, at the same settle point and for
+                // the same reason the capability block lands here — after the
+                // model's text has fully settled, never mid-stream. No
+                // `.textDelta` carries the correction; the `.finished`
+                // consumer's resolved-slot swap puts it in the bubble once.
+                let guarded = honestyGuardedReply(
+                    modelText: latestFull,
+                    settledText: settled,
+                    executedToolNames: executedToolNames.withLock { $0 })
                 // `latestFull` is authoritative: if a snapshot ever rewrote
                 // earlier text (no incremental delta exists for that), the
                 // finished message still carries the model's real final text.
-                var reply = Message(sender: .hermes, content: settled, status: .delivered)
+                var reply = Message(sender: .hermes, content: guarded, status: .delivered)
                 if !emittedReasoning.isEmpty { reply.reasoning = emittedReasoning }
                 let usage = currentTokenUsage()
                 appendAssistantMessage(reply, usage: usage)
@@ -1395,6 +1440,72 @@ final class LocalChatBackend: HermesClientProtocol {
         guard !block.isEmpty else { return modelText }
         guard !modelText.isEmpty else { return block }
         return modelText + "\n\n" + block
+    }
+
+    // MARK: - #338: the honesty guard
+
+    /// **THE USER-FACING CORRECTION. This string is OWEN'S RULING, not the
+    /// lane's — it is deliberately the ONE place the copy lives, so approving
+    /// or changing it is a one-line edit with no other consequence.**
+    ///
+    /// The #338 entry's default, implemented as written: *"keep the model's
+    /// text but append a visibly distinct honest correction, rather than
+    /// silently rewriting the model — silent rewriting is its own trust problem
+    /// and forecloses diagnosis."* So the model's reply survives verbatim as
+    /// the prefix; this is added, never substituted, and nothing is deleted.
+    ///
+    /// Three things it deliberately does NOT do: it does not blame the user, it
+    /// does not promise that asking again will work (#337 measured 0 creations
+    /// in 90 tries — a promise here would be a second false claim), and it does
+    /// not name a tracker item at the user.
+    nonisolated static let honestyCorrectionNotice =
+        "⚠️ **Talaria:** nothing was actually created. No reminder, alarm, or calendar event "
+        + "was written to your device on this turn — the message above says otherwise, and it is wrong."
+
+    /// Appends the correction to a settled reply. Pure, so the exact composition
+    /// is testable without a model.
+    nonisolated static func appendingHonestyCorrection(to text: String) -> String {
+        guard !text.isEmpty else { return honestyCorrectionNotice }
+        return text + "\n\n" + honestyCorrectionNotice
+    }
+
+    /// #338-E's log line — pure and pinned by test, because it is the grep key
+    /// a device-run log gets read by. `.notice` and NOT gated behind
+    /// `TalariaLog.isVerbose`: a firing means the app was about to lie to the
+    /// user, which is never a verbose-only event.
+    nonisolated static func honestyGuardLogLine(
+        kind: ActionClaimDetector.ClaimKind, executedCalls: Int, fireCount: Int
+    ) -> String {
+        "honesty-guard FIRED \(kind.rawValue) — \(executedCalls) tool call(s) executed this turn, "
+            + "\(fireCount) firing(s) this session (#338)"
+    }
+
+    /// **The guard, applied at the one settle point.** Returns the text the user
+    /// actually sees.
+    ///
+    /// - Parameters:
+    ///   - modelText: what the MODEL said, before any block this app appends.
+    ///     Passing the settled text here instead would let the guard read its
+    ///     own output back in.
+    ///   - settledText: the composed reply the correction attaches to.
+    ///   - executedToolNames: admitted tool calls this turn, in emit order.
+    ///
+    /// Never throws and never returns less than it was given (#197: the tool
+    /// path gains no throw; #338: the model's text is never rewritten or
+    /// deleted). On a normal successful turn this is an identity function —
+    /// bar 338-D's "adds no user-visible change to a normal turn".
+    func honestyGuardedReply(  // harness-visible
+        modelText: String,
+        settledText: String,
+        executedToolNames: [String]
+    ) -> String {
+        guard let claim = ActionClaimDetector.unfulfilledClaim(
+            in: modelText, executedToolNames: executedToolNames
+        ) else { return settledText }
+        honestyGuardFireCount += 1
+        lastHonestyGuardClaim = claim
+        Self.logger.notice("\(Self.honestyGuardLogLine(kind: claim.kind, executedCalls: executedToolNames.count, fireCount: self.honestyGuardFireCount), privacy: .public)")
+        return Self.appendingHonestyCorrection(to: settledText)
     }
 
     // MARK: - Conversation bookkeeping

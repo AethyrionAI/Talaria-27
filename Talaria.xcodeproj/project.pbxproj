@@ -402,6 +402,7 @@
 		B97C9142B20817F358B05800 /* VoiceOrb.swift in Sources */ = {isa = PBXBuildFile; fileRef = C95A6807F807FEA8E13C921C /* VoiceOrb.swift */; };
 		BB22971B8710C9DD531CCACB /* Icon-CasinoLucky7s@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = AE66ED7A7F3BD4888CCACAF2 /* Icon-CasinoLucky7s@2x.png */; };
 		BB58FB8A85D23FC930756416 /* ToolConfirmationCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702A19893A5899378A79E179 /* ToolConfirmationCard.swift */; };
+		BC9FD15AF4A74B0D41B94670 /* HonestyGuardWiringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE4E5DF860386F6868109130 /* HonestyGuardWiringTests.swift */; };
 		BCC8170254358890FAE2B7F4 /* MockVoiceSessionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA2C8619D3D07F4F39E95AD /* MockVoiceSessionService.swift */; };
 		BD34B74F8B0451721CDE70BC /* ConversationExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90BCDF65B00448418228EF55 /* ConversationExportTests.swift */; };
 		BD49E64C943F4433D97501DE /* CondenserFidelityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A3F10FC503571E4A8BDD8B /* CondenserFidelityTests.swift */; };
@@ -1172,6 +1173,7 @@
 		FCDA88A494348CA2669EA79C /* HermesHostStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHostStore.swift; sourceTree = "<group>"; };
 		FCEB34BDA045BEF5C8451A95 /* SkillsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsService.swift; sourceTree = "<group>"; };
 		FE228B59C207BFBF05340E26 /* TasksScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TasksScreen.swift; sourceTree = "<group>"; };
+		FE4E5DF860386F6868109130 /* HonestyGuardWiringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HonestyGuardWiringTests.swift; sourceTree = "<group>"; };
 		FE8DB0F148FFC7BC813EE622 /* AppTemplateUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTemplateUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		FE98467F93649E1B0983EF55 /* ConnectedPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedPaywallView.swift; sourceTree = "<group>"; };
 		FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@3x.png"; sourceTree = "<group>"; };
@@ -1335,6 +1337,7 @@
 				D45CA30DC1D43A51A7A75093 /* HealthQueryCoreTests.swift */,
 				5ED1F671C97A9A773083B7E8 /* HermesBrandIconRedrawTests.swift */,
 				E5B4BC4786992BD264AE00F3 /* HermesControlsTests.swift */,
+				FE4E5DF860386F6868109130 /* HonestyGuardWiringTests.swift */,
 				88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */,
 				601F6434F99950014B919488 /* HTMLArtifactSandboxTests.swift */,
 				7331AE6024E5FB7F16FAD6C3 /* IdlePollingTests.swift */,
@@ -2757,6 +2760,7 @@
 				CD4124B10E098FB583AE1B6E /* HealthQueryCoreTests.swift in Sources */,
 				F359407C861A4FD4363468A8 /* HermesBrandIconRedrawTests.swift in Sources */,
 				C77821A24A5D65B32394136D /* HermesControlsTests.swift in Sources */,
+				BC9FD15AF4A74B0D41B94670 /* HonestyGuardWiringTests.swift in Sources */,
 				9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */,
 				F2C9BA7640227E2C6F785B37 /* IPadAdaptationTests.swift in Sources */,
 				DDF78B99205CF033716F82CA /* IdlePollingTests.swift in Sources */,
