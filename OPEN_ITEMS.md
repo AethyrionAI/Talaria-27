@@ -9683,9 +9683,30 @@ answer is in the artifacts already on disk.
 > - **340-C (mechanism, not elected).** Whether the model omits the argument, or
 >   emits one the tool fails to parse. The tool records what it received; a run
 >   that cannot distinguish these two has not answered 340-C.
-> - **340-D (the #200-series audit).** Answer the open question above from stored
->   artifacts: do historical create counts include dateless creates? If yes, the
->   affected entries are listed and corrected at their own homes (close-out rule).
+> - **340-D (the #200-series audit).** ~~Answer the open question above from stored
+>   artifacts: do historical create counts include dateless creates?~~
+>   **⚠️ CORRECTED 2026-08-13, before anyone spent time on it — THE STORED
+>   ARTIFACTS CANNOT ANSWER THIS, and my "answerable from artifacts already on
+>   disk" was wrong.** Checked across every preserved artifact (28 recorded tool
+>   calls): the recorder's per-call `detail` is **the TITLE only** for the two
+>   families that matter —
+>   `createReminder → "Test Talaria"`, `createCalendarEvent → "Lunch with Sam"`.
+>   **No due date is captured anywhere in the trial record**, so no historical run
+>   can be re-read for date correctness. The question is not open, it is
+>   **unanswerable with existing data**, which is a different and more actionable
+>   state.
+>   - **The one thing the check DID establish, and it narrows the defect:**
+>     `scheduleAlarm`'s detail **is** the time (`"6:30"`, 9 calls). So alarms
+>     demonstrably carried their time while reminders and events recorded none —
+>     matching the production observation, which was a REMINDER. Whether that
+>     asymmetry is the recorder's or the model's is exactly what 340-C must
+>     separate; the alarm rows show the recorder CAN carry a time when one exists.
+>   - **340-D is therefore replaced by an instrument requirement:** the recorder
+>     must capture the tool call's ARGUMENTS, not a display string, before any
+>     create rate can be audited for correctness. Until it does, **every "creates
+>     N/10" figure in this tracker means "a create happened", never "the right
+>     create happened"** — and that caveat now belongs beside any such number that
+>     gets quoted.
 > - **340-E (scope for #338).** Whether a content-level check is worth building —
 >   explicitly OWEN'S call, because it means the guard would begin judging tool
 >   ARGUMENTS, a materially larger surface than existence, with its own false-positive
