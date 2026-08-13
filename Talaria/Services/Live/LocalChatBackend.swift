@@ -1454,8 +1454,9 @@ final class LocalChatBackend: HermesClientProtocol {
     /// hold (`HonestyGuardWiringTests.theRecorder…`).
     ///
     /// Three properties it owns, each pinned by test:
-    /// - **`.started` only.** `.completed` and `.progress` describe the same
-    ///   call; counting them would triple a turn's apparent tool count.
+    /// - **`.started` only.** `ToolCallEvent.Phase` has exactly two cases
+    ///   (`StreamingUpdate.swift`), and `.completed` describes the SAME call —
+    ///   counting it would double a turn's apparent tool count.
     /// - **Admitted calls only**, which is free: `ToolEventRelay.started`
     ///   returns before emitting when the #225 governor refuses, so a refused
     ///   call never reaches this at all.

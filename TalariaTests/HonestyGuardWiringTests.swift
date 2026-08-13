@@ -310,6 +310,81 @@ struct HonestyGuardWiringTests {
                 "the recorder is load-bearing: these two differ by a false statement to the user")
     }
 
+    // MARK: - THE PRODUCTION SEAM (round-2 review finding)
+    //
+    // `honestyGuardedReply(modelText:settledText:recorder:)` is the overload
+    // both turn paths call, and it is where the guard's two live inputs are
+    // read. Nothing called it. Each of these edits kept the whole suite green
+    // while re-opening a fix above: hardcode
+    // `priorActionToolExecutedInConversation:` to `false`; hardcode
+    // `executedToolNames:` to `[]`. The two tests below are the RED witnesses
+    // for exactly those edits.
+    //
+    // (Residual, stated rather than implied: replacing `install(on:)` with a
+    // bare `toolRelay?.emit =` inside `send`/`streamTurn` is still unpinned —
+    // both paths need a live LanguageModelSession, which a simulator cannot
+    // provide. The seam below is as far in as a test can reach.)
+
+    @Test("338 seam: the recorder: overload reads the relay's LATCH, not a hardcoded false")
+    func theProductionSeamReadsTheConversationLatch() throws {
+        let backend = makeBackend()
+        let relay = makeRelay()
+        backend.installTools([], relay: relay)
+        let followUp = "Yes, the reminder is set for 8 PM."
+
+        // Turn 1 — the action tool really runs and the card is staged.
+        let turnOne = LocalChatBackend.TurnToolCallRecorder()
+        turnOne.install(on: relay) { _ in }
+        try relay.started("createReminder", detail: "take out the trash")
+
+        // Turn 2 — "did that go through?". A fresh recorder, zero calls, which
+        // is what the follow-up question ALWAYS looks like.
+        let turnTwo = LocalChatBackend.TurnToolCallRecorder()
+        turnTwo.install(on: relay) { _ in }
+        #expect(turnTwo.executedToolNames.isEmpty, "the recorder must not be what makes this pass")
+        #expect(backend.honestyGuardedReply(
+            modelText: followUp, settledText: followUp, recorder: turnTwo) == followUp,
+                "the reminder exists — appending \"Nothing was created\" would be a lie")
+        #expect(backend.honestyGuardFireCount == 0)
+
+        // A fresh conversation clears the latch, and the same sentence is a
+        // fabrication again — so the fix cannot be "always licensed" either.
+        relay.endConversationToolState()
+        let turnThree = LocalChatBackend.TurnToolCallRecorder()
+        turnThree.install(on: relay) { _ in }
+        let corrected = backend.honestyGuardedReply(
+            modelText: followUp, settledText: followUp, recorder: turnThree)
+        #expect(corrected.contains(LocalChatBackend.honestyCorrectionNotice))
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
+    @Test("338 seam: the recorder: overload reads the RECORDER, not a hardcoded empty array")
+    func theProductionSeamReadsTheRecorder() throws {
+        let backend = makeBackend()
+        let relay = makeRelay()
+        backend.installTools([], relay: relay)
+
+        // A READ tool on purpose: it licenses present-state phrasing but does
+        // NOT set the conversation latch, so only the recorder can carry this.
+        let recorder = LocalChatBackend.TurnToolCallRecorder()
+        recorder.install(on: relay) { _ in }
+        try relay.started("getCalendarEvents")
+        #expect(!relay.actionToolExecutedThisConversation,
+                "the latch must not be what makes this pass")
+
+        let readAndReport = "Lunch with Sam is now on your calendar for Friday at noon."
+        #expect(backend.honestyGuardedReply(
+            modelText: readAndReport, settledText: readAndReport, recorder: recorder) == readAndReport)
+        #expect(backend.honestyGuardFireCount == 0)
+
+        // The same sentence with nothing recorded IS a fabrication.
+        let empty = LocalChatBackend.TurnToolCallRecorder()
+        let corrected = backend.honestyGuardedReply(
+            modelText: readAndReport, settledText: readAndReport, recorder: empty)
+        #expect(corrected.contains(LocalChatBackend.honestyCorrectionNotice))
+        #expect(backend.honestyGuardFireCount == 1)
+    }
+
     // MARK: - The conversation-scoped latch (the earlier-turn fix)
 
     @Test("338 wiring: an executed ACTION tool sets the conversation latch; a read tool does not")

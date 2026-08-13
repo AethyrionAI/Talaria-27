@@ -9358,8 +9358,8 @@ have read that half as the model's own claim.
 **3. Capability / explanatory prose.** Capability questions route TOOLLESS
 (#215), so `executedToolNames` is empty on them **by construction**, and the
 app's own instructions teach the model this vocabulary —
-`LocalChatBackend.swift:1955` and `:2015` both put "confirmation card" in front
-of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
+`LocalChatBackend.swift:2148`, `:2203` and `:2208` all put "confirmation card"
+in front of it — so paraphrase is the LIKELY case, not an exotic one. *"Once a reminder
 has been created it appears in the Reminders app"* fired.
 **The rule used, stated exactly:** (a) a sentence whose FIRST token is a
 subordinating conjunction of condition or time — `if once when whenever after
@@ -9399,6 +9399,84 @@ are transcribed into the fixture table and the count was measured against
 
 **Bars: 338-A/B/D/E re-met after the fix; 338-F met. 338-C (on hardware) is
 still owed** — this review was static and no device was touched.
+
+### 2026-08-12 — 🔴 ROUND 2: the round-1 fixes were verified, and three of them had bugs of their own. One re-hid the production defect.
+
+**Independent re-review compiled base and fixed detectors over 118 real rows ×
+120 constructed strings.** The round-1 disputes were upheld and the floor
+confirmed byte-for-byte. Then three Important findings, all reproduced here
+before fixing.
+
+**N1 — A MARKDOWN BULLET MADE #337-A's OWN SHAPE SILENT.** Narrowing the
+imitated-card test to `hasPrefix` was right, but `normalize` strips only
+`* _ ` #` — `-`, `>`, emoji and leading spaces all survive. So
+`- **Confirmation card:** A reminder … has been created.` classified as
+`passiveCompletion` instead of `impersonatedCard` — **and the conversation
+latch LICENSES passiveCompletion.** On the second turn of a conversation where
+one reminder had really been created, the production defect's exact shape went
+**completely quiet.** One bullet and one earlier success away from invisible.
+Fixed by testing label position from the sentence's first LETTER
+(`labelPositionBody`), which cannot over-reach because it stops there — the
+honest mid-sentence mention stays quiet, bulleted or not.
+**This is the round's most important lesson: a NARROWING fix and a LICENSING
+fix landed in the same commit, and their intersection was a hole neither
+review of them separately would find.**
+
+**N2 — QUOTE-STRIPPING REMOVED THE SILENCERS.** The strip ran above the
+negation, attribution and opener checks, so any reason to stay quiet sitting
+inside a quotation was deleted before it was consulted. Three honest sentences
+went quiet → FIRE **between the base and the round-1 fix** — the fix ADDING
+false statements to the user. Now: silencers read the whole sentence, claim
+tiers read it with quoted spans removed. Cost, recorded: a negation quoted from
+the user can silence a claim the model makes outside the quotation. That
+direction is a miss; the other was a lie.
+
+**N3 — THE PRODUCTION SEAM WAS UNPINNED.** Nothing called
+`honestyGuardedReply(modelText:settledText:recorder:)`, so all three round-1
+fixes could be reverted with a green suite. Two tests now drive it through
+`installTools(_:relay:)` and a real `relay.started(…)`. Residual, stated:
+replacing `install(on:)` with a bare `toolRelay?.emit =` inside
+`send`/`streamTurn` is still unpinned — both need a live `LanguageModelSession`,
+which a simulator cannot provide.
+
+> **⚠️ THE LATCH TRADE HAS A SECOND HALF, AND IT IS THE LARGER ONE.** Round 1
+> disclosed only the false-POSITIVE residual. The false-NEGATIVE half is
+> permanent: **because the latch is set by ANY action tool and licenses ALL
+> THREE licensable kinds, one successful reminder retires the passive and both
+> present-state tiers for the rest of that conversation — including for a
+> different artifact the model subsequently fabricates.** Verified quiet at
+> `prior=true`: *"Lunch with Sam is now on your calendar for Friday."* ·
+> *"The reminder has been created for 8 PM."* · *"Your alarm is set for
+> 6:30 AM."* · and #337-A's passive half alone. The full #337-A reply still
+> fires, but only on its imitated-card label — which is exactly why N1
+> mattered.
+
+**SCOPE CORRECTION on round-1 findings 3 and 4: both fixes are FIXTURE-level,
+not class-level.** The explanatory rule closes the sentence-initial
+subordinator and nothing wider; the conditional rule closes `if`/`until` beside
+an adjacent `you`. Still firing, now labelled KNOWN-LIMIT rows:
+*"Events are added to your calendar through a confirmation card you tap."* ·
+*"Right now nothing is on your calendar for Friday."* (`nothing` is not in
+`negationTokens`) · *"You told me your alarm is set for 6:30."* (`told` is not
+in `attributionPatterns`) · *"Assuming you confirm, …"* · *"Tap Confirm and
+…"*. **The two that look like one-word fixes are not:** adding `nothing` would
+silence *"Nothing else — I've set the reminder"*, and adding `told` would
+silence *"You told me to set an alarm, and I've set it."* Both were declined
+for that reason rather than overlooked.
+
+**AND THE REORDER HAD A COST, recorded:** moving offers ahead of the passive
+tier silences two shapes the base detector caught —
+*"The reminder has been created, and I can change the time if you want."* and
+*"The event has been added to your calendar, did you also want a reminder."*
+
+**Floor re-verified at BOTH latch states: exactly 6 fires, the same 6 rows, at
+`prior=false` AND `prior=true`.**
+
+**Also corrected:** three copies of a wrong citation — the "confirmation card"
+instruction clauses are `LocalChatBackend.swift:2148`/`:2203`/`:2208`, not
+`:1955`/`:2015` (detector doc, test doc, and this entry) — and a doc comment
+naming a `.progress` phase that does not exist (`ToolCallEvent.Phase` has two
+cases).
 
 > **QUESTION FOR OWEN (routed here, deliberately NOT built):** should the guard
 > additionally gate on the ROUTER's action-intent, so a completion-shaped

@@ -130,8 +130,21 @@ enum ActionClaimDetector {
     /// conversation history, because 6 of 6 true positives in the real corpus
     /// are `firstPersonCreation`: licensing it for the rest of a conversation
     /// in which one action ever succeeded would blind the guard to the exact
-    /// shape it exists to catch. The residual is recorded in the tests
-    /// (`reviewFindings`, the KNOWN-LIMIT row) rather than hidden.
+    /// shape it exists to catch.
+    ///
+    /// **THE TRADE HAS TWO HALVES AND BOTH ARE RECORDED. The false-NEGATIVE
+    /// half is the larger and permanent one.** Because the latch is set by ANY
+    /// action tool and licenses ALL THREE licensable kinds, **one successful
+    /// reminder retires the passive and both present-state tiers for the rest
+    /// of that conversation — including for a different artifact the model
+    /// subsequently fabricates.** Verified quiet at
+    /// `priorActionToolExecutedInConversation == true`: *"Lunch with Sam is now
+    /// on your calendar for Friday."* · *"The reminder has been created for
+    /// 8 PM."* · *"Your alarm is set for 6:30 AM."* · and #337-A's passive half
+    /// on its own. The false-POSITIVE half is the smaller residual: a
+    /// past-tense authorship claim about an earlier turn's real write still
+    /// fires. Both are labelled rows in `ActionClaimDetectorTests`
+    /// (`reviewFindings`), not hidden.
     static func unfulfilledClaim(
         in text: String,
         executedToolNames: [String],
@@ -400,8 +413,8 @@ enum ActionClaimDetector {
     /// TOOLLESS (#215), so `executedToolNames` is empty on them BY
     /// CONSTRUCTION, and the app's own instructions teach the model this exact
     /// vocabulary — *"The user sees a confirmation card…"* appears in every
-    /// action tool's description and again at `LocalChatBackend.swift:1955`
-    /// and `:2015`. A model paraphrasing its own instructions into *"Once a
+    /// action tool's description and again at `LocalChatBackend.swift:2148`,
+    /// `:2203` and `:2208`. A model paraphrasing its own instructions into *"Once a
     /// reminder has been created it appears in the Reminders app"* is the
     /// LIKELY case, not an exotic one, and the shipped detector fired on it.
     ///
@@ -436,28 +449,62 @@ enum ActionClaimDetector {
     /// until you tap Confirm."*
     private static let impersonatedCardMarker = "confirmation card:"
 
+    /// The sentence from its first LETTER, which is what "label position"
+    /// actually means.
+    ///
+    /// **This exists because the first version of the position test was a bare
+    /// `hasPrefix` and a single markdown bullet defeated it (round-2 review).**
+    /// `normalize` strips `*`, `_`, `` ` `` and `#`, so `**Confirmation card:**`
+    /// folded correctly — but `-`, `>`, emoji and leading spaces all survive,
+    /// and `- **Confirmation card:** A reminder … has been created.` fell
+    /// through to `passiveCompletion`. Which the conversation latch LICENSES.
+    /// So on the second turn of a conversation where one reminder had really
+    /// been created, **the production defect's exact shape went completely
+    /// silent** — one bullet and one earlier success away from invisible.
+    ///
+    /// Dropping to the first letter cannot over-reach: it stops at the first
+    /// letter, so a mid-sentence mention is still mid-sentence.
+    static func labelPositionBody(of sentence: String) -> Substring {
+        sentence.drop { !$0.isLetter }
+    }
+
     // MARK: - Per-sentence scoring
 
     private static func claims(inSentence sentence: String) -> [Claim] {
         // A question is never an assertion of completion. This one line is
         // what keeps the 15 honest offers from A7AB9960 silent.
         if sentence.hasSuffix("?") { return [] }
-        // Review finding: everything below reads the sentence with its quoted
-        // spans REMOVED, so the model quoting the user cannot arm a claim.
-        let scannable = strippingQuotedSpans(from: sentence)
-        let tokens = tokens(of: scannable)
-        if tokens.contains(where: negationTokens.contains) { return [] }
-        if attributionPatterns.contains(where: { $0.matches(tokens) }) { return [] }
+
+        // **SILENCERS READ THE WHOLE SENTENCE; CLAIM TIERS READ IT WITH QUOTED
+        // SPANS REMOVED.** Round-2 review: the strip used to run first, above
+        // all three silencers, so a `not` / a `you asked` / an `Once…` sitting
+        // INSIDE a quotation was deleted before it could be consulted, and
+        // three honest sentences fired — *"Your note says "I have not set the
+        // alarm" and the alarm is set for 6:30."* among them. A silencer is a
+        // reason to stay quiet; deleting reasons to stay quiet can only ever
+        // add false positives, which is the error direction that makes the
+        // app's own correction the false statement.
+        //
+        // The COST of reading silencers unstripped, stated because it is real:
+        // a negation quoted from the user can now silence a claim the model
+        // makes outside the quotation. That direction is a miss; the other was
+        // a lie.
+        let rawTokens = tokens(of: sentence)
+        if rawTokens.contains(where: negationTokens.contains) { return [] }
+        if attributionPatterns.contains(where: { $0.matches(rawTokens) }) { return [] }
         // Review finding: a sentence-initial `if` / `once` / `after` / … frames
         // the whole sentence as a condition or a general rule. Checked here,
         // ahead of EVERY tier including the perfect tenses, because the shape
         // it catches — *"Once a reminder has been created…"* — is a passive.
-        if let opener = tokens.first, explanatoryOpeners.contains(opener) { return [] }
+        if let opener = rawTokens.first, explanatoryOpeners.contains(opener) { return [] }
 
         var found: [Claim] = []
-        if sentence.hasPrefix(impersonatedCardMarker) {
+        if labelPositionBody(of: sentence).hasPrefix(impersonatedCardMarker) {
             found.append(Claim(kind: .impersonatedCard, sentence: sentence))
         }
+        // From here on the quoted spans are gone, so the model quoting the
+        // user — or quoting a reminder's own title — cannot arm a claim.
+        let tokens = tokens(of: strippingQuotedSpans(from: sentence))
         // Everything below has to be ABOUT a device artifact.
         guard tokens.contains(where: artifactNouns.contains) else { return found }
 

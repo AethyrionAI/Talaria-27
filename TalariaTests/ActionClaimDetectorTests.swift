@@ -393,8 +393,8 @@ struct ActionClaimDetectorTests {
     /// **Capability / explanatory prose.** Capability questions route TOOLLESS
     /// (#215), so `executedToolNames` is empty on them by construction — and
     /// the app's own instructions teach the model this vocabulary
-    /// (`LocalChatBackend.swift:1955` and `:2015` both put "confirmation card"
-    /// in front of it), so paraphrase is the likely case, not an exotic one.
+    /// (`LocalChatBackend.swift:2148`, `:2203` and `:2208` all put "confirmation
+    /// card" in front of it), so paraphrase is the likely case, not an exotic one.
     static let explanatoryFindings: [ReviewFixture] = [
         .init(finding: "explanatory", label: "how a reminder behaves once made",
               text: "Once a reminder has been created it appears in the Reminders app.",
@@ -471,9 +471,146 @@ struct ActionClaimDetectorTests {
               mustFire: true, kind: .firstPersonCreation),
     ]
 
+    // MARK: I. ROUND-2 REVIEW (2026-08-12) — what the round-1 fixes broke, and
+    // what they only partly closed.
+
+    /// **N1 — a markdown bullet made #337-A's own shape SILENT.** Round 1
+    /// narrowed the imitated-card test to `hasPrefix`, but `normalize` strips
+    /// only `* _ ` #` — `-`, `>`, emoji and leading spaces all survive. So
+    /// `- **Confirmation card:** …has been created.` fell through to
+    /// `passiveCompletion`, which the conversation latch LICENSES: on the
+    /// second turn of a conversation where one reminder had really been made,
+    /// the production defect's exact shape went **completely quiet**. One
+    /// bullet and one earlier success away from invisible.
+    static let labelPositionFindings: [ReviewFixture] = [
+        .init(finding: "label-position", label: "bullet + bold, fresh conversation",
+              text: "- **Confirmation card:** A reminder to \"take out the trash\" at 8 AM has been created.",
+              mustFire: true, kind: .impersonatedCard),
+        .init(finding: "label-position", label: "bullet + bold, AFTER a real action (was silent)",
+              text: "- **Confirmation card:** A reminder to \"take out the trash\" at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        .init(finding: "label-position", label: "blockquote marker",
+              text: "> Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        .init(finding: "label-position", label: "emoji marker",
+              text: "\u{2705} Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        .init(finding: "label-position", label: "leading whitespace",
+              text: "   Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        .init(finding: "label-position", label: "numbered list marker",
+              text: "1. Confirmation card: A reminder at 8 AM has been created.",
+              priorAction: true, mustFire: true, kind: .impersonatedCard),
+        // THE CONTROLS — the honest FP round 1 was guarding against stays quiet,
+        // bulleted or not: mid-sentence is not label position.
+        .init(finding: "label-position", label: "mid-sentence mention, bulleted, stays quiet",
+              text: "- Every action is staged as a confirmation card: nothing is written until you tap Confirm.",
+              mustFire: false),
+    ]
+
+    /// **N2 — quote-stripping removed the SILENCERS.** The strip ran above the
+    /// negation, attribution and opener checks, so a reason to stay quiet that
+    /// sat inside a quotation was deleted before it could be consulted. Three
+    /// honest sentences went quiet → FIRE between the base and the round-1 fix,
+    /// which is the fix ADDING false statements to the user.
+    static let silencerScopeFindings: [ReviewFixture] = [
+        .init(finding: "silencer-scope", label: "a negation inside the quotation",
+              text: "Your note says \"I have not set the alarm\" and the alarm is set for 6:30.",
+              mustFire: false),
+        .init(finding: "silencer-scope", label: "an attribution inside the quotation",
+              text: "The card read \"you asked for an alarm\" and the alarm is set for 6:30.",
+              mustFire: false),
+        .init(finding: "silencer-scope", label: "an opener inside the quotation",
+              text: "\"Once you confirm\" the reminder is set for 8 PM.",
+              mustFire: false),
+        // THE CONTROLS — reading silencers unstripped must not undo the quoted-
+        // span fix, and must not cost a true positive that quotes a TITLE.
+        .init(finding: "silencer-scope", label: "the round-1 quoted-title claim still fires",
+              text: "A reminder to \u{201C}take out the trash\u{201D} at 8 AM has been created.",
+              mustFire: true, kind: .passiveCompletion),
+        // (the round-1 quoted user-claim row lives in `quotedSpanFindings`;
+        // reading silencers unstripped must not disturb it, and does not.)
+    ]
+
+    /// **KNOWN LIMITS, recorded because they are shipping.** Nothing here is a
+    /// bug being hidden; each row is a verdict the round-2 review measured and
+    /// this lane chose not to change. Each `mustFire` is the OBSERVED verdict.
+    ///
+    /// Read this table as the honest edge of the guard, and note the pattern:
+    /// three of these would each be a "one-word fix" that introduces a
+    /// false-NEGATIVE path, which is why none was taken.
+    static let knownLimitFindings: [ReviewFixture] = [
+        // --- The latch's FALSE-NEGATIVE half, which is the larger and
+        // permanent one. The latch is set by ANY action tool and licenses ALL
+        // THREE licensable kinds, so ONE successful reminder retires the
+        // passive and both present-state tiers for the rest of that
+        // conversation — INCLUDING for a different artifact the model
+        // subsequently fabricates.
+        .init(finding: "KNOWN-LIMIT/latch-false-negative", label: "a fabricated calendar event after a real reminder",
+              text: "Lunch with Sam is now on your calendar for Friday.", priorAction: true, mustFire: false),
+        .init(finding: "KNOWN-LIMIT/latch-false-negative", label: "a fabricated passive after a real action",
+              text: "The reminder has been created for 8 PM.", priorAction: true, mustFire: false),
+        .init(finding: "KNOWN-LIMIT/latch-false-negative", label: "a fabricated alarm after a real reminder",
+              text: "Your alarm is set for 6:30 AM.", priorAction: true, mustFire: false),
+        .init(finding: "KNOWN-LIMIT/latch-false-negative", label: "#337-A's passive half ALONE, after a real action",
+              text: "A reminder to take out the trash at 8 AM has been created.",
+              priorAction: true, mustFire: false),
+        // …the reason the whole #337-A reply still fires anyway is its imitated
+        // card LABEL, which history never licenses — that row lives in
+        // `earlierTurnFindings` (`earlier-turn/narrow`) and is not duplicated
+        // here. It is also exactly why the round-2 label-position bug mattered.
+
+        // The latch's FALSE-POSITIVE half is the smaller residual and lives in
+        // `earlierTurnFindings` as the `earlier-turn/KNOWN-LIMIT` row — kept
+        // there rather than duplicated here, so no assertion appears twice in
+        // a table whose counts are a drift detector.
+
+        // --- The explanatory rule is FIXTURE-level, not class-level: it closes
+        // the sentence-initial subordinator, and these honest shapes still fire.
+        // `nothing` is absent from `negationTokens` and `told` from
+        // `attributionPatterns` — both look like one-word fixes and neither is:
+        // "Nothing else — I've set the reminder" and "You told me to set an
+        // alarm, and I've set it" would go dark.
+        .init(finding: "KNOWN-LIMIT/explanatory-residual", label: "capability prose with no subordinator",
+              text: "Events are added to your calendar through a confirmation card you tap.",
+              mustFire: true, kind: .presentStateOn),
+        .init(finding: "KNOWN-LIMIT/explanatory-residual", label: "\"nothing\" is not in negationTokens",
+              text: "Right now nothing is on your calendar for Friday.",
+              mustFire: true, kind: .presentStateOn),
+        .init(finding: "KNOWN-LIMIT/explanatory-residual", label: "\"told\" is not in attributionPatterns",
+              text: "You told me your alarm is set for 6:30.",
+              mustFire: true, kind: .presentStateSet),
+
+        // --- The conditional rule is FIXTURE-level too.
+        .init(finding: "KNOWN-LIMIT/conditional-residual", label: "\"Assuming you confirm\" is not an opener",
+              text: "Assuming you confirm, the alarm is set for 6:30 AM.",
+              mustFire: true, kind: .presentStateSet),
+        .init(finding: "KNOWN-LIMIT/conditional-residual", label: "an imperative condition is not an opener",
+              text: "Tap Confirm and the reminder is set for 8 PM.",
+              mustFire: true, kind: .presentStateSet),
+
+        // --- What the REORDER cost: moving offers ahead of the passive tier
+        // silences two shapes the base detector caught. Both are real
+        // fabrications when nothing ran.
+        .init(finding: "KNOWN-LIMIT/reorder-cost", label: "a passive claim with an offer clause after it",
+              text: "The reminder has been created, and I can change the time if you want.",
+              mustFire: false),
+        .init(finding: "KNOWN-LIMIT/reorder-cost", label: "a present-state claim with a trailing offer",
+              text: "The event has been added to your calendar, did you also want a reminder.",
+              mustFire: false),
+
+        // --- What reading silencers UNSTRIPPED costs: a negation quoted from
+        // the user now silences a claim the model makes outside the quotation.
+        // Adopted knowingly — that direction is a miss, the other was a lie.
+        .init(finding: "KNOWN-LIMIT/unstripped-silencer-cost", label: "a quoted negation silences an unquoted claim",
+              text: "Your note says \"no reminder yet\" but I\u{2019}ve set one for 8 PM.",
+              mustFire: false),
+    ]
+
     static var reviewFindings: [ReviewFixture] {
         earlierTurnFindings + quotedSpanFindings + explanatoryFindings
             + orderingFindings + declineArtifactFabrications
+            + labelPositionFindings + silencerScopeFindings + knownLimitFindings
     }
 
     // MARK: - The table-driven test (bar 338-A)
@@ -528,16 +665,22 @@ struct ActionClaimDetectorTests {
     }
 
     /// The same drift guard `corpusPartition` provides for the artifact corpus.
-    @Test("338 review: the findings table is 20 must-fire / 15 must-stay-quiet")
+    @Test("338 review: the findings table is 32 must-fire / 26 must-stay-quiet")
     func reviewFindingsPartition() {
         let fires = Self.reviewFindings.filter(\.mustFire).count
         let quiet = Self.reviewFindings.count - fires
-        #expect(fires == 20)
-        #expect(quiet == 15)
-        #expect(Self.reviewFindings.count == 35)
+        #expect(fires == 32)
+        #expect(quiet == 26)
+        #expect(Self.reviewFindings.count == 58)
+        // No assertion may appear twice: these counts are a drift detector, and
+        // a duplicated row would let a deletion elsewhere balance out.
+        let texts = Self.reviewFindings.map { "\($0.text)|\($0.priorAction)|\($0.executed)" }
+        #expect(Set(texts).count == texts.count,
+                "duplicate fixture: \(texts.filter { t in texts.filter { $0 == t }.count > 1 })")
         // Each finding class keeps at least one CONTROL, so a fix cannot be
         // "license everything" and still pass.
-        for group in ["earlier-turn", "quoted-span", "explanatory", "ordering"] {
+        for group in ["earlier-turn", "quoted-span", "explanatory", "ordering",
+                      "label-position", "silencer-scope"] {
             #expect(Self.reviewFindings.contains { $0.finding.hasPrefix(group) && $0.mustFire },
                     "\(group) has no must-fire control")
             #expect(Self.reviewFindings.contains { $0.finding == group && !$0.mustFire },
