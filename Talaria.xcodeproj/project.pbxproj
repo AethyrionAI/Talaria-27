@@ -317,6 +317,7 @@
 		8C8D94059457F50E70610674 /* LiveHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */; };
 		8CABE7AB3DC344FB246093BF /* IconPreview-HoloSushi.png in Resources */ = {isa = PBXBuildFile; fileRef = E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */; };
 		8D7597AF4487AFEFC668381D /* Icon-ComicFunnies@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */; };
+		8DA89AE7FDD5ACC9ABA61DC9 /* ActionBatteryCellSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB63E347076CFA99D21DF2A2 /* ActionBatteryCellSelectionTests.swift */; };
 		8E3C23F0AE7EB199F4A2A77A /* Icon-DiscoInferno@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = AA92264F808D488BC762F6CF /* Icon-DiscoInferno@3x.png */; };
 		8E7015E5FE925C55122EBE84 /* HermesHealthWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */; };
 		8FDACD8A2EA739520F567320 /* IconPreview-ComicVillain.png in Resources */ = {isa = PBXBuildFile; fileRef = 56548D8DE1131EC66EBC3B77 /* IconPreview-ComicVillain.png */; };
@@ -520,6 +521,7 @@
 		EB212F8BD2739B0D58B1670A /* Icon-GlitchGarden@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = D0966B525D0A784483C8DFA2 /* Icon-GlitchGarden@2x.png */; };
 		EB8B9E16F3696A54FAC5B7B2 /* Icon-CerealBox@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 7384C6AD13192056C32579A4 /* Icon-CerealBox@3x.png */; };
 		EC2CFEC0788D7A4E080EACD0 /* TalariaPlatformInboxService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0EB2A3321F50892438510AB /* TalariaPlatformInboxService.swift */; };
+		ECEA616F630F0C122AB5824B /* ActionBatteryCellSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF7F59DBFE279351F54E44D1 /* ActionBatteryCellSelection.swift */; };
 		ECECF61949B7CB09685EADFB /* VoiceOverlayScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CF7DE3CA7DE3F9908C24E5F /* VoiceOverlayScreen.swift */; };
 		ED33B71C2B3ABA8004FE43B1 /* LocalChatBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD00699F0006940A80E8EA5B /* LocalChatBackend.swift */; };
 		EDEA7E210870D2EB23C505D1 /* AppIconSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B3EFC9CE0AF10120A00B8 /* AppIconSettingsScreen.swift */; };
@@ -1122,6 +1124,7 @@
 		EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockHermesClient.swift; sourceTree = "<group>"; };
 		EB0056665D4A47D62681F26B /* ConversationSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationSearch.swift; sourceTree = "<group>"; };
 		EB419DE4B29313B918FFB7D5 /* SpaceGrotesk-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceGrotesk-Regular.ttf"; sourceTree = "<group>"; };
+		EB63E347076CFA99D21DF2A2 /* ActionBatteryCellSelectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionBatteryCellSelectionTests.swift; sourceTree = "<group>"; };
 		EC29CB41A2376E24068A0D64 /* Icon-StickerBombToybox@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-StickerBombToybox@2x.png"; sourceTree = "<group>"; };
 		ECE44E35B41DB47D36E44566 /* Icon-SummerSolar@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SummerSolar@3x.png"; sourceTree = "<group>"; };
 		ECE60067CC3898F2148D9C58 /* HermesAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesAvatar.swift; sourceTree = "<group>"; };
@@ -1178,6 +1181,7 @@
 		FE98467F93649E1B0983EF55 /* ConnectedPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectedPaywallView.swift; sourceTree = "<group>"; };
 		FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-ComicFunnies@3x.png"; sourceTree = "<group>"; };
 		FF17BA389F0A775916C4A56F /* InsightsFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsFetchTests.swift; sourceTree = "<group>"; };
+		FF7F59DBFE279351F54E44D1 /* ActionBatteryCellSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionBatteryCellSelection.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1197,6 +1201,7 @@
 			children = (
 				AF31C27AA3D6C561D9397B0C /* DeviceTools */,
 				CDE6633BFADD53831BF0672A /* GenerativeUI */,
+				FF7F59DBFE279351F54E44D1 /* ActionBatteryCellSelection.swift */,
 				60F331174F3A95B305F37918 /* ActionClaimDetector.swift */,
 				099915A255DC3C5BBF05F29E /* AlarmService.swift */,
 				65889D487C0CEBA19EED6C4C /* BackgroundTaskService.swift */,
@@ -1283,6 +1288,7 @@
 		103CFAA4F2279113DEBD72F1 /* TalariaTests */ = {
 			isa = PBXGroup;
 			children = (
+				EB63E347076CFA99D21DF2A2 /* ActionBatteryCellSelectionTests.swift */,
 				11259DD0B188A3E7B7C1FFFB /* ActionClaimDetectorTests.swift */,
 				7FBB1C82C985346CB2C6D31A /* AgentFileChipPersistenceTests.swift */,
 				BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */,
@@ -2397,6 +2403,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */,
+				ECEA616F630F0C122AB5824B /* ActionBatteryCellSelection.swift in Sources */,
 				1B7C40B4C1FEDB06CD585E7E /* ActionClaimDetector.swift in Sources */,
 				5D050F16C1C69A8F63E5267B /* AgentAttachmentSidecar.swift in Sources */,
 				AC7DDBB7536D12E2AE0E363F /* AlarmService.swift in Sources */,
@@ -2705,6 +2712,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8DA89AE7FDD5ACC9ABA61DC9 /* ActionBatteryCellSelectionTests.swift in Sources */,
 				F51F487D3BB250AF714BEECD /* ActionClaimDetectorTests.swift in Sources */,
 				4F243BAD8C8B7DF50F46B708 /* AgentFileChipPersistenceTests.swift in Sources */,
 				8A6751DE0DDDD448F0112A77 /* AgentFileFetchTests.swift in Sources */,

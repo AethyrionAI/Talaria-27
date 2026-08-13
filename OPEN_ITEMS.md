@@ -9240,9 +9240,14 @@ runs are trustworthy), `planning/UNATTENDED-RUNS-HANDOFF.md` §6 (the queue this
 >   refuse unattended by design — Owen's ruling, enforced in code. Unattended-eligible
 >   ≠ iPad-eligible only for EventKit reasons; on the iPad the write set is refused
 >   entirely.
-> - **`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
+> - ~~**`TALARIA_CELLS` parses but no registry entry consumes it** (buttons never passed
 >   cells; `runActionBattery`'s cells are `[ActionBatteryCell]`, not strings). Reserved,
->   documented, inert.
+>   documented, inert.~~ **SUPERSEDED 2026-08-12 by #341 — it is now consumed.** The
+>   32 action-family entries declare a `defaultCells` list and take the resolved cases;
+>   `ActionBatteryCellSelection` does the string→case conversion and REFUSES an unknown
+>   name (or a cell request aimed at an instrument with no cell dimension) rather than
+>   dropping it. Everything else in this bullet was accurate when written; only the
+>   "inert" half is dead.
 > - Known post-merge minors, filed here so they aren't rediscovered: an unknown
 >   instrument name emits `instrument: UNKNOWN` to console but writes NO artifact (the
 >   harness burns its timeout on a typo); `runColdCalfixBattery` has no button and no
@@ -9717,6 +9722,104 @@ and #215's routed-vs-unrouted rule governs which cells may be compared at all;
 where the baselines live; and who reads a red. **Bars pre-register here when a lane
 opens.** The hazard to design against is the one this project already names: a
 routinely-red or routinely-ignored gate is worse than none.
+
+## 341. 🔌 `TALARIA_CELLS` WIRED — one cell per launch, so #337's pending A/B can run as TWO launches instead of one order-confounded run — **BUILT 2026-08-12 on Owen's instruction (*"run it as two separate launches"*). Structural build + unit lane only; no device run, no numbers. The #335 review's "reserved, documented, inert" is now superseded at its own home (above).**
+
+**Why this exists, and why it is not a convenience feature.** #337 established that
+no battery calls `beginToolTurn()`, so `ToolCallGovernor`'s per-turn refusal budget
+accumulates across a whole run. Cells run SEQUENTIALLY, so the later cell is
+systematically starved — the measured shape was 14/40 phase cuts in cell 1 against
+22/40 in cell 2, with thermal rising alongside. **Every two-cell instrument is
+therefore order-confounded, and the confound grows with cell index.** The fix that
+does NOT move every #200-series number is to run each arm as its own launch, which
+requires selecting one cell per launch. `beginToolTurn()` and the governor are
+untouched here — that remains Owen's call under #337.
+
+**What was inert.** #333 shipped `TALARIA_CELLS` end to end except the last inch:
+`run-instrument.sh` exports it, `InstrumentLaunchIntent` parses it to `[String]`,
+`InstrumentConductor` threads it to `InstrumentSpec.run` — and every registry closure
+took `_`, because `runActionBattery`'s cells are `[ActionBatteryCell]`.
+
+**What was built.**
+- **`ActionBatteryCellSelection`** (`Talaria/Services/Live/`) — the one string→case
+  resolver. `resolve(requested:instrument:default:)` returns `.resolved([Cell]?)` or
+  `.refused(String)`, and the refusal text IS the artifact's `refusalReason`.
+- **`InstrumentSpec.defaultCells`** — the pinned list an instrument runs when the
+  launch env names none. It is load-bearing (the conductor substitutes it), not a
+  comment, and it references the SAME symbol the backend wrapper defaults to, so the
+  two cannot drift. `nil` means "no `ActionBatteryCell` dimension".
+- **32 action-family registry entries** wired; the 11 wrappers that carried inline
+  cell literals had them promoted to named `…BatteryCells` constants so there is one
+  symbol per list.
+- **Resolution happens in the conductor, before anything runs.** That placement is
+  the point: a per-entry conversion would either drop a mistyped cell silently or
+  leave the artifact blaming the battery mutex for an operator's typo.
+
+**The four rules, and the reason for each.**
+1. **An unknown name refuses the WHOLE request** — never partially applied. A
+   silently-dropped cell produces a run that looks fine and measures something else.
+2. **An empty request is the UNSET wire state, not "zero cells".**
+   `run-instrument.sh` exports `DEVICECTL_CHILD_TALARIA_CELLS="$CELLS"`
+   unconditionally, empty when `--cells` was not passed, so `[]` is the default state
+   of every existing invocation. Rejecting it would have broken every run that does
+   not name cells.
+3. **Cells requested of an instrument with no cell dimension refuse too** (`shape`,
+   `two-turn`, the honesty pair, the probes) — forwarding to them is the same silent
+   drop wearing a different hat.
+4. **Order and duplicates are preserved.** Cell order IS run order (#200V's warm-up
+   and #201B's thermal arguments both depend on which arm runs cold), and coalescing
+   a repeat would silently halve a requested denominator.
+
+**Status handling — no new status was invented.** An unresolvable request seals the
+artifact `failed` (not `refused`): `refused` is reserved for the two standing policy
+refusals (alarms-unattended, EventKit-on-iPad), and `failed` is what makes
+`run-instrument.sh` exit non-zero, which is what a mistyped cell deserves. The
+instrument is never invoked, so no `BatteryRunRecord` appears either way.
+
+**Artifact truth.** `BatteryRunRecord.cells` already carried
+`cells.map(\.rawValue)` from `beginRun` — passing the resolved cases through makes it
+truthful for a one-cell launch with no record-format change. The envelope's own
+`cells` keeps the REQUESTED strings, so a reader sees both what was asked for and
+what ran.
+
+**This lane registers no measurement bars, because it measures nothing** — the sim
+cannot generate, and by instruction no device was touched. Its tests are structural:
+every raw value round-trips; an unknown name is refused and named; one bad name kills
+the whole request; the empty wire state falls back; `defaultCells` for the calendar
+instrument equals `calendarBatteryCells`; a single-cell request reaches the closure
+and lands in the run record; and an unknown name yields no run record (RED-witnessed
+against an inert pass-through resolver that reproduced the pre-#341 behaviour exactly).
+
+**The two launches #337's A/B needs** — `calendar`, whose pinned cells are
+`.armed, .armedCardrollback, .armedSpiralfix` (`LocalChatBackend+Battery.swift`):
+
+```bash
+scripts/mac/run-instrument.sh --device whoGoesThere --instrument calendar \
+  --trials 10 --cells armed
+scripts/mac/run-instrument.sh --device whoGoesThere --instrument calendar \
+  --trials 10 --cells armed-cardrollback
+```
+
+> **⛔ QUESTION FOR OWEN — those two commands are correct in form and WILL REFUSE on
+> today's code, and #341 did not cause it.** `calendar` is `writesAlarms: true` (its
+> prompt set is the default remind/alarm/calendar trio), and the launch-env path is
+> `unattended: true` **unconditionally** — `AppContainer.runAutoInstrumentsIfArmed()`
+> has no other value to pass. So the conductor's first refusal fires (*"alarm-writing
+> instruments never run unattended (Owen 2026-08-11; #331)"*), a `refused` artifact is
+> sealed, nothing runs — and `run-instrument.sh` **exits 0**, because `refused` is a
+> legitimate terminal state. Verified by reading all four `unattended` call sites, not
+> inferred.
+>
+> **This is not specific to the A/B or to single-cell selection.** Every instrument on
+> the default prompt set writes alarms, so no action-family battery has ever been
+> runnable through the harness; #333's own "29 alarm-writing accept batteries refuse
+> unattended by design" says exactly this. #341 removes the cell-selection blocker and
+> leaves the alarm-policy one, which is Owen's to decide and was deliberately not
+> touched here. **The two options, neither built:** an attended launch path (a human
+> present and supervising, `unattended: false` from the launch env), or a per-run
+> relaxation. The Developer-screen button is attended but passes `cells: nil`, so it
+> cannot select one cell — that gap is real and is the smallest thing that would make
+> the A/B runnable if the answer is "attended is fine".
 
 ## 337. 🔥 THE ACTION PATH CREATED **NOTHING** IN 180 ATTEMPTS — ~80% of action turns end in #232's phase cut, the survivors offer instead of acting, and the second run executed **0/90** — **MEASURED 2026-08-12 on `whoGoesThere`, TWO runs 75 minutes apart, same build, same auto-accept arming. The most product-facing number of the day. NOT STARTED; the first bar is a HAND-RUN turn, because no instrument here can see what a real user sees.**
 
