@@ -7559,6 +7559,28 @@ the largest single-seam remind gain since the #200D promotion.**
 > both arms equally. Do not read the beta5 hypothesis as established until that
 > runs: this pointer records a reappearance, not a cause.
 
+> **📌 2026-08-13 pointer (append-only, #317 ruling (a) — every byte above is
+> untouched, including the 2026-08-12 pointer): THE DECISIVE RE-RUN RAN, AND IT
+> DID NOT CONVICT THE RUNTIME.** #337-G-2 ran the clause A/B as **two separate
+> launches** on `whoGoesThere` (`decline` instrument, 40 trials per arm, both
+> `endedCleanly`): **clause ON → 0/40 narrations, which REPRODUCES this entry's
+> treated cell exactly; clause OFF (`armed-cardrollback`) → 0/40 as well.** So
+> the A/B cannot see the clause on beta5 at this n, and the 2026-08-12 pointer's
+> hedge was the right one — the beta5 hypothesis is **NOT established**. Pooled
+> beta5 clause-ON is 2/120 against the 0/40 above (Fisher p = 1.0).
+>
+> **A note about THIS entry's own verdict, offered as arithmetic and not as a
+> reversal:** the promoting contrast recorded above — 3/40 control vs 0/40
+> treated — is **p = 0.24**, and the bar it passed was descriptive ("narration
+> ≤ half of control"). At a ~5% base rate n=40/arm has almost no power, which is
+> why neither era's narration count could ever have settled the question. **"THE
+> SPECIMEN IS DEAD" remains falsified** — the specimen occurred in production
+> (#337-A) and twice in 337-G — but "the clause killed it" and "the runtime
+> revived it" are both unmeasured. What IS measured, from 337-G-2's two arms:
+> **fabrication runs at 3 per 30 action turns with the clause present AND
+> absent** (p = 1.0). The prose lever and the harm are on different axes; see
+> #337 and #338.
+
 **Bar check (delta-based against the SAME RUN's control, the #200I lesson):**
 remind ≥ control+3 → 8 vs 5, **PASS (exactly at the bar)**. Narration trials ≤
 half of control → 0 vs 3, **PASS**. Alarm 10/10 → **PASS** (ceiling intact,
