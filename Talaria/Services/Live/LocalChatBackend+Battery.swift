@@ -701,6 +701,9 @@ extension LocalChatBackend {
         return tools.filter { keep.contains($0.name) }
     }
 
+    /// #200 default cell list — the bare production control, alone. Pinned.
+    nonisolated static let actionBatteryCells: [ActionBatteryCell] = [.armed]
+
     /// #200 action-path battery: does an APPROPRIATE create go through?
     /// Single-turn create prompts × `trials` per cell, ARMED production
     /// construction — the armed-routed armed branch, whose belt,
@@ -731,7 +734,8 @@ extension LocalChatBackend {
     /// Routing is a cell rather than a run-level flag so the contrast is
     /// WITHIN a run — same thermal state, same slot rotation, the design
     /// #200V's warm-up work established.
-    func runActionBattery(trials: Int, cells: [ActionBatteryCell] = [.armed],
+    func runActionBattery(trials: Int,
+                          cells: [ActionBatteryCell] = LocalChatBackend.actionBatteryCells,
                           includeGrabCanary: Bool = false,
                           promptSet: [(tag: String, text: String)]? = nil,
                           warmup: Bool = LocalChatBackend.batteryWarmupDefault) async {
@@ -1039,21 +1043,31 @@ extension LocalChatBackend {
         Self.batteryRecorder.endRun()
     }
 
+    /// #200B cell list — control plus the three TOOL-TEXT treatments. Pinned.
+    nonisolated static let destallBatteryCells: [ActionBatteryCell] = [
+        .armed, .armedGuidefix, .armedToolfix, .armedBothfix,
+    ]
+
     /// #200B one-tap wrapper: the four TOOL-TEXT treatment cells × four
     /// prompts (grab canary included). Kept runnable; the #200B verdict
     /// falsified these cells (remind 0/0/0/1).
-    func runDestallBattery(trials: Int) async {
+    func runDestallBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.destallBatteryCells) async {
         await runActionBattery(
             trials: trials,
-            cells: [.armed, .armedGuidefix, .armedToolfix, .armedBothfix],
+            cells: cells,
             includeGrabCanary: true
         )
     }
 
+    /// #200C cell list — control vs the INSTRUCTIONS-level de-stall clause. Pinned.
+    nonisolated static let instrfixBatteryCells: [ActionBatteryCell] = [.armed, .armedInstrfix]
+
     /// #200C one-tap wrapper: control vs the INSTRUCTIONS-level de-stall
     /// clause × four prompts — 8 × trials generations.
-    func runInstrfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: [.armed, .armedInstrfix], includeGrabCanary: true)
+    func runInstrfixBattery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.instrfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200E: the demote exit — Apple's own pattern for `.required`, which
@@ -1064,10 +1078,14 @@ extension LocalChatBackend {
         callCount < 1 ? .required : .allowed
     }
 
+    /// #200E cell list — control vs the structural `.required` treatment. Pinned.
+    nonisolated static let toolmodeBatteryCells: [ActionBatteryCell] = [.armed, .armedToolmode]
+
     /// #200E one-tap wrapper: promoted-production control vs the structural
     /// `.required` treatment × four prompts — 8 × trials generations.
-    func runToolmodeBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: [.armed, .armedToolmode], includeGrabCanary: true)
+    func runToolmodeBattery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.toolmodeBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200F cell list — promoted-production control plus the three
@@ -1078,9 +1096,14 @@ extension LocalChatBackend {
 
     /// #200F one-tap wrapper: 4 cells × four prompts (grab canary
     /// included) — 16 × trials generations.
-    func runCommunityBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.communityBatteryCells, includeGrabCanary: true)
+    func runCommunityBattery(trials: Int,
+                             cells: [ActionBatteryCell] = LocalChatBackend.communityBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
+
+    /// #200G cell list — control vs the explicit-true findfix cell (identity
+    /// since the promotion, so the two halves pool). Pinned.
+    nonisolated static let findfixBatteryCells: [ActionBatteryCell] = [.armed, .armedFindfix]
 
     /// #200G re-verify wrapper: promoted-production control vs the
     /// explicit-true findfix cell — identity since the promotion, so both
@@ -1088,8 +1111,9 @@ extension LocalChatBackend {
     /// Four prompts × 8 cells-worth of trials; the grab canary rides at
     /// pooled n, which is where the #200F grabs caveat (5/10 vs 4/9)
     /// gets settled.
-    func runFindfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: [.armed, .armedFindfix], includeGrabCanary: true)
+    func runFindfixBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.findfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200H cell list — promoted-production control plus the two
@@ -1127,12 +1151,16 @@ extension LocalChatBackend {
         ("healthnamed", "How many steps have I taken today?"),
     ]
 
+    /// #209 cell list — production vs the pinned read-tool field rollback. Pinned.
+    nonisolated static let readToolBatteryCells: [ActionBatteryCell] = [.armed, .armedFieldrollback]
+
     /// #209 one-tap wrapper: production vs the pinned read-tool rollback, on
     /// prompts where omission is correct — 8 × trials generations. READ tools
     /// only, so nothing is written and the reap is a no-op.
-    func runReadToolBattery(trials: Int) async {
+    func runReadToolBattery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.readToolBatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .armedFieldrollback],
+                               cells: cells,
                                promptSet: Self.readToolBatteryPrompts)
     }
 
@@ -1145,32 +1173,47 @@ extension LocalChatBackend {
         ("motiondirect", "Am I walking or sitting still right now?"),
     ]
 
+    /// #211 cell list — promoted production vs the pinned `readMotion` rollback. Pinned.
+    nonisolated static let motionScopeBatteryCells: [ActionBatteryCell] = [.armed, .armedMotionrollback]
+
     /// #211 one-tap wrapper: 2 cells × 2 prompts × trials. READ tools only —
     /// nothing written, reap is a no-op.
-    func runMotionScopeBattery(trials: Int) async {
+    func runMotionScopeBattery(trials: Int,
+                               cells: [ActionBatteryCell] = LocalChatBackend.motionScopeBatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .armedMotionrollback],
+                               cells: cells,
                                promptSet: Self.motionScopeBatteryPrompts)
     }
+
+    /// #211 follow-on cell list — promoted production vs production-plus-boundary. Pinned.
+    nonisolated static let motionRedirectBatteryCells: [ActionBatteryCell] = [.armed, .armedMotionredirect]
 
     /// #211 follow-on: PROMOTED production vs production-plus-boundary, on the
     /// same two prompts. `motiondirect` carries the effect under test (extra
     /// tool chaining); `stepsdirect` is the guard — the #211 win must survive.
-    func runMotionRedirectBattery(trials: Int) async {
+    func runMotionRedirectBattery(trials: Int,
+                                  cells: [ActionBatteryCell] = LocalChatBackend.motionRedirectBatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .armedMotionredirect],
+                               cells: cells,
                                promptSet: Self.motionScopeBatteryPrompts)
     }
+
+    /// #214 cell list — production vs per-intent belt plus composition licensing. Pinned.
+    nonisolated static let scopedV2BatteryCells: [ActionBatteryCell] = [.armed, .armedScopedv2]
 
     /// #214 one-tap wrapper — THE structural lane. Production control vs
     /// per-intent belt + composition licensing, on all four prompts with the
     /// grab canary IN: the canary is the primary measurement here, not a
     /// side-check. 2 cells × 4 prompts × trials.
-    func runScopedV2Battery(trials: Int) async {
+    func runScopedV2Battery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.scopedV2BatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .armedScopedv2],
+                               cells: cells,
                                includeGrabCanary: true)
     }
+
+    /// #215 cell list — the unrouted control vs production's routed configuration. Pinned.
+    nonisolated static let routedActionBatteryCells: [ActionBatteryCell] = [.armed, .routedProduction]
 
     /// #215 one-tap wrapper — THE missing denominator. Unrouted control vs
     /// production's routed configuration, on all four prompts with the grab
@@ -1194,11 +1237,15 @@ extension LocalChatBackend {
     /// not ~0. That would mean #214's "the disease is an instrument property"
     /// conclusion — which is the reason this lane exists — is wrong, and the
     /// grab disease survives into production after all.
-    func runRoutedActionBattery(trials: Int) async {
+    func runRoutedActionBattery(trials: Int,
+                                cells: [ActionBatteryCell] = LocalChatBackend.routedActionBatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.armed, .routedProduction],
+                               cells: cells,
                                includeGrabCanary: true)
     }
+
+    /// #216 cell list — both arms routed; only the armed belt differs. Pinned.
+    nonisolated static let routedScopedBatteryCells: [ActionBatteryCell] = [.routedProduction, .routedScoped]
 
     /// #216 one-tap wrapper — the narrow belt, re-tried where it cannot lose.
     /// Both arms ROUTED, so the only difference is the belt an armed turn sees:
@@ -1230,16 +1277,18 @@ extension LocalChatBackend {
     /// **What would falsify the premise:** haiku clean turns below 8/10, or any
     /// haiku trial routing ARMED. Either means the composition objection reaches
     /// production after all and #214's closure was right.
-    func runRoutedScopedBattery(trials: Int) async {
+    func runRoutedScopedBattery(trials: Int,
+                                cells: [ActionBatteryCell] = LocalChatBackend.routedScopedBatteryCells) async {
         await runActionBattery(trials: trials,
-                               cells: [.routedProduction, .routedScoped],
+                               cells: cells,
                                includeGrabCanary: true)
     }
 
     /// #200H one-tap wrapper: 3 cells × four prompts (grab canary
     /// included) — 12 × trials generations.
-    func runSpiralBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.spiralBatteryCells, includeGrabCanary: true)
+    func runSpiralBattery(trials: Int,
+                          cells: [ActionBatteryCell] = LocalChatBackend.spiralBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200I cell list — the spiralfix re-measure after the event-scoped
@@ -1253,8 +1302,9 @@ extension LocalChatBackend {
     /// #200I one-tap wrapper: 2 cells × four prompts (grab canary
     /// included — the reword's whole point is that grabs come back to
     /// control) — 8 × trials generations.
-    func runSpiralfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.spiralfixBatteryCells, includeGrabCanary: true)
+    func runSpiralfixBattery(trials: Int,
+                             cells: [ActionBatteryCell] = LocalChatBackend.spiralfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200J cell list — production control vs the card-narration clause.
@@ -1267,8 +1317,9 @@ extension LocalChatBackend {
     /// generations. The clause names every action tool, so all four
     /// prompts run even though the remind path is where #200I found the
     /// narration bucket.
-    func runCardfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.cardfixBatteryCells, includeGrabCanary: true)
+    func runCardfixBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.cardfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200K cell list — one run doing two jobs. `.armed` and
@@ -1284,8 +1335,9 @@ extension LocalChatBackend {
 
     /// #200K one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runDatefixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.datefixBatteryCells, includeGrabCanary: true)
+    func runDatefixBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.datefixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200L cell list — the calendar lane. Promoted production, the same
@@ -1300,8 +1352,9 @@ extension LocalChatBackend {
 
     /// #200L one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runCalendarBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.calendarBatteryCells, includeGrabCanary: true)
+    func runCalendarBattery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.calendarBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200M cell list — production, the v3 dead-end carve-out, and v2 in
@@ -1314,8 +1367,9 @@ extension LocalChatBackend {
 
     /// #200M one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runDeadendBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadendBatteryCells, includeGrabCanary: true)
+    func runDeadendBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.deadendBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200N cell list — the v3 confirmation A/B. #200M's v3 passed 5 of 6
@@ -1334,8 +1388,9 @@ extension LocalChatBackend {
 
     /// #200N one-tap wrapper: 2 cells × four prompts — 8 × trials
     /// generations.
-    func runDeadendVerifyBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadendVerifyBatteryCells, includeGrabCanary: true)
+    func runDeadendVerifyBattery(trials: Int,
+                                 cells: [ActionBatteryCell] = LocalChatBackend.deadendVerifyBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200O cell list — one run, two jobs (the #200K shape). `.armed`
@@ -1349,8 +1404,9 @@ extension LocalChatBackend {
 
     /// #200O one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runGrabfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.grabfixBatteryCells, includeGrabCanary: true)
+    func runGrabfixBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.grabfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #204 cell list — the two promoted INSTRUCTIONS clauses, each against
@@ -1369,8 +1425,9 @@ extension LocalChatBackend {
 
     /// #204 one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations, plus the discarded warm-up.
-    func runClauseReverifyBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.clauseReverifyBatteryCells,
+    func runClauseReverifyBattery(trials: Int,
+                                  cells: [ActionBatteryCell] = LocalChatBackend.clauseReverifyBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
@@ -1397,8 +1454,9 @@ extension LocalChatBackend {
     /// Scored from reply TEXT, which is legitimate here for the same reason
     /// it was in #202C: auto-DECLINE means no artifact can exist, so text is
     /// all there is and there is nothing for it to lie against.
-    func runDeclineBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.declineBatteryCells,
+    func runDeclineBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.declineBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
@@ -1413,8 +1471,9 @@ extension LocalChatBackend {
 
     /// #200P one-tap wrapper: 2 cells × four prompts — 8 × trials
     /// generations.
-    func runStallfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.stallfixBatteryCells, includeGrabCanary: true)
+    func runStallfixBattery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.stallfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200Q cell list — production vs the schema swap, both arms in one
@@ -1425,8 +1484,9 @@ extension LocalChatBackend {
 
     /// #200Q one-tap wrapper: 2 cells × four prompts — 8 × trials
     /// generations.
-    func runSchemafixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.schemafixBatteryCells, includeGrabCanary: true)
+    func runSchemafixBattery(trials: Int,
+                             cells: [ActionBatteryCell] = LocalChatBackend.schemafixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200S cell list — the promotion's re-verify. `.armed` and
@@ -1441,8 +1501,9 @@ extension LocalChatBackend {
 
     /// #200S one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runSchemaReverifyBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.schemaReverifyBatteryCells, includeGrabCanary: true)
+    func runSchemaReverifyBattery(trials: Int,
+                                  cells: [ActionBatteryCell] = LocalChatBackend.schemaReverifyBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200T cell list — production control vs the calendar schema swap,
@@ -1456,8 +1517,9 @@ extension LocalChatBackend {
 
     /// #200T one-tap wrapper: 2 cells × four prompts — 8 × trials
     /// generations.
-    func runCalfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.calfixBatteryCells, includeGrabCanary: true)
+    func runCalfixBattery(trials: Int,
+                          cells: [ActionBatteryCell] = LocalChatBackend.calfixBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200U cell list — control, the promotable result-text fix, and the
@@ -1471,8 +1533,9 @@ extension LocalChatBackend {
 
     /// #200U one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations.
-    func runDeadend2Battery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadend2BatteryCells, includeGrabCanary: true)
+    func runDeadend2Battery(trials: Int,
+                            cells: [ActionBatteryCell] = LocalChatBackend.deadend2BatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells, includeGrabCanary: true)
     }
 
     /// #200V cell list — #200U's three cells in REVERSED order, so production
@@ -1555,8 +1618,9 @@ extension LocalChatBackend {
 
     /// #200W one-tap wrapper: 2 cells × four prompts — 8 × trials
     /// generations, plus the now-default warm-up pass.
-    func runCalfixWarmBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+    func runCalfixWarmBattery(trials: Int,
+                              cells: [ActionBatteryCell] = LocalChatBackend.calfixWarmBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
@@ -1572,8 +1636,9 @@ extension LocalChatBackend {
 
     /// #200X one-tap wrapper: 2 cells × four prompts — 8 × trials generations,
     /// plus the default warm-up pass.
-    func runCalRollbackVerifyBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.calRollbackVerifyBatteryCells,
+    func runCalRollbackVerifyBattery(trials: Int,
+                                     cells: [ActionBatteryCell] = LocalChatBackend.calRollbackVerifyBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
@@ -1604,22 +1669,25 @@ extension LocalChatBackend {
     ]
 
     /// #201B reversed wrapper.
-    func runDeadendReversedBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadendReversedBatteryCells,
+    func runDeadendReversedBattery(trials: Int,
+                                   cells: [ActionBatteryCell] = LocalChatBackend.deadendReversedBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
     /// #201 one-tap wrapper: 2 cells × four prompts — 8 × trials generations
     /// (160 at n=20), plus the default warm-up pass.
-    func runDeadendReconsiderBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadendReconsiderBatteryCells,
+    func runDeadendReconsiderBattery(trials: Int,
+                                     cells: [ActionBatteryCell] = LocalChatBackend.deadendReconsiderBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true)
     }
 
     /// #200V one-tap wrapper: 3 cells × four prompts — 12 × trials
     /// generations, PLUS a discarded warm-up pass over the prompt list.
-    func runDeadendConfirmBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.deadendConfirmBatteryCells,
+    func runDeadendConfirmBattery(trials: Int,
+                                  cells: [ActionBatteryCell] = LocalChatBackend.deadendConfirmBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true, warmup: true)
     }
 

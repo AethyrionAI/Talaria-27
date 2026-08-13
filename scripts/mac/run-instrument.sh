@@ -27,7 +27,16 @@ while [[ $# -gt 0 ]]; do case "$1" in
   --device) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; DEVICE="$2"; shift 2;;
   --instrument) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; INSTRUMENT="$2"; shift 2;;
   --trials) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; TRIALS="$2"; shift 2;;
-  --cells) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; CELLS="$2"; shift 2;;
+  # #341: an EMPTY --cells is rejected here, not app-side. The app cannot tell
+  # "not passed" from "passed empty" — this script exports TALARIA_CELLS
+  # unconditionally — so the resolver must treat empty as unset, which means
+  # `--cells "$ARM"` with an empty $ARM would silently run the FULL default
+  # battery at 3x the trials under an artifact that reads like an ordinary
+  # default launch. That is the one shape that falls back while appearing to
+  # select, and a scripted two-launch A/B is exactly where it would bite.
+  --cells) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }
+           [[ -n "${2//[[:space:]]/}" ]] || { echo "--cells was given an empty value; omit --cells to run the instrument's own cells" >&2; exit 3; }
+           CELLS="$2"; shift 2;;
   --timeout) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; TIMEOUT="$2"; shift 2;;
   --out) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; OUT_ROOT="$2"; shift 2;;
   *) echo "unknown arg: $1" >&2; exit 3;;

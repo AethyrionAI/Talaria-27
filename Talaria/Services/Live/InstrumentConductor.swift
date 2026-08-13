@@ -24,6 +24,12 @@ import UIKit
 /// So completion is verified, not assumed: the run-store's newest id is
 /// sampled before and after `spec.run`, and only a NEW record earns
 /// `.completed`; no new record is `.failed` with a reason naming the mutex.
+///
+/// **#341: the cell request is resolved HERE, before anything runs.** The
+/// launch env carries cell NAMES; instruments take cases. Resolving centrally
+/// is what lets an unresolvable request seal an honest artifact — a per-entry
+/// conversion would either drop a mistyped cell silently or leave the artifact
+/// blaming the battery mutex for an operator's typo.
 @MainActor
 final class InstrumentConductor {
     private let confirmationCenter: ToolConfirmationCenter
@@ -81,6 +87,22 @@ final class InstrumentConductor {
             return finish(.refused, reason: "EventKit-writing instruments never run on an iPad (Shelley's-device rule)")
         }
 
+        // #341: resolve the launch env's cell names BEFORE anything runs. A
+        // request that cannot be honoured must not become a run that measures
+        // the wrong thing, so the whole request is refused here rather than
+        // partially applied downstream. `.failed` (not `.refused`) because
+        // this is an operator error in the request, not one of the two
+        // standing policy refusals above — and because the harness exits
+        // non-zero on `failed`, which is what a mistyped cell name deserves.
+        let resolvedCells: [LocalChatBackend.ActionBatteryCell]?
+        switch ActionBatteryCellSelection.resolve(requested: cells, instrument: spec.name,
+                                                  default: spec.defaultCells) {
+        case .refused(let reason):
+            return finish(.failed, reason: reason)
+        case .resolved(let resolved):
+            resolvedCells = resolved
+        }
+
         try? artifactWriter.write(envelope) // status: running — bar 333-C
 
         // Explicit on EVERY path; mutually exclusive; never inherited.
@@ -100,7 +122,7 @@ final class InstrumentConductor {
         }
 
         let priorNewestID = loadRuns().first?.id
-        await spec.run(backend, trials, cells)
+        await spec.run(backend, trials, resolvedCells)
         if let newest = loadRuns().first, newest.id != priorNewestID {
             envelope.runRecord = newest
             return finish(.completed)
