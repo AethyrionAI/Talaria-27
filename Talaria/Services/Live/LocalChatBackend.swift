@@ -1458,9 +1458,14 @@ final class LocalChatBackend: HermesClientProtocol {
     /// does not promise that asking again will work (#337 measured 0 creations
     /// in 90 tries — a promise here would be a second false claim), and it does
     /// not name a tracker item at the user.
+    /// Copy RULED by Owen 2026-08-12 (#338): the tighter of the two the lane
+    /// proposed — same honesty, less self-flagellation, and it still names which
+    /// text to distrust. He declined a retry suggestion for the reason recorded
+    /// above: #337 measured 0 creations in 90 attempts, so inviting a retry
+    /// would be a second broken promise.
     nonisolated static let honestyCorrectionNotice =
-        "⚠️ **Talaria:** nothing was actually created. No reminder, alarm, or calendar event "
-        + "was written to your device on this turn — the message above says otherwise, and it is wrong."
+        "⚠️ **Nothing was created.** No reminder, alarm, or event was written to your "
+        + "device — the reply above is inaccurate."
 
     /// Appends the correction to a settled reply. Pure, so the exact composition
     /// is testable without a model.

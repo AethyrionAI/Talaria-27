@@ -180,7 +180,12 @@ struct HonestyGuardWiringTests {
             modelText: Self.productionDefect, settledText: settled, executedToolNames: [])
         #expect(userSees != Self.productionDefect, "the user must not see the bare lie")
         #expect(userSees.contains("has been created"), "the model's own words are still there to diagnose")
-        #expect(userSees.contains("nothing was actually created"))
+        // Reference the CONSTANT, never a copy of its text: this assertion was
+        // written against the lane's proposed wording and went RED the moment
+        // Owen ruled on the final copy (2026-08-12). The property under test is
+        // "the correction is present", not "the correction says these words" —
+        // `theCorrectionIsOneNamedConstant` owns the wording's properties.
+        #expect(userSees.contains(LocalChatBackend.honestyCorrectionNotice))
         #expect(backend.honestyGuardFireCount == 1)
     }
 }
