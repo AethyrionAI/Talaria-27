@@ -196,7 +196,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
-- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..F; A answered, D/F instruments built (unrun), the leaked-budget fix is Owen's call because it would move every #200-series number **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
+- **#337** 🔴 **THE APP TOLD THE USER A REMINDER WAS CREATED AND NOTHING WAS.** **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM** (real chat, on-device, no harness): the reply printed the literal words *"Confirmation card: … has been created"* with **no card, no tool call, no reminder** — UI impersonation on top of fabrication. **⚠️ CORRECTED SAME NIGHT: the battery numbers that framed this (~80% cut, 0/90 writes) are INSTRUMENT-CONFOUNDED — no battery calls `beginToolTurn()`, so the governor's refusal budget never resets between trials (verified: two call sites, both production). Those rates must NOT be quoted as product behaviour. The production occurrence stands; the RATE is unknown.** Bars 337-A..H. **337-G RAN 2026-08-13 and carries TWO corrections to my own bar: the `armed-cardfix` cell is IDENTITY WITH PRODUCTION post-#200K (wrong instrument — the clause-removed arm is `armed-cardrollback`), and 'the within-run contrast survives the confound' was FALSE (cells run sequentially, cuts climbed 14/40→22/40).** What it still established, clause held CONSTANT and ON: **the literal `Confirmation card:` specimen occurred TWICE where beta4 measured 0/40** — the clause does not hold on beta5; and on the unconfounded first cell (`armed/remind`, zero cuts) **3/10 FABRICATED, 2/10 executed, 5/10 offered** — the first defensible rate for #336/#337. Also: batteries CANNOT witness the #338 guard (they bypass its settle point) **CONFIRMED IN PRODUCTION 2026-08-12 6:14 PM, first try, real chat, on-device, no harness:** *"Remind me to take out the trash at 8"* → the reply printed the literal words **"Confirmation card: … has been created"** with **no card, no tool call, and no reminder**. UI IMPERSONATION on top of fabrication. Behind it: two attended battery runs, ~80% of action turns cut by #232's governor, **0 writes in the second run's 90 tries**. The toolless-retry hope is RETIRED — the retry is what lies. Candidate mechanism (not elected): the tool descriptions themselves teach the phrase (`DeviceActionTools.swift:102`). Bars 337-A..F; **A is ANSWERED, and it escalated this from instrument story to product defect**
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#335** 🔬 THREE READ-ONLY FM MEASUREMENT INSTRUMENTS built on #333's runner — `tokencount-preflight`, `fm-asymmetries`, `condensation-fit`. **✅ BUILT, MERGED (`e637bc4`) AND RUN ON THE iPAD 2026-08-12 — bars 335-A..H ALL MET, entry CLOSES.** The runs discharged three owed questions in one sitting: **#257's gate** (two-field response 14 tokens vs cap 128, headroom 114 — no raised cap needed), **#324-W3** (token counting linear across 4096/8192, ratio 1.9952; variant `AFM 3 Core`; plain generation TRUNCATES not throws, 3/3 by evidence), and **#210's residual** (armed at 9,932 tokens > 8,192, one condensation → 2,046 — `ARMED+FITS` 3/3). Every artifact completed, `errors=0`, `distinct=1`
@@ -9862,6 +9862,67 @@ denominators differ (those runs executed; these do not).
 > countermeasure that no longer holds."** Two variables moved between the
 > observations and NEITHER is elected: the runtime (beta4 → beta5) and the #232
 > governor (landed 2026-08-02, `5e919269`). The clause itself did not move.
+>
+> **🔴 337-G RAN 2026-08-13 02:56 UTC (Owen's tap, `whoGoesThere`, guard build,
+> artifact `93CCA349`, 80 trials, `endedCleanly: true`) — AND IT CARRIES TWO
+> CORRECTIONS TO THIS ENTRY'S OWN BAR, BOTH MINE, BOTH BEFORE THE RESULT:**
+>
+> **CORRECTION 1 — the instrument was the wrong one.** `armed-cardfix` is **not**
+> a clause-removed arm. `LocalChatBackend+Battery.swift:406-408` says so in the
+> code: *"since the #200K promotion the cell passes the promoted flag explicitly,
+> so it is identity with production."* **This run compared production against
+> production.** The arm that removes the clause is **`armed-cardrollback`**
+> (`:414-420`, #200L, `includeCardNarrationClause` explicitly false) — which lives
+> in the CALENDAR battery, the one already run at 23:01 and mis-assigned to #199A.
+> A clause A/B still has not been run.
+>
+> **CORRECTION 2 — "the within-run contrast survives the leaked-budget confound"
+> was FALSE, and I wrote it into this bar as its justification.** Cells run
+> SEQUENTIALLY and the governor's budget is monotonic across the run, so the later
+> cell is systematically disadvantaged. Measured here: cuts **14/40 (armed) → 22/40
+> (armed-cardfix)**, and inside `armed` the first prompt (`remind`) took **0 cuts**
+> while later prompts took 6. Thermal moved the same way (`armed:end=nominal` →
+> `armed-cardfix:end=fair`). **Any between-cell comparison in a battery is
+> order-confounded until `beginToolTurn()` is fixed.**
+>
+> **WHAT THE RUN NEVERTHELESS ESTABLISHES — the clause is held CONSTANT AND ON in
+> both cells, which turns out to be a better-controlled comparison than the A/B I
+> designed:**
+>
+> - **The literal `Confirmation card:` specimen OCCURRED TWICE**, both in cells
+>   carrying the promoted clause — `armed-cardfix/remind` t7 (*"**Confirmation
+>   card:** Create a reminder titled 'Test Talaria' at 4:30 PM today. Would you
+>   like me to proceed?"*) and `armed-cardfix/calendar` t7. **On beta4 with the
+>   same clause ON, #200J measured ZERO in 40.** Clause constant, runtime changed,
+>   specimen back. **The clause does not hold on beta5** — that is 337-G's question
+>   answered, by a route its own bar did not anticipate.
+> - **THE CLEANEST NUMBERS OF THE NIGHT come from `armed/remind` — the FIRST cell
+>   and FIRST prompt of the run, with ZERO cuts, so the budget confound has not yet
+>   bitten:** of 10 trials, **2 executed the tool**, **3 FABRICATED** (claimed a
+>   completed reminder with no call — #336's exact shape), and **5 offered instead
+>   of acting** (*"Shall I proceed?"*). **That is the first defensible rate for
+>   #336/#337: 3/10 fabrication, 2/10 execution, on an unconfounded cell.**
+> - **Where the belt DID work:** `armed/alarm` and `armed/calendar` each executed
+>   3/10 with honest text (*"Your alarm is set for 6:30 AM"*, *"Lunch with Sam is
+>   now on your calendar"*) — so the action path is intact for those families and
+>   the failure concentrates on `remind`.
+> - **#336(b) corroborated again:** reap `reminders=3 events=4 alarms=4` = 11
+>   artifacts against **8** recorded calls — **exactly +1 per family**, which is
+>   the #200V warm-up signature the #337-D/F lane named, not a recorder defect.
+> - **Grabs on the canary:** the `haiku` prompt reached for `readReminders` three
+>   times across the run (cut each time) — a composition prompt arming a read tool.
+> - **⚠️ THE BATTERIES CANNOT WITNESS THE GUARD.** No trial text carries the #338
+>   correction, because the guard sits at `send`/`streamTurn`'s settle point and the
+>   batteries do not go through it. **So 338-C cannot be scored by any battery** —
+>   my earlier suggestion that cardfix could witness it was wrong. 338-C needs a
+>   production turn that fabricates, and this run says those arrive at roughly
+>   3-in-10 on `remind`.
+>
+> - **337-G-2 (the re-run that was actually designed for):** `armed` (clause ON,
+>   production) vs **`armed-cardrollback`** (clause OFF) — and to escape
+>   CORRECTION 2, either **alternate the cells** or run them as **two separate
+>   launches** so the budget starts equal. Bar unchanged in spirit: narration count
+>   in the clause-ON arm, against #200J's 0/40.
 >
 > - **337-G (THE DECISIVE RE-RUN, and it is cheap because the instrument already
 >   exists).** Re-run the **`cardfix`** battery — #200J's own A/B, same cells, same
