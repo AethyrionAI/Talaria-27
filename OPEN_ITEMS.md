@@ -9454,6 +9454,22 @@ trials, `endedCleanly: true`, auto-accept armed, Owen present):
 Clean rows: no throw, no timeout, no `cant`/`denial` flag, ~21–25 output tokens.
 The turn simply asserts a completed write.
 
+> **⚠️ CORRECTION TO THE TABLE ABOVE, 2026-08-12 (#338's lane, from the artifact
+> bytes — the finding is unchanged, the TRANSCRIPTION was lossy).** The two
+> `armed/remind` rows are rendered here as one string "×2" with a STRAIGHT
+> apostrophe. In `225-spiral-artifact.json` they are two DIFFERENT strings:
+> one carries `U+2019` (`I\u{2019}ve`) and one carries `U+0027` (`I've`) — the
+> same cell, the same prompt, the same build, both forms. The `armed/alarm` row
+> is `U+2019` in the artifact and straight here.
+>
+> **Why this is worth a correction rather than a shrug:** a reader building
+> anything off this table — which is exactly what #338 did — would search for one
+> form and silently miss the other, which is the precise miss bar 338-B was
+> written about. Both forms are now fixtures in
+> `TalariaTests/ActionClaimDetectorTests.swift`, and the normalization that folds
+> them has a witnessed RED. Row COUNT, cell, `toolCalls: []`, and every latency
+> above are confirmed correct against the artifact.
+
 **(b) The reap counted MORE than the recorder did:** finish reap
 `reminders=4 events=4 alarms=4 failures=0` = **12 artifacts**, against **10
 recorded tool calls** (`createReminder` 4, `scheduleAlarm` 3,
