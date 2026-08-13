@@ -10083,6 +10083,56 @@ denominators differ (those runs executed; these do not).
 >   arms** (recorded in every manipulation check as `residualExposure`), so no arm
 >   here is a zero-exposure arm and the phrase survives in context throughout.
 >
+>   **⚙️ 337-F-2 BUILT 2026-08-13, SAME DAY, ON OWEN'S GO ("lets do it").
+>   BARS PRE-REGISTERED HERE BEFORE THE RUN — the run has not happened as this
+>   is written.**
+>
+>   **The arm:** `blurb-stripped` — the armed blurb sentence removed, the three
+>   tool DESCRIPTIONS left as production's own text. One string moves. Built
+>   RED-first: the failing test named the exact production line that would break
+>   it (`cardClauseBelt`'s `guard arm != .control`, which silently made any new
+>   arm into arm C while still reporting its own name), and it did fail on that
+>   line before the fix — 7 recorded issues, then green.
+>
+>   **Position: LAST of four, deliberately.** This instrument resets the turn per
+>   trial, so it carries no leaked-budget confound (`cutTrials = 0` in all three
+>   arms of the first run); the only order effect left is thermal, which in that
+>   run moved AGAINST the result. The worst slot therefore makes a POSITIVE
+>   finding conservative.
+>
+>   **BARS:**
+>   - **F-2a (the manipulation must be REAL):** the arm's manipulation row must
+>     read `descriptionsSwapped = 0` **and** `blurbRemoved = 1`. Any other
+>     combination invalidates the arm — it is either arm C or the control
+>     wearing a new name, and its numbers must not be reported.
+>   - **F-2b (the isolating bar, the reason this exists):** imitation in
+>     `blurb-stripped` **≤ 1/30**. 337-F measured control 4/30 and
+>     `tools-blurb-stripped` 0/30; if the blurb is the teaching text, removing it
+>     alone reproduces arm C. **A result of 4/30-ish instead says the blurb is
+>     NOT sufficient and the effect needs both strings — which would retire the
+>     promotion candidate**, and that is a real possible outcome, not a
+>     formality.
+>   - **F-2c (behaviour must follow, and it is scored separately):** tool calls
+>     in `blurb-stripped` **≥ 28/30**. 337-F's arm C posted 30/30 against a
+>     23/30 control. **A split verdict — imitation down but calls NOT up — is
+>     the outcome that must not be collapsed**: it would mean the blurb silences
+>     the prose without restoring the action, which is a WORSE product state than
+>     today (the user gets neither a card nor a claim), and it would kill the
+>     promotion rather than qualify it.
+>   - **F-2d (the re-measured three):** control, `tools-stripped` and
+>     `tools-blurb-stripped` run again in their original positions. **Their
+>     numbers are a REPLICATION check, not new evidence** — if control's
+>     imitation lands far from 4/30 or its calls far from 23/30, the run-to-run
+>     variance is larger than the effect and every bar above is unreadable at
+>     n=30.
+>   - **NO BAR IS A PROMOTION.** Even a clean sweep of F-2a..c licenses only a
+>     recommendation to Owen, because the change would edit production's armed
+>     instructions — a promotion decision, his, and #200J's history says a
+>     promoted clause can be measured at one n and quietly stop holding.
+>   - **A null in this arm is UNINTERPRETABLE, not negative** (it ran last, in
+>     the worst thermal slot). It would need a reversed-order re-run before
+>     anyone concludes the blurb is innocent.
+>
 >   **(5) 🔑 AND THIS INSTRUMENT IS FREE OF THE LEAK — it calls
 >   `toolRelay?.beginTurn()` before every trial (`+CardClause.swift:239`), which
 >   is what production does and what no #200-series battery has ever done.**

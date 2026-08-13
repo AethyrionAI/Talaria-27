@@ -107,6 +107,65 @@ struct CardClauseManipulationTests {
         #expect(ReminderCreateTool(relay: relay, confirmations: confirmations).description
                 == ReminderCreateTool.productionDescription)
     }
+
+    /// **337-F-2's whole reason for existing.** Arm C removes the descriptions
+    /// AND the blurb, so its 0/30 was attributable to the blurb only by
+    /// elimination. This arm removes the blurb ALONE — which means the
+    /// descriptions must come through as production's own text, byte for byte.
+    ///
+    /// The production change that makes this fail: `cardClauseBelt` treats
+    /// "not the control" as "strip the descriptions" (`guard arm != .control`),
+    /// which is exactly what it did when this arm was added. Under that guard
+    /// the new arm is silently arm C and the isolation is lost while the
+    /// artifact still reports a distinct arm name — a treatment that reads as
+    /// clean and is measuring the wrong thing.
+    @MainActor
+    @Test func theBlurbOnlyArmRemovesTheBlurbAndLeavesTheDescriptionsAlone() {
+        let instructions = LocalChatBackend.instructionsText(
+            deviceContext: "test", hasTools: true, hasImageTools: false)
+        let (stripped, removed) = LocalChatBackend.cardClauseInstructions(
+            instructions, arm: .blurbStripped)
+        #expect(removed, "the blurb-only arm removed nothing from the instructions")
+        #expect(!stripped.contains(DeviceActionClauses.armedBlurbCardSentence))
+
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        let belt: [any Tool] = [
+            ReminderCreateTool(relay: relay, confirmations: confirmations),
+            CalendarEventTool(relay: relay, confirmations: confirmations),
+            AlarmTool(relay: relay, confirmations: confirmations, alarmService: AlarmService()),
+        ]
+        let (untouched, swapped) = LocalChatBackend.cardClauseBelt(
+            from: belt, arm: .blurbStripped)
+        #expect(swapped == 0, "the blurb-only arm must not touch the descriptions")
+        #expect((untouched.first as? ReminderCreateTool)?.description
+                == ReminderCreateTool.productionDescription,
+                "the descriptions must be production's own text in this arm")
+        for tool in untouched {
+            #expect(LocalChatBackend.confirmationCardImitation(in: tool.description) != nil,
+                    "\(tool.name) lost the phrase — this arm leaves the descriptions ALONE")
+        }
+    }
+
+    /// Arm C must keep moving BOTH strings — the new arm is an addition, not a
+    /// re-pointing of the old one.
+    @MainActor
+    @Test func theToolsAndBlurbArmStillMovesBothStrings() {
+        let instructions = LocalChatBackend.instructionsText(
+            deviceContext: "test", hasTools: true, hasImageTools: false)
+        let (_, removed) = LocalChatBackend.cardClauseInstructions(
+            instructions, arm: .toolsAndBlurbStripped)
+        #expect(removed)
+
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        let belt: [any Tool] = [ReminderCreateTool(relay: relay, confirmations: confirmations)]
+        let (treated, swapped) = LocalChatBackend.cardClauseBelt(
+            from: belt, arm: .toolsAndBlurbStripped)
+        #expect(swapped == 1)
+        #expect(LocalChatBackend.confirmationCardImitation(
+            in: treated.first?.description ?? "") == nil)
+    }
 }
 
 struct ConfirmationCardImitationDetectorTests {
@@ -144,9 +203,9 @@ struct CardClauseRegistryTests {
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
 
-    @Test func theABHasThreeNamedArms() {
+    @Test func theABHasFourNamedArmsWithTheIsolatingOneLast() {
         #expect(LocalChatBackend.CardClauseArm.allCases.map(\.rawValue)
-                == ["control", "tools-stripped", "tools-blurb-stripped"])
+                == ["control", "tools-stripped", "tools-blurb-stripped", "blurb-stripped"])
     }
 }
 

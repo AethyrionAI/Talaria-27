@@ -54,6 +54,23 @@ extension LocalChatBackend {
         case toolsStripped = "tools-stripped"
         /// Arm B plus the armed blurb's own confirmation-card sentence.
         case toolsAndBlurbStripped = "tools-blurb-stripped"
+        /// **337-F-2 — the ISOLATING arm, added 2026-08-13 after the first run.**
+        /// The blurb sentence removed and the descriptions left ALONE. 337-F
+        /// measured arm B at 7/30 imitations (descriptions stripped, no effect,
+        /// p = 0.51) and arm C at 0/30 with 30/30 tool calls — but arm C moves
+        /// BOTH strings, so the blurb carried the effect only *by elimination*.
+        /// This arm moves one string and is the only thing that can license a
+        /// promotion.
+        ///
+        /// **Position is deliberate: LAST.** This instrument calls
+        /// `beginTurn()` per trial, so it is free of #337's leaked-budget
+        /// confound (`cutTrials = 0` in all three arms of the first run) and the
+        /// only order effect left is thermal — which in that run moved AGAINST
+        /// the result (arm C ran hottest and scored best). The worst slot
+        /// therefore makes a POSITIVE finding conservative. **A null here would
+        /// be uninterpretable** and would need a reversed-order re-run, not a
+        /// conclusion.
+        case blurbStripped = "blurb-stripped"
     }
 
     /// The belt each arm registers: identity for the control, and for the
@@ -64,7 +81,16 @@ extension LocalChatBackend {
     /// treatment arm identical to its control and a clean-looking null.
     nonisolated static func cardClauseBelt(from tools: [any Tool],
                                            arm: CardClauseArm) -> (belt: [any Tool], swapped: Int) {
-        guard arm != .control else { return (tools, 0) }
+        // #337-F-2: NOT `arm != .control`. The blurb-only arm is also a
+        // treatment and must leave the descriptions alone — under the old
+        // guard it silently became arm C while still reporting its own name,
+        // which is a treatment that reads clean and measures the wrong thing.
+        // Enumerated rather than negated so a future arm has to state its
+        // intent here instead of inheriting one.
+        switch arm {
+        case .control, .blurbStripped: return (tools, 0)
+        case .toolsStripped, .toolsAndBlurbStripped: break
+        }
         var swapped = 0
         let belt: [any Tool] = tools.map { tool in
             if var reminder = tool as? ReminderCreateTool {
@@ -93,7 +119,12 @@ extension LocalChatBackend {
     /// visible in the artifact instead of reading as a null result.
     nonisolated static func cardClauseInstructions(_ instructions: String,
                                                    arm: CardClauseArm) -> (text: String, removed: Bool) {
-        guard arm == .toolsAndBlurbStripped else { return (instructions, false) }
+        // #337-F-2: two arms remove the blurb now — arm C (with the
+        // descriptions) and the isolating arm (without them).
+        switch arm {
+        case .control, .toolsStripped: return (instructions, false)
+        case .toolsAndBlurbStripped, .blurbStripped: break
+        }
         let stripped = instructions.replacingOccurrences(
             of: DeviceActionClauses.armedBlurbCardSentence, with: "")
         return (stripped, stripped != instructions)
