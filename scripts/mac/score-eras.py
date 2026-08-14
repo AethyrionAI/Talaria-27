@@ -82,3 +82,76 @@ def classify(trial):
     elif OFFER.search(text):
         out["offered"] = 1
     return out
+
+
+# Which read tool correctly answers each probe prompt. Derived from 6AAA4AC4's
+# own rows (armed: stepsdirect->readHealth 10/10, motiondirect->readMotion
+# 10/10), not from the tool descriptions.
+CORRECT_TOOL = {"stepsdirect": "readHealth", "motiondirect": "readMotion"}
+# Prompts that NAME their location, so a location lookup is spurious.
+NAMED_LOCATION = {"weathernamed"}
+
+
+def tool_names(trial):
+    return [c.get("name") for c in (trial.get("toolCalls") or [])]
+
+
+def metric_correct_tool(trial):
+    """RT-B / RT-F: 1 if the prompt's correct read tool was called. None off-family."""
+    want = CORRECT_TOOL.get(trial.get("prompt"))
+    if want is None:
+        return None
+    return 1 if want in tool_names(trial) else 0
+
+
+def metric_spurious_location(trial):
+    """RT-A: 1 if currentLocation was called on a prompt that NAMES its location.
+    This is the observable separating armed (1 call) from armed-fieldrollback
+    (2 calls) on weathernamed in 3E53397E."""
+    if trial.get("prompt") not in NAMED_LOCATION:
+        return None
+    return 1 if "currentLocation" in tool_names(trial) else 0
+
+
+def tally(trials):
+    out = {}
+    for t in trials:
+        key = (t.get("shape", "?"), t.get("prompt", "?"))
+        b = out.setdefault(key, dict(n=0, executed=0, fabricated=0, offered=0,
+                                     strict=0, j200=0, errored=0,
+                                     correct_tool=0, correct_tool_n=0,
+                                     spurious_loc=0, spurious_loc_n=0))
+        b["n"] += 1
+        for k, v in classify(t).items():
+            b[k] += v
+        ct = metric_correct_tool(t)
+        if ct is not None:
+            b["correct_tool"] += ct
+            b["correct_tool_n"] += 1
+        sl = metric_spurious_location(t)
+        if sl is not None:
+            b["spurious_loc"] += sl
+            b["spurious_loc_n"] += 1
+    return out
+
+
+def report(path):
+    env, rec, trials = load(path)
+    print(f"\n=== {os.path.basename(path)} ===")
+    print(f"era={era(rec)} os={rec.get('osVersion')} kind={rec.get('kind')} "
+          f"endedCleanly={rec.get('endedCleanly')} n={len(trials)}")
+    print(f"cells={rec.get('cells')} thermal={rec.get('thermal')}")
+    hdr = (f"{'cell/prompt':34}{'n':>4}{'err':>5}{'exec':>6}{'fab':>5}"
+           f"{'offer':>6}{'strict':>7}{'tool✓':>7}{'spurLoc':>8}")
+    print(hdr)
+    for (shape, prompt), b in sorted(tally(trials).items()):
+        ct = f"{b['correct_tool']}/{b['correct_tool_n']}" if b["correct_tool_n"] else "—"
+        sl = f"{b['spurious_loc']}/{b['spurious_loc_n']}" if b["spurious_loc_n"] else "—"
+        print(f"{shape + '/' + prompt:34}{b['n']:>4}{b['errored']:>5}"
+              f"{b['executed']:>6}{b['fabricated']:>5}{b['offered']:>6}"
+              f"{b['strict']:>7}{ct:>7}{sl:>8}")
+
+
+if __name__ == "__main__":
+    for p in sys.argv[1:]:
+        report(p)

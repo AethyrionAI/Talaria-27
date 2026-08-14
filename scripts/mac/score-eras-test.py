@@ -78,6 +78,32 @@ check("337-G armed/remind executed", sum(r["executed"] for r in rows), 2)
 check("337-G armed/remind fabricated", sum(r["fabricated"] for r in rows), 3)
 check("337-G armed/remind offered", sum(r["offered"] for r in rows), 5)
 
+# --- per-family metrics, derived from the archive's own rows ---
+MOTION = os.path.join(REPO, "handoffs/evidence/battery-runs/run-20260731-192900-6AAA4AC4.json")
+_, _, mt = se.load(MOTION)
+steps = [t for t in mt if t["prompt"] == "stepsdirect"]
+check("beta4 stepsdirect n", len(steps), 20)
+check("beta4 stepsdirect correct-tool 20/20",
+      sum(se.metric_correct_tool(t) for t in steps), 20)
+motion = [t for t in mt if t["prompt"] == "motiondirect"]
+check("beta4 motiondirect correct-tool 20/20",
+      sum(se.metric_correct_tool(t) for t in motion), 20)
+
+_, _, ft = se.load(ARCHIVE)
+named = [t for t in ft if t["prompt"] == "weathernamed"]
+check("beta4 weathernamed armed spurious 3/10",
+      sum(se.metric_spurious_location(t) for t in named if t["shape"] == "armed"), 3)
+check("beta4 weathernamed fieldrollback spurious 10/10",
+      sum(se.metric_spurious_location(t) for t in named
+          if t["shape"] == "armed-fieldrollback"), 10)
+check("metric is None off-family",
+      se.metric_spurious_location({"prompt": "remind", "toolCalls": []}), None)
+
+# --- tally keys by (shape, prompt) and counts errors separately ---
+tl = se.tally(mt)
+check("tally cells", sorted({k[0] for k in tl}), ["armed", "armed-motionredirect"])
+check("tally n per cell/prompt", tl[("armed", "stepsdirect")]["n"], 10)
+
 if FAILS:
     print("FAIL"); [print("  " + f) for f in FAILS]; sys.exit(1)
 print(f"score-eras-test: PASS ({RAN} checks)")
