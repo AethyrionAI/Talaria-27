@@ -48,6 +48,19 @@ QUEUE=(
   "honesty-v2:10"
 )
 DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"
+# #343 fix round 1: an unguarded $DEADLINE_EPOCH inside (( )) is a bash
+# arithmetic context — a non-integer value (a typo, or `$(date)` without
+# +%s) is parsed as a variable NAME, and under `set -u` that is a FATAL
+# unbound-variable error on the first loop iteration: zero instruments run,
+# no log file is created, and the shell's own error exit code is masked by
+# `| tee -a "$LOG"` never running — nothing prints "SWEEP COMPLETE" and
+# nothing prints a failure either. Validate BEFORE it ever reaches
+# arithmetic, and fail the same way the wrong-runtime gate does: a loud
+# PRECONDITION, exit 3, before any instrument launches.
+if [[ ! "$DEADLINE_EPOCH" =~ ^[0-9]+$ ]]; then
+  echo "PRECONDITION: TALARIA_SWEEP_DEADLINE must be epoch seconds (0 = no deadline), got '$DEADLINE_EPOCH'" | tee -a "$LOG"
+  exit 3
+fi
 OK=0; BAD=0; SKIPPED=()
 for ENTRY in "${QUEUE[@]}"; do
   NAME="${ENTRY%%:*}"; TRIALS="${ENTRY##*:}"

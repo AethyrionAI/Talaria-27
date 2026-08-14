@@ -764,6 +764,43 @@ echo "log: $LOG"
 `SWEEP COMPLETE` is the **positive** marker — its absence means the sweep died,
 and the skipped list is printed so truncation is never silent.
 
+> **⚠️ CORRECTED 2026-08-14 (Task 5, fix round 1) — the code block above has a
+> Critical defect, found by an adversarial code-review probe of the shipped
+> script and reproduced directly.** `DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"`
+> is interpolated **unguarded** into `(( $(date +%s) >= DEADLINE_EPOCH ))`. Bash
+> arithmetic treats a bare non-numeric token as a variable NAME, so under
+> `set -u` a malformed `TALARIA_SWEEP_DEADLINE` — a typo, or the realistic
+> operator slip `TALARIA_SWEEP_DEADLINE="$(date)"` with `+%s` forgotten — is a
+> **fatal unbound-variable error on the first loop iteration**: zero
+> instruments run, **no log file is created at all**, and the shell exits
+> **0**. Reproduced live:
+> ```
+> $ TALARIA_SWEEP_DEADLINE="not-a-number" TALARIA_DEVICE=no-such-device \
+>     TALARIA_SWEEP_OUT="$(mktemp -d)" scripts/mac/run-sweep.sh
+> scripts/mac/run-sweep.sh: line 54: not: unbound variable
+> $ echo $?
+> 0
+> ```
+> That is exactly the "green result that proves nothing" shape this project
+> has been bitten by before (see `xcodebuild-beta4-stale-incrementals.md`),
+> landing in the one script whose entire purpose is surviving bad conditions.
+>
+> **The fix**, added immediately after `DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"`
+> and before the loop — validate against `^[0-9]+$` before it ever reaches
+> arithmetic, and on failure abort the same way the wrong-runtime gate above
+> does: a loud `PRECONDITION`, exit 3, before any instrument launches:
+> ```bash
+> if [[ ! "$DEADLINE_EPOCH" =~ ^[0-9]+$ ]]; then
+>   echo "PRECONDITION: TALARIA_SWEEP_DEADLINE must be epoch seconds (0 = no deadline), got '$DEADLINE_EPOCH'" | tee -a "$LOG"
+>   exit 3
+> fi
+> ```
+> **"Warn and proceed with no deadline" was considered and rejected:** a
+> malformed deadline means the operator's intent is unknown, and silently
+> running unbounded risks overrunning into the attended blocks (Task 6 Steps
+> 4–5) that need Owen present. A precondition failure costs five seconds to
+> correct; an overrun costs the night.
+
 - [ ] **Step 3: Verify it refuses a wrong runtime and a bad device**
 
 ```bash
@@ -786,6 +823,24 @@ TALARIA_DEVICE="no-such-device" TALARIA_SWEEP_OUT="$(mktemp -d)" \
 
 Expected: `ok=0 failed=0 skipped=motion-redirect read-tool …` — every instrument
 skipped and **named**, proving truncation is recorded rather than silent.
+
+> **⚠️ EXTENDED 2026-08-14 (Task 5, fix round 1) — Steps 3 and 4 above only
+> exercise a VALID deadline (unset, meaning 0) and a VALID-and-passed deadline
+> (`$(date +%s)`), which is exactly why neither one caught the Critical filed
+> at Step 2's correction: there was no case in the original sequence for a
+> MALFORMED deadline at all.** Added as a permanent third case, run against
+> the fixed script:
+> ```bash
+> TALARIA_DEVICE="no-such-device" TALARIA_SWEEP_OUT="$(mktemp -d)" \
+>   TALARIA_SWEEP_DEADLINE="not-a-number" scripts/mac/run-sweep.sh; echo "exit=$?"
+> ```
+> Expected, and reproduced: `PRECONDITION: TALARIA_SWEEP_DEADLINE must be epoch
+> seconds (0 = no deadline), got 'not-a-number'` on stdout, `exit=3`, and —
+> checked explicitly, since this is the property that matters — **zero**
+> `launching` lines anywhere in stdout or the log file, proving the abort
+> happens before any instrument is touched, not merely before the summary
+> line. The same holds for the realistic slip `TALARIA_SWEEP_DEADLINE="$(date)"`
+> (forgetting `+%s`).
 
 - [ ] **Step 5: Commit**
 
