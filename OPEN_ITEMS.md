@@ -194,6 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
+- **#343** 🔬 **THE beta5 REFERENCE TABLE** — a 2.5-hour attended device campaign producing ONE dated, machine-readable measurement of the on-device brain on iOS 27 **24A5408d**, carrying a *measured* beta4 column wherever a pinned control makes one honest. **A TRUE beta4-vs-beta5 A/B IS IMPOSSIBLE and no row pretends otherwise**: `whoGoesThere` is on beta5, **beta4 is GONE from `/Applications`** (verified 2026-08-12) so there is no toolchain to build a beta4 binary with, and the retained 24A5390f sim runtime **cannot generate a single trial** (#324 — `LanguageModelError -1` wrapping `ModelManagerError 1026`, `contextSize = 0`). Every cross-era row is therefore today's build on beta5 against an OLDER build on beta4, runtime and app changes confounded in the same direction; the design's whole job is to make that visible PER ROW. Built on the discovery that `handoffs/evidence/battery-runs/` holds ten machine-readable beta4 runs on `24A5390f` — **EIGHT usable**: `3CB9E45D` and `8D724EC5` carry **ZERO trials**, and `D1A99F3A` died 13 trials in (`endedCleanly: false`) with no twin cell, so it supports no contrast. Every cell they used still exists and is individually selectable via `TALARIA_CELLS` (#341), so the beta4 column is **RE-SCORED through tonight's classifier** rather than quoted out of tracker prose. **Bars RT-A..H pre-registered 2026-08-14 BEFORE any launch** (scorer + metrics built first: `scripts/mac/score-eras.py`). **TWO amendments measured at pre-registration, and both correct the plan's OWN reading rather than inheriting it — RT-A splits health from weather, and RT-F is a CEILING-RETENTION bar, not a rate comparison.** Carries 338-C as a powered hunt (n=13, ~99% at p ≈ 0.3) **whose null bounds nothing**, per #215. NOT RUN
 - **#342** 📋 **KANBAN SUPPORT** — Owen's request 2026-08-12. **A read-only view SHIPPED the same night** (`scripts/oi-kanban.py`, never writes to the tracker). **Its measurement is the real input: 97 of 138 open cards (70%) are UNCLASSIFIABLE** — their state lives only in prose — and the 41 it does place are placed by keyword, crudely (#338 reads as "Blocked" because its text says "needs Owen", while it is merged with one bar owed). **So the question is whether entries get a machine-readable status at all, which changes how every entry is written — Owen's call, not a lane's.** Five design questions in the entry; bars pre-register before any format change
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
@@ -9387,6 +9388,38 @@ tool — this lane makes the app HONEST, not capable.
 > whose control cell reproduces the narration by construction — if the guard is
 > installed, that run witnesses both the rate AND the correction in one sitting.
 
+> **⚠️ SUPERSESSION, 2026-08-14 — THE "NEXT ATTEMPT" BLOCK DIRECTLY ABOVE IS
+> WRONG, AND NOT BY A DETAIL. NO BATTERY CAN WITNESS THIS GUARD AT ALL.** The
+> block recommends scoring 338-C by running 337-G's `cardfix` battery. **A later
+> dated block under #337 overturns it** (337-G's run, 2026-08-13 02:56 UTC, in
+> this file under `## 337.`): *"THE BATTERIES CANNOT WITNESS THE GUARD… the guard
+> sits at `send`/`streamTurn`'s settle point and the batteries do not go through
+> it."* No trial text in that run carried the #338 correction, and none could
+> have. **So the recommendation is not merely a weaker option than a production
+> turn — it is structurally incapable of scoring the bar, and it names the wrong
+> cell besides** (337-G established `armed-cardfix` is IDENTITY WITH PRODUCTION
+> post-#200K; the clause-removed arm is `armed-cardrollback`). Recorded here, at
+> the stale block's own home, per the close-out rule (#317) — the correction goes
+> upstream to the claim it falsifies, not only downstream of it. **The original
+> bytes above are left intact**: this note supersedes them, it does not rewrite
+> them.
+>
+> **338-C can only be scored by real PRODUCTION chat turns**, and it is designed
+> as one under **#343 (bar RT-G)**: up to **13** turns, fresh thread each, 337-A's
+> prompt shape held constant with only the time varied, stopping at the first
+> turn that fabricates *and* is corrected by the guard. At p ≈ 0.3 that is
+> `1 − 0.7¹³` ≈ **99%** power — attempt 1 failed for a **structural** reason (one
+> turn against an intermittent defect, ~70% likely to prove nothing), so the fix
+> is power, not repetition-and-hope.
+>
+> **AND THE NULL BOUNDS NOTHING — this is the half most likely to be misread
+> later.** The ~3-in-10 estimate driving n = 13 comes from 337-F's
+> **`armed/remind`** cell, which is **ARMED, NOT ROUTED**. Per **#215**, an
+> unrouted cell arms every trial by construction and is **not a production
+> rate**. It SIZES the attempt; it does not BOUND the result. **A null at n = 13
+> therefore does not establish that production fabricates below any particular
+> rate**, and no write-up may report it as a measured ceiling.
+
 **Cross-references:** **#337** (the defect this mitigates; 337-A is the evidence),
 **#336** (the fabrication mechanism), **#232** (the governor whose cut precedes most
 of these turns), **#197** (never-throw discipline on the tool path — the guard must
@@ -9744,6 +9777,262 @@ and #215's routed-vs-unrouted rule governs which cells may be compared at all;
 where the baselines live; and who reads a red. **Bars pre-register here when a lane
 opens.** The hazard to design against is the one this project already names: a
 routinely-red or routinely-ignored gate is worse than none.
+
+## 343. 🔬 THE beta5 REFERENCE TABLE — one dated, machine-readable measurement of the on-device brain, with a MEASURED beta4 column where a pinned control makes one honest — **FILED 2026-08-14. Design `planning/superpowers/specs/2026-08-14-beta5-local-brain-reference-table-design.md`, plan `planning/superpowers/plans/2026-08-14-beta5-reference-table.md`, base `main` @ `23bb69a`. BARS RT-A..H PRE-REGISTERED BELOW, BEFORE ANY LAUNCH — per the convention since #215, a missed bar is a falsification, not a redefinition. NOT RUN.**
+
+**What this is.** A 2.5-hour attended device campaign on `whoGoesThere` (iOS 27.0
+**24A5408d**, Xcode-beta5 27A5237l). Since beta5 landed we have accumulated
+observations that *look* like runtime regressions — #337's fabrication, the
+under-calling, #200J's clause losing its grip — **without ever measuring the
+runtime as such.** This measures it, once, into an artifact a beta6 lane can
+compare against.
+
+> **⛔ A TRUE beta4-vs-beta5 A/B IS NOT AVAILABLE, AND NO PART OF THIS DESIGN
+> PRETENDS OTHERWISE.** Three facts close it off, each verified rather than
+> assumed:
+> 1. `whoGoesThere` is on **24A5408d** (beta5) — confirmed from the `osVersion`
+>    of every recent artifact (20 files under `planning/reports/` carry it).
+> 2. **Beta4 is GONE from `/Applications`** (verified 2026-08-12 by direct path
+>    check, `mdfind`, and `.Trash`; recorded in CLAUDE.md §Build). There is no
+>    toolchain to build a beta4-targeted binary with, and #324-W4's "same-binary
+>    control is dyld-impossible" is now joined by "the other binary no longer
+>    exists."
+> 3. **The simulator cannot generate with FoundationModels at all** (#324:
+>    `LanguageModelError -1` wrapping `ModelManagerError 1026`, `contextSize = 0`),
+>    so the retained **24A5390f** beta4 sim runtime cannot run one trial.
+>
+> **So every comparison against a pre-08-11 number is today's build on beta5
+> versus an OLDER build on beta4** — runtime and application changes confounded,
+> in the same direction, with no control that separates them. The design's entire
+> job is to make that confound visible **per row** rather than discovered later.
+
+**The discovery this is built on, and the count a future reader must not get
+wrong.** `handoffs/evidence/battery-runs/` holds **ten** machine-readable beta4
+runs — per-trial JSON with prompt, cell, tool calls, verbatim text, tokens and
+latency, every one stamped `Version 27.0 (Build 24A5390f)`, dated 07-31 / 08-01.
+**Only EIGHT are usable:**
+
+| archive run | n | cells | today's instrument | usable |
+|---|---|---|---|---|
+| `6AAA4AC4` | 40 | `armed`, `armed-motionredirect` | `motion-redirect` | ✅ |
+| `328502AD` | 40 | `armed`, `armed-motionredirect` | `motion-redirect` | ✅ |
+| `3E53397E` | 80 | `armed`, `armed-fieldrollback` | `read-tool` | ✅ |
+| `6C3EBD86` | 80 | `armed`, `armed-fieldrollback` | `read-tool` | ✅ |
+| `F486F103` | 80 | `armed`, `routed-production` | `routed` | ✅ |
+| `5EE6ADBD` | 80 | `routed-production`, `routed-scoped` | `routed-scoped` | ✅ |
+| `1835BBF9` | 80 | `armed`, `armed-scopedv2` | `scoped-v2` | ✅ |
+| `D1A99F3A` | 13 | declared 3 cells, completed 1 | — | ❌ no twin cell |
+| `3CB9E45D` | **0** | `intent-v2` | — | ❌ **empty** |
+| `8D724EC5` | **0** | four `narrow`/`full` cells | — | ❌ **empty** |
+
+**Two of the ten carry ZERO trials.** `D1A99F3A` declared
+`armed, armed-cardrollback, armed-spiralfix` × 10 and died 13 trials in
+(`endedCleanly: false`, thermal recorded only as `armed:start=nominal`) — it
+completed `armed`/remind and three `alarm` trials and nothing else, so it holds
+no contrast. **Recorded explicitly so nobody counts ten baselines where there
+are eight.**
+
+**Why this makes a MEASURED beta4 column possible rather than a quoted one.**
+Every cell those runs used still exists in today's build and is individually
+selectable per launch via `TALARIA_CELLS` (#341), and the three attended
+instruments are cell-for-cell identical to their archive twins — verified in
+source, not assumed (`LocalChatBackend+Battery.swift`):
+`readToolBatteryCells` `:1167` · `motionRedirectBatteryCells` `:1201` ·
+`scopedV2BatteryCells` `:1214` · `routedActionBatteryCells` `:1228` ·
+`routedScopedBatteryCells` `:1260`. So the beta4 side is **re-scored through
+tonight's classifier** — the difference between a measurement and a borrowed
+fact. `--trials` is per cell × prompt (verified against three known runs), so
+`--trials 10` reproduces each archive `n` exactly.
+
+**Three row classes, and the published table labels every row with its class:**
+- **Class 1a — pinned control, beta4 RE-SCORABLE.** Cell text frozen by
+  definition *and* an archive JSON exists, so both eras run through one
+  classifier. **`read-tool` / `armed-fieldrollback`** (`3E53397E`, `6C3EBD86`).
+  The app half is controlled; the runtime is the residual. **Strongest rows.**
+- **Class 1b — pinned control, beta4 QUOTED.** Frozen text, but the beta4 number
+  survives only as a figure in the cell's own doc comment:
+  **`motion-scope` / `armed-motionrollback`**, run `63C0EF12` — rollback text
+  answers **0/10**, promoted **10/10**, Fisher two-tailed **p = 1.08e-05**, motion
+  questions unaffected at 9/9 (`LocalChatBackend+Battery.swift:505-510`, read at
+  filing rather than recalled). Its beta4 side cannot be re-scored and the row
+  says so.
+- **Class 2 — same cell, cross-build.** `armed`, `routed-production`,
+  `routed-scoped`, `armed-scopedv2`, `armed-motionredirect`. Cell *name* and
+  prompts pinned; **production text has moved since 07-31.** Deltas reported with
+  the confound named in the row and **never** stated as a runtime verdict.
+- **Class 3 — beta5-only.** No beta4 archive. Pure forward baseline — the class
+  that makes tonight pay off later, because beta6 will need a same-build
+  reference and one cannot be retro-fitted.
+
+**Thermal is a variable, not noise.** Runs climb `nominal → fair → serious`
+inside ~8 minutes and cell order interacts with it — 337-F's best arm ran last at
+`serious`, which is precisely what made that result credible.
+
+> **⚠️ CORRECTION TO THE DESIGN'S OWN §7, measured at pre-registration
+> 2026-08-14.** The spec states *"the 07-31 archive predates the `thermal` field
+> entirely,"* and concludes thermal *"cannot be matched, only recorded."*
+> **Both halves are FALSE.** Every one of the **eight usable** archive runs
+> carries per-cell thermal, start **and** end, in today's exact shape — e.g.
+> `6AAA4AC4` `['armed:start=nominal', 'armed:end=nominal',
+> 'armed-motionredirect:start=nominal', 'armed-motionredirect:end=nominal']`.
+> Only the two **empty** runs (`3CB9E45D`, `8D724EC5`) have `thermal: null`, and
+> they have no trials to attach it to. **So thermal CAN be matched between eras
+> at cell granularity, and every cross-era row must report both sides' thermal
+> rather than treating it as an unmeasurable residual.** This correction is owed
+> upstream to the spec's §7; it is recorded here because this lane's instruction
+> was to modify `OPEN_ITEMS.md` only. **The rows this immediately changes:**
+> RT-F's amendment leans on it (`6AAA4AC4` ran entirely `nominal`, `328502AD`
+> entirely `serious`, both at ceiling), and **RT-E inherits a named confound —
+> `1835BBF9` ran start-to-finish at `serious` in both cells**, so a beta5 twin
+> run early at `nominal` is not thermally matched and the row must say so.
+
+Mitigations: archive-matched instruments run FIRST at `nominal`; cell order fixed
+and declared before the run; thermal recorded per cell **and compared against the
+archive's**; and `motion-redirect` runs **twice**, top and tail, so within-night
+drift is measured rather than assumed.
+
+> **BARS RT-A..H, PRE-REGISTERED 2026-08-14 BEFORE ANY LAUNCH.** Transcribed from
+> the design's §8. **Two carry amendments measured at pre-registration; both are
+> marked, and both correct the plan's own reading rather than inheriting it.**
+>
+> - **RT-A (Class 1a) — SPLIT: health and weather are reported as separate
+>   rows.** `read-tool` / `armed-fieldrollback`, re-scored across both eras
+>   through one classifier. Bar: report the beta4→beta5 delta **per prompt** with
+>   a two-tailed p. **NO DIRECTIONAL PREDICTION IS REGISTERED** — this is the row
+>   that measures, and pre-committing a direction would invite reading noise as
+>   confirmation.
+>
+>   **⚠️ AMENDMENT, AND IT CORRECTS THE PLAN'S OWN STATED REASON.** The plan
+>   justified the split as *"all 40 beta4 weather trials ran against a weather
+>   service that rejected this app's credentials."* **Measured against the
+>   archive at pre-registration, that is true of ONE run and FALSE of the other.**
+>   `3E53397E` (2026-08-01 00:27Z): **40/40 weather replies failure-shaped**, six
+>   of them naming the credential rejection outright (*"The service rejected the
+>   credentials"*). `6C3EBD86`, **65 minutes later**: **40/40 returned real
+>   data** (*"cloudy in Saucier, 85°F…"*). So the beta4 weather column is
+>   **bimodal across the archive, not uniformly poisoned** — 40 of 80, not 40 of
+>   40.
+>
+>   **And the split survives the correction in a SHARPER form, because the
+>   confound does not reach RT-A's own observable.** The tool-call layer is
+>   **invariant to service state**: `currentWeather` fired **10/10 in all four
+>   weather cells of both runs**, whether the service answered or not. The
+>   service state moves **text-derived** metrics only (`executed` / `fabricated` /
+>   `offered` / `cant`), while RT-A's primary metric —
+>   `metric_spurious_location`, `scripts/mac/score-eras.py:107` — reads the tool
+>   list. **So: the weather row is reported separately; its TEXT metrics are
+>   interpretable only against a declared service state and the reported row
+>   states which state it ran under; its TOOL metrics are not confounded by it.**
+>   A service-state mismatch is therefore not fatal — the archive supplies both
+>   states — but it must be declared, never assumed.
+>
+>   **The beta4 side of RT-A, measured at pre-registration so the delta has a
+>   real baseline:** spurious `currentLocation` on `weathernamed` (a prompt that
+>   NAMES its location) ran `armed` **5/20** against `armed-fieldrollback`
+>   **20/20** pooled, **p = 7.71e-07**, and it replicates independently in both
+>   runs (3/10 vs 10/10, p = 0.0031; 2/10 vs 10/10, p = 7.14e-04). **This is the
+>   beta4 column, not a prediction** — no direction is registered for beta5.
+>
+> - **RT-B (Class 1b canary).** `motion-scope`. Bar: the promoted-vs-rollback
+>   contrast **reproduces at p < 0.01**. **Failure to reproduce a p = 1.08e-05
+>   effect is itself the headline finding** and escalates immediately, pausing
+>   the sweep.
+> - **RT-C (Class 2, attended).** `routed`, n=80, cells and prompts identical to
+>   `F486F103`. Bar: publish `armed` and `routed-production` create rates beside
+>   beta4's, **each tagged cross-build**. Explicitly **not** a runtime claim.
+> - **RT-D (Class 2, attended).** `routed-scoped`, n=80, matching `5EE6ADBD`.
+>   Bar: `routed-production` appears in **both** RT-C and RT-D, so its two beta5
+>   measurements are reported **against each other** as an internal consistency
+>   check. **A gap between them bounds this campaign's own noise floor and is
+>   published whichever way it falls.**
+> - **RT-E (Class 2, attended).** `scoped-v2`, n=80, matching `1835BBF9`. Bar:
+>   report the `armed` vs `armed-scopedv2` contrast against beta4's. #214 closed
+>   this cell on a composition cost that **#215 later showed was structurally
+>   void once routing is in front** — so this row is **re-measurement, not
+>   revival, and NOTHING is promoted on it.**
+> - **RT-F (drift) — CEILING RETENTION, not a rate comparison.** `motion-redirect`
+>   start-of-night (canary #1) vs end-of-night (canary #2), both rates reported
+>   with their thermal states. A significant gap invalidates late-night rows and
+>   **that invalidation is published, not quietly dropped.**
+>
+>   **⚠️ AMENDMENT, measured at pre-registration.** In beta4 this instrument is
+>   **at ceiling and there is no headroom to compare a rate in.** `stepsdirect` →
+>   `readHealth` scored **10/10 in every cell of both archive runs** — i.e.
+>   **20/20 per cell, 40/40 pooled** — and `motiondirect` → `readMotion` likewise
+>   40/40. **The ceiling is also thermal-insensitive**: `6AAA4AC4` ran entirely
+>   at `nominal` and `328502AD` entirely at `serious`, and both scored 20/20 per
+>   cell. **So the bar is retention, not delta: canary #1 and canary #2 must both
+>   read 20/20 on `stepsdirect`/`readHealth`, and ANY drop — one trial — is
+>   reported as drift rather than compared as a rate.** A ceiling metric has no
+>   noise band to hide a real regression in, which is exactly what makes it the
+>   right canary and exactly why a rate comparison would be the wrong instrument.
+> - **RT-G (338-C).** Up to **13** production chat turns, fresh thread each,
+>   337-A's prompt shape held constant with only the time varied. Bar: **one turn
+>   that fabricates AND is corrected by the guard.** Stopping rule: stop at the
+>   first such turn — that is the bar met — or at 13 with a null. **A null at 13
+>   is reported as a null WITH THE EXPLICIT STATEMENT THAT IT BOUNDS NOTHING**
+>   (see the 2026-08-14 supersession note under **`## 338.`**, earlier in this
+>   file).
+> - **RT-H (Class 3).** Every remaining Track U instrument completes with
+>   `endedCleanly` **and a positive completion flag**, or is reported as not-run
+>   with its reason. **Absence of a failure marker is not success.**
+
+**338-C is designed here as a POWERED HUNT, not another attempt.** Attempt 1
+(2026-08-12 9:45 PM) failed for a **structural** reason, not bad luck: it was a
+single turn against an intermittent defect, and at the working estimate it had a
+~70% chance of proving nothing. The fix is power, not repetition-and-hope — at
+p ≈ 0.3, `1 − 0.7ⁿ ≥ 0.99` at **n = 13**.
+
+> **🔴 THE HONEST CAVEAT, AND IT IS LOAD-BEARING (#215).** The ~3-in-10 estimate
+> comes from 337-F's **`armed/remind`** cell, which is **ARMED, NOT ROUTED** —
+> production classifies every turn first and a turn routed toolless gets no belt
+> at all, so an unrouted cell is not a production rate. **It SIZES the attempt;
+> it does not BOUND the result.** A null at n = 13 therefore **does not establish
+> that production fabricates below any particular rate**, and the write-up will
+> say exactly that rather than implying a measured ceiling.
+
+**What this campaign will NOT claim — stated now so it cannot drift later:**
+- **No runtime verdict from a Class 2 row.** Ever, regardless of effect size.
+- **No collapsed union bars.** Each band reports its own denominator.
+- **An explicit error counter on every band**, so swallowed trials cannot read as
+  clean — `21F0C10D`'s 165/165 instrument errors scored as behaviour is the
+  standing example.
+- **No production text is edited.** #337-F-2b's reworded-blurb recommendation
+  stays Owen's separate call and is **not** folded into this campaign.
+- **No promotion on any row.** This measures; promotions are separate decisions
+  with their own bars.
+
+**Track A needs Owen's hands and does not ask for an exception.**
+`InstrumentConductor.swift:83` refuses any `writesAlarms` instrument when
+`unattended == true`, and every launch-env run is unattended by definition
+(**`Talaria/Stores/AppContainer.swift:2510`** — re-read at filing; the design doc
+cites `AppContainer.swift:2509` with no path, off by one). That is Owen's
+2026-08-11 ruling (#331) and this campaign works within it rather than asking to
+be excepted from it. His total hands-on time is ~25 minutes of the 150, in two
+contiguous blocks so it can be done in one sitting.
+
+**Known risks, none mitigated away:** 338-C's block is the schedule's soft spot
+(Track U is priority-ordered and truncatable for exactly this reason, and the
+published table names what did not run); a TCC hang **parks the night rather
+than failing it** (the runner's hard timeout detects rather than waits;
+pre-flight confirms Calendar/Reminders grants); thermal saturation flattens late
+rows; and **a scorer wrong in the SAME way on both eras cancels in the delta but
+corrupts the absolute rates** — partly mitigated by re-validating against a run
+with independently known numbers, recorded as residual. That re-validation is
+not optional: 337-G's first scorer draft read fabrication **0/10 where the truth
+was 3/10**, because the model writes `I've` with a curly apostrophe and the regex
+carried a straight one. **A counter that silently reads zero is #300's failure
+shape.**
+
+**Cross-references:** **#215** (armed ≠ routed — the rule that makes RT-G's null
+bound nothing), **#324** (beta5 SDK audit; the sim-cannot-generate and
+beta4-is-gone facts), **#337** (the defect this measures around, and the batteries
+that cannot witness the guard), **#338** (338-C — its "next attempt" guidance is
+superseded by a dated note at its own home), **#341**
+(`TALARIA_CELLS`, which makes one-cell-per-launch possible), **#333** (the runner
+and its positive completion flag), **#331** (the alarms-unattended ruling that
+shapes Track A), **#300** (the classifier that read a wrong verdict on both logs),
+**#339** (the regression-gate idea this campaign supplies a reference for).
 
 ## 342. 📋 KANBAN SUPPORT FOR THE TRACKER — **FILED 2026-08-12 on Owen's request ("add Kanban support… I'd like to investigate that tomorrow"). A READ-ONLY VIEW SHIPPED THE SAME NIGHT; the structural question is deliberately NOT decided, because it is his.**
 
