@@ -44,16 +44,63 @@ silently more confident than the spec it implements.
 **1. The beta4 weather rows ran against a BROKEN weather service.** All 40
 weather trials in `3E53397E` carry `"the weather service rejected this app's
 credentials"` on their `currentWeather` call. So RT-A's weather half is
-confounded by *service state* on top of build — if weather works tonight, those
+confounded by *service state* on top of build — ~~if weather works tonight, those
 prompts are uninterpretable cross-era; if it is still broken, they are
-accidentally matched. **Task 5 probes this before the run and RT-A is reported
+accidentally matched.~~ **Task 5 probes this before the run and RT-A is reported
 split**: health (clean) and weather (conditional, with the service state stated).
+
+> **⚠️ EXTENDED AND PARTLY SUPERSEDED 2026-08-14 (Task 4, at bar
+> pre-registration).** The scoping above — *"in `3E53397E`"* — is **correct**;
+> the generalisation this plan makes downstream of it (Task 4's brief text, its
+> commit message, and Task 6) is **not**. It is **40 of 80, not 40 of 40**:
+> `6C3EBD86`, **65 minutes after `3E53397E`**, returned **real weather data
+> 40/40**. The beta4 weather column is **bimodal across the archive, not
+> uniformly poisoned**, and the archive therefore supplies **both** service
+> states as a free natural control.
+>
+> **The struck clause is also wrong in substance, and the correction makes the
+> row stronger.** A working weather service tonight does **not** make those
+> prompts uninterpretable: `currentWeather` fired **10/10 in all four weather
+> cells of both runs** regardless of service state. **Service state moves
+> TEXT-derived metrics only** (`executed` / `fabricated` / `offered` / `cant`),
+> and **RT-A's own primary observable — `metric_spurious_location`,
+> `scripts/mac/score-eras.py:107` — reads the tool list**, so it is not
+> confounded by service state at all. The split still stands; what changes is
+> that a mismatch is **declarable rather than fatal**. Recorded upstream in the
+> spec's §8 and in `OPEN_ITEMS.md` #343 under RT-A.
 
 **2. `motion-redirect` is at ceiling in beta4 — which makes it a better drift
 canary than the spec assumed.** Both cells scored `readHealth` 10/10 on
 `stepsdirect` (20/20 pooled), and `readMotion` on `motiondirect`. A canary
 pinned at ceiling means any drop is unambiguous rather than a rate comparison.
 RT-F's bar is sharpened accordingly in Task 4.
+
+> **⚠️ EXTENDED 2026-08-14 (Task 4).** Two additions, both measured: **the
+> ceiling is thermal-insensitive** (`6AAA4AC4` ran entirely `nominal`,
+> `328502AD` entirely `serious`, both 20/20 per cell), which is what qualifies
+> it as a canary rather than a thermometer; and **"any drop is unambiguous" is
+> true of the DROP but not of its CAUSE.** A drop is two different findings:
+> **canary #1 ≠ canary #2 ⇒ within-night DRIFT** (invalidates late rows);
+> **canary #1 == canary #2, both below 20/20 ⇒ a CROSS-ERA LEVEL SHIFT** (the
+> night is internally consistent, late rows stand, and the finding escalates
+> alongside RT-B). Filing one as the other either invalidates the night wrongly
+> or buries a real beta5 result under the wrong heading.
+
+**3. Three further corrections, found in Task 4 and recorded here because this
+plan implements the doc that carried them** (2026-08-14):
+- **The spec's §7 is FALSIFIED.** *"The 07-31 archive predates the `thermal`
+  field entirely … cannot be matched, only recorded"* — **both halves false.**
+  All **seven contrastable** runs carry per-cell thermal, start and end;
+  `D1A99F3A` carries start-only for one cell; only the two empty runs are null.
+  **Thermal can be matched at cell granularity**, so every cross-era row states
+  both eras' thermal — and **RT-E inherits a named confound**, because
+  `1835BBF9` ran start-to-finish at `serious` while its beta5 twin runs early at
+  `nominal`.
+- **"Eight usable" is two definitions in one word.** *Has trials* → eight;
+  *supports a cross-era contrast* → **SEVEN**, which is the figure the bars
+  depend on. **Ten runs · eight with trials · seven contrastable.**
+- **`AppContainer.swift:2509` is `Talaria/Stores/AppContainer.swift:2510`**, and
+  the original citation omitted the path.
 
 ---
 
@@ -562,20 +609,36 @@ monotonic sequence across `OPEN_ITEMS.md` and `OPEN_ITEMS-ARCHIVE.md`.
 
 Add a `#343` entry stating: the campaign, the **impossibility of a beta4 A/B**
 (device on 24A5408d; beta4 gone from `/Applications`; sim cannot generate at
-all), the archive discovery (8 usable of 10 — `3CB9E45D`/`8D724EC5` empty,
-`D1A99F3A` has no twin cell), the three row classes, and bars **RT-A..H
+all), the archive discovery (~~8 usable of 10~~ **ten runs · eight with trials ·
+SEVEN contrastable** — `3CB9E45D`/`8D724EC5` empty,
+`D1A99F3A` has trials but no twin cell), the three row classes, and bars **RT-A..H
 verbatim from spec §8**, with these two amendments from the plan's own reading
 of the data:
 
 - **RT-A splits.** `read-tool`/health is clean; `read-tool`/weather is
-  **conditional** — all 40 beta4 weather trials ran against a weather service
-  returning `"rejected this app's credentials"`, so the weather half is
+  **conditional** — ~~all 40 beta4 weather trials ran against a weather service
+  returning `"rejected this app's credentials"`~~, so the weather half is
   interpretable only if tonight's service state matches, and the reported row
   states which state it ran under.
 - **RT-F sharpens.** `motion-redirect` scored `readHealth` **20/20** on
   `stepsdirect` in beta4 across both cells. The drift bar is therefore *ceiling
   retention*: canary #1 and canary #2 both at 20/20, and **any** drop is
-  reported as drift rather than compared as a rate.
+  reported as ~~drift~~ **a finding** rather than compared as a rate.
+
+> **⚠️ CORRECTED 2026-08-14 AS THIS TASK RAN — three of the sentences above were
+> wrong, and the entry as committed carries the corrected versions.** Recorded
+> here so the plan does not read as if it had been followed literally.
+> 1. **"8 usable of 10"** conflates two definitions. *Has trials* → eight;
+>    *supports a cross-era contrast* → **SEVEN**. Seven is what the bars need.
+> 2. **"all 40 beta4 weather trials"** is **40 of 80**: only `3E53397E`'s 40 hit
+>    the credential-rejecting service; `6C3EBD86` 65 minutes later returned real
+>    data 40/40. And the weather half is **not** interpretable-only-on-a-match —
+>    `currentWeather` fired 10/10 in all four weather cells of both runs, so
+>    service state moves TEXT metrics only, while RT-A's own observable
+>    (`metric_spurious_location`) reads the tool list and is unconfounded.
+> 3. **"any drop is reported as drift"** overreaches. A drop is drift only when
+>    **canary #1 ≠ canary #2**; equal-and-below-20/20 is a **cross-era level
+>    shift**, and calling it drift would wrongly invalidate the night's late rows.
 
 Also record, as a correction with its date: **#338's "next attempt" block
 recommends scoring 338-C via the `cardfix` battery, and that is superseded** —
@@ -761,8 +824,11 @@ means the phone is running yesterday's binary** — reinstall before continuing.
 
 - [ ] **Step 2: Probe the weather service (RT-A's conditional)**
 
-The beta4 weather rows ran against a credential-rejecting service. Record which
-state tonight runs under, from `read-tool`'s own trials:
+~~The beta4 weather rows ran against a credential-rejecting service.~~ **The beta4
+weather rows ran against BOTH service states** — `3E53397E` credential-rejected
+40/40, `6C3EBD86` returned real data 40/40, 65 minutes apart (corrected
+2026-08-14, Task 4). Record which state tonight runs under, from `read-tool`'s own
+trials, **and compare against whichever archive run matches it**:
 
 ```bash
 python3 -c "
@@ -773,8 +839,21 @@ print('weather-credential-rejected calls:', len(bad))
 " <path-to-read-tool-latest.json>
 ```
 
-Non-zero ⇒ matched with beta4, RT-A weather is interpretable. Zero ⇒ the service
-recovered, and **the weather half is reported as uninterpretable cross-era**.
+~~Non-zero ⇒ matched with beta4, RT-A weather is interpretable. Zero ⇒ the service
+recovered, and **the weather half is reported as uninterpretable cross-era**.~~
+
+> **⚠️ CORRECTED 2026-08-14 (Task 4) — NEITHER OUTCOME IS A DEAD END, and the old
+> rule would have thrown away a good row.** The archive holds **both** states, so
+> **whichever way this probe lands there is a service-matched beta4 run to
+> compare against**: non-zero ⇒ compare against **`3E53397E`**; zero ⇒ compare
+> against **`6C3EBD86`**. Record the state in the row either way.
+>
+> **And the TOOL metrics never needed the match.** `currentWeather` fired
+> **10/10 in all four weather cells of both runs** regardless of service state,
+> so RT-A's primary observable (`metric_spurious_location`) is unconfounded by
+> it; only the **text-derived** metrics (`executed` / `fabricated` / `offered` /
+> `cant`) require the service-matched comparison. **Nothing here is reported as
+> uninterpretable — it is reported with its service state stated.**
 
 - [ ] **Step 3: Run Track U with a deadline**
 

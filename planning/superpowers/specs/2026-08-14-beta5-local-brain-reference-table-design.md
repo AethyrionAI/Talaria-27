@@ -55,9 +55,20 @@ difference between a measurement and a borrowed fact.
 | `3CB9E45D` | 0 | — | — | `intent`, **empty** | — |
 | `8D724EC5` | 0 | — | — | `intent`, **empty** | — |
 
-Two of the ten carry **zero trials**. Recorded here so a future reader does not
-count ten baselines where there are eight. `D1A99F3A` has no twin cell, so it
+Two of the ten carry **zero trials**. ~~Recorded here so a future reader does not
+count ten baselines where there are eight.~~ `D1A99F3A` has no twin cell, so it
 supports no contrast and is excluded.
+
+> **⚠️ CORRECTED 2026-08-14 (#343, fix round 1) — THE STRUCK SENTENCE COMMITS THE
+> ERROR IT WARNS AGAINST.** It says "eight" directly above a table that excludes
+> three of the ten. Two definitions were in play and they give different numbers:
+> ***has trials*** → **eight**; ***supports a cross-era contrast*** → **SEVEN**.
+> **Seven is the figure the bars depend on**, so that is the operative one, and
+> the term for it is **contrastable baseline**. `D1A99F3A` is the entire
+> difference — it has trials and no twin cell, so it is counted in the eight and
+> excluded from the seven. **Ten runs · eight with trials · SEVEN contrastable.**
+> Every occurrence in `OPEN_ITEMS.md` #343 uses the seven, and this doc should be
+> read the same way.
 
 **Every one of the three attended instruments is cell-for-cell identical to its
 archive twin**, verified in source rather than assumed:
@@ -80,7 +91,10 @@ published table names what did not run.
 
 **Track A — attended.** `InstrumentConductor.swift:83` refuses any `writesAlarms`
 instrument when `unattended == true`, and every launch-env run is unattended by
-definition (`AppContainer.swift:2509`). That is Owen's 2026-08-11 ruling and this
+definition (~~`AppContainer.swift:2509`~~ → **`Talaria/Stores/AppContainer.swift:2510`**,
+corrected 2026-08-14 by re-reading the file at bar pre-registration: the call site
+`await conductor.run(… unattended: true)` is line **2510**, and the original
+citation also omitted the `Stores/` path). That is Owen's 2026-08-11 ruling and this
 campaign does not ask for an exception.
 
 Track A carries four items: `routed`, `routed-scoped` and `scoped-v2` at
@@ -165,12 +179,42 @@ Recent runs climb `nominal → fair → serious` inside ~8 minutes, and cell ord
 interacts with it — 337-F's best arm ran last at `serious`, which is precisely
 what made that result credible.
 
-**The 07-31 archive predates the `thermal` field entirely**, so thermal is
-itself part of the cross-build confound and cannot be matched, only recorded.
+~~**The 07-31 archive predates the `thermal` field entirely**, so thermal is
+itself part of the cross-build confound and cannot be matched, only recorded.~~
 
-Mitigations: archive-matched instruments run **first**, while thermal is
+> **🔴 SUPERSEDED 2026-08-14 — BOTH HALVES OF THE STRUCK SENTENCE ARE FALSE.**
+> Falsified by direct measurement of the archive JSON while pre-registering the
+> bars (#343, fix round 1): **all SEVEN contrastable archive runs carry per-cell
+> thermal, start AND end, in today's exact shape** — e.g. `6AAA4AC4`
+> `['armed:start=nominal', 'armed:end=nominal',
+> 'armed-motionredirect:start=nominal', 'armed-motionredirect:end=nominal']`.
+> `D1A99F3A` (trials, no twin cell) carries `['armed:start=nominal']` — start
+> only, one cell, because it died 13 trials in — and only the two **empty** runs
+> (`3CB9E45D`, `8D724EC5`) carry `thermal: null`, with no trials to attach it to.
+>
+> **So thermal CAN be matched between eras, at cell granularity, across every run
+> any bar actually uses.** It is not an unmeasurable residual of the cross-build
+> confound.
+>
+> **The consequence runs past the sentence itself, and this is the part worth
+> following through: the mitigations below were designed around an inability that
+> does not exist.** They remain correct as run-hygiene, but they are no longer
+> the *only* available answer — a cross-era row can now **report and compare both
+> sides' thermal** rather than merely ordering the night to hold it roughly
+> constant. **Every cross-era row must therefore state both eras' thermal.**
+>
+> **And one row inherits a named confound that this sentence had hidden:
+> `1835BBF9` ran start-to-finish at `serious` in BOTH cells** — so **RT-E**'s
+> beta5 twin, which the timeline runs early at `nominal`, is **not thermally
+> matched**, and the published row must say so rather than presenting the
+> contrast as like-for-like. Recorded in `OPEN_ITEMS.md` #343 under the thermal
+> correction and RT-E.
+
+Mitigations (still run, now as hygiene rather than as the only recourse):
+archive-matched instruments run **first**, while thermal is
 `nominal`; cell order fixed and declared before the run; thermal recorded per
-cell (already in the artifact schema); and **`motion-redirect` runs twice — once
+cell (already in the artifact schema) **and compared against the archive's**; and
+**`motion-redirect` runs twice — once
 at the top of the night and once at the end** — so within-night drift is
 measured rather than assumed. It is the canary because it is short (40 trials,
 ~2 min) and has the most beta4 replication (two archive runs).
@@ -180,11 +224,38 @@ measured rather than assumed. It is the canary because it is short (40 trials,
 Per the convention since #215, these are written before the run and a missed bar
 is a falsification, not a redefinition. They land in the OPEN_ITEMS entry.
 
+> **📌 THESE BARS WERE PRE-REGISTERED 2026-08-14 IN `OPEN_ITEMS.md` #343, AND
+> TWO OF THEM WERE AMENDED THERE BEFORE ANY LAUNCH. THE TRACKER ENTRY IS THE
+> OPERATIVE TEXT** — this section is the design that produced it, kept for the
+> reasoning. The amendments, both measured against the archive rather than
+> reasoned: **RT-A splits health from weather** (see the note under RT-A below),
+> and **RT-F becomes a ceiling-retention bar with a drift-vs-level-shift
+> discriminator** (see the note under RT-F below).
+
 - **RT-A (Class 1a).** `read-tool`/`armed-fieldrollback`, re-scored both eras
   through one classifier. Bar: report the beta4→beta5 delta per prompt with a
   two-tailed p. **No directional prediction is registered** — this is the row
   that measures, and pre-committing a direction would invite reading noise as
   confirmation.
+
+  > **⚠️ AMENDED 2026-08-14 — RT-A IS REPORTED AS TWO ROWS, health and weather.**
+  > The plan justified this as *"all 40 beta4 weather trials ran against a
+  > weather service returning `rejected this app's credentials`"*. **Measured at
+  > pre-registration, that is 40 of 80, not 40 of 40**: `3E53397E` (00:27Z) has
+  > 40/40 weather replies failure-shaped, while `6C3EBD86` **65 minutes later**
+  > has 40/40 returning real data. The beta4 weather column is **bimodal across
+  > the archive, not uniformly poisoned.**
+  >
+  > **The split survives in a sharper form, because the confound does not reach
+  > RT-A's own observable.** `currentWeather` fired **10/10 in all four weather
+  > cells of both runs** regardless of service state — so service state moves
+  > **text-derived** metrics only, while RT-A's primary metric
+  > (`metric_spurious_location`, `scripts/mac/score-eras.py:107`) reads the tool
+  > list. **Weather is reported as its own row; its TEXT metrics are
+  > interpretable only against a declared service state, which the row states;
+  > its TOOL metrics are not confounded by it.** No direction is registered — the
+  > clause above stands unchanged.
+
 - **RT-B (Class 1b canary).** `motion-scope`. Bar: the promoted-vs-rollback
   contrast reproduces at p < 0.01. **Failure to reproduce a p = 1.08e-05 effect
   is itself the headline finding** and escalates immediately, pausing the sweep.
@@ -202,9 +273,31 @@ is a falsification, not a redefinition. They land in the OPEN_ITEMS entry.
   once routing is in front — so this row is re-measurement, not revival, and
   **nothing is promoted on it**.
 - **RT-F (drift).** `motion-redirect` start-of-night vs end-of-night. Bar: the
-  two runs' rates reported with their thermal states. A significant gap
-  invalidates late-night rows and that invalidation is published, not quietly
-  dropped.
+  two runs' ~~rates~~ **counts** reported with their thermal states.
+  ~~A significant gap~~ **A gap between the two canaries** invalidates
+  late-night rows and that invalidation is published, not quietly dropped.
+
+  > **⚠️ AMENDED 2026-08-14 — CEILING RETENTION, AND A DISCRIMINATOR.**
+  > **(a) There is no rate to compare.** In beta4 this instrument is at ceiling:
+  > `stepsdirect` → `readHealth` scored **10/10 in every cell of both archive
+  > runs** (20/20 per cell, 40/40 pooled), and `motiondirect` → `readMotion`
+  > likewise 40/40 — **and the ceiling is thermal-insensitive**, since `6AAA4AC4`
+  > ran entirely at `nominal` and `328502AD` entirely at `serious` and both sat at
+  > 20/20. So the bar is **retention**: each canary must read 20/20, and **any
+  > drop — one trial — is reported rather than absorbed into a rate.** The
+  > struck *"significant gap"* wording is retired: **a significance test on a
+  > ceiling metric is the wrong instrument**, and leaving it beside the retention
+  > rule would have governed one observation with two rules.
+  >
+  > **(b) A drop is TWO different findings and the row must say which**, because
+  > filing one as the other either invalidates the night wrongly or buries a real
+  > beta5 result under the wrong heading:
+  > **canary #1 ≠ canary #2 ⇒ within-night DRIFT** (the row's purpose; this is
+  > what invalidates late rows); **canary #1 == canary #2, both below 20/20 ⇒ a
+  > CROSS-ERA LEVEL SHIFT, not drift** — the night is internally consistent, the
+  > late rows stand, and the finding escalates on its own terms alongside RT-B.
+  > **Only the first-vs-second comparison separates them, which is why this
+  > instrument runs twice.**
 - **RT-G (338-C).** Up to 13 production chat turns. Bar: one turn that
   fabricates *and* is corrected by the guard. A null at 13 is reported as a
   null **with the explicit statement that it bounds nothing**, per §5.
