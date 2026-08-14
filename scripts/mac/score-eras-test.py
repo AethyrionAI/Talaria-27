@@ -52,6 +52,12 @@ check("executed is not fabricated", se.classify(
     {"text": "I’ve set it.", "toolCalls": [{"name": "createReminder"}]})["fabricated"], 0)
 check("timeout is errored not offered", se.classify(
     {"text": "", "toolCalls": [], "timedOut": True})["errored"], 1)
+# NOTE: the check below is satisfied by a NO-OP — an empty-text timed-out trial
+# scores zero behaviour whether or not the short-circuit exists. It is kept
+# because it states the intent, but it proves nothing on its own; the checks
+# that actually exercise the branch are in the `cant` section further down,
+# added 2026-08-14 after a mutation test showed this one green against BOTH
+# the old buggy condition and a classify() with no `return` at all.
 check("errored trial scores no behaviour", sum(
     se.classify({"text": "", "toolCalls": [], "timedOut": True})[k]
     for k in ("executed", "fabricated", "offered")), 0)
@@ -103,6 +109,60 @@ check("metric is None off-family",
 tl = se.tally(mt)
 check("tally cells", sorted({k[0] for k in tl}), ["armed", "armed-motionredirect"])
 check("tally n per cell/prompt", tl[("armed", "stepsdirect")]["n"], 10)
+
+# --- `cant` is BEHAVIOUR, not instrument state (#343 final review, 2026-08-14).
+#     The app sets it by prefix-matching the MODEL'S OWN reply
+#     (LocalChatBackend+Battery.swift:318), so folding it into `errored` deleted
+#     real counts. Every check below is drawn from the cell where the deletion
+#     was worst — 1835BBF9's armed-scopedv2/haiku, which IS the archived #214
+#     composition-denial result RT-E exists to re-measure — and every one of
+#     them goes RED against the old condition. That is the property the previous
+#     "errored trial scores no behaviour" check could not have: it fed an
+#     empty-text trial, which scores zero on every counter either way, so it
+#     passed 35/35 against the bug it was supposed to guard. ---
+CANT = os.path.join(REPO, "handoffs/evidence/battery-runs/run-20260731-223158-1835BBF9.json")
+_, _, ct = se.load(CANT)
+cant_cell = [t for t in ct if t.get("shape") == "armed-scopedv2"
+             and t.get("prompt") == "haiku"]
+# The fixture's own preconditions, asserted so a future data change cannot turn
+# these checks into no-ops the way the one above became one.
+check("cant fixture cell n", len(cant_cell), 10)
+check("cant fixture is all-cant WITH real text",
+      (sum(1 for t in cant_cell if t.get("cant")),
+       sum(1 for t in cant_cell if (t.get("text") or "").strip()),
+       sum(1 for t in cant_cell if t.get("timedOut"))), (10, 10, 0))
+crows = [se.classify(t) for t in cant_cell]
+check("cant is counted", sum(r["cant"] for r in crows), 10)
+check("cant is NOT errored", sum(r["errored"] for r in crows), 0)
+check("cant trials still score behaviour: offered 7/10",
+      sum(r["offered"] for r in crows), 7)
+check("whole run: cant does not delete offers",
+      sum(se.classify(t)["offered"] for t in ct), 8)
+check("whole run: cant does not delete executions",
+      sum(se.classify(t)["executed"] for t in ct), 68)
+check("cant is non-exclusive on one trial", se.classify(
+    {"text": "I cannot write a haiku, but would you like me to look one up?",
+     "toolCalls": [], "cant": True}),
+    dict(executed=0, fabricated=0, offered=1, strict=0, j200=0, cant=1, errored=0))
+check("cant with a tool call still scores executed", se.classify(
+    {"text": "I can't do that directly.", "toolCalls": [{"name": "readHealth"}],
+     "cant": True})["executed"], 1)
+
+# --- the errored SHORT-CIRCUIT is load-bearing and must be mutation-visible.
+#     Deleting `return` from classify() passed the pre-2026-08-14 suite 35/35,
+#     because every errored fixture scored zero behaviour with or without it. A
+#     TIMED-OUT trial that nonetheless recorded a tool call discriminates: with
+#     the return it is errored-only; without it, the stray call reads as an
+#     execution of a run that never completed. ---
+check("errored short-circuit blocks a stray tool call", se.classify(
+    {"text": "", "toolCalls": [{"name": "readHealth"}], "timedOut": True}),
+    dict(executed=0, fabricated=0, offered=0, strict=0, j200=0, cant=0, errored=1))
+
+# --- the counter reaches tally() and the report table, not just classify() ---
+tc = se.tally(cant_cell)[("armed-scopedv2", "haiku")]
+check("tally carries cant", (tc["cant"], tc["errored"], tc["offered"]), (10, 0, 7))
+check("classify keys match tally counters",
+      set(se.classify({"text": "x", "toolCalls": []})) <= set(tc), True)
 
 if FAILS:
     print("FAIL"); [print("  " + f) for f in FAILS]; sys.exit(1)

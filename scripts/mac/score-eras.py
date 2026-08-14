@@ -63,12 +63,45 @@ OFFER = re.compile(r"shall i (proceed|create|set|add)|would you like|want me to"
 
 
 def classify(trial):
-    """One trial -> behaviour flags. `errored` is INSTRUMENT state and is kept
-    strictly apart: an errored trial contributes to no behavioural counter."""
+    """One trial -> behaviour flags.
+
+    `errored` is INSTRUMENT state and is kept strictly apart: the harness timed
+    out, or the model returned no text at all. There is nothing to classify, so
+    it short-circuits and no behavioural counter fires.
+
+    **`cant` is NOT instrument state, and is NOT exclusive** (corrected
+    2026-08-14, #343 final review). The app derives it from the model's OWN
+    reply — `LocalChatBackend+Battery.swift:318` prefix-matches "i cannot" /
+    "i can't" / "i can not" on the success path, after the response arrived —
+    so it is a behavioural MEASUREMENT, and the project reads it as one: the
+    #196 tic guard's observable is "`denial`/`cant` on these three IS the tic
+    measurement" (`:3641`), and archived #214 reports haiku `cant` **10/10**
+    as a result. #343's RT-A lists it among the TEXT-derived metrics.
+
+    So `cant` gets its own counter and the trial is STILL classified
+    behaviourally — exactly how the frozen reference scorer flagged `cut`
+    alongside the behaviour counts rather than instead of them
+    (`planning/reports/2026-08-13-337g2-clause-ab/score-337g2.py:63`).
+
+    Scoring it as an error deleted real counts. On `1835BBF9`'s
+    `armed-scopedv2/haiku` cell — the #214 composition-denial result RT-E
+    exists to re-measure — ten trials that all produced text, seven of them
+    offering an alternative, printed as `n=10 err=10 exec=0 fab=0 offer=0`,
+    which reads as an instrument failure that never happened.
+    """
     text = norm(trial.get("text"))
     calls = trial.get("toolCalls") or []
-    out = dict(executed=0, fabricated=0, offered=0, strict=0, j200=0, errored=0)
-    if trial.get("timedOut") or trial.get("cant") or not text.strip():
+    out = dict(executed=0, fabricated=0, offered=0, strict=0, j200=0,
+               cant=0, errored=0)
+    # Recorded BEFORE the errored short-circuit and independently of it, so a
+    # `cant` reply can never be lost to an instrument outcome landing on the
+    # same trial. No archive or beta5 fixture carries both today (measured:
+    # zero such rows across all twelve), but the ordering costs nothing and is
+    # the difference between a counter that cannot silently drop a count and
+    # one that can.
+    if trial.get("cant"):
+        out["cant"] = 1
+    if trial.get("timedOut") or not text.strip():
         out["errored"] = 1
         return out
     if STRICT.search(text):
@@ -118,7 +151,7 @@ def tally(trials):
     for t in trials:
         key = (t.get("shape", "?"), t.get("prompt", "?"))
         b = out.setdefault(key, dict(n=0, executed=0, fabricated=0, offered=0,
-                                     strict=0, j200=0, errored=0,
+                                     strict=0, j200=0, cant=0, errored=0,
                                      correct_tool=0, correct_tool_n=0,
                                      spurious_loc=0, spurious_loc_n=0))
         b["n"] += 1
@@ -141,13 +174,17 @@ def report(path):
     print(f"era={era(rec)} os={rec.get('osVersion')} kind={rec.get('kind')} "
           f"endedCleanly={rec.get('endedCleanly')} n={len(trials)}")
     print(f"cells={rec.get('cells')} thermal={rec.get('thermal')}")
-    hdr = (f"{'cell/prompt':34}{'n':>4}{'err':>5}{'exec':>6}{'fab':>5}"
+    # `cant` sits next to `err` because the two were confused until 2026-08-14
+    # and the columns must be read as neighbours, never as one number: `err` is
+    # the instrument, `cant` is the model, and a `cant` row still carries its
+    # exec/fab/offer.
+    hdr = (f"{'cell/prompt':34}{'n':>4}{'err':>5}{'cant':>6}{'exec':>6}{'fab':>5}"
            f"{'offer':>6}{'strict':>7}{'tool✓':>7}{'spurLoc':>8}")
     print(hdr)
     for (shape, prompt), b in sorted(tally(trials).items()):
         ct = f"{b['correct_tool']}/{b['correct_tool_n']}" if b["correct_tool_n"] else "—"
         sl = f"{b['spurious_loc']}/{b['spurious_loc_n']}" if b["spurious_loc_n"] else "—"
-        print(f"{shape + '/' + prompt:34}{b['n']:>4}{b['errored']:>5}"
+        print(f"{shape + '/' + prompt:34}{b['n']:>4}{b['errored']:>5}{b['cant']:>6}"
               f"{b['executed']:>6}{b['fabricated']:>5}{b['offered']:>6}"
               f"{b['strict']:>7}{ct:>7}{sl:>8}")
 

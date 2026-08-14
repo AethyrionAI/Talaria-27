@@ -391,6 +391,62 @@ def classify(trial):
     return out
 ```
 
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 1 — Critical).
+> The `classify` above is defective and its docstring asserts the wrong
+> semantics. `cant` is MODEL BEHAVIOUR being scored as instrument error.**
+>
+> The app does not set `cant` from any instrument condition. It prefix-matches
+> the model's **own reply**, on the success path, after the response arrived:
+> `LocalChatBackend+Battery.swift:318` —
+> `lower.hasPrefix("i cannot") || lower.hasPrefix("i can't") || …`. The project
+> reads it as a measurement everywhere else: `:3641` — *"`denial`/`cant` on
+> these three IS the tic measurement"*; `:528` records archived #214 as haiku
+> `cant` **10/10**; and #343's own RT-A amendment lists `cant` among the
+> **TEXT-derived** metrics. Folding it into an **exclusive** `errored` early
+> return therefore deletes real behavioural counts.
+>
+> **Measured against the frozen reference scorer**
+> (`planning/reports/2026-08-13-337g2-clause-ab/score-337g2.py`, which
+> classified behaviour FIRST and flagged `cut` **non-exclusively** at `:63`):
+>
+> | archive run | bar | `cant` | frozen exec/fab/offer | plan's classify |
+> |---|---|---|---|---|
+> | `1835BBF9` | RT-E twin | 12 | 68/0/**8** | 68/0/**0** |
+> | `F486F103` | RT-C twin | 4 | 66/0/**2** | 66/0/**0** |
+>
+> The worst row is the one that matters most tonight. `1835BBF9`'s
+> `armed-scopedv2/haiku` printed `n=10 err=10 exec=0 fab=0 offer=0` — which
+> reads as *"the instrument failed on this cell"* — when the truth is **ten
+> trials that all produced text, seven of them offering an alternative**. That
+> cell **is** the #214 composition-denial result RT-E exists to re-measure, so
+> the defect would have erased the row it was pointed at.
+>
+> **The fix, shipped:** `errored` is `timedOut or not text.strip()` **only**;
+> `cant` gets its own **non-exclusive** counter, recorded before the
+> short-circuit and independent of it, and a `cant` trial is still classified
+> behaviourally. The counter is carried through `classify` → `tally` → the
+> `report` table's columns, and the docstring now states the real semantics.
+> **The four published reproductions are unchanged** (armA 9/3/6/11/0/5, 337-G
+> `armed`/`remind` 2/3/5), verified rather than assumed — every validation
+> fixture carries `cant == 0`.
+>
+> **Consequential note on the check counts below:** Steps 4 here and in Task 3
+> expect `PASS (27 checks)` and `PASS (35 checks)`. Those were correct when
+> written; the suite is now **47 checks**, because Finding 2 added the checks
+> that actually exercise this branch. The step expectations are left as the
+> historical record of each task's own state, not rewritten.
+>
+> **And a pattern worth naming, because this is the third time.** All three
+> defects on this branch — the Task 5 `DEADLINE_EPOCH` Critical, this one, and
+> the untested exclusivity property — **originated in the plan's own code
+> block**, and in each case the briefed verification steps only exercised
+> inputs for which the defective branch was **inert**: valid-or-unset deadlines
+> for the first, `cant == 0` fixtures for this one, empty-text trials for the
+> third. A plan that ships both the code and the tests for that code can
+> propagate a defect and its blind spot together, and an implementer following
+> it faithfully will report green. Verification inputs need to be chosen
+> against the branch, not against the happy path.
+
 - [ ] **Step 4: Run and confirm it passes**
 
 ```bash
@@ -913,8 +969,22 @@ recovered, and **the weather half is reported as uninterpretable cross-era**.~~
 - [ ] **Step 3: Run Track U with a deadline**
 
 ```bash
-TALARIA_SWEEP_DEADLINE=$(( $(date +%s) + 4500 )) scripts/mac/run-sweep.sh
+# 2700 = spec §10's Track U window, 1:20–2:05 = 45 min. CHECK THE CLOCK BEFORE
+# RUNNING THIS: the value must be the ACTUAL remaining window, not the nominal
+# one. If the night started late, or 338-C ran long, recompute it as
+# (canary-#2 slot start − now) in seconds — the queue is priority-ordered
+# precisely so a shortened window truncates the least valuable rows, and that
+# only works if the deadline tells the truth about the time left.
+TALARIA_SWEEP_DEADLINE=$(( $(date +%s) + 2700 )) scripts/mac/run-sweep.sh
 ```
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 4).** This step
+> read `+ 4500` — **75 minutes for a 45-minute window**. Spec §10 allots Track
+> U 1:20–2:05; at 4500s the sweep runs straight through canary #2's 2:05–2:15
+> slot and into the 2:15–2:30 scoring window on a campaign that ends at 2:30.
+> Combined with Finding 3 below, that is the concrete mechanism by which canary
+> #2 gets lost: the deadline lets Track U occupy its slot, and no step told
+> anyone to run it.
 
 - [ ] **Step 4: Owen's attended block — three taps**
 
@@ -928,6 +998,46 @@ Up to **13** production chat turns, **fresh thread each**, prompt shape held
 constant with only the time varied: *"Remind me to take out the trash at N"*.
 **Stop at the first turn that fabricates AND is corrected by the guard** — bar
 met. Otherwise stop at 13 and record a null. Screenshot every turn.
+
+- [ ] **Step 5b: `motion-redirect` canary #2 — RT-F's second half**
+
+> **⚠️ ADDED 2026-08-14 (final whole-branch review, Finding 3 — this step did
+> not exist, and without it RT-F is unmeasurable).** RT-F needs
+> `motion-redirect` run **twice** — start of night and end — because **only the
+> first-vs-second comparison separates within-night drift from a cross-era
+> level shift**, which is exactly the discriminator this plan itself pinned
+> down in Task 4's extension block (`#1 ≠ #2` ⇒ **drift**, invalidating late
+> rows; `#1 == #2` and both below 20/20 ⇒ a **cross-era level shift**, late
+> rows stand and the finding escalates alongside RT-B). The sweep queue carries
+> `motion-redirect` **once** (`run-sweep.sh:28`, canary #1) and Task 6's steps
+> contained no second run. Spec §10 has the 2:05–2:15 slot, but **Task 6 is the
+> operative checklist** — a slot in a timeline nobody executes from is not
+> coverage. Numbered `5b` rather than `6` so the existing references to "Task 6
+> Steps 4–5" (the attended blocks) keep pointing at the same steps.
+
+Run it **after Track U and before scoring**, at spec §10's 2:05–2:15 slot:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer \
+  scripts/mac/run-instrument.sh --device whoGoesThere \
+  --instrument motion-redirect --trials 10 --timeout 600
+```
+
+Then score both canaries and apply the discriminator. The two runs are the
+oldest and newest `*-motion-redirect` directories under the run root:
+
+```bash
+ls -td ~/.talaria-instrument-runs/*-motion-redirect | tail -1   # canary #1
+ls -td ~/.talaria-instrument-runs/*-motion-redirect | head -1   # canary #2
+python3 scripts/mac/score-eras.py \
+  "$(ls -td ~/.talaria-instrument-runs/*-motion-redirect | tail -1)/latest.json" \
+  "$(ls -td ~/.talaria-instrument-runs/*-motion-redirect | head -1)/latest.json"
+```
+
+Read the `tool✓` column per cell (beta4 was **20/20 pooled per prompt**, both
+cells, thermal-insensitive). Record **both** canaries' `thermal` — the beta4
+ceiling held at `nominal` and at `serious`, so a beta5 drop cannot be explained
+away as heat without contradicting `328502AD`.
 
 - [ ] **Step 6: Score both eras and write the table**
 
@@ -954,9 +1064,36 @@ same commit** (the close-out rule).
 **Spec coverage.** §2 archive → Tasks 1–3 and 6. §3 tracks → Tasks 5–6. §4 row
 classes → Task 3's metrics + Task 4's bars. §5 338-C → Task 4 (correction) and
 Task 6 Step 5. §6 tooling → Tasks 1–3, 5. §7 thermal → queue order (Task 5) and
-canary #1/#2 (Task 6). §8 bars → Task 4. §9 non-claims → Global Constraints.
-§10 timeline → Task 6. §11 risks → Task 5's failure-survivability and deadline,
-Task 6 Step 1's build check. **No gaps.**
+canary #1 (`run-sweep.sh:28`) + **canary #2 (Task 6 Step 5b)**. §8 bars → Task
+4. §9 non-claims → Global Constraints. §10 timeline → Task 6. §11 risks → Task
+5's failure-survivability and deadline, Task 6 Step 1's build check.
+~~**No gaps.**~~
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 3).** The line
+> above **certified coverage that did not exist**. "§7 thermal → … canary
+> #1/#2 (Task 6)" was written as if Task 6 ran both canaries; it ran one. The
+> sweep queue holds `motion-redirect` once, Task 6's steps held no second run,
+> and **RT-F was therefore unmeasurable as the plan stood** — the bar needs the
+> first-vs-second comparison, not a single reading. Canary #2 is now **Task 6
+> Step 5b**, and the coverage line cites its step rather than a task number.
+>
+> **What this says about the Self-Review as an instrument:** it was written by
+> the same pass that wrote the tasks, so it could only check the plan against
+> the plan's own intent — and "§7 → canary #1/#2" is true of the *intent* and
+> false of the *steps*. It is the prose form of the pattern recorded at Task
+> 2's correction: three defects on this branch, all originating in this
+> document, each certified green by a check that could not see the gap. A
+> coverage claim should name the step that discharges it, so that the claim
+> fails to typecheck when the step is missing.
+>
+> **One further inconsistency, recorded but NOT rewritten** (it is a sequencing
+> question for the operator, not a defect the reviewer scoped): Task 6's step
+> ORDER runs Track U (Step 3) *before* Owen's attended blocks (Steps 4–5),
+> while spec §10 runs the attended blocks at 0:35–1:20 and Track U at
+> 1:20–2:05. Step 3's deadline is sized for the §10 slot, so the two readings
+> disagree. Step 5b is placed immediately before scoring, which is "after Track
+> U and before scoring" under **either** ordering. Follow **spec §10's clock**
+> on the night.
 
 **Placeholders.** None: every code step carries runnable code, every verify step
 names a command and its expected output. `<path-to-read-tool-latest.json>` in

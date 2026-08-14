@@ -68,8 +68,15 @@ for ENTRY in "${QUEUE[@]}"; do
     SKIPPED+=("$NAME"); continue
   fi
   echo "=== $(date -u +%H:%M:%SZ) launching $NAME (trials=$TRIALS)" | tee -a "$LOG"
+  # --timeout is passed EXPLICITLY. run-instrument.sh defaults to 1800s, and
+  # the deadline above is only checked BETWEEN instruments — so a hang inside
+  # one is uninterruptible by this loop, and a single parked run at the default
+  # would eat 30 of Track U's 45 minutes before control ever returned here.
+  # 600s bounds that to one instrument's worth of damage; the runner's own
+  # TIMEOUT path still fetches store snapshots for the post-mortem, so a capped
+  # run is a recorded failure rather than a silent hole.
   if "$HERE/run-instrument.sh" --device "$DEVICE" --instrument "$NAME" \
-       --trials "$TRIALS" --out "$OUT_ROOT" >>"$LOG" 2>&1; then
+       --trials "$TRIALS" --timeout 600 --out "$OUT_ROOT" >>"$LOG" 2>&1; then
     echo "    OK $NAME" | tee -a "$LOG"; OK=$((OK+1))
   else
     echo "    FAILED $NAME (continuing)" | tee -a "$LOG"; BAD=$((BAD+1))
