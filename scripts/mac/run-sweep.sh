@@ -1,0 +1,66 @@
+#!/bin/bash
+# #343 Track U sequencer. Priority-ordered: archive-matched and Class 1 rows
+# first, so a clock overrun truncates the LEAST valuable rows.
+set -uo pipefail   # NOT -e: one failed instrument must not end the sweep.
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+DEVICE="${TALARIA_DEVICE:-whoGoesThere}"
+OUT_ROOT="${TALARIA_SWEEP_OUT:-$HOME/.talaria-instrument-runs}"
+LOG="$OUT_ROOT/sweep-$(date -u +%Y%m%dT%H%M%SZ).log"
+mkdir -p "$OUT_ROOT"
+
+# PRE-FLIGHT. A sweep that starts on the wrong runtime measures nothing, and
+# finding that out at 2:15 costs the night.
+PREFLIGHT_ARTIFACT="$(ls -t "$OUT_ROOT"/*/latest.json 2>/dev/null | head -1)"
+if [[ -n "$PREFLIGHT_ARTIFACT" ]]; then
+  OSV=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('osVersion',''))" \
+        "$PREFLIGHT_ARTIFACT")
+  echo "pre-flight: most recent artifact reports osVersion=$OSV" | tee -a "$LOG"
+  case "$OSV" in
+    *24A5408d*) : ;;
+    *) echo "PRECONDITION: expected beta5 24A5408d, got '$OSV'" | tee -a "$LOG"; exit 3;;
+  esac
+fi
+
+# name:trials — ORDER IS THE PRIORITY. Canary first, then archive-matched
+# (Class 1), then everything else. Truncation takes from the bottom.
+QUEUE=(
+  "motion-redirect:10"          # canary #1 — archive 6AAA4AC4/328502AD
+  "read-tool:10"                # RT-A  — archive 3E53397E/6C3EBD86 (Class 1a)
+  "motion-scope:10"             # RT-B  — Class 1b canary
+  "card-clause:10"
+  "refusal-words:10"
+  "decline:10"
+  "shape:10"
+  "router-probe:10"
+  "intent-router-probe:10"
+  "vector-router-probe:10"
+  "toolless-index:10"
+  "capability-detection-probe:10"
+  "tokencount-preflight:3"
+  "condensation-fit:10"
+  "fm-asymmetries:10"
+  "cross-chat-recall-probe:10"
+  "router-context-probe:10"
+  "image-routing-probe:10"
+  "long-context-probe:10"
+  "honesty:10"
+  "honesty-v2:10"
+)
+DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"
+OK=0; BAD=0; SKIPPED=()
+for ENTRY in "${QUEUE[@]}"; do
+  NAME="${ENTRY%%:*}"; TRIALS="${ENTRY##*:}"
+  if [[ "$DEADLINE_EPOCH" != "0" ]] && (( $(date +%s) >= DEADLINE_EPOCH )); then
+    SKIPPED+=("$NAME"); continue
+  fi
+  echo "=== $(date -u +%H:%M:%SZ) launching $NAME (trials=$TRIALS)" | tee -a "$LOG"
+  if "$HERE/run-instrument.sh" --device "$DEVICE" --instrument "$NAME" \
+       --trials "$TRIALS" --out "$OUT_ROOT" >>"$LOG" 2>&1; then
+    echo "    OK $NAME" | tee -a "$LOG"; OK=$((OK+1))
+  else
+    echo "    FAILED $NAME (continuing)" | tee -a "$LOG"; BAD=$((BAD+1))
+  fi
+done
+echo "SWEEP COMPLETE ok=$OK failed=$BAD skipped=${SKIPPED[*]:-none}" | tee -a "$LOG"
+echo "log: $LOG"
