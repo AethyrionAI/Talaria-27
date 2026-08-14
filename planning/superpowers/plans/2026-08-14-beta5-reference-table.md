@@ -977,19 +977,85 @@ Execution, not construction. Follow spec §10's timeline.
 > Track U moves 3 → **6**, the weather probe 2 → **3**, canary #2 5b → **7**,
 > scoring 6 → **8**, write-up 7 → **9**.
 
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review round 3, Important — a
+> defect this wave INTRODUCED). Every step now reads and writes inside a
+> CAMPAIGN-ONLY output directory, `$TALARIA_CAMPAIGN_OUT`, set once in Step 1.**
+>
+> The shared run root `~/.talaria-instrument-runs/` holds months of prior runs,
+> and two of tonight's steps resolved paths across all of it. Both reproduced
+> live against the real root:
+>
+> 1. **Step 7's canary #1 lookup returned a stale stub.** `ls -td …
+>    *-motion-redirect | tail -1` takes the **oldest** match, and the root
+>    already contains `20260814T171703Z-motion-redirect` — `status: running`,
+>    **0 trials**, left behind by today's tooling work. It is what `tail -1`
+>    returns now and what it would still return tonight *after both real
+>    canaries exist*. `score-eras.py` on it prints a header and **no data
+>    rows**, so RT-F's discriminator silently becomes inapplicable at 2am — on
+>    the one step that exists to make RT-F measurable.
+> 2. **Step 8's glob would have scored YESTERDAY'S DATA into tonight's table.**
+>    `~/.talaria-instrument-runs/2026081[45]*/latest.json` matches
+>    `20260814T001959Z-card-clause` — **150 trials from last night** — plus the
+>    stub. **This is the more dangerous of the two**, because it corrupts the
+>    result silently instead of producing a visibly empty table, and **an era
+>    check cannot catch it**: that run is also on `24A5408d`, so it reads as
+>    legitimate beta5 data.
+>
+> **Fixed at the root cause, not with `head -1`.** A `head -1`/`tail -1` swap
+> would have patched symptom (1) and left (2) untouched; the shared root is the
+> actual fault. An isolated campaign directory fixes both at once, and a third
+> thing besides: **the sweep's own pre-flight stops being vacuous.** It reads
+> the most recent artifact under its out-root, which in the shared root is
+> currently that 0-trial stub — a runtime gate passing on a stub is not a gate.
+> Under the corrected order Step 2 populates the campaign directory first, so by
+> Step 6 the pre-flight checks a real artifact from **tonight**.
+>
+> **`scripts/mac/run-sweep.sh` needed no change** — it already honours
+> `TALARIA_SWEEP_OUT`, and `run-instrument.sh` already honours `--out`. Verified
+> that the pre-flight **skips cleanly against a fresh, non-existent campaign
+> directory** (the `[[ -n "$PREFLIGHT_ARTIFACT" ]]` guard; `mkdir -p` creates
+> the directory, the sweep proceeds, no `PRECONDITION`) and **fires correctly**
+> once a beta5 artifact is present.
+
 - [ ] **Step 1: Deploy and confirm the runtime** *(spec §10: 0:00–0:20)*
+
+**First, set the campaign directory. Every later step depends on it** — keep
+this shell, or re-export both lines in any new one:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
+export TALARIA_CAMPAIGN_OUT="$HOME/.talaria-instrument-runs/343-campaign"
+mkdir -p "$TALARIA_CAMPAIGN_OUT"
+# Must be EMPTY at the start of the night. If it is not, this is a re-run —
+# move the old contents aside rather than mixing two nights in one directory.
+ls -A "$TALARIA_CAMPAIGN_OUT" && echo "NOT EMPTY — resolve before continuing"
+```
+
+`$HOME`, not `~`: a tilde does not expand inside the quotes these paths are
+passed in.
 
 Install `main` via the Xcode bridge (`RunProject`, tabIdentifier `windowtab1`)
 on **whoGoesThere**. Then launch one cheap instrument and read its artifact:
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer \
-  scripts/mac/run-instrument.sh --device whoGoesThere --instrument tokencount-preflight --trials 3
+scripts/mac/run-instrument.sh --device whoGoesThere \
+  --instrument tokencount-preflight --trials 3 --out "$TALARIA_CAMPAIGN_OUT"
 ```
 
 Confirm from the artifact: `osVersion` contains `24A5408d`, `buildSha` matches
 `git rev-parse --short HEAD`, `status` is `completed`. **A `buildSha` mismatch
 means the phone is running yesterday's binary** — reinstall before continuing.
+
+```bash
+python3 -c "
+import json,sys;d=json.load(open(sys.argv[1]))
+r=d.get('runRecord') or d
+print('osVersion:', d.get('osVersion') or r.get('osVersion'))
+print('buildSha :', d.get('buildSha'), ' status:', d.get('status'),
+      ' trials:', len(r.get('trials') or []))
+" "$(ls -td "$TALARIA_CAMPAIGN_OUT"/*-tokencount-preflight | head -1)/latest.json"
+git rev-parse --short HEAD
+```
 
 - [ ] **Step 2: Canary #1 and the archive-matched Class 1 rows, at `nominal`** *(spec §10: 0:20–0:35)*
 
@@ -1000,10 +1066,10 @@ sweep, so the highest-value rows are already banked before any attended block
 can overrun:
 
 ```bash
-export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
 for I in motion-redirect read-tool motion-scope; do
   scripts/mac/run-instrument.sh --device whoGoesThere --instrument "$I" \
-    --trials 10 --timeout 600 || echo "FAILED $I — record and continue"
+    --trials 10 --timeout 600 --out "$TALARIA_CAMPAIGN_OUT" \
+    || echo "FAILED $I — record and continue"
 done
 ```
 
@@ -1026,13 +1092,24 @@ weather rows ran against BOTH service states** — `3E53397E` credential-rejecte
 trials, **and compare against whichever archive run matches it**:
 
 ```bash
+# Resolved, not hand-filled: the NEWEST read-tool run inside the campaign
+# directory — which at this point is Step 2's, and cannot be an older run from
+# another night because the directory contains only tonight's work.
+READ_TOOL="$(ls -td "$TALARIA_CAMPAIGN_OUT"/*-read-tool | head -1)/latest.json"
+echo "probing: $READ_TOOL"
 python3 -c "
 import json,sys
 _,_,t=(lambda d:(d,d.get('runRecord') or d,(d.get('runRecord') or d).get('trials') or []))(json.load(open(sys.argv[1])))
+print('trials:', len(t))   # 0 trials means Step 2's read-tool did not complete
 bad=[c for x in t for c in (x.get('toolCalls') or []) if 'rejected this app' in str(c.get('result',''))]
 print('weather-credential-rejected calls:', len(bad))
-" <path-to-read-tool-latest.json>
+" "$READ_TOOL"
 ```
+
+**Read `trials:` before `weather-credential-rejected calls:`.** Zero trials
+means Step 2's `read-tool` did not complete, and a `0` on the second line then
+means *nothing was measured*, not *the service recovered* — the two look
+identical otherwise.
 
 ~~Non-zero ⇒ matched with beta4, RT-A weather is interpretable. Zero ⇒ the service
 recovered, and **the weather half is reported as uninterpretable cross-era**.~~
@@ -1055,6 +1132,11 @@ recovered, and **the weather half is reported as uninterpretable cross-era**.~~
 Developer screen, in order, each `--trials 10`: **`routed`**, **`routed-scoped`**,
 **`scoped-v2`**. Confirm Reminders/Calendar are granted first. Each writes real
 artifacts and reaps them per trial.
+
+These three are launched from the Developer screen rather than through
+`run-instrument.sh`, so their artifacts are **device-side** and are fetched at
+Step 8. **Fetch them into `$TALARIA_CAMPAIGN_OUT`** so the campaign's evidence
+stays one self-contained set.
 
 > **⚠️ NAMED CONFOUND — RT-E's arms are NOT thermally matched, and cannot be.**
 > `scoped-v2`'s beta4 twin is `1835BBF9`, which ran **start-to-finish at
@@ -1087,6 +1169,12 @@ met. Otherwise stop at 13 and record a null. Screenshot every turn.
 # is priority-ordered precisely so a shortened window truncates the least
 # valuable rows, and that only works if the deadline tells the truth about the
 # time left.
+#
+# TALARIA_SWEEP_OUT keeps the sweep inside the campaign directory. It also makes
+# the sweep's own pre-flight meaningful: it reads the most recent artifact under
+# its out-root, which here is Step 2's work from TONIGHT, rather than whatever
+# happens to be newest in the shared run root.
+TALARIA_SWEEP_OUT="$TALARIA_CAMPAIGN_OUT" \
 TALARIA_SWEEP_DEADLINE=$(( $(date +%s) + 2700 )) scripts/mac/run-sweep.sh
 ```
 
@@ -1143,37 +1231,83 @@ the `skipped=` list names every truncated row so the loss is never silent.
 Run it **after Track U and before scoring**, at spec §10's 2:05–2:15 slot:
 
 ```bash
-DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer \
-  scripts/mac/run-instrument.sh --device whoGoesThere \
-  --instrument motion-redirect --trials 10 --timeout 600
+scripts/mac/run-instrument.sh --device whoGoesThere \
+  --instrument motion-redirect --trials 10 --timeout 600 \
+  --out "$TALARIA_CAMPAIGN_OUT"
 ```
 
-Then score both canaries and apply the discriminator. The two runs are the
-oldest and newest `*-motion-redirect` directories under the run root:
+Then score both canaries and apply the discriminator. **Resolution is scoped to
+the campaign directory, which contains only tonight's runs** — so the oldest
+`*-motion-redirect` in it is Step 2's canary #1 and cannot be a leftover from
+another night. **Assert the count before trusting either path**, because a
+resolution that silently picks the wrong run is exactly what this step used to
+do:
 
 ```bash
-ls -td ~/.talaria-instrument-runs/*-motion-redirect | tail -1   # canary #1
-ls -td ~/.talaria-instrument-runs/*-motion-redirect | head -1   # canary #2
-python3 scripts/mac/score-eras.py \
-  "$(ls -td ~/.talaria-instrument-runs/*-motion-redirect | tail -1)/latest.json" \
-  "$(ls -td ~/.talaria-instrument-runs/*-motion-redirect | head -1)/latest.json"
+# No arrays: macOS ships bash 3.2, where `mapfile` does not exist and negative
+# subscripts are a syntax error. `ls -tdr` is oldest-first, so head/tail give
+# the two endpoints directly.
+ls -td "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | wc -l   # EXPECT 3
+CANARY1="$(ls -tdr "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | head -1)"
+CANARY2="$(ls -tdr "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | tail -1)"
+echo "canary #1: $CANARY1"
+echo "canary #2: $CANARY2"
+[ "$CANARY1" != "$CANARY2" ] || echo "SAME RUN — only one canary exists, RT-F is NOT RUN"
+python3 scripts/mac/score-eras.py "$CANARY1/latest.json" "$CANARY2/latest.json"
 ```
+
+**Expect 3** under the corrected order — Step 2's canary #1, the sweep's
+mid-night re-run (Step 6), and this one. Any other count means a step did not
+run; find out which before reading a drift verdict off it. The middle run(s)
+are the extra points noted in Step 6: use them to locate *when* a drift began,
+never as a substitute for either endpoint.
+
+**If a canary table prints a header with no data rows, that run has `n=0` and
+is NOT a canary reading — it is a failed run.** Do not report RT-F from it.
+The check is the `n=` figure on the `era=` line: `--trials` is per cell ×
+prompt, and `motion-redirect` is 2 cells × 2 prompts, so a complete canary at
+`--trials 10` is **`n=40`** — the same shape as the beta4 twins `6AAA4AC4` and
+`328502AD`. If canary #2 comes back empty, **re-run it** — the 2:05–2:15 slot
+has room for one retry — and if it fails twice, record RT-F as **NOT RUN**.
+That is an honest outcome; an inapplicable discriminator reported as "no drift"
+is not.
 
 Read the `tool✓` column per cell (beta4 was **20/20 pooled per prompt**, both
 cells, thermal-insensitive). Record **both** canaries' `thermal` — the beta4
 ceiling held at `nominal` and at `serious`, so a beta5 drop cannot be explained
-away as heat without contradicting `328502AD`.
+away as heat without contradicting `328502AD`. The mid-sweep run is the third
+point noted in Step 6; use it to locate *when* a drift began, never as a
+substitute for either endpoint.
 
 - [ ] **Step 8: Score both eras and write the table** *(spec §10: 2:15–2:30)*
 
 ```bash
 python3 scripts/mac/score-eras-test.py    # re-validate BEFORE scoring new data
 python3 scripts/mac/score-eras.py handoffs/evidence/battery-runs/*.json > /tmp/beta4.txt
-python3 scripts/mac/score-eras.py ~/.talaria-instrument-runs/2026081[45]*/latest.json > /tmp/beta5.txt
+# Scoped to the campaign directory. The old form globbed the SHARED run root by
+# date (`~/.talaria-instrument-runs/2026081[45]*/latest.json`) and would have
+# pulled in last night's 150-trial card-clause run — which is also on 24A5408d,
+# so no era check could have caught it.
+python3 scripts/mac/score-eras.py "$TALARIA_CAMPAIGN_OUT"/*/latest.json > /tmp/beta5.txt
 ```
 
+**Before reading the table, check what went into it.** Every path must sit
+under the campaign directory and every run must carry trials:
+
+```bash
+ls -d "$TALARIA_CAMPAIGN_OUT"/*/ | wc -l          # runs in the campaign set
+grep -c "^=== " /tmp/beta5.txt                     # runs the scorer actually read
+grep -n "n=0" /tmp/beta5.txt || echo "no empty runs — good"
+```
+
+A run reported `n=0` contributed a header and no data; exclude it explicitly in
+the write-up rather than letting it read as a cell with nothing in it.
+
 Copy artifacts, console logs and both tables into
-`planning/reports/2026-08-14-343-beta5-reference-table/`.
+`planning/reports/2026-08-14-343-beta5-reference-table/`. Because the campaign
+directory holds **only** tonight's runs, `cp -R "$TALARIA_CAMPAIGN_OUT"/*` is
+the whole evidence set — no selection step, and nothing from another night can
+ride along.
 
 - [ ] **Step 9: Write up against the bars and commit**
 
