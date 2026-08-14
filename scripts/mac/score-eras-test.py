@@ -158,6 +158,41 @@ check("errored short-circuit blocks a stray tool call", se.classify(
     {"text": "", "toolCalls": [{"name": "readHealth"}], "timedOut": True}),
     dict(executed=0, fabricated=0, offered=0, strict=0, j200=0, cant=0, errored=1))
 
+# --- `errored` means NO OBSERVABLE OUTPUT AT ALL, and TOOL CALLS ARE OUTPUT
+#     (#343 final review round 2). The condition was `timedOut or not
+#     text.strip()`, which discarded a real execution on RT-A — the Class 1a row
+#     the campaign leans on hardest. The fixture below is that exact trial, and
+#     it exists identically in BOTH archive weather runs, under both weather
+#     service states, so it is not an artefact of one run. Asserted from the raw
+#     JSON rather than trusted: empty text, two real tool calls, neither
+#     timedOut nor cant. ---
+for _p, _lbl in ((ARCHIVE, "3E53397E"),
+                 (os.path.join(REPO, "handoffs/evidence/battery-runs/"
+                                     "run-20260801-013219-6C3EBD86.json"), "6C3EBD86")):
+    _, _, _tt = se.load(_p)
+    _t7 = [t for t in _tt if t.get("shape") == "armed-fieldrollback"
+           and t.get("prompt") == "healthbare" and t.get("trial") == 7]
+    check(f"{_lbl} t7 is the empty-text/tool-calling shape", (
+        len(_t7),
+        (_t7[0].get("text") or "").strip(),
+        sorted(c.get("name") for c in (_t7[0].get("toolCalls") or [])),
+        bool(_t7[0].get("timedOut")), bool(_t7[0].get("cant"))),
+        (1, "", ["readHealth", "readMotion"], False, False))
+    check(f"{_lbl} t7 executed, not errored", se.classify(_t7[0]),
+          dict(executed=1, fabricated=0, offered=0, strict=0, j200=0,
+               cant=0, errored=0))
+
+# Whole-run totals, which are what a bar would actually read. Both runs now
+# agree with the frozen reference scorer's 80 executions instead of 79.
+for _p, _lbl in ((ARCHIVE, "3E53397E"),
+                 (os.path.join(REPO, "handoffs/evidence/battery-runs/"
+                                     "run-20260801-013219-6C3EBD86.json"), "6C3EBD86")):
+    _, _, _tt = se.load(_p)
+    check(f"{_lbl} whole-run executed 80/80",
+          sum(se.classify(t)["executed"] for t in _tt), 80)
+    check(f"{_lbl} whole-run errored 0",
+          sum(se.classify(t)["errored"] for t in _tt), 0)
+
 # --- the counter reaches tally() and the report table, not just classify() ---
 tc = se.tally(cant_cell)[("armed-scopedv2", "haiku")]
 check("tally carries cant", (tc["cant"], tc["errored"], tc["offered"]), (10, 0, 7))

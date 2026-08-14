@@ -65,9 +65,22 @@ OFFER = re.compile(r"shall i (proceed|create|set|add)|would you like|want me to"
 def classify(trial):
     """One trial -> behaviour flags.
 
-    `errored` is INSTRUMENT state and is kept strictly apart: the harness timed
-    out, or the model returned no text at all. There is nothing to classify, so
-    it short-circuits and no behavioural counter fires.
+    **`errored` means the trial produced NO OBSERVABLE OUTPUT AT ALL** — the
+    harness timed out, or the model returned neither text nor a tool call.
+    There is nothing to classify, so it short-circuits and no behavioural
+    counter fires.
+
+    **Tool calls are observable output** (corrected 2026-08-14, second round).
+    The condition was `timedOut or not text.strip()`, which discarded a real
+    execution on RT-A — the Class 1a row this campaign leans on hardest:
+    `armed-fieldrollback/healthbare` trial 7, in **both** `3E53397E` and
+    `6C3EBD86`, called `readMotion` **and** `readHealth` with `timedOut:false`,
+    `cant:false` and empty text. A trial that demonstrably called two tools
+    executed. The frozen reference scorer credits it (`score-337g2.py:56` tests
+    `if calls:` before it ever looks at the text) and flags its emptiness
+    non-exclusively; ours called it an instrument failure. `timedOut` still
+    short-circuits unconditionally: a run the harness had to kill did not
+    complete, whatever it managed to emit on the way.
 
     **`cant` is NOT instrument state, and is NOT exclusive** (corrected
     2026-08-14, #343 final review). The app derives it from the model's OWN
@@ -101,7 +114,7 @@ def classify(trial):
     # one that can.
     if trial.get("cant"):
         out["cant"] = 1
-    if trial.get("timedOut") or not text.strip():
+    if trial.get("timedOut") or (not text.strip() and not calls):
         out["errored"] = 1
         return out
     if STRICT.search(text):
