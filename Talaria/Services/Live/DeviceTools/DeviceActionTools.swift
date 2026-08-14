@@ -45,6 +45,27 @@ enum DeviceActionClauses {
     static let armedBlurbCardSentence =
         " Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
 
+    /// #337-F-2b — the REPLACEMENT under measurement, not a promotion.
+    ///
+    /// 337-F-2 established that `armedBlurbCardSentence` alone is sufficient
+    /// for both the UI impersonation (0/90 imitations in every blurb-removed
+    /// cell vs 8/60 control) and the missing tool calls (90/90 vs 48/60). But
+    /// deleting it deletes the DECLINE guidance with it, and the three-create
+    /// prompt set never exercises that path — 30/30 of the isolating arm's
+    /// calls were made, so no trial there was ever declined.
+    ///
+    /// This keeps the decline instruction and drops the vocabulary. **It loses
+    /// the word "confirmation" outright rather than only "card", because BOTH
+    /// observed specimens are seeded by it** — `"**Confirmation card:**"`
+    /// (#337-A, production) and `"Here's the confirmation…"` (run `A7AB9960`).
+    /// A replacement that kept "confirmation" would leave half the seed in
+    /// place and make a null uninterpretable.
+    ///
+    /// **Production still ships `armedBlurbCardSentence`.** This string is
+    /// reachable only from the `blurb-reworded` arm.
+    static let armedBlurbCardSentenceReworded337F2 =
+        " Every action tool asks the user to approve it before anything changes; if they decline, accept that gracefully."
+
     /// Removes whichever of the two clause forms is present, and NOTHING else.
     /// A description with neither comes back unchanged — which is a fact the
     /// caller is expected to check rather than assume away.

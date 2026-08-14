@@ -147,6 +147,63 @@ struct CardClauseManipulationTests {
         }
     }
 
+    /// **337-F-2b — the REWORDED arm.** 337-F-2 proved the blurb sentence alone
+    /// is sufficient for both the impersonation and the missing tool calls, but
+    /// DELETING it also deletes decline guidance the three-create prompt set
+    /// never exercises. This arm replaces rather than removes: the decline
+    /// instruction survives, the card vocabulary does not.
+    ///
+    /// The replacement must lose the word "confirmation" outright, not just
+    /// "card" — BOTH observed specimens are seeded by it (`Confirmation card:`
+    /// and `Here's the confirmation`), so a rewording that kept "confirmation"
+    /// would leave half the seed in place and a null would mean nothing.
+    @Test func theRewordedSentenceKeepsDeclineGuidanceAndDropsTheCardVocabulary() {
+        let reworded = DeviceActionClauses.armedBlurbCardSentenceReworded337F2
+        #expect(LocalChatBackend.confirmationCardImitation(in: reworded) == nil,
+                "the replacement still carries an imitation shape: \(reworded)")
+        #expect(!reworded.lowercased().contains("confirmation"),
+                "the replacement still seeds the word 'confirmation': \(reworded)")
+        #expect(!reworded.lowercased().contains("card"),
+                "the replacement still seeds the word 'card': \(reworded)")
+        #expect(reworded.lowercased().contains("decline"),
+                "the replacement dropped the decline guidance it exists to keep")
+    }
+
+    /// The reworded arm SUBSTITUTES: production's sentence gone, the
+    /// replacement present, descriptions untouched. A `removed`-only signal
+    /// cannot tell this arm from the blurb-only arm, so the presence of the
+    /// replacement is asserted directly.
+    @MainActor
+    @Test func theRewordedArmSubstitutesAndLeavesTheDescriptionsAlone() {
+        let instructions = LocalChatBackend.instructionsText(
+            deviceContext: "test", hasTools: true, hasImageTools: false)
+        let (text, changed) = LocalChatBackend.cardClauseInstructions(
+            instructions, arm: .blurbReworded)
+        #expect(changed, "the reworded arm changed nothing")
+        #expect(!text.contains(DeviceActionClauses.armedBlurbCardSentence),
+                "production's sentence survived the substitution")
+        #expect(text.contains(DeviceActionClauses.armedBlurbCardSentenceReworded337F2),
+                "the replacement is not in the instructions")
+        // NOT `confirmationCardImitation(in: text) == nil`. That assertion was
+        // written first and failed — correctly. The promoted
+        // `cardNarrationClause` (#200J/#200K) is held CONSTANT in every arm and
+        // itself contains the words "confirmation card"; removing it would
+        // confound this manipulation with rolling back a promotion. **No arm
+        // here is a zero-exposure arm**, by design, and a test demanding zero
+        // exposure would have forced the wrong change to the instrument.
+        #expect(text.contains("never write the card out"),
+                "the promoted countermeasure must survive in the reworded arm")
+
+        let relay = ToolEventRelay()
+        let confirmations = ToolConfirmationCenter()
+        let belt: [any Tool] = [ReminderCreateTool(relay: relay, confirmations: confirmations)]
+        let (untouched, swapped) = LocalChatBackend.cardClauseBelt(
+            from: belt, arm: .blurbReworded)
+        #expect(swapped == 0, "the reworded arm must not touch the descriptions")
+        #expect((untouched.first as? ReminderCreateTool)?.description
+                == ReminderCreateTool.productionDescription)
+    }
+
     /// Arm C must keep moving BOTH strings — the new arm is an addition, not a
     /// re-pointing of the old one.
     @MainActor
@@ -203,9 +260,10 @@ struct CardClauseRegistryTests {
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
 
-    @Test func theABHasFourNamedArmsWithTheIsolatingOneLast() {
+    @Test func theABHasFiveNamedArmsWithTheRewordedOneLast() {
         #expect(LocalChatBackend.CardClauseArm.allCases.map(\.rawValue)
-                == ["control", "tools-stripped", "tools-blurb-stripped", "blurb-stripped"])
+                == ["control", "tools-stripped", "tools-blurb-stripped",
+                    "blurb-stripped", "blurb-reworded"])
     }
 }
 

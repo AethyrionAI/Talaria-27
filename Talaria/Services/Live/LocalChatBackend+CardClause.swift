@@ -71,6 +71,18 @@ extension LocalChatBackend {
         /// be uninterpretable** and would need a reversed-order re-run, not a
         /// conclusion.
         case blurbStripped = "blurb-stripped"
+        /// **337-F-2b — the REWORDED arm, added 2026-08-13 on Owen's go after
+        /// the isolating arm came back clean.** The blurb sentence REPLACED
+        /// rather than removed: decline guidance kept, card vocabulary gone,
+        /// descriptions untouched. This is the arm that would justify a
+        /// production text change, because `blurb-stripped` buys its 0/30 by
+        /// deleting an instruction whose decline half this prompt set never
+        /// exercises (30/30 of its calls were made, so nothing was declined).
+        ///
+        /// Position LAST, for the same reason `blurbStripped` is: the worst
+        /// slot makes a positive conservative, and a null here would need a
+        /// reversed-order re-run rather than a conclusion.
+        case blurbReworded = "blurb-reworded"
     }
 
     /// The belt each arm registers: identity for the control, and for the
@@ -88,7 +100,7 @@ extension LocalChatBackend {
         // Enumerated rather than negated so a future arm has to state its
         // intent here instead of inheriting one.
         switch arm {
-        case .control, .blurbStripped: return (tools, 0)
+        case .control, .blurbStripped, .blurbReworded: return (tools, 0)
         case .toolsStripped, .toolsAndBlurbStripped: break
         }
         var swapped = 0
@@ -121,9 +133,21 @@ extension LocalChatBackend {
                                                    arm: CardClauseArm) -> (text: String, removed: Bool) {
         // #337-F-2: two arms remove the blurb now — arm C (with the
         // descriptions) and the isolating arm (without them).
+        // #337-F-2b: the reworded arm SUBSTITUTES rather than removes — the
+        // decline guidance survives, the card vocabulary does not. Handled
+        // first because its replacement is not the empty string.
+        if arm == .blurbReworded {
+            let text = instructions.replacingOccurrences(
+                of: DeviceActionClauses.armedBlurbCardSentence,
+                with: DeviceActionClauses.armedBlurbCardSentenceReworded337F2)
+            return (text, text != instructions)
+        }
+        // #337-F-2: two arms remove the blurb — arm C (with the descriptions)
+        // and the isolating arm (without them).
         switch arm {
         case .control, .toolsStripped: return (instructions, false)
         case .toolsAndBlurbStripped, .blurbStripped: break
+        case .blurbReworded: break  // handled above
         }
         let stripped = instructions.replacingOccurrences(
             of: DeviceActionClauses.armedBlurbCardSentence, with: "")
@@ -240,6 +264,15 @@ extension LocalChatBackend {
                     "instructionsChars": Double(instructions.count),
                     "cardPhraseInInstructions":
                         Self.confirmationCardImitation(in: instructions) == nil ? 0 : 1,
+                    // #337-F-2b: `blurbRemoved` alone cannot tell the REWORDED
+                    // arm from the blurb-only arm — both report the original
+                    // sentence gone. This MEASURES the replacement's presence
+                    // in the text actually passed, rather than inferring it
+                    // from the arm's name, so a substitution that silently
+                    // failed to apply cannot read as a clean null.
+                    "rewordedSentencePresent":
+                        instructions.contains(
+                            DeviceActionClauses.armedBlurbCardSentenceReworded337F2) ? 1 : 0,
                 ],
                 notes: [
                     "expectedSwaps": arm == .control ? "0 (control)" : "3 action tools",
@@ -249,7 +282,7 @@ extension LocalChatBackend {
                     // exposure.
                     "residualExposure": "the promoted card-narration clause is held constant in all arms",
                 ])
-            Self.batteryEmit("battery: ARM \(arm.rawValue) swapped=\(swapped) blurbRemoved=\(blurbRemoved) (#337-F)")
+            Self.batteryEmit("battery: ARM \(arm.rawValue) swapped=\(swapped) blurbRemoved=\(blurbRemoved) reworded=\(instructions.contains(DeviceActionClauses.armedBlurbCardSentenceReworded337F2)) (#337-F)")
 
             var attempted = 0
             var armedImitations = 0

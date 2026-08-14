@@ -10192,6 +10192,55 @@ denominators differ (those runs executed; these do not).
 >   - **Recommend: measure the reworded variant as a fifth arm before changing
 >     production**, since the instrument now exists and a run costs six minutes.
 >
+>   **⚙️ 337-F-2b BUILT 2026-08-13 ON OWEN'S GO ("run the fifth arm with the
+>   reworded sentence"). BARS PRE-REGISTERED HERE BEFORE THE RUN.**
+>
+>   **The arm:** `blurb-reworded` — production's sentence REPLACED, not removed:
+>
+>   > was: *" Every action tool shows the user a confirmation card first; if they
+>   > decline, accept it gracefully."*
+>   > now: *" Every action tool asks the user to approve it before anything
+>   > changes; if they decline, accept that gracefully."*
+>
+>   **It loses the word "confirmation" outright, not just "card"** — both observed
+>   specimens are seeded by it (`Confirmation card:` from #337-A, and
+>   `Here's the confirmation…` from run `A7AB9960`), so keeping "confirmation"
+>   would leave half the seed in place and make a null uninterpretable.
+>   Descriptions untouched. Position LAST of five, same conservative reasoning as
+>   the isolating arm.
+>
+>   **Why this arm exists rather than shipping the deletion:** `blurb-stripped`
+>   buys its 0/30 by deleting an instruction whose DECLINE half this prompt set
+>   never exercises — 30/30 of that arm's calls were made, so no trial in it was
+>   ever declined. Deleting outright trades a measured win for an unmeasured
+>   risk on the #199 decline-attribution path.
+>
+>   **BARS:**
+>   - **F-2b-a (the manipulation must be REAL, and it needs a NEW metric):**
+>     `descriptionsSwapped = 0`, `blurbRemoved = 1`, **and
+>     `rewordedSentencePresent = 1`.** The third is new because `blurbRemoved`
+>     alone cannot tell this arm from `blurb-stripped` — both report the original
+>     gone. It MEASURES the replacement in the text actually passed rather than
+>     inferring it from the arm's name.
+>   - **F-2b-b (imitation):** ≤ 1/30, i.e. the reworded arm must land with
+>     `blurb-stripped` (0/30) and not with the control (4/30 twice).
+>   - **F-2b-c (behaviour):** tool calls ≥ 28/30, matching `blurb-stripped`'s
+>     30/30. **The split verdict is again the outcome that kills it** — prose
+>     quiet, calls not restored, would be worse than today.
+>   - **F-2b-d (the replication check):** the four prior arms re-run in their
+>     original positions and must land within noise of two runs of history.
+>   - **WHAT A PASS LICENSES, precisely:** a recommendation that production adopt
+>     the reworded sentence — **not** the deletion. **What it still does NOT
+>     measure: the decline path itself.** No trial in any 0-imitation arm has yet
+>     been declined, so "the decline guidance still works" remains an argument
+>     from the text surviving, not a measurement. **Naming that gap here so no
+>     one reads a pass as more than it is.**
+>   - **A FAILURE HERE IS INFORMATIVE, not a dead end:** if the reworded arm
+>     lands with the control, the effect is not the card vocabulary but the
+>     SENTENCE — i.e. telling the model an approval step exists at all is what
+>     suppresses the call — and that is a different and more interesting finding
+>     than the one being tested.
+>
 >   **(5) 🔑 AND THIS INSTRUMENT IS FREE OF THE LEAK — it calls
 >   `toolRelay?.beginTurn()` before every trial (`+CardClause.swift:239`), which
 >   is what production does and what no #200-series battery has ever done.**
