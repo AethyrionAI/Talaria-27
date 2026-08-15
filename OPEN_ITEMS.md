@@ -14168,6 +14168,17 @@ the next reader does not re-check it.
 > entry before any code, watched-RED where the fixture permits, and PR #304
 > stays parked DO NOT MERGE as the measurement record (its `/tmp/gate-282/`
 > logs preserved per the consolidated index §8).
+>
+> **→ ✅ PR #304 CLOSED WITHOUT MERGING 2026-08-15 on Owen's instruction.** The
+> ranking replacement had already shipped (`7eeeec5`, merged `78f1a45`, bars
+> 282R-A..F all MET), so the parked PR was the last thing on the board still
+> reading as owed work when nothing was owed — the decision it was waiting on
+> had been made the day after it opened. Closed with a comment recording the
+> supersession, the replacement commits, and **282-B's failure as the finding
+> that produced the ranking design**. Nothing is lost: the measurement lives in
+> this entry and GitHub retains a closed PR's diff. The branch
+> `claude/t27-282-claim-demand-scope` is deliberately KEPT — it is the
+> measurement record's own tree.
 
 **BARS — RE-PRE-REGISTERED 2026-08-11 for the RANKING lane, before any code,
 per the resumed-lane discipline in the ruling above.** The 282-A..E bars
