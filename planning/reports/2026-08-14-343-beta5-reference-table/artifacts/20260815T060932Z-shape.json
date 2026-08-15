@@ -1,0 +1,1923 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:13:44Z",
+  "instrument" : "shape",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "toolless-lic",
+      "toolless-lic2",
+      "armed-routed"
+    ],
+    "endedCleanly" : true,
+    "id" : "83AB9EF3-8ECA-4BB3-9985-8C053CCBCBBB",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "startedAt" : "2026-08-15T06:09:32Z",
+    "trials" : [
+      {
+        "cant" : true,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 4.5539780830000005,
+        "outputTokens" : 47,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I can’t calculate that — I’m here to help with your iPhone’s data, not math. Let’s stick to your things: what’s on your mind?",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.882041875,
+        "outputTokens" : 41,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "That's a simple math question — 2 + 2 equals 4. I can't compute it for you directly, but it's a basic calculation.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.846798875,
+        "outputTokens" : 33,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I'm not a calculator — I handle your personal tasks, not math problems. Let me know if there's anything else I can help with!",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.989114417,
+        "outputTokens" : 37,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I'm not a calculator or a math tool — I’m here to help with your personal tasks and conversations. But 2+2 is 4!",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.6299400410000002,
+        "outputTokens" : 19,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "That’s basic arithmetic—2 plus 2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.8884495,
+        "outputTokens" : 27,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I’m not a calculator—I’m your personal assistant. But 2+2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 3.048604709,
+        "outputTokens" : 19,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "That's a simple math question. The answer is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 3.452752208,
+        "outputTokens" : 39,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I'm a personal assistant, not a calculator, so I can't compute basic math. But 2+2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 3.498383708,
+        "outputTokens" : 37,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I'm a personal assistant, not a calculator. I can't perform math. 2+2 is 4, though.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 3.496378958,
+        "outputTokens" : 35,
+        "prompt" : "canary",
+        "shape" : "armed",
+        "text" : "I’m not a calculator, but I can help with things like your schedule, weather, or reminders. Let me know if there’s anything else!",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 5.067658375,
+        "outputTokens" : 107,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "I’m not writing a haiku, but I can help with your reminders. Would you like to tackle any of these:\n\n- Water the plants!! — due Aug 10, 2026 at 9:00 PM [Stuff]\n- Empty the dishwasher [Stuff]\n- Job Hunter App: Add 2 remaining RSS sources [Stuff]\n- Job Hunter App: Implement smart filtering [Stuff]\n- Job Hunter App: Improve UI - reduce clutter [Stuff]",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readReminders"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.762048416,
+        "outputTokens" : 43,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes through the pines—  \nWinter’s swift delight.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.674975125,
+        "outputTokens" : 43,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow-white path glides fast,  \nLaughter echoes through the air—  \nWinter’s swift delight.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.705599167,
+        "outputTokens" : 39,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow glitters bright,  \nSled flies down the icy hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1889,
+        "latencySeconds" : 3.956188542,
+        "outputTokens" : 47,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "I don’t have a specific writing tool, but here’s a haiku about sledding:\n\nSnow flies fast—  \nLaughter echoes down the hill—  \nCold wind takes the night.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readReminders"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 2159,
+        "latencySeconds" : 7.657569875,
+        "outputTokens" : 65,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow flies fast,  \nLaughter echoes loud—  \nCold wind takes the path.\n\nI also attempted to create reminders for your tasks, but you’ve declined. Let me know if there’s anything else!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readReminders"
+          },
+          {
+            "detail" : "Water the plants",
+            "name" : "createReminder"
+          },
+          {
+            "detail" : "Empty the dishwasher",
+            "name" : "createReminder"
+          },
+          {
+            "detail" : "Job Hunter App: Implement smart filtering",
+            "name" : "createReminder"
+          },
+          {
+            "confirmation" : "declined",
+            "detail" : "Job Hunter App: Improve UI - reduce clutter",
+            "name" : "createReminder"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.9685915410000003,
+        "outputTokens" : 43,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes in the cold—  \nWinter’s quick delight.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.856814,
+        "outputTokens" : 43,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here’s a haiku about sledding:\n\nSnow-packed path gleams bright,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.71056525,
+        "outputTokens" : 39,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here's a haiku about sledding:\n\nSnow-covered path,  \nLaughter echoes in the air—  \nSpeed paints winter's scene.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1781,
+        "latencySeconds" : 3.737879917,
+        "outputTokens" : 39,
+        "prompt" : "haiku",
+        "shape" : "armed",
+        "text" : "Here's a haiku about sledding:\n\nSnow-packed path gleams,  \nLaughter echoes in the air—  \nSpeed bites the cold.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.458441083,
+        "outputTokens" : 55,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a stunning Scandinavian country known for its rugged fjords, vibrant cities, and deep cultural roots. From Oslo’s historic charm to the northern lights’ magic, it offers breathtaking nature and innovation. The people are warm, and the scenery is unforgettable.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.7001225,
+        "outputTokens" : 65,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a stunning Nordic country known for its breathtaking fjords, rugged mountains, and vibrant culture. It boasts a strong emphasis on sustainability, with renewable energy dominating its grid. Oslo, the capital, blends historic charm with modern innovation. The people are warm, and the natural beauty draws visitors year-round.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.770279583,
+        "outputTokens" : 67,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and forests. It's known for its Viking history, beautiful nature, and strong emphasis on sustainability. Oslo is the capital, while Bergen and Trondheim offer cultural highlights. The country boasts a high standard of living, innovative technology, and vibrant traditions.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.530896791,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a stunning Scandinavian country known for its fjords, mountains, and vibrant culture. It boasts clean air, renewable energy, and a strong tradition of outdoor activities. Oslo, its capital, blends history with modernity. The nation is celebrated for its scenic landscapes, wildlife, and progressive social values.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.737841375,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a Nordic country in Northern Europe, known for its stunning fjords, rugged mountains, and vibrant culture. It boasts a strong emphasis on sustainability, with renewable energy dominating its landscape. The nation celebrates its heritage through traditional festivals, scenic drives, and a unique blend of modern innovation and ancient customs.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.5285959590000004,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a Nordic country in Northern Europe, known for its stunning fjords, rugged mountains, and vibrant culture. It boasts strong environmental initiatives, scenic landscapes, and a high standard of living. The nation has a unique blend of tradition and modernity, with beautiful natural wonders and a commitment to sustainability.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.253942917,
+        "outputTokens" : 55,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a stunning Nordic country with fjords, mountains, and Northern Lights. It's known for its Viking history, scenic towns, and eco-friendly initiatives. The culture blends traditional customs with modern values, offering a unique blend of nature and innovation.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.357212458,
+        "outputTokens" : 59,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a Nordic country in Northern Europe, known for its stunning fjords, rugged mountains, and vibrant culture. It boasts a strong emphasis on sustainability, with renewable energy dominating its landscape. The nation is celebrated for its scenic beauty, innovative technology, and welcoming communities.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.607059666,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a stunning Nordic country renowned for its fjords, rugged mountains, and vibrant culture. It boasts a strong emphasis on sustainability, beautiful natural landscapes, and a unique tradition of outdoor activities like skiing and hiking. The country is also known for its peaceful cities, innovative design, and progressive social values.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1783,
+        "latencySeconds" : 4.38864875,
+        "outputTokens" : 67,
+        "prompt" : "norway",
+        "shape" : "armed",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and natural beauty. It's known for its Viking history, vibrant culture, and innovative technology. The country boasts strong environmental efforts, including renewable energy and conservation, making it a top destination for nature lovers and adventure seekers alike.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.5768949590000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2 + 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.550110333,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.544092459,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.542323,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.5431361250000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "It's 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.53564975,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.537291375,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.52672425,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2+2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.532105375,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "2 + 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 208,
+        "latencySeconds" : 0.5312457500000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "toolless-lic",
+        "text" : "It's 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.026752833,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow under wheels,  \nLaughter flies down icy paths—  \nWind carries the rush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.10575925,
+        "outputTokens" : 31,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSpeed paints winter's dream.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 0.984860834,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow under wheels,  \nWind hums down the frozen hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.09015925,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow beneath wheels,  \nSpeed down the hill—laughter rings—  \nWind shapes the white path.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.125461916,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow path winds so fast,  \nLaughter flies on icy air—  \nSilence after rush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.0238645,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow flies fast and low,  \nLaughter on the icy path—  \nWind pulls through the pines.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.029541292,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow glides down the hill,  \nLaughter echoes in the air—  \nWind sweeps through the trees.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.090458625,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow flies fast and bright,  \nLaughter on the icy path—  \nWind pulls at my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.077963375,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow under wheels,  \nLaughter flies down icy paths—  \nWind guides the fast ride.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 207,
+        "latencySeconds" : 1.0531035420000001,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic",
+        "text" : "Snow glides down the hill,  \nLaughter echoes in the air—  \nCold wind holds the night.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.860964792,
+        "outputTokens" : 69,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a Scandinavian nation with stunning fjords, mountains, and coastal landscapes. It boasts a strong emphasis on nature, sustainability, and innovation. The country has a stable economy, strong social welfare, and a rich cultural heritage. It consistently ranks high in global quality-of-life indices.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.807079292,
+        "outputTokens" : 57,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a northern European nation with stunning fjords, mountains, and coastlines. It has a strong tradition of nature preservation, innovative design, and progressive social policies. The country blends historic towns with modern infrastructure, offering a unique blend of tranquility and technological advancement.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.6742616670000001,
+        "outputTokens" : 55,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a northern European country with stunning fjords, mountains, and coastlines. It has a rich cultural heritage, strong emphasis on nature, and a high standard of living. The country blends tradition with modern innovation, offering scenic landscapes and a peaceful atmosphere.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.965604375,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and coastlines. It boasts a high standard of living, strong social welfare, and a commitment to environmental sustainability. The nation has a rich cultural heritage, from Viking history to modern innovation, and is known for its scenic landscapes and peaceful communities.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.8847535420000001,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and coastlines. It has a strong emphasis on nature, sustainability, and cultural heritage. The country boasts a stable economy, high education standards, and a unique blend of tradition and modernity. It's a place where wilderness and innovation coexist.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.788521916,
+        "outputTokens" : 57,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a northern European nation with stunning fjords, mountains, and coastlines. It has a stable economy, strong social welfare, and a unique cultural blend of tradition and modernity. The country boasts renewable energy, scenic landscapes, and a high quality of life.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.920304875,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway features dramatic fjords, mountains, and coastal landscapes. It has a strong tradition of conservation, with vast wilderness areas. The country values equality, education, and sustainability. Its culture blends ancient roots with modern innovation, evident in its architecture, music, and environmental policies.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.9627605410000002,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and coastal landscapes. It has a strong emphasis on nature, sustainability, and cultural heritage. The country boasts a high standard of living, with efficient governance and a tradition of education. Its people value peace, equality, and connection to the environment.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 2.175354417,
+        "outputTokens" : 71,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway features stunning fjords, mountains, and coastlines. It has a high standard of living, strong social welfare, and a commitment to nature preservation. The country is known for its Viking history, Northern Lights, and efficient public services. It’s a peaceful, scenic destination with unique cultural traditions and clean energy initiatives.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 209,
+        "latencySeconds" : 1.87051725,
+        "outputTokens" : 65,
+        "prompt" : "norway",
+        "shape" : "toolless-lic",
+        "text" : "Norway is a Nordic country with stunning fjords, mountains, and coastal landscapes. It boasts a high standard of living, strong emphasis on nature preservation, and a progressive society. The country has a long history of Viking heritage and is known for its efficient public services and scenic national parks.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.6307795420000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.603498375,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.599424583,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.5386356250000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "It's 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.528916959,
+        "outputTokens" : 15,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2+2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.559708084,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.558102375,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.552895625,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.555689667,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 243,
+        "latencySeconds" : 0.799437417,
+        "outputTokens" : 19,
+        "prompt" : "canary",
+        "shape" : "toolless-lic2",
+        "text" : "That’s straightforward — 2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.139448041,
+        "outputTokens" : 31,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSled cuts through the white.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.00223375,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow under wheels,  \nWind hums down the frozen slope—  \nLaughter cuts the hush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.162312042,
+        "outputTokens" : 33,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSled glides, pure delight.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.121558333,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow under feet,  \nSpeed down the hill—laughter rings,  \nWind shapes the dark path.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.065959625,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind tugs at my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.054852625,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow under feet,  \nSpeed down the hill so fast—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 0.9783580410000001,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow under feet,  \nWind pulls the sled down the hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.166687666,
+        "outputTokens" : 35,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSled glides, swift and bright.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.012426375,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow under wheels,  \nWind hums down the frozen hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 242,
+        "latencySeconds" : 1.054924208,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "shape" : "toolless-lic2",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind tugs at my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.951506167,
+        "outputTokens" : 69,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway sits in Northern Europe, famous for its fjords, mountains, and long, dark winters. It’s a quiet land with strong traditions, clean water, and vast natural spaces. The country blends modern life with old customs, and its people value peace, nature, and community deeply.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.886712417,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, mountains, and vast forests. It has a strong tradition of democracy, high education standards, and a stable economy. The country has a long history of trade and natural resource extraction, including oil and water.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.829421875,
+        "outputTokens" : 67,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, rugged mountains, and vast forests. It has a strong tradition of outdoor living and renewable energy. The capital, Oslo, blends history with modern design. The country enjoys a cool maritime climate and a proud cultural heritage.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 2.129382375,
+        "outputTokens" : 75,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway sits in Northern Europe, known for its vast fjords, rugged mountains, and long, dark winters. It’s a place of natural beauty, with a strong sense of tradition and equality. The country has a small population, but its landscape is vast and striking. It’s also famous for its wildlife and clean energy.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.801348542,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, mountains, and northern lights. It has a relatively small population, strong traditions, and a focus on sustainability. The economy includes oil, fishing, and renewable energy. It’s a place of natural beauty and quiet strength.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.929236917,
+        "outputTokens" : 67,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, rugged mountains, and scenic coastlines. It has a high standard of living, strong emphasis on nature, and a tradition of conservation. The country has a small population and a unique cultural blend of heritage and innovation.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 2.056754583,
+        "outputTokens" : 67,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, rugged mountains, and long, dark winters. It has a high standard of living, strong emphasis on nature, and a unique cultural blend of tradition and modern innovation. The capital is Oslo, and the country is peaceful with a stable government.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 2.02582425,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, mountains, and vast wilderness. It has a strong emphasis on nature, with many areas protected for their beauty and ecological importance. The country blends tradition with modern innovation, offering a high standard of living and scenic landscapes year-round.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.835611208,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, mountains, and vast forests. It has a strong tradition of conservation and renewable energy. The capital, Oslo, blends historic charm with modern design. The country enjoys a mild climate due to its location and long, dark winters.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 244,
+        "latencySeconds" : 1.858003708,
+        "outputTokens" : 69,
+        "prompt" : "norway",
+        "shape" : "toolless-lic2",
+        "text" : "Norway is a country in Northern Europe with stunning fjords, mountains, and coastlines. It has a relatively small population, strong emphasis on nature, and a stable economy. The country values equality, education, and outdoor living. It’s known for its scenic landscapes and consistent weather patterns.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.481435042,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.427542875,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.373694167,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.392984167,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.384395959,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "That’s 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.398444666,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.528318541,
+        "outputTokens" : 19,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "That's straightforward — 2 plus 2 equals 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.383607208,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.3960713340000002,
+        "outputTokens" : 11,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "That’s four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 1.389222208,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.859353583,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow under wheels,  \nLaughter flies down icy hills—  \nWind shapes swift white paths.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.839009292,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow flies fast and low,  \nLaughter rides the icy path—  \nWind hums through the trees.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.853466417,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow underfoot flies,  \nWind hums past the frozen hill—  \nLaughter cuts the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.882257542,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow flies down fast,  \nLaughter echoes on the hill—  \nWind guides every glide.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.796592041,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow glides down the hill,  \nLaughter rides the frosty air—  \nWind carries the rush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.888233417,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind pulls at my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.847698292,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind shapes every path.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.890690833,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes on the path—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.8961634580000002,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow under wheels,  \nWind sings through the frozen path—  \nLaughter lights the sky.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.792861292,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Snow glides down the hill,  \nLaughter echoes in the air—  \nWind sweeps through the trees.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.882966083,
+        "outputTokens" : 69,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a northern European country with stunning fjords, mountains, and long coastlines. It has a cool climate, strong traditions, and a high standard of living. The country values nature, sustainability, and peace. Its people enjoy outdoor life, especially in summer. You can feel the quiet beauty in every valley.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.832148708,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a country in Northern Europe with stunning fjords, mountains, and coastlines. It has a strong tradition of nature preservation, with many areas protected for their beauty. The country blends modern cities with remote villages, and its culture includes Viking roots and a focus on sustainability.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.58455975,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a country in Northern Europe with stunning fjords, mountains, and coastal landscapes. It has a strong emphasis on nature, sustainability, and education. The capital is Oslo, and the country has a relatively high standard of living, supported by natural resources and progressive policies.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.908211209,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a country in Northern Europe with stunning fjords, mountains, and forests. It has a strong tradition of nature conservation, a stable government, and a high standard of living. The capital, Oslo, blends historic charm with modern design. The people value peace, education, and outdoor life deeply.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.848095916,
+        "outputTokens" : 65,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, rugged mountains, and long coastline. It has a high standard of living, strong emphasis on nature, and a unique cultural blend of traditions and modern values. The capital is Oslo, and it plays a key role in global environmental efforts.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.8527162500000003,
+        "outputTokens" : 65,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a long, northern country with dramatic mountains, deep fjords, and long winters. It has a cool climate, strong traditions, and a quiet beauty. The people value nature and simplicity. It’s a place where silence and space feel deep. You can feel the cold air and the wind.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.710224916,
+        "outputTokens" : 61,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a northern European country with stunning fjords, mountains, and coastal landscapes. It has a strong tradition of nature preservation, a stable government, and a high standard of living. The country uses renewable energy and has a unique cultural blend of Norse heritage and modern values.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.9076427910000002,
+        "outputTokens" : 65,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a long, narrow country in Northern Europe with stunning fjords, mountains, and coastlines. It has a strong tradition of nature preservation, with many areas protected for their beauty and wildlife. The people value simplicity and connection to the land, and the country enjoys a cool maritime climate year-round.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.645975041,
+        "outputTokens" : 63,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a long, northern country with rugged mountains, deep fjords, and a cool climate. It has a small population, strong traditions, and a love for nature. The country balances modern life with historic customs, especially in towns with old wooden homes and scenic coastlines.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 358,
+        "latencySeconds" : 2.705380375,
+        "outputTokens" : 59,
+        "prompt" : "norway",
+        "route" : "toolless",
+        "routeFailed" : false,
+        "shape" : "armed-routed",
+        "text" : "Norway is a country in Northern Europe, known for its stunning fjords, vast forests, and rugged mountains. It has a strong tradition of democracy and environmental conservation. The capital, Oslo, blends historic charm with modern innovation. The people value equality and outdoor living deeply.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      }
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:09:32Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

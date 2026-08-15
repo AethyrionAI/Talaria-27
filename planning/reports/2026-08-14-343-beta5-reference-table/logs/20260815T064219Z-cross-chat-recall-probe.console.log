@@ -1,0 +1,19 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: CROSSCHAT PROBE START trials=10 rows=10 n=100 (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What did we decide about the boat? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What did I say my usual dose was? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=Remind me what we called that project. (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What did I tell you my landlord's name was? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=Which paint color did we settle on? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What was the workout plan we made? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=Didn't I mention a deadline last time? What was it? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What did we talk about on Tuesday? (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=Bring up what we said about the trip budget. (#101)
+router: [crosschat] ROW armed=0/10 toolless=10/10 scored=10/10 errors=0 probe=What was the name of that restaurant I liked? (#101)
+router: [crosschat] SUMMARY rows=10 armed=0/100 toolless=100/100 scored=100/100 errors=0 (#101)
+router: CROSSCHAT PROBE DONE (#101)
+instrument: COMPLETED cross-chat-recall-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

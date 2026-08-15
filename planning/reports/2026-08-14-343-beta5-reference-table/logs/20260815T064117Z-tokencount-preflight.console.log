@@ -1,0 +1,16 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+preflight: TOKENCOUNT PREFLIGHT START repeats=3 (#257/#335)
+preflight: [context] SystemLanguageModel.contextSize value=8192 min=8192 max=8192 distinct=1 fit=3/3 scored=3/3 errors=0 cap=— headroom=— extra= notes=
+preflight: [input] router instructions (production) value=190 min=190 max=190 distinct=1 fit=3/3 scored=3/3 errors=0 cap=— headroom=— extra= notes=
+preflight: [input] router prompt envelope (worst baseline row) value=12 min=12 max=12 distinct=1 fit=3/3 scored=3/3 errors=0 cap=— headroom=— extra= notes=row=Do I have anything on my calendar Friday?
+preflight: [input] ToolIntentRoute.generationSchema (2-field) value=165 min=165 max=165 distinct=1 fit=3/3 scored=3/3 errors=0 cap=— headroom=— extra= notes=
+preflight: [input] ToolIntentRouteSingleField.generationSchema (1-field) value=121 min=121 max=121 distinct=1 fit=3/3 scored=3/3 errors=0 cap=— headroom=— extra= notes=
+preflight: [payload] two-field router payload = instructions + prompt + schema value=367 min=367 max=367 distinct=1 fit=3/3 scored=3/3 errors=0 cap=8192 headroom=7825 extra= notes=
+preflight: [response-cap] worst-case 2-field response JSON vs twoFieldRouterOptions value=14 min=14 max=14 distinct=1 fit=3/3 scored=3/3 errors=0 cap=128 headroom=114 extra= notes=json={"needsDeviceTool":false,"isCapabilityQuestion":false}
+preflight: [response-cap] worst-case 1-field response JSON vs toolIntentRouterOptions value=8 min=8 max=8 distinct=1 fit=3/3 scored=3/3 errors=0 cap=64 headroom=56 extra= notes=json={"needsDeviceTool":false}
+preflight: TOKENCOUNT PREFLIGHT DONE (#257/#335)
+instrument: COMPLETED tokencount-preflight (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

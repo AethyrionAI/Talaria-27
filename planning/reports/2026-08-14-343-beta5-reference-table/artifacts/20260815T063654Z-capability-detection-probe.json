@@ -1,0 +1,486 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:40:59Z",
+  "instrument" : "capability-detection-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "cap-arm",
+      "cap-control"
+    ],
+    "endedCleanly" : true,
+    "id" : "5CB0CBB0-2101-4BFD-963D-7BBDB802AC76",
+    "kind" : "capability-detection",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "gate",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "cap-control"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What can you do?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What else can you do?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What are you capable of?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What can you help me with?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What data can you see?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What are your features?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Can you do anything with my phone?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What do you have access to?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Tell me everything you can do.",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "recall",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What kinds of things can I ask you?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's the weather like right now?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's the weather?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's on my calendar today?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What did we talk about yesterday?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What can I make with eggs?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's my battery at?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Can you set an alarm for 7am?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What should I do today?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 5,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "How do I enable dark mode on my phone?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What apps can read my health data?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      },
+      {
+        "band" : "danger",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Can you believe it's already August?",
+        "trials" : 5,
+        "variant" : "cap-arm"
+      }
+    ],
+    "startedAt" : "2026-08-15T06:36:55Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:36:54Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

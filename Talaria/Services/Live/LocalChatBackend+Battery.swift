@@ -226,6 +226,16 @@ extension LocalChatBackend {
                     // Trial clock starts here, so a routed trial's latency
                     // includes its router generation — the real turn cost.
                     Self.batteryRecorder.beginTrial()
+                    // #343: a trial IS a turn. Production opens every turn with
+                    // `beginToolTurn()` → `relay.beginTurn()`; this loop never did,
+                    // so #225's governor counted every trial in the run as ONE
+                    // turn and its `sameToolRepeatCap` of 4 strangled the
+                    // instrument after four calls of a tool — exactly the failure
+                    // `ToolCallGovernor.beginTurn()`'s own doc comment predicts.
+                    // Proven by 337-D (`turn-reset` 0/30 cuts vs `leaked` 9/30)
+                    // and 337-F. Without it no run of more than ~4 tool-calling
+                    // trials measures behaviour at all.
+                    toolRelay?.beginTurn()
                     // #196 battery 4: armed-routed classifies each trial's
                     // prompt first, then builds the routed session — the
                     // toolless-lic2 payload, or the full armed construction.
@@ -963,6 +973,13 @@ extension LocalChatBackend {
                     // BEGIN names it exactly.
                     Self.batteryEmit("battery: BEGIN shape=\(cell.rawValue) p=\(tag) t=\(trial)")
                     Self.batteryRecorder.beginTrial()
+                    // #343: a trial IS a turn — see the note in `runShapeBattery`.
+                    // This is the loop every #200-family, motion, read-tool and
+                    // routed instrument runs through, so the leak reached all of
+                    // them: #343's canary measured 31/40 trials DEAD on a build
+                    // whose beta4 archive twin — which PREDATES the governor
+                    // (`5e919269`, 2026-08-02) — scored 20/20.
+                    toolRelay?.beginTurn()
                     // #215: the routed variant. The trial clock is already
                     // running, so a routed trial's latency includes its router
                     // generation — the real cost of a production turn, not the

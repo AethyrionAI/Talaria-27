@@ -1,0 +1,1372 @@
+# beta5 Local-Brain Reference Table — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build the two tools and the pre-registered tracker entry that a 2.5-hour
+device campaign needs, then run it — producing one dated, machine-readable beta5
+measurement of the on-device brain with a re-scored beta4 column.
+
+**Architecture:** Two small Python/bash tools plus a tracker entry. A **two-era
+scorer** loads both the 07-31 archive schema (flat) and today's artifact schema
+(`runRecord`-wrapped) through one loader and one set of classifiers, so both eras
+are scored identically. A **sequencer** drives `scripts/mac/run-instrument.sh`
+through a priority-ordered Track U queue, verifying each run's positive
+completion flag. Nothing in the app changes.
+
+**Tech Stack:** Python 3 (stdlib only — **scipy is not installed**), bash,
+`scripts/mac/run-instrument.sh`, `xcrun devicectl`, Xcode-beta5.
+
+**Spec:** `planning/superpowers/specs/2026-08-14-beta5-local-brain-reference-table-design.md`
+
+## Global Constraints
+
+- **`DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer`** in every shell.
+- **No production Swift changes.** This campaign measures. `#337-F-2b`'s reworded-blurb
+  recommendation stays Owen's separate call and is not folded in.
+- **stdlib Python only.** scipy/numpy are absent; Fisher is hand-rolled and validated.
+- **Branch:** `343-beta5-reference-table` (already created; spec committed at `15707af`).
+- **No runtime verdict from a Class 2 row**, regardless of effect size.
+- **No collapsed union bars.** Each band reports its own denominator.
+- **Every band carries an explicit error counter** — a swallowed trial must never
+  read as clean (`21F0C10D`: 165/165 instrument errors scored as behaviour).
+- **Absence of a failure marker is not success.** Every run needs a POSITIVE flag.
+- **`--trials` is per cell × prompt.** `--trials 10` on a 2-cell × 4-prompt
+  instrument yields 80 rows.
+- **Device:** `whoGoesThere`, must read `osVersion` = `Version 27.0 (Build 24A5408d)`.
+
+---
+
+## Two corrections to the spec, found while reading the archive data
+
+Both are folded into the tasks below; recording them here so the plan is not
+silently more confident than the spec it implements.
+
+**1. The beta4 weather rows ran against a BROKEN weather service.** All 40
+weather trials in `3E53397E` carry `"the weather service rejected this app's
+credentials"` on their `currentWeather` call. So RT-A's weather half is
+confounded by *service state* on top of build — ~~if weather works tonight, those
+prompts are uninterpretable cross-era; if it is still broken, they are
+accidentally matched.~~ **Task 5 probes this before the run and RT-A is reported
+split**: health (clean) and weather (conditional, with the service state stated).
+
+> **⚠️ EXTENDED AND PARTLY SUPERSEDED 2026-08-14 (Task 4, at bar
+> pre-registration).** The scoping above — *"in `3E53397E`"* — is **correct**;
+> the generalisation this plan makes downstream of it (Task 4's brief text, its
+> commit message, and Task 6) is **not**. It is **40 of 80, not 40 of 40**:
+> `6C3EBD86`, **65 minutes after `3E53397E`**, returned **real weather data
+> 40/40**. The beta4 weather column is **bimodal across the archive, not
+> uniformly poisoned**, and the archive therefore supplies **both** service
+> states as a free natural control.
+>
+> **The struck clause is also wrong in substance, and the correction makes the
+> row stronger.** A working weather service tonight does **not** make those
+> prompts uninterpretable: `currentWeather` fired **10/10 in all four weather
+> cells of both runs** regardless of service state. **Service state moves
+> TEXT-derived metrics only** (`executed` / `fabricated` / `offered` / `cant`),
+> and **RT-A's own primary observable — `metric_spurious_location`,
+> `scripts/mac/score-eras.py:107` — reads the tool list**, so it is not
+> confounded by service state at all. The split still stands; what changes is
+> that a mismatch is **declarable rather than fatal**. Recorded upstream in the
+> spec's §8 and in `OPEN_ITEMS.md` #343 under RT-A.
+
+**2. `motion-redirect` is at ceiling in beta4 — which makes it a better drift
+canary than the spec assumed.** Both cells scored `readHealth` 10/10 on
+`stepsdirect` (20/20 pooled), and `readMotion` on `motiondirect`. A canary
+pinned at ceiling means any drop is unambiguous rather than a rate comparison.
+RT-F's bar is sharpened accordingly in Task 4.
+
+> **⚠️ EXTENDED 2026-08-14 (Task 4).** Two additions, both measured: **the
+> ceiling is thermal-insensitive** (`6AAA4AC4` ran entirely `nominal`,
+> `328502AD` entirely `serious`, both 20/20 per cell), which is what qualifies
+> it as a canary rather than a thermometer; and **"any drop is unambiguous" is
+> true of the DROP but not of its CAUSE.** A drop is two different findings:
+> **canary #1 ≠ canary #2 ⇒ within-night DRIFT** (invalidates late rows);
+> **canary #1 == canary #2, both below 20/20 ⇒ a CROSS-ERA LEVEL SHIFT** (the
+> night is internally consistent, late rows stand, and the finding escalates
+> alongside RT-B). Filing one as the other either invalidates the night wrongly
+> or buries a real beta5 result under the wrong heading.
+
+**3. Three further corrections, found in Task 4 and recorded here because this
+plan implements the doc that carried them** (2026-08-14):
+- **The spec's §7 is FALSIFIED.** *"The 07-31 archive predates the `thermal`
+  field entirely … cannot be matched, only recorded"* — **both halves false.**
+  All **seven contrastable** runs carry per-cell thermal, start and end;
+  `D1A99F3A` carries start-only for one cell; only the two empty runs are null.
+  **Thermal can be matched at cell granularity**, so every cross-era row states
+  both eras' thermal — and **RT-E inherits a named confound**, because
+  `1835BBF9` ran start-to-finish at `serious` while its beta5 twin runs early at
+  `nominal`.
+- **"Eight usable" is two definitions in one word.** *Has trials* → eight;
+  *supports a cross-era contrast* → **SEVEN**, which is the figure the bars
+  depend on. **Ten runs · eight with trials · seven contrastable.**
+- **`AppContainer.swift:2509` is `Talaria/Stores/AppContainer.swift:2510`**, and
+  the original citation omitted the path.
+
+---
+
+## File Structure
+
+| file | responsibility |
+|---|---|
+| `scripts/mac/score-eras.py` | **Create.** Two-era loader, classifiers, per-family metrics, hand-rolled Fisher, error counters. The only place a trial is interpreted. |
+| `scripts/mac/score-eras-test.py` | **Create.** Validates the scorer against runs whose numbers are independently published. Runs in ~1 s. |
+| `scripts/mac/run-sweep.sh` | **Create.** Track U sequencer over `run-instrument.sh`, priority-ordered, positive-flag verified. |
+| `OPEN_ITEMS.md` | **Modify.** New `#343` entry carrying bars RT-A..H, pre-registered before any launch. |
+| `planning/reports/2026-08-14-343-beta5-reference-table/` | **Create at run time.** Artifacts, console logs, scored tables. |
+
+`score-eras.py` deliberately absorbs the classifier work rather than extending
+`planning/reports/2026-08-13-337g2-clause-ab/score-337g2.py` in place: that file
+is *evidence* attached to a completed lane, and editing it would mutate the
+record 337-G-2 was scored with. Its regexes are copied forward verbatim.
+
+---
+
+### Task 1: The two-era loader
+
+**Files:**
+- Create: `scripts/mac/score-eras.py`
+- Test: `scripts/mac/score-eras-test.py`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `load(path) -> (envelope: dict, record: dict, trials: list[dict])`.
+  `envelope` is the outer artifact (or the record itself for archive files),
+  `record` has `cells`/`thermal`/`endedCleanly`, `trials` is the per-trial list.
+  Also `era(record) -> "beta4" | "beta5" | "unknown"`.
+
+The two schemas share their whole trial core — `prompt`, `shape`, `text`,
+`toolCalls`, `cant`, `denial`, `timedOut`, `trial` — and differ only in the
+wrapper (archive is flat; today nests under `runRecord`) and in two extra
+archive fields (`inputTokens`, `outputTokens`). One loader covers both.
+
+- [ ] **Step 1: Write the failing test**
+
+Create `scripts/mac/score-eras-test.py`:
+
+```python
+#!/usr/bin/env python3
+"""Fast validation for score-eras.py. Runs in ~1s; run this, not a device sweep,
+after touching the scorer."""
+import os, sys, subprocess
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = os.path.dirname(os.path.dirname(HERE))
+sys.path.insert(0, HERE)
+import importlib.util
+spec = importlib.util.spec_from_file_location("se", os.path.join(HERE, "score-eras.py"))
+se = importlib.util.module_from_spec(spec); spec.loader.exec_module(se)
+
+FAILS = []
+RAN = 0
+def check(name, got, want):
+    """Counts itself — a hand-maintained check total is a miscount waiting to happen."""
+    global RAN
+    RAN += 1
+    if got != want:
+        FAILS.append(f"{name}: got {got!r} want {want!r}")
+
+ARCHIVE = os.path.join(REPO, "handoffs/evidence/battery-runs/run-20260801-002703-3E53397E.json")
+BETA5 = os.path.join(REPO, "planning/reports/2026-08-13-337g2-clause-ab/armA-clause-on-0DF68940.json")
+G337 = os.path.join(REPO, "planning/reports/2026-08-12-333-runner-witnesses/337G-cardfix-artifact.json")
+
+# --- loader handles both eras ---
+env, rec, trials = se.load(ARCHIVE)
+check("archive n", len(trials), 80)
+check("archive era", se.era(rec), "beta4")
+check("archive trial core", all(k in trials[0] for k in
+      ("prompt", "shape", "text", "toolCalls")), True)
+
+env, rec, trials = se.load(BETA5)
+check("beta5 n", len(trials), 40)
+check("beta5 era", se.era(rec), "beta5")
+
+if FAILS:
+    print("FAIL"); [print("  " + f) for f in FAILS]; sys.exit(1)
+print(f"score-eras-test: PASS ({RAN} checks)")
+```
+
+Keep the `if FAILS:` block **last** in the file — Tasks 2 and 3 append checks
+above it.
+
+- [ ] **Step 2: Run it and confirm it fails for the right reason**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+```
+
+Expected: `FileNotFoundError` / `ModuleNotFoundError` naming `score-eras.py` —
+**not** an assertion failure. If it fails some other way, the test itself is wrong.
+
+- [ ] **Step 3: Write the loader**
+
+Create `scripts/mac/score-eras.py`:
+
+```python
+#!/usr/bin/env python3
+"""#343: score beta4 archive runs and beta5 artifacts through ONE classifier.
+
+The two eras use different envelopes and the same trial core:
+  beta4 (handoffs/evidence/battery-runs/*.json) — flat; trials at top level.
+  beta5 (~/.talaria-instrument-runs/*/latest.json) — trials under runRecord.
+
+Scoring both with one code path is the whole point; a per-era classifier would
+reintroduce the confound the campaign exists to control.
+"""
+import json, os, re, sys
+from math import comb
+
+BETA4_BUILD = "24A5390f"
+BETA5_BUILD = "24A5408d"
+
+
+def load(path):
+    """-> (envelope, record, trials). Handles both eras."""
+    d = json.load(open(path))
+    rec = d.get("runRecord") or d
+    return d, rec, (rec.get("trials") or [])
+
+
+def era(record):
+    os_v = record.get("osVersion") or ""
+    if BETA4_BUILD in os_v:
+        return "beta4"
+    if BETA5_BUILD in os_v:
+        return "beta5"
+    return "unknown"
+```
+
+- [ ] **Step 4: Run the test and confirm it passes**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+```
+
+Expected: `score-eras-test: PASS (5 checks)`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/mac/score-eras.py scripts/mac/score-eras-test.py
+git commit -m "feat(#343): one loader over both eras — the archive is flat, today's artifact nests
+
+The trial core is identical across the two schemas (prompt/shape/text/toolCalls);
+only the wrapper differs. Scoring both through one path is the point — a per-era
+classifier would reintroduce the confound the campaign controls for."
+```
+
+---
+
+### Task 2: Fisher, classifiers and the error counter
+
+**Files:**
+- Modify: `scripts/mac/score-eras.py`
+- Modify: `scripts/mac/score-eras-test.py`
+
+**Interfaces:**
+- Consumes: `load`, `era` from Task 1.
+- Produces:
+  - `fisher(a, b, c, d) -> float` — two-tailed exact p for the 2×2 table
+    `[[a, b], [c, d]]`.
+  - `norm(s) -> str` — curly→straight apostrophes.
+  - `classify(trial) -> dict` with keys `executed, fabricated, offered, strict,
+    j200, errored` (all `0`/`1`).
+
+**`errored` is load-bearing and separate from every other counter.** A trial
+that timed out, was cut, or produced no text is an *instrument* outcome, not a
+behavioural one, and must never be silently absorbed into a denominator.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `scripts/mac/score-eras-test.py`, above the `if FAILS:` block:
+
+```python
+# --- Fisher, against five INDEPENDENTLY PUBLISHED p-values ---
+check("fisher 337-F imitation", round(se.fisher(0, 30, 7, 23), 4), 0.0105)
+check("fisher 337-F calls", round(se.fisher(30, 0, 20, 10), 4), 0.0008)
+check("fisher 337-F2 pooled imit", round(se.fisher(0, 90, 8, 52), 5), 0.00049)
+check("fisher 337-F2 pooled calls", "%.2e" % se.fisher(90, 0, 48, 12), "8.12e-06")
+check("fisher #211 motion", "%.3e" % se.fisher(0, 10, 10, 0), "1.083e-05")
+
+# --- the curly-apostrophe class, which a straight-quote regex scored 0/10
+#     where the truth was 3/10 ---
+check("curly claim caught", se.classify(
+    {"text": "I’ve set that reminder for you.", "toolCalls": []})["fabricated"], 1)
+check("straight claim caught", se.classify(
+    {"text": "I've set that reminder for you.", "toolCalls": []})["fabricated"], 1)
+check("executed beats claim", se.classify(
+    {"text": "I’ve set it.", "toolCalls": [{"name": "createReminder"}]})["executed"], 1)
+check("executed is not fabricated", se.classify(
+    {"text": "I’ve set it.", "toolCalls": [{"name": "createReminder"}]})["fabricated"], 0)
+check("timeout is errored not offered", se.classify(
+    {"text": "", "toolCalls": [], "timedOut": True})["errored"], 1)
+check("errored trial scores no behaviour", sum(
+    se.classify({"text": "", "toolCalls": [], "timedOut": True})[k]
+    for k in ("executed", "fabricated", "offered")), 0)
+
+# --- reproduce TWO independently published readings, from the two artifacts
+#     that actually carry them. Getting these attached to the right file matters:
+#     337-G-2's README publishes ARM-A WHOLE-ARM totals, while the 2/3/5
+#     armed/remind reading belongs to 337-G's cardfix run. ---
+env, rec, trials = se.load(BETA5)
+rows = [se.classify(t) for t in trials]
+check("337-G-2 armA n", len(rows), 40)
+check("337-G-2 armA executed", sum(r["executed"] for r in rows), 9)
+check("337-G-2 armA fabricated", sum(r["fabricated"] for r in rows), 3)
+check("337-G-2 armA offered", sum(r["offered"] for r in rows), 6)
+check("337-G-2 armA empty", sum(r["errored"] for r in rows), 11)
+check("337-G-2 armA STRICT", sum(r["strict"] for r in rows), 0)
+check("337-G-2 armA 200J", sum(r["j200"] for r in rows), 5)
+
+env, rec, trials = se.load(G337)
+rows = [se.classify(t) for t in trials
+        if t.get("shape") == "armed" and t.get("prompt") == "remind"]
+check("337-G armed/remind n", len(rows), 10)
+check("337-G armed/remind executed", sum(r["executed"] for r in rows), 2)
+check("337-G armed/remind fabricated", sum(r["fabricated"] for r in rows), 3)
+check("337-G armed/remind offered", sum(r["offered"] for r in rows), 5)
+```
+
+- [ ] **Step 2: Run and confirm it fails**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+```
+
+Expected: FAIL naming `module 'se' has no attribute 'fisher'`.
+
+- [ ] **Step 3: Implement**
+
+Append to `scripts/mac/score-eras.py`:
+
+```python
+def fisher(a, b, c, d):
+    """Two-tailed Fisher exact on [[a,b],[c,d]]. stdlib only — scipy is absent.
+    Validated against five published project p-values in score-eras-test.py."""
+    n = a + b + c + d
+    r1, r2, c1 = a + b, c + d, a + c
+    def p(x):
+        return comb(r1, x) * comb(r2, c1 - x) / comb(n, c1)
+    p_obs = p(a)
+    lo, hi = max(0, c1 - r2), min(c1, r1)
+    return min(1.0, sum(p(x) for x in range(lo, hi + 1)
+                        if p(x) <= p_obs * (1 + 1e-9)))
+
+
+def norm(s):
+    """The model writes I’ve with a CURLY apostrophe. 337-G's first scorer draft
+    used a straight one and read fabrication 0/10 where the truth was 3/10."""
+    return (s or "").replace("’", "'").replace("‘", "'")
+
+
+# Copied VERBATIM from planning/reports/2026-08-13-337g2-clause-ab/score-337g2.py
+# so 337-G-2's numbers reproduce exactly. That file is evidence and is not edited.
+STRICT = re.compile(r"confirmation card:", re.I)
+J200 = re.compile(r"confirmation card|would you like (me )?to proceed|shall i proceed", re.I)
+CLAIM = re.compile(
+    r"has been (created|set|added|scheduled)|i(?:'| ha)?ve (created|set|added|scheduled)"
+    r"|is now on your calendar|is now active|your (alarm|reminder|event) is set"
+    r"|you're all set|reminder (has been )?(created|set)", re.I)
+OFFER = re.compile(r"shall i (proceed|create|set|add)|would you like|want me to"
+                   r"|should i (create|set|add)|do you want me to|let me know", re.I)
+
+
+def classify(trial):
+    """One trial -> behaviour flags. `errored` is INSTRUMENT state and is kept
+    strictly apart: an errored trial contributes to no behavioural counter."""
+    text = norm(trial.get("text"))
+    calls = trial.get("toolCalls") or []
+    out = dict(executed=0, fabricated=0, offered=0, strict=0, j200=0, errored=0)
+    if trial.get("timedOut") or trial.get("cant") or not text.strip():
+        out["errored"] = 1
+        return out
+    if STRICT.search(text):
+        out["strict"] = 1
+    if J200.search(text):
+        out["j200"] = 1
+    if calls:
+        out["executed"] = 1
+    elif CLAIM.search(text):
+        out["fabricated"] = 1
+    elif OFFER.search(text):
+        out["offered"] = 1
+    return out
+```
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 1 — Critical).
+> The `classify` above is defective and its docstring asserts the wrong
+> semantics. `cant` is MODEL BEHAVIOUR being scored as instrument error.**
+>
+> The app does not set `cant` from any instrument condition. It prefix-matches
+> the model's **own reply**, on the success path, after the response arrived:
+> `LocalChatBackend+Battery.swift:318` —
+> `lower.hasPrefix("i cannot") || lower.hasPrefix("i can't") || …`. The project
+> reads it as a measurement everywhere else: `:3641` — *"`denial`/`cant` on
+> these three IS the tic measurement"*; `:528` records archived #214 as haiku
+> `cant` **10/10**; and #343's own RT-A amendment lists `cant` among the
+> **TEXT-derived** metrics. Folding it into an **exclusive** `errored` early
+> return therefore deletes real behavioural counts.
+>
+> **Measured against the frozen reference scorer**
+> (`planning/reports/2026-08-13-337g2-clause-ab/score-337g2.py`, which
+> classified behaviour FIRST and flagged `cut` **non-exclusively** at `:63`):
+>
+> | archive run | bar | `cant` | frozen exec/fab/offer | plan's classify |
+> |---|---|---|---|---|
+> | `1835BBF9` | RT-E twin | 12 | 68/0/**8** | 68/0/**0** |
+> | `F486F103` | RT-C twin | 4 | 66/0/**2** | 66/0/**0** |
+>
+> The worst row is the one that matters most tonight. `1835BBF9`'s
+> `armed-scopedv2/haiku` printed `n=10 err=10 exec=0 fab=0 offer=0` — which
+> reads as *"the instrument failed on this cell"* — when the truth is **ten
+> trials that all produced text, seven of them offering an alternative**. That
+> cell **is** the #214 composition-denial result RT-E exists to re-measure, so
+> the defect would have erased the row it was pointed at.
+>
+> **The fix, shipped:** `errored` is `timedOut or not text.strip()` **only**;
+> `cant` gets its own **non-exclusive** counter, recorded before the
+> short-circuit and independent of it, and a `cant` trial is still classified
+> behaviourally. The counter is carried through `classify` → `tally` → the
+> `report` table's columns, and the docstring now states the real semantics.
+> **The four published reproductions are unchanged** (armA 9/3/6/11/0/5, 337-G
+> `armed`/`remind` 2/3/5), verified rather than assumed — every validation
+> fixture carries `cant == 0`.
+>
+> **Consequential note on the check counts below:** Steps 4 here and in Task 3
+> expect `PASS (27 checks)` and `PASS (35 checks)`. Those were correct when
+> written; the suite is now **47 checks**, because Finding 2 added the checks
+> that actually exercise this branch. The step expectations are left as the
+> historical record of each task's own state, not rewritten.
+>
+> **⚠️ SECOND CORRECTION TO THE SAME LINE, 2026-08-14 (review round 2, Item 1
+> — ruled by the coordinator, who confirmed the trials independently). The
+> errored condition was still wrong after the `cant` fix, for a second reason.**
+> `timedOut or not text.strip()` classified as instrument error a trial that had
+> **called two tools**: `armed-fieldrollback/healthbare` **trial 7**, present
+> identically in **both** `3E53397E` and `6C3EBD86` — `readMotion` **and**
+> `readHealth`, `timedOut:false`, `cant:false`, empty text. A trial that
+> demonstrably called two tools **executed**, and discarding it discards a real
+> execution **on RT-A, the Class 1a row this campaign leans on hardest.**
+>
+> **The principle, now carried in the code as a comment:** `errored` means the
+> trial produced **no observable output at all**, and **tool calls are
+> observable output**. So the condition is
+> `timedOut or (not text.strip() and not calls)`. `timedOut` still
+> short-circuits unconditionally — a run the harness had to kill did not
+> complete, whatever it emitted on the way. This is what the frozen reference
+> scorer did all along: `score-337g2.py:56` tests `if calls:` before it ever
+> looks at the text.
+>
+> **Result:** `3E53397E` and `6C3EBD86` go **79 → 80** executed, and our scorer
+> now agrees with the frozen reference scorer on `executed`/`fabricated`/
+> `offered` across **all twelve fixtures, with zero divergences** — where before
+> round 2 there were four divergent runs. **The four published reproductions
+> still do not move** (armA 9/3/6/11/0/5, 337-G 2/3/5), verified rather than
+> assumed: armA's 11 empty-text trials carry **0** tool calls and
+> `337G-cardfix`'s 36 carry **0**.
+>
+> **And a pattern worth naming, because this is now the fourth time.** All four
+> defects on this branch — the Task 5 `DEADLINE_EPOCH` Critical, the `cant`
+> Critical, the untested exclusivity property, and this empty-text-with-tool-
+> calls case — **originated in the plan's own code block**, and in each case the
+> briefed verification steps only exercised inputs for which the defective
+> branch was **inert**: valid-or-unset deadlines for the first, `cant == 0`
+> fixtures for the second, empty-text trials for the third, and — sharpest of
+> all — for the fourth, a fix round whose own regression check confirmed the
+> published reproductions were unchanged **while the two runs that did change
+> were not among them**. A plan that ships both the code and the tests for that
+> code propagates a defect and its blind spot together, and an implementer
+> following it faithfully reports green. Verification inputs must be chosen
+> **against the branch**, not against the happy path — and "the reproductions
+> are unchanged" answers a narrower question than "the scorer is right."
+
+- [ ] **Step 4: Run and confirm it passes**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+```
+
+Expected: `score-eras-test: PASS (27 checks)`.
+
+**If any reproduction check fails, stop.** The scorer disagrees with a published
+result and must be reconciled before it touches new data — that is the whole
+reason those eleven checks exist. Both readings have been confirmed to hold
+under this exact `classify` (armA 9/3/6/11/0/5; 337-G `armed/remind` 2/3/5), so
+a failure means the code drifted, not that the expectations are wrong.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/mac/score-eras.py scripts/mac/score-eras-test.py
+git commit -m "feat(#343): Fisher + classifiers, validated against five published p-values
+
+fisher() reproduces 0.0105, 0.0008, 0.00049, 8.12e-06 and 1.083e-05 exactly —
+stdlib comb(), no scipy. classify() carries the curly-apostrophe normalisation
+(337-G's first draft read 3/10 fabrication as 0/10) and keeps `errored` strictly
+apart from every behavioural counter, so a swallowed trial cannot read as clean."
+```
+
+---
+
+### Task 3: Per-family metrics and the report
+
+**Files:**
+- Modify: `scripts/mac/score-eras.py`
+- Modify: `scripts/mac/score-eras-test.py`
+
+**Interfaces:**
+- Consumes: `load`, `era`, `classify`, `fisher`.
+- Produces: `tool_names(trial) -> list[str]`;
+  `metric_correct_tool(trial) -> int|None` (RT-B / RT-F: did the right read tool
+  answer this prompt); `metric_spurious_location(trial) -> int|None` (RT-A:
+  a `currentLocation` call on a *named*-location prompt);
+  `tally(trials) -> dict[(shape, prompt)] -> counters`;
+  CLI `python3 score-eras.py <artifact.json> [...]` printing a per-cell table.
+
+Metric definitions are derived from the archive data, not assumed:
+`stepsdirect` is answered correctly by **`readHealth`**, `motiondirect` by
+**`readMotion`** (`6AAA4AC4`: `armed` 10/10 and 10/10). `weathernamed` names its
+location, so a `currentLocation` call on it is **spurious** — the observable that
+separates `armed` (1 call) from `armed-fieldrollback` (2 calls) in `3E53397E`.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `score-eras-test.py` above the `if FAILS:` block:
+
+```python
+# --- per-family metrics, derived from the archive's own rows ---
+MOTION = os.path.join(REPO, "handoffs/evidence/battery-runs/run-20260731-192900-6AAA4AC4.json")
+_, _, mt = se.load(MOTION)
+steps = [t for t in mt if t["prompt"] == "stepsdirect"]
+check("beta4 stepsdirect n", len(steps), 20)
+check("beta4 stepsdirect correct-tool 20/20",
+      sum(se.metric_correct_tool(t) for t in steps), 20)
+motion = [t for t in mt if t["prompt"] == "motiondirect"]
+check("beta4 motiondirect correct-tool 20/20",
+      sum(se.metric_correct_tool(t) for t in motion), 20)
+
+_, _, ft = se.load(ARCHIVE)
+named = [t for t in ft if t["prompt"] == "weathernamed"]
+check("beta4 weathernamed armed spurious 3/10",
+      sum(se.metric_spurious_location(t) for t in named if t["shape"] == "armed"), 3)
+check("beta4 weathernamed fieldrollback spurious 10/10",
+      sum(se.metric_spurious_location(t) for t in named
+          if t["shape"] == "armed-fieldrollback"), 10)
+check("metric is None off-family",
+      se.metric_spurious_location({"prompt": "remind", "toolCalls": []}), None)
+
+# --- tally keys by (shape, prompt) and counts errors separately ---
+tl = se.tally(mt)
+check("tally cells", sorted({k[0] for k in tl}), ["armed", "armed-motionredirect"])
+check("tally n per cell/prompt", tl[("armed", "stepsdirect")]["n"], 10)
+```
+
+- [ ] **Step 2: Run and confirm it fails**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+```
+
+Expected: FAIL naming `no attribute 'metric_correct_tool'`.
+
+- [ ] **Step 3: Implement**
+
+Append to `scripts/mac/score-eras.py`:
+
+```python
+# Which read tool correctly answers each probe prompt. Derived from 6AAA4AC4's
+# own rows (armed: stepsdirect->readHealth 10/10, motiondirect->readMotion
+# 10/10), not from the tool descriptions.
+CORRECT_TOOL = {"stepsdirect": "readHealth", "motiondirect": "readMotion"}
+# Prompts that NAME their location, so a location lookup is spurious.
+NAMED_LOCATION = {"weathernamed"}
+
+
+def tool_names(trial):
+    return [c.get("name") for c in (trial.get("toolCalls") or [])]
+
+
+def metric_correct_tool(trial):
+    """RT-B / RT-F: 1 if the prompt's correct read tool was called. None off-family."""
+    want = CORRECT_TOOL.get(trial.get("prompt"))
+    if want is None:
+        return None
+    return 1 if want in tool_names(trial) else 0
+
+
+def metric_spurious_location(trial):
+    """RT-A: 1 if currentLocation was called on a prompt that NAMES its location.
+    This is the observable separating armed (1 call) from armed-fieldrollback
+    (2 calls) on weathernamed in 3E53397E."""
+    if trial.get("prompt") not in NAMED_LOCATION:
+        return None
+    return 1 if "currentLocation" in tool_names(trial) else 0
+
+
+def tally(trials):
+    out = {}
+    for t in trials:
+        key = (t.get("shape", "?"), t.get("prompt", "?"))
+        b = out.setdefault(key, dict(n=0, executed=0, fabricated=0, offered=0,
+                                     strict=0, j200=0, errored=0,
+                                     correct_tool=0, correct_tool_n=0,
+                                     spurious_loc=0, spurious_loc_n=0))
+        b["n"] += 1
+        for k, v in classify(t).items():
+            b[k] += v
+        ct = metric_correct_tool(t)
+        if ct is not None:
+            b["correct_tool"] += ct
+            b["correct_tool_n"] += 1
+        sl = metric_spurious_location(t)
+        if sl is not None:
+            b["spurious_loc"] += sl
+            b["spurious_loc_n"] += 1
+    return out
+
+
+def report(path):
+    env, rec, trials = load(path)
+    print(f"\n=== {os.path.basename(path)} ===")
+    print(f"era={era(rec)} os={rec.get('osVersion')} kind={rec.get('kind')} "
+          f"endedCleanly={rec.get('endedCleanly')} n={len(trials)}")
+    print(f"cells={rec.get('cells')} thermal={rec.get('thermal')}")
+    hdr = (f"{'cell/prompt':34}{'n':>4}{'err':>5}{'exec':>6}{'fab':>5}"
+           f"{'offer':>6}{'strict':>7}{'tool✓':>7}{'spurLoc':>8}")
+    print(hdr)
+    for (shape, prompt), b in sorted(tally(trials).items()):
+        ct = f"{b['correct_tool']}/{b['correct_tool_n']}" if b["correct_tool_n"] else "—"
+        sl = f"{b['spurious_loc']}/{b['spurious_loc_n']}" if b["spurious_loc_n"] else "—"
+        print(f"{shape + '/' + prompt:34}{b['n']:>4}{b['errored']:>5}"
+              f"{b['executed']:>6}{b['fabricated']:>5}{b['offered']:>6}"
+              f"{b['strict']:>7}{ct:>7}{sl:>8}")
+
+
+if __name__ == "__main__":
+    for p in sys.argv[1:]:
+        report(p)
+```
+
+- [ ] **Step 4: Run and confirm it passes**
+
+```bash
+python3 scripts/mac/score-eras-test.py
+python3 scripts/mac/score-eras.py handoffs/evidence/battery-runs/run-20260731-192900-6AAA4AC4.json
+```
+
+Expected: `PASS (35 checks)`, then a table showing `armed/stepsdirect` with
+`tool✓ 10/10`.
+
+**Note the `armed` weathernamed figure is 3/10, not 0/10** — the fieldrollback
+contrast is 3/10 vs 10/10 (Fisher p = 0.0031), still strong but not the clean
+separation a single sampled trial suggested. It was verified by counting all 20
+rows, and the plan's earlier draft had it wrong from one sample.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/mac/score-eras.py scripts/mac/score-eras-test.py
+git commit -m "feat(#343): per-family metrics derived from the archive's own rows
+
+correct-tool (stepsdirect->readHealth, motiondirect->readMotion) and
+spurious-location (currentLocation on a prompt that NAMES its location) come
+from 6AAA4AC4 and 3E53397E's actual trials, not from the tool descriptions.
+Both return None off-family so a metric can never be tallied over rows it does
+not describe."
+```
+
+---
+
+### Task 4: The tracker entry — bars before any launch
+
+**Files:**
+- Modify: `OPEN_ITEMS.md`
+
+No code. This exists because a bar written after a run is not a bar, and #343
+cannot launch until RT-A..H are in writing (the convention since #215).
+
+- [ ] **Step 1: Find the insertion point and the next item number**
+
+```bash
+grep -n "^- \*\*#34[0-9]\*\*" OPEN_ITEMS.md | tail -5
+```
+
+Confirm `#343` is unused. **Never renumber anything** — numbering is one
+monotonic sequence across `OPEN_ITEMS.md` and `OPEN_ITEMS-ARCHIVE.md`.
+
+- [ ] **Step 2: Write the entry**
+
+Add a `#343` entry stating: the campaign, the **impossibility of a beta4 A/B**
+(device on 24A5408d; beta4 gone from `/Applications`; sim cannot generate at
+all), the archive discovery (~~8 usable of 10~~ **ten runs · eight with trials ·
+SEVEN contrastable** — `3CB9E45D`/`8D724EC5` empty,
+`D1A99F3A` has trials but no twin cell), the three row classes, and bars **RT-A..H
+verbatim from spec §8**, with these two amendments from the plan's own reading
+of the data:
+
+- **RT-A splits.** `read-tool`/health is clean; `read-tool`/weather is
+  **conditional** — ~~all 40 beta4 weather trials ran against a weather service
+  returning `"rejected this app's credentials"`~~, so the weather half is
+  interpretable only if tonight's service state matches, and the reported row
+  states which state it ran under.
+- **RT-F sharpens.** `motion-redirect` scored `readHealth` **20/20** on
+  `stepsdirect` in beta4 across both cells. The drift bar is therefore *ceiling
+  retention*: canary #1 and canary #2 both at 20/20, and **any** drop is
+  reported as ~~drift~~ **a finding** rather than compared as a rate.
+
+> **⚠️ CORRECTED 2026-08-14 AS THIS TASK RAN — three of the sentences above were
+> wrong, and the entry as committed carries the corrected versions.** Recorded
+> here so the plan does not read as if it had been followed literally.
+> 1. **"8 usable of 10"** conflates two definitions. *Has trials* → eight;
+>    *supports a cross-era contrast* → **SEVEN**. Seven is what the bars need.
+> 2. **"all 40 beta4 weather trials"** is **40 of 80**: only `3E53397E`'s 40 hit
+>    the credential-rejecting service; `6C3EBD86` 65 minutes later returned real
+>    data 40/40. And the weather half is **not** interpretable-only-on-a-match —
+>    `currentWeather` fired 10/10 in all four weather cells of both runs, so
+>    service state moves TEXT metrics only, while RT-A's own observable
+>    (`metric_spurious_location`) reads the tool list and is unconfounded.
+> 3. **"any drop is reported as drift"** overreaches. A drop is drift only when
+>    **canary #1 ≠ canary #2**; equal-and-below-20/20 is a **cross-era level
+>    shift**, and calling it drift would wrongly invalidate the night's late rows.
+
+Also record, as a correction with its date: **#338's "next attempt" block
+recommends scoring 338-C via the `cardfix` battery, and that is superseded** —
+the later dated block under #337 establishes that no battery can witness the
+guard (it sits at `send`/`streamTurn`'s settle point). Per the close-out rule
+this correction goes to #338's own home, not only here.
+
+- [ ] **Step 3: Verify nothing was renumbered and the split still verifies**
+
+```bash
+python3 scripts/oi-split-verify.py
+```
+
+Expected: the script's own success output. If it reports a discrepancy, the edit
+broke the split invariant — fix before committing.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add OPEN_ITEMS.md
+git commit -m "docs(#343,#338): bars RT-A..H pre-registered, and 338-C's route corrected
+
+Bars in writing before any launch, per the convention since #215. Two amendments
+from reading the archive data rather than the tracker: RT-A splits health from
+weather (all 40 beta4 weather trials ran against a credential-rejecting weather
+service), and RT-F becomes a ceiling-retention bar (beta4 motion-redirect scored
+20/20, so any drop is drift, not a rate delta).
+
+#338's 'next attempt' block is superseded at its own home: no battery can
+witness the guard — it sits at send/streamTurn's settle point — so 338-C needs
+production turns, and is designed here as a powered hunt (n=13, 99% at p~0.3)
+whose null bounds nothing, because the 3/10 estimate is armed, not routed (#215)."
+```
+
+---
+
+### Task 5: The Track U sequencer and pre-flight
+
+**Files:**
+- Create: `scripts/mac/run-sweep.sh`
+
+**Interfaces:**
+- Consumes: `scripts/mac/run-instrument.sh`.
+- Produces: a sweep that runs a priority-ordered queue, writes each run's
+  outcome to `sweep.log`, and **continues past a single failed instrument**
+  while recording it — one bad instrument must not end the night.
+
+- [ ] **Step 1: Write the pre-flight, which runs before anything else**
+
+```bash
+#!/bin/bash
+# #343 Track U sequencer. Priority-ordered: archive-matched and Class 1 rows
+# first, so a clock overrun truncates the LEAST valuable rows.
+set -uo pipefail   # NOT -e: one failed instrument must not end the sweep.
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+DEVICE="${TALARIA_DEVICE:-whoGoesThere}"
+OUT_ROOT="${TALARIA_SWEEP_OUT:-$HOME/.talaria-instrument-runs}"
+LOG="$OUT_ROOT/sweep-$(date -u +%Y%m%dT%H%M%SZ).log"
+mkdir -p "$OUT_ROOT"
+
+# PRE-FLIGHT. A sweep that starts on the wrong runtime measures nothing, and
+# finding that out at 2:15 costs the night.
+PREFLIGHT_ARTIFACT="$(ls -t "$OUT_ROOT"/*/latest.json 2>/dev/null | head -1)"
+if [[ -n "$PREFLIGHT_ARTIFACT" ]]; then
+  OSV=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('osVersion',''))" \
+        "$PREFLIGHT_ARTIFACT")
+  echo "pre-flight: most recent artifact reports osVersion=$OSV" | tee -a "$LOG"
+  case "$OSV" in
+    *24A5408d*) : ;;
+    *) echo "PRECONDITION: expected beta5 24A5408d, got '$OSV'" | tee -a "$LOG"; exit 3;;
+  esac
+fi
+```
+
+- [ ] **Step 2: Add the priority-ordered queue and the run loop**
+
+```bash
+# name:trials — ORDER IS THE PRIORITY. Canary first, then archive-matched
+# (Class 1), then everything else. Truncation takes from the bottom.
+QUEUE=(
+  "motion-redirect:10"          # canary #1 — archive 6AAA4AC4/328502AD
+  "read-tool:10"                # RT-A  — archive 3E53397E/6C3EBD86 (Class 1a)
+  "motion-scope:10"             # RT-B  — Class 1b canary
+  "card-clause:10"
+  "refusal-words:10"
+  "decline:10"
+  "shape:10"
+  "router-probe:10"
+  "intent-router-probe:10"
+  "vector-router-probe:10"
+  "toolless-index:10"
+  "capability-detection-probe:10"
+  "tokencount-preflight:3"
+  "condensation-fit:10"
+  "fm-asymmetries:10"
+  "cross-chat-recall-probe:10"
+  "router-context-probe:10"
+  "image-routing-probe:10"
+  "long-context-probe:10"
+  "honesty:10"
+  "honesty-v2:10"
+)
+DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"
+OK=0; BAD=0; SKIPPED=()
+for ENTRY in "${QUEUE[@]}"; do
+  NAME="${ENTRY%%:*}"; TRIALS="${ENTRY##*:}"
+  if [[ "$DEADLINE_EPOCH" != "0" ]] && (( $(date +%s) >= DEADLINE_EPOCH )); then
+    SKIPPED+=("$NAME"); continue
+  fi
+  echo "=== $(date -u +%H:%M:%SZ) launching $NAME (trials=$TRIALS)" | tee -a "$LOG"
+  if "$HERE/run-instrument.sh" --device "$DEVICE" --instrument "$NAME" \
+       --trials "$TRIALS" --out "$OUT_ROOT" >>"$LOG" 2>&1; then
+    echo "    OK $NAME" | tee -a "$LOG"; OK=$((OK+1))
+  else
+    echo "    FAILED $NAME (continuing)" | tee -a "$LOG"; BAD=$((BAD+1))
+  fi
+done
+echo "SWEEP COMPLETE ok=$OK failed=$BAD skipped=${SKIPPED[*]:-none}" | tee -a "$LOG"
+echo "log: $LOG"
+```
+
+`SWEEP COMPLETE` is the **positive** marker — its absence means the sweep died,
+and the skipped list is printed so truncation is never silent.
+
+> **⚠️ CORRECTED 2026-08-14 (Task 5, fix round 1) — the code block above has a
+> Critical defect, found by an adversarial code-review probe of the shipped
+> script and reproduced directly.** `DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"`
+> is interpolated **unguarded** into `(( $(date +%s) >= DEADLINE_EPOCH ))`. Bash
+> arithmetic treats a bare non-numeric token as a variable NAME, so under
+> `set -u` a malformed `TALARIA_SWEEP_DEADLINE` — a typo, or the realistic
+> operator slip `TALARIA_SWEEP_DEADLINE="$(date)"` with `+%s` forgotten — is a
+> **fatal unbound-variable error on the first loop iteration**: zero
+> instruments run, **no log file is created at all**, and the shell exits
+> **0**. Reproduced live:
+> ```
+> $ TALARIA_SWEEP_DEADLINE="not-a-number" TALARIA_DEVICE=no-such-device \
+>     TALARIA_SWEEP_OUT="$(mktemp -d)" scripts/mac/run-sweep.sh
+> scripts/mac/run-sweep.sh: line 54: not: unbound variable
+> $ echo $?
+> 0
+> ```
+> That is exactly the "green result that proves nothing" shape this project
+> has been bitten by before (see `xcodebuild-beta4-stale-incrementals.md`),
+> landing in the one script whose entire purpose is surviving bad conditions.
+>
+> **The fix**, added immediately after `DEADLINE_EPOCH="${TALARIA_SWEEP_DEADLINE:-0}"`
+> and before the loop — validate against `^[0-9]+$` before it ever reaches
+> arithmetic, and on failure abort the same way the wrong-runtime gate above
+> does: a loud `PRECONDITION`, exit 3, before any instrument launches:
+> ```bash
+> if [[ ! "$DEADLINE_EPOCH" =~ ^[0-9]+$ ]]; then
+>   echo "PRECONDITION: TALARIA_SWEEP_DEADLINE must be epoch seconds (0 = no deadline), got '$DEADLINE_EPOCH'" | tee -a "$LOG"
+>   exit 3
+> fi
+> ```
+> **"Warn and proceed with no deadline" was considered and rejected:** a
+> malformed deadline means the operator's intent is unknown, and silently
+> running unbounded risks overrunning into the attended blocks (Task 6 Steps
+> 4–5) that need Owen present. A precondition failure costs five seconds to
+> correct; an overrun costs the night.
+
+- [ ] **Step 3: Verify it refuses a wrong runtime and a bad device**
+
+```bash
+chmod +x scripts/mac/run-sweep.sh
+TALARIA_DEVICE="no-such-device" TALARIA_SWEEP_OUT="$(mktemp -d)" \
+  scripts/mac/run-sweep.sh; echo "exit=$?"
+```
+
+Expected: each instrument logs `FAILED … (continuing)` (the runner's own
+`PRECONDITION: no connected physical device` path), and the run still ends with
+`SWEEP COMPLETE ok=0 failed=21`. **A sweep that dies on the first failure is the
+bug this step checks for.**
+
+- [ ] **Step 4: Verify the deadline truncation works**
+
+```bash
+TALARIA_DEVICE="no-such-device" TALARIA_SWEEP_OUT="$(mktemp -d)" \
+  TALARIA_SWEEP_DEADLINE="$(date +%s)" scripts/mac/run-sweep.sh | tail -2
+```
+
+Expected: `ok=0 failed=0 skipped=motion-redirect read-tool …` — every instrument
+skipped and **named**, proving truncation is recorded rather than silent.
+
+> **⚠️ EXTENDED 2026-08-14 (Task 5, fix round 1) — Steps 3 and 4 above only
+> exercise a VALID deadline (unset, meaning 0) and a VALID-and-passed deadline
+> (`$(date +%s)`), which is exactly why neither one caught the Critical filed
+> at Step 2's correction: there was no case in the original sequence for a
+> MALFORMED deadline at all.** Added as a permanent third case, run against
+> the fixed script:
+> ```bash
+> TALARIA_DEVICE="no-such-device" TALARIA_SWEEP_OUT="$(mktemp -d)" \
+>   TALARIA_SWEEP_DEADLINE="not-a-number" scripts/mac/run-sweep.sh; echo "exit=$?"
+> ```
+> Expected, and reproduced: `PRECONDITION: TALARIA_SWEEP_DEADLINE must be epoch
+> seconds (0 = no deadline), got 'not-a-number'` on stdout, `exit=3`, and —
+> checked explicitly, since this is the property that matters — **zero**
+> `launching` lines anywhere in stdout or the log file, proving the abort
+> happens before any instrument is touched, not merely before the summary
+> line. The same holds for the realistic slip `TALARIA_SWEEP_DEADLINE="$(date)"`
+> (forgetting `+%s`).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/mac/run-sweep.sh
+git commit -m "feat(#343): Track U sequencer — priority-ordered, truncation named, failures survivable
+
+Order IS the priority: canary and archive-matched Class 1 rows first, so a clock
+overrun truncates the least valuable rows. Deliberately not set -e — one failed
+instrument must not end the night — and SWEEP COMPLETE is a POSITIVE marker with
+the skipped list printed, because absence of a failure marker is not success."
+```
+
+---
+
+### Task 6: Run the campaign
+
+**Files:**
+- Create: `planning/reports/2026-08-14-343-beta5-reference-table/`
+
+Execution, not construction. Follow spec §10's timeline.
+
+> **⚠️ REORDERED 2026-08-14 (final whole-branch review round 2, Item 2) — the
+> steps below now run in SPEC §10'S ORDER, which they did not before.** Task 6
+> used to run Track U at Step 3, *ahead* of Owen's attended blocks, while §10
+> puts the attended blocks at 0:35–1:20 and Track U at 1:20–2:05 — and Step 3's
+> own deadline was sized for the §10 slot, so the checklist contradicted itself.
+> **Spec §10 governs.** The order is now: pre-flight → canary #1 + the
+> archive-matched Class 1 rows at `nominal` → Owen's two attended blocks →
+> the Track U remainder → canary #2 → scoring.
+>
+> **Why this order and not another:**
+> - **Owen's hands-on time is the scarce resource** — ~25 minutes of the 150 —
+>   and it belongs in **two contiguous early blocks** so it can be done in one
+>   sitting, not scattered across the night as interruptions.
+> - **The archive-matched rows want `nominal` thermal, which only exists
+>   early.** Track A's three batteries run back-to-back and heat the device;
+>   anything that must be compared against a `nominal` beta4 run has to precede
+>   them.
+> - **Canary #2 must be last before scoring**, because RT-F's whole
+>   discriminator is canary #1 vs canary #2 across the night's span. Moving it
+>   earlier shortens the span it measures.
+>
+> **Step numbering: the two attended blocks are still Steps 4 and 5**, chosen so
+> the existing references to "Task 6 Steps 4–5" (this plan's Task 5 correction
+> block, and the SDD ledger) keep pointing at exactly what they always did.
+> Track U moves 3 → **6**, the weather probe 2 → **3**, canary #2 5b → **7**,
+> scoring 6 → **8**, write-up 7 → **9**.
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review round 3, Important — a
+> defect this wave INTRODUCED). Every step now reads and writes inside a
+> CAMPAIGN-ONLY output directory, `$TALARIA_CAMPAIGN_OUT`, set once in Step 1.**
+>
+> The shared run root `~/.talaria-instrument-runs/` holds months of prior runs,
+> and two of tonight's steps resolved paths across all of it. Both reproduced
+> live against the real root:
+>
+> 1. **Step 7's canary #1 lookup returned a stale stub.** `ls -td …
+>    *-motion-redirect | tail -1` takes the **oldest** match, and the root
+>    already contains `20260814T171703Z-motion-redirect` — `status: running`,
+>    **0 trials**, left behind by today's tooling work. It is what `tail -1`
+>    returns now and what it would still return tonight *after both real
+>    canaries exist*. `score-eras.py` on it prints a header and **no data
+>    rows**, so RT-F's discriminator silently becomes inapplicable at 2am — on
+>    the one step that exists to make RT-F measurable.
+> 2. **Step 8's glob would have scored YESTERDAY'S DATA into tonight's table.**
+>    `~/.talaria-instrument-runs/2026081[45]*/latest.json` matches
+>    `20260814T001959Z-card-clause` — **150 trials from last night** — plus the
+>    stub. **This is the more dangerous of the two**, because it corrupts the
+>    result silently instead of producing a visibly empty table, and **an era
+>    check cannot catch it**: that run is also on `24A5408d`, so it reads as
+>    legitimate beta5 data.
+>
+> **Fixed at the root cause, not with `head -1`.** A `head -1`/`tail -1` swap
+> would have patched symptom (1) and left (2) untouched; the shared root is the
+> actual fault. An isolated campaign directory fixes both at once, and a third
+> thing besides: **the sweep's own pre-flight stops being vacuous.** It reads
+> the most recent artifact under its out-root, which in the shared root is
+> currently that 0-trial stub — a runtime gate passing on a stub is not a gate.
+> Under the corrected order Step 2 populates the campaign directory first, so by
+> Step 6 the pre-flight checks a real artifact from **tonight**.
+>
+> **`scripts/mac/run-sweep.sh` needed no change** — it already honours
+> `TALARIA_SWEEP_OUT`, and `run-instrument.sh` already honours `--out`. Verified
+> that the pre-flight **skips cleanly against a fresh, non-existent campaign
+> directory** (the `[[ -n "$PREFLIGHT_ARTIFACT" ]]` guard; `mkdir -p` creates
+> the directory, the sweep proceeds, no `PRECONDITION`) and **fires correctly**
+> once a beta5 artifact is present.
+
+- [ ] **Step 1: Deploy and confirm the runtime** *(spec §10: 0:00–0:20)*
+
+**First, set the campaign directory. Every later step depends on it** — keep
+this shell, or re-export both lines in any new one:
+
+```bash
+export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
+export TALARIA_CAMPAIGN_OUT="$HOME/.talaria-instrument-runs/343-campaign"
+mkdir -p "$TALARIA_CAMPAIGN_OUT"
+# Must be EMPTY at the start of the night. If it is not, this is a re-run —
+# move the old contents aside rather than mixing two nights in one directory.
+ls -A "$TALARIA_CAMPAIGN_OUT" && echo "NOT EMPTY — resolve before continuing"
+```
+
+`$HOME`, not `~`: a tilde does not expand inside the quotes these paths are
+passed in.
+
+Install `main` via the Xcode bridge (`RunProject`, tabIdentifier `windowtab1`)
+on **whoGoesThere**. Then launch one cheap instrument and read its artifact:
+
+```bash
+scripts/mac/run-instrument.sh --device whoGoesThere \
+  --instrument tokencount-preflight --trials 3 --out "$TALARIA_CAMPAIGN_OUT"
+```
+
+Confirm from the artifact: `osVersion` contains `24A5408d`, `buildSha` matches
+`git rev-parse --short HEAD`, `status` is `completed`. **A `buildSha` mismatch
+means the phone is running yesterday's binary** — reinstall before continuing.
+
+```bash
+python3 -c "
+import json,sys;d=json.load(open(sys.argv[1]))
+r=d.get('runRecord') or d
+print('osVersion:', d.get('osVersion') or r.get('osVersion'))
+print('buildSha :', d.get('buildSha'), ' status:', d.get('status'),
+      ' trials:', len(r.get('trials') or []))
+" "$(ls -td "$TALARIA_CAMPAIGN_OUT"/*-tokencount-preflight | head -1)/latest.json"
+git rev-parse --short HEAD
+```
+
+- [ ] **Step 2: Canary #1 and the archive-matched Class 1 rows, at `nominal`** *(spec §10: 0:20–0:35)*
+
+These three run **before** Track A heats the device, because that is the only
+window in which `nominal` thermal exists — and every one of them has a beta4
+twin that ran at `nominal`. Run them individually rather than waiting for the
+sweep, so the highest-value rows are already banked before any attended block
+can overrun:
+
+```bash
+for I in motion-redirect read-tool motion-scope; do
+  scripts/mac/run-instrument.sh --device whoGoesThere --instrument "$I" \
+    --trials 10 --timeout 600 --out "$TALARIA_CAMPAIGN_OUT" \
+    || echo "FAILED $I — record and continue"
+done
+```
+
+- `motion-redirect` = **canary #1** (archive twins `6AAA4AC4` / `328502AD`,
+  20/20 pooled per prompt, at `nominal` and `serious` respectively).
+- `read-tool` = **RT-A**, Class 1a (archive twins `3E53397E` / `6C3EBD86`).
+  Step 3 reads this run's own artifact.
+- `motion-scope` = **RT-B**, the Class 1b canary.
+
+Record each run's `thermal` from its artifact. If one fails, record it and keep
+going — Track U re-runs all three (see Step 6), so a failure here is recoverable
+rather than fatal.
+
+- [ ] **Step 3: Probe the weather service (RT-A's conditional)** *(reads Step 2's `read-tool` artifact)*
+
+~~The beta4 weather rows ran against a credential-rejecting service.~~ **The beta4
+weather rows ran against BOTH service states** — `3E53397E` credential-rejected
+40/40, `6C3EBD86` returned real data 40/40, 65 minutes apart (corrected
+2026-08-14, Task 4). Record which state tonight runs under, from `read-tool`'s own
+trials, **and compare against whichever archive run matches it**:
+
+```bash
+# Resolved, not hand-filled: the NEWEST read-tool run inside the campaign
+# directory — which at this point is Step 2's, and cannot be an older run from
+# another night because the directory contains only tonight's work.
+READ_TOOL="$(ls -td "$TALARIA_CAMPAIGN_OUT"/*-read-tool | head -1)/latest.json"
+echo "probing: $READ_TOOL"
+python3 -c "
+import json,sys
+_,_,t=(lambda d:(d,d.get('runRecord') or d,(d.get('runRecord') or d).get('trials') or []))(json.load(open(sys.argv[1])))
+print('trials:', len(t))   # 0 trials means Step 2's read-tool did not complete
+bad=[c for x in t for c in (x.get('toolCalls') or []) if 'rejected this app' in str(c.get('result',''))]
+print('weather-credential-rejected calls:', len(bad))
+" "$READ_TOOL"
+```
+
+**Read `trials:` before `weather-credential-rejected calls:`.** Zero trials
+means Step 2's `read-tool` did not complete, and a `0` on the second line then
+means *nothing was measured*, not *the service recovered* — the two look
+identical otherwise.
+
+~~Non-zero ⇒ matched with beta4, RT-A weather is interpretable. Zero ⇒ the service
+recovered, and **the weather half is reported as uninterpretable cross-era**.~~
+
+> **⚠️ CORRECTED 2026-08-14 (Task 4) — NEITHER OUTCOME IS A DEAD END, and the old
+> rule would have thrown away a good row.** The archive holds **both** states, so
+> **whichever way this probe lands there is a service-matched beta4 run to
+> compare against**: non-zero ⇒ compare against **`3E53397E`**; zero ⇒ compare
+> against **`6C3EBD86`**. Record the state in the row either way.
+>
+> **And the TOOL metrics never needed the match.** `currentWeather` fired
+> **10/10 in all four weather cells of both runs** regardless of service state,
+> so RT-A's primary observable (`metric_spurious_location`) is unconfounded by
+> it; only the **text-derived** metrics (`executed` / `fabricated` / `offered` /
+> `cant`) require the service-matched comparison. **Nothing here is reported as
+> uninterpretable — it is reported with its service state stated.**
+
+- [ ] **Step 4: Owen's attended block — three taps** *(spec §10: 0:35–1:00)*
+
+Developer screen, in order, each `--trials 10`: **`routed`**, **`routed-scoped`**,
+**`scoped-v2`**. Confirm Reminders/Calendar are granted first. Each writes real
+artifacts and reaps them per trial.
+
+These three are launched from the Developer screen rather than through
+`run-instrument.sh`, so their artifacts are **device-side** and are fetched at
+Step 8. **Fetch them into `$TALARIA_CAMPAIGN_OUT`** so the campaign's evidence
+stays one self-contained set.
+
+> **⚠️ NAMED CONFOUND — RT-E's arms are NOT thermally matched, and cannot be.**
+> `scoped-v2`'s beta4 twin is `1835BBF9`, which ran **start-to-finish at
+> `serious`**; its beta5 twin runs **here, early, at `nominal`**. The mismatch
+> is **unavoidable** — the only way to match `serious` would be to deliberately
+> heat the device, which trades a named confound for a manufactured one — and
+> it is stated here so no reader infers from the timeline that the arms were
+> matched. Record both eras' thermal on the RT-E row and report the comparison
+> **with the mismatch declared**, exactly as RT-A reports its service state.
+> Note this cuts the ONE way that is actually reassuring: the beta4 ceiling in
+> `6AAA4AC4` (`nominal`) and `328502AD` (`serious`) was **thermal-insensitive**,
+> which is evidence that thermal is not the dominant term on these rows — but
+> that was measured on `motion-redirect`, not on `scoped-v2`, so it is context,
+> not a discharge.
+
+- [ ] **Step 5: Owen's attended block — 338-C** *(spec §10: 1:00–1:20)*
+
+Up to **13** production chat turns, **fresh thread each**, prompt shape held
+constant with only the time varied: *"Remind me to take out the trash at N"*.
+**Stop at the first turn that fabricates AND is corrected by the guard** — bar
+met. Otherwise stop at 13 and record a null. Screenshot every turn.
+
+- [ ] **Step 6: Run the Track U remainder with a deadline** *(spec §10: 1:20–2:05)*
+
+```bash
+# 2700 = spec §10's Track U window, 1:20–2:05 = 45 min. CHECK THE CLOCK BEFORE
+# RUNNING THIS: the value must be the ACTUAL remaining window, not the nominal
+# one. 338-C (Step 5) is the schedule's soft spot; if it ran long, or the night
+# started late, recompute as (canary-#2 slot start − now) in seconds. The queue
+# is priority-ordered precisely so a shortened window truncates the least
+# valuable rows, and that only works if the deadline tells the truth about the
+# time left.
+#
+# TALARIA_SWEEP_OUT keeps the sweep inside the campaign directory. It also makes
+# the sweep's own pre-flight meaningful: it reads the most recent artifact under
+# its out-root, which here is Step 2's work from TONIGHT, rather than whatever
+# happens to be newest in the shared run root.
+TALARIA_SWEEP_OUT="$TALARIA_CAMPAIGN_OUT" \
+TALARIA_SWEEP_DEADLINE=$(( $(date +%s) + 2700 )) scripts/mac/run-sweep.sh
+```
+
+**The sweep re-runs Step 2's three rows, and that is accepted rather than
+worked around.** `run-sweep.sh`'s queue opens with `motion-redirect`,
+`read-tool`, `motion-scope` (`run-sweep.sh:27–30`), so under the corrected
+order they run a second time here. **Do not edit the queue on the night** — it
+is the tested artifact, its order is what makes truncation safe, and the
+regression checks assert its 21 entries. The trade, stated plainly:
+
+- **Cost:** roughly three instruments' worth of clock, which the priority order
+  pushes onto the **bottom** of the queue — the Class 2/3 rows (`honesty`,
+  `honesty-v2`, `long-context-probe`, `image-routing-probe`) that Global
+  Constraints already bar from carrying a runtime verdict.
+- **Gain:** the mid-sweep `motion-redirect` is a **third canary reading**
+  between #1 and #2, which turns RT-F's drift-vs-level-shift call from a
+  two-point comparison into a three-point one; and the `read-tool` /
+  `motion-scope` re-reads land at *warm* thermal against Step 2's `nominal`
+  ones, giving a within-night thermal contrast on exactly the archive-matched
+  rows.
+
+Either way, read the `SWEEP COMPLETE` line: it is the **positive** marker, and
+the `skipped=` list names every truncated row so the loss is never silent.
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 4).** This step
+> read `+ 4500` — **75 minutes for a 45-minute window**. Spec §10 allots Track
+> U 1:20–2:05; at 4500s the sweep runs straight through canary #2's 2:05–2:15
+> slot and into the 2:15–2:30 scoring window on a campaign that ends at 2:30.
+> Combined with Finding 3, that is the concrete mechanism by which canary #2
+> gets lost: the deadline lets Track U occupy its slot, and no step told anyone
+> to run it. **Re-checked under the reorder (round 2): Track U's window is
+> still 1:20–2:05, so 2700 remains correct, and canary #2 (Step 7) still lands
+> after it and before scoring.**
+
+- [ ] **Step 7: `motion-redirect` canary #2 — RT-F's second half** *(spec §10: 2:05–2:15)*
+
+> **⚠️ ADDED 2026-08-14 (final whole-branch review, Finding 3 — this step did
+> not exist, and without it RT-F is unmeasurable).** RT-F needs
+> `motion-redirect` run **twice** — start of night and end — because **only the
+> first-vs-second comparison separates within-night drift from a cross-era
+> level shift**, which is exactly the discriminator this plan itself pinned
+> down in Task 4's extension block (`#1 ≠ #2` ⇒ **drift**, invalidating late
+> rows; `#1 == #2` and both below 20/20 ⇒ a **cross-era level shift**, late
+> rows stand and the finding escalates alongside RT-B). The sweep queue carries
+> `motion-redirect` **once** (`run-sweep.sh:28`, canary #1) and Task 6's steps
+> contained no second run. Spec §10 has the 2:05–2:15 slot, but **Task 6 is the
+> operative checklist** — a slot in a timeline nobody executes from is not
+> coverage. ~~Numbered `5b` rather than `6` so the existing references to "Task
+> 6 Steps 4–5" (the attended blocks) keep pointing at the same steps.~~
+> **Superseded in round 2:** the reorder to spec §10's sequence made a real
+> step number available, so this is now **Step 7** — and the attended blocks
+> are still Steps 4–5, so those references hold anyway.
+
+Run it **after Track U and before scoring**, at spec §10's 2:05–2:15 slot:
+
+```bash
+scripts/mac/run-instrument.sh --device whoGoesThere \
+  --instrument motion-redirect --trials 10 --timeout 600 \
+  --out "$TALARIA_CAMPAIGN_OUT"
+```
+
+Then score both canaries and apply the discriminator. **Resolution is scoped to
+the campaign directory, which contains only tonight's runs** — so the oldest
+`*-motion-redirect` in it is Step 2's canary #1 and cannot be a leftover from
+another night. **Assert the count before trusting either path**, because a
+resolution that silently picks the wrong run is exactly what this step used to
+do:
+
+```bash
+# No arrays: macOS ships bash 3.2, where `mapfile` does not exist and negative
+# subscripts are a syntax error. `ls -tdr` is oldest-first, so head/tail give
+# the two endpoints directly.
+ls -td "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | wc -l   # EXPECT 3
+CANARY1="$(ls -tdr "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | head -1)"
+CANARY2="$(ls -tdr "$TALARIA_CAMPAIGN_OUT"/*-motion-redirect | tail -1)"
+echo "canary #1: $CANARY1"
+echo "canary #2: $CANARY2"
+[ "$CANARY1" != "$CANARY2" ] || echo "SAME RUN — only one canary exists, RT-F is NOT RUN"
+python3 scripts/mac/score-eras.py "$CANARY1/latest.json" "$CANARY2/latest.json"
+```
+
+**Expect 3** under the corrected order — Step 2's canary #1, the sweep's
+mid-night re-run (Step 6), and this one. Any other count means a step did not
+run; find out which before reading a drift verdict off it. The middle run(s)
+are the extra points noted in Step 6: use them to locate *when* a drift began,
+never as a substitute for either endpoint.
+
+**If a canary table prints a header with no data rows, that run has `n=0` and
+is NOT a canary reading — it is a failed run.** Do not report RT-F from it.
+The check is the `n=` figure on the `era=` line: `--trials` is per cell ×
+prompt, and `motion-redirect` is 2 cells × 2 prompts, so a complete canary at
+`--trials 10` is **`n=40`** — the same shape as the beta4 twins `6AAA4AC4` and
+`328502AD`. If canary #2 comes back empty, **re-run it** — the 2:05–2:15 slot
+has room for one retry — and if it fails twice, record RT-F as **NOT RUN**.
+That is an honest outcome; an inapplicable discriminator reported as "no drift"
+is not.
+
+Read the `tool✓` column per cell (beta4 was **20/20 pooled per prompt**, both
+cells, thermal-insensitive). Record **both** canaries' `thermal` — the beta4
+ceiling held at `nominal` and at `serious`, so a beta5 drop cannot be explained
+away as heat without contradicting `328502AD`. The mid-sweep run is the third
+point noted in Step 6; use it to locate *when* a drift began, never as a
+substitute for either endpoint.
+
+- [ ] **Step 8: Score both eras and write the table** *(spec §10: 2:15–2:30)*
+
+```bash
+python3 scripts/mac/score-eras-test.py    # re-validate BEFORE scoring new data
+python3 scripts/mac/score-eras.py handoffs/evidence/battery-runs/*.json > /tmp/beta4.txt
+# Scoped to the campaign directory. The old form globbed the SHARED run root by
+# date (`~/.talaria-instrument-runs/2026081[45]*/latest.json`) and would have
+# pulled in last night's 150-trial card-clause run — which is also on 24A5408d,
+# so no era check could have caught it.
+python3 scripts/mac/score-eras.py "$TALARIA_CAMPAIGN_OUT"/*/latest.json > /tmp/beta5.txt
+```
+
+**Before reading the table, check what went into it.** Every path must sit
+under the campaign directory and every run must carry trials:
+
+```bash
+ls -d "$TALARIA_CAMPAIGN_OUT"/*/ | wc -l          # runs in the campaign set
+grep -c "^=== " /tmp/beta5.txt                     # runs the scorer actually read
+grep -n "n=0" /tmp/beta5.txt || echo "no empty runs — good"
+```
+
+A run reported `n=0` contributed a header and no data; exclude it explicitly in
+the write-up rather than letting it read as a cell with nothing in it.
+
+Copy artifacts, console logs and both tables into
+`planning/reports/2026-08-14-343-beta5-reference-table/`. Because the campaign
+directory holds **only** tonight's runs, `cp -R "$TALARIA_CAMPAIGN_OUT"/*` is
+the whole evidence set — no selection step, and nothing from another night can
+ride along.
+
+- [ ] **Step 9: Write up against the bars and commit**
+
+Score RT-A..H **as written**, marking each MET / NOT MET / NOT RUN. A missed bar
+is a falsification, not a redefinition. Then commit the report plus the #343
+result block, and correct any doc whose text tonight's result falsifies **in the
+same commit** (the close-out rule).
+
+---
+
+## Self-Review
+
+**Spec coverage.** §2 archive → Tasks 1–3 and 6. §3 tracks → Tasks 5–6. §4 row
+classes → Task 3's metrics + Task 4's bars. §5 338-C → Task 4 (correction) and
+Task 6 Step 5. §6 tooling → Tasks 1–3, 5. §7 thermal → queue order (Task 5) and
+canary #1 (**Task 6 Step 2**, and again in the sweep) + **canary #2 (Task 6
+Step 7)**. §8 bars → Task
+4. §9 non-claims → Global Constraints. §10 timeline → Task 6. §11 risks → Task
+5's failure-survivability and deadline, Task 6 Step 1's build check.
+~~**No gaps.**~~
+
+> **⚠️ CORRECTED 2026-08-14 (final whole-branch review, Finding 3).** The line
+> above **certified coverage that did not exist**. "§7 thermal → … canary
+> #1/#2 (Task 6)" was written as if Task 6 ran both canaries; it ran one. The
+> sweep queue holds `motion-redirect` once, Task 6's steps held no second run,
+> and **RT-F was therefore unmeasurable as the plan stood** — the bar needs the
+> first-vs-second comparison, not a single reading. Canary #2 is now **Task 6
+> Step 7**, and the coverage line cites its step rather than a task number.
+>
+> **What this says about the Self-Review as an instrument:** it was written by
+> the same pass that wrote the tasks, so it could only check the plan against
+> the plan's own intent — and "§7 → canary #1/#2" is true of the *intent* and
+> false of the *steps*. It is the prose form of the pattern recorded at Task
+> 2's correction: three defects on this branch, all originating in this
+> document, each certified green by a check that could not see the gap. A
+> coverage claim should name the step that discharges it, so that the claim
+> fails to typecheck when the step is missing.
+>
+> ~~**One further inconsistency, recorded but NOT rewritten** (it is a
+> sequencing question for the operator, not a defect the reviewer scoped): Task
+> 6's step ORDER runs Track U (Step 3) *before* Owen's attended blocks (Steps
+> 4–5), while spec §10 runs the attended blocks at 0:35–1:20 and Track U at
+> 1:20–2:05. Step 3's deadline is sized for the §10 slot, so the two readings
+> disagree.~~ **RULED AND FIXED 2026-08-14 (round 2): spec §10 governs, and Task
+> 6 is reordered to match** — pre-flight → canary #1 + Class 1 rows at
+> `nominal` → the two attended blocks → the Track U remainder → canary #2 →
+> scoring. Leaving it as an operator's judgement call was the wrong disposition:
+> the checklist contradicted its own deadline, and a checklist that has to be
+> read against a different document to be safe is not a checklist. See the
+> reorder block at the head of Task 6 for the reasoning behind each position.
+
+**Placeholders.** None: every code step carries runnable code, every verify step
+names a command and its expected output. `<path-to-read-tool-latest.json>` in
+Task 6 **Step 3** (the weather probe, renumbered from Step 2 in the 2026-08-14
+round-2 reorder) is a runtime path, not a placeholder for undecided content —
+and it is now produced by **Step 2**, which runs `read-tool` immediately before
+it rather than leaving the operator to find an artifact from an unspecified run.
+
+**Type consistency.** `load` returns the same 3-tuple everywhere; `classify`'s
+six keys match `tally`'s counter names; `metric_correct_tool` /
+`metric_spurious_location` return `int|None` and every caller null-checks before
+tallying; `era` is used only in `report`. Names are stable across Tasks 1–3.

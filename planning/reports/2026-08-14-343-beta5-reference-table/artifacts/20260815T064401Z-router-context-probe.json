@@ -1,0 +1,615 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:50:24Z",
+  "instrument" : "router-context-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "control",
+      "ctx-a",
+      "ctx-b"
+    ],
+    "endedCleanly" : true,
+    "id" : "FDE0901D-CAAD-4480-BB61-061FCF0C0B96",
+    "kind" : "router-context",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "accept",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to add that to your calendar?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "accept",
+        "context" : "Should I set an alarm for 6:30?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "accept",
+        "context" : "I can create that reminder — shall I?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Go ahead",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to put that on your calendar?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Please do",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to remind you about it?",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "yeah",
+        "trials" : 1,
+        "variant" : "lenrule"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "baseline"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "[image attached] what does this say?",
+        "trials" : 10,
+        "variant" : "image"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "[image attached] read the text in this photo",
+        "trials" : 10,
+        "variant" : "image"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to add that to your calendar?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "Should I set an alarm for 6:30?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "I can create that reminder — shall I?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Go ahead",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to put that on your calendar?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Please do",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to remind you about it?",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "yeah",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Here's a haiku about rain: Silver threads descend, drumming on the windowpane, the garden drinks deep.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "words-only",
+        "context" : "I've set your reminder for 4:30pm.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Thanks!",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 and ended in 1799.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Summarize that in one sentence",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "No thanks",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "words-only",
+        "context" : "15% of 80 is 12.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What about 20%?",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "device",
+        "context" : "Here's a haiku about rain: Silver threads descend.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "device",
+        "context" : "Sure, I can help with that.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "control"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to add that to your calendar?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "Should I set an alarm for 6:30?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "I can create that reminder — shall I?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Go ahead",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to put that on your calendar?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Please do",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to remind you about it?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "yeah",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Here's a haiku about rain: Silver threads descend, drumming on the windowpane, the garden drinks deep.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "words-only",
+        "context" : "I've set your reminder for 4:30pm.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Thanks!",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 and ended in 1799.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Summarize that in one sentence",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "No thanks",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "words-only",
+        "context" : "15% of 80 is 12.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What about 20%?",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "device",
+        "context" : "Here's a haiku about rain: Silver threads descend.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "device",
+        "context" : "Sure, I can help with that.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes please",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to add that to your calendar?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Yes",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "accept",
+        "context" : "Should I set an alarm for 6:30?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Sure",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "accept",
+        "context" : "I can create that reminder — shall I?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Go ahead",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "accept",
+        "context" : "Would you like me to put that on your calendar?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Please do",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "accept",
+        "context" : "Want me to remind you about it?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "yeah",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Here's a haiku about rain: Silver threads descend, drumming on the windowpane, the garden drinks deep.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write another one",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "words-only",
+        "context" : "I've set your reminder for 4:30pm.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Thanks!",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "words-only",
+        "context" : "The French Revolution began in 1789 and ended in 1799.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Summarize that in one sentence",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "words-only",
+        "context" : "Would you like me to set a reminder for that?",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "No thanks",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "words-only",
+        "context" : "15% of 80 is 12.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What about 20%?",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "device",
+        "context" : "Here's a haiku about rain: Silver threads descend.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      },
+      {
+        "band" : "device",
+        "context" : "Sure, I can help with that.",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "ctx-b"
+      }
+    ],
+    "startedAt" : "2026-08-15T06:44:01Z",
+    "thermal" : [
+      "control:start=serious",
+      "control:end=serious",
+      "ctx-a:start=serious",
+      "ctx-a:end=serious",
+      "ctx-b:start=serious",
+      "ctx-b:end=serious"
+    ],
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:44:01Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

@@ -1,0 +1,1494 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "cells" : [
+    "armed",
+    "routed-production"
+  ],
+  "endedCleanly" : true,
+  "id" : "2C68DCBE-473E-48A3-9674-0BD52C632C2B",
+  "kind" : "action",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "probes" : [
+
+  ],
+  "reapSummary" : "reminders=12 events=12 alarms=19 failures=0",
+  "startedAt" : "2026-08-15T05:07:07Z",
+  "thermal" : [
+    "armed:start=nominal",
+    "armed:end=nominal",
+    "routed-production:start=nominal",
+    "routed-production:end=fair"
+  ],
+  "trials" : [
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.63206075,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "**Confirmation Card**  \n- Title: Test Talaria  \n- Time: 4:30 PM today  \n\nShall I create this reminder for you?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.895232083,
+      "outputTokens" : 55,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:\n\n- **Title:** Test Talaria  \n- **Time:** 4:30 PM today (August 15, 2026)  \n\nShould I create this reminder?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 2.399314,
+      "outputTokens" : 35,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "I've set a reminder to test Talaria at 4:30 PM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.5990432500000002,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "**Confirmation Card:**\n- Title: Test Talaria\n- Time: 4:30 PM today\n\nShould I create this reminder?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.660310417,
+      "outputTokens" : 35,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation: I’ll create a reminder to \"test Talaria\" at 4:30 PM today.\n\nShall I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.822983709,
+      "outputTokens" : 47,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:\n\n- **Title**: Test Talaria  \n- **Time**: 4:30 PM today  \n\nDo you want me to create this reminder?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 2.5003353329999998,
+      "outputTokens" : 27,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "You're all set—a reminder to test Talaria is now active for 4:30 PM.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 2.503625375,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "I’ve set a reminder for you to test Talaria at 4:30 PM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 2.790958125,
+      "outputTokens" : 41,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:  \nCreate a reminder titled \"Test Talaria\" for 4:30 PM today.  \n\nWould you like me to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 2.603947834,
+      "outputTokens" : 27,
+      "prompt" : "remind",
+      "shape" : "armed",
+      "text" : "You're all set—a reminder to test Talaria is now active for 4:30 PM.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.553604125,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.406803917,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM — it will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 2.7016895830000003,
+      "outputTokens" : 35,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation: I’ll set an alarm for 6:30.\n\nDo you want me to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.4062650420000002,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.455684583,
+      "outputTokens" : 29,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM — it’ll ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.39187975,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.408944125,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM — it will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.476282,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.40365225,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 2.487770292,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "shape" : "armed",
+      "text" : "Your alarm is set for 6:30 AM — it will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 2.786368209,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.241084167,
+      "outputTokens" : 43,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now on your calendar for Friday, August 11, 2026, at 12:00 PM for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.042814,
+      "outputTokens" : 35,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is added on Friday, August 18, 2026, at noon for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.059585375,
+      "outputTokens" : 35,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is added for Friday, August 18, 2026, at noon for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 2.876189,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 2.982111958,
+      "outputTokens" : 29,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is on your calendar for Friday, August 11, 2026, at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1784,
+      "latencySeconds" : 2.96615525,
+      "outputTokens" : 37,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Here’s the confirmation:\n\n- Title: Lunch with Sam  \n- Start time: Friday at noon  \n\nWould you like me to create this event?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.261641,
+      "outputTokens" : 43,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now on your calendar for Friday, August 18, 2026, at 12:00 PM for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 2.86676825,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.273743709,
+      "outputTokens" : 35,
+      "prompt" : "calendar",
+      "shape" : "armed",
+      "text" : "Lunch with Sam is now set for Friday, August 18, 2026, at 12:00 PM for an hour.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.190908709,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-covered hill,  \nSled glides fast on frosty air—  \nLaughter echoes loud.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.138055792,
+      "outputTokens" : 45,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here's a haiku about sledding:\n\nSnow-kissed hills gleam,  \nLaughter echoes down the slope—  \nCold wind tugs the sled.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.061065791,
+      "outputTokens" : 35,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow flies fast,  \nLaughter echoes down the hill—  \nCold wind bites the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.120972208,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here's a haiku about sledding:\n\nSnow swirls, fast descent,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.082684458,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnowflakes swirl down fast,  \nLaughter echoes through the woods—  \nCold wind bites the face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.194903583,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-white path glides fast,  \nLaughter echoes in the air—  \nCold wind bites the sky.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.072105292,
+      "outputTokens" : 43,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-packed path glides fast,  \nLaughter echoes through the pines—  \nWinter’s quick delight.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.192764875,
+      "outputTokens" : 41,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here's a haiku about sledding:\n\nSnow-white path gleams,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 2.968552458,
+      "outputTokens" : 35,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnow-covered path,  \nLaughter echoes in the air—  \nSpeed glides downhill.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1781,
+      "latencySeconds" : 3.189003167,
+      "outputTokens" : 39,
+      "prompt" : "haiku",
+      "shape" : "armed",
+      "text" : "Here’s a haiku about sledding:\n\nSnowflakes swirl down fast,  \nLaughter echoes on the hill—  \nCold wind bites the sky.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.263002333,
+      "outputTokens" : 23,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "I’ve set a reminder to test Talaria at 4:30 PM. Anything else?",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.207199917,
+      "outputTokens" : 21,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Got it — you’re now reminded to test Talaria at 4:30 PM.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 3.6078389580000003,
+      "outputTokens" : 41,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Here’s the plan: I’ll create a reminder titled \"Test Talaria\" for 4:30 PM today.\n\nDo you want me to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 3.735715583,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Here’s the confirmation:  \nCreate a reminder titled \"test Talaria\" for 4:30 PM today.  \n\nDo you want to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.153758459,
+      "outputTokens" : 21,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "I've set a reminder for you to test Talaria at 4:30 PM.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.384404584,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "I’ve set a reminder for you to test Talaria at 4:30 PM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.245805333,
+      "outputTokens" : 21,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Got it—you're now reminded to test Talaria at 4:30 PM.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.400155375,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "I’ve set a reminder for you to test Talaria at 4:30 PM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1788,
+      "latencySeconds" : 3.724918667,
+      "outputTokens" : 41,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Here’s the confirmation: I’ll create a reminder titled “Test Talaria” for 4:30 PM today.\n\nWould you like me to proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1848,
+      "latencySeconds" : 3.404091459,
+      "outputTokens" : 39,
+      "prompt" : "remind",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "I’ve set a reminder for you to test Talaria at 4:30 PM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Test Talaria",
+          "name" : "createReminder"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.170004625,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1783,
+      "latencySeconds" : 3.557347375,
+      "outputTokens" : 37,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your phone is ready — here's the confirmation:\n\n- **Alarm**: 6:30 AM.\n\nShould I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.239972084,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.208002625,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.161904083,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. It will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.207634,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.179544333,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM — it will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.135603292,
+      "outputTokens" : 23,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.283811792,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM — it will ring through Silent mode and Focus.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1841,
+      "latencySeconds" : 3.206455208,
+      "outputTokens" : 27,
+      "prompt" : "alarm",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your alarm is set for 6:30 AM. Let me know if you need anything else!",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "6:30",
+          "name" : "scheduleAlarm"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.758239459,
+      "outputTokens" : 35,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is added on Friday, August 11, 2026, at noon for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.575921541,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.6486866669999998,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.7373182920000003,
+      "outputTokens" : 31,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is set for Friday, August 11, 2026, at noon for one hour.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.705480833,
+      "outputTokens" : 29,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is now on your calendar for Friday, August 11, at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.699656708,
+      "outputTokens" : 29,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is now on your calendar for Friday, August 18, at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 3.6456829170000002,
+      "outputTokens" : 17,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is now on your calendar for Friday at noon.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1784,
+      "latencySeconds" : 3.845317959,
+      "outputTokens" : 41,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Here’s the plan: I’ll create a calendar event titled \"Lunch with Sam\" starting at noon on Friday, August 14, 2026. Shall I proceed?",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 4.039705625,
+      "outputTokens" : 37,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Lunch with Sam is on your calendar for Friday, August 11, 2026, at 12:00 PM for an hour.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 1892,
+      "latencySeconds" : 4.058087958,
+      "outputTokens" : 39,
+      "prompt" : "calendar",
+      "route" : "armed",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Your lunch with Sam is scheduled for Friday, August 18, 2026, at 12:00 PM for 60 minutes.",
+      "timedOut" : false,
+      "toolCalls" : [
+        {
+          "confirmation" : "accepted",
+          "detail" : "Lunch with Sam",
+          "name" : "createCalendarEvent"
+        }
+      ],
+      "trial" : 10
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.707293334,
+      "outputTokens" : 27,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 1
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.608346958,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind shapes every path.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 2
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.6406715840000001,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind shapes every path.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 3
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.6848090830000002,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind shapes fleeting tracks.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 4
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.666791542,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow under feet,  \nWind hums down the frozen hill—  \nLaughter takes the path.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 5
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.5458052910000002,
+      "outputTokens" : 21,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow under wheels,  \nLaughter flies down icy paths—  \nWind shapes fleeting tracks.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 6
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.646378917,
+      "outputTokens" : 27,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSpeed carries the joy.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 7
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.648047875,
+      "outputTokens" : 29,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind tugs the sled.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 8
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.5922885,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow under wheels,  \nWind hums past the frozen hill—  \nLaughter fills the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 9
+    },
+    {
+      "cant" : false,
+      "denial" : false,
+      "inputTokens" : 356,
+      "latencySeconds" : 1.579178333,
+      "outputTokens" : 25,
+      "prompt" : "haiku",
+      "route" : "toolless",
+      "routeFailed" : false,
+      "shape" : "routed-production",
+      "text" : "Snow under wheels,  \nWind hums past the frozen hill—  \nLaughter takes the air.",
+      "timedOut" : false,
+      "toolCalls" : [
+
+      ],
+      "trial" : 10
+    }
+  ],
+  "trialsPerCell" : 10
+}

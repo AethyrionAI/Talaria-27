@@ -1,0 +1,348 @@
+pre-flight: most recent artifact reports osVersion=Version 27.0 (Build 24A5408d)
+=== 05:34:03Z launching motion-redirect (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=motion-redirect trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 42135); polling every 20s
+t+20s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+223s status=running
+t+243s status=running
+t+263s status=running
+t+284s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T053404Z-motion-redirect/latest.json
+    OK motion-redirect
+=== 05:40:09Z launching read-tool (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=read-tool trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 42670); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+223s status=running
+t+243s status=running
+t+263s status=running
+t+283s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+t+364s status=running
+t+385s status=running
+t+405s status=running
+t+425s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T054009Z-read-tool/latest.json
+    OK read-tool
+=== 05:47:34Z launching motion-scope (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=motion-scope trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 43331); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+223s status=running
+t+243s status=running
+t+263s status=running
+t+283s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+t+364s status=running
+t+384s status=running
+t+405s status=running
+t+425s status=running
+t+445s status=running
+t+465s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T054734Z-motion-scope/latest.json
+    OK motion-scope
+=== 05:55:41Z launching card-clause (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=card-clause trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 44058); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+223s status=running
+t+243s status=running
+t+263s status=running
+t+283s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+t+364s status=running
+t+385s status=running
+t+405s status=running
+t+425s status=running
+t+445s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T055541Z-card-clause/latest.json
+    OK card-clause
+=== 06:03:27Z launching refusal-words (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=refusal-words trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 44726); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T060327Z-refusal-words/latest.json
+    OK refusal-words
+=== 06:06:49Z launching decline (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=decline trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 45023); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T060649Z-decline/latest.json
+    OK decline
+=== 06:09:31Z launching shape (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=shape trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 45250); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+222s status=running
+t+243s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T060932Z-shape/latest.json
+    OK shape
+=== 06:13:55Z launching router-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=router-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 45650); polling every 20s
+t+20s status=running
+t+41s status=running
+t+61s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T061355Z-router-probe/latest.json
+    OK router-probe
+=== 06:15:16Z launching intent-router-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=intent-router-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 45778); polling every 20s
+t+21s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+t+102s status=running
+t+122s status=running
+t+142s status=running
+t+162s status=running
+t+183s status=running
+t+203s status=running
+t+223s status=running
+t+243s status=running
+t+264s status=running
+t+284s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+t+365s status=running
+t+385s status=running
+t+405s status=running
+t+426s status=running
+t+446s status=running
+t+466s status=running
+t+486s status=running
+t+506s status=running
+t+527s status=running
+t+547s status=running
+t+567s status=running
+t+587s status=running
+t+608s status=running
+TIMEOUT after 600s — run NOT complete. Fetching store snapshots for post-mortem.
+    FAILED intent-router-probe (continuing)
+=== 06:25:24Z launching vector-router-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=vector-router-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 46593); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+222s status=running
+t+243s status=running
+t+263s status=running
+t+283s status=running
+t+303s status=running
+t+324s status=running
+t+344s status=running
+t+364s status=running
+t+384s status=running
+t+405s status=running
+t+425s status=running
+t+445s status=running
+t+465s status=running
+t+486s status=running
+t+506s status=running
+t+526s status=running
+t+546s status=running
+t+567s status=running
+t+587s status=running
+t+607s status=running
+TIMEOUT after 600s — run NOT complete. Fetching store snapshots for post-mortem.
+    FAILED vector-router-probe (continuing)
+=== 06:35:33Z launching toolless-index (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=toolless-index trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 47422); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T063533Z-toolless-index/latest.json
+    OK toolless-index
+=== 06:36:54Z launching capability-detection-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=capability-detection-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 47547); polling every 20s
+t+20s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+122s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+t+203s status=running
+t+223s status=running
+t+243s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T063654Z-capability-detection-probe/latest.json
+    OK capability-detection-probe
+=== 06:41:17Z launching tokencount-preflight (trials=3)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=tokencount-preflight trials=3 cells= timeout=600s sha=bb42415
+launched (console pid 47919); polling every 20s
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T064117Z-tokencount-preflight/latest.json
+    OK tokencount-preflight
+=== 06:41:38Z launching condensation-fit (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=condensation-fit trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 47989); polling every 20s
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T064138Z-condensation-fit/latest.json
+    OK condensation-fit
+=== 06:41:58Z launching fm-asymmetries (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=fm-asymmetries trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 48043); polling every 20s
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T064159Z-fm-asymmetries/latest.json
+    OK fm-asymmetries
+=== 06:42:19Z launching cross-chat-recall-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=cross-chat-recall-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 48096); polling every 20s
+t+20s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T064219Z-cross-chat-recall-probe/latest.json
+    OK cross-chat-recall-probe
+=== 06:44:01Z launching router-context-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=router-context-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 48253); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+162s status=running
+t+182s status=running
+t+202s status=running
+t+222s status=running
+t+243s status=running
+t+263s status=running
+t+283s status=running
+t+303s status=running
+t+323s status=running
+t+344s status=running
+t+364s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T064401Z-router-context-probe/latest.json
+    OK router-context-probe
+=== 06:50:25Z launching image-routing-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=image-routing-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 48807); polling every 20s
+t+21s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+t+102s status=running
+t+122s status=running
+t+142s status=running
+t+162s status=running
+t+183s status=running
+t+203s status=running
+t+223s status=running
+t+243s status=running
+t+264s status=running
+t+284s status=running
+t+304s status=running
+t+324s status=running
+t+345s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T065025Z-image-routing-probe/latest.json
+    OK image-routing-probe
+=== 06:56:30Z launching long-context-probe (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=long-context-probe trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 49301); polling every 20s
+t+20s status=running
+t+40s status=running
+t+61s status=running
+t+81s status=running
+t+101s status=running
+t+121s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T065630Z-long-context-probe/latest.json
+    OK long-context-probe
+=== 06:59:52Z launching honesty (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=honesty trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 49589); polling every 20s
+t+20s status=running
+t+40s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T065952Z-honesty/latest.json
+    OK honesty
+=== 07:00:53Z launching honesty-v2 (trials=10)
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=honesty-v2 trials=10 cells= timeout=600s sha=bb42415
+launched (console pid 49709); polling every 20s
+t+20s status=running
+t+40s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/343-campaign/20260815T070053Z-honesty-v2/latest.json
+    OK honesty-v2
+SWEEP COMPLETE ok=19 failed=2 skipped=none

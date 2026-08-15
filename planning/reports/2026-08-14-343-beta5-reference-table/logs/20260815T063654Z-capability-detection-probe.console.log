@@ -1,0 +1,60 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: CAPABILITY PROBE START gateTrials=10 sideTrials=5 baseline=10 questions=10 controls=10 (#257)
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=false probe=What's 2+2?
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=false probe=Write a haiku about sledding
+router: [cap-arm] GATE 10/10 cap=10/10 scored=10/10 errors=0 expected=false probe=write a 50 word summary about Norway
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=false probe=Tell me a joke about penguins
+router: [cap-arm] GATE 10/10 cap=10/10 scored=10/10 errors=0 expected=false probe=Write a poem for my mom's birthday
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=true probe=Remind me to buy milk tomorrow at 9am
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=true probe=What's the weather like right now?
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=true probe=Set an alarm for 6:30
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=true probe=How many steps have I taken today?
+router: [cap-arm] GATE 10/10 cap=0/10 scored=10/10 errors=0 expected=true probe=Do I have anything on my calendar Friday?
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=false probe=What's 2+2?
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=false probe=Write a haiku about sledding
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=false probe=write a 50 word summary about Norway
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=false probe=Tell me a joke about penguins
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=false probe=Write a poem for my mom's birthday
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=true probe=Remind me to buy milk tomorrow at 9am
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=true probe=What's the weather like right now?
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=true probe=Set an alarm for 6:30
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=true probe=How many steps have I taken today?
+router: [cap-control] GATE 10/10 scored=10/10 errors=0 expected=true probe=Do I have anything on my calendar Friday?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What can you do?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What else can you do?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What are you capable of?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What can you help me with?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What data can you see?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What are your features?
+router: [cap-arm] RECALL cap=5/5 toolless=0/5 scored=5/5 errors=0 probe=Can you do anything with my phone?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What do you have access to?
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=Tell me everything you can do.
+router: [cap-arm] RECALL cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What kinds of things can I ask you?
+router: [cap-arm] DANGER cap=0/5 toolless=5/5 scored=5/5 errors=0 probe=What's 2+2?
+router: [cap-arm] DANGER cap=0/5 toolless=5/5 scored=5/5 errors=0 probe=Write a haiku about sledding
+router: [cap-arm] DANGER cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=write a 50 word summary about Norway
+router: [cap-arm] DANGER cap=0/5 toolless=5/5 scored=5/5 errors=0 probe=Tell me a joke about penguins
+router: [cap-arm] DANGER cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=Write a poem for my mom's birthday
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=Remind me to buy milk tomorrow at 9am
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=What's the weather like right now?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=Set an alarm for 6:30
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=How many steps have I taken today?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=Do I have anything on my calendar Friday?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=What's the weather?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=What's on my calendar today?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=What did we talk about yesterday?
+router: [cap-arm] DANGER cap=0/5 toolless=5/5 scored=5/5 errors=0 probe=What can I make with eggs?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=What's my battery at?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=Can you set an alarm for 7am?
+router: [cap-arm] DANGER cap=0/5 toolless=5/5 scored=5/5 errors=0 probe=What should I do today?
+router: [cap-arm] DANGER cap=0/5 toolless=0/5 scored=5/5 errors=0 probe=How do I enable dark mode on my phone?
+router: [cap-arm] DANGER cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=What apps can read my health data?
+router: [cap-arm] DANGER cap=5/5 toolless=5/5 scored=5/5 errors=0 probe=Can you believe it's already August?
+router: [cap-arm] DANGER SUMMARY capTrue=20/100
+router: [cap-arm] HONESTY appended=65 claimHits=0/65 syntaxHits=0/65
+router: CAPABILITY PROBE DONE (#257)
+instrument: COMPLETED capability-detection-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

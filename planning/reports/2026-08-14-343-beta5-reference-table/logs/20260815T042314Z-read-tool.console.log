@@ -1,0 +1,421 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=10 cells=2 prompts=4 warmup=true (#200)
+battery: WARMUP begin cell=armed prompts=4 (#200V)
+battery: BEGIN shape=warmup p=weatherbare t=0
+battery: tool=currentWeather shape=warmup p=weatherbare t=0 detail=your current location
+battery: shape=warmup p=weatherbare t=0 cant=false denial=false chars=117 inTok=1833 outTok=35 text=I couldn’t pinpoint your exact location for the weather. Could you share your city or area so I can check it for you?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=weatherbare t=0 (#200F)
+battery: BEGIN shape=warmup p=weathernamed t=0
+battery: tool=currentWeather shape=warmup p=weathernamed t=0 detail=Biloxi
+battery: shape=warmup p=weathernamed t=0 cant=false denial=false chars=205 inTok=1871 outTok=77 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, and the wind is blowing at 9 mph. Today's high is 92°F and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=weathernamed t=0 (#200F)
+battery: BEGIN shape=warmup p=healthbare t=0
+battery: tool=readMotion shape=warmup p=healthbare t=0 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=warmup p=healthbare t=0 detail=summary
+battery: tool=currentLocation shape=warmup p=healthbare t=0 detail=
+battery: shape=warmup p=healthbare t=0 cant=false denial=false chars=324 inTok=1938 outTok=109 text=Here's how you're doing today: /  / - **Health**: 2,403 steps, 62 kcal active calories, heart rate at 72 bpm (6 hours ago). No sleep data for last night. / - **Activity**: No pedometer data, but you're stationary. / - **Location**: You're at 19200 Crestwick St, Saucier, United States. /  / Let me know if you'd like to adjust anything!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=healthbare t=0 (#200F)
+battery: BEGIN shape=warmup p=healthnamed t=0
+battery: tool=readHealth shape=warmup p=healthnamed t=0 detail=steps
+battery: shape=warmup p=healthnamed t=0 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=healthnamed t=0 (#200F)
+battery: WARMUP done — discarded, not counted (#200V)
+battery: THERMAL cell=armed at=start state=nominal (#201B)
+battery: BEGIN shape=armed p=weatherbare t=1
+battery: tool=currentWeather shape=armed p=weatherbare t=1 detail=your current location
+battery: shape=armed p=weatherbare t=1 cant=false denial=false chars=108 inTok=1833 outTok=29 text=I couldn't pinpoint your exact location to fetch the weather. Could you let me know where you are right now?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=1 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=2
+battery: tool=currentWeather shape=armed p=weatherbare t=2 detail=your current location
+battery: shape=armed p=weatherbare t=2 cant=false denial=false chars=104 inTok=1833 outTok=25 text=I couldn't pinpoint your exact location to fetch the weather. Could you share your current city or area?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=2 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=3
+battery: tool=currentWeather shape=armed p=weatherbare t=3 detail=current location
+battery: tool=currentLocation shape=armed p=weatherbare t=3 detail=
+battery: tool=currentWeather shape=armed p=weatherbare t=3 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed p=weatherbare t=3 cant=false denial=false chars=195 inTok=1985 outTok=83 text=It's clear at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=3 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=4
+battery: tool=currentWeather shape=armed p=weatherbare t=4 detail=your current location
+battery: tool=currentLocation shape=armed p=weatherbare t=4 detail=
+battery: tool=currentWeather shape=armed p=weatherbare t=4 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed p=weatherbare t=4 cant=false denial=false chars=173 inTok=1987 outTok=75 text=It’s clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and a 3 mph breeze. Today’s high is 96°F, low is 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=4 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=5
+battery: tool=currentWeather shape=armed p=weatherbare t=5 detail=your current location
+battery: shape=armed p=weatherbare t=5 cant=false denial=false chars=100 inTok=1833 outTok=25 text=I couldn't locate your exact location to check the weather. Can you share your current area or city?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=5 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=6
+battery: tool=currentWeather shape=armed p=weatherbare t=6 detail=your current location
+battery: shape=armed p=weatherbare t=6 cant=false denial=false chars=113 inTok=1833 outTok=33 text=I couldn't find a place to check the weather for. Could you let me know your current location or a specific city?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=6 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=7
+battery: tool=currentWeather shape=armed p=weatherbare t=7 detail=your current location
+battery: shape=armed p=weatherbare t=7 cant=false denial=false chars=103 inTok=1833 outTok=25 text=I couldn't locate a precise location to fetch the weather. Could you provide your current city or area?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=7 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=8
+battery: tool=currentWeather shape=armed p=weatherbare t=8 detail=your current location
+battery: tool=currentLocation shape=armed p=weatherbare t=8 detail=
+battery: tool=currentWeather shape=armed p=weatherbare t=8 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed p=weatherbare t=8 cant=false denial=false chars=176 inTok=1987 outTok=75 text=It's clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=8 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=9
+battery: tool=currentWeather shape=armed p=weatherbare t=9 detail=current location
+battery: tool=currentLocation shape=armed p=weatherbare t=9 detail=
+battery: tool=currentWeather shape=armed p=weatherbare t=9 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed p=weatherbare t=9 cant=false denial=false chars=219 inTok=1985 outTok=89 text=It's clear outside at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82% with a light breeze at 3 mph. Today's high will be 96°F and the low 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=9 (#200F)
+battery: BEGIN shape=armed p=weatherbare t=10
+battery: tool=currentWeather shape=armed p=weatherbare t=10 detail=current location
+battery: tool=currentLocation shape=armed p=weatherbare t=10 detail=
+battery: tool=currentWeather shape=armed p=weatherbare t=10 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed p=weatherbare t=10 cant=false denial=false chars=172 inTok=1985 outTok=77 text=It's clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and 3 mph wind. Today’s high is 96°F and low is 77°F, with 0% chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weatherbare t=10 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=1
+battery: tool=currentWeather shape=armed p=weathernamed t=1 detail=Biloxi
+battery: shape=armed p=weathernamed t=1 cant=false denial=false chars=150 inTok=1871 outTok=65 text=Clear skies in Biloxi, 86°F (feels like 86°F) with 76% humidity and 9 mph wind. Today's high is 92°F and low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=1 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=2
+battery: tool=currentWeather shape=armed p=weathernamed t=2 detail=Biloxi
+battery: shape=armed p=weathernamed t=2 cant=false denial=false chars=203 inTok=1871 outTok=77 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is 76%, and the wind is blowing at 9 mph. Today’s high is 92°F, and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=2 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=3
+battery: tool=currentWeather shape=armed p=weathernamed t=3 detail=Biloxi
+battery: shape=armed p=weathernamed t=3 cant=false denial=false chars=143 inTok=1871 outTok=53 text=Clear skies in Biloxi today, with a high of 92°F and a low of 81°F. The air is 76% humid, and there’s a gentle 9 mph breeze. No chance of rain.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=3 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=4
+battery: tool=currentWeather shape=armed p=weathernamed t=4 detail=Biloxi
+battery: shape=armed p=weathernamed t=4 cant=false denial=false chars=162 inTok=1871 outTok=61 text=The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=4 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=5
+battery: tool=currentWeather shape=armed p=weathernamed t=5 detail=Biloxi
+battery: shape=armed p=weathernamed t=5 cant=false denial=false chars=199 inTok=1871 outTok=75 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today's high is 92°F and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=5 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=6
+battery: tool=currentWeather shape=armed p=weathernamed t=6 detail=Biloxi
+battery: shape=armed p=weathernamed t=6 cant=false denial=false chars=181 inTok=1871 outTok=67 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 76% humidity, and 9 mph wind. Today’s high is 92°F and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=6 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=7
+battery: tool=currentWeather shape=armed p=weathernamed t=7 detail=Biloxi
+battery: shape=armed p=weathernamed t=7 cant=false denial=false chars=150 inTok=1871 outTok=59 text=Clear skies in Biloxi today, with a high of 92°F and a low of 81°F. It feels like 86°F, with 76% humidity and a 9 mph breeze. No chance of rain today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=7 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=8
+battery: tool=currentWeather shape=armed p=weathernamed t=8 detail=Biloxi
+battery: shape=armed p=weathernamed t=8 cant=false denial=false chars=204 inTok=1871 outTok=77 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76% with a 9 mph wind. Today’s forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=8 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=9
+battery: tool=currentWeather shape=armed p=weathernamed t=9 detail=Biloxi
+battery: shape=armed p=weathernamed t=9 cant=false denial=false chars=200 inTok=1871 outTok=75 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). The humidity is 76%, with a wind speed of 9 mph. Today’s high is 92°F and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=9 (#200F)
+battery: BEGIN shape=armed p=weathernamed t=10
+battery: tool=currentWeather shape=armed p=weathernamed t=10 detail=Biloxi
+battery: shape=armed p=weathernamed t=10 cant=false denial=false chars=153 inTok=1871 outTok=67 text=Clear skies in Biloxi, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=weathernamed t=10 (#200F)
+battery: BEGIN shape=armed p=healthbare t=1
+battery: tool=readHealth shape=armed p=healthbare t=1 detail=summary
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readMotion shape=armed p=healthbare t=1 detail=
+battery: tool=currentLocation shape=armed p=healthbare t=1 detail=
+battery: shape=armed p=healthbare t=1 cant=false denial=false chars=293 inTok=1938 outTok=93 text=Here’s your snapshot for today: /  / - **Health**: 2,403 steps, 62 kcal active, heart rate 72 bpm (6 hours ago), no sleep data recorded. / - **Motion**: No pedometer data; currently stationary. / - **Location**: 19200 Crestwick St, Saucier, United States. /  / Let me know if you’d like to tweak anything!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=1 (#200F)
+battery: BEGIN shape=armed p=healthbare t=2
+battery: tool=readMotion shape=armed p=healthbare t=2 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed p=healthbare t=2 detail=summary
+battery: shape=armed p=healthbare t=2 cant=false denial=false chars=214 inTok=1892 outTok=73 text=Here’s how you’re doing today: / - **Health**: 2,403 steps, 62 kcal burned, heart rate at 72 bpm (6 hours ago), and no sleep data recorded last night. / - **Motion**: No pedometer data, but you’re currently stationary.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=2 (#200F)
+battery: BEGIN shape=armed p=healthbare t=3
+battery: tool=readMotion shape=armed p=healthbare t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed p=healthbare t=3 detail=summary
+battery: shape=armed p=healthbare t=3 cant=false denial=false chars=296 inTok=1892 outTok=103 text=Here's how you're doing today: /  / - **Health**:  /   - Steps: 2,403 /   - Active calories: 62 kcal /   - Heart rate: 72 bpm (6 hours ago) /   - Sleep: No data recorded. / - **Motion**: No pedometer data; you're currently stationary. /  / Let me know if you'd like to adjust anything or dive deeper into any area.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=3 (#200F)
+battery: BEGIN shape=armed p=healthbare t=4
+battery: tool=readMotion shape=armed p=healthbare t=4 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed p=healthbare t=4 detail=summary
+battery: tool=currentLocation shape=armed p=healthbare t=4 detail=
+battery: shape=armed p=healthbare t=4 cant=false denial=false chars=343 inTok=1938 outTok=107 text=Here’s your snapshot for today: /  / - **Health**: 2,403 steps, 62 kcal of activity, heart rate at 72 bpm (6 hours ago), but no sleep data recorded last night. / - **Motion**: No pedometer data; currently stationary. / - **Location**: You’re at 19200 Crestwick St, Saucier, United States. /  / Let me know if you’d like to adjust anything or explore more.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=4 (#200F)
+battery: BEGIN shape=armed p=healthbare t=5
+battery: tool=readHealth shape=armed p=healthbare t=5 detail=summary
+battery: shape=armed p=healthbare t=5 cant=false denial=false chars=185 inTok=1853 outTok=71 text=Here’s how you’re doing today: / - Steps: 2,403 / - Active calories: 62 kcal / - Heart rate: 72 bpm (6 hours ago) / - Sleep: No data recorded. /  / Let me know if you’d like to track anything else!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=5 (#200F)
+battery: BEGIN shape=armed p=healthbare t=6
+battery: tool=readHealth shape=armed p=healthbare t=6 detail=summary
+battery: shape=armed p=healthbare t=6 cant=false denial=false chars=142 inTok=1853 outTok=51 text=Here's your health snapshot for today: / - Steps: 2,403 / - Active calories: 62 kcal / - Heart rate: 72 bpm (6 hours ago) / - Sleep: No data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=6 (#200F)
+battery: BEGIN shape=armed p=healthbare t=7
+battery: tool=readMotion shape=armed p=healthbare t=7 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed p=healthbare t=7 detail=summary
+battery: shape=armed p=healthbare t=7 cant=false denial=false chars=262 inTok=1892 outTok=81 text=Here's how you're doing today: /  / - **Health**: 2,403 steps, 62 kcal burned, heart rate at 72 bpm (6 hours ago), and no sleep data from last night. / - **Motion**: No pedometer data, but you're currently stationary. /  / Let me know if you'd like to track anything else!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=7 (#200F)
+battery: BEGIN shape=armed p=healthbare t=8
+battery: tool=readHealth shape=armed p=healthbare t=8 detail=summary
+battery: shape=armed p=healthbare t=8 cant=false denial=false chars=152 inTok=1853 outTok=53 text=You’ve taken 2,403 steps today, burned 62 kcal of active calories, and your heart rate was 72 bpm 6 hours ago. Sleep data for last night isn’t recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=8 (#200F)
+battery: BEGIN shape=armed p=healthbare t=9
+battery: tool=readHealth shape=armed p=healthbare t=9 detail=summary
+battery: shape=armed p=healthbare t=9 cant=false denial=false chars=155 inTok=1853 outTok=59 text=You've taken 2,403 steps today, burned 62 active calories, and your heart rate was 72 bpm six hours ago. Last night’s sleep isn’t recorded. How’s it going?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=9 (#200F)
+battery: BEGIN shape=armed p=healthbare t=10
+battery: tool=readHealth shape=armed p=healthbare t=10 detail=summary
+battery: shape=armed p=healthbare t=10 cant=false denial=false chars=167 inTok=1853 outTok=57 text=You've taken 2,403 steps today, burned 62 active calories, and your latest heart rate was 72 bpm (6 hours ago). However, there’s no sleep data recorded for last night.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthbare t=10 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=1
+battery: tool=readHealth shape=armed p=healthnamed t=1 detail=steps
+battery: shape=armed p=healthnamed t=1 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=1 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=2
+battery: tool=readHealth shape=armed p=healthnamed t=2 detail=steps
+battery: shape=armed p=healthnamed t=2 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=2 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=3
+battery: tool=readHealth shape=armed p=healthnamed t=3 detail=steps
+battery: shape=armed p=healthnamed t=3 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=3 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=4
+battery: tool=readHealth shape=armed p=healthnamed t=4 detail=steps
+battery: shape=armed p=healthnamed t=4 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=4 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=5
+battery: tool=readHealth shape=armed p=healthnamed t=5 detail=steps
+battery: shape=armed p=healthnamed t=5 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=5 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=6
+battery: tool=readHealth shape=armed p=healthnamed t=6 detail=steps
+battery: shape=armed p=healthnamed t=6 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=6 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=7
+battery: tool=readHealth shape=armed p=healthnamed t=7 detail=steps
+battery: shape=armed p=healthnamed t=7 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=7 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=8
+battery: tool=readHealth shape=armed p=healthnamed t=8 detail=steps
+battery: shape=armed p=healthnamed t=8 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=8 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=9
+battery: tool=readHealth shape=armed p=healthnamed t=9 detail=steps
+battery: shape=armed p=healthnamed t=9 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=9 (#200F)
+battery: BEGIN shape=armed p=healthnamed t=10
+battery: tool=readHealth shape=armed p=healthnamed t=10 detail=steps
+battery: shape=armed p=healthnamed t=10 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=healthnamed t=10 (#200F)
+battery: THERMAL cell=armed at=end state=fair (#201B)
+battery: THERMAL cell=armed-fieldrollback at=start state=fair (#201B)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=1
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=1 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=1 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=1 cant=false denial=false chars=241 inTok=1863 outTok=89 text=It's clear at your location (19200 Crestwick St, Saucier, United States), with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today's forecast shows a high of 96°F and a low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=1 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=2
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=2 detail=your current location
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=2 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=2 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=2 cant=false denial=false chars=242 inTok=1916 outTok=91 text=It's clear right now at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is at 82%, and the wind is blowing at 3 mph. Today’s forecast shows a high of 96°F and a low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=2 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=3
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=3 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=3 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=3 cant=false denial=false chars=229 inTok=1863 outTok=89 text=It's clear out here at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82%, and there's a light breeze at 3 mph. Today's forecast: high of 96°F, low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=3 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=4
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=4 detail=your current location
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=4 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=4 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=4 cant=false denial=false chars=206 inTok=1916 outTok=87 text=It's clear outside at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s forecast: high of 96°F, low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=4 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=5
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=5 detail=your current location
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=5 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=5 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=5 cant=false denial=false chars=209 inTok=1916 outTok=81 text=It's clear at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82%, and there's a 3 mph wind. Today's forecast: high of 96°F, low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=5 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=6
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=6 detail=current location
+battery: shape=armed-fieldrollback p=weatherbare t=6 cant=false denial=false chars=102 inTok=1760 outTok=33 text=I couldn't locate a specific place to check the weather. Could you tell me the city or area you're in?
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=6 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=7
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=7 detail=current location
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=7 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=7 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=7 cant=false denial=false chars=188 inTok=1914 outTok=81 text=It’s clear right now at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=7 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=8
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=8 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=8 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=8 cant=false denial=false chars=162 inTok=1863 outTok=63 text=It's clear right now at 81°F (feels like 84°F), with 82% humidity and a 3 mph breeze. Today's forecast: high of 96°F, low of 77°F, and no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=8 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=9
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=9 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=9 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=9 cant=false denial=false chars=175 inTok=1863 outTok=67 text=It's clear outside at 81°F (feels like 84°F), with 82% humidity and a gentle 3 mph wind. Today’s forecast is a high of 96°F and a low of 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=9 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weatherbare t=10
+battery: tool=currentLocation shape=armed-fieldrollback p=weatherbare t=10 detail=
+battery: tool=currentWeather shape=armed-fieldrollback p=weatherbare t=10 detail=19200 Crestwick St, Saucier, United States
+battery: shape=armed-fieldrollback p=weatherbare t=10 cant=false denial=false chars=161 inTok=1863 outTok=61 text=It's clear right now at 81°F (feels like 84°F), with 82% humidity and a gentle 3 mph wind. Today’s high is 96°F and low is 77°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weatherbare t=10 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=1
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=1 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=1 cant=false denial=false chars=187 inTok=1800 outTok=73 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 76% humidity, and 9 mph wind. Today’s high is 92°F with a low of 81°F, and there’s no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=1 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=2
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=2 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=2 cant=false denial=false chars=212 inTok=1800 outTok=73 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, and there’s a 9 mph wind. Today’s forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=2 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=3
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=3 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=3 cant=false denial=false chars=162 inTok=1800 outTok=61 text=The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=3 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=4
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=4 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=4 cant=false denial=false chars=214 inTok=1800 outTok=71 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today's forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=4 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=5
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=5 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=5 cant=false denial=false chars=157 inTok=1800 outTok=63 text=The weather in Biloxi is clear, 86°F (feels like 86°F) with 76% humidity and a 9 mph wind. Today's forecast: high 92°F, low 81°F, 0% chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=5 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=6
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=6 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=6 cant=false denial=false chars=199 inTok=1800 outTok=79 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). The humidity is 76%, and there’s a 9 mph wind. Today’s high is 92°F, and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=6 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=7
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=7 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=7 cant=false denial=false chars=162 inTok=1800 outTok=61 text=The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today's high is 92°F and low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=7 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=8
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=8 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=8 cant=false denial=false chars=165 inTok=1800 outTok=63 text=The weather in Biloxi is clear, 86°F (feels like 86°F) with 76% humidity and a 9 mph wind. Today's high is 92°F and the low is 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=8 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=9
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=9 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=9 cant=false denial=false chars=201 inTok=1800 outTok=75 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today’s high will be 92°F and the low 81°F, with no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=9 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=weathernamed t=10
+battery: tool=currentWeather shape=armed-fieldrollback p=weathernamed t=10 detail=Biloxi
+battery: shape=armed-fieldrollback p=weathernamed t=10 cant=false denial=false chars=189 inTok=1800 outTok=75 text=The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 75% humidity, and a 8 mph wind. Today's high is 92°F with a low of 81°F, and there's no chance of precipitation.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=weathernamed t=10 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=1
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=1 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=1 detail=summary
+battery: shape=armed-fieldrollback p=healthbare t=1 cant=false denial=false chars=231 inTok=1821 outTok=81 text=Here’s how you’re doing today: / - Steps: 2,403 / - Active calories: 62 kcal / - Heart rate: 72 bpm (6 hours ago) / - Sleep: No data recorded. / - Motion: Stationary activity only. /  / Let me know if you’d like to track more or adjust anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=1 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=2
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=2 detail=summary
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=2 detail=
+battery: tool=currentLocation shape=armed-fieldrollback p=healthbare t=2 detail=
+battery: shape=armed-fieldrollback p=healthbare t=2 cant=false denial=false chars=340 inTok=1867 outTok=113 text=Here’s how you’re doing today: /  / - **Health**: 2,403 steps, 62 active calories, and a heart rate of 72 bpm (6 hours ago). Sleep data isn’t recorded for last night. / - **Activity**: No pedometer data, but you’re currently stationary. / - **Location**: You’re at 19200 Crestwick St, Saucier, United States. /  / Let me know if you need anything else!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=2 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=3
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=3 detail=summary
+battery: shape=armed-fieldrollback p=healthbare t=3 cant=false denial=false chars=254 inTok=1821 outTok=83 text=Here’s how you’re doing today: / - **Steps:** 2,403 / - **Active calories:** 62 kcal / - **Heart rate:** 72 bpm (6 hours ago) / - **Sleep:** No data recorded last night / - **Activity:** Stationary, no pedometer data. /  / Let me know if you’d like to adjust anything!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=3 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=4
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=4 detail=summary
+battery: shape=armed-fieldrollback p=healthbare t=4 cant=false denial=false chars=236 inTok=1782 outTok=77 text=Here’s a quick snapshot of your health today: / - Steps: 2,403 / - Active calories: 62 kcal / - Heart rate: 72 bpm (6 hours ago) / - Sleep last night: no data recorded. /  / Let me know if you’d like to track anything more or dive into other areas.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=4 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=5
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=5 detail=steps
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=5 detail=calories
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=5 detail=heartrate
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=5 detail=sleep
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=5 detail=
+battery: shape=armed-fieldrollback p=healthbare t=5 cant=false denial=false chars=288 inTok=1952 outTok=91 text=Here’s your snapshot for today: / - **Steps**: 2,403 / - **Active calories**: 62 kcal / - **Heart rate**: 72 bpm (6 hours ago) / - **Sleep**: No data recorded (Health data may need to be enabled for tracking). / - **Motion**: Stationary activity only. /  / Let me know if you’d like to adjust anything!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=5 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=6
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=6 detail=summary
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=6 detail=
+battery: shape=armed-fieldrollback p=healthbare t=6 cant=false denial=false chars=239 inTok=1821 outTok=73 text=You’ve taken 2,403 steps today, burned 62 active calories, and your heart rate was 72 bpm (6 hours ago). There’s no step or calorie data for today’s motion, and you’re currently stationary. Sleep data for last night isn’t available either.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=6 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=7
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=7 detail=steps
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=7 detail=calories
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=7 detail=heartrate
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=7 detail=sleep
+battery: shape=armed-fieldrollback p=healthbare t=7 cant=false denial=false chars=161 inTok=1913 outTok=65 text=Here’s how you’re doing today: / - **Steps:** 2,403 / - **Active calories:** 62 kcal / - **Heart rate:** 72 bpm (6 hours ago) / - **Sleep:** No data recorded last night.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=7 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=8
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=8 detail=steps
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=8 detail=calories
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=8 detail=heartrate
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=8 detail=sleep
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=8 detail=
+battery: shape=armed-fieldrollback p=healthbare t=8 cant=false denial=false chars=282 inTok=1952 outTok=91 text=Here’s your snapshot for today: / - Steps: 2,403 / - Active calories: 62 kcal / - Heart rate: 72 bpm (last 6 hours) / - Sleep: No data recorded — Health access may need checking if you expect logs. / - Motion: Stationary, no walking/running data. /  / Let me know if you’d like to tweak anything.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=8 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=9
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=9 detail=steps
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=9 detail=calories
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=9 detail=heartrate
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=9 detail=sleep
+battery: tool=readMotion shape=armed-fieldrollback p=healthbare t=9 detail=
+battery: shape=armed-fieldrollback p=healthbare t=9 cant=false denial=false chars=293 inTok=1952 outTok=91 text=Here’s how you’re doing today: / - **Steps**: 2,403 / - **Calories**: 62 active calories / - **Heart rate**: 72 bpm (last 6 hours) / - **Sleep**: No data recorded for last night. / - **Activity**: Stationary. No walking or running pedometer data. /  / Let me know if you’d like to dive deeper into any area.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=9 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthbare t=10
+battery: tool=readHealth shape=armed-fieldrollback p=healthbare t=10 detail=summary
+battery: shape=armed-fieldrollback p=healthbare t=10 cant=false denial=false chars=197 inTok=1782 outTok=69 text=You’ve taken 2,403 steps today, burned 62 kcal, and your latest heart rate was 72 bpm (6 hours ago). However, there’s no sleep data for last night. Let me know if you’d like to track anything else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthbare t=10 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=1
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=1 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=1 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You’ve taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=1 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=2
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=2 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=2 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You’ve taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=2 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=3
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=3 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=3 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=3 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=4
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=4 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=4 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=4 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=5
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=5 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=5 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=5 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=6
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=6 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=6 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=6 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=7
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=7 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=7 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=7 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=8
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=8 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=8 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You’ve taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=8 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=9
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=9 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=9 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=9 (#200F)
+battery: BEGIN shape=armed-fieldrollback p=healthnamed t=10
+battery: tool=readHealth shape=armed-fieldrollback p=healthnamed t=10 detail=steps
+battery: shape=armed-fieldrollback p=healthnamed t=10 cant=false denial=false chars=31 inTok=1752 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-fieldrollback p=healthnamed t=10 (#200F)
+battery: THERMAL cell=armed-fieldrollback at=end state=fair (#201B)
+battery: REAP-STEP reminders begin (#200)
+battery: REAP-STEP events begin (#200)
+battery: CONTAINER-REAP finish calendars=0 lists=0 alarms=0 failures=0 outside-marked=1(not-deleted) (#331)
+battery: REAP-STEP alarms begin (#200)
+battery: REAP-STEP alarms done cancelled=0 failed=0 (#200)
+battery: REAP reminders=0 events=0 alarms=0 failures=0 (#200)
+battery: DONE (#200)
+instrument: COMPLETED read-tool (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

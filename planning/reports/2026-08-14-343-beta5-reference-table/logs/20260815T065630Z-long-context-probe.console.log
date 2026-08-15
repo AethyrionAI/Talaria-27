@@ -1,0 +1,30 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: LONG-CONTEXT PROBE START trials=10 rows=8 (#202C)
+router: 10/10 expected=true variant=ctx-a-long band=accept secs=1.46 ctxchars=4073 probe=Yes please
+router: 0/10 expected=false variant=ctx-a-long band=words-only secs=1.62 ctxchars=4073 probe=Say that again more briefly
+router: 0/10 expected=false variant=ctx-a-long band=words-only secs=0.81 ctxchars=551 probe=Say that again more briefly
+router: 0/10 expected=false variant=ctx-a-long band=words-only secs=1.67 ctxchars=4073 probe=Write another one
+router: 10/10 expected=true variant=ctx-a-long band=accept secs=0.81 ctxchars=551 probe=Yes please
+router: 10/10 expected=true variant=ctx-a-long band=accept secs=0.81 ctxchars=551 probe=Sure
+router: 10/10 expected=false variant=ctx-a-long band=words-only secs=0.87 ctxchars=575 probe=Write another one
+router: 10/10 expected=false variant=ctx-a-long band=words-only secs=0.82 ctxchars=586 probe=Summarize that in one sentence
+router: 10/10 expected=true variant=ctx-a-long-capped band=accept secs=0.87 ctxchars=801 probe=Yes please
+router: 0/10 expected=false variant=ctx-a-long-capped band=words-only secs=0.88 ctxchars=801 probe=Say that again more briefly
+router: 0/10 expected=false variant=ctx-a-long-capped band=words-only secs=0.81 ctxchars=551 probe=Say that again more briefly
+router: 0/10 expected=false variant=ctx-a-long-capped band=words-only secs=0.86 ctxchars=801 probe=Write another one
+router: 10/10 expected=true variant=ctx-a-long-capped band=accept secs=0.80 ctxchars=551 probe=Yes please
+router: 10/10 expected=true variant=ctx-a-long-capped band=accept secs=0.81 ctxchars=551 probe=Sure
+router: 10/10 expected=false variant=ctx-a-long-capped band=words-only secs=0.86 ctxchars=575 probe=Write another one
+router: 10/10 expected=false variant=ctx-a-long-capped band=words-only secs=0.81 ctxchars=586 probe=Summarize that in one sentence
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.67 ctxchars=45 probe=Yes please
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.67 ctxchars=37 probe=Yes
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.72 ctxchars=31 probe=Sure
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.70 ctxchars=37 probe=Go ahead
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.71 ctxchars=47 probe=Please do
+router: 10/10 expected=true variant=ctx-a-short band=accept secs=0.67 ctxchars=31 probe=yeah
+router: LONG-CONTEXT PROBE DONE (#202C)
+instrument: COMPLETED long-context-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.
