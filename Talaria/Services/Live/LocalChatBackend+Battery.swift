@@ -441,7 +441,27 @@ extension LocalChatBackend {
         /// #200K: full production belt; the instructions gain the
         /// day-default clause (`includeDayDefaultClause`) against #200J's
         /// residual remind disease — zero-tool date interrogation.
+        ///
+        /// **⚠️ FALSIFIED FOR #340 (340-F, 2026-08-15): this clause produces
+        /// ZERO due dates** — 14/14 calls omitted, identical to control at
+        /// 100%. It still halves the stall and cuts #344's impersonation
+        /// (11/20 → 4/20, p = 0.048), so the cell remains useful; it is simply
+        /// not the fix for the dropped due date. See `armedDateguide`.
         case armedDatefix = "armed-datefix"
+        /// #340: `ReminderCreateToolDateguide` — the @Guide-layer candidate,
+        /// reached only because the instructions-layer one above was falsified.
+        ///
+        /// Production's `due` guide still offers *"…or empty for no due date"*
+        /// and never says to resolve a bare time; this arm changes that text and
+        /// **nothing else** — schema stays `String?`, which is why it is a new
+        /// struct rather than `ReminderCreateToolGuidefix` (that copy moves the
+        /// optionality too, see its correction).
+        ///
+        /// Score with `scripts/mac/score-due-omission.py` over the device log,
+        /// **four buckets over CALLS MADE** — omitted / populated / already-past
+        /// / unreadable. Never "did a due appear": the model's answer when pushed
+        /// to fill the field was 8:46 AM for a 2:58 PM ask.
+        case armedDateguide = "armed-dateguide"
         /// #200L: the first cell that measures a PROMOTED clause by
         /// removing it — production with `includeCardNarrationClause`
         /// explicitly false, i.e. the pinned rollback text verbatim.
@@ -673,6 +693,16 @@ extension LocalChatBackend {
                 }
                 return tool
             }
+        case .armedDateguide:
+            // #340: one swap, one delta — production description, production
+            // `String?` schema, and a `due` @Guide that says to resolve a bare
+            // time against today instead of leaving the field empty.
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    return ReminderCreateToolDateguide(relay: reminder.relay, confirmations: reminder.confirmations)
+                }
+                return tool
+            }
         case .armedToolfix:
             return tools.map { tool in
                 if var reminder = tool as? ReminderCreateTool {
@@ -858,6 +888,27 @@ extension LocalChatBackend {
         for cell in cells {
             emitThermal(cell: cell.rawValue, at: "start")
             let cellBelt = Self.destallBelt(from: base, cell: cell)
+            // #340-G5: THE MANIPULATION ROW, in the artifact rather than inferred.
+            //
+            // 340-F had only BEHAVIOURAL evidence that its treatment was in play —
+            // the arms differed in the predicted direction, which is suggestive and
+            // is not proof, and a null under an un-verified manipulation is
+            // uninterpretable. `destallBelt` returns no swap count, so nothing
+            // recorded WHICH reminder tool a cell actually ran. This names the
+            // concrete type, so a cell that silently fell back to production is
+            // visible in the artifact instead of reading as a clean null — the same
+            // job `cardClauseInstructions`'s `removed:` does for the clause arms.
+            let reminderToolType = cellBelt
+                .first { $0.name == "createReminder" }
+                .map { String(describing: type(of: $0)) } ?? "ABSENT"
+            Self.batteryRecorder.recordProbe(
+                probe: "manipulation", expected: true,
+                correct: reminderToolType == "ABSENT" ? 0 : 1, trials: 1,
+                variant: cell.rawValue,
+                notes: ["cell": cell.rawValue, "reminderTool": reminderToolType]
+            )
+            Self.batteryEmit(
+                "battery: MANIPULATION cell=\(cell.rawValue) reminderTool=\(reminderToolType) (#340-G5)")
             let cellInstructions: String
             switch cell {
             case .armedInstrfix:
@@ -1501,7 +1552,12 @@ extension LocalChatBackend {
     /// questions and could NOT see whether the created reminder carried a due
     /// date. That is 340-D's caveat, and it is why the clause's actual purpose
     /// has never been measured.
-    nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [.armed, .armedDatefix]
+    nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [.armed, .armedDateguide]
+
+    /// #340: the FALSIFIED instructions-layer pair, kept runnable. 340-F ran
+    /// this and the clause produced zero due dates; the default moved to the
+    /// @Guide arm above. Selectable via `TALARIA_CELLS` for a re-verify.
+    nonisolated static let dueDateClauseCells: [ActionBatteryCell] = [.armed, .armedDatefix]
 
     /// #340: the due-date A/B. **auto-DECLINE, and that is the design, not a
     /// safety compromise.**

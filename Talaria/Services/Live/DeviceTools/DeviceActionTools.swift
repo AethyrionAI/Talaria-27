@@ -566,6 +566,64 @@ struct ReminderCreateToolGuidefix: Tool {
         )
     }
 }
+
+/// The `armed-dateguide` cell's reminder tool (#340): the candidate fix for the
+/// measured omission, at the layer the FALSIFIED one was not.
+///
+/// **What was measured, in order, because the order is the argument.** Fifteen
+/// production calls on 2026-08-15 carried exactly ONE correct due date, and it
+/// was the only day-bearing prompt (*"tomorrow at 4"* → `2026-08-16T16:00`).
+/// Time-only prompts — *"at 4"*, *"at 4pm"* — sent `raw=""` every time; explicit
+/// meridiem did not help. Then **340-F falsified the instructions-layer fix**:
+/// #200K's `dayDefaultClause` ("a time with no day means the next time that
+/// clock time comes around") produced **0 due dates in 14 calls**, identical to
+/// control at 100% omission.
+///
+/// So the remaining candidate is the layer that describes the FIELD rather than
+/// the behaviour: production's `due` guide still offers *"…or empty for no due
+/// date"* as a co-equal option and never says to resolve a bare time. **This arm
+/// exists because something was falsified, not because it seemed plausible.**
+///
+/// **The ONLY delta from `ReminderCreateTool` is this `due` @Guide text**, and
+/// `due` stays `String?` deliberately — that is why this is a new struct rather
+/// than a reuse of `ReminderCreateToolGuidefix`, which declares `due`/`list`
+/// non-optional and so moves the schema too (see the correction on it).
+///
+/// Not a promotion. `@Guide` has no runtime accessor, so the text is pinned here
+/// by comment and measured by the battery; production ships this only on a
+/// verdict, and the verdict is Owen's.
+struct ReminderCreateToolDateguide: Tool {
+    let name = "createReminder"
+    var description: String = ReminderCreateTool.productionDescription
+    var includesSchemaInInstructions: Bool = true
+    let relay: ToolEventRelay
+    let confirmations: ToolConfirmationCenter
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
+        var title: String
+        // Three deltas, each aimed at something measured: RESOLVE a bare time
+        // against today rather than omitting it (the 9/9 signature); say what to
+        // do when that time has already passed (#249's guard bounces a stale
+        // due, and "in 20 minutes" produced a value 6.5 hours in the past); and
+        // demote "empty" from a co-equal option to the narrow case it covers.
+        @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time). If the user gives a time without saying which day, use TODAY's date — or tomorrow's if that time has already passed today. Leave empty ONLY when the user asked for no due date at all.")
+        var due: String?
+        @Guide(description: "Reminders list name, or empty for the default list.")
+        var list: String?
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
+        defer { Task { await relay.completed(name) } }
+        return await ReminderCreateTool.performCreate(
+            rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            relay: relay, confirmations: confirmations
+        )
+    }
+}
 #endif
 
 // MARK: - Create calendar event (EventKit)

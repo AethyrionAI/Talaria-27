@@ -1062,6 +1062,10 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedStrikefix.rawValue == "armed-strikefix")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardfix.rawValue == "armed-cardfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedDatefix.rawValue == "armed-datefix")
+        // #340: the @Guide-layer arm, reached only because armed-datefix's
+        // instructions clause was falsified (340-F, 0 due dates in 14 calls).
+        // Named `dateguide`, NOT `datefix` — #200K owns that label.
+        #expect(LocalChatBackend.ActionBatteryCell.armedDateguide.rawValue == "armed-dateguide")
         #expect(LocalChatBackend.ActionBatteryCell.armedCardrollback.rawValue == "armed-cardrollback")
         #expect(LocalChatBackend.ActionBatteryCell.armedDeadendfix.rawValue == "armed-deadendfix")
         #expect(LocalChatBackend.ActionBatteryCell.armedGrabfix.rawValue == "armed-grabfix")
@@ -1085,7 +1089,10 @@ struct DeviceToolBeltTests {
         // #216: the narrow belt, evaluated where its only known cost cannot occur.
         #expect(LocalChatBackend.ActionBatteryCell.routedScoped.rawValue == "routed-scoped")
         // #215 adds `routed-production`, asserted at the top of this test.
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 31)
+        // 31 → 32 with #340's `armed-dateguide`. This count is a PIN, not a
+        // formality: it is what makes adding a cell without naming its label a
+        // failure rather than a silent widening of the export vocabulary.
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 32)
     }
 
     /// #216: routing is a property of the CELL, and exactly two cells have it.
