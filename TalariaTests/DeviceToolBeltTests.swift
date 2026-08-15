@@ -194,7 +194,12 @@ struct DeviceToolBeltTests {
         // Every production sentence survives (#176/#194 hard constraints):
         #expect(complic.contains("need no tool"))                 // licensing
         #expect(complic.contains("writing and composing"))        // licensing (#194)
-        #expect(complic.contains("confirmation card first"))      // action confirmation
+        // #337-F-2b PROMOTED 2026-08-15: the armed blurb no longer says
+        // "confirmation card first". The PROPERTY this line guards is that the
+        // action-confirmation sentence survives at all, so it now asserts the
+        // shipping text through the same alias production builds from — it stays
+        // able to fail if that sentence is ever dropped.
+        #expect(complic.contains(DeviceActionClauses.armedBlurbShippingSentence))  // action confirmation
         #expect(complic.contains("never invent a value"))         // honesty
         #expect(complic.contains("never the answer"))             // recovery
         #expect(complic.contains("repeat a denial"))              // recovery
@@ -956,16 +961,21 @@ struct DeviceToolBeltTests {
     /// (interleaved cells, cross-attributed tool calls, an FM -1/1001
     /// error storm from model contention). The mutex is backend-owned:
     /// one battery at a time, whatever the UI thinks.
-    @Test @MainActor func batteryMutexAdmitsOneRunAtATime() {
+    ///
+    /// #331 made `beginBatteryRun` async — the start reap lives inside it,
+    /// so no launcher can skip it — and the mutex now has to hold ACROSS
+    /// that suspension. That is why the claim happens before the await and
+    /// is released again only on refusal.
+    @Test @MainActor func batteryMutexAdmitsOneRunAtATime() async {
         // Isolate from any state another test left behind.
         LocalChatBackend.endBatteryRun()
 
-        #expect(LocalChatBackend.beginBatteryRun())
+        #expect(await LocalChatBackend.beginBatteryRun())
         // A second begin while active must be refused.
-        #expect(!LocalChatBackend.beginBatteryRun())
+        #expect(!(await LocalChatBackend.beginBatteryRun()))
         LocalChatBackend.endBatteryRun()
         // Released — the next run may begin.
-        #expect(LocalChatBackend.beginBatteryRun())
+        #expect(await LocalChatBackend.beginBatteryRun())
         LocalChatBackend.endBatteryRun()
     }
 
@@ -2345,7 +2355,12 @@ struct DeviceToolBeltTests {
         // The promoted clause, verbatim, at its measured seam: after the
         // confirmation-card sentence. Since #200G the find-first carve-out
         // follows it, before honesty-and-recovery.
-        #expect(production.contains("accept it gracefully. When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply. 'Remind me' means"))
+        // #337-F-2b PROMOTED 2026-08-15: the blurb's tail moved from "accept it
+        // gracefully" to "accept that gracefully", so this literal moved with it.
+        // The SUBJECT is unchanged and is the whole point of the assertion — the
+        // destall clause sits immediately after the blurb, at its measured seam,
+        // with nothing inserted between them.
+        #expect(production.contains("accept that gracefully. When the user asks for a reminder, alarm, or calendar event and says what and when, create it right away — never ask which list, which calendar, or for other optional details first; leave optional fields empty and the defaults apply. 'Remind me' means"))
         // Explicit true is identity with the default — the #200C treated
         // cell now measures production.
         let explicitOn = LocalChatBackend.instructionsText(
@@ -2362,7 +2377,11 @@ struct DeviceToolBeltTests {
         )
         #expect(rollback != production)
         #expect(!rollback.contains("never ask which list"))
-        #expect(rollback.contains("confirmation card first; if they decline, accept it gracefully. 'Remind me' means"))
+        // #337-F-2b PROMOTED 2026-08-15 — the blurb's wording changed, so this
+        // literal moved with it. The assertion's subject is the JOIN (the blurb
+        // runs straight into the destall clause's "'Remind me' means"), which is
+        // what would break if a clause were inserted between them.
+        #expect(rollback.contains("if they decline, accept that gracefully. 'Remind me' means"))
         #expect(rollback.contains("never invent a value"))
         // The clause never reaches the toolless branch (it rides inside
         // the hasTools capabilities paragraph).

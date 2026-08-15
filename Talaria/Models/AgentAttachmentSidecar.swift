@@ -150,10 +150,18 @@ struct AgentAttachmentSidecar: Codable, Hashable, Sendable {
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    /// The rows an agent writes files onto. Local to this type on purpose:
-    /// #275's `isUserAuthored` exists because FOUR sites needed one answer;
-    /// this question has exactly one asker.
+    /// The rows an agent writes files onto.
+    ///
+    /// **#280 (2026-08-10) superseded the note that stood here.** It read
+    /// *"Local to this type on purpose: #275's `isUserAuthored` exists
+    /// because FOUR sites needed one answer; this question has exactly one
+    /// asker."* That stopped being true the moment #280 needed the same
+    /// answer for the conversation-card generator's eligibility guard — a
+    /// voice-only thread's replies are `.voiceHermes`, so a `== .hermes`
+    /// test rejected the whole thread and it never got a title. The
+    /// predicate is now `MessageSender.isAgentAuthored` and this call routes
+    /// through it; the private copy is gone rather than left to drift.
     private static func isAgentAuthored(_ sender: MessageSender) -> Bool {
-        sender == .hermes || sender == .voiceHermes
+        sender.isAgentAuthored
     }
 }

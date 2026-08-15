@@ -412,6 +412,18 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// stays the default transport until 3A-F passes; `SessionsHermesClient`
     /// reads this through a provider closure, not a direct settings read.
     var useRunsTransport: Bool
+    /// #224 Phase 0: the on-device confirm gate's approval mode. **GLOBAL,
+    /// not per-profile** (Owen's ballot, ruling 2) — the gate governs THIS
+    /// PHONE's writes (EventKit, AlarmKit, Reminders), which happen
+    /// identically whichever host a turn came from and happen at all when no
+    /// host is configured, so making the safety posture change with the
+    /// active profile would be a footgun with no upside.
+    ///
+    /// `.manual` is the default AND the only value this build resolves to: no
+    /// user-facing control ships in Phase 0 (ruling 1), and the decoder
+    /// clamps through `ApprovalMode.resolved(_:)` so no persisted blob can
+    /// arm a mode whose handling does not exist yet.
+    var approvalMode: ApprovalMode
 
     init(
         userName: String = "User",
@@ -443,7 +455,8 @@ struct UserSettings: Codable, Hashable, Sendable {
         showEmptySessions: Bool = false,
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate,
-        useRunsTransport: Bool = false
+        useRunsTransport: Bool = false,
+        approvalMode: ApprovalMode = .manual
     ) {
         self.userName = userName
         self.avatarInitials = avatarInitials
@@ -475,6 +488,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
         self.useRunsTransport = useRunsTransport
+        self.approvalMode = approvalMode
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -508,6 +522,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case appLockEnabled
         case appLockGracePeriod
         case useRunsTransport
+        case approvalMode
     }
 
     init(from decoder: Decoder) throws {
@@ -549,6 +564,13 @@ struct UserSettings: Codable, Hashable, Sendable {
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
         useRunsTransport = try container.decodeIfPresent(Bool.self, forKey: .useRunsTransport) ?? false
+        // #224 Phase 0: `try?` for the `appearanceTheme` reason — a mode
+        // written by some later build must degrade to the default, never
+        // fail the whole settings decode and reset every preference — and
+        // `resolved(_:)` on top of it, because a blob that NAMES a mode
+        // this build ships no handling for must not arm it.
+        approvalMode = ApprovalMode.resolved(
+            (try? container.decodeIfPresent(ApprovalMode.self, forKey: .approvalMode)) ?? nil)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -583,6 +605,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(appLockEnabled, forKey: .appLockEnabled)
         try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)
         try container.encode(useRunsTransport, forKey: .useRunsTransport)
+        try container.encode(approvalMode, forKey: .approvalMode)
     }
 
     var appLockConfiguration: AppLockConfiguration {

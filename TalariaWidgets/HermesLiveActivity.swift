@@ -3,67 +3,11 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
-struct HermesBrandIcon: View {
-    let size: CGFloat
-    var fallbackSymbol: String = "brain.head.profile"
-    var fallbackTint: Color = .yellow
-    var backgroundTint: Color? = nil
-    var cornerRadius: CGFloat? = nil
-
-    var body: some View {
-        if let uiImage = Self.loadImage() {
-            Image(uiImage: uiImage)
-                .resizable()
-                .renderingMode(.original)
-                .aspectRatio(contentMode: .fit)
-                .frame(width: size, height: size)
-                .clipShape(RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: RoundedRectangle(cornerRadius: cornerRadius ?? size * 0.22))
-                }
-        } else {
-            Image(systemName: fallbackSymbol)
-                .font(.system(size: size * 0.7, weight: .medium))
-                .foregroundStyle(fallbackTint)
-                .frame(width: size, height: size)
-                .ifLet(backgroundTint) { view, tint in
-                    view.background(tint, in: Circle())
-                }
-        }
-    }
-
-    private static func loadImage() -> UIImage? {
-        // #250: the app publishes the SELECTED icon's art into the app group;
-        // wear it when present so the island matches the home screen.
-        if let selected = SelectedIconHandoff.load() {
-            return selected
-        }
-        if let image = UIImage(named: "AppIcon60x60", in: Bundle.main, compatibleWith: nil) {
-            return image
-        }
-
-        let containerAppURL = Bundle.main.bundleURL
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        if let appBundle = Bundle(url: containerAppURL),
-           let image = UIImage(named: "AppIcon60x60", in: appBundle, compatibleWith: nil) {
-            return image
-        }
-
-        return nil
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func ifLet<T, Content: View>(_ value: T?, transform: (Self, T) -> Content) -> some View {
-        if let value {
-            transform(self, value)
-        } else {
-            self
-        }
-    }
-}
+// #250F (2026-08-11): `HermesBrandIcon` and the `ifLet` View helper moved
+// out of this file to `Shared/HermesBrandIcon.swift` so `TalariaTests` can
+// reach `HermesBrandIcon.redrawn(_:at:)` (bar 250F-A). `Shared/` compiles
+// into the app AND this extension, so nothing about what this widget draws
+// changed — see that file's header for the whole reason.
 
 struct HermesLiveActivity: Widget {
     var body: some WidgetConfiguration {

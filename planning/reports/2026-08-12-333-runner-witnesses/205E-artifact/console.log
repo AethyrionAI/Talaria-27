@@ -1,0 +1,30 @@
+battery: CONTAINER-REFUSED start — calendar access is not determined (#331)
+router: LONG-CONTEXT PROBE START trials=5 rows=8 (#202C)
+router: 5/5 expected=true variant=ctx-a-long band=accept secs=2.17 ctxchars=4073 probe=Yes please
+router: 0/5 expected=false variant=ctx-a-long band=words-only secs=1.81 ctxchars=4073 probe=Say that again more briefly
+router: 0/5 expected=false variant=ctx-a-long band=words-only secs=1.11 ctxchars=551 probe=Say that again more briefly
+router: 0/5 expected=false variant=ctx-a-long band=words-only secs=2.17 ctxchars=4073 probe=Write another one
+router: 5/5 expected=true variant=ctx-a-long band=accept secs=1.30 ctxchars=551 probe=Yes please
+router: 5/5 expected=true variant=ctx-a-long band=accept secs=1.41 ctxchars=551 probe=Sure
+router: 5/5 expected=false variant=ctx-a-long band=words-only secs=1.43 ctxchars=575 probe=Write another one
+router: 5/5 expected=false variant=ctx-a-long band=words-only secs=1.48 ctxchars=586 probe=Summarize that in one sentence
+router: 5/5 expected=true variant=ctx-a-long-capped band=accept secs=1.54 ctxchars=801 probe=Yes please
+router: 0/5 expected=false variant=ctx-a-long-capped band=words-only secs=1.57 ctxchars=801 probe=Say that again more briefly
+router: 0/5 expected=false variant=ctx-a-long-capped band=words-only secs=1.53 ctxchars=551 probe=Say that again more briefly
+router: 0/5 expected=false variant=ctx-a-long-capped band=words-only secs=1.68 ctxchars=801 probe=Write another one
+router: 5/5 expected=true variant=ctx-a-long-capped band=accept secs=1.57 ctxchars=551 probe=Yes please
+router: 5/5 expected=true variant=ctx-a-long-capped band=accept secs=1.64 ctxchars=551 probe=Sure
+router: 5/5 expected=false variant=ctx-a-long-capped band=words-only secs=1.66 ctxchars=575 probe=Write another one
+router: 5/5 expected=false variant=ctx-a-long-capped band=words-only secs=1.69 ctxchars=586 probe=Summarize that in one sentence
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.50 ctxchars=45 probe=Yes please
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.56 ctxchars=37 probe=Yes
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.61 ctxchars=31 probe=Sure
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.54 ctxchars=37 probe=Go ahead
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.61 ctxchars=47 probe=Please do
+router: 5/5 expected=true variant=ctx-a-short band=accept secs=1.66 ctxchars=31 probe=yeah
+router: LONG-CONTEXT PROBE DONE (#202C)
+instrument: COMPLETED long-context-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

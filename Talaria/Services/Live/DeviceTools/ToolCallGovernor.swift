@@ -47,6 +47,57 @@ struct ToolPhaseCutError: Error {
 /// number, not the mechanism.
 @MainActor
 final class ToolCallGovernor {
+
+    #if DEBUG
+    /// #337 bar 337-D: ONE refusal, verbatim, with the state that produced it.
+    ///
+    /// #232 filed the grind — 57 refusal→re-infer cycles — and #337 measured
+    /// its rate at scale (~80% of action turns cut). **Nobody has ever read
+    /// what a refusal actually SAYS in a run that got cut**, so every filed
+    /// number about the grind describes a text nobody has looked at. This is
+    /// that text, plus the two counters that decide which branch produced it:
+    /// a refusal whose `callsThisTurn` is 12 and whose `callsOfThisTool` is 0
+    /// is a BUDGET refusal that this turn did not earn, and that is a
+    /// different finding from a tool called four times.
+    struct RefusalObservation: Equatable {
+        enum Reason: String, Equatable {
+            /// The per-turn budget was already spent when this call arrived.
+            case perTurnBudget = "per-turn-budget"
+            /// This tool had already been admitted `sameToolRepeatCap` times.
+            case sameToolRepeat = "same-tool-repeat"
+        }
+        var tool: String
+        var reason: Reason
+        /// The refusal string EXACTLY as the model receives it.
+        var text: String
+        /// Admitted calls this turn at the moment of the refusal.
+        var callsThisTurn: Int
+        /// Admitted calls of THIS tool this turn at the moment of the refusal.
+        var callsOfThisTool: Int
+    }
+
+    /// The 337-D capture sink. `nil` in every normal run — including every
+    /// DEBUG run that is not an instrument — so the governor's hot path costs
+    /// one optional load and nothing else.
+    ///
+    /// A shared static rather than an injected dependency because the governor
+    /// is constructed inside `installTools` (#225's "a property of HAVING a
+    /// belt" design) and an instrument has no handle on it. Same shape, and
+    /// the same justification, as `ToolEventRelay.batteryTrialTag`.
+    @MainActor
+    final class RefusalCapture {
+        static var current: RefusalCapture?
+        private(set) var observations: [RefusalObservation] = []
+        func record(_ observation: RefusalObservation) { observations.append(observation) }
+        /// Returns everything captured since the last drain and clears the
+        /// buffer — the per-trial boundary an instrument needs.
+        @discardableResult
+        func drain() -> [RefusalObservation] {
+            defer { observations = [] }
+            return observations
+        }
+    }
+    #endif
     enum Admission: Equatable {
         case allowed
         /// Refusal text handed back as the tool's OWN OUTPUT.
@@ -88,21 +139,32 @@ final class ToolCallGovernor {
     /// a refused call does not push the turn further toward its ceiling.
     func admit(tool name: String) -> Admission {
         if callsThisTurn >= perTurnBudget {
-            return .refused(
-                "You have used all the tool calls available for this turn. "
+            let text = "You have used all the tool calls available for this turn. "
                 + "Answer the user now with what you already have, and say plainly "
                 + "what you could not find out."
-            )
+            #if DEBUG
+            // #337-D: captured at the point the refusal is DECIDED, so the
+            // text recorded is the one the model was handed rather than a
+            // reconstruction of it.
+            RefusalCapture.current?.record(RefusalObservation(
+                tool: name, reason: .perTurnBudget, text: text,
+                callsThisTurn: callsThisTurn, callsOfThisTool: callsByTool[name] ?? 0))
+            #endif
+            return .refused(text)
         }
         // Counted across the whole turn, not just consecutively: the observed
         // spiral interleaved before it degenerated, and a consecutive-only cap
         // is defeated by alternating two tools.
         if (callsByTool[name] ?? 0) >= sameToolRepeatCap {
-            return .refused(
-                "You have already called \(name) several times this turn and it is not "
+            let text = "You have already called \(name) several times this turn and it is not "
                 + "getting you closer. Do not call it again — answer the user with what "
                 + "you have, and say plainly what you could not find out."
-            )
+            #if DEBUG
+            RefusalCapture.current?.record(RefusalObservation(
+                tool: name, reason: .sameToolRepeat, text: text,
+                callsThisTurn: callsThisTurn, callsOfThisTool: callsByTool[name] ?? 0))
+            #endif
+            return .refused(text)
         }
         callsThisTurn += 1
         callsByTool[name, default: 0] += 1

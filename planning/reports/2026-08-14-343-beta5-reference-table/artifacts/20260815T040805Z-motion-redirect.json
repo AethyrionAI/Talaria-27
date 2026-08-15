@@ -1,0 +1,235 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T04:09:24Z",
+  "instrument" : "motion-redirect",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "armed-motionredirect"
+    ],
+    "endedCleanly" : true,
+    "id" : "BF28D3CC-6F54-411C-93A8-D4A084D3AE26",
+    "kind" : "action",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+    "startedAt" : "2026-08-15T04:08:25Z",
+    "thermal" : [
+      "armed:start=nominal",
+      "armed:end=nominal",
+      "armed-motionredirect:start=nominal",
+      "armed-motionredirect:end=nominal"
+    ],
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.883084583,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.911177375,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.922303125,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You’ve taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.526456834,
+        "outputTokens" : 13,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You’re currently sitting still—no walking detected.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.253846417,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still now—no walking or motion data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.040445709,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now — no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1865,
+        "latencySeconds" : 2.02333675,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "text" : "You’ve taken 12,434 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1865,
+        "latencySeconds" : 2.032688208,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "text" : "You've taken 18,423 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1865,
+        "latencySeconds" : 2.056560625,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "text" : "You've taken 2,347 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.265517666,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.272992166,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.281611541,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      }
+    ],
+    "trialsPerCell" : 3
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T04:08:06Z",
+  "status" : "completed",
+  "trialsRequested" : 3,
+  "unattended" : true
+}

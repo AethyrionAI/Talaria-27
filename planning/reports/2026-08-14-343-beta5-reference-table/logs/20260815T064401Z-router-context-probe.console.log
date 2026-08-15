@@ -1,0 +1,79 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: CONTEXT PROBE START trials=10 rows=13 variants=control,ctx-a,ctx-b (#202A)
+router: lenrule fires → armed expected=true band=accept probe=Yes please
+router: lenrule fires → armed expected=true band=accept probe=Yes
+router: lenrule fires → armed expected=true band=accept probe=Sure
+router: lenrule fires → armed expected=true band=accept probe=Go ahead
+router: lenrule fires → armed expected=true band=accept probe=Please do
+router: lenrule fires → armed expected=true band=accept probe=yeah
+router: lenrule DEFERS (not a bare affirmative) band=words-only probe=Write another one
+router: lenrule DEFERS (not a bare affirmative) band=words-only probe=Thanks!
+router: lenrule DEFERS (not a bare affirmative) band=words-only probe=Summarize that in one sentence
+router: lenrule DEFERS (not a bare affirmative) band=words-only probe=No thanks
+router: lenrule DEFERS (not a bare affirmative) band=words-only probe=What about 20%?
+router: lenrule DEFERS (not a bare affirmative) band=device probe=Remind me to buy milk tomorrow at 9am
+router: lenrule DEFERS (not a bare affirmative) band=device probe=What's the weather like right now?
+router: lenrule fired on 6/13 rows, deferred on 7 (#202A)
+battery: THERMAL cell=control at=start state=serious (#201B)
+router: 10/10 expected=false variant=baseline band=baseline errors=0 probe=What's 2+2?
+router: 10/10 expected=false variant=baseline band=baseline errors=0 probe=Write a haiku about sledding
+router: 10/10 expected=false variant=baseline band=baseline errors=0 probe=write a 50 word summary about Norway
+router: 10/10 expected=false variant=baseline band=baseline errors=0 probe=Tell me a joke about penguins
+router: 10/10 expected=false variant=baseline band=baseline errors=0 probe=Write a poem for my mom's birthday
+router: 10/10 expected=true variant=baseline band=baseline errors=0 probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=baseline band=baseline errors=0 probe=What's the weather like right now?
+router: 10/10 expected=true variant=baseline band=baseline errors=0 probe=Set an alarm for 6:30
+router: 10/10 expected=true variant=baseline band=baseline errors=0 probe=How many steps have I taken today?
+router: 10/10 expected=true variant=baseline band=baseline errors=0 probe=Do I have anything on my calendar Friday?
+router: 0/10 expected=true variant=image band=image errors=0 probe=[image attached] what does this say?
+router: 0/10 expected=true variant=image band=image errors=0 probe=[image attached] read the text in this photo
+router: 0/10 expected=true variant=control band=accept errors=0 probe=Yes please
+router: 0/10 expected=true variant=control band=accept errors=0 probe=Yes
+router: 0/10 expected=true variant=control band=accept errors=0 probe=Sure
+router: 0/10 expected=true variant=control band=accept errors=0 probe=Go ahead
+router: 0/10 expected=true variant=control band=accept errors=0 probe=Please do
+router: 0/10 expected=true variant=control band=accept errors=0 probe=yeah
+router: 10/10 expected=false variant=control band=words-only errors=0 probe=Write another one
+router: 10/10 expected=false variant=control band=words-only errors=0 probe=Thanks!
+router: 10/10 expected=false variant=control band=words-only errors=0 probe=Summarize that in one sentence
+router: 10/10 expected=false variant=control band=words-only errors=0 probe=No thanks
+router: 10/10 expected=false variant=control band=words-only errors=0 probe=What about 20%?
+router: 10/10 expected=true variant=control band=device errors=0 probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=control band=device errors=0 probe=What's the weather like right now?
+battery: THERMAL cell=control at=end state=serious (#201B)
+battery: THERMAL cell=ctx-a at=start state=serious (#201B)
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=Yes please
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=Yes
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=Sure
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=Go ahead
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=Please do
+router: 10/10 expected=true variant=ctx-a band=accept errors=0 probe=yeah
+router: 10/10 expected=false variant=ctx-a band=words-only errors=0 probe=Write another one
+router: 10/10 expected=false variant=ctx-a band=words-only errors=0 probe=Thanks!
+router: 10/10 expected=false variant=ctx-a band=words-only errors=0 probe=Summarize that in one sentence
+router: 10/10 expected=false variant=ctx-a band=words-only errors=0 probe=No thanks
+router: 10/10 expected=false variant=ctx-a band=words-only errors=0 probe=What about 20%?
+router: 10/10 expected=true variant=ctx-a band=device errors=0 probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=ctx-a band=device errors=0 probe=What's the weather like right now?
+battery: THERMAL cell=ctx-a at=end state=serious (#201B)
+battery: THERMAL cell=ctx-b at=start state=serious (#201B)
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=Yes please
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=Yes
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=Sure
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=Go ahead
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=Please do
+router: 10/10 expected=true variant=ctx-b band=accept errors=0 probe=yeah
+router: 10/10 expected=false variant=ctx-b band=words-only errors=0 probe=Write another one
+router: 10/10 expected=false variant=ctx-b band=words-only errors=0 probe=Thanks!
+router: 10/10 expected=false variant=ctx-b band=words-only errors=0 probe=Summarize that in one sentence
+router: 10/10 expected=false variant=ctx-b band=words-only errors=0 probe=No thanks
+router: 10/10 expected=false variant=ctx-b band=words-only errors=0 probe=What about 20%?
+router: 10/10 expected=true variant=ctx-b band=device errors=0 probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=ctx-b band=device errors=0 probe=What's the weather like right now?
+battery: THERMAL cell=ctx-b at=end state=serious (#201B)
+router: CONTEXT PROBE DONE (#202A)
+instrument: COMPLETED router-context-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

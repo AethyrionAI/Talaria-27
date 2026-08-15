@@ -1,0 +1,18 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: PROBE START trials=10 probes=10 (#196)
+router: 10/10 expected=false probe=What's 2+2?
+router: 10/10 expected=false probe=Write a haiku about sledding
+router: 10/10 expected=false probe=write a 50 word summary about Norway
+router: 10/10 expected=false probe=Tell me a joke about penguins
+router: 10/10 expected=false probe=Write a poem for my mom's birthday
+router: 10/10 expected=true probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true probe=What's the weather like right now?
+router: 10/10 expected=true probe=Set an alarm for 6:30
+router: 10/10 expected=true probe=How many steps have I taken today?
+router: 10/10 expected=true probe=Do I have anything on my calendar Friday?
+router: PROBE DONE (#196)
+instrument: COMPLETED router-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

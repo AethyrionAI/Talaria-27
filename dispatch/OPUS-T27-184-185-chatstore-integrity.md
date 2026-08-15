@@ -1,5 +1,15 @@
 # OPUS-T27-184 + 185 — one teardown primitive, and attachments that match themselves
 
+> **✅ EXECUTED AND LANDED — nothing to run (corrected 2026-08-10, same day as
+> a wrong "never merged" banner briefly stood here).** The fix from this brief
+> landed on `main` as `5a185ba` (#184's teardown primitive) + `dab0172`-shape
+> (#185's unclaimed-pool dequeue, verified at HEAD `ChatStore.swift:3364-3402`),
+> and later lanes maintained the primitive (`5f98c0a`, `73f7378`). The earlier
+> banner trusted `git branch --contains`, which is blind to squash-merges — the
+> code read is the instrument. Remaining: the §F1 device row + #293(d)'s
+> insurance-clause residue. This file stays as the derivation record.
+
+
 **Items:** OPEN_ITEMS #184 + #185 (touches #136, #9, #21, #38) · **Repo:** AethyrionAI/Talaria-27 · **Base:** main
 **Branch:** `claude/t27-184-185-chatstore-integrity` · **Toolchain:** Xcode-beta4, pinned sim
 **Baseline:** confirm the current green count before you start · `export GH_PAGER=cat` first

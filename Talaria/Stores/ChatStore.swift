@@ -339,6 +339,17 @@ final class ChatStore {
     }
     private var pendingRun: PendingRun?
     private var reconcileTask: Task<Void, Never>?
+    /// #322: the single detached `GET /v1/runs/{id}` a cancel takes, kept so
+    /// a second Stop or a walk-away can cancel it rather than let it land on
+    /// a world it no longer describes. Never a loop and never a producer —
+    /// this holds exactly one request's worth of work at a time.
+    private var finalStatusReadTask: Task<Void, Never>?
+    /// #322 bar 322-D: the late-write guard. Same shape as
+    /// `reconcileGeneration` / `pollingGeneration` — a read that resolves
+    /// after a newer cancel (or after the store moved on) sees a bumped token
+    /// and writes nothing, so the gauge can never be double-written or
+    /// dragged backwards by a straggler.
+    private var finalStatusReadGeneration: Int = 0
     /// #226 leg (c) / #227 instance 3: concurrent `reconcilePendingRuns()`
     /// callers coalesce onto this one in-flight pass. Distinct from
     /// `reconcileTask`, which is the polling LOOP started when a reconcile
@@ -1248,6 +1259,13 @@ final class ChatStore {
         persistDepartingLocalSession()
         reconcileTask?.cancel()
         reconcileTask = nil
+        // #322 bar 322-D: a walk-away taken while a cancel's final status
+        // read is still in flight must not let that read land on the arriving
+        // thread's gauge. Cancelling AND bumping the generation covers both
+        // orderings — the task may already be past its cancellation check.
+        finalStatusReadTask?.cancel()
+        finalStatusReadTask = nil
+        finalStatusReadGeneration &+= 1
         if let abandoned = pendingRun {
             onRunResolved?(abandoned.sessionId)
         }
@@ -1390,6 +1408,28 @@ final class ChatStore {
         // defensive cancel with nothing streaming must not restore or
         // surface a held message.
         let terminatedALiveTurn = streamingMessageID != nil
+        // #321 ruling (a): the #278 RECONCILE WINDOW — no stream, but a
+        // `pendingRun` this client is still watching, and (since #315) a Stop
+        // button on screen above it. An explicit Stop there means STOP:
+        // abandon the run outright rather than leaving the composer on the
+        // busy door until the reconcile budget expires.
+        //
+        // Gated on `hardStopHost` on purpose. The other caller
+        // (`beginContinuedSend`'s expiration) is the SYSTEM revoking a
+        // background budget with no user action; throwing away a live
+        // recovery on its behalf would be the opposite of what #295 armed it
+        // for. Only a person tapping Stop abandons.
+        let abandonsTheReconcileWindow =
+            hardStopHost && streamingMessageID == nil && pendingRun != nil
+        // #322: capture the cancelled run's id BEFORE `hardStopActiveRun()`
+        // below clears `activeRunContext` and `abandonActiveRun()` clears the
+        // router's lock — the same read-before-clear discipline
+        // `turnIsServerRecoverable` documents on the next line, and for the
+        // same reason. In the window the id rides `pendingRun` (the live
+        // client slot is long since cleared by the `.interrupted` arm); on a
+        // live-stream Stop it is the client's own. Nil on any plane without
+        // run ids, which is honest, not a gap — there is nothing to read.
+        let cancelledRunID = pendingRun?.runId ?? hermesClient.activeRunID
         // #295 (Owen's ruling, review follow-up): read recoverability FIRST —
         // before cancelling the consuming task (which the router treats as a
         // walk-away and may itself release the routing lock from, per
@@ -1400,8 +1440,25 @@ final class ChatStore {
         let turnIsServerRecoverable = hermesClient.currentRunIsServerRecoverable
         streamingTask?.cancel()
         streamingTask = nil
+        // #328 route 2 (Owen's ruling: "Try to stop it, be honest"). We still
+        // try — this call is unchanged. What changed is that we now READ the
+        // answer: `hardStopActiveRun()` guard-returns without sending anything
+        // whenever there is no `activeRunContext`, which is EVERY ordinary
+        // sessions `chat/stream` turn (the default, the one the phone uses).
+        // That was invisible before, and it is why Owen's `sleep 90 && echo
+        // Done` kept running on the host and answered on reopen.
+        //
+        // Keyed on the OUTCOME, deliberately, not on a build flag or on which
+        // transport the Developer switch selected: the question the surface
+        // below has to answer is "did a stop actually go out for THIS turn",
+        // and only the call itself knows. Note this read costs nothing of
+        // #322's read-before-clear contract — `cancelledRunID` and
+        // `turnIsServerRecoverable` are both captured ABOVE, before this line
+        // clears `activeRunContext` and before `abandonActiveRun()` releases
+        // the router's lock (bar 328-R2-D).
+        var hostStopWasIssued = false
         if hardStopHost {
-            hermesClient.hardStopActiveRun()
+            hostStopWasIssued = hermesClient.hardStopActiveRun()
         }
         // #192: the stopped run is over from the consumer's side — release
         // the router's routing lock so the brain toggle re-derives now.
@@ -1563,17 +1620,51 @@ final class ChatStore {
         // case settles `.delivered`, same as an explicit Stop, because as far
         // as this client can ever know, no recovery is coming.
         settleStoppedUserMessage(as: (hardStopHost || !armedRecovery) ? .delivered : .working)
+        // #321 ruling (a) — the abandon itself, and it happens BEFORE the
+        // held-turn resolution below so that the world the restore runs into
+        // is already the freed one (`pendingRun == nil`,
+        // `isTranscriptBusy == false`).
+        if abandonsTheReconcileWindow {
+            abandonReconcileWindowOnStop()
+        }
+        // #322: the cancellation's ONE final status read. Fired here, after
+        // the abandon, so bar 322-C's contract holds by construction — the
+        // composer is already free and nothing below this line awaits the
+        // read. Only an explicit Stop takes it: the expiration path with
+        // recovery armed still has a reconcile that will deliver the real
+        // usage, and pre-empting it with an unknown would be the lie in the
+        // other direction.
+        if hardStopHost, terminatedALiveTurn || abandonsTheReconcileWindow {
+            takeFinalStatusReadAfterCancel(runID: cancelledRunID)
+        }
         // #306 matrix rows 2/9/10 — report the OBSERVED terminal, never the
         // row status (all three of these can leave the row `.delivered`).
         // Row 2 (Stop): never auto-fire; the text restores (O2). Row 9
         // (expiration, recovery armed): HOLD — the reconcile owns it. Row 10
         // (expiration, nothing coming): HOLD + SURFACE.
-        if terminatedALiveTurn {
+        //
+        // #321 ruling (c): `terminatedALiveTurn` is FALSE for the whole
+        // reconcile window — that is exactly why the held-turn machinery
+        // declined to run there, and why a mid-window HOLD committed through
+        // #315's door used to survive a Stop with no restore and no chip.
+        // The window Stop is row 2 by every other measure, so it reports row
+        // 2's terminal too. This is the "stops keying on `terminatedALiveTurn`
+        // alone" the ruling asks for — the flag still guards the DEFENSIVE
+        // cancel (nothing streaming, nothing pending), which must still
+        // restore nothing.
+        if terminatedALiveTurn || abandonsTheReconcileWindow {
             if hardStopHost {
                 resolveHeldTurn(after: .stopped)
             } else {
                 resolveHeldTurn(after: armedRecovery ? .expiredRecoverable : .expiredUnrecoverable)
             }
+        }
+        // #328 route 2 — say what is true, and only where it IS true.
+        if hardStopHost,
+           !hostStopWasIssued,
+           turnIsServerRecoverable,
+           terminatedALiveTurn || abandonsTheReconcileWindow {
+            appendHostKeepsRunningNotice()
         }
         streamingMessageID = nil
         // #295: whatever this stream's captured identifiers were, this
@@ -1614,6 +1705,235 @@ final class ChatStore {
         else { return }
         conv.messages[idx].status = status
         conversation = conv
+    }
+
+    /// #321 ruling (a) — Stop means STOP inside the #278 reconcile window.
+    ///
+    /// **What it releases and why that is the whole list.** The window holds
+    /// exactly two things: a `pendingRun` (which is half of `isTranscriptBusy`,
+    /// so clearing it is what frees the composer) and the reconcile loop
+    /// watching for its reply. Both go. `onRunResolved` fires for the same
+    /// reason `abandonPendingRun` fires it — the relay's completion watcher
+    /// must stand down rather than stay armed against a run this store has
+    /// stopped tracking (#38).
+    ///
+    /// **Deliberately NOT `abandonPendingRun(stopSpeech:)`.** That is the
+    /// WALK-AWAY primitive, and two of the things it does are wrong here.
+    /// It calls `parkHeldTurnsOnWalkAway()`, which SURFACES a held turn onto
+    /// the chip — but ruling (c) says a mid-window hold is RESTORED to the
+    /// composer, the same as stopping a live turn, and `cancelStreaming`'s
+    /// own `resolveHeldTurn(after: .stopped)` is what does that. And it calls
+    /// `persistDepartingLocalSession()`, which belongs to a thread the user is
+    /// leaving; a Stop leaves nothing. Reusing it would have been the shorter
+    /// diff and the wrong behaviour.
+    ///
+    /// **What it deliberately does not touch:** `resolvedRunIDs` (#237 records
+    /// ADOPTIONS only — an abandon is not one), and `hermesClient`
+    /// (`hardStopActiveRun` / `abandonActiveRun` already ran, unconditionally,
+    /// at the top of `cancelStreaming`).
+    ///
+    /// Ruling (a)'s deciding fact, recorded here because it is what makes the
+    /// abandon safe: abandoning the reconcile does not burn a host-side
+    /// answer. A run that completes anyway still arrives through the ordinary
+    /// transcript merge on a later fetch — only the LIVE watch ends.
+    private func abandonReconcileWindowOnStop() {
+        guard let abandoned = pendingRun else { return }
+        reconcileTask?.cancel()
+        reconcileTask = nil
+        pendingRun = nil
+        pendingMessageSentAt = nil
+        settleAbandonedUserRow(abandoned.userMessageID)
+        markAbandonedRunToolActivitiesStopped(abandoned)
+        onRunResolved?(abandoned.sessionId)
+        chatLog.notice(
+            "#321: Stop abandoned the reconcile window for session '\(abandoned.sessionId, privacy: .public)' — composer freed, live recovery ended"
+        )
+    }
+
+    /// #321 ruling (b) — the window Stop's user row settles exactly where a
+    /// live-stream Stop's does: `.delivered`.
+    ///
+    /// Separate from `settleStoppedUserMessage` above rather than folded into
+    /// it, because the two differ in both inputs. That one reads
+    /// `streamingUserMessageID`, which the `.interrupted` arm cleared on its
+    /// way into this window; the id here is the `PendingRun`'s. And that one
+    /// requires a `.sending` row, while the window's row is `.working` —
+    /// written by the `.interrupted` arm precisely to mean "a reconcile is
+    /// watching for this". Once the user abandons, nothing is watching, and
+    /// `.working` becomes a row that can never be corrected: the reconcile is
+    /// cancelled and the poll-exhaustion scrub only ever counts `.sending`.
+    /// That is the same reasoning `cancelStreaming` already applies on its
+    /// `armedRecovery == false` branch, reached from the other direction.
+    private func settleAbandonedUserRow(_ userMessageID: UUID) {
+        guard var conv = conversation,
+              let idx = conv.messages.firstIndex(where: {
+                  $0.sender == .user
+                      && ($0.id == userMessageID || $0.clientMessageID == userMessageID)
+              }),
+              conv.messages[idx].status == .working || conv.messages[idx].status == .sending
+        else { return }
+        conv.messages[idx].status = .delivered
+        conversation = conv
+    }
+
+    /// #327 — a Stop taken in the reconcile window must not leave the run's
+    /// tool calls rendering `✓`.
+    ///
+    /// **Why this is not simply the live path's sweep with the guard removed,
+    /// and the measurement that settled it** (probe on `f7c493d`, recorded at
+    /// #327): the window can never hold an ACTIVE tool activity.
+    /// `armPendingRunRecovery` removes the placeholder — and its activities
+    /// with it — on the way in, and it is one of only two writers of
+    /// `pendingRun` (the other is `#if DEBUG`). Every tool activity a window
+    /// Stop can ever meet therefore came from HISTORY RESTORE
+    /// (`SessionsHermesClient.decodeStoredMessage`), which rebuilds chips from
+    /// the server transcript's `tool_calls` with **`isActive: false` and
+    /// `failure: nil` hardcoded** — and keeps a tool-calls-only assistant row,
+    /// so the chip can be the entire message. A sweep keyed on `isActive`
+    /// would be a no-op against the only case that occurs.
+    ///
+    /// **So the test is `failure == nil` — UNRESOLVED — not `isActive`.** The
+    /// `isActive: false` on a restored chip is a DEFAULT, not an observation:
+    /// the session transcript carries no per-call outcome, so the app never
+    /// saw those calls finish. A `✓` there asserts a completion nobody
+    /// witnessed, on a run the user just stopped. `stoppedByUser` is Owen's
+    /// ruling — the same marker a live Stop writes, one Stop story, no third
+    /// marker.
+    ///
+    /// **296-B is preserved by SCOPE, and scope is the whole safety argument.**
+    /// Only assistant rows with `timestamp > pending.sentAt` are touched —
+    /// the reconcile's own "belongs to this run" filter. An earlier turn's
+    /// orphaned activity (the case `ToolActivityRail.summaryState`'s comment
+    /// names and deliberately renders `.completed`) is a different turn's
+    /// business and stays exactly as it shipped.
+    ///
+    /// The two-pass read-before-clear discipline that governs the live path's
+    /// sweep does NOT apply here and its absence is deliberate: this loop
+    /// keys on `failure`, which it then writes, so there is no flag being
+    /// tested and cleared in the same pass. Writing `isActive = false`
+    /// alongside cannot hide a row from the predicate.
+    private func markAbandonedRunToolActivitiesStopped(_ pending: PendingRun) {
+        guard var conv = conversation else { return }
+        var marked = 0
+        for messageIndex in conv.messages.indices
+        where conv.messages[messageIndex].sender == .hermes
+            && conv.messages[messageIndex].timestamp > pending.sentAt {
+            for activityIndex in conv.messages[messageIndex].toolActivities.indices
+            where conv.messages[messageIndex].toolActivities[activityIndex].failure == nil {
+                conv.messages[messageIndex].toolActivities[activityIndex].failure =
+                    ToolActivity.stoppedByUser
+                conv.messages[messageIndex].toolActivities[activityIndex].isActive = false
+                marked += 1
+            }
+        }
+        guard marked > 0 else { return }
+        conversation = conv
+        chatLog.notice(
+            "#327: window Stop marked \(marked, privacy: .public) unresolved tool activit\(marked == 1 ? "y" : "ies", privacy: .public) on the abandoned run — a killed call no longer renders as completed"
+        )
+    }
+
+    /// #328 route 2 — the honest surface, and the exact claim it makes.
+    ///
+    /// Owen's ruling was *"Try to stop it, be honest."* The trying is
+    /// unchanged (`hardStopActiveRun()` is still called on every explicit
+    /// Stop). This is the honesty: when that call issued **nothing** — which
+    /// is every ordinary sessions `chat/stream` turn, because
+    /// `activeRunContext` exists only for `/v1/runs` turns — the transcript
+    /// says so, rather than letting a freed composer imply a host that
+    /// stopped. Owen measured the gap on device: the host ran his whole
+    /// `sleep 90 && echo Done` and the answer was waiting when he reopened
+    /// the thread.
+    ///
+    /// **Three things it deliberately is not.** It is not an apology — #180's
+    /// bar is that the user can TELL what Stop did, not that Stop is sorry.
+    /// It is not attached to a Stop that worked: the runs plane's stop is a
+    /// real, device-proven hard interrupt (#304) and must not acquire a
+    /// caveat it does not need — the call site gates on
+    /// `hostStopWasIssued == false`. And it is not shown when nothing is left
+    /// running: a local-brain turn (`currentRunIsServerRecoverable == false`)
+    /// really does stop when the app stops watching, and the continued-send
+    /// expiration is not a user Stop at all.
+    ///
+    /// A `.system` row rather than new chrome, on purpose: it costs no new
+    /// rendered state, it survives the transcript cache like any other row,
+    /// and BOTH Stop paths (live stream and reconcile window) produce it
+    /// identically — so #321's ruling (b), one Stop story, still holds and
+    /// 321-C's equality is unaffected.
+    private func appendHostKeepsRunningNotice() {
+        guard var conv = conversation else { return }
+        conv.messages.append(
+            Message(sender: .system, content: Self.hostKeepsRunningAfterStopNotice, status: .delivered)
+        )
+        conversation = conv
+        chatLog.notice(
+            "#328: Stop did not reach the host — no stop request was issued for this turn, so the transcript says the agent may still be running"
+        )
+    }
+
+    /// #328 route 2. A constant so the store that writes it and the tests that
+    /// assert it cannot drift — the #296 `stoppedByUser` precedent.
+    ///
+    /// Says three things in order, and no fourth: what Stop DID do (ended it
+    /// here), what it did not (reach the host), and what follows (the reply
+    /// may still land in this thread — which is true, via the ordinary
+    /// transcript merge, and is the same fact #321's ruling (a) rests on).
+    static let hostKeepsRunningAfterStopNotice =
+        "Stopped here. This connection can't interrupt a turn the host is already running, "
+        + "so the agent may still be working — its reply will appear in this thread if it lands."
+
+    /// #322 — the cancellation path's ONE final status read.
+    ///
+    /// **The gauge is cleared SYNCHRONOUSLY, first, and that ordering is the
+    /// item.** #292's fix stopped an abandoned turn from polling, and accepted
+    /// as a side effect that the CTX gauge keeps showing the PRIOR run's
+    /// numbers; Owen superseded that on 2026-08-10. Clearing before the read
+    /// is what makes the gauge honest for the whole window in between — it
+    /// never displays one run's tokens while labelled as another's. `nil` is
+    /// an EXISTING rendered state, not a new one: #25 already hides the gauge
+    /// on an unknown numerator rather than printing "CTX 0%", so nothing here
+    /// invents an error-looking state for an ordinary cancel (#322's kill
+    /// clause, considered and not triggered).
+    ///
+    /// **Exactly one request, and no producer.** One detached `Task`, one
+    /// `finalRunUsage` call, no retry and no loop — see that method's own doc
+    /// for why this is a constraint rather than a preference. With no run id
+    /// there is no request at all: the gauge simply stays unknown.
+    ///
+    /// **Nothing awaits it** (bar 322-C). `cancelStreaming` returns the
+    /// instant this returns; the composer is already free.
+    ///
+    /// **Late-write safety** (bar 322-D). The generation token is checked
+    /// after the await, so a read still in flight when a second Stop, a thread
+    /// switch or a new turn's usage lands can never overwrite the newer value
+    /// — the same shape `reconcileGeneration` and `pollingGeneration` use.
+    /// A cancelled task writes nothing.
+    private func takeFinalStatusReadAfterCancel(runID: String?) {
+        finalStatusReadTask?.cancel()
+        finalStatusReadTask = nil
+        finalStatusReadGeneration &+= 1
+        let generation = finalStatusReadGeneration
+        // Honest unknown FIRST — before any await, so there is no instant at
+        // which the gauge shows the previous run's numbers for this one.
+        lastTokenUsage = nil
+        guard let runID else {
+            chatLog.notice(
+                "#322: cancelled turn had no run id — no final status read is possible, so the CTX gauge stays honestly unknown"
+            )
+            return
+        }
+        finalStatusReadTask = Task { [weak self] in
+            guard let client = self?.hermesClient else { return }
+            let usage = await client.finalRunUsage(runID: runID)
+            guard let self, !Task.isCancelled,
+                  self.finalStatusReadGeneration == generation else { return }
+            self.finalStatusReadTask = nil
+            // A read that came back empty changes nothing: the honest-unknown
+            // state was already written above, and re-asserting it here would
+            // just be the same value twice.
+            guard let usage else { return }
+            self.lastTokenUsage = usage
+        }
     }
 
     /// #294: whether a stopped streaming placeholder carries nothing worth
@@ -1754,6 +2074,24 @@ final class ChatStore {
             // and double context is harmless where hops exist.
             journal?.sync(with: conversation)
         }
+
+        // #280: THE fix. This was the outermost of three blockers — the card
+        // generator was never invoked on the voice path at all, so a thread
+        // whose only user turns were spoken kept `Conversation.defaultTitle`
+        // forever and the drawer rendered its own preview on both lines.
+        //
+        // Placement is load-bearing, not incidental:
+        //   * AFTER the append + persist above, so the transcript the
+        //     generator reads is the settled one;
+        //   * BEFORE the `postToHermes` guard, so it runs on BOTH branches —
+        //     a local-only voice session gets a title too;
+        //   * OUTSIDE the Task below. `conversationCard` can reach
+        //     `model.tokenCount(...)`, and a `tokenCount()` concurrent with a
+        //     live FoundationModels streaming turn kills that turn on device
+        //     (ModelManagerError 1001 -> "error -1"). Both pre-existing call
+        //     sites run after a turn settles, which is why this has never
+        //     bitten; this one stays on the same side of that line.
+        finalizeOnDeviceIntelligence()
 
         guard postToHermes else { return }
         let contextTurn = Self.voiceTranscriptTurnText(from: session)
@@ -1964,7 +2302,7 @@ final class ChatStore {
             return
         }
         let attachments = sourceMessage.attachments.compactMap(PendingAttachment.restore)
-        let content = normalizedRetryContent(for: sourceMessage)
+        let content = Self.normalizedRetryContent(for: sourceMessage)
         guard !content.isEmpty || !attachments.isEmpty else {
             restoreRetriedRow(removedRow, at: removedIndex, why: "the turn has nothing re-sendable")
             return
@@ -2001,7 +2339,12 @@ final class ChatStore {
     /// the mirror kept it and the retried turn's own merge put it back — the
     /// exact failure the paragraph below describes, live in the one path #78
     /// did not touch. The invariant that actually holds is one level down:
-    /// **every removal exits through `adoptLocalTranscript()`.** This
+    /// **every removal of a row the mirror may hold exits through
+    /// `adoptLocalTranscript()`.** (Scoped that narrowly on purpose — #279's
+    /// re-verify, 2026-08-10: several sites still prune rows with bare
+    /// mutations, but every one removes rows the mirror never held — empty
+    /// `.hermes` placeholders, never-posted `.queued` rows — which cannot
+    /// resurrect. A removal that CAN meet the mirror goes through here.) This
     /// primitive owns the range case; `retryMessage` removes its single row
     /// and calls that tail directly, because truncating-to-the-end on a
     /// mid-transcript `.failed` row would delete every turn below it.
@@ -2092,7 +2435,7 @@ final class ChatStore {
 
         let userMessage = conv.messages[userIdx]
         let attachments = userMessage.attachments.compactMap(PendingAttachment.restore)
-        let content = normalizedRetryContent(for: userMessage)
+        let content = Self.normalizedRetryContent(for: userMessage)
         guard !content.isEmpty || !attachments.isEmpty else {
             chatLog.notice("regenerate: the producing turn has nothing re-sendable — nothing truncated (#78)")
             return
@@ -2145,7 +2488,7 @@ final class ChatStore {
         else { return nil }
 
         let attachments = message.attachments.compactMap(PendingAttachment.restore)
-        let text = normalizedRetryContent(for: message)
+        let text = Self.normalizedRetryContent(for: message)
         truncateTranscript(from: idx, reason: "edit-and-resend")
         return EditableTurn(text: text, attachments: attachments)
     }
@@ -2777,7 +3120,7 @@ final class ChatStore {
         conversation?.messages.contains(where: {
             $0.sender == .user
                 && ($0.status == .sending || $0.status == .queued)
-                && normalizedRetryContent(for: $0) == content
+                && Self.normalizedRetryContent(for: $0) == content
                 && attachmentSignature(for: $0.attachments) == attachmentSignature(for: attachments.map { MessageAttachment(from: $0) })
         }) == true
     }
@@ -3078,32 +3421,49 @@ final class ChatStore {
     /// overwritten. When the on-device model is unavailable the service
     /// falls back to truncation internally — the conversation still gets a
     /// real label.
-    private func generateConversationCardIfNeeded() {
-        guard let intelligence = localIntelligence,
-              let conversation,
-              conversation.title == Conversation.defaultTitle,
-              !isGeneratingConversationCard,
-              let firstReply = conversation.messages.first(where: {
-                  $0.sender == .hermes
-                      && $0.status == .delivered
-                      && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-              })
-        else { return }
+    /// The `{userText, assistantText}` the card generator runs on, or nil when
+    /// the conversation has no completed exchange to label yet.
+    ///
+    /// #280: extracted from `generateConversationCardIfNeeded` so the
+    /// selection is a pure function with a test of its own — the predicates
+    /// here are exactly what decides whether a thread is titled at all, and
+    /// they were previously reachable only through a store with a live
+    /// `LocalIntelligenceService` wired.
+    nonisolated static func conversationCardInputs(
+        for conversation: Conversation
+    ) -> (userText: String, assistantText: String)? {
+        guard let firstReply = conversation.messages.first(where: {
+            $0.sender.isAgentAuthored
+                && $0.status == .delivered
+                && !$0.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        })
+        else { return nil }
 
         // The user side of the exchange. normalizedRetryContent maps the
         // synthetic "[N attachment(s)]" display placeholder to "" — it's not
         // user words and must never become the title; with it empty, the card
         // (and the truncation fallback) derives everything from the reply.
         let firstUserText = conversation.messages
-            .first(where: { $0.sender == .user })
+            .first(where: { $0.sender.isUserAuthored })
             .map { normalizedRetryContent(for: $0) } ?? ""
+
+        return (userText: firstUserText, assistantText: firstReply.content)
+    }
+
+    private func generateConversationCardIfNeeded() {
+        guard let intelligence = localIntelligence,
+              let conversation,
+              conversation.title == Conversation.defaultTitle,
+              !isGeneratingConversationCard,
+              let inputs = Self.conversationCardInputs(for: conversation)
+        else { return }
 
         let conversationID = conversation.id
         isGeneratingConversationCard = true
         Task { [weak self] in
             let card = await intelligence.conversationCard(
-                userText: firstUserText,
-                assistantText: firstReply.content
+                userText: inputs.userText,
+                assistantText: inputs.assistantText
             )
             guard let self else { return }
             self.isGeneratingConversationCard = false
@@ -3177,6 +3537,16 @@ final class ChatStore {
 
         guard let localConversation else { return refreshedConversation }
 
+        // #299: locally-born assistant rows adopt the host's identity at the
+        // merge — see `serverIdentityAdoptions`. Consumed twice below: as the
+        // field-carry loop's last lookup arm, and as pre-confirmation before
+        // `unconfirmedLocalMessages` (whose tiers are untouched).
+        let identityAdoptions = Self.serverIdentityAdoptions(
+            local: localConversation.messages,
+            refreshed: refreshedConversation.messages
+        )
+        let adoptedLocalIDs = Set(identityAdoptions.values)
+
         if refreshedConversation.latestUsage == nil {
             refreshedConversation.latestUsage = localConversation.latestUsage
         }
@@ -3199,7 +3569,7 @@ final class ChatStore {
             let remote = refreshedConversation.messages[index]
 
             // Prefer exact UUID match (works when the relay echoes back the same ID).
-            let local: Message?
+            var local: Message?
             if let byID = localConversation.messages.first(where: { $0.id == remote.id }) {
                 local = byID
             } else if let remoteClientMessageID = remote.clientMessageID {
@@ -3216,8 +3586,17 @@ final class ChatStore {
                         && $0.sender == .hermes
                         && (!$0.toolActivities.isEmpty || $0.codeDiff != nil)
                 })
-            } else {
-                local = nil
+            }
+            if local == nil, let adoptedID = identityAdoptions[remote.id] {
+                // #299: the host row's locally-born twin, paired by turn —
+                // its client-only fields (reasoning, receipts, activities)
+                // ride the host row exactly as a tier-1 match's would. A
+                // FALLBACK after every existing arm rather than a fourth
+                // `else if`, so an adopted row's fields can never be dropped
+                // by an arm that fired and then failed to match (the jobID
+                // arm can): whenever the adopted row is excluded from the
+                // unconfirmed re-append below, its fields ride here.
+                local = localConversation.messages.first(where: { $0.id == adoptedID })
             }
 
             guard let local else { continue }
@@ -3266,8 +3645,12 @@ final class ChatStore {
         // only if the refreshed conversation contains it by id OR by clientMessageID.
         // Anything unconfirmed must survive the merge, otherwise a sent message
         // vanishes the instant the first poll/refresh returns without it.
+        // #299: a local row whose identity was adopted above IS confirmed —
+        // its host twin carries its fields and its stable id — so it is not
+        // in the unconfirmed filter's input, exactly as a tier-1 hit would
+        // leave it. The tiers themselves are untouched.
         refreshedConversation.messages.append(contentsOf: Self.unconfirmedLocalMessages(
-            local: localConversation.messages,
+            local: localConversation.messages.filter { !adoptedLocalIDs.contains($0.id) },
             refreshed: refreshedConversation.messages
         ))
 
@@ -3323,6 +3706,51 @@ final class ChatStore {
     /// older content-identical ask, still carrying its original timestamp
     /// (*"It didn't show the current time for when I actually regenerated
     /// it"* — Owen, the 78-F device failure).
+    ///
+    /// **#282 — the DEMAND side is RANKED, not banned (Owen's ruling,
+    /// 2026-08-10).** The claim's consumer used to be chosen by LOCAL ORDER
+    /// alone: first content match wins, whatever that row is. So a `.failed`
+    /// user row the host never stored, sitting above a later identical prompt
+    /// that succeeded, ate the claim minted by the SUCCESSFUL turn's echo and
+    /// silently left the transcript — taking with it the one row the user can
+    /// still see and still retry. Claims are now allocated in two passes over
+    /// the rows that reach this tier: **IN-FLIGHT rows first**
+    /// (`!status.isSettled` — #278's predicate, covering
+    /// `.sending`/`.working`/`.queued`), then settled rows. Local order still
+    /// decides within each pass, so #248's dequeue counting is unchanged for
+    /// two identical in-flight sends.
+    ///
+    /// **"Ranking, not banning" is the load-bearing distinction, and it was
+    /// bought with a measurement.** A settled row still consumes a claim that
+    /// no in-flight row wants. The ban-shaped alternative — `!isSettled` as a
+    /// filter on the tier itself — was written and measured on 2026-08-10
+    /// (#282's parked measurement PR) and it converted three populations from
+    /// a silent swallow into a VISIBLE DUPLICATE: an in-app thread reconciled
+    /// against the host, a settled-historical turn, and an id-less server row
+    /// (`mapStoredMessage`'s honest `stableID ?? UUID()`, which mints a fresh
+    /// claim per fetch — that one did not even converge). For a locally-born
+    /// SETTLED user row this tier is the only confirmation that exists: tier 1
+    /// misses (client id vs the host's `stableMessageID`), tier 2 misses (the
+    /// gateway echoes no `clientMessageID`), and `dedupingAdoptedEchoes`
+    /// cannot collapse the pair because its key carries a timestamp and the
+    /// phone's clock is not the host's (#237 — and that key must NOT be
+    /// loosened; it is what keeps genuinely repeated user messages alive).
+    ///
+    /// **ACCEPTED, DOCUMENTED GAP — #282, by ruling. Do not close it without a
+    /// per-change go.** Ranking only decides between an in-flight and a
+    /// settled candidate. When BOTH have settled — the retry already
+    /// `.sent`/`.delivered`, or itself `.failed` — the tie breaks on local
+    /// order exactly as before and the older failed row still eats the claim.
+    /// That residual stays OPEN: closing it needs an identity the gateway
+    /// transcript does not carry, and the two candidate designs (a
+    /// turn-anchored confirmation in `serverIdentityAdoptions`' shape, or a
+    /// deterministic fallback id in `mapStoredMessage`) are separate lanes
+    /// with their own bars and are deliberately NOT built here.
+    ///
+    /// A rescued row is APPENDED at the tail, not reinserted above its retry.
+    /// That placement is pinned by #282's own bar rather than discovered on
+    /// device; reinsertion-in-place is a second production edit the ruling
+    /// does not authorise.
     nonisolated static func unconfirmedLocalMessages(
         local: [Message], refreshed: [Message]
     ) -> [Message] {
@@ -3334,18 +3762,145 @@ final class ChatStore {
         where row.sender == .user && row.clientMessageID == nil && !localIDs.contains(row.id) {
             claimableUserContent[row.content.trimmingCharacters(in: .whitespacesAndNewlines), default: 0] += 1
         }
-        return local.filter { localRow in
-            if refreshedIDs.contains(localRow.id) { return false }
-            if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
-            if localRow.sender == .user {
-                let key = localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                if let claimable = claimableUserContent[key], claimable > 0 {
-                    claimableUserContent[key] = claimable - 1
-                    return false
-                }
-            }
+
+        // Every local user row that survives tiers 1 and 2 and so reaches the
+        // content claim. Indices, not ids: the ranking has to address a
+        // specific ROW, and two rows carrying the same id would otherwise
+        // claim as one.
+        let claimCandidates = local.indices.filter { index in
+            let row = local[index]
+            guard row.sender == .user else { return false }
+            guard !refreshedIDs.contains(row.id) else { return false }
+            if let clientID = row.clientMessageID, refreshedClientIDs.contains(clientID) { return false }
             return true
         }
+
+        // #282's ranking: serve the in-flight candidates first, then let the
+        // settled ones take whatever is left over. Two explicit passes rather
+        // than a sort — `sorted(by:)` is not documented stable, and local
+        // order inside each rank is #248's dequeue behaviour.
+        var remainingClaims = claimableUserContent
+        var claimedIndices: Set<Int> = []
+        for servingSettledRows in [false, true] {
+            for index in claimCandidates
+            where local[index].status.isSettled == servingSettledRows {
+                let key = local[index].content.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let claimable = remainingClaims[key], claimable > 0 else { continue }
+                remainingClaims[key] = claimable - 1
+                claimedIndices.insert(index)
+            }
+        }
+
+        return local.indices.compactMap { index -> Message? in
+            let localRow = local[index]
+            if refreshedIDs.contains(localRow.id) { return nil }
+            if let clientID = localRow.clientMessageID, refreshedClientIDs.contains(clientID) { return nil }
+            if claimedIndices.contains(index) { return nil }
+            return localRow
+        }
+    }
+
+    /// #299: server-derived identity at adoption for locally-born ASSISTANT
+    /// rows. A `.hermes` row born in-app has NO confirmation tier — tier 1
+    /// misses (its id is a client `UUID()` from the streaming assembly, the
+    /// host's copy carries `stableMessageID`, #237), tier 2 misses (the
+    /// gateway transcript echoes no `clientMessageID`, #248), and tier 3 is
+    /// `.user`-only by construction — so every reconcile of an in-app thread
+    /// re-appended each settled assistant row, and `dedupingAdoptedEchoes`
+    /// could not collapse the pair because its key includes the timestamp and
+    /// the phone's clock is not the host's.
+    ///
+    /// Returns host-row id → locally-born assistant row id: when the merge
+    /// confirms a turn, the host's copy of its reply is paired with the local
+    /// row so the local row counts as confirmed (exactly as a tier-1 hit
+    /// would leave it) and its client-only fields ride the host row. The
+    /// surviving merged row is the same row a drawer reopen would produce —
+    /// stable id, host content — and confirms at tier 1 on every later
+    /// reconcile, which is what keeps the fix convergent rather than a
+    /// per-merge patch.
+    ///
+    /// Pairing is TURN-anchored, deliberately not a content claim for
+    /// `.hermes` rows (that alternative re-imports the demand-side hazards
+    /// #282 exists to narrow — and would fail exactly when adoption matters
+    /// most, a stall-truncated partial whose host twin carries the full
+    /// text). A turn anchors on its USER row — by id, by `clientMessageID`
+    /// linkage, or by trimmed content, monotonic and in order (tier 3's
+    /// dequeue semantics) — and the turn's settled, non-streaming, non-empty
+    /// locally-born `.hermes` rows then zip in order against the turn's
+    /// unclaimed non-empty host assistant rows. Everything ineligible fails
+    /// OPEN: an unpaired local row keeps its client id and survives the merge
+    /// as unconfirmed, which is the pre-#299 behaviour and never loses data.
+    /// Voice rows neither anchor nor adopt (`.voiceHermes` renders as a
+    /// transcript, not a streamed reply — swapping in the host's `.hermes`
+    /// twin would change what the thread IS); a dictated turn still starts a
+    /// turn (`isUserAuthored`, #275) so its replies never leak into the
+    /// previous turn's candidates.
+    nonisolated static func serverIdentityAdoptions(
+        local: [Message], refreshed: [Message]
+    ) -> [UUID: UUID] {
+        let refreshedIDs = Set(refreshed.map(\.id))
+        let refreshedClientIDs = Set(refreshed.compactMap(\.clientMessageID))
+        let localIDs = Set(local.map(\.id))
+
+        // A transcript as turns: every user-authored row starts one; rows
+        // before the first user row form an anchorless preamble (no adoption).
+        func turns(_ messages: [Message]) -> [(anchor: Message?, replies: [Message])] {
+            var result: [(anchor: Message?, replies: [Message])] = []
+            var current: (anchor: Message?, replies: [Message])?
+            for row in messages {
+                if row.sender.isUserAuthored {
+                    if let finished = current { result.append(finished) }
+                    current = (anchor: row.sender == .user ? row : nil, replies: [])
+                } else {
+                    if current == nil { current = (anchor: nil, replies: []) }
+                    if row.sender == .hermes { current?.replies.append(row) }
+                }
+            }
+            if let finished = current { result.append(finished) }
+            return result
+        }
+
+        func anchors(_ localRow: Message, _ remoteRow: Message) -> Bool {
+            if localRow.id == remoteRow.id { return true }
+            if let remoteClientID = remoteRow.clientMessageID,
+               localRow.id == remoteClientID || localRow.clientMessageID == remoteClientID {
+                return true
+            }
+            return localRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                == remoteRow.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        var adoptions: [UUID: UUID] = [:]
+        let localTurns = turns(local)
+        var nextLocalTurn = localTurns.startIndex
+        for remoteTurn in turns(refreshed) {
+            guard let remoteAnchor = remoteTurn.anchor else { continue }
+            // Monotonic: each local turn pairs at most once, in order; the
+            // cursor only advances on a match, so a host-only turn (another
+            // client's exchange) never consumes a local one.
+            guard let matched = localTurns[nextLocalTurn...].firstIndex(where: { localTurn in
+                guard let localAnchor = localTurn.anchor else { return false }
+                return anchors(localAnchor, remoteAnchor)
+            }) else { continue }
+            nextLocalTurn = matched + 1
+
+            let hostRows = remoteTurn.replies.filter { row in
+                !localIDs.contains(row.id)
+                    && !row.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            let locallyBorn = localTurns[matched].replies.filter { row in
+                guard !refreshedIDs.contains(row.id) else { return false }
+                if let clientID = row.clientMessageID, refreshedClientIDs.contains(clientID) {
+                    return false   // tier 2's row — not this pass's to pair
+                }
+                return row.status.isSettled && !row.isStreaming
+                    && !row.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            for (hostRow, localRow) in zip(hostRows, locallyBorn) {
+                adoptions[hostRow.id] = localRow.id
+            }
+        }
+        return adoptions
     }
 
     /// Pairs a refresh source's attachments with the local ones and carries
@@ -3401,7 +3956,10 @@ final class ChatStore {
         }
     }
 
-    private func normalizedRetryContent(for message: Message) -> String {
+    /// #280: `nonisolated static` because it reads no instance state, and
+    /// `conversationCardInputs(for:)` — a pure function testable without a
+    /// store — needs it. Instance callers reach it through `Self.`.
+    nonisolated static func normalizedRetryContent(for message: Message) -> String {
         if !message.attachments.isEmpty,
            message.content.range(of: #"^\[\d+ attachment"#, options: .regularExpression) != nil {
             return ""

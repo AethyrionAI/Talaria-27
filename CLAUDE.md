@@ -13,7 +13,7 @@ It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay ar
 **only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
-write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta4**.
+write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
 
 ## Architecture — Clean Chat Path
 
@@ -172,8 +172,18 @@ a falsified mechanism while the tracker was right.)
     profile name → `"hermes-agent"`, and caches it as `self._model_name`. Session
     creation persists it when the client sends no model —
     `model = body.get("model") or self._model_name` (`:3397`) — and Talaria's
-    `createBareSession` posts an empty body, so **every session we create stores
-    that literal string.** The routing gate then tests
+    `createBareSession` posts an empty body, so ~~**every session we create stores
+    that literal string.**~~ **CORRECTED 2026-08-10 (#241 immunity lane): the app
+    half of this is FIXED. `createBareSession` no longer posts an empty body — it
+    resolves an explicit `model` (the profile's `ModelSelection` → the host's real
+    `/api/model/options` default → bare, then pinned from the first turn's
+    `runtime` block) and every candidate passes
+    `SessionsHermesClient.wireSafeModelID`, which rejects the alias outright.
+    Sessions Talaria creates from this build forward store a real model id.
+    Two things this does NOT change:** the UPSTREAM behaviour at `:3397` is
+    untouched (a bare create still persists the sentinel, so the ops rule below
+    stands unchanged), and **sessions created BEFORE this build still store the
+    alias** — retro-pinning them was ruled out of scope. The routing gate then tests
     `if not route and model and model != self._model_name` (`:2345`): match ⇒
     `route_source: "global"` (the default, correct); **mismatch ⇒
     `route_source: "raw_request"` for a model literally named `hermes-agent`,
@@ -269,7 +279,23 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 ## Hard-won gotchas (do not relitigate)
 
 - **`xcodegen generate` is mandatory** after adding/removing Swift files (explicit source
-  listings, not synchronized folder groups).
+  listings, not synchronized folder groups). **It is also, since #319
+  (2026-08-10), IDEMPOTENT — regenerate, commit the result, and that is the
+  whole procedure.** There used to be an unwritten second step: every regen
+  rewrote `Talaria.xcscheme`'s four `BuildableName` attributes to
+  `"Talaria.app"`, a product that does not exist, and each lane reverted the
+  file by hand. **The cause was never a version drift and pinning XcodeGen was
+  never the fix** — XcodeGen's model of a product name is the target's
+  `productName`, which defaults to the TARGET name and is **not** read from the
+  `PRODUCT_NAME` build setting, so `PRODUCT_NAME: "Talaria 27"` renamed the real
+  product without XcodeGen ever knowing. `project.yml` now declares
+  `productName: "Talaria 27"` on the app target; two consecutive runs are
+  byte-identical. The same one line fixed the derived `TEST_HOST`, so the
+  compensating override is **removed** — generating with and without it produced
+  byte-identical `project.pbxproj`. **If you ever see a hand-revert of a
+  generated file in a procedure, that is a root cause with a workaround stapled
+  over it**: this one also dragged the scheme's `version` backwards each time and
+  silently re-opened archived #52.
 - **NEVER claim a `:8642` route from a `web_server.py` grep — read
   `gateway/platforms/api_server.py`'s `_http_route_table()`, which is the whole list.**
   **This rule exists because it was learned the hard way on 2026-08-02** (the #21
@@ -462,15 +488,32 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Build / tooling
 
-- **Xcode-beta4** (`/Applications/Xcode-beta4.app`, Xcode 27.0 build 27A5228h) is the
-  standard toolchain for iOS 27 targets (per Owen, 2026-07-20; verified same day — full suite
-  931/84 green on its SDK); release Xcode can't build iOS 27.
-  `DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer` in every shell.
-  `Xcode-beta.app` and `Xcode-beta3.app` were **deleted 2026-07-24** — beta4 and release
-  Xcode are the only copies on disk. Command Line Tools 27 beta 4 is installed and
-  `xcode-select` points at beta4, but CLT ships no iOS SDK and no `xcodebuild`, so the
-  `DEVELOPER_DIR` export is still mandatory. Sim runtimes kept: **iOS 27.0 (24A5390f)** and
-  **iOS 26.5 (23F77)**; seeds 24A5355p / 24A5380g were deleted the same day. The pinned sim
+- **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
+  standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
+  pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
+  tests/156 suites Swift Testing + 14 XCUITest + Release build; zero Talaria-affecting SDK
+  changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
+  Release Xcode still can't build iOS 27.
+  `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
+  ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
+  2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
+  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remain).
+  There is NO beta4 A/B fallback.** The nearest surviving beta4-vintage artifact is
+  the CLT SDK at `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`
+  (swiftlang 6.4.0.27.1, matching #324's recorded beta4 compiler) — an interface-only
+  proxy, no toolchain, no runtime. Consequence: any A/B that needs a beta4 BUILD now
+  requires re-downloading it, and #324-W4's "same-binary control is dyld-impossible"
+  is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
+  were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
+  iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
+  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
+  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5390f` for NEW boots,
+  and ALWAYS `match set iphoneos27.0 --default` afterwards — and **iOS 26.5 (23F77)**.
+  **⚠️ Beta-to-beta dyld hazard (proven #324): a beta5-built binary referencing new-in-beta5
+  symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
+  (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
+  cannot weak-link between betas of the same version, so adopt new beta5 API only while every
+  target device/sim runtime is on beta5. The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData for **this** repo is
   `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented
@@ -489,6 +532,75 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   there because #218: `main` could not build in Release for two days and every check
   we had was Debug, so 1461 green tests proved nothing. **The gate is verified to
   fail** — the #218 bug was re-injected and it caught all three errors.
+  - **Read the gate's FAILURE ADVICE, but know what it is now (#300, fixed
+    2026-08-10).** Until that fix it could not tell a real failure from a flake at
+    all: its discriminator was `grep '\.swift:[0-9]+: error:'`, which matches only
+    the **XCTest** diagnostic shape, while **Swift Testing prints
+    `recorded an issue at File.swift:LINE:COL:` with no `error:` token** — so
+    *every* Swift Testing failure in the project's history was announced as an
+    "XCUITest harness flake (NO assertion text)" and the reader was sent to a
+    CLOSED item. Verified by extracting the old conditional and running it over
+    two real logs: identical wrong verdict on both.
+  - The classifier now lives in **`scripts/mac/lane-gate-classify.sh`**, reads
+    both frameworks' shapes, attributes loci **per failing test**, and fails
+    SAFE — anything it cannot attribute is reported REAL, never as noise.
+    **`scripts/mac/lane-gate-classify-test.sh` exercises it in ~1 s** against
+    recorded fixtures; run that after touching the advice, not a 20-minute suite.
+  - **No tracker item numbers in text the gate PRINTS** — a script cannot keep
+    one live, and all three it used to print (#164, #183, #93) were closed by the
+    time someone followed one. Advice names a **search string**; the self-test
+    executes each pointer against `OPEN_ITEMS.md` and fails if it finds nothing.
+    Consequence: a few tracker headers are now load-bearing text (#219's "runner
+    dies mid-bundle", #313's "CondenserFidelityTests") and say so in place.
+  - **⚠️ ALWAYS pass `TALARIA_SIM_NAME` when lanes run in parallel — the
+    default is a contention trap.** The gate defaults to the shared
+    `iPhone 17 Pro Max`, but recent lanes have each been quietly using a
+    dedicated `CC-<item>-iPhone-Air`, and that convention is why they passed.
+    Sharing one booted sim across concurrent lanes fails as
+    `Simulator device failed to launch …xctrunner` / *"Application failed
+    preflight checks"* (**Busy**) — which looks like a product failure and is
+    not.
+  - **⛔ DO NOT create a per-item `CC-<item>-iPhone-Air`. Use the FIXED POOL:
+    `CC-lane-1`, `CC-lane-2`, `CC-lane-3`** (iPhone Air, iOS 27.0). **Corrected
+    2026-08-12 — the old per-item instruction that stood here is what caused the
+    sprawl:** every lane created a sim, nothing ever deleted one, and Owen found
+    ~30 accumulated and cleared them by hand. A lane claims a free pool member and
+    leaves it in place; the pool is reused forever, and three is the ceiling
+    anyway because **>3 booted locks this Mac up**. Recreate a missing member with
+    `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
+    com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
+    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5408d
+    (beta5)** unless someone set an A/B override, so verify with
+    `xcrun simctl runtime match list` when it matters.
+  - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
+    (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
+    with "Unable to find a device matching the provided destination specifier".
+    `lane-gate.sh` resolves the name itself, so `TALARIA_SIM_NAME` is fine there;
+    a hand-rolled `xcodebuild` invocation is not.
+  - **And a dedicated sim does not buy you a free host.** With six lanes
+    building at once the Mac ran out of process capacity: the test host failed
+    to launch with *"did not return a process handle nor launch error"*
+    (`NSPOSIXErrorDomain Code=3`) and, in the same minute, the session could no
+    longer spawn `echo`. Already-running builds kept writing logs throughout,
+    so **"the machine is working" and "I can start a process" are different
+    facts** — if a gate run dies at app launch, check host load before
+    suspecting the diff (#300's lane, 2026-08-10).
+  - **🔴 GRANT CALENDAR + REMINDERS TCC BEFORE EVERY GATE RUN — a fresh sim
+    HANGS the suite instead of failing it.**
+    ```bash
+    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
+    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
+    ```
+    `BatteryReapEventKitProbeTests` calls `requestFullAccessToEvents()`. With a
+    *denied* record it fails visibly, which is what its docstring promises — but
+    on a **brand-new simulator there is no record at all**, so the call blocks
+    forever: the suite stalls mid-run with no failure, no marker and no verdict.
+    Measured 2026-08-10 — ~20 minutes parked on one test, and the only tell was
+    a log that had stopped growing. That is the gate's founding sin ("absence of
+    a failure marker is not success") arriving as a hang rather than a pass.
+    **And the grant does not survive a rebuild/reinstall** (nor, per #254, a sim
+    reboot) — a run that passed does not mean the next one is set up. Re-grant
+    immediately before each run; it is idempotent and costs nothing.
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded
@@ -564,14 +676,21 @@ lockstep across BOTH `HermesWidgetData.swift` copies).
 - Issues tracked in `OPEN_ITEMS.md` (dated update notes; closed items move verbatim to
   `OPEN_ITEMS-ARCHIVE.md` — see #261); session continuity in
   the local `handoffs/` notes (gitignored) + `CLEAN_CHAT_PATH.md`.
-- **THE CLOSE-OUT RULE (2026-08-06, from the reconciliation audit; pending Owen's
-  ratification but follow it meanwhile):** a lane does not close until every entry,
+- **THE CLOSE-OUT RULE (2026-08-06, from the reconciliation audit; RATIFIED by
+  Owen 2026-08-09, tracker #317):** a lane does not close until every entry,
   doc, and CLAUDE.md line whose text its result FALSIFIES is corrected in the same
   commit — #218's promoted-clause discipline applied to prose. Corrections go
   UPSTREAM, to the stale claim's own home (a dated supersession note at minimum),
-  never only downstream of it. Routing decisions and named-but-unstarted work get
-  tracker numbers the day they are made — "a phase name is not a filing" (#268);
-  a handoff is where a decision happened, not where it lives.
+  never only downstream of it. **"Upstream" means the stale claim's home in OUR
+  OWN docs — a tracker entry, a CLAUDE.md line — never an external repository;
+  submissions to hermes/nous or any outside repo stay gated on Owen's explicit
+  per-submission go** (his clarification at ratification). Routing decisions and
+  named-but-unstarted work get tracker numbers the day they are made — "a phase
+  name is not a filing" (#268); a handoff is where a decision happened, not where
+  it lives. **Archive carve-out (#317 ruling (a), 2026-08-09):** when the stale
+  claim's home is in `OPEN_ITEMS-ARCHIVE.md`, the correction lands as an
+  **append-only dated pointer block** beneath the archived entry's original text
+  — the original bytes are never edited; that remains #261's promise.
 
 ## Measurement discipline (#215 — the rule that cost the most to learn)
 
@@ -601,6 +720,33 @@ never enters.
 `runActionBattery`'s `routed-production` cell is the routed arm. Every other
 wrapper is still unrouted.
 
+**🔴 A SECOND RULE OF THE SAME KIND (#343, 2026-08-15): EVERY BATTERY RATE MEASURED
+BETWEEN 2026-08-02 AND #343'S FIX IS GOVERNOR-STRANGLED.** #225's `ToolCallGovernor`
+(`5e919269`, 2026-08-02) caps a tool at **4 calls per turn** and the whole turn at 12
+— and the batteries **never started a turn**. `LocalChatBackend+Refusal.swift:39`:
+they call `session.respond` directly, so *every trial in a run counted as one turn*
+and after four calls of a tool that tool was refused for the remainder of the launch.
+`ToolCallGovernor.beginTurn()`'s own doc comment predicted it — *"a budget that leaked
+across turns would silently strangle a long conversation … the obvious way this fix
+becomes worse than the bug it fixes."*
+
+- **Measured:** the #343 canary returned **31 of 40 trials dead**, both sensor tools
+  failing together, on an instrument whose beta4 twin scored **20/20**. One line
+  (`toolRelay?.beginTurn()` per trial) took it to **0/40 dead**.
+- **The dates are the load-bearing part.** Any archive run dated **before 2026-08-02**
+  was measured with **no governor in existence**. Comparing such a run against a
+  post-08-02 build measures OUR GOVERNOR, not the model and not the runtime — #343
+  would have published a spectacular false "beta5 regression" on exactly this.
+- **How to apply:** before quoting any battery number, check (a) the run's date against
+  2026-08-02, and (b) whether its instrument calls `beginTurn()` per trial —
+  `+CardClause.swift` and `+Refusal.swift`'s `turn-reset` cell always did;
+  `runActionBattery` and `runShapeBattery` do only from #343 onward. A cut trial is
+  **instrument state, not behaviour**, and an instrument with no error counter reports
+  it as behaviour (see #215's sibling lesson and `21F0C10D`).
+- **Related, same lane:** `cant` is **model behaviour** (set by prefix-matching the
+  model's own reply, `LocalChatBackend+Battery.swift:318`), never instrument error —
+  scoring it as an error deletes the #214 composition-denial finding entirely.
+
 **Where it lives (#216, 2026-08-01):** the battery and the DEBUG instruments were
 split out of `LocalChatBackend.swift` (5,727 → 1,826 lines) into
 `LocalChatBackend+Battery.swift`, `+Harnesses.swift` and `+IntentRouting.swift`.
@@ -629,7 +775,7 @@ Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
 Release build**, because a green Debug suite cannot see a mis-set gate.
 
   ```bash
-  DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
   ```
 
 ## Project history

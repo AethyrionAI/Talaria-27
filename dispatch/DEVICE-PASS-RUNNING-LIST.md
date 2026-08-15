@@ -876,17 +876,35 @@ Est. ~15 min.
 **Group 6 — Approvals, auto-mode OFF (§F7; needs host-side access to flip
 `approvals.mode` on the dashboard).** Est. ~25 min, plus however long F7d's
 stall takes (bounded by #145 to 20s/300s — it will not hang forever).
-- [ ] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
+- [x] F7b — On-device brain, ask for a reminder/calendar create; EDIT a
   field in the confirm card before approving. (PASS: the written record
   matches the EDITED values, not the originally staged ones.)
-- [ ] F7c — Same, but background the phone while the card is waiting.
+  **✅ PASS 2026-08-09 evening (build 2418):** "water the plants" create,
+  title edited in-card to "Water the plants!!" before approving — the
+  Reminders app shows the EDITED title at the staged 9:00 PM slot
+  (screenshot). Edited values won.
+- [x] F7c — Same, but background the phone while the card is waiting.
   (PASS: the gate survives suspension — card still there and answerable on
   return, tool not silently resolved either way.)
-- [ ] F7d — Set the host's `approvals.mode` to `manual` (it is `off` today,
+  **✅ PASS 2026-08-09 evening:** calendar-event card held through a 30 s
+  background, still answerable on return, nothing self-resolved; approval
+  wrote tomorrow-3pm to the calendar, verified in the Calendar app.
+- [x] F7d — ~~Set the host's `approvals.mode` to `manual` (it is `off` today,
   dashboard `:9119` or `PUT /api/config`); ask the connected tier for
   something that needs approval; **restore `off` after.** (DISCOVERY, not
   pass/fail — record what actually shows: a hung run that fails cleanly at
-  #145's timeout, a silent stop, an inbox item, or nothing at all.)
+  #145's timeout, a silent stop, an inbox item, or nothing at all.)~~
+  **✅ RAN 2026-08-09 evening (build 2418, Mac, the R10/R11 manual window;
+  config edited directly, not via dashboard). The answer is a FIFTH shape
+  none of the four pre-registered options named: on the sessions plane the
+  tool returns in 0.16 s with structured `status: "pending_approval",
+  approval_pending: true`, the AGENT then narrates the park in prose
+  ("queued waiting on your approval decision — nothing executed yet") and
+  the turn ends normally. No hang, no #145 timeout, no inbox item, no
+  silent stop — but also NO answer channel on this plane (the approval
+  card is runs-plane 3B), so it is a narrated dead-end. Nothing executed.
+  Mode restored to `off` + listener verified after (one Errno-48 headless
+  respawn caught and second-kicked).**
 - [ ] F7e (optional) — Repeat F7d with `smart` instead of `manual`. (Record
   whether Smart prompts at all for ordinary agent work.)
 
@@ -1374,7 +1392,28 @@ leaving the device. Note whether the absence of any indicator feels wrong.
 
 ## B · #130 — the half-duplex A/B, owed since 2026-07-20
 
-### B1 · Half-duplex gate vs talk-over barge-in · **PARKED 2026-08-01 — kept as a REMINDER**
+> **⚰️ RETIRED 2026-08-09 BY THE ARCHIVE SWEEP — Owen's call, on being shown
+> that this row IS the half-duplex A/B probe: *"Isn't that the half duplex a/b
+> probe? If so that can be archived."* #130 moved to `OPEN_ITEMS-ARCHIVE.md`
+> in the same commit. DO NOT RUN B1; it is no longer owed by anything.**
+>
+> **Why it needed a ruling rather than a deletion:** #130 was closed by Owen on
+> 2026-07-31 (*"drop this, it's fine as is"*), but the day after he parked THIS
+> row as a reminder (*"we need to get to the bottom of it"*) — so the tracker
+> said closed while the device queue said, in so many words, *"DO NOT DELETE —
+> #130 is open."* **That contradiction is what this note resolves.** The *it*
+> he wanted to get to the bottom of was the **engine-identification gap**, and
+> that was fixed 2026-08-01 (the `voice session starting on engine …` log line)
+> — so the reminder's own subject is discharged, and what remains below is a
+> preference judgement Owen has already declined.
+>
+> **The probe branch `probe/t27-130-halfduplex` is NOT deleted** (origin and
+> local) — retiring a row is not a reason to destroy its artifact, and #105/#141
+> may still want the gate at the realtime engine's transcription ingest.
+> **Kept below verbatim, annotated rather than removed**, per this file's
+> standing convention.
+
+### B1 · Half-duplex gate vs talk-over barge-in · ~~**PARKED 2026-08-01 — kept as a REMINDER**~~ **⚰️ RETIRED 2026-08-09 — #130 ARCHIVED, DO NOT RUN**
 
 > **Owen 2026-08-01: the original trigger for #130 is no longer a concern, but
 > keep this parked — "we need to get to the bottom of it."** The *it* is the
@@ -1849,7 +1888,7 @@ four times total.
 
 | # | check | pass |
 |---|---|---|
-| **#61** | Create local sessions, read the drawer | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here |
+| **#61** | Create local sessions, read the drawer — **including one whose only user turns were SPOKEN** (start a voice session, say something, let it reply, end it; #280 clause added 2026-08-10) | on-device titles + previews are distinct, not near-identical. **Must be standalone** — the connected drawer is server-fed and never touches `conversation.title`, which is why the paired check is meaningless here. **280-F:** the spoken-only session's row must show a real title, and **the title line must not be the same string as the subtitle** — that duplicate is the 2026-07-11 device-pass FAIL shape, and #280's fix is what stops the row falling back to its own preview for a title |
 | **#190** | (a) switch sessions during read-aloud; (b) force a session-open failure | (a) read-aloud stops; (b) failure banner appears. **The only two unexercised checks left on #190** — everything else cleared 2026-07-27 |
 | **#123** | Share into the app from Safari (URL) and Photos (image) | composer receives it, focused, works unpaired on the on-device brain |
 | **#124** | Background → foreground with Face ID lock on | overlay covers the scene root; passcode fallback offered (never biometry-only) |
@@ -1868,6 +1907,15 @@ four times total.
 > `remote-notification`, `UNUserNotificationCenter`). §F3 has nothing left
 > to run — its only other row, #137, was already "not runnable as filed."
 | **#137** | ⚠️ **NOT RUNNABLE AS FILED — needs a rewritten check first.** The 2026-07-25 pass scored UNRUNNABLE, and the spec's "revoke/disconnect FIRST" setup is actively wrong: disconnect no longer produces a re-migratable device and neither does deleting the app. **Do not attempt until someone writes a sequence that can actually reach the un-stamped state.** Queued as a WRITING task, not a device task | — |
+
+> ➡️ **"§F3 has nothing left to run" IS NO LONGER TRUE as of 2026-08-10 — one
+> row moved back in.** **§V2 (#301's first-grant negative control) needs exactly
+> this setup and nothing cheaper can substitute:** the crash it verifies is
+> reachable only on the `.notDetermined` → `requestAuthorization` path, and an
+> OTA upgrade-in-place preserves TCC grants, so **only a delete-and-reinstall
+> reaches it.** The two rows above stay MOOT / not-runnable-as-filed — this
+> annotation adds to the section, it does not revive them. Run §V2 under §F3's
+> standing rule: fresh install goes LAST, ever.
 
 ### F4 · LOCKED DEVICE
 
@@ -2328,7 +2376,19 @@ Three rows the tracker had queued nowhere. Verified absent before adding:
 `grep -n "#256\|#252\|#249\|#250\|island\|Island"` over this file returned zero
 matches across 2,130 lines. **One queue — these are not restated in `OPEN_ITEMS.md`.**
 
+> **⚠️ HEADING NO LONGER COVERS ALL THREE (2026-08-10).** **R2 is no longer a
+> standing watch — it is a runnable, queueable check**, because the
+> `t27-250-debug-island-trigger` lane built the Debug trigger Owen ruled for on
+> 2026-08-09. R1 and R3 are still passive. Read this heading as "…and standing
+> watches, minus R2."
+
 ### R1 · #256-E (2nd half) + #249F-D — reminder phrasing, PASSIVE
+
+> **Ownership note, 2026-08-09 (archive sweep): #256 is now in
+> `OPEN_ITEMS-ARCHIVE.md`. This row's live owner is #249F-D** — which is where
+> 256-E's second half was folded when #256 closed, and #249 stays on the live
+> board. The `#256-E` label is kept because that is what the observation was
+> pre-registered as; read the bar against #249F-D.
 
 **Prerequisite:** a build at or past `ca895f2` (#249F, PR #273). OTA 2250 and anything
 staged after it qualifies; **confirm the build before counting a reading** — an
@@ -2346,20 +2406,91 @@ settle both if the time is ambiguous (e.g. "remind me at 8" said in the evening)
 **Record the model's exact words.** Both are text bars, and the failure mode they guard
 against is a *mined phrase*, not a wrong time.
 
-### R2 · #250-E — the Dynamic Island wears the selected icon, STANDING WATCH
+### R2 · #250-E — the Dynamic Island wears the selected icon · ~~STANDING WATCH~~ ~~✅ NOW RUNNABLE — QUEUE IT (2026-08-10)~~ **🔴→✅ RAN 2026-08-10 — 250T-C MISSED, cause found and fixed the same sitting. RE-RUN THIS ROW AS WRITTEN once the fix lane (`t27-250-island-compact-icon`) carries its bars and the gate — it is that lane's closing bar. Full chain at `OPEN_ITEMS.md` #250.**
 
-**Currently UNTRIGGERABLE on demand** — Owen's own words: he cannot consistently bring
-the island up. No Debug harness trigger exists (it would live beside the other harness
-buttons — `grep "toollessIndexBatteryButton"` for the pattern). **Do not schedule this;
-it is a watch, not a runnable check.**
+> **✅ VERDICT, 2026-08-10 — the slot is a flat grey square, and it always
+> has been.** Two runs, two icons at opposite ends of the brightness range
+> (dark Talaria orb, then a bright yellow star): the **lock-screen**
+> presentation rendered each one correctly and in colour, the **compact
+> island leading slot** rendered the same grey square both times. Owen:
+> *"lock screen shows the star fine, island's been grey the whole time."*
+>
+> **So the output is independent of the selected icon**, the handoff
+> publishes fine (the lock screen proves it), and the "dark art is just
+> illegible at 14 pt" reading is falsified by the star. Both presentations
+> call ONE view — `HermesBrandIcon`, `HermesLiveActivity.swift:96` (compact,
+> size 14) and `:114` (lock screen, size 44) — so the failure is specific to
+> the compact slot, not to the image.
+>
+> **✅ AND THE CAUSE WAS FOUND THE SAME SITTING — four experiments, two of
+> them failures.** Long-press showed the **EXPANDED** region rendering the
+> icon in full colour beside a grey compact slot. Forcing
+> `.withRenderingMode(.alwaysOriginal)` changed nothing (**failed**).
+> Swapping the compact slot for a plain orange SF Symbol rendered **orange**
+> — so the slot is **not** monochrome and the tinting theory is
+> **falsified**; the defect is the bitmap. Cause: `UIImage(data:)` returns
+> **scale 1.0**, so the handoff PNG arrives as an image whose **POINT** size
+> equals its **PIXEL** count and the 14 pt slot won't draw it. Redrawing at
+> the slot's point size renders the real icon — Owen: *"full icon shows."*
+> **(Size corrected 2026-08-11 by #250F: this row said "120 px … 120 POINT".
+> Measured, the handoff is **240 px → 240 pt** — `IconPreview-Default.png` is
+> a loose 240×240 resource with no `@Nx` suffix. Mechanism unchanged; the
+> mismatch is 2× worse than written. See OPEN_ITEMS #250.)**
+>
+> **Fix on `t27-250-island-compact-icon` (`371e462`), NOT merged.** This row
+> **re-runs as written** as the closing bar once that lane carries its bars
+> and the gate. Full chain, including what is established vs. merely
+> assumed, in `OPEN_ITEMS.md` #250.
 
-When an island does appear during real use: its leading icon slot must match the icon
+*(original row text follows, kept for the record)*
+
+> **▶ THE TRIGGER EXISTS AS OF 2026-08-10** (`t27-250-debug-island-trigger`,
+> bars 250T-A/B in OPEN_ITEMS #250). The "untriggerable" preamble below is
+> **superseded** — it was true from filing until this lane landed, and is kept
+> for the record rather than deleted.
+>
+> **How to run it now, on a DEBUG build:** Settings → Developer →
+> *Batteries (#200 harness)* → the **`// Live Activity — #250 R2`** panel →
+> **"Start throwaway Live Activity (#250 R2)"**. That starts a labelled
+> throwaway through the REAL `LiveActivityService` — the same
+> `Activity.request` and the same `HermesActivityAttributes` a real run uses,
+> so the island's leading icon slot renders exactly what a real run would put
+> there. It **ends itself after 60 s**, and a second tap ("End throwaway")
+> ends it early.
+>
+> **Three things to know before running it:**
+> - **DEBUG builds only.** The button is compiled out of Release, so an
+>   OTA/TestFlight Release build will not have it.
+> - **If the panel warns that Live Activities are disabled**, turn them on in
+>   Settings → Talaria → Live Activities first — nothing will appear otherwise,
+>   and that is the OS, not a #250 failure.
+> - **Let it end.** Live Activities draw on a system budget; the auto-end is
+>   there so repeated harness taps cannot starve the REAL run activity. If the
+>   island starts behaving oddly after many taps, wait the window out before
+>   concluding anything about #250.
+>
+> **This row is now a ~2-minute check, and 250T-C is the bar it settles.** The
+> sim bars did NOT verify any icon — 250T-B proves the trigger drives the real
+> service and leaks nothing; **what the island actually renders is unverified
+> and is this row's to answer.**
+
+*(original row text follows, kept for the record — its first paragraph is the
+superseded part)*
+
+**~~Currently UNTRIGGERABLE on demand~~** — Owen's own words: he cannot consistently bring
+the island up. ~~No Debug harness trigger exists (it would live beside the other harness
+buttons — `grep "toollessIndexBatteryButton"` for the pattern).~~ ~~**Do not schedule this;
+it is a watch, not a runnable check.**~~
+
+When an island does appear ~~during real use~~ **(now: on demand, per the trigger above)**: its
+leading icon slot must match the icon
 selected in Settings → Appearance → App Icon — both right after a switch, and on a
 fresh cold-launch island. Bars 250-A/B/C are MET and the home-screen half is already
 confirmed; this is the only unverified half.
 
-*(Whether to build the Debug trigger and make this runnable is Owen's call — see
-`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.)*
+*(~~Whether to build the Debug trigger and make this runnable is Owen's call — see
+`handoffs/NEEDS-OWEN-2026-08-09-BACKLOG-RUN.md`.~~ **Owen ruled BUILD on 2026-08-09;
+built 2026-08-10.**)*
 
 ### R3 · #250-A tinted variant — one look, no setup
 
@@ -2437,7 +2568,8 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > **The answer is the option nobody pre-registered: `error` ARRIVES, as a JSON
 > BOOLEAN, with no failure text — and 296-C1's parser drops it on a type
 > mismatch** (`payload["error"] as? String` is `nil` for a `Bool`,
-> `SessionsHermesClient+RunsTransport.swift:179`). So on the runs plane a
+> `SessionsHermesClient+RunsTransport.swift:179` as cited that night — the line
+> is **`:190`** at `d004c82`, re-resolved 2026-08-10). So on the runs plane a
 > failed OR stopped tool renders as a clean completion — the exact lie #296
 > exists to remove, reintroduced by its own plumbing's type guess. Failed and
 > stopped are **indistinguishable on the wire** (both `error:true`, no reason);
@@ -2449,7 +2581,15 @@ attempt=N)` immediately followed by `autoAuth FIRED (no tap)`, with `attempt=` c
 > capture and source don't already prove. Frames archived at
 > `scratchpad/r5-trial{1,2}-frames.txt` (session-local). **Fix filed in
 > OPEN_ITEMS #296 (296-C1 reopened by the wire) — parser must accept Bool OR
-> String, `false`/absent must stay clean. Not built tonight.**
+> String, `false`/absent must stay clean. ~~Not built tonight.~~**
+>
+> **2026-08-10 — the fix is now WRITTEN on `t27-296c1-bool-error` but NOT
+> VERIFIED.** The union reader (`hostErrorDetail`) is applied at both drop
+> sites; the RED was never witnessed and the gate never ran, because the build
+> host went into box-wide fork exhaustion mid-lane. Scored honestly as all-OWED
+> in #296's "296-C1 re-land" block. **This row stays ANSWERED and still DO NOT
+> RUN** — the phone trial is moot for the reason above, and none of that
+> changed.
 
 > **Superseded context — the earlier partial answer from Z8's trial:** the host can go FURTHER than omitting the error field — a
 > process killed by the gateway's own shutdown cleanup came back
@@ -2534,6 +2674,13 @@ client-side counterpart at all.
 > background, Hermes brain selected this time; the earlier two were 13:32 and
 > 13:49 — the 13:21 trial produced no revoke at all, which is what made it
 > void).
+>
+> ➡️ **2026-08-10: #303's half of this trial is now a runnable row — §V3.**
+> The joint-scoring instruction above ("one cold Control Center launch scores
+> 303-A and 254-D from the same trial") is unchanged; §V3 spells out the three
+> preconditions that voided both attempts, and the warm 303-B contrast that
+> must run in the same sitting. Run §V3 and this row together; they are one
+> launch.
 
 *(original row text follows, kept for the record)*
 
@@ -2589,6 +2736,11 @@ not exercise the race** — retry, do not record it as a pass.
 > before App Lock evaluates its cover, so a Control Center launch begins on a
 > locked app. Mic state during that interval is UNDETERMINED. Full detail and
 > bars: OPEN_ITEMS #254 (device-run block) and #302.
+>
+> ➡️ **2026-08-10: #302's measurement is now a runnable row — §V1.** The
+> instrument it needed shipped that day (PR #300, `179d506`), 302-C was RULED
+> (defer-until-unlock), and 302-B's fixture was re-arranged around the FIXED
+> #272. "UNDETERMINED" above is still the state — §V1 is what determines it.
 
 *(original row text follows, kept for the record)*
 
@@ -2603,7 +2755,7 @@ device module on a forced loudspeaker; native speaks through `SpeechOutputServic
 `managesAudioSession == false`. Two different audio paths produce the ghost two different
 ways.
 
-### R8 · #292-C — abandoned runs turn stops polling · **[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]**
+### R8 · #292-C — abandoned runs turn stops polling · ~~[NEW 2026-08-09, fix MERGED (PR #288); the bar that closes #292]~~ **✅ RAN 2026-08-09 evening (build 2418) — MET with the INCONCLUSIVE guard satisfied: ~17 polls before the walk-away, ZERO after (cutoff on the walk-away second), zero /stop, host ran to completion, reconcile adopted on return. #292 CLOSED. Full sequence in OPEN_ITEMS #292. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #288's merge (`c2cc540`), runs transport
 switch ON (Developer → runs transport), host = the Mac (observable `agent.log`)
@@ -2625,7 +2777,7 @@ nothing (instrument the error path).
 never recorded (deliberate Ruling-1 trade, Owen-overturnable) — the CTX gauge
 shows the previous run's occupancy.
 
-### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · **[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]**
+### R9 · #272 — bar 272-H: the fixed build under §R4's EXACT trial · ~~[NEW 2026-08-09, fix MERGED (PR #289); Owen's hand — the reservation's exit, and the bar that closes #272]~~ **✅ RAN 2026-08-09 evening (build 2418) — BOTH ARMS PASS, all four contract clauses held, reservation offered and not taken. 272-H MET; #272 CLOSED. DO NOT RE-RUN.**
 
 **Prerequisite:** a build at or past PR #289's merge (`de435ee`). This row
 repeats **§R4's procedure verbatim** (see §R4 above — same grace settings, both
@@ -2649,7 +2801,7 @@ must show `autoAuth BLOCKED guard=episodeAttempt(1)` there instead.**
 'whoosh'"):** if the fixed behaviour feels wrong in the hand, the ruling
 REOPENS — that is the bar working, not a failure of the lane.
 
-### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · **[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]**
+### R10 · #304 — bar 304-H: a real gated command parks the run and the phone answers it · ~~[NEW 2026-08-09, lane MERGED (PR #292). 🔐 LIVE-INSTALL GATE — DO NOT RUN WITHOUT OWEN'S PER-EXPERIMENT GO]~~ **✅ RAN 2026-08-09 evening (build 2418, Owen's go, mode restored after) — MET: card showed the host's choice set (ONCE/THIS RUN/ALWAYS/DENY + pattern label), one tap resumed the run, delete verifiably executed. #304 CLOSED (with R11). DO NOT RE-RUN.**
 
 **Prerequisites (each its own ask):** (1) Owen's explicit go for THIS experiment:
 set `approvals.mode: manual` on the **Mac** (`~/.hermes/config.yaml` — Owen's O3
@@ -2667,7 +2819,7 @@ host's `agent.log`, not the screen.** Also glance: the 155-char voice-status
 copy renders sanely if a voice turn is tried (it wraps, by design), and the
 second-confirm sheet on ALWAYS/THIS RUN names the consequence.
 
-### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · **[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]**
+### R11 · #304 — bar 304-I: the deny arm + the Stop escape hatch · ~~[NEW 2026-08-09. SAME 🔐 GATE AND SITTING AS R10]~~ **✅ RAN 2026-08-09 evening — MET both arms: deny delivered the host's BLOCKED text with no retry; Stop resolved the parked approval as a clean deny in 300 ms (`Approval wait interrupted by user signal`). §2.3 unknown OBSERVED: denied tool renders as a clean ✓ chip (#296-C1's parser drop), stopped tool as "Stopped". Full evidence in OPEN_ITEMS #304. DO NOT RE-RUN.**
 
 Same setup as R10. **Arm 1:** tap DENY → the host's own BLOCKED text arrives and
 the agent does NOT retry or rephrase (host log evidence). **Arm 2 (the escape
@@ -2678,7 +2830,37 @@ DENIED tool call renders as on the runs event stream** — the dispatch's open
 unknown (#296's family): does `tool.completed` arrive with an error field, or
 nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
 
-### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · **[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]**
+### R12 · #257 — the capability lever's device batch: pre-flight, detection probe, 3a-C read, voice absence · ~~[NEW 2026-08-09, lane MERGED (PR #290). One sitting, in this order]~~ **✅ STEP 2 RAN 2026-08-10 — ALL FOUR BARS MET (1-GATE 100% arm AND control · 1-A 100% · 1-B 0% · 1-D zero). Lever 1 SHIPS. DO NOT RE-RUN step 2. STEPS 3 + 4 STILL OWED.**
+
+> **✅ VERDICT, 2026-08-10 — run `0E08CADF`, 350 classifications,
+> `errors: 0` on all 50 rows, `endedCleanly: true`.** Every GATE row 10/10
+> on both arm and control; every RECALL row 5/5 capability-TRUE; every
+> DANGER row 5/5 capability-FALSE, including the ten deliberate near-misses.
+> **Neither kill clause fires** — the routing Bool is unchanged at 100%, so
+> the second field costs the app's most load-bearing classification nothing.
+> 100% everywhere is the expected shape, not a red flag: #217B measured zero
+> variance across 380 classifications on this router, which is why n=5 was
+> justified.
+>
+> **⚠️ STEP 1 (the `tokenCount` pre-flight) WAS NOT RUN — no instrument for
+> it was ever built.** It lives as a comment in two files with no
+> Developer-screen button. Standing in for it: 370 two-field generations
+> across tonight's two runs with `errors=0`, which is the failure the
+> pre-flight existed to catch (`21F0C10D` truncation) rather than the
+> measurement it asked for. **The pre-flight stays owed** if the number
+> itself is ever wanted.
+>
+> **1-D's device numbers were lost** (console-only, and the Mac restarted
+> mid-sitting) **and it does not matter** — this row pre-registered the unit
+> test as the evidence, and the band provably scores a byte-identical string
+> to the one the unit test asserts on. Full reasoning in #257.
+>
+> **STEPS 3 + 4 REMAIN, and neither needs a battery:** 3a-C (Owen opens
+> `/capabilities` and judges whether it answers "what can you do" better
+> than the model does — pass/fail his) and the voice check (ask a capability
+> question BY VOICE and confirm the block's ABSENCE from the spoken reply).
+
+*(original row text follows, kept for the record)*
 
 **Prerequisite:** a build at or past PR #290 (`c8759b9`).
 
@@ -2704,7 +2886,26 @@ nothing? Whatever is seen becomes a recorded fact in #304's entry either way.
    That asymmetry is a recorded product question (NEEDS-OWEN §3.1), not a
    defect; confirm the observation matches.
 
-### R13 · #101 — bar 101-A1: the cross-chat recall routing run · **[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]**
+### R13 · #101 — bar 101-A1: the cross-chat recall routing run · ~~[NEW 2026-08-09, instrument MERGED (PR #291). ~3 min. THE RUN PROTOCOL IN #101's ENTRY IS BINDING]~~ **🔴 RAN 2026-08-10 (Debug build over OTA 2484, Owen driving) — BAR MISSED: `armed=0/20 toolless=20/20 scored=20/20 errors=0`. SHAPE A IS DEAD. DO NOT RE-RUN — the verdict and the full protocol scoring live at `OPEN_ITEMS.md` #101.**
+
+> **✅ VERDICT, 2026-08-10 — run `BABBABD8`, 13.9 s, ten rows unanimous.**
+> The run was COMPLETE (`scored=20/20`, `errors=0`), so the protocol's named
+> worst case (a total-error run misread as a toolless verdict) is excluded.
+> 0% armed against a ≥90% bar is **not** within the ±2 near-miss window, so
+> **no n=50 re-run is owed.** The ambiguity statement rides it: the router
+> does not arm *these ten phrasings*, which is not the same claim as "the
+> model cannot route cross-chat recall."
+>
+> **The tell that makes it trustworthy:** `routeTurn` fails safe to ARMED,
+> so a broken generation path pushes this number toward the bar. It came
+> back 20/20 in the opposite direction with a zero error tally — the failure
+> mode that could have faked a miss cannot produce this result.
+>
+> 101-A2/A3 do not open (post-verdict by design). Shape B is untouched by
+> this and stays HELD; whether #101 continues as Shape B or closes is
+> Owen's, and is asked in the entry.
+
+*(original row text follows, kept for the record)*
 
 **Prerequisite:** a build at or past PR #291 (`1ecaa86`).
 
@@ -2718,7 +2919,7 @@ results screen has no error indicator). **The verdict decides Shape A:** ≥90%
 armed → the corpus-widening lane opens; a miss → Shape A is dead before any
 corpus work, and that is a RESULT.
 
-### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · **[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]**
+### R14 · #306 — bar 306-L: the queue's three arms, host-log evidence · ~~[NEW 2026-08-09, lane MERGED (PR #293). One real remote conversation, ~10 min. THE BAR THAT CLOSES #306]~~ **✅ RAN 2026-08-09 evening (build 2418) — ALL THREE ARMS MET with host-log evidence (serial fire at +1s; zero POSTs after Stop; hold waited out a 7½-min background and fired only after the reconcile's GETs adopted). 306-L MET. DO NOT RE-RUN. Full sequence in OPEN_ITEMS #306.**
 
 **Prerequisite:** a build at or past PR #293's merge (`5029d22`) — the staged
 OTA covers it. A remote (Hermes) profile active.
@@ -2741,3 +2942,310 @@ Three arms, in order; evidence for (ii) and (iii) is the **host's `agent.log`**
 **Also worth one glance (feel, not a bar):** the chip's Edit/Cancel; a held
 message surviving New Chat and SURFACING on return from the drawer (the O8
 question you're ratifying rides this behavior).
+
+### R15 · #140-D — the ATS mechanism claim, settled on device · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than go silent on mechanism]**
+
+**Cheap; rides any corded sitting.** The disputed ATS parenthetical spans four
+documents including `CLAUDE.md`; this run settles it. Protocol per #140's entry
+(the device arm as pre-registered there). Until it runs, the disputed text is
+not re-published as verified fact in any public copy — that's the standing
+half of the same ruling.
+
+### R16 · 56-U-H — Siri in the HOSTLESS column · **[NEW 2026-08-09, Owen's decision-pass ruling: RUN rather than hedge the copy]**
+
+**One check:** on a standalone/unpaired install (§F2's state), invoke the Siri
+phrase and confirm the intent completes against the local brain. The public
+copy's hostless-column Siri claim then states what was verified. If it FAILS,
+the copy hedges and the failure files its own number — do not ship the claim
+on a miss.
+
+### §R15/R16 ride-along · #222 device arm — **OPPORTUNISTIC (ruled 2026-08-09): no dedicated run; fold into whatever corded sitting has slack. Not runnable on sim or test host (Code=5000).**
+
+---
+
+## §V · Added 2026-08-10 — the voice-triage lane's three device rows (#301 · #302 · #303)
+
+**Why this section exists.** `planning/PENDING-OWEN-CONSOLIDATED-2026-08-10.md`
+§8 flagged it as gap 1: these three items' device work existed **only as prose**
+— inside §R6's and §R7's verdict blocks above, and inside their `OPEN_ITEMS.md`
+entries — and had never been written as runnable rows here. This section is that
+prose turned into rows. **One queue: the BARS still live in `OPEN_ITEMS.md`
+#301/#302/#303 and are not restated here as this file's own authority** — each
+row names the bar it scores and sends the verdict to that entry.
+
+**⚑ PREREQUISITE FOR ALL THREE ROWS: a build at or past PR #300 (`179d506`,
+merged 2026-08-10).** That one merge carries **both** the #302-A capture-chain
+instrument and the #301 `@Sendable` fix. **OTA 2484 (`main` @ `75e5e08`)
+qualifies** — verified ancestor 2026-08-10. **An older build is not a miss, it
+is a VOID trial:** without the instrument V1 has nothing to read, and without
+the fix V2 measures the defect instead of the fix — and both failures present as
+ordinary-looking runs.
+
+**⚠️ TWO SUBSYSTEMS, ONE INTERSECTION — read this before capturing any log for
+V1 or V3.** These rows straddle a seam in the app's own logging:
+
+| line | subsystem | category |
+|---|---|---|
+| `capture chain HOT/COLD … (#302-A)` · `audio session activated for capture (#302-A)` | `org.aethyrion.talaria` | `NativeVoiceCapture` |
+| `voice session starting on engine …` · `active voice engine → …` | `org.aethyrion.talaria` | `VoiceEngineRouter` |
+| `scenePhase … \| pre: cover=…` · `requestUnlock EXIT …` | **`org.aethyrion.talaria27`** | `AppLock` |
+
+Verified at HEAD 2026-08-10 (`NativeVoicePipelineService.swift:909`,
+`VoiceEngineRouter.swift:24`, `AppLockController.swift:42` → `TalariaLog.subsystem`
+= the bundle id, `org.aethyrion.talaria27`). **A runner who filters on ONE
+subsystem captures half the intersection and cannot score V1 at all** — this is
+§F6's false-FAIL trap (corrected 2026-08-09) one row over. **Capture the whole
+corpus, filter afterwards.**
+
+**Log route for all three rows.** Corded → Xcode bridge `GetConsoleOutput` with
+`oslogSeverity: ["default"]` (its `pattern:` argument silently returns zero units
+for text that IS present). Hand-launched / uncorded → after the fact,
+`sudo /usr/bin/log collect --device-udid 00008150-000E794C3C47801C` (hardware
+UDID; Owen pastes), then grep. Read once at `oslogSeverity: ["all"]` — #198B's
+`fault` hides under `default`.
+
+### V1 · #302-A/B — is the microphone live behind App Lock? · ~~**[Group 8 shape (Control Center, leaving the app); flip App Lock on during Group 3's Settings trip]**~~ **🚨 RAN 2026-08-10 (Owen, build 2484 Release, corded). ANSWER: YES — 302-B FAILED. DO NOT RE-RUN; the verdict and full evidence live at `OPEN_ITEMS.md` #302, and the non-voice half is filed as #323.**
+
+> **RESULT SUMMARY (the authority is #302's RESULT block, not this row).**
+> Mic HOT for **34.92 s** while `cover=locked locked=true`, going hot **3.87 s
+> before** the user cancelled the biometric — so the cancel did not open the
+> window, it was already open. A **second, unplanned reproduction** in the same
+> corpus went hot **820 ms before App Lock began evaluating at all**. Arm (a)
+> came back green only because Face ID resolved 470 ms faster than the audio
+> engine started: **a footrace, not a gate** — the voice path never consults
+> lock state (grep finds `AppLock` in `NativeVoicePipelineService` only inside
+> comments). The engine was `native` in every episode, so no trial was VOID.
+> **This row's own two-subsystem warning earned its keep**: the verdict is the
+> intersection of `org.aethyrion.talaria` capture lines with
+> `org.aethyrion.talaria27` AppLock lines, and either filter alone shows
+> nothing wrong.
+>
+> **The sitting STOPPED here, per this row's own instruction.** Phase B
+> (Debug install → R13/R12/R2) was staged and not run.
+>
+> ~~**First thing on the next corded sitting:** is Control Center's "Talk to
+> Hermes" reachable from the **device** lock screen?~~ **✅ ANSWERED
+> 2026-08-10 by Owen, no sitting needed — DO NOT SCHEDULE IT.** The control is
+> on the lock screen, but **iOS demands Face ID / passcode at the DEVICE level
+> before Talaria launches**, so there is no device-lock bypass. #323's blast
+> radius is bounded to an UNLOCKED phone in someone else's hands — App Lock's
+> own threat model. Recorded at #323.
+
+**This is a CONTRACT-COMPLIANCE measurement, not an exploration.** 302-C was
+**RULED by Owen 2026-08-10: defer-until-unlock**, and it is today's felt flow
+(*"if you press the control center button, it unlocks and launches the app"*).
+So the launch is accepted and the unlock prompt is part of the flow — which
+makes **"the capture chain is provably COLD until unlock succeeds"** a stated
+requirement rather than one of three defensible options. 302-A/B now measure
+compliance with it.
+
+- [ ] **V1 pre-flight (setup, do once).** Settings → App Lock **ON**, grace
+  **Immediately** (the configuration both observed trials ran under). Brain =
+  **On-Device** — this is what PINS the native engine on a live network
+  (#221's gate forbids realtime outright there; §R7's 13:49 trial got native in
+  22 ms with the network up). **Do not use airplane mode as the fixture** — it
+  also pins native, but it drops the network for everything else in the sitting.
+- [ ] **V1-a — the SUCCEEDING unlock (bar 302-A).** Force-quit the app for a
+  genuinely cold launch. Control Center → **"Talk to Hermes"**. Unlock normally
+  when the biometric sheet appears. Let the session run a beat, then dismiss.
+- [ ] **V1-b — the CANCELLED unlock (bar 302-B).** Force-quit again. Control
+  Center → **"Talk to Hermes"**. **Cancel** the biometric sheet → the cover
+  stays down with the in-app **UNLOCK** button waiting. **Hold the locked
+  interval open ≥30 s**, then tap UNLOCK.
+  - ⚠️ **The bar's own fixture text is STALE — use the arrangement above.**
+    302-B says the interval is *"trivially arranged while #272 is unfixed"*;
+    **#272 was FIXED and CLOSED 2026-08-09 (PR #289)**, so the interval is now
+    held open legitimately by the fixed Cancel-then-UNLOCK-button state. Same
+    interval, different arrangement; the bar itself is unchanged.
+
+**PASS (both arms) = no `capture chain HOT …` line falls inside the locked
+interval** — i.e. between `voice session starting on engine …` and the
+`requestUnlock EXIT attempt=… result=SUCCESS` that ends the episode (in V1-b
+that interval spans the cancelled attempt's
+`result=FAILED_OR_CANCELLED` line and the whole hold). A
+`capture chain COLD — … was=false …` line inside the interval is **usable
+positive evidence**: it says a start died before the engine ever ran.
+
+**FAIL = a `capture chain HOT …` line inside that interval, in either arm.**
+That is a defect against the ruled contract, it **outranks the remaining #254
+device bars**, and the fix defers session start behind the unlock. Stop and file
+rather than continuing the sitting. **302-B is the arm that can still
+surprise** — cold in 302-A and hot here is exactly the shape the bar exists for.
+
+**VOID — neither pass nor fail — if the engine line names `realtime`.** The
+#302-A instrument covers the **native** capture chain only; the realtime engine
+captures through WebRTC's audio unit (`LiveVoiceSessionService`, no
+`AVAudioEngine`) and is **uninstrumented**. Per #220 a verdict that cannot name
+its own engine tested nothing: re-run with the brain pinned On-Device. (If #302
+ever recurs on a realtime-configured host, the WebRTC chain needs its own
+instrument — that is not this row.)
+
+**Evidence to capture — quote all six, with millisecond timestamps, per arm:**
+1. `voice session starting on engine … (relayPaired=…)`
+2. `audio session activated for capture (#302-A)` — if present
+3. `capture chain HOT — AVAudioEngine.isRunning=… inputTap=installed (#302-A)`
+   — if present, and its exact time relative to 1 and 6
+4. `capture chain COLD — AVAudioEngine.isRunning was=… now=… inputTap=removed (#302-A)`
+5. `scenePhase background -> active | pre: cover=locked locked=true …`
+6. `requestUnlock EXIT attempt=… result=…` (both the cancel and the success in V1-b)
+
+**Do NOT read the `audio deactivated by app — not an interruption (#198)` line
+as an answer.** It is emitted by BOTH pipelines on every audio-session teardown
+and appears throughout these logs in contexts unrelated to the lock; treating it
+as proof the mic was never hot is reading a general-purpose line as a specific
+guarantee. That reading is the reason this item is a question rather than a
+finding.
+
+**Verdict goes to `OPEN_ITEMS.md` #302.** Pre-registered response: both arms
+cold ⇒ closes **NOT A DEFECT** with the ordering documented.
+
+### V2 · #301 — the negative control: a first-ever speech grant must not kill the app · **[§F3 FRESH INSTALL — the app is DELETED; runs LAST in any sitting]**
+
+> **🟢 DO NOT RUN THIS ROW — DISCHARGED 2026-08-11. The SIM arm scored bar
+> 301-C instead, n = 3/3 clean**, on sim `CC-PROBES-iPhone-Air`
+> (`0CB056F3-…`) on the **beta5 runtime 24A5408d**, off `main` @ `024926f`:
+> TCC reset to a verified-zero-row notDetermined state, then microphone and
+> speech granted at the real system alerts, three times. All three continued
+> past the crashing site (the app's own `audio session activated for capture
+> (#302-A)` is downstream of the resumed continuation) with **zero `BUG IN
+> CLIENT OF LIBDISPATCH`**. Full evidence in `OPEN_ITEMS.md` #301's dated
+> 2026-08-11 block.
+>
+> **This row's own closing paragraph asked for exactly this** — *"Either can
+> produce the control; record which one did"* — so the answer is recorded
+> here as well as at #301: **the sim arm did.** The cost this saves is the
+> one the row itself flags: deleting the app loses the pairing and the local
+> data, and §F3 runs LAST in any sitting. Nothing about #301 needs that now.
+>
+> One thing the sim arm genuinely does **not** cover, stated so nobody
+> re-derives it as a gap: it is a simulator, not `whoGoesThere`. The
+> discriminator for this crash is authorized-vs-notDetermined and **not**
+> sim-vs-device — that is #301's own central correction, and the sim runtime
+> was already shown to enforce the same isolation check — so the arm is
+> valid. If a future finding ever re-opens sim-vs-device as a real axis,
+> this row comes back.
+
+**⚠️ THE INDEX'S FRAMING OF THIS ROW IS STALE and this row does not inherit
+it.** `planning/PENDING-OWEN-CONSOLIDATED-2026-08-10.md` §2 lists *"#301 device
+repro attempt (n≥5, native voice; sim-only so far)"*. **That was true when the
+index was assembled and is not true now** — #301's entry records the
+voice-triage lane's result the same day: the crash reproduced
+**deterministically** (2/2 fresh sim + the original #254 device-corpus crash =
+3 occurrences, 0 clean), the site is **named and symbolicated**
+(`SFSpeechRecognizer.requestAuthorization`'s completion closure in
+`NativeVoicePipelineService.ensureSpeechAuthorization()` — MainActor-formed,
+invoked on TCC's XPC reply queue), and the **fix is built and merged**
+(`@Sendable` on that one closure, PR #300). **No repro attempt is owed. What is
+owed is the negative control**, and that is what this row runs.
+
+**The sim-vs-device distinction is a RED HERRING, and that is precisely why this
+row must be a fresh install.** The discriminator is **authorized vs.
+notDetermined**: the crashing closure is formed only on the `.notDetermined` →
+`requestAuthorization` path — the **first-ever speech grant**. `whoGoesThere`
+has speech already authorized, which is exactly why #254's device runs never
+crashed. **An OTA upgrade-in-place preserves TCC grants and therefore CANNOT
+reach the crashing path — a "pass" from an upgrade install proves nothing.** The
+app must be deleted and reinstalled.
+
+**Cost, stated plainly:** delete-and-reinstall loses the pairing and the app's
+local data. §F3 is expensive for exactly this reason and the sitting plan's
+*"F3 goes LAST, ever"* applies unchanged.
+
+- [ ] **V2 pre-flight.** Confirm the build about to be installed is at or past
+  `179d506` (OTA 2484 or later). Installing an OLDER build here reproduces the
+  crash and says nothing about the fix.
+- [ ] **V2 — the control.** Delete Talaria from the phone. Reinstall (OTA from
+  Safari). Launch and enter the **voice** path — from inside the app is fine;
+  the crash is in the permission grant, not the launch route, and a fresh
+  install is unpaired so native is the only engine available anyway. Grant
+  **microphone** at the first prompt, then grant **speech recognition** at the
+  first prompt.
+
+**PASS = the speech grant completes and the app is still running** — the voice
+session proceeds, no `BUG IN CLIENT OF LIBDISPATCH` anywhere in the log, and no
+new crash report for `org.aethyrion.talaria27`.
+
+**FAIL = the app dies at the speech grant** with
+`BUG IN CLIENT OF LIBDISPATCH: Assertion failed: Block was expected to execute
+on queue [com.apple.main-thread]`.
+
+**Evidence to capture:** the mic-grant and speech-grant moments in the log; and
+on a FAIL, the `.ips` crash report (Settings → Privacy & Security → Analytics &
+Improvements → Analytics Data, or the Xcode Devices window) — compare its
+faulting stack frame-for-frame against the symbolicated one in #301's entry
+(`_dispatch_assert_queue_fail` → `_swift_task_checkIsolatedSwift` → `closure #1
+in closure #1 in …ensureSpeechAuthorization()` → `__TCCAccessRequest_block_invoke_8`,
+faulting queue `com.apple.root.default-qos`). A crash with a DIFFERENT stack is
+a second defect, not this one.
+
+**What this scores, honestly.** It satisfies **bar 301-C's owed negative control
+on the runtime that actually ships**. It does **not** re-run the identical sim
+fixture — #301's entry queues a `simctl privacy reset` re-run behind the
+sim-budget freeze, and that one is the direct repeat of the exact failing trial.
+Either can produce the control; **record which one did.** Until one is recorded,
+301-C is not closed and the fix ships with its control owed — which is how the
+entry states it.
+
+### V3 · #303-A/B — does a COLD launch reach realtime on a realtime-configured host? · **[OJAMD SITTING ONLY — unrunnable anywhere else; scores §R6/#254-D from the same trial]**
+
+**Setup group: OJAMD profile · gateway UP · brain = HERMES.** Three
+preconditions, each of which has already voided one attempt:
+
+1. **The OJAMD gateway must be running.** Owen has it deliberately OFF (*"to
+   prevent confusion"*). This row waits on that host's next uptime; nothing else
+   blocks it.
+2. **Brain = Hermes, NOT On-Device.** §R6's attempt 1 (2026-08-09 13:49) was
+   VOID for exactly this: #221's brain gate is checked BEFORE pairing, the
+   on-device brain forbids realtime outright, and `relayPaired=true` on the
+   engine line means nothing once the brain has already said no. **A runner who
+   does not set the brain to Hermes has not run this row** — "paired + relay
+   healthy" is necessary and NOT sufficient.
+3. **Realtime must actually be CONFIGURED on the host — pre-flight this.**
+   §R6's attempt 2 died here: `readiness routed voice to the native engine
+   (configured=Optional(false), state=blocked)` on the Mac profile. **The
+   realtime plane is relay + connector, both on OJAMD**; an OpenAI key in the
+   Mac's `~/.hermes/.env` does not change that (verified 2026-08-09 — the relay
+   RPCs the connector, and the connector holds the key). **Confirm
+   `talk/readiness` reports `configured:true` before running either arm** — a
+   `configured:false` host routes native regardless and the trial measures
+   nothing.
+
+- [ ] **V3-a — bar 303-A, the COLD arm. This is also §R6/#254-D's trial.**
+  Force-quit for a genuinely cold launch. Control Center → **"Talk to Hermes"**.
+  **Read the engine line FIRST, before anything else in the trial:**
+  - engine = **`realtime`** ⇒ **303-A REFUTED.** Per the pre-registered
+    response, #303 closes as **NOT A DEFECT** (the `init` guess would have been
+    right whenever it mattered) with the log ordering documented so the next
+    reader does not re-file it. Then continue straight into §R6's own arm —
+    background the phone **before the header leaves `ESTABLISHING LINK`**, wait
+    60 s.
+  - engine = **`native`** ⇒ **303-A CONFIRMS the defect** on a host where
+    realtime WAS available, and **§R6's ghost bar stays blocked behind it** (a
+    native session cannot test the realtime ghost).
+- [ ] **V3-b — bar 303-B, the WARM contrast. Same sitting, same configuration —
+  not optional, and it cannot be run later.** Open voice from **inside** the app
+  (the path that does run `refreshReadiness()`). **If warm reaches `realtime`
+  and cold does not, that difference IS the defect, isolated** — which is why
+  the two arms are one row.
+
+**Evidence to capture — all four, with timestamps, per arm:**
+1. `active voice engine → … (initial; relayPaired=…)` — the `init` decision
+2. `activeBrain … → …  initiator=…` — the sticky-default restore, and whether
+   it lands AFTER line 1 (35 ms was the measured gap on build 2330)
+3. `voice session starting on engine … (relayPaired=…)` — the decision that
+   actually shipped
+4. **whether any `refreshReadiness` activity appears between 1 and 3** — its
+   absence on the cold path is the mechanism, and the entry's whole claim
+5. plus the host's `talk/readiness` `configured:` value, captured in the same
+   sitting (it is what makes the trial admissible at all)
+
+**Do NOT build the fix from this row.** The dispatch's stop-gate is explicit:
+no fix before 303-A runs. 303-C is a fix constraint, not a device check — any
+upgrade path must keep #221's downgrade direction intact and be **conjunctive**
+(`realtimeIsPermitted(for: activeBrain()) && isRelayPaired()`), so pairing or a
+healthy probe can never re-admit realtime against a forbidding brain. **A fix
+that makes 303-A pass by loosening the gate is a FAILURE, not a pass.** If cold
+routing changes, **#320**'s realtime-indicator lane must re-verify against the
+post-fix routing.
+
+**Verdict goes to `OPEN_ITEMS.md` #303** (and §R6's block for the #254-D half).

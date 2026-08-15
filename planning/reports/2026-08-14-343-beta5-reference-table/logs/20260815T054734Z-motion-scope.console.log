@@ -1,0 +1,219 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=10 cells=2 prompts=2 warmup=true (#200)
+battery: WARMUP begin cell=armed prompts=2 (#200V)
+battery: BEGIN shape=warmup p=stepsdirect t=0
+battery: tool=readHealth shape=warmup p=stepsdirect t=0 detail=steps
+battery: shape=warmup p=stepsdirect t=0 cant=false denial=false chars=117 inTok=1856 outTok=35 text=It looks like no step data was recorded today. Let me know if you'd like to add any manually or check another metric.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=stepsdirect t=0 (#200F)
+battery: BEGIN shape=warmup p=motiondirect t=0
+battery: tool=readMotion shape=warmup p=motiondirect t=0 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=warmup p=motiondirect t=0 cant=false denial=false chars=61 inTok=1822 outTok=17 text=You're currently sitting still — no walking data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=motiondirect t=0 (#200F)
+battery: WARMUP done — discarded, not counted (#200V)
+battery: THERMAL cell=armed at=start state=fair (#201B)
+battery: BEGIN shape=armed p=stepsdirect t=1
+battery: tool=readHealth shape=armed p=stepsdirect t=1 detail=steps
+battery: shape=armed p=stepsdirect t=1 cant=false denial=false chars=46 inTok=1856 outTok=11 text=It looks like no step data was recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=1 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=2
+battery: tool=readHealth shape=armed p=stepsdirect t=2 detail=steps
+battery: shape=armed p=stepsdirect t=2 cant=false denial=false chars=29 inTok=1856 outTok=13 text=No steps were recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=2 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=3
+battery: tool=readHealth shape=armed p=stepsdirect t=3 detail=steps
+battery: shape=armed p=stepsdirect t=3 cant=false denial=false chars=46 inTok=1856 outTok=11 text=It looks like no step data was recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=3 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=4
+battery: tool=readHealth shape=armed p=stepsdirect t=4 detail=steps
+battery: shape=armed p=stepsdirect t=4 cant=false denial=false chars=43 inTok=1856 outTok=19 text=It looks like no steps were recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=4 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=5
+battery: tool=readHealth shape=armed p=stepsdirect t=5 detail=steps
+battery: shape=armed p=stepsdirect t=5 cant=false denial=false chars=117 inTok=1856 outTok=35 text=It looks like no steps were recorded today. If you'd like to track them, Health data access might need to be enabled.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=5 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=6
+battery: tool=readHealth shape=armed p=stepsdirect t=6 detail=steps
+battery: shape=armed p=stepsdirect t=6 cant=false denial=false chars=160 inTok=1856 outTok=41 text=It looks like no step data was recorded today. If Health access wasn't granted, that could explain it — you can check Settings → Health → Data Access & Devices.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=6 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=7
+battery: tool=readHealth shape=armed p=stepsdirect t=7 detail=steps
+battery: shape=armed p=stepsdirect t=7 cant=false denial=false chars=100 inTok=1856 outTok=23 text=It looks like no steps were recorded today. Health access may need to be checked if you expect data.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=7 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=8
+battery: tool=readHealth shape=armed p=stepsdirect t=8 detail=steps
+battery: shape=armed p=stepsdirect t=8 cant=false denial=false chars=108 inTok=1856 outTok=33 text=No step data is available for today. Let me know if you’d like to track it or need help with something else.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=8 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=9
+battery: tool=readHealth shape=armed p=stepsdirect t=9 detail=steps
+battery: shape=armed p=stepsdirect t=9 cant=false denial=false chars=95 inTok=1856 outTok=29 text=It looks like no step data was recorded today. If you’d like to check again later, let me know!
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=9 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=10
+battery: tool=readHealth shape=armed p=stepsdirect t=10 detail=steps
+battery: shape=armed p=stepsdirect t=10 cant=false denial=false chars=46 inTok=1856 outTok=11 text=It looks like no step data was recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=10 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=1
+battery: tool=readMotion shape=armed p=motiondirect t=1 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=1 cant=false denial=false chars=62 inTok=1822 outTok=21 text=You're sitting still right now. No pedometer data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=1 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=2
+battery: tool=readMotion shape=armed p=motiondirect t=2 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=2 cant=false denial=false chars=72 inTok=1822 outTok=23 text=You're sitting still right now — no walking or running data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=2 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=3
+battery: tool=readMotion shape=armed p=motiondirect t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=3 cant=false denial=false chars=63 inTok=1822 outTok=21 text=You're sitting still right now. No pedometer data was recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=3 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=4
+battery: tool=readMotion shape=armed p=motiondirect t=4 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=4 cant=false denial=false chars=56 inTok=1822 outTok=15 text=You're currently sitting still—no walking data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=4 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=5
+battery: tool=readMotion shape=armed p=motiondirect t=5 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=5 cant=false denial=false chars=58 inTok=1822 outTok=19 text=You're sitting still right now—no pedometer data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=5 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=6
+battery: tool=readMotion shape=armed p=motiondirect t=6 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=6 cant=false denial=false chars=62 inTok=1822 outTok=19 text=You're sitting still right now—no walking or running detected.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=6 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=7
+battery: tool=readMotion shape=armed p=motiondirect t=7 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=7 cant=false denial=false chars=63 inTok=1822 outTok=21 text=You're sitting still right now — no pedometer data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=7 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=8
+battery: tool=readMotion shape=armed p=motiondirect t=8 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=8 cant=false denial=false chars=58 inTok=1822 outTok=19 text=You're sitting still right now—no pedometer data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=8 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=9
+battery: tool=readMotion shape=armed p=motiondirect t=9 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=9 cant=false denial=false chars=52 inTok=1822 outTok=15 text=You're sitting still right now—no movement detected.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=9 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=10
+battery: tool=readMotion shape=armed p=motiondirect t=10 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=10 cant=false denial=false chars=61 inTok=1822 outTok=19 text=You're sitting still right now. No movement data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=10 (#200F)
+battery: THERMAL cell=armed at=end state=fair (#201B)
+battery: THERMAL cell=armed-motionrollback at=start state=fair (#201B)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=1
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=1 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=1 cant=false denial=false chars=62 inTok=1827 outTok=17 text=You haven’t recorded any steps today—just stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=1 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=2
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=2 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=2 cant=false denial=false chars=70 inTok=1827 outTok=21 text=You haven't recorded any steps today — it was all stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=2 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=3
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=3 cant=false denial=false chars=87 inTok=1827 outTok=25 text=You haven’t recorded any steps today — your motion data shows only stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=3 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=4
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=4 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=4 cant=false denial=false chars=66 inTok=1827 outTok=19 text=You haven’t recorded any step data today—just stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=4 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=5
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=5 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=5 cant=false denial=false chars=62 inTok=1827 outTok=17 text=You haven't recorded any steps today—just stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=5 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=6
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=6 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=6 cant=false denial=false chars=66 inTok=1827 outTok=19 text=You haven’t recorded any step data today—just stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=6 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=7
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=7 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=7 cant=false denial=false chars=66 inTok=1827 outTok=23 text=You haven’t recorded any step data today — you’ve been stationary.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=7 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=8
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=8 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=8 cant=false denial=false chars=72 inTok=1827 outTok=21 text=You haven’t recorded any step data today — your activity was stationary.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=8 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=9
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=9 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=9 cant=false denial=false chars=87 inTok=1827 outTok=25 text=You haven’t recorded any steps today — your motion data shows only stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=9 (#200F)
+battery: BEGIN shape=armed-motionrollback p=stepsdirect t=10
+battery: tool=readMotion shape=armed-motionrollback p=stepsdirect t=10 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=stepsdirect t=10 cant=false denial=false chars=66 inTok=1827 outTok=19 text=You haven’t recorded any step data today—just stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=stepsdirect t=10 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=1
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=1 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=1 cant=false denial=false chars=68 inTok=1828 outTok=23 text=You're sitting still right now. No pedometer data is recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=1 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=2
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=2 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=2 cant=false denial=false chars=62 inTok=1828 outTok=21 text=You're sitting still right now—no pedometer data was recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=2 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=3
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=3 cant=false denial=false chars=60 inTok=1828 outTok=19 text=You're sitting still right now — no pedometer data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=3 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=4
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=4 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=4 cant=false denial=false chars=63 inTok=1828 outTok=21 text=You’re sitting still right now — no pedometer data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=4 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=5
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=5 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=5 cant=false denial=false chars=68 inTok=1828 outTok=21 text=You're currently sitting still. No pedometer data is recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=5 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=6
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=6 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=6 cant=false denial=false chars=63 inTok=1828 outTok=21 text=You're sitting still right now — no pedometer data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=6 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=7
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=7 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=7 cant=false denial=false chars=58 inTok=1828 outTok=19 text=You're sitting still right now—no pedometer data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=7 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=8
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=8 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=8 cant=false denial=false chars=69 inTok=1828 outTok=23 text=You're sitting still right now. No pedometer data was recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=8 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=9
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=9 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=9 cant=false denial=false chars=70 inTok=1828 outTok=21 text=You're currently sitting still — no pedometer data was recorded today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=9 (#200F)
+battery: BEGIN shape=armed-motionrollback p=motiondirect t=10
+battery: tool=readMotion shape=armed-motionrollback p=motiondirect t=10 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed-motionrollback p=motiondirect t=10 cant=false denial=false chars=94 inTok=1828 outTok=29 text=You're sitting still right now. No pedometer data is recorded, indicating stationary activity.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionrollback p=motiondirect t=10 (#200F)
+battery: THERMAL cell=armed-motionrollback at=end state=fair (#201B)
+battery: REAP-STEP reminders begin (#200)
+battery: REAP-STEP events begin (#200)
+battery: CONTAINER-REAP finish calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: REAP-STEP alarms begin (#200)
+battery: REAP-STEP alarms done cancelled=0 failed=0 (#200)
+battery: REAP reminders=0 events=0 alarms=0 failures=0 (#200)
+battery: DONE (#200)
+instrument: COMPLETED motion-scope (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

@@ -172,6 +172,52 @@ extension SessionsHermesClient {
     /// otherwise recognize — forward-tolerant of new event types the way the
     /// rest of this client's SSE parsing is (see `decodeJSONString`,
     /// `thinkingDelta(fromToolProgress:)`).
+    // MARK: - The wire's `error` field is a UNION (296-C1, reopened 2026-08-10)
+
+    /// What a failure detail says when the host reports one and gives no words
+    /// for it.
+    ///
+    /// The wire's `error: true` carries exactly one bit — *something went
+    /// wrong* — so this reports that bit and **invents no reason**. A
+    /// fabricated `exit_code 1` would be worse than the ✓ it replaces: the
+    /// real-data-only rule, and #296's own thesis.
+    nonisolated static let unspecifiedHostError = "The host reported an error."
+
+    /// Reads `error` from a `tool.completed` frame or a run-status body, where
+    /// it is a **union** on the wire.
+    ///
+    /// **This function exists because `as? String` on a `Bool` is `nil`.** The
+    /// 2026-08-09 probe on the Mac's `:8642` caught the host sending
+    /// `"error": true` — a JSON boolean — so the parser returned no error, the
+    /// transport yielded no detail, and a failed (or DENIED) tool rendered a
+    /// clean ✓: #296's defect delivered through #296's own fix. Both readers
+    /// had guessed `String` because a string was the design guess; the wire
+    /// disagreed.
+    ///
+    /// - `String` → **verbatim**, including empty. A future host build may
+    ///   legitimately upgrade the flag to a message, and that must arrive
+    ///   intact. Empty stays empty rather than being normalized here: the
+    ///   "empty means nothing went wrong" decision already has a tested home
+    ///   in `ChatStore`'s `.completed` arm, and moving it would split one rule
+    ///   across two files.
+    /// - `Bool` `true` → ``unspecifiedHostError``.
+    /// - `Bool` `false`, absent, or any other type → `nil`. `false` is the host
+    ///   saying nothing went wrong; treating any present `Bool` as a failure
+    ///   would repaint every clean completion as interrupted — #296 inverted,
+    ///   which is exactly what 296-B guards.
+    ///
+    /// Numeric bridging, verified on the beta-4 toolchain rather than assumed:
+    /// `JSONSerialization` gives `__NSCFBoolean` for `true`/`false` and
+    /// `__NSCFNumber` for numbers, and Swift's `as? Bool` is value-preserving —
+    /// `1`/`0` bridge to `true`/`false` (harmless: a host that switches the
+    /// flag to 1/0 keeps working), while `7` and any object bridge to `nil`
+    /// and land in the tolerant tail.
+    nonisolated static func hostErrorDetail(_ value: Any?) -> String? {
+        if let text = value as? String { return text }
+        if let flag = value as? Bool { return flag ? unspecifiedHostError : nil }
+        return nil
+    }
+
     nonisolated static func parseRunsFrame(_ jsonPayload: String) -> RunsEvent? {
         guard let data = jsonPayload.data(using: .utf8),
               let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -187,7 +233,10 @@ extension SessionsHermesClient {
             return .toolStarted(name: toolName, preview: payload["preview"] as? String)
         case "tool.completed":
             guard let toolName = payload["tool"] as? String else { return nil }
-            return .toolCompleted(name: toolName, error: payload["error"] as? String)
+            // 296-C1: `hostErrorDetail`, NOT `as? String` — the host sends a
+            // Bool here and `as? String` drops it to nil (a clean ✓ on a
+            // failed tool).
+            return .toolCompleted(name: toolName, error: hostErrorDetail(payload["error"]))
         case "reasoning.available":
             guard let text = payload["text"] as? String else { return nil }
             return .reasoning(text)
@@ -285,7 +334,15 @@ extension SessionsHermesClient {
             else { return nil }
             self.status = status
             self.output = payload["output"] as? String
-            self.error = payload["error"] as? String
+            // 296-C1, the SECOND site with the same type bug. Quieter than
+            // the tool-chip one — a dropped value here produced
+            // `runFailureText("")`, an honest generic rather than a lie — but
+            // a host that only ever says `true` must not read as "reported
+            // nothing". Consequence, recorded deliberately: a `failed` run
+            // whose `error` is Boolean now surfaces
+            // `unspecifiedHostError` instead of "The Hermes run failed."
+            // Both are honest; this one reports what the wire actually said.
+            self.error = SessionsHermesClient.hostErrorDetail(payload["error"])
             self.rawJSON = String(decoding: data, as: UTF8.self)
         }
     }
@@ -531,13 +588,22 @@ extension SessionsHermesClient {
                     // on `.started`; `ChatStore` routes it to
                     // `ToolActivity.failure` and never over `detail`.
                     //
-                    // ⚠️ 296-C2 is NOT settled by this line. Whether the host
-                    // ever populates `error` on `tool.completed` is
-                    // unverified on the wire — the `exit_code 130` capture
-                    // everyone cites is a HOST LOG line, not an observed
-                    // frame. Plumbing a field is not evidence the field
-                    // arrives. If it never does, this costs nothing and is
-                    // still the honest home for the value.
+                    // ✅ 296-C2 IS SETTLED — corrected 2026-08-10, and the
+                    // answer falsified the paragraph that stood here (which
+                    // said the field's arrival was "unverified on the wire").
+                    // A direct probe on the Mac's `:8642` (2026-08-09) caught
+                    // the frame: the host DOES populate `error`, as a JSON
+                    // **boolean** (`"error": true`), on both a failed tool and
+                    // a stopped one — and it carries no failure text at all,
+                    // so the host's own WORDS never ride this event. See
+                    // `hostErrorDetail`, which is what stops the Bool being
+                    // dropped on a type mismatch.
+                    //
+                    // Consequence worth keeping in view: failed and stopped
+                    // are INDISTINGUISHABLE on this wire (both `error: true`,
+                    // no reason). Only the client's own local knowledge tells
+                    // them apart — which is 296-A, and why that path stays
+                    // separate from this one.
                     continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed, detail: error)))
                 case .runCompleted(let output, let rawJSON):
                     let usage = Self.decodeRunUsage(rawJSON)
@@ -1176,8 +1242,14 @@ extension SessionsHermesClient {
     /// ordinary, successful `data` and IS success for our purposes: the host
     /// heard the stop attempt (there was simply nothing left to stop), so
     /// `markSelfStopped` still fires on that arm.
-    func hardStopActiveRun() {
-        guard let context = activeRunContext else { return }
+    /// #328 route 2: returns whether a stop request was actually ISSUED. The
+    /// guard below is the whole of #328 — `activeRunContext` exists only for
+    /// `/v1/runs` turns, so an ordinary sessions `chat/stream` turn falls out
+    /// here having sent nothing. It used to do that silently; now the caller
+    /// can tell, and can stop implying a host stop it did not deliver.
+    @discardableResult
+    func hardStopActiveRun() -> Bool {
+        guard let context = activeRunContext else { return false }
         clearActiveRunContext(matchingRunID: context.runID)
         let runID = context.runID
         // #285: the stop rides the run's own frozen endpoint — a stop issued
@@ -1205,6 +1277,75 @@ extension SessionsHermesClient {
                     "runs: stop request for \(runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public) — NOT marking self-stopped, so this run's eventual terminal delivery surfaces as recovery rather than a false silent success"
                 )
             }
+        }
+        // #328 route 2: the request is out. `true` is "we asked", not "the
+        // host stopped" — the POST above is fire-and-forget and its `catch`
+        // deliberately marks nothing, so this cannot promise delivery. It
+        // promises only that a stop was ISSUED for a run we really had.
+        return true
+    }
+
+    // MARK: - #322: the cancellation path's ONE final status read
+
+    /// #322: the run in flight, for `ChatStore.cancelStreaming` to capture
+    /// BEFORE `hardStopActiveRun()` clears the slot on the very next line.
+    var activeRunID: String? { activeRunContext?.runID }
+
+    /// #322: ONE `GET /v1/runs/{id}`, best effort, so a Stop can report the
+    /// stopped run's real token usage instead of leaving the CTX gauge on
+    /// the PRIOR run's numbers.
+    ///
+    /// **Deliberately not `readRunStatus` and deliberately not
+    /// `pollRunToTerminal`.** Those are the recovery poll's machinery — a
+    /// loop with a budget, an interval and a retry posture. This is the
+    /// opposite instrument: exactly one request, no retry, no loop, no
+    /// producer Task. #292 killed a runs producer that fired ~60 requests
+    /// over 2 minutes and this item exists downstream of that fix; a "just
+    /// one more attempt" here is how that regression comes back.
+    ///
+    /// **Every failure is the same answer: `nil`.** A transport error, a
+    /// non-2xx (including the 404 of a run the host already reaped), an
+    /// unparseable body, or a status object with no `usage` block all return
+    /// nil, and the caller renders nil as honestly unknown. Nothing here
+    /// distinguishes them for the UI because the UI has one honest thing to
+    /// say — they are separated only in the log.
+    ///
+    /// **Known limitation, stated rather than hidden:** the request rides
+    /// the CURRENTLY resolved endpoint, not the run's own frozen one (the
+    /// #285 shape `hardStopActiveRun` handles). The window Stop reaches here
+    /// holding only `pendingRun.runId`, which never carried an endpoint, so
+    /// one fidelity level for both callers beats two. After a mid-turn
+    /// profile switch this read addresses the wrong host and 404s — which
+    /// lands on the honest-unknown arm the caller already implements, not on
+    /// a wrong number.
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        do {
+            let request = try makeRequest(
+                path: "\(Self.runsPath)/\(runID)",
+                method: "GET",
+                body: nil,
+                accept: "application/json"
+            )
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse,
+                  (200 ..< 300).contains(http.statusCode) else {
+                runsTransportLogger.notice(
+                    "#322: final status read for \(runID, privacy: .public) was not readable (HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1, privacy: .public)) — the gauge goes unknown, and there is no retry by design"
+                )
+                return nil
+            }
+            guard let usage = Self.decodeRunUsage(String(decoding: data, as: UTF8.self)) else {
+                runsTransportLogger.notice(
+                    "#322: final status read for \(runID, privacy: .public) carried no usage block — the gauge goes unknown rather than keeping the prior run's numbers"
+                )
+                return nil
+            }
+            return usage
+        } catch {
+            runsTransportLogger.notice(
+                "#322: final status read for \(runID, privacy: .public) failed in transport — \(error.localizedDescription, privacy: .public) — the gauge goes unknown, and there is no retry by design"
+            )
+            return nil
         }
     }
 

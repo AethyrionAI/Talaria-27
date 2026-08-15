@@ -141,6 +141,21 @@ struct RouterProbeRecord: Codable, Equatable {
     /// "NOT RECORDED" line, which reports unsampled rows rather than counting
     /// them clean. A deterministic row that cannot throw passes `errors: 0`.
     var errors: Int? = nil
+    /// #335: named NUMERIC measurements for the read-only FM instruments —
+    /// token counts, the cap a count must fit under, computed headroom,
+    /// ratios, `contextSize`.
+    ///
+    /// A new field rather than a reuse of `correct`/`trials`, because those
+    /// two already mean something in this file's grammar: `renderRawLines`
+    /// prints them as `router: 312/128 expected=true`, and a reader who knows
+    /// that line would read a token count as an accuracy. #201B's rule (if a
+    /// verdict depends on it, it belongs in the record) with #213's corollary
+    /// attached: **nil means NOT MEASURED, never zero.**
+    var metrics: [String: Double]? = nil
+    /// #335: named STRING measurements — the model variant's `displayName`,
+    /// the class of a thrown error, which of two behaviours a band observed.
+    /// Same nil-means-not-measured rule as `metrics`.
+    var notes: [String: String]? = nil
 }
 
 /// One battery or probe run. A probe-only run has empty `trials`; a battery
@@ -567,14 +582,16 @@ final class BatteryRunRecorder {
     func recordProbe(probe: String, expected: Bool, correct: Int, trials: Int,
                      variant: String? = nil, context: String? = nil, band: String? = nil,
                      seconds: Double? = nil, errors: Int? = nil,
-                     expectedIntent: String? = nil, intentTally: [String: Int]? = nil) {
+                     expectedIntent: String? = nil, intentTally: [String: Int]? = nil,
+                     metrics: [String: Double]? = nil, notes: [String: String]? = nil) {
         guard run != nil else { return }
         run?.probes.append(RouterProbeRecord(probe: probe, expected: expected,
                                             correct: correct, trials: trials,
                                             variant: variant, context: context, band: band,
                                             expectedIntent: expectedIntent,
                                             intentTally: intentTally,
-                                            seconds: seconds, errors: errors))
+                                            seconds: seconds, errors: errors,
+                                            metrics: metrics, notes: notes))
         persistSnapshot()
     }
 

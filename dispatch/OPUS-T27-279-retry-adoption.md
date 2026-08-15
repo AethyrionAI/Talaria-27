@@ -1,5 +1,36 @@
 # OPUS T27 #279 — `retryMessage` removes the failed row without telling the mirror
 
+> # ✅ EXECUTED AND LANDED — 2026-08-09. THIS DISPATCH IS SPENT.
+>
+> **Do not run this lane. It was run, it passed, and it merged as `12ed25b`**
+> (branch `claude/t27-279-retry-adoption`, commits `c4411cc` + `13e4049`).
+> Bars 279-A..E MET — pre-fix merged user-row count **2**, post-fix **1** —
+> with both halves of the fix independently re-probed, and `GATE: PASS`
+> (1859 → 1864 units). The measured result lives in `OPEN_ITEMS.md` #279,
+> which is this dispatch's only authority now. **279-F, the device bar, is the
+> sole survivor and it is Owen's.**
+>
+> **The sequencing banner that stood here was wrong, and it cost a re-dispatch
+> on 2026-08-10.** It read *"Preferred order: #299 → #282 → this lane … expect
+> the fix to shrink."* **This lane ran FIRST, on 2026-08-09, before either** —
+> and the recommendation was not merely unfollowed, it was unnecessary: #279
+> changes what the mirror CONTAINS, #282 changes how local rows are matched
+> against it, and #299 turned out to be a third mechanism again. The fix did
+> not shrink because there was nothing upstream of it to shrink against.
+> §7's own reasoning had it right all along — *"land #279, merge it, then
+> branch #282 off the result"* — and that is exactly what happened.
+>
+> **The one line worth carrying forward.** A dispatch with a live-sounding
+> banner reads as an open lane no matter what the tracker says, and a
+> `📊 MEASURED` block buried in an entry whose HEADER still says *"bars
+> pre-register here before any code"* will not stop anyone. **Retire the
+> dispatch and fix the header in the same commit as the merge** — see
+> `OPEN_ITEMS.md` #279's RE-DISPATCH note.
+>
+> *(Historical, for anyone reading the analysis below: it was verified at
+> `35c6234`; every line number in it predates the #299/#306/#315 waves and
+> none of them is current. Read the shipped code, not these anchors.)*
+
 **Goal:** make a retry's removal of the failed user row reach the backend's
 mirror, so the retried turn cannot be resurrected below the new one — the
 `truncateTranscript` guarantee (#78), applied to the one history-mutating path
@@ -54,6 +85,11 @@ the tracker.
   `ChatStore.swift:2751`), so they may already double on server-sourced
   merges. **Out of scope here** — but if 279-A's baseline shows it, file it
   rather than fixing it in this lane.
+  *(2026-08-10: A2's suspicion was REAL — #282's lane measured it, filed it
+  as tracker #299, and #299's lane fixed it the next day:
+  `ChatStore.serverIdentityAdoptions`, turn-anchored adoption at the merge.
+  Assistant rows still have no claim TIER; they are confirmed by adoption
+  instead. See OPEN_ITEMS #299.)*
 - **A3.** Which `.failed` sub-path Owen actually hit. The tracker filing
   doesn't say. The bars are written for the generation-failure path
   (`LocalChatBackend.swift:646`), which is the one that mirrors.

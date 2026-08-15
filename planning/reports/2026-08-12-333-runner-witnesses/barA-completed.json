@@ -1,0 +1,104 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "b755552",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "endedAt" : "2026-08-12T19:11:09Z",
+  "instrument" : "router-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+
+    ],
+    "endedCleanly" : true,
+    "id" : "C14C437B-532E-4EB8-9135-BFD0F2999EA1",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 2
+      },
+      {
+        "correct" : 2,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 2
+      }
+    ],
+    "startedAt" : "2026-08-12T19:10:40Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 2
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T19:10:40Z",
+  "status" : "completed",
+  "trialsRequested" : 2,
+  "unattended" : true
+}

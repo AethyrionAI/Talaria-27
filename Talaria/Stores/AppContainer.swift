@@ -980,6 +980,14 @@ final class AppContainer {
             },
             location: sharedLocationProvider
         )
+        // #224 Phase 0: arm the confirm gate's GLOBAL approval mode from
+        // UserSettings — a CLOSURE, not a captured value, so a later settings
+        // write is seen without re-wiring (the `useRunsTransportProvider`
+        // precedent). `.manual` is the only value the settings layer can
+        // produce in this build, so this changes no behaviour; it is what
+        // makes the key real rather than vestigial, and it is the one
+        // production line Phase 1 edits.
+        container.toolConfirmationCenter.modeProvider = { settingsStore.settings.approvalMode }
         deviceTools += DeviceToolBelt.makeActionTools(
             relay: toolRelay,
             confirmations: container.toolConfirmationCenter,
@@ -2172,19 +2180,6 @@ final class AppContainer {
 
     // MARK: - Lane M: profile switching (M-6) + dormant freshness (M-9)
 
-    /// Re-homes the app onto a newly activated profile. NON-DESTRUCTIVE by
-    /// construction: nothing is cleared — the previous profile's pairing,
-    /// tokens, and sessions stay in their slots, and the current conversation
-    /// keeps working via its birth-profile affinity (M-5). Only the
-    /// relay-plane interactive surfaces (inbox, host status) and the
-    /// shim/model surfaces re-resolve.
-    ///
-    /// #298: "push watch arming" was in that list until #238 deleted the
-    /// notification plane out from under it (same dead surface as #226,
-    /// retired MOOT for the same reason). Struck 2026-08-09 rather than
-    /// silently dropped. NOTE: this doc block is ORPHANED from the function
-    /// it describes — `handleActiveProfileChanged` now sits ~66 lines below,
-    /// behind the `#247 B2` MARK that was inserted between them.
     // MARK: - #247 B2: the profile-switch verdict
 
     /// What a 5s gateway probe concluded. Mirrors the #151 Test Connection
@@ -2246,6 +2241,18 @@ final class AppContainer {
         }
     }
 
+    /// Re-homes the app onto a newly activated profile. NON-DESTRUCTIVE by
+    /// construction: nothing is cleared — the previous profile's pairing,
+    /// tokens, and sessions stay in their slots, and the current conversation
+    /// keeps working via its birth-profile affinity (M-5). Only the
+    /// relay-plane interactive surfaces (inbox, host status) and the
+    /// shim/model surfaces re-resolve.
+    ///
+    /// #298: "push watch arming" was in that list until #238 deleted the
+    /// notification plane out from under it (same dead surface as #226,
+    /// retired MOOT for the same reason). Struck 2026-08-09 rather than
+    /// silently dropped.
+    ///
     /// #285: this handler runs inside `BackendProfilesStore`'s serialized
     /// activation chain. A newer switch CANCELS this task and waits for it to
     /// exit, so `Task.isCancelled` is the supersession signal — every
@@ -2478,37 +2485,31 @@ final class ProfileGatewayKeyCache {
 }
 
 #if DEBUG
-// MARK: - #196 battery 4: headless battery trigger (DEBUG builds only)
+// MARK: - #333 instrument trigger (DEBUG builds only; supersedes #196's pair)
 
 extension AppContainer {
-    /// Autonomous device runs: `TALARIA_AUTO_BATTERY=n` runs the shape
-    /// battery on launch and `TALARIA_AUTO_ROUTER_PROBE=n` the router
-    /// probe, in that order — armed only by launch environment (devicectl
-    /// passes `DEVICECTL_CHILD_`-prefixed variables), inert in every
-    /// normal run. Results mirror to stdout via `batteryEmit`, which
-    /// `devicectl device process launch --console` bridges — no Xcode
-    /// session needed. The screen stays awake for the run's duration so
-    /// auto-lock can't suspend the process mid-battery.
+    /// Autonomous runs: `TALARIA_RUN_INSTRUMENT=<name>` (+ `TALARIA_TRIALS`,
+    /// `TALARIA_CELLS`) runs any registry instrument on launch; the #196 pair
+    /// (`TALARIA_AUTO_BATTERY`, `TALARIA_AUTO_ROUTER_PROBE`) still works,
+    /// mapped onto the same registry — one mechanism, no drift. Armed only by
+    /// launch environment (devicectl passes `DEVICECTL_CHILD_`-prefixed vars;
+    /// simctl passes `SIMCTL_CHILD_`-prefixed), inert in every normal run.
+    /// Every run is `unattended: true` by definition here — the conductor
+    /// refuses alarm-flagged instruments and never arms `alarmWritesAttended`.
     @MainActor
-    func runAutoBatteryIfArmed() async {
+    func runAutoInstrumentsIfArmed() async {
         let env = ProcessInfo.processInfo.environment
-        let batteryTrials = env["TALARIA_AUTO_BATTERY"].flatMap(Int.init)
-        let routerTrials = env["TALARIA_AUTO_ROUTER_PROBE"].flatMap(Int.init)
-        guard batteryTrials != nil || routerTrials != nil,
-              let backend = localChatBackend else { return }
-        UIApplication.shared.isIdleTimerDisabled = true
-        defer { UIApplication.shared.isIdleTimerDisabled = false }
-        if let trials = batteryTrials {
-            // Same auto-decline contract as the Diagnostics button: a
-            // headless run can never answer a confirmation card.
-            toolConfirmationCenter.autoDeclineForBattery = true
-            await backend.runShapeBattery(trials: trials)
-            toolConfirmationCenter.autoDeclineForBattery = false
+        let intents = InstrumentLaunchIntent.parse(env)
+        guard !intents.isEmpty, let backend = localChatBackend else { return }
+        let conductor = InstrumentConductor(confirmationCenter: toolConfirmationCenter, backend: backend)
+        for intent in intents {
+            guard let spec = InstrumentRegistry.spec(named: intent.name) else {
+                LocalChatBackend.batteryEmit("instrument: UNKNOWN \(intent.name) (#333)")
+                continue
+            }
+            await conductor.run(spec: spec, trials: intent.trials, cells: intent.cells, unattended: true)
         }
-        if let trials = routerTrials {
-            await backend.runRouterProbe(trials: trials)
-        }
-        LocalChatBackend.batteryEmit("battery: AUTO COMPLETE (#196)")
+        LocalChatBackend.batteryEmit("instrument: AUTO COMPLETE (#333)")
     }
 }
 #endif

@@ -1,0 +1,11 @@
+device=4822A154-722B-53EB-81A2-84357FD03719 instrument=long-context-probe trials=5 cells= timeout=1800s sha=d5fbc59
+launched (console pid 86092); polling every 20s
+t+20s status=running
+t+40s status=running
+t+60s status=running
+t+80s status=running
+t+101s status=running
+t+121s status=running
+t+141s status=running
+t+161s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/20260812T200237Z-long-context-probe/latest.json

@@ -17,7 +17,7 @@ BRANCH="${1:?usage: ota-stage.sh <branch> [Debug|Release]}"
 # carry #if DEBUG seams (e.g. the #194 session-shape selector) — Release
 # compiles them out, so an OTA A/B build MUST be staged as Debug.
 CONFIG="${2:-Release}"
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta4.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
 REPO=/Users/owenjones/Documents/Claude/Talaria-27
 SERVE=/Users/owenjones/.talaria-ota/serve_root
 HOSTURL="https://owens-mac-mini.tail5663a6.ts.net"

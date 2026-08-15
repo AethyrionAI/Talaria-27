@@ -7,6 +7,113 @@ import FoundationModels
 // executed only on explicit approve. Deny returns a "user declined" result
 // the model reacts to conversationally; nothing is ever created silently.
 
+// MARK: - #337-F: the confirmation-card clause, named
+
+/// The sentence every action tool's description ends with, isolated so a
+/// measurement can remove it without retyping the description around it.
+///
+/// **This is a MEASUREMENT seam, not a fix.** #337-A's production turn replied
+/// *"**Confirmation card:** A reminder to 'take out the trash' at 8 AM has been
+/// created"* — the app's own affordance, imitated in prose, with no card and no
+/// tool call. The candidate mechanism, filed with a text pointer and explicitly
+/// NOT elected, is that the phrase is taught by these very descriptions. 337-F
+/// measures that; nothing here changes what production ships, and the stripped
+/// variants that use it live behind `#if DEBUG`.
+///
+/// Deliberately NOT `#if DEBUG` itself: production reads nothing from this
+/// enum, but a text constant that only exists in Debug is one refactor away
+/// from #218's failure — `main` unable to build in Release for two days
+/// because a promoted clause stayed inside a DEBUG block. Costing Release an
+/// unused enum is the cheaper side of that trade.
+enum DeviceActionClauses {
+
+    /// The clause as it appears on `createReminder` and `createCalendarEvent`.
+    static let cardClauseCreated =
+        " The user sees a confirmation card and can edit or cancel before anything is created."
+
+    /// The clause as it appears on `scheduleAlarm` — same sentence, different
+    /// final verb. Two constants rather than a regex: an A/B whose
+    /// manipulation is defined by a pattern is an A/B that can silently start
+    /// matching more or less than it did.
+    static let cardClauseScheduled =
+        " The user sees a confirmation card and can edit or cancel before anything is scheduled."
+
+    /// The armed INSTRUCTIONS' own mention, which no tool description carries.
+    /// The 337-F treatment arms remove the tool-description clause; this is
+    /// the second exposure site, and naming it is what lets the entry say
+    /// honestly that a null result in the tools-only arm exonerates nothing.
+    static let armedBlurbCardSentence =
+        " Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+
+    /// #337-F-2b — the REPLACEMENT under measurement, not a promotion.
+    ///
+    /// 337-F-2 established that `armedBlurbCardSentence` alone is sufficient
+    /// for both the UI impersonation (0/90 imitations in every blurb-removed
+    /// cell vs 8/60 control) and the missing tool calls (90/90 vs 48/60). But
+    /// deleting it deletes the DECLINE guidance with it, and the three-create
+    /// prompt set never exercises that path — 30/30 of the isolating arm's
+    /// calls were made, so no trial there was ever declined.
+    ///
+    /// This keeps the decline instruction and drops the vocabulary. **It loses
+    /// the word "confirmation" outright rather than only "card", because BOTH
+    /// observed specimens are seeded by it** — `"**Confirmation card:**"`
+    /// (#337-A, production) and `"Here's the confirmation…"` (run `A7AB9960`).
+    /// A replacement that kept "confirmation" would leave half the seed in
+    /// place and make a null uninterpretable.
+    ///
+    /// ~~**Production still ships `armedBlurbCardSentence`.** This string is
+    /// reachable only from the `blurb-reworded` arm.~~
+    /// **✅ PROMOTED 2026-08-15 on Owen's ruling — THIS IS WHAT SHIPS**, via
+    /// `armedBlurbShippingSentence` below. Evidence: 0/30 imitations and 29/30
+    /// tool calls in its own arm, from the last and worst slot at `serious`
+    /// thermal, against a control that replicated at 4/4/3 imitations and
+    /// 23/25/26 calls across three runs; pooled blurb-removed cells 0/90 and
+    /// 90/90 vs 8/60 and 48/60 (p = 0.0005, p = 8.1e-06).
+    static let armedBlurbCardSentenceReworded337F2 =
+        " Every action tool asks the user to approve it before anything changes; if they decline, accept that gracefully."
+
+    /// **THE SENTENCE PRODUCTION ACTUALLY SHIPS.** One name, so a future
+    /// promotion moves this alias and every arm follows automatically.
+    ///
+    /// Before 2026-08-15 the shipping text lived in TWO places — this enum and
+    /// a byte-identical literal inside `instructionsText` — while every #337-F
+    /// arm manipulated the enum copy by exact string match. Nothing enforced
+    /// that they agreed. Promoting by editing the literal alone would have left
+    /// all three manipulating arms stripping a sentence production no longer
+    /// contained; `cardClauseInstructions` returns `removed:` precisely so that
+    /// shows up in the artifact rather than reading as a null, but the honest
+    /// fix is not to have two copies.
+    static let armedBlurbShippingSentence = armedBlurbCardSentenceReworded337F2
+
+    /// The PINNED ROLLBACK — the pre-promotion sentence, kept verbatim.
+    ///
+    /// `armedBlurbCardSentence` above IS this text and is deliberately NOT
+    /// edited: it is the measured artifact of every #337-F run, and rewriting
+    /// it would silently invalidate those numbers. This alias exists so the
+    /// rollback is reachable BY INTENT rather than by remembering which of two
+    /// similarly-named constants used to ship.
+    ///
+    /// **⚠️ CONSEQUENCE FOR THE ARMS, and it is the `armed-cardfix` precedent
+    /// (#200K) repeating:** the `blurb-reworded` arm substitutes
+    /// `armedBlurbCardSentence` → reworded, and production no longer contains
+    /// the former, so that arm is now **IDENTITY WITH CONTROL** and its
+    /// `reworded=` manipulation row will report the substitution did nothing.
+    /// That is correct and expected post-promotion — it is not a broken cell —
+    /// but it means the arm can no longer measure the promotion. **Measuring a
+    /// promoted clause requires a ROLLBACK arm that substitutes the other way**,
+    /// which is #200L's shape and is not built here.
+    static let armedBlurbSentencePre337F2b = armedBlurbCardSentence
+
+    /// Removes whichever of the two clause forms is present, and NOTHING else.
+    /// A description with neither comes back unchanged — which is a fact the
+    /// caller is expected to check rather than assume away.
+    static func strippingCardClause(from description: String) -> String {
+        description
+            .replacingOccurrences(of: cardClauseCreated, with: "")
+            .replacingOccurrences(of: cardClauseScheduled, with: "")
+    }
+}
+
 // MARK: - Shared parsing (unit-tested)
 
 enum DeviceActionParsing {
@@ -114,6 +221,18 @@ struct ReminderCreateTool: Tool {
     /// targets the stall at the tool level. Measurement cells only;
     /// production ships it ONLY after a battery verdict.
     static let destalledDescription200 = productionDescription + " Create it immediately with the details given; missing fields default — never ask a clarifying question first."
+
+    /// #337 bar 337-F treatment: production's description with the
+    /// confirmation-card sentence REMOVED, and nothing else touched.
+    ///
+    /// Derived by removal rather than retyped, because a retyped "identical
+    /// except for one clause" is one typo away from measuring two changes.
+    /// `DeviceActionClauses.cardClauseCreated` is the exact substring; a test
+    /// asserts the removal actually removed something, which is the guard
+    /// against the whole A/B silently becoming a no-op the day someone
+    /// rewords production.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
     #endif
     /// `var` + init default (#196): the battery's shaped belt copies this
     /// tool and swaps ONLY this string; production call sites never pass it.
@@ -267,6 +386,27 @@ struct ReminderCreateTool: Tool {
                 [.year, .month, .day, .hour, .minute], from: finalDue
             )
         }
+        #if DEBUG
+        // #331: under the harness EVERY write lands in the dedicated test
+        // list — the container beats a model-named list, because containment
+        // that a generated argument can steer out of is not containment. A
+        // container we cannot provision is a hard stop, never a quiet
+        // fall-through to the user's real list.
+        if await confirmations.autoAcceptForBattery {
+            do {
+                reminder.calendar = try BatteryTestContainer.ensureContainer(for: .reminder, in: store)
+            } catch {
+                return "The #331 battery test list could not be provisioned (\(error.localizedDescription)) — nothing was created."
+            }
+        } else if !listName.isEmpty,
+                  let match = store.calendars(for: .reminder).first(where: {
+                      $0.title.localizedCaseInsensitiveCompare(listName) == .orderedSame
+                  }) {
+            reminder.calendar = match
+        } else {
+            reminder.calendar = store.defaultCalendarForNewReminders()
+        }
+        #else
         if !listName.isEmpty,
            let match = store.calendars(for: .reminder).first(where: {
                $0.title.localizedCaseInsensitiveCompare(listName) == .orderedSame
@@ -275,6 +415,7 @@ struct ReminderCreateTool: Tool {
         } else {
             reminder.calendar = store.defaultCalendarForNewReminders()
         }
+        #endif
         guard let calendarTitle = reminder.calendar?.title else {
             return "No Reminders list is available on this device — nothing was created."
         }
@@ -381,6 +522,21 @@ struct ReminderCreateToolRequiredFields: Tool {
 /// runtime accessor, so they're pinned here by comment and measured by the
 /// battery itself. Measurement cells only; production ships this ONLY
 /// after a battery verdict.
+///
+/// **⚠️ CORRECTION 2026-08-15 (#340) — "the ONLY deltas are the @Guide texts"
+/// IS NO LONGER TRUE, AND THE COMMENT WAS RIGHT WHEN IT WAS WRITTEN.** This
+/// struct declares `due`/`list` as non-optional `String`. Production declared
+/// them the same way until **#200S** promoted them to `String?`, and that
+/// promotion silently turned this cell into a TWO-delta arm: the @Guide texts
+/// AND the schema optionality. Its honest control is therefore
+/// `armed-schemarollback` (same optionality, production @Guide), **not** a
+/// production-schema cell — comparing it against production measures the guide
+/// change and #200S's rollback together and cannot separate them.
+///
+/// Nothing is changed here: the struct IS the measured artifact of the runs that
+/// used it, and editing it would invalidate them. Any future cell that wants to
+/// isolate a @Guide change against PRODUCTION must declare `due`/`list` as
+/// `String?`, or it will move the schema too and reproduce this confound.
 struct ReminderCreateToolGuidefix: Tool {
     let name = "createReminder"
     /// Production description by default — the @Guide delta is this cell's
@@ -420,7 +576,17 @@ struct CalendarEventTool: Tool {
     /// optional-field copy can be pinned as production-identical on
     /// everything except the two field types.
     static let productionDescription = "Create a calendar event. The user sees a confirmation card and can edit or cancel before anything is created."
-    let description = CalendarEventTool.productionDescription
+    #if DEBUG
+    /// #337 bar 337-F treatment — see `ReminderCreateTool.cardClauseStripped337`.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
+    #endif
+    /// `var` + init default, the #196 seam this tool did not have: #337-F
+    /// needs to swap ONLY this string on a copy, and a `let` cannot be
+    /// swapped. **The default is the same static production shipped before,
+    /// so the shipping belt is byte-identical** — production call sites never
+    /// pass a description.
+    var description: String = CalendarEventTool.productionDescription
     /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
     /// default matches the framework default; production never passes it.
     var includesSchemaInInstructions: Bool = true
@@ -474,13 +640,47 @@ struct CalendarEventTool: Tool {
         return min(max(raw, 5), 24 * 60)
     }
 
+    /// #224 Phase 0: the card's caution row for a staged event start. Two
+    /// deterministic rules — the same two the reminder card has carried since
+    /// #233 and #249 — a start already in the past, and a wee-hour start (the
+    /// AM/PM misread). First match wins; nil for ordinary starts, so an
+    /// ordinary event card renders byte-identically to pre-#224.
+    ///
+    /// ORDERING matches the reminder card's (#249-C): a start both stale AND
+    /// wee-hour reads as stale first, because an event that starts in the past
+    /// is a plain failure whichever hour it names.
+    ///
+    /// The wording carries **no formatted date or time**. That is the #233-E /
+    /// #249-F rule: the model has twice mined a formatted timestamp out of a
+    /// tool string into a fabricated "has been set for …" success claim. Every
+    /// row #224 Phase 0 adds is digit-free, pinned by
+    /// `phase0CautionRowsCarryNothingMineable` rather than by review. The
+    /// REMINDER card's own rows still carry their `displayDate`/`timeOnly`:
+    /// they predate the rule, they are #233/#249's shipped and
+    /// device-validated surface, and rewriting them is not what Owen balloted.
+    nonisolated static func startCaution(for date: Date?, now: Date) -> String? {
+        guard let date else { return nil }
+        if DeviceActionParsing.isPastDue(date, now: now) {
+            return "STARTS IN THE PAST"
+        }
+        if DeviceActionParsing.isEarlyMorning(date) {
+            return "EARLY MORNING START — CHECK AM/PM"
+        }
+        return nil
+    }
+
     /// The whole create flow from staged-title to EventKit save, shared
     /// with the #200T optional-field copy so that cell's ONLY delta is the
     /// two field types — structural-identity discipline: two structs, one
     /// engine (the #200Q/#200S reminder precedent).
+    ///
+    /// `now` is injectable for the same reason the reminder engine's is: the
+    /// caution rules read a clock, and a test that cannot set the clock can
+    /// only measure boundaries by luck. Production never passes it.
     nonisolated static func performCreate(
         rawTitle: String, rawStartsAt: String, rawMinutes: Int?, rawLocation: String,
-        confirmations: ToolConfirmationCenter
+        confirmations: ToolConfirmationCenter,
+        now: Date = Date()
     ) async -> String {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No event title was given — nothing staged." }
@@ -492,6 +692,7 @@ struct CalendarEventTool: Tool {
         let decision = await confirmations.requestConfirmation(
             title: "Add this event to the calendar?",
             detail: nil,
+            caution: Self.startCaution(for: start, now: now),
             fields: [
                 .init(key: "title", label: "Title", value: title),
                 .init(key: "startsAt", label: "Starts", value: DeviceActionParsing.displayDate(start)),
@@ -542,9 +743,28 @@ struct CalendarEventTool: Tool {
         event.startDate = finalStart
         event.endDate = finalStart.addingTimeInterval(TimeInterval(finalMinutes * 60))
         if !finalLocation.isEmpty { event.location = finalLocation }
-        guard let calendar = store.defaultCalendarForNewEvents else {
+        // #331: under the harness the event lands in the dedicated test
+        // calendar; production resolves the default exactly as before, and
+        // the whole container branch compiles out of Release.
+        let calendar: EKCalendar
+        #if DEBUG
+        if await confirmations.autoAcceptForBattery {
+            do {
+                calendar = try BatteryTestContainer.ensureContainer(for: .event, in: store)
+            } catch {
+                return "The #331 battery test calendar could not be provisioned (\(error.localizedDescription)) — nothing was created."
+            }
+        } else if let resolved = store.defaultCalendarForNewEvents {
+            calendar = resolved
+        } else {
             return "No calendar is available for new events — nothing was created."
         }
+        #else
+        guard let resolved = store.defaultCalendarForNewEvents else {
+            return "No calendar is available for new events — nothing was created."
+        }
+        calendar = resolved
+        #endif
         event.calendar = calendar
         do {
             try store.save(event, span: .thisEvent, commit: true)
@@ -615,7 +835,21 @@ struct CalendarEventToolRequiredFields: Tool {
 
 struct AlarmTool: Tool {
     let name = "scheduleAlarm"
-    let description = "Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled."
+    /// Production description text, hoisted to a static for the same reason
+    /// the other two action tools hoisted theirs: a measurement cell must be
+    /// able to name production's exact bytes rather than a copy of them.
+    static let productionDescription = "Schedule an alarm or countdown timer on this iPhone (it rings through Silent mode). The user sees a confirmation card and can edit or cancel before anything is scheduled."
+    #if DEBUG
+    /// #337 bar 337-F treatment — see `ReminderCreateTool.cardClauseStripped337`.
+    /// The alarm clause ends "…before anything is **scheduled**", which is why
+    /// the stripper matches both endings rather than one.
+    static let cardClauseStripped337 =
+        DeviceActionClauses.strippingCardClause(from: productionDescription)
+    #endif
+    /// `var` + init default, the #196 seam this tool did not have (#337-F).
+    /// The default is production's own static, so the shipping belt is
+    /// byte-identical; production call sites never pass a description.
+    var description: String = AlarmTool.productionDescription
     /// #196 `armed-noschema` seam — see `ReminderCreateTool`'s twin. The
     /// default matches the framework default; production never passes it.
     var includesSchemaInInstructions: Bool = true
@@ -627,6 +861,50 @@ struct AlarmTool: Tool {
     struct Arguments {
         @Guide(description: "The alarm or timer request, e.g. \"6:30am wake up\", \"18:45\", or \"25m tea\".")
         var request: String
+    }
+
+    /// #224 Phase 0: the alarm card's caution row. The #16 grammar resolves
+    /// to a wall-clock time or a countdown, never to a date, so both rules
+    /// read the REQUEST against `now` rather than a parsed due:
+    ///
+    /// * a wee-hour fixed time (hours 0–6) is #233's AM/PM misread arriving
+    ///   through a different door — "wake me at 4" is far more often 4 PM;
+    /// * a fixed time whose occurrence TODAY has already passed, beyond
+    ///   #249's five-minute grace, will not ring today at all —
+    ///   `AlarmService.nextOccurrence` rolls it to tomorrow, and the card
+    ///   shows only the raw request string, so nothing else on it says which
+    ///   day it rings.
+    ///
+    /// A countdown trips neither: it is always in the future and has no clock
+    /// hour to misread.
+    ///
+    /// PRECEDENCE runs the OPPOSITE way from `CalendarEventTool.startCaution`
+    /// and `ReminderCreateTool.dueCaution`, deliberately. A past-due reminder
+    /// or event is a plain failure, so "in the past" is the sharper thing to
+    /// say. A past-due ALARM still rings — one day later — so the softer
+    /// signal must never mask the wee-hour one, which is the defect #233
+    /// exists to raise.
+    ///
+    /// No formatted date or time, for the #233-E / #249-F reason spelled out
+    /// on `CalendarEventTool.startCaution`.
+    nonisolated static func caution(
+        for request: AlarmService.AlarmRequest,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> String? {
+        // A local wall-clock time that does not exist on `now`'s day (a
+        // spring-forward gap) is not evidence of anything — say nothing
+        // rather than guess.
+        guard case .fixedTime(let hour, let minute) = request.kind,
+              let todayAt = calendar.date(bySettingHour: hour, minute: minute, second: 0, of: now)
+        else { return nil }
+        if DeviceActionParsing.isEarlyMorning(todayAt) {
+            return "EARLY MORNING — CHECK AM/PM"
+        }
+        if DeviceActionParsing.isPastDue(todayAt, now: now) {
+            return "ALREADY PASSED TODAY — RINGS TOMORROW"
+        }
+        return nil
     }
 
     func call(arguments: Arguments) async throws -> String {
@@ -642,6 +920,7 @@ struct AlarmTool: Tool {
         let decision = await confirmations.requestConfirmation(
             title: "Schedule on this iPhone?",
             detail: "It will ring through Silent mode and Focus.",
+            caution: Self.caution(for: request, now: Date()),
             fields: [.init(key: "request", label: "Alarm", value: raw)]
         )
         guard case .approved(let values) = decision else {

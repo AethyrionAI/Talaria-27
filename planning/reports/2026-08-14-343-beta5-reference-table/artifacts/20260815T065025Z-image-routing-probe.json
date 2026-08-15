@@ -1,0 +1,525 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:56:22Z",
+  "instrument" : "image-routing-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "img-none",
+      "img-signal",
+      "img-guide"
+    ],
+    "endedCleanly" : true,
+    "id" : "5295A416-2A1C-4A74-82A7-595FF65F73DE",
+    "kind" : "router-context",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what does this say?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "read the text in this photo",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what's in this picture?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "scan this barcode",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "what's 2+2?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "img-none"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what does this say?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "read the text in this photo",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what's in this picture?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "scan this barcode",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "what's 2+2?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "img-signal"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what does this say?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "read the text in this photo",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "what's in this picture?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "image",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "scan this barcode",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "image-wordsonly",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "what's 2+2?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      },
+      {
+        "band" : "baseline",
+        "context" : "",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "img-guide"
+      }
+    ],
+    "startedAt" : "2026-08-15T06:50:26Z",
+    "thermal" : [
+      "img-none:start=serious",
+      "img-none:end=serious",
+      "img-signal:start=serious",
+      "img-signal:end=serious",
+      "img-guide:start=serious",
+      "img-guide:end=serious"
+    ],
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:50:26Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

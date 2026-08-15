@@ -183,8 +183,11 @@ struct BackendProfileRoutingTests {
 
         #expect(reply.status == .delivered)
         let requests = log.all
-        #expect(requests.count == 2)
-        // Both the session creation and the chat turn hit the Mac with its key.
+        // #241: creates are preceded by one catalog probe, so the override
+        // path is catalog + create + chat — and the allSatisfy rows below are
+        // now also the proof that the PROBE honours the override profile
+        // (host + key), which is the M-16 property this test exists to pin.
+        #expect(requests.count == 3)
         #expect(requests.allSatisfy { $0.host == "macmini" })
         #expect(requests.allSatisfy { $0.authorization == "Bearer key-mac" })
         #expect(client.pendingNewSessionProfileID == nil)

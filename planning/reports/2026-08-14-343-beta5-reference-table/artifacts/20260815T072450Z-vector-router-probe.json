@@ -1,0 +1,428 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T07:36:11Z",
+  "instrument" : "vector-router-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "vector"
+    ],
+    "endedCleanly" : true,
+    "id" : "D056A1FB-9CBD-472C-B1F4-EA2B1BCA27E7",
+    "kind" : "vector",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "intentTally" : {
+
+        },
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "intentTally" : {
+
+        },
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "intentTally" : {
+
+        },
+        "probe" : "write a 50 word summary about Norway",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "intentTally" : {
+
+        },
+        "probe" : "Tell me a joke about penguins",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : false,
+        "intentTally" : {
+
+        },
+        "probe" : "Write a poem for my mom's birthday",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "intentTally" : {
+
+        },
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "intentTally" : {
+
+        },
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "intentTally" : {
+
+        },
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "intentTally" : {
+
+        },
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "baseline",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "intentTally" : {
+
+        },
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "reminders",
+        "intentTally" : {
+          "deviceStatus+location+reminders" : 10
+        },
+        "probe" : "Remind me to buy milk tomorrow at 9am",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "reminders",
+        "intentTally" : {
+          "deviceStatus+location+reminders" : 10
+        },
+        "probe" : "Add pick up dry cleaning to my reminders",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "alarms",
+        "intentTally" : {
+          "alarms+deviceStatus+location" : 10
+        },
+        "probe" : "Set an alarm for 6:30",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "alarms",
+        "intentTally" : {
+          "alarms+deviceStatus+location+reminders" : 10
+        },
+        "probe" : "Wake me up at 7 tomorrow",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "calendar",
+        "intentTally" : {
+          "calendar+deviceStatus+location+reminders" : 10
+        },
+        "probe" : "Put lunch with Sam on my calendar Friday at noon",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "calendar",
+        "intentTally" : {
+          "alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather" : 10
+        },
+        "probe" : "Do I have anything on my calendar Friday?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "weather",
+        "intentTally" : {
+          "deviceStatus+location+places+weather" : 10
+        },
+        "probe" : "What's the weather like right now?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "weather",
+        "intentTally" : {
+          "location+weather" : 10
+        },
+        "probe" : "Is it going to rain this afternoon?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "health",
+        "intentTally" : {
+          "health+location" : 10
+        },
+        "probe" : "How many steps have I taken today?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "health",
+        "intentTally" : {
+          "deviceStatus+health+location" : 10
+        },
+        "probe" : "How did I sleep last night?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "conversations",
+        "intentTally" : {
+          "contacts+conversations+deviceStatus+location+reminders" : 10
+        },
+        "probe" : "When did I last text Sam about the boat?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "deviceStatus",
+        "intentTally" : {
+          "deviceStatus+location" : 10
+        },
+        "probe" : "How much battery do I have left?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "contacts",
+        "intentTally" : {
+          "contacts+deviceStatus+location+places" : 10
+        },
+        "probe" : "What's Sam's phone number?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "places",
+        "intentTally" : {
+          "location+places" : 10
+        },
+        "probe" : "Find a coffee shop near me",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "",
+        "intentTally" : {
+          "deviceStatus+location+places" : 10
+        },
+        "probe" : "Play some music",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "",
+        "intentTally" : {
+          "deviceStatus+location+places+weather" : 10
+        },
+        "probe" : "How long will it take me to drive to the airport?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "",
+        "intentTally" : {
+          "∅" : 10
+        },
+        "probe" : "Read the label on this bottle for me",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "expectedIntent" : "",
+        "intentTally" : {
+          "∅" : 10
+        },
+        "probe" : "Write a haiku about sledding",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : false,
+        "expectedIntent" : "",
+        "intentTally" : {
+          "∅" : 10
+        },
+        "probe" : "What's 2+2?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "calendar+reminders+weather",
+        "intentTally" : {
+          "alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather" : 10
+        },
+        "probe" : "What's my day look like tomorrow?",
+        "trials" : 10,
+        "variant" : "vector"
+      },
+      {
+        "band" : "grid",
+        "correct" : 10,
+        "errors" : 0,
+        "expected" : true,
+        "expectedIntent" : "reminders+weather",
+        "intentTally" : {
+          "alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather" : 10
+        },
+        "probe" : "Anything due today, and do I need an umbrella?",
+        "trials" : 10,
+        "variant" : "vector"
+      }
+    ],
+    "startedAt" : "2026-08-15T07:24:50Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T07:24:50Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

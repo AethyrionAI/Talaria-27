@@ -1,0 +1,158 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=10 cells=2 prompts=2 warmup=true (#200)
+battery: WARMUP begin cell=armed prompts=2 (#200V)
+battery: BEGIN shape=warmup p=stepsdirect t=0
+battery: tool=readHealth shape=warmup p=stepsdirect t=0 detail=steps
+battery: shape=warmup p=stepsdirect t=0 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You’ve taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=stepsdirect t=0 (#200F)
+battery: BEGIN shape=warmup p=motiondirect t=0
+battery: tool=readMotion shape=warmup p=motiondirect t=0 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=warmup p=motiondirect t=0 cant=false denial=false chars=59 inTok=1822 outTok=17 text=You're currently sitting still—no walking data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=warmup p=motiondirect t=0 (#200F)
+battery: WARMUP done — discarded, not counted (#200V)
+battery: THERMAL cell=armed at=start state=nominal (#201B)
+battery: BEGIN shape=armed p=stepsdirect t=1
+battery: tool=readHealth shape=armed p=stepsdirect t=1 detail=steps
+battery: shape=armed p=stepsdirect t=1 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=1 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=2
+battery: tool=readHealth shape=armed p=stepsdirect t=2 detail=steps
+battery: shape=armed p=stepsdirect t=2 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=2 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=3
+battery: tool=readHealth shape=armed p=stepsdirect t=3 detail=steps
+battery: shape=armed p=stepsdirect t=3 cant=false denial=false chars=31 inTok=1823 outTok=17 text=You've taken 2,403 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=3 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=4
+battery: shape=armed p=stepsdirect t=4 cant=false denial=false chars=32 inTok=1857 outTok=19 text=You've taken 12,473 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=4 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=5
+battery: shape=armed p=stepsdirect t=5 cant=false denial=false chars=46 inTok=1857 outTok=13 text=I couldn't retrieve your step count for today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=5 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=6
+battery: shape=armed p=stepsdirect t=6 cant=false denial=false chars=31 inTok=1857 outTok=17 text=You've taken 4,212 steps today.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=6 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=7
+battery: shape=armed p=stepsdirect t=7 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=7 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=8
+battery: shape=armed p=stepsdirect t=8 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=8 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=9
+battery: shape=armed p=stepsdirect t=9 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=9 (#200F)
+battery: BEGIN shape=armed p=stepsdirect t=10
+battery: shape=armed p=stepsdirect t=10 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=stepsdirect t=10 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=1
+battery: tool=readMotion shape=armed p=motiondirect t=1 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=1 cant=false denial=false chars=86 inTok=1822 outTok=29 text=You're sitting still right now. No pedometer data is recorded, indicating no movement.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=1 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=2
+battery: tool=readMotion shape=armed p=motiondirect t=2 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=2 cant=false denial=false chars=58 inTok=1822 outTok=19 text=You're sitting still right now—no pedometer data recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=2 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=3
+battery: tool=readMotion shape=armed p=motiondirect t=3 detail=
+SWIFT TASK CONTINUATION MISUSE: performMotionRead(relay:name:) leaked its continuation without resuming it. This may cause tasks waiting on it to remain suspended forever.
+battery: shape=armed p=motiondirect t=3 cant=false denial=false chars=60 inTok=1822 outTok=19 text=You're sitting still right now—no movement data is recorded.
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=3 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=4
+battery: shape=armed p=motiondirect t=4 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=4 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=5
+battery: shape=armed p=motiondirect t=5 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=5 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=6
+battery: shape=armed p=motiondirect t=6 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=6 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=7
+battery: shape=armed p=motiondirect t=7 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=7 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=8
+battery: shape=armed p=motiondirect t=8 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=8 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=9
+battery: shape=armed p=motiondirect t=9 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=9 (#200F)
+battery: BEGIN shape=armed p=motiondirect t=10
+battery: shape=armed p=motiondirect t=10 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor.", relay:
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed p=motiondirect t=10 (#200F)
+battery: THERMAL cell=armed at=end state=nominal (#201B)
+battery: THERMAL cell=armed-motionredirect at=start state=nominal (#201B)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=1
+battery: shape=armed-motionredirect p=stepsdirect t=1 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=1 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=2
+battery: shape=armed-motionredirect p=stepsdirect t=2 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=2 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=3
+battery: shape=armed-motionredirect p=stepsdirect t=3 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=3 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=4
+battery: shape=armed-motionredirect p=stepsdirect t=4 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=4 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=5
+battery: shape=armed-motionredirect p=stepsdirect t=5 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=5 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=6
+battery: shape=armed-motionredirect p=stepsdirect t=6 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=6 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=7
+battery: shape=armed-motionredirect p=stepsdirect t=7 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=7 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=8
+battery: shape=armed-motionredirect p=stepsdirect t=8 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=8 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=9
+battery: shape=armed-motionredirect p=stepsdirect t=9 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=9 (#200F)
+battery: BEGIN shape=armed-motionredirect p=stepsdirect t=10
+battery: shape=armed-motionredirect p=stepsdirect t=10 ERROR=ToolCallError(tool: Talaria.DeviceHealthTool(name: "readHealth", description: "Read the user\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\'s 
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=stepsdirect t=10 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=1
+battery: shape=armed-motionredirect p=motiondirect t=1 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=1 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=2
+battery: shape=armed-motionredirect p=motiondirect t=2 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=2 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=3
+battery: shape=armed-motionredirect p=motiondirect t=3 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=3 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=4
+battery: shape=armed-motionredirect p=motiondirect t=4 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=4 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=5
+battery: shape=armed-motionredirect p=motiondirect t=5 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=5 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=6
+battery: shape=armed-motionredirect p=motiondirect t=6 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=6 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=7
+battery: shape=armed-motionredirect p=motiondirect t=7 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=7 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=8
+battery: shape=armed-motionredirect p=motiondirect t=8 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=8 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=9
+battery: shape=armed-motionredirect p=motiondirect t=9 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=9 (#200F)
+battery: BEGIN shape=armed-motionredirect p=motiondirect t=10
+battery: shape=armed-motionredirect p=motiondirect t=10 ERROR=ToolCallError(tool: Talaria.MotionTool(name: "readMotion", description: "Read the user\'s current motion activity (walking, running, driving, stationary) from the phone\'s motion coprocessor. For heal
+battery: REAP-TRIAL reminders=0 events=0 alarms=0 failures=0 shape=armed-motionredirect p=motiondirect t=10 (#200F)
+battery: THERMAL cell=armed-motionredirect at=end state=nominal (#201B)
+battery: REAP-STEP reminders begin (#200)
+battery: REAP-STEP events begin (#200)
+battery: CONTAINER-REAP finish calendars=0 lists=0 alarms=0 failures=0 outside-marked=1(not-deleted) (#331)
+battery: REAP-STEP alarms begin (#200)
+battery: REAP-STEP alarms done cancelled=0 failed=0 (#200)
+battery: REAP reminders=0 events=0 alarms=0 failures=0 (#200)
+battery: DONE (#200)
+instrument: COMPLETED motion-redirect (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

@@ -1,0 +1,16 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "instrument" : "vector-router-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:25:25Z",
+  "status" : "running",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

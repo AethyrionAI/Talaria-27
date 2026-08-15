@@ -611,6 +611,14 @@ consolation prize.
    #176). But #257's filing complains about a **3-of-15** answer, and
    `readImageText` / `readBarcode` are two of those fifteen. Should the surface —
    and the block — name image reading with a "when you attach a photo" caveat?
+   > **↪ ANSWERED YES, and the first sentence is now stale (2026-08-11, lane
+   > 257-V).** Owen ruled on 2026-08-10 that the block and the sheet DO name
+   > image reading with the caveat; the exclusion is gone from
+   > `capabilityAnswerBlock`, which renders eleven families. The rationale
+   > that beat "by design": the block is deterministic app text rather than
+   > model output, so a caveated line offers the model nothing — the
+   > `hasImageTools` gate on the INSTRUCTIONS is what that reasoning belonged
+   > to, and it is unchanged. See OPEN_ITEMS #257, bars 257-V-A..F.
 6. **Is a device run authorized this cycle at all?** 3a needs none. Lever 1 needs
    one small probe. Lever 2 needs a real n=20.
 7. **Where the surface lives** if 3a ships: Settings, a Chat sheet, or the Skills

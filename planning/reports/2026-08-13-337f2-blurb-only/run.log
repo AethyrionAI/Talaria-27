@@ -1,0 +1,20 @@
+device=91CBCB90-B313-5B09-A405-E0FE284C9D75 instrument=card-clause trials=10 cells= timeout=1800s sha=e688ac9
+launched (console pid 21495); polling every 20s
+t+21s status=running
+t+41s status=running
+t+61s status=running
+t+81s status=running
+t+102s status=running
+t+122s status=running
+t+142s status=running
+t+162s status=running
+t+182s status=running
+t+203s status=running
+t+223s status=running
+t+243s status=running
+t+263s status=running
+t+284s status=running
+t+304s status=running
+t+324s status=running
+t+344s status=running
+RESULT: completed — artifact at /Users/owenjones/.talaria-instrument-runs/20260813T203402Z-card-clause/latest.json

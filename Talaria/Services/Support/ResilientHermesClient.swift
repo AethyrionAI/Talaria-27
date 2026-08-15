@@ -76,8 +76,20 @@ final class ResilientHermesClient: HermesClientProtocol {
     /// tap's real server-side interrupt — only ever needs to reach it too;
     /// forwarding to `fallback` as well would be a POST that always no-ops
     /// (nothing there ever set `activeRunContext`) dressed up as coverage.
-    func hardStopActiveRun() {
+    /// #328 route 2: the ISSUED/NOT-ISSUED answer is `primary`'s, for the same
+    /// reason the call is.
+    @discardableResult
+    func hardStopActiveRun() -> Bool {
         primary.hardStopActiveRun()
+    }
+
+    /// #322: same rule as `hardStopActiveRun` above — `sendStreaming` only
+    /// ever rides `primary`, so only `primary` can have a run in flight and
+    /// only `primary` can answer for one.
+    var activeRunID: String? { primary.activeRunID }
+
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        await primary.finalRunUsage(runID: runID)
     }
 
     /// #304: same rule as `hardStopActiveRun` above — `sendStreaming` only

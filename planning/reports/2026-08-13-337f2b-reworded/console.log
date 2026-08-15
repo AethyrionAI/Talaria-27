@@ -1,0 +1,627 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+battery: START trials=10 arms=5 prompts=3 warmup=true (#337-F card-clause)
+battery: WARMUP begin prompts=3 (#337-F / #200V)
+battery: tool=scheduleAlarm shape=warmup p=alarm t=0 detail=6:30
+battery: confirm=declined shape=warmup p=alarm t=0
+battery: tool=createCalendarEvent shape=warmup p=calendar t=0 detail=Lunch with Sam
+battery: confirm=declined shape=warmup p=calendar t=0
+battery: WARMUP done — discarded, not counted (#337-F / #200V)
+battery: THERMAL cell=control at=start state=nominal (#201B)
+battery: ARM control swapped=0 blurbRemoved=false reworded=false (#337-F)
+battery: BEGIN shape=control p=remind t=1
+battery: tool=createReminder shape=control p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=1
+battery: shape=control p=remind t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=2
+battery: tool=createReminder shape=control p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=2
+battery: shape=control p=remind t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=3
+battery: tool=createReminder shape=control p=remind t=3 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=3
+battery: shape=control p=remind t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=4
+battery: tool=createReminder shape=control p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=4
+battery: shape=control p=remind t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=5
+battery: tool=createReminder shape=control p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=5
+battery: shape=control p=remind t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=6
+battery: shape=control p=remind t=6 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=7
+battery: shape=control p=remind t=7 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=8
+battery: tool=createReminder shape=control p=remind t=8 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=8
+battery: shape=control p=remind t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=9
+battery: tool=createReminder shape=control p=remind t=9 detail=Test Talaria
+battery: confirm=declined shape=control p=remind t=9
+battery: shape=control p=remind t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=remind t=10
+battery: shape=control p=remind t=10 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=1
+battery: tool=scheduleAlarm shape=control p=alarm t=1 detail=6:30
+battery: confirm=declined shape=control p=alarm t=1
+battery: shape=control p=alarm t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=2
+battery: tool=scheduleAlarm shape=control p=alarm t=2 detail=6:30
+battery: confirm=declined shape=control p=alarm t=2
+battery: shape=control p=alarm t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=3
+battery: tool=scheduleAlarm shape=control p=alarm t=3 detail=6:30
+battery: confirm=declined shape=control p=alarm t=3
+battery: shape=control p=alarm t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=4
+battery: tool=scheduleAlarm shape=control p=alarm t=4 detail=6:30
+battery: confirm=declined shape=control p=alarm t=4
+battery: shape=control p=alarm t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=5
+battery: tool=scheduleAlarm shape=control p=alarm t=5 detail=6:30
+battery: confirm=declined shape=control p=alarm t=5
+battery: shape=control p=alarm t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=6
+battery: tool=scheduleAlarm shape=control p=alarm t=6 detail=6:30
+battery: confirm=declined shape=control p=alarm t=6
+battery: shape=control p=alarm t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=7
+battery: tool=scheduleAlarm shape=control p=alarm t=7 detail=6:30
+battery: confirm=declined shape=control p=alarm t=7
+battery: shape=control p=alarm t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=8
+battery: tool=scheduleAlarm shape=control p=alarm t=8 detail=6:30
+battery: confirm=declined shape=control p=alarm t=8
+battery: shape=control p=alarm t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=9
+battery: tool=scheduleAlarm shape=control p=alarm t=9 detail=6:30
+battery: confirm=declined shape=control p=alarm t=9
+battery: shape=control p=alarm t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=alarm t=10
+battery: tool=scheduleAlarm shape=control p=alarm t=10 detail=6:30
+battery: confirm=declined shape=control p=alarm t=10
+battery: shape=control p=alarm t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=1
+battery: shape=control p=calendar t=1 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=2
+battery: tool=createCalendarEvent shape=control p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=2
+battery: shape=control p=calendar t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=3
+battery: tool=createCalendarEvent shape=control p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=3
+battery: shape=control p=calendar t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=4
+battery: tool=createCalendarEvent shape=control p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=4
+battery: shape=control p=calendar t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=5
+battery: tool=createCalendarEvent shape=control p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=5
+battery: shape=control p=calendar t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=6
+battery: tool=createCalendarEvent shape=control p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=6
+battery: shape=control p=calendar t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=7
+battery: tool=createCalendarEvent shape=control p=calendar t=7 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=7
+battery: shape=control p=calendar t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=8
+battery: tool=createCalendarEvent shape=control p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=8
+battery: shape=control p=calendar t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=9
+battery: tool=createCalendarEvent shape=control p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=9
+battery: shape=control p=calendar t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=control p=calendar t=10
+battery: tool=createCalendarEvent shape=control p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=control p=calendar t=10
+battery: shape=control p=calendar t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: ARM SUMMARY control attempted=30 imitations=3 calls=26 cut=0 genErrors=0 timeouts=0 (#337-F)
+battery: THERMAL cell=control at=end state=fair (#201B)
+battery: THERMAL cell=tools-stripped at=start state=fair (#201B)
+battery: ARM tools-stripped swapped=3 blurbRemoved=false reworded=false (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=1
+battery: shape=tools-stripped p=remind t=1 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=2
+battery: shape=tools-stripped p=remind t=2 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=3
+battery: shape=tools-stripped p=remind t=3 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=4
+battery: tool=createReminder shape=tools-stripped p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=tools-stripped p=remind t=4
+battery: shape=tools-stripped p=remind t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=5
+battery: shape=tools-stripped p=remind t=5 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=6
+battery: shape=tools-stripped p=remind t=6 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=7
+battery: shape=tools-stripped p=remind t=7 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=8
+battery: shape=tools-stripped p=remind t=8 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=9
+battery: shape=tools-stripped p=remind t=9 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=remind t=10
+battery: shape=tools-stripped p=remind t=10 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=1
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=1 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=1
+battery: shape=tools-stripped p=alarm t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=2
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=2 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=2
+battery: shape=tools-stripped p=alarm t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=3
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=3 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=3
+battery: shape=tools-stripped p=alarm t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=4
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=4 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=4
+battery: shape=tools-stripped p=alarm t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=5
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=5 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=5
+battery: shape=tools-stripped p=alarm t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=6
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=6 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=6
+battery: shape=tools-stripped p=alarm t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=7
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=7 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=7
+battery: shape=tools-stripped p=alarm t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=8
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=8 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=8
+battery: shape=tools-stripped p=alarm t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=9
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=9 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=9
+battery: shape=tools-stripped p=alarm t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=alarm t=10
+battery: tool=scheduleAlarm shape=tools-stripped p=alarm t=10 detail=6:30
+battery: confirm=declined shape=tools-stripped p=alarm t=10
+battery: shape=tools-stripped p=alarm t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=1
+battery: shape=tools-stripped p=calendar t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=2
+battery: shape=tools-stripped p=calendar t=2 imitation=here's the confirmation calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=3
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=3
+battery: shape=tools-stripped p=calendar t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=4
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=4
+battery: shape=tools-stripped p=calendar t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=5
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=5
+battery: shape=tools-stripped p=calendar t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=6
+battery: shape=tools-stripped p=calendar t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=7
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=7 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=7
+battery: shape=tools-stripped p=calendar t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=8
+battery: shape=tools-stripped p=calendar t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=9
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=9
+battery: shape=tools-stripped p=calendar t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-stripped p=calendar t=10
+battery: tool=createCalendarEvent shape=tools-stripped p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=tools-stripped p=calendar t=10
+battery: shape=tools-stripped p=calendar t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: ARM SUMMARY tools-stripped attempted=30 imitations=5 calls=20 cut=0 genErrors=0 timeouts=0 (#337-F)
+battery: THERMAL cell=tools-stripped at=end state=fair (#201B)
+battery: THERMAL cell=tools-blurb-stripped at=start state=fair (#201B)
+battery: ARM tools-blurb-stripped swapped=3 blurbRemoved=true reworded=false (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=1
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=1
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=1 detail=Test Talaria
+battery: shape=tools-blurb-stripped p=remind t=1 imitation=— calls=2 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=2
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=2
+battery: shape=tools-blurb-stripped p=remind t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=3
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=3 detail=test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=3
+battery: shape=tools-blurb-stripped p=remind t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=4
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=4
+battery: shape=tools-blurb-stripped p=remind t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=5
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=5 detail=test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=5
+battery: shape=tools-blurb-stripped p=remind t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=6
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=6 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=6
+battery: shape=tools-blurb-stripped p=remind t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=7
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=7
+battery: shape=tools-blurb-stripped p=remind t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=8
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=8 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=8
+battery: shape=tools-blurb-stripped p=remind t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=9
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=9 detail=test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=9
+battery: shape=tools-blurb-stripped p=remind t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=remind t=10
+battery: tool=createReminder shape=tools-blurb-stripped p=remind t=10 detail=Test Talaria
+battery: confirm=declined shape=tools-blurb-stripped p=remind t=10
+battery: shape=tools-blurb-stripped p=remind t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=1
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=1 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=1
+battery: shape=tools-blurb-stripped p=alarm t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=2
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=2 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=2
+battery: shape=tools-blurb-stripped p=alarm t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=3
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=3 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=3
+battery: shape=tools-blurb-stripped p=alarm t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=4
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=4 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=4
+battery: shape=tools-blurb-stripped p=alarm t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=5
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=5 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=5
+battery: shape=tools-blurb-stripped p=alarm t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=6
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=6 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=6
+battery: shape=tools-blurb-stripped p=alarm t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=7
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=7 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=7
+battery: shape=tools-blurb-stripped p=alarm t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=8
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=8 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=8
+battery: shape=tools-blurb-stripped p=alarm t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=9
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=9 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=9
+battery: shape=tools-blurb-stripped p=alarm t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=alarm t=10
+battery: tool=scheduleAlarm shape=tools-blurb-stripped p=alarm t=10 detail=6:30
+battery: confirm=declined shape=tools-blurb-stripped p=alarm t=10
+battery: shape=tools-blurb-stripped p=alarm t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=1
+battery: shape=tools-blurb-stripped p=calendar t=1 imitation=— calls=4 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=2
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=2
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=2
+battery: shape=tools-blurb-stripped p=calendar t=2 imitation=— calls=2 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=3
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=3
+battery: shape=tools-blurb-stripped p=calendar t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=4
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=4
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=4
+battery: shape=tools-blurb-stripped p=calendar t=4 imitation=— calls=2 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=5
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=5
+battery: shape=tools-blurb-stripped p=calendar t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=6
+battery: shape=tools-blurb-stripped p=calendar t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=7
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=7 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=7
+battery: shape=tools-blurb-stripped p=calendar t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=8
+battery: shape=tools-blurb-stripped p=calendar t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=9
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=9
+battery: shape=tools-blurb-stripped p=calendar t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=tools-blurb-stripped p=calendar t=10
+battery: tool=createCalendarEvent shape=tools-blurb-stripped p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=tools-blurb-stripped p=calendar t=10
+battery: shape=tools-blurb-stripped p=calendar t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: ARM SUMMARY tools-blurb-stripped attempted=30 imitations=0 calls=30 cut=0 genErrors=0 timeouts=0 (#337-F)
+battery: THERMAL cell=tools-blurb-stripped at=end state=fair (#201B)
+battery: THERMAL cell=blurb-stripped at=start state=fair (#201B)
+battery: ARM blurb-stripped swapped=0 blurbRemoved=true reworded=false (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=1
+battery: tool=createReminder shape=blurb-stripped p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=1
+battery: shape=blurb-stripped p=remind t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=2
+battery: tool=createReminder shape=blurb-stripped p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=2
+battery: shape=blurb-stripped p=remind t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=3
+battery: tool=createReminder shape=blurb-stripped p=remind t=3 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=3
+battery: shape=blurb-stripped p=remind t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=4
+battery: tool=createReminder shape=blurb-stripped p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=4
+battery: shape=blurb-stripped p=remind t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=5
+battery: tool=createReminder shape=blurb-stripped p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=5
+battery: shape=blurb-stripped p=remind t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=6
+battery: tool=createReminder shape=blurb-stripped p=remind t=6 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=6
+battery: shape=blurb-stripped p=remind t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=7
+battery: tool=createReminder shape=blurb-stripped p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=7
+battery: shape=blurb-stripped p=remind t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=8
+battery: tool=createReminder shape=blurb-stripped p=remind t=8 detail=test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=8
+battery: shape=blurb-stripped p=remind t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=9
+battery: tool=createReminder shape=blurb-stripped p=remind t=9 detail=Test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=9
+battery: shape=blurb-stripped p=remind t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=remind t=10
+battery: tool=createReminder shape=blurb-stripped p=remind t=10 detail=test Talaria
+battery: confirm=declined shape=blurb-stripped p=remind t=10
+battery: shape=blurb-stripped p=remind t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=1
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=1 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=1
+battery: shape=blurb-stripped p=alarm t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=2
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=2 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=2
+battery: shape=blurb-stripped p=alarm t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=3
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=3 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=3
+battery: shape=blurb-stripped p=alarm t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=4
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=4 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=4
+battery: shape=blurb-stripped p=alarm t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=5
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=5 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=5
+battery: shape=blurb-stripped p=alarm t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=6
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=6 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=6
+battery: shape=blurb-stripped p=alarm t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=7
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=7 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=7
+battery: shape=blurb-stripped p=alarm t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=8
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=8 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=8
+battery: shape=blurb-stripped p=alarm t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=9
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=9 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=9
+battery: shape=blurb-stripped p=alarm t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=alarm t=10
+battery: tool=scheduleAlarm shape=blurb-stripped p=alarm t=10 detail=6:30
+battery: confirm=declined shape=blurb-stripped p=alarm t=10
+battery: shape=blurb-stripped p=alarm t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=1
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=1
+battery: shape=blurb-stripped p=calendar t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=2
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=2
+battery: shape=blurb-stripped p=calendar t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=3
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=3
+battery: shape=blurb-stripped p=calendar t=3 imitation=confirmation card calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=4
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=4
+battery: shape=blurb-stripped p=calendar t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=5
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=5
+battery: shape=blurb-stripped p=calendar t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=6
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=6
+battery: shape=blurb-stripped p=calendar t=6 imitation=— calls=4 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=7
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=7 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=7
+battery: shape=blurb-stripped p=calendar t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=8
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=8
+battery: shape=blurb-stripped p=calendar t=8 imitation=— calls=4 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=9
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=9
+battery: shape=blurb-stripped p=calendar t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-stripped p=calendar t=10
+battery: tool=createCalendarEvent shape=blurb-stripped p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-stripped p=calendar t=10
+battery: shape=blurb-stripped p=calendar t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: ARM SUMMARY blurb-stripped attempted=30 imitations=1 calls=30 cut=0 genErrors=0 timeouts=0 (#337-F)
+battery: THERMAL cell=blurb-stripped at=end state=serious (#201B)
+battery: THERMAL cell=blurb-reworded at=start state=serious (#201B)
+battery: ARM blurb-reworded swapped=0 blurbRemoved=true reworded=true (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=1
+battery: tool=createReminder shape=blurb-reworded p=remind t=1 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=1
+battery: shape=blurb-reworded p=remind t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=2
+battery: tool=createReminder shape=blurb-reworded p=remind t=2 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=2
+battery: shape=blurb-reworded p=remind t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=3
+battery: tool=createReminder shape=blurb-reworded p=remind t=3 detail=test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=3
+battery: shape=blurb-reworded p=remind t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=4
+battery: tool=createReminder shape=blurb-reworded p=remind t=4 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=4
+battery: shape=blurb-reworded p=remind t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=5
+battery: tool=createReminder shape=blurb-reworded p=remind t=5 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=5
+battery: shape=blurb-reworded p=remind t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=6
+battery: tool=createReminder shape=blurb-reworded p=remind t=6 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=6
+battery: shape=blurb-reworded p=remind t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=7
+battery: tool=createReminder shape=blurb-reworded p=remind t=7 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=7
+battery: shape=blurb-reworded p=remind t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=8
+battery: shape=blurb-reworded p=remind t=8 imitation=— calls=0 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=9
+battery: tool=createReminder shape=blurb-reworded p=remind t=9 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=9
+battery: shape=blurb-reworded p=remind t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=remind t=10
+battery: tool=createReminder shape=blurb-reworded p=remind t=10 detail=Test Talaria
+battery: confirm=declined shape=blurb-reworded p=remind t=10
+battery: shape=blurb-reworded p=remind t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=1
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=1 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=1
+battery: shape=blurb-reworded p=alarm t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=2
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=2 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=2
+battery: shape=blurb-reworded p=alarm t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=3
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=3 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=3
+battery: shape=blurb-reworded p=alarm t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=4
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=4 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=4
+battery: shape=blurb-reworded p=alarm t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=5
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=5 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=5
+battery: shape=blurb-reworded p=alarm t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=6
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=6 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=6
+battery: shape=blurb-reworded p=alarm t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=7
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=7 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=7
+battery: shape=blurb-reworded p=alarm t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=8
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=8 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=8
+battery: shape=blurb-reworded p=alarm t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=9
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=9 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=9
+battery: shape=blurb-reworded p=alarm t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=alarm t=10
+battery: tool=scheduleAlarm shape=blurb-reworded p=alarm t=10 detail=6:30
+battery: confirm=declined shape=blurb-reworded p=alarm t=10
+battery: shape=blurb-reworded p=alarm t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=1
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=1 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=1
+battery: shape=blurb-reworded p=calendar t=1 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=2
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=2 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=2
+battery: shape=blurb-reworded p=calendar t=2 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=3
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=3 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=3
+battery: shape=blurb-reworded p=calendar t=3 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=4
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=4 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=4
+battery: shape=blurb-reworded p=calendar t=4 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=5
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=5 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=5
+battery: shape=blurb-reworded p=calendar t=5 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=6
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=6 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=6
+battery: shape=blurb-reworded p=calendar t=6 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=7
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=7 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=7
+battery: shape=blurb-reworded p=calendar t=7 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=8
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=8 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=8
+battery: shape=blurb-reworded p=calendar t=8 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=9
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=9 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=9
+battery: shape=blurb-reworded p=calendar t=9 imitation=— calls=1 outcome=answered (#337-F)
+battery: BEGIN shape=blurb-reworded p=calendar t=10
+battery: tool=createCalendarEvent shape=blurb-reworded p=calendar t=10 detail=Lunch with Sam
+battery: confirm=declined shape=blurb-reworded p=calendar t=10
+battery: shape=blurb-reworded p=calendar t=10 imitation=— calls=1 outcome=answered (#337-F)
+battery: ARM SUMMARY blurb-reworded attempted=30 imitations=0 calls=29 cut=0 genErrors=0 timeouts=0 (#337-F)
+battery: THERMAL cell=blurb-reworded at=end state=serious (#201B)
+battery: DONE (#337-F)
+instrument: COMPLETED card-clause (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

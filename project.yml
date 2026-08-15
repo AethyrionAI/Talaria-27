@@ -40,6 +40,16 @@ targets:
   Talaria:
     type: application
     platform: iOS
+    # The product is "Talaria 27.app"; the TARGET is named Talaria. XcodeGen
+    # models those as one thing and derives the product from the target name
+    # unless told otherwise — `PRODUCT_NAME` in settings.base is a build
+    # setting Xcode honours at build time, which XcodeGen's own model never
+    # reads. Without this line every `xcodegen generate` rewrote the scheme's
+    # four BuildableName attributes to "Talaria.app" (a product that does not
+    # exist) and each lane hand-reverted them; the derived TEST_HOST was wrong
+    # for the same reason and is overridden by hand further down. This is the
+    # one declaration that makes both derivations correct at the source.
+    productName: "Talaria 27"
     entitlements:
       path: Talaria/Talaria.entitlements
       properties:
@@ -484,11 +494,25 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.tests
         TEST_TARGET_NAME: Talaria
-        # PRODUCT_NAME on the app target is "Talaria 27", so XcodeGen's
-        # auto-derived TEST_HOST (Talaria.app/Talaria) is wrong.
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27"
+        # No TEST_HOST override here, and do not re-add one. It used to say
+        # "XcodeGen's auto-derived TEST_HOST (Talaria.app/Talaria) is wrong" —
+        # true when it was written, and no longer: the app target now declares
+        # `productName: "Talaria 27"`, so the derivation produces
+        # "$(BUILT_PRODUCTS_DIR)/Talaria 27.app/Talaria 27" on its own.
+        # Verified by generating with and without the override and diffing the
+        # two project.pbxproj files: byte-identical. Compensating for a root
+        # cause in two places is how the scheme churn survived as long as it
+        # did.
         BUNDLE_LOADER: "$(TEST_HOST)"
         GENERATE_INFOPLIST_FILE: true
+        # #316 chore 2: a device test run died at "Signing for 'TalariaTests'
+        # requires a development team" — only the app target carried a team.
+        # Same recipe as the app/widgets/share targets above: CODE_SIGN_STYLE
+        # is what makes XcodeGen emit a TargetAttributes ProvisioningStyle
+        # entry alongside DevelopmentTeam; DEVELOPMENT_TEAM alone is not
+        # enough. Simulator builds are signing-exempt and unaffected.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "DNL25ZFSD2"
 
   TalariaUITests:
     type: bundle.ui-testing
@@ -502,3 +526,6 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.aethyrion.talaria27.uitests
         TEST_TARGET_NAME: Talaria
         GENERATE_INFOPLIST_FILE: true
+        # #316 chore 2: see TalariaTests above — same signing fix, same reason.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: "DNL25ZFSD2"

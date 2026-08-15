@@ -1,0 +1,599 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T04:12:13Z",
+  "instrument" : "motion-redirect",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "armed-motionredirect"
+    ],
+    "endedCleanly" : true,
+    "id" : "BEC613FF-1A6D-4210-8882-F5B00F2ECDB3",
+    "kind" : "action",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+    "startedAt" : "2026-08-15T04:10:34Z",
+    "thermal" : [
+      "armed:start=nominal",
+      "armed:end=nominal",
+      "armed-motionredirect:start=nominal",
+      "armed-motionredirect:end=nominal"
+    ],
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.893513209,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.90450175,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 1.9237867080000002,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1857,
+        "latencySeconds" : 2.25978925,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 12,473 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1857,
+        "latencySeconds" : 2.23881875,
+        "outputTokens" : 13,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "I couldn't retrieve your step count for today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1857,
+        "latencySeconds" : 2.236336041,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "You've taken 4,212 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.449735958,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.497607,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.5120580000000001,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.457624167,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.2542765,
+        "outputTokens" : 29,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now. No pedometer data is recorded, indicating no movement.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.127702291,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 13.952790834,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no movement data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.194999625,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.224281166,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.229699209,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.2544106670000001,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.2737966250000001,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.289757541,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.285640125,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.417203833,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.426822375,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.4280085420000002,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.4369404590000001,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.451980666,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.4604165,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.5233429580000002,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.513800167,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.5095125839999999,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.DeviceHealthTool(name: \"readHealth\", description: \"Read the user\\'s health data from Apple Health: steps today, active calories today, latest heart rate, and last night\\'s sleep.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.507162417,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.389078792,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.3943811670000001,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.4010533330000001,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.399318583,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.403926542,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.415873583,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.429885583,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.485129833,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.4298480420000002,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "error" : "ToolCallError(tool: Talaria.MotionTool(name: \"readMotion\", description: \"Read the user\\'s current motion activity (walking, running, driving, stationary) from the phone\\'s motion coprocessor. For health metrics, use readHealth.\", relay: Talaria.ToolEventRelay), underlyingError: Talaria.ToolPhaseCutError())",
+        "latencySeconds" : 1.424088583,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionredirect",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      }
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T04:10:15Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

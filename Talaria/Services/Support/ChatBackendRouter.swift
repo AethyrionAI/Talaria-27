@@ -516,9 +516,35 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// `cancelStreaming()` calls immediately afterward, is what releases it.
     /// Splitting the two means a plain walk-away (no Stop tap) can release
     /// the lock without ever reaching the network.
-    func hardStopActiveRun() {
-        guard let brain = runningBrain else { return }
-        backend(for: brain).hardStopActiveRun()
+    ///
+    /// #328 route 2: forwards the ISSUED/NOT-ISSUED answer too. No routing
+    /// lock means no run to stop, which is `false` — the honest absence, not
+    /// a failure.
+    @discardableResult
+    func hardStopActiveRun() -> Bool {
+        guard let brain = runningBrain else { return false }
+        return backend(for: brain).hardStopActiveRun()
+    }
+
+    /// #322: the in-flight run's id, forwarded by routing lock exactly like
+    /// `hardStopActiveRun` above — and, exactly like
+    /// `currentRunIsServerRecoverable`, it MUST be read before
+    /// `abandonActiveRun()`, which clears `runningBrain`.
+    var activeRunID: String? {
+        guard let brain = runningBrain else { return nil }
+        return backend(for: brain).activeRunID
+    }
+
+    /// #322: the final status read, and it is deliberately **NOT** gated on
+    /// `runningBrain` the way every other run-scoped forward here is.
+    ///
+    /// A `/v1/runs/{id}` id can only ever have come from the Hermes plane,
+    /// and this read is taken DETACHED, after `cancelStreaming` has already
+    /// called `abandonActiveRun()` — which releases the very lock the other
+    /// forwards consult. Gating on it would return nil on every Stop, which
+    /// is precisely the silent no-op this note exists to prevent.
+    func finalRunUsage(runID: String) async -> TokenUsage? {
+        await hermes.finalRunUsage(runID: runID)
     }
 
     /// #304: the approval answer, forwarded by routing lock exactly like

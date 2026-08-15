@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!-- ✅ RESOLVED 2026-08-10 (interactive pending review) — all four OWEN items
+     answered; THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
+     UNCOMMITTED). Edit there, not here.
+     (1) Data-practice claims CONFIRMED by Owen (no iCloud/CloudKit sync;
+         zero analytics/ad/crash SDKs; local-only notifications) — and
+         verified against the tree the same day: cloudKitDatabase .none is
+         the only CloudKit reference, no APNs registration survives #238,
+         and the sole SPM dependency is stasel/WebRTC (realtime voice
+         engine, not an analytics SDK).
+     (2) Developer of record: James Jones (personal legal name, Owen's call
+         over "Aethyrion").
+     (3) Contact: j.owen.jones@live.com.
+     (4) Effective date: 2026-08-10.
+     ✅ PUBLISHED 2026-08-10 on Owen's explicit go — live at
+        https://aethyrionai.github.io/Talaria-27/privacy.html (the URL 404'd
+        beforehand; nothing was overwritten). Footer link added to
+        docs/index.html so the page is not an orphan.
+     Still gated elsewhere: the permissions table re-syncs against the final
+     Info.plist when the 166-D strings lane lands; the realtime-voice
+     sentence ties to #320's indicator. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Talaria — Privacy Policy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { background: #06080C; color: #E8EEF5; font-family: 'Space Grotesk', sans-serif; line-height: 1.65; -webkit-font-smoothing: antialiased; margin: 0; }
+  a { color: #54E6F0; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  main { max-width: 720px; margin: 0 auto; padding: 48px 24px 96px; }
+  h1 { font-size: 2rem; font-weight: 600; margin-bottom: 0.25rem; }
+  h2 { font-size: 1.25rem; font-weight: 600; margin-top: 2.5rem; border-bottom: 1px solid rgba(84,230,240,0.25); padding-bottom: 0.4rem; }
+  .date { color: #8FA3B8; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; }
+  .tldr { background: rgba(84,230,240,0.07); border: 1px solid rgba(84,230,240,0.3); border-radius: 10px; padding: 18px 20px; margin: 28px 0; }
+  .tldr strong { color: #54E6F0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid rgba(232,238,245,0.12); vertical-align: top; }
+  th { color: #8FA3B8; font-weight: 500; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.85em; color: #CDF8FB; }
+  .muted { color: #8FA3B8; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Privacy Policy</h1>
+  <p class="date">Talaria for iOS · Effective: <!-- OWEN: set the publish date --> 2026-08-__</p>
+
+  <div class="tldr">
+    <p><strong>The short version:</strong> Talaria has no servers. We — the app's
+    developer — do not collect, receive, store, sell, or share any of your data.
+    There are no accounts, no analytics, and no tracking. Your conversations are
+    processed either on your iPhone or on a computer <em>you</em> own and
+    operate. The only parties that ever handle your data are Apple's on-device
+    frameworks and the services you yourself configure.</p>
+  </div>
+
+  <h2>Who we are</h2>
+  <p>Talaria is an iOS client for a personal AI assistant. It is developed by
+  <!-- OWEN: legal/entity name as it will appear on the App Store -->
+  Aethyrion. This policy covers the Talaria iOS app and this website.</p>
+
+  <h2>The two ways Talaria works</h2>
+  <p><strong>On-device (the default).</strong> Out of the box, Talaria's
+  assistant runs entirely on your iPhone using Apple's on-device foundation
+  models. Your messages, attachments, and the assistant's replies are processed
+  and stored on your device. Nothing is sent to us — or to anyone.</p>
+  <p><strong>Paired with your own server (optional).</strong> You can connect
+  Talaria to a <a href="https://github.com/NousResearch/hermes-agent">Hermes
+  agent</a> running on your own computer. In that mode, the content you send —
+  messages, attachments, voice, and any sensor data you explicitly enable —
+  travels over your own private network (for example, a Tailscale tailnet you
+  operate) to your own machine. That machine, and any AI model providers you
+  have configured on it under your own accounts, process your data under
+  <em>your</em> control and those providers' own terms. We are not a party to
+  any of it.</p>
+
+  <h2>What the app stores on your device</h2>
+  <p>Conversation history, attachments you add, settings, and pairing
+  credentials (kept in the iOS Keychain) are stored locally on your iPhone.
+  Deleting the app deletes this local data. Talaria does not sync your data to
+  iCloud or to any cloud service of ours.
+  <!-- OWEN confirm: no CloudKit/iCloud sync anywhere; widgets use the shared
+       app group locally only. --></p>
+
+  <h2>Voice</h2>
+  <p>Talaria's default voice mode uses Apple's on-device speech recognition and
+  synthesis. When paired with your own server, you can optionally use a
+  realtime voice engine: in that mode your audio is streamed through your
+  server to the voice provider <em>you</em> configured there (for example,
+  OpenAI's realtime API under your own API key). The app indicates when a
+  realtime session is active.
+  <!-- Ties to #320; ship the indicator before or with this sentence. --></p>
+
+  <h2>Permissions, and why each is asked for</h2>
+  <table>
+    <tr><th>Permission</th><th>Used for</th></tr>
+    <tr><td>Microphone &amp; Speech Recognition</td><td>Voice conversations and dictation. Default processing is on-device.</td></tr>
+    <tr><td>Photos / Camera</td><td>Attaching images you choose to your messages.</td></tr>
+    <tr><td>Calendars &amp; Reminders</td><td>Letting the assistant read and create events and reminders when you ask it to.</td></tr>
+    <tr><td>Contacts</td><td>Letting the assistant look up people you reference, on your request.</td></tr>
+    <tr><td>Location</td><td>Answering location-based requests (including weather via Apple's WeatherKit, which receives your approximate location to return a forecast).</td></tr>
+    <tr><td>Health (HealthKit)</td><td>Only if you opt in while paired: sending the health metrics you select to your own server. Health data is never sent anywhere else, and never to us.</td></tr>
+    <tr><td>Face ID</td><td>The optional App Lock. Biometric matching happens entirely inside iOS; the app only learns "unlocked" or "not."</td></tr>
+    <tr><td>Motion &amp; Fitness</td><td>Only if you opt in while paired: activity context for your own server.</td></tr>
+  </table>
+  <p class="muted">Permissions are optional; each feature degrades gracefully
+  without its grant. Sensor sharing to a paired server is governed by a single
+  explicit switch, off by default.
+  <!-- OWEN: sync this table against the final Info.plist NS*UsageDescription
+       set when the 166-D strings lane lands — the policy must mirror the
+       shipping plist exactly. --></p>
+
+  <h2>What we receive: nothing</h2>
+  <p>The app contains no analytics, advertising, or crash-reporting SDKs, and
+  makes no network connections to infrastructure we operate — because we
+  operate none. If you choose to share diagnostics with developers via iOS
+  settings, Apple may provide us aggregate crash reports through App Store
+  Connect under Apple's privacy terms.
+  <!-- OWEN confirm: zero third-party SDKs; no remote push (the #238 teardown
+       removed APNs registration — notifications are local-only). --></p>
+
+  <h2>Third parties, exhaustively</h2>
+  <ul>
+    <li><strong>Apple</strong> — on-device models, Speech, WeatherKit,
+    HealthKit, and (if it ships) Private Cloud Compute, each under
+    <a href="https://www.apple.com/privacy/">Apple's privacy commitments</a>.</li>
+    <li><strong>Your own server and the providers you configured on it</strong>
+    — under your control and their terms, not ours.</li>
+    <li><strong>This website</strong> is hosted on GitHub Pages and loads fonts
+    from Google Fonts; both services receive standard request logs (IP address,
+    user agent). The site itself sets no cookies and runs no analytics.</li>
+  </ul>
+
+  <h2>Your data, your controls</h2>
+  <p>Delete a conversation in the app to remove it locally; delete the app to
+  remove everything local; unpair to stop all traffic to your server. Data on
+  your own server is yours to manage there. Since we hold nothing, there is
+  nothing for you to request from us — but questions are welcome at the address
+  below.</p>
+
+  <h2>Children</h2>
+  <p>Talaria is not directed at children under 13, and we do not knowingly
+  collect information from anyone — children included, by construction.</p>
+
+  <h2>Changes</h2>
+  <p>If the app's data practices ever change, this policy will be updated
+  before the change ships, with the effective date above revised.</p>
+
+  <h2>Contact</h2>
+  <p><!-- OWEN: choose the published contact address -->
+  <code>privacy@—</code></p>
+</main>
+</body>
+</html>

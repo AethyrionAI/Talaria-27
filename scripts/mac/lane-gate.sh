@@ -1,5 +1,13 @@
 #!/bin/bash
-# lane-gate.sh — the pre-PR gate (OPEN_ITEMS #218).
+# lane-gate.sh — the pre-PR gate.
+#
+# Born of OPEN_ITEMS-ARCHIVE.md item 218 (closed 2026-08-04). That is a
+# PROVENANCE citation into the archive, where entries are kept verbatim and
+# never renumbered, so it stays resolvable. It is deliberately the only item
+# number left in this file, and it is in a comment: no number appears in text
+# this script PRINTS. A shell script cannot keep a tracker number live, and
+# every number this gate used to print at the reader had been closed for days
+# by the time someone followed one (see item 300).
 #
 # Runs the two checks a lane must pass before its PR is opened:
 #
@@ -52,10 +60,28 @@
 #   TALARIA_GATE_LOGDIR  where logs land (default a mktemp dir; path is printed)
 set -uo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# Both resolved to absolute paths BEFORE the cd — `dirname "$0"` afterwards is
+# relative to wherever we landed, so invoking this as ./lane-gate.sh from inside
+# scripts/mac would look for the library in the repo root and not find it.
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$REPO_ROOT" || exit 1
 
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta4.app/Contents/Developer}"
+# The failure-advice classifier. Sourced, not inlined, so that it can be tested
+# in a second instead of behind a full suite run — `lane-gate-classify-test.sh`
+# drives it over recorded fixtures. A missing library is fatal rather than
+# silent: losing a check quietly is the failure mode this whole script exists
+# to prevent.
+GATE_CLASSIFY_LIB="$SCRIPT_DIR/lane-gate-classify.sh"
+if [[ ! -r "$GATE_CLASSIFY_LIB" ]]; then
+    echo "lane-gate: cannot read $GATE_CLASSIFY_LIB" >&2
+    echo "GATE: FAIL (cannot run)" >&2
+    exit 1
+fi
+# shellcheck source=./lane-gate-classify.sh
+. "$GATE_CLASSIFY_LIB"
+
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
 export DEVELOPER_DIR
 SIM_NAME="${TALARIA_SIM_NAME:-iPhone 17 Pro Max}"
 LOGDIR="${TALARIA_GATE_LOGDIR:-$(mktemp -d -t talaria-gate)}"
@@ -164,6 +190,23 @@ else
     echo; echo "GATE: FAIL (cannot run)"; exit 1
 fi
 
+# The failure-advice classifier's own self-test. About a second, and it is the
+# only thing standing between a reworded tracker header and advice that points
+# nowhere — the advice cites items by SEARCH STRING now, and a search string
+# that matches nothing is the same defect as the dead item numbers it replaced,
+# just quieter. Running it here means a rotted pointer surfaces in preflight
+# rather than five days later in someone's failed run.
+if [[ -x "$SCRIPT_DIR/lane-gate-classify-test.sh" ]]; then
+    if CLASSIFY_OUT="$("$SCRIPT_DIR/lane-gate-classify-test.sh" 2>&1)"; then
+        ok "failure-advice classifier — $(printf '%s' "$CLASSIFY_OUT" | tail -1)"
+    else
+        bad "failure-advice classifier SELF-TEST FAILED — the gate's advice cannot be trusted"
+        printf '%s\n' "$CLASSIFY_OUT" | grep -E '^  FAIL|^CLASSIFIER' | sed 's/^/        /'
+    fi
+else
+    bad "failure-advice classifier self-test missing or not executable"
+fi
+
 # xcodegen drift: explicit source listings mean a added/removed Swift file that
 # never got regenerated builds fine locally and breaks for the next person.
 if command -v xcodegen >/dev/null 2>&1; then
@@ -200,49 +243,53 @@ if (( RUN_SUITE )); then
     require_count "$SUITE_LOG" 'Executed [0-9]+ tests?, with 0 failures' \
                   "XCUITest tests run"
 
-    # SKIPS — #183. A skipped test is not a passing test, and until now this
-    # gate could not see one. Measured 2026-08-02: `CondenserFidelityTests`
-    # printed "✔ Suite … passed" while BOTH of its model-path tests were
-    # skipped for want of Apple Intelligence hardware, and the gate reported
-    # only "Swift Testing tests run — 1497" with no hint that two of its
-    # subjects were never exercised. That is the #218 lesson one level up:
+    # SKIPS. A skipped test is not a passing test, and until 2026-08-02 this
+    # gate could not see one. Measured then: `CondenserFidelityTests` printed
+    # "✔ Suite … passed" while BOTH of its model-path tests were skipped for
+    # want of Apple Intelligence hardware, and the gate reported only
+    # "Swift Testing tests run — 1497" with no hint that two of its subjects
+    # were never exercised. That is the Release-build lesson one level up:
     # a positive marker that a no-op satisfies is not a positive marker, and
     # "passed" over an empty suite is exactly that no-op.
     #
     # Deliberately a REPORT, not a FAIL: these particular skips are honest
-    # (the hardware genuinely is absent on a sim run) and #93 owns making
-    # them run. What was wrong was that they were INVISIBLE. A number the
-    # reader can see is the fix; if it ever moves, that is a finding.
+    # (the hardware genuinely is absent on a sim run) and a live tracker item
+    # owns making them run on device. What was wrong was that they were
+    # INVISIBLE. A number the reader can see is the fix; if it ever moves,
+    # that is a finding.
     SKIPPED=$(grep -cE '➜ Test .* skipped' "$SUITE_LOG" 2>/dev/null || true)
     SKIPPED=${SKIPPED:-0}
     if (( SKIPPED > 0 )); then
         echo "  NOTE  $SKIPPED test(s) SKIPPED — not run, not passed:"
-        grep -oE '➜ Test "[^"]+" skipped: "[^"]+"' "$SUITE_LOG" \
+        # BOTH name forms. A `@Test("Display name")` skip prints the quoted
+        # string; a plain `@Test func foo()` skip prints the bare identifier.
+        # Matching only the quoted form made the LIST disagree with the COUNT
+        # above — measured 2026-08-10: "4 test(s) SKIPPED" over a list of two,
+        # with the two invisible ones being the interesting ones (a lane's
+        # deliberate skips, not the known hardware pair). A count the listing
+        # cannot account for is the same defect as advice that names the wrong
+        # cause: it reads as complete and is not.
+        grep -oE '➜ Test ("[^"]+"|[A-Za-z_][A-Za-z0-9_]*\([^)]*\)) skipped: "[^"]+"' "$SUITE_LOG" \
             | sed 's/➜ Test /        /' | sort -u
-        echo "        A skip is not a pass (#183). Expected: 2 (CondenserFidelityTests,"
-        echo "        needs Apple Intelligence hardware — #93 owns the device gate)."
+        echo "        A skip is not a pass. The known-permanent pair is"
+        echo "        CondenserFidelityTests (needs Apple Intelligence hardware,"
+        echo "        so it can never run on a simulator). EVERY OTHER skip is a"
+        echo "        lane's deliberate choice and should name a tracker item in"
+        echo "        its own skip reason — if one does not, that is a finding."
+        echo "            grep -n CondenserFidelityTests OPEN_ITEMS.md"
     else
         ok "no skipped tests"
     fi
 
     # Name names when something failed — the whole point is not making the
-    # reader go log-diving.
+    # reader go log-diving. The classifier lives in lane-gate-classify.sh so it
+    # can be exercised without a twenty-minute suite run; see OPEN_ITEMS 300 for
+    # why its predecessor had to be replaced (it recognised only the XCTest
+    # diagnostic shape, so it announced every Swift Testing failure in the
+    # project as a harness flake and pointed the reader at a closed item).
     if grep -q "^Failing tests:" "$SUITE_LOG"; then
         echo "   failing tests:"
-        sed -n '/^Failing tests:/,/^$/p' "$SUITE_LOG" | sed '1d;/^$/d' | sed 's/^/        /'
-        # Distinguish a product failure from a harness hiccup. A real failure
-        # names an assertion and a file:line; the XCUITest runner dying or
-        # restarting marks every UI test failed with NO assertion text at all
-        # (observed 2026-08-01: testLaunch passed, restarted, then the suite
-        # reported zero tests and four failures).
-        if grep -qE '\.swift:[0-9]+: error:' "$SUITE_LOG"; then
-            echo "        ^ assertion text present — treat as a REAL failure."
-        else
-            echo "        ^ NO assertion text — likely an XCUITest harness flake"
-            echo "          (runner lost/restarted). Re-run ONCE and RECORD both"
-            echo "          runs in OPEN_ITEMS #164. Do not re-run until green"
-            echo "          and report only the green one."
-        fi
+        gate_print_failure_advice "$SUITE_LOG"
     fi
 
     # A test count that did not move after editing tests is the stale-binary
@@ -254,7 +301,7 @@ fi
 
 # ----------------------------------------------------------------- release
 if (( RUN_RELEASE )); then
-    echo "-- Release build (the #218 check)"
+    echo "-- Release build (the check a Debug-only stack cannot make)"
     REL_LOG="$LOGDIR/release.log"
     "$DEVELOPER_DIR/usr/bin/xcodebuild" \
         -project Talaria.xcodeproj -scheme Talaria \

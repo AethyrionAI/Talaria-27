@@ -1287,17 +1287,19 @@ struct AppStoresTests {
     /// The returned id is the SUCCESSOR's, not the failed row's — the stated
     /// reason, not a compile error and not a different assertion.
     ///
-    /// **DISABLED, and the reason is the whole point of this lane.** The
-    /// one-line guard that turns this green was NOT written: 282-B's baseline
-    /// came back carrying assistant-row duplicates (tracker #299), which is
-    /// the dispatch's pre-registered STOP condition — the lane reports and
-    /// halts before touching `ChatStore.unconfirmedLocalMessages` rather than
-    /// landing a change on top of a freshly-found defect. The assertion below
-    /// is byte-unchanged from the run quoted above: delete the trait and it
-    /// reproduces. It is disabled rather than inverted because a missed bar is
-    /// a falsification, never a redefinition.
-    @Test(.disabled("tracker #282: awaits Owen's decision — see tracker #299, the STOP this lane hit"))
-    func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
+    /// **RE-ENABLED 2026-08-11 by the RANKING lane (tracker #282, Owen's
+    /// 2026-08-10 ruling: rank the consumers, do not ban them).** The 2026-08-09
+    /// halt disabled this because the ban-style guard was never written; the
+    /// ranking supersedes that guard and turns this assertion GREEN by a
+    /// different mechanism. The `.sending` successor is IN FLIGHT, so it
+    /// outranks the settled `.failed` row for the single claim and the failed
+    /// row survives. Assertions byte-unchanged from the 2026-08-09 run quoted
+    /// above; **re-watched RED against unmodified production 2026-08-11**
+    /// before the ranking landed.
+    ///
+    /// This bar covers case (a) **in its common shape only** — see 282R-A's
+    /// note on the accepted gap when the successor has itself settled.
+    @Test func aFailedRowNoLongerEatsALaterIdenticalPromptsClaim() {
         let failedID = UUID(), successID = UUID(), serverID = UUID()
         let local = [
             Message(id: failedID, clientMessageID: failedID, sender: .user,
@@ -1309,6 +1311,96 @@ struct AppStoresTests {
                                  content: "Summarize the thread", status: .delivered)]
         let unconfirmed = ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed)
         #expect(unconfirmed.map(\.id) == [failedID])
+    }
+
+    // MARK: - tracker #282, the RANKING lane (Owen's ruling 2026-08-10)
+    //
+    // The demand side is RANKED, not banned: in-flight rows take a claim
+    // first, and a settled row may still consume one that no in-flight row
+    // wants. 282R-A pins the first half, 282R-B the second — and the second is
+    // the whole difference from the ban-style guard measured on 2026-08-10,
+    // which turned three populations from a silent swallow into a visible
+    // duplicate (tracker #282's measurement PR).
+
+    /// **282R-A — the ranking holds.** One settled and one in-flight local
+    /// user row of identical content; the server has stored exactly one copy
+    /// and echoes no `clientMessageID`, so a single claim is minted and both
+    /// rows reach the content tier. **The IN-FLIGHT row takes it**, and the
+    /// settled row survives the merge.
+    ///
+    /// Deliberately `.delivered` rather than `.failed` for the settled row:
+    /// 282-A already covers the `.failed` shape, and this bar is about
+    /// SETTLEDNESS as the rank key, not about failure. Statuses are explicit
+    /// on every fixture row because `Message.status` defaults to `.sent`,
+    /// which is settled — a fixture that omits it is not testing what its
+    /// author thinks.
+    ///
+    /// **WATCHED RED 2026-08-11 against unmodified production**: without the
+    /// ranking the consumer is chosen by LOCAL ORDER, so the settled row —
+    /// first in the array — ate the claim and the returned survivor was the
+    /// in-flight row's id.
+    ///
+    /// **THE ACCEPTED GAP, named here because a lane that quietly closes it
+    /// has exceeded Owen's per-change go.** Ranking decides only between an
+    /// in-flight and a settled candidate. When BOTH candidates have settled —
+    /// the retry already `.sent`/`.delivered`, or itself `.failed` — the tie
+    /// breaks on local order exactly as before and the older row still eats
+    /// the claim. That residual stays OPEN by ruling; closing it needs an
+    /// identity the gateway transcript does not carry.
+    @Test func anInFlightRowOutranksASettledOneForTheSameContentClaim() {
+        let settledID = UUID(), inFlightID = UUID(), serverID = UUID()
+        let local = [
+            Message(id: settledID, clientMessageID: settledID, sender: .user,
+                    content: "Where did that file go", status: .delivered),
+            Message(id: inFlightID, clientMessageID: inFlightID, sender: .user,
+                    content: "Where did that file go", status: .sending),
+        ]
+        let refreshed = [Message(id: serverID, sender: .user,
+                                 content: "Where did that file go", status: .delivered)]
+        let unconfirmed = ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed)
+        #expect(unconfirmed.map(\.id) == [settledID])
+    }
+
+    /// **282R-B — a settled row STILL confirms when nothing else wants the
+    /// claim.** This is the anti-ban bar: falsifying it means the lane
+    /// rebuilt the ban-style guard, whose measured cost was three populations
+    /// converting from a silent swallow into a visible duplicate.
+    ///
+    /// Two turns, two distinct texts, two claims. The older row has SETTLED
+    /// `.delivered` and the newer is `.sending`; the in-flight row's claim is
+    /// keyed on its own content, so it never competes for the settled row's.
+    /// Both must confirm — nothing survives, nothing is re-appended.
+    ///
+    /// Green at HEAD by construction (order-keyed allocation reaches the same
+    /// answer when there is no contention); it is pinned so that a later
+    /// narrowing of this tier cannot pass unnoticed.
+    @Test func aSettledRowStillConsumesAClaimNoInFlightRowWants() {
+        let settledID = UUID(), inFlightID = UUID()
+        let local = [
+            Message(id: settledID, clientMessageID: settledID, sender: .user,
+                    content: "older ask", status: .delivered),
+            Message(id: inFlightID, clientMessageID: inFlightID, sender: .user,
+                    content: "newer ask", status: .sending),
+        ]
+        let refreshed = [
+            Message(sender: .user, content: "older ask", status: .delivered),
+            Message(sender: .hermes, content: "an answer", status: .delivered),
+            Message(sender: .user, content: "newer ask", status: .delivered),
+        ]
+        #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty)
+    }
+
+    /// **282R-B, the lone-settled-row arm.** The narrowest statement of the
+    /// same rule: one settled local user row, one claimable server row, no
+    /// in-flight candidate anywhere. The settled row consumes the claim and is
+    /// confirmed. Under the superseded ban this returns one survivor, which is
+    /// the duplicate 282-B/282-D/282-E each measured at store level.
+    @Test func aLoneSettledRowIsStillConfirmedByTheContentClaim() {
+        let settledID = UUID()
+        let local = [Message(id: settledID, clientMessageID: settledID, sender: .user,
+                             content: "the only ask", status: .delivered)]
+        let refreshed = [Message(sender: .user, content: "the only ask", status: .delivered)]
+        #expect(ChatStore.unconfirmedLocalMessages(local: local, refreshed: refreshed).isEmpty)
     }
 
     // MARK: - #247 B2: the profile-switch verdict (bars 247-B)
@@ -2436,9 +2528,14 @@ struct AppStoresTests {
                 currentRunIsServerRecoverable = false
             }
 
-            func hardStopActiveRun() {
+            @discardableResult
+            func hardStopActiveRun() -> Bool {
                 currentRunIsServerRecoverable = false
+                return hostStopIsIssuable
             }
+            /// #328 route 2: whether this double's plane can issue a real host
+            /// stop. Default false — the sessions `chat/stream` shape.
+            var hostStopIsIssuable = false
 
             func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
                 Message(sender: .hermes, content: "unused", status: .delivered)
@@ -4658,9 +4755,13 @@ struct AppStoresTests {
             abandonActiveRunCallCount += 1
         }
 
-        func hardStopActiveRun() {
+        @discardableResult
+        func hardStopActiveRun() -> Bool {
             hardStopActiveRunCallCount += 1
+            return hostStopIsIssuable
         }
+        /// #328 route 2: default false — nothing was issued.
+        var hostStopIsIssuable = false
 
         func send(message: String, attachments: [PendingAttachment] = [], clientMessageID: UUID) async -> Message {
             Message(sender: .hermes, content: "unused", status: .delivered)

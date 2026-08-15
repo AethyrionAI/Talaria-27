@@ -1,0 +1,763 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T05:55:26Z",
+  "instrument" : "motion-scope",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "armed-motionrollback"
+    ],
+    "endedCleanly" : true,
+    "id" : "77F5D6FC-8FE8-42D2-96D1-44E7DD1401FA",
+    "kind" : "action",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+    "startedAt" : "2026-08-15T05:47:54Z",
+    "thermal" : [
+      "armed:start=fair",
+      "armed:end=fair",
+      "armed-motionrollback:start=fair",
+      "armed-motionrollback:end=fair"
+    ],
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 1.9807050840000002,
+        "outputTokens" : 11,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no step data was recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.019448042,
+        "outputTokens" : 13,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "No steps were recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.100659125,
+        "outputTokens" : 11,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no step data was recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.162592958,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no steps were recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.561622167,
+        "outputTokens" : 35,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no steps were recorded today. If you'd like to track them, Health data access might need to be enabled.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.726949875,
+        "outputTokens" : 41,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no step data was recorded today. If Health access wasn't granted, that could explain it — you can check Settings → Health → Data Access & Devices.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.535015917,
+        "outputTokens" : 23,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no steps were recorded today. Health access may need to be checked if you expect data.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.597016125,
+        "outputTokens" : 33,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "No step data is available for today. Let me know if you’d like to track it or need help with something else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.576995458,
+        "outputTokens" : 29,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no step data was recorded today. If you’d like to check again later, let me know!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1856,
+        "latencySeconds" : 2.307111334,
+        "outputTokens" : 11,
+        "prompt" : "stepsdirect",
+        "shape" : "armed",
+        "text" : "It looks like no step data was recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.800997916,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now. No pedometer data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.350200583,
+        "outputTokens" : 23,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now — no walking or running data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.2137,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now. No pedometer data was recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.241258167,
+        "outputTokens" : 15,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're currently sitting still—no walking data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.239053792,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.295287583,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no walking or running detected.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.110423875,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now — no pedometer data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.382451041,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.266636417,
+        "outputTokens" : 15,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now—no movement detected.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1822,
+        "latencySeconds" : 14.253911875,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed",
+        "text" : "You're sitting still right now. No movement data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.284797833,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any steps today—just stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.24499675,
+        "outputTokens" : 21,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven't recorded any steps today — it was all stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.134213667,
+        "outputTokens" : 25,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any steps today — your motion data shows only stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.100878209,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any step data today—just stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.122123083,
+        "outputTokens" : 17,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven't recorded any steps today—just stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.276290209,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any step data today—just stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.072720959,
+        "outputTokens" : 23,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any step data today — you’ve been stationary.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.114746708,
+        "outputTokens" : 21,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any step data today — your activity was stationary.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.500478042,
+        "outputTokens" : 25,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any steps today — your motion data shows only stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1827,
+        "latencySeconds" : 14.1670595,
+        "outputTokens" : 19,
+        "prompt" : "stepsdirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You haven’t recorded any step data today—just stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 13.872355875,
+        "outputTokens" : 23,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now. No pedometer data is recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.467404666,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now—no pedometer data was recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.483960708,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now — no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.013082625,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You’re sitting still right now — no pedometer data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.004386958,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're currently sitting still. No pedometer data is recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 13.920789167,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now — no pedometer data is recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 13.97273475,
+        "outputTokens" : 19,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now—no pedometer data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.405039584,
+        "outputTokens" : 23,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now. No pedometer data was recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.387069917,
+        "outputTokens" : 21,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're currently sitting still — no pedometer data was recorded today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1828,
+        "latencySeconds" : 14.540803125,
+        "outputTokens" : 29,
+        "prompt" : "motiondirect",
+        "shape" : "armed-motionrollback",
+        "text" : "You're sitting still right now. No pedometer data is recorded, indicating stationary activity.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 10
+      }
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T05:47:35Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

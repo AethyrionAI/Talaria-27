@@ -1,0 +1,185 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "e637bc4",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPad",
+  "endedAt" : "2026-08-12T21:27:02Z",
+  "instrument" : "tokencount-preflight",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "tokencount-preflight"
+    ],
+    "endedCleanly" : true,
+    "id" : "EDA9FCC1-945F-4994-A412-3C0B97883086",
+    "kind" : "tokencount-preflight",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "context",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 4096,
+          "min" : 4096,
+          "scored" : 3,
+          "value" : 4096
+        },
+        "probe" : "SystemLanguageModel.contextSize",
+        "trials" : 3
+      },
+      {
+        "band" : "input",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 190,
+          "min" : 190,
+          "scored" : 3,
+          "value" : 190
+        },
+        "probe" : "router instructions (production)",
+        "trials" : 3,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "input",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 12,
+          "min" : 12,
+          "scored" : 3,
+          "value" : 12
+        },
+        "notes" : {
+          "row" : "Do I have anything on my calendar Friday?"
+        },
+        "probe" : "router prompt envelope (worst baseline row)",
+        "trials" : 3,
+        "variant" : "ctx-a"
+      },
+      {
+        "band" : "input",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 165,
+          "min" : 165,
+          "scored" : 3,
+          "value" : 165
+        },
+        "probe" : "ToolIntentRoute.generationSchema (2-field)",
+        "trials" : 3,
+        "variant" : "two-field"
+      },
+      {
+        "band" : "input",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "distinct" : 1,
+          "errors" : 0,
+          "max" : 121,
+          "min" : 121,
+          "scored" : 3,
+          "value" : 121
+        },
+        "probe" : "ToolIntentRouteSingleField.generationSchema (1-field)",
+        "trials" : 3,
+        "variant" : "one-field"
+      },
+      {
+        "band" : "payload",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "cap" : 4096,
+          "distinct" : 1,
+          "errors" : 0,
+          "headroom" : 3729,
+          "max" : 367,
+          "min" : 367,
+          "scored" : 3,
+          "value" : 367
+        },
+        "probe" : "two-field router payload = instructions + prompt + schema",
+        "trials" : 3,
+        "variant" : "two-field"
+      },
+      {
+        "band" : "response-cap",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "cap" : 128,
+          "distinct" : 1,
+          "errors" : 0,
+          "headroom" : 114,
+          "max" : 14,
+          "min" : 14,
+          "scored" : 3,
+          "value" : 14
+        },
+        "notes" : {
+          "json" : "{\"needsDeviceTool\":false,\"isCapabilityQuestion\":false}"
+        },
+        "probe" : "worst-case 2-field response JSON vs twoFieldRouterOptions",
+        "trials" : 3,
+        "variant" : "two-field"
+      },
+      {
+        "band" : "response-cap",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "cap" : 64,
+          "distinct" : 1,
+          "errors" : 0,
+          "headroom" : 56,
+          "max" : 8,
+          "min" : 8,
+          "scored" : 3,
+          "value" : 8
+        },
+        "notes" : {
+          "json" : "{\"needsDeviceTool\":false}"
+        },
+        "probe" : "worst-case 1-field response JSON vs toolIntentRouterOptions",
+        "trials" : 3,
+        "variant" : "one-field"
+      }
+    ],
+    "startedAt" : "2026-08-12T21:26:58Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 3
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-12T21:26:58Z",
+  "status" : "completed",
+  "trialsRequested" : 3,
+  "unattended" : true
+}
