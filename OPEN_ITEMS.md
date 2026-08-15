@@ -6937,6 +6937,75 @@ the composer's door condition, plus the matrix's row-3 semantics already
 shipped by #306. Evidence chain: #306's independent whole-lane review
 (2026-08-09), which traced the door predicate while verifying C2.
 
+## 319. 🐛 A Talaria build ON THE MAC has never once authenticated to OJAMD — 85 × 401 on `/v1/models`, zero successes, since at least 2026-08-11 and still firing — **FILED 2026-08-15 from OJAMD's own access log, found incidentally while scoring #271's bars. Routed to a Mac session; the OJAMD half is DONE (this entry is the evidence).**
+
+**The signature, from OJAMD's `agent.log` (the host's own access log, not a
+client's account of itself):**
+
+```
+2026-08-15 15:45:10 WARNING gateway.platforms.api_server: API server rejected invalid API key:
+  remote='100.79.222.100' method='GET' path='/v1/models'
+  user_agent='Talaria%2027/1 CFNetwork/3896.100.1.2.1 Darwin/25.5.0'
+2026-08-15 15:45:10 aiohttp.access: ... "GET /v1/models HTTP/1.1" 401 599
+```
+
+**Tally over the whole log** (from `100.79.222.100` = the Mac Mini):
+
+| Path | Status | Count |
+|---|---|---|
+| `/v1/models` | **401** | **85** |
+| `/api/platforms/talaria/events` | 401 | 1 |
+| `/api/sessions` | 401 | 1 |
+| `/health` | 200 | 5 |
+| `/api/sessions` + `/chat` | 200 / 201 | 11 |
+| `/v1/toolsets`, `/v1/skills`, `/v1/capabilities` | 200 | 6 |
+
+**Zero 200s on `/v1/models` from that IP, ever.** On 2026-08-15 alone: **6 ×
+401, 0 × 200**, the last pair at 16:00:53 / 16:01:07 — i.e. it is still
+happening now. The 401s arrive in **pairs ~14s apart**, which reads as a
+client-side retry, at irregular intervals across 08-11 → 08-15 (plausibly on
+app foreground).
+
+**Ruled out already, so the Mac lane does not re-walk them:**
+- **Not SSH.** These are HTTP requests to `:8642` rejected by
+  `gateway.platforms.api_server` for a Bearer key. Owen's "if it was ssh
+  that's expected, I don't allow it" does not apply.
+- **Not OJAMD-side, and not a key rotation.** Other clients from the SAME IP
+  authenticate fine against the same gateway in the same window
+  (`Python-urllib` on `/health`, and a session-creating client doing real
+  chats). The key OJAMD expects is valid and working.
+- **Not the phone.** `Darwin/25.5.0` is macOS; the paired iPhone reports
+  `Darwin/27.0.0`. This is a **Mac-native Talaria 27 build** (Designed-for-iPad
+  / Catalyst / sim — undetermined, and worth pinning first).
+- **Not a #271 side effect.** It predates today's work by four days and
+  survived every gateway restart, the plugin disable/enable cycle, and the
+  `hermes_mobile` retirement unchanged.
+
+**Open questions for the Mac session (in checking order):**
+1. **Which build is it?** Pin the target and its bundle before theorising —
+   `Darwin/25.5.0` narrows it to something running as macOS, not iOS.
+2. **Is the OJAMD profile's key EMPTY or WRONG?** A 401 does not distinguish
+   them, and the two have different causes (profile created without a key vs.
+   a stale paste).
+3. **Why `/v1/models` specifically?** That is the catalog fetch. If the same
+   build's chat path works, the key is reaching one call site and not the
+   other — which is a code question, not a config one. Note the single
+   `401 /api/platforms/talaria/events`: the plugin pairing endpoint failed
+   auth from the same build once, which argues the credential is bad
+   generally rather than one call site being unwired.
+4. Does it compose with **#285 / #288** (profile atomicity, orphan rows)? A
+   build repeatedly failing auth against a second host is adjacent to that
+   family, though nothing here proves a link.
+
+**Impact, stated honestly: LOW and not urgent.** OJAMD rejects them cleanly,
+nothing is degraded on the production host, and no user-facing behaviour on
+the phone is implicated. What it costs is (a) that build cannot read OJAMD's
+model catalog at all, and (b) five days of log noise in the file everyone
+greps while scoring device bars. **Filed because it is real and reproducible,
+not because it is burning.**
+
+**Handoff:** `dispatch/MAC-T27-319-talaria-mac-401.md`.
+
 ## 318. 🔍 SCORING RULE — the agent's tool registry is DEFERRED, so "the tool is not available to me" is not evidence of anything. Three false negatives across two sittings were the model never calling `tool_search` — **FILED 2026-08-15 on Owen's routing, root-caused live on OJAMD. Not a defect in the plugin; a methodology rule that governs every future phone bar.**
 
 **The finding.** Tools are not all in the model's initial prompt on this
