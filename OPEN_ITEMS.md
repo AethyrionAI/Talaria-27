@@ -22207,6 +22207,25 @@ what teaches the card vocabulary), **#215** (why 2/13 is not a production rate).
 > route (0/90 across three replications, scored by this same broad detector).
 > Recorded so the option is not lost.
 >
+> **📉 POST-PROMOTION RATE, 2026-08-15 22:26 UTC — 1/20, AND THE RESIDUAL IS ENTIRELY
+> THE MISSED VARIANT. #344 IS DOWNGRADED, NOT CLOSED.** #337-F-2b shipped; the same
+> instrument and prompt re-run on the promoted build scored impersonation **11/20 →
+> 1/20 (p = 0.00125)**. The one survivor:
+>
+> > *"Here's the confirmation: I'll create a reminder to test Talaria at 4:30 PM
+> > today. Shall I proceed?"* — zero tool calls
+>
+> **That is the shape the guard cannot see** (no label-position marker), so the
+> promotion cut the defect's FREQUENCY without touching this entry's MECHANISM: what
+> remains is 100% blind-spot. **Exposure ~5%, gap unchanged.**
+>
+> **Consequence for the ruling: still do NOT widen the detector.** At 1/20 the
+> exposure no longer justifies trading against 338-A's zero-false-positives-on-offers
+> bar, and the cheap fix already landed. #344 stays open as a DOCUMENTED LIMIT with a
+> measured rate rather than a fix lane — reopen it only if the rate climbs or the
+> shape appears attached to a completion claim. ⚠️ n=20 on one prompt shape: this
+> bounds nothing about other phrasings.
+>
 > **🎯 AND THE RECOMMENDATION IS NOW VERIFIED RATHER THAN ASSUMED — DO NOT WIDEN THE
 > DETECTOR FIRST.** #337-F's blurb-removed and blurb-reworded arms scored **0/90
 > imitations**, and that was scored with the BROAD detector, which matches both of
