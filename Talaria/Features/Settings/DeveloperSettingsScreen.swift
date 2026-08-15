@@ -867,6 +867,13 @@ struct DeveloperSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("datefix", trials: 10, label: "Datefix battery n=10 (120)")
                 }
+                // #340: production vs #200K's unpromoted day-default clause,
+                // remind prompt only, auto-DECLINE — nothing is written.
+                // Read the verdict from the device log, not the artifact:
+                // `scripts/mac/score-due-omission.py`, four buckets.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("due-date", trials: 20, label: "Due-date A/B n=20 (40)")
+                }
                 // #200L: production vs card-clause rollback vs spiralfix.
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("calendar", trials: 10, label: "Calendar battery n=10 (120)")

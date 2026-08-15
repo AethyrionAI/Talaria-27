@@ -10100,6 +10100,45 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > production measures the guide change and #200S's rollback together. The struct is
 > NOT edited — it is the measured artifact of the runs that used it.
 >
+> **📋 BARS 340-F1..F4 PRE-REGISTERED 2026-08-15, BEFORE THE RUN, for the
+> `due-date` A/B (production vs #200K's unpromoted `dayDefaultClause`, remind
+> prompt only, auto-DECLINE, n=20/cell = 40 generations).** Scored from the
+> device log by `scripts/mac/score-due-omission.py` on four buckets. **Nothing is
+> promoted by this run whatever it says — promotion edits production instructions
+> and is Owen's call.**
+>
+> - **340-F1 (the control must reproduce the defect).** `armed` omission
+>   **≥ 16/20**. Production evidence today is 9/9 staged cards plus *"at 4pm"*,
+>   so this is a floor, not a prediction. **If the control does not omit, NO
+>   other bar in this run may be read** — the instrument would not be measuring
+>   the defect, and that is a falsification of the setup, not of the clause.
+> - **340-F2 (the effect, direction registered in advance).** `armed-datefix`
+>   omission **strictly lower** than `armed`, Fisher exact two-tailed
+>   **p < 0.05**. The registered direction is REDUCTION; a significant move the
+>   other way is reported as such and is not re-read as success.
+> - **340-F3 (the clause must not buy omission with wrongness) — THE BAR THAT
+>   MATTERS MOST, and the one #200K did not have.** Score the **UNION**
+>   `omitted + already-past`, and require THAT to fall. A clause that converts
+>   `raw=""` into a due already in the past has moved the failure, not fixed it —
+>   which is exactly what #200K found the stall doing between date and list
+>   questions, and exactly what *"in 20 minutes"* → 8:46 AM shows the model does
+>   when pushed to fill the field. **The union bar is not decomposable: reporting
+>   a drop in `omitted` while `already-past` rises is a MISSED bar.**
+> - **340-F4 (denominators and the error path).** Per cell, report generation
+>   errors, timeouts, refusals and trials scored. **A cell with >20% unscored
+>   trials carries no verdict** (#215, and the "constant denominators let
+>   swallowed trials read as clean" lesson).
+>
+> **Instrument built 2026-08-15 and residue-free by construction:** `due-date`
+> is auto-DECLINE, so nothing is created and no reap runs; its prompt set drops
+> the alarm create (which would bar it from running unattended per Owen's
+> 2026-08-11 ruling) and the calendar create (whose reap the #343 campaign caught
+> under-deleting). The measurement survives the decline because #249's instrument
+> logs the argument at `DeviceActionTools.swift:260`, ahead of the confirmation
+> gate at `:309`. **Verbose logging must be ON or the run yields nothing** — and
+> per the scorer's own guard, that failure reports as NO DATA rather than as a
+> clean 0%.
+>
 > **Residue:** one real dateless reminder titled *"Take the trash out"* exists on
 > Owen's device from this trial and is his to delete. Its absence from Reminders →
 > **Scheduled** is the user-visible replication of this entry's founding observation

@@ -506,6 +506,30 @@ enum InstrumentRegistry {
                            guard let backend, let cells else { return }
                            await backend.runClauseReverifyBattery(trials: trials, cells: cells)
                        }),
+        // #340: the due-date A/B — production vs #200K's UNPROMOTED
+        // day-default clause, on the one prompt shape that reproduces the
+        // measured omission (fifteen production calls on 2026-08-15, exactly
+        // one correct due date, and it was the only day-bearing prompt).
+        //
+        // Surface: NOTHING is written. auto-decline is checked first in
+        // `ToolConfirmationCenter.requestConfirmation`, and the prompt set
+        // drops the alarm and calendar creates entirely — so no AlarmKit (which
+        // would bar it from running unattended) and no calendar events (whose
+        // reap the #343 campaign caught under-deleting). The measurement still
+        // lands: #249's instrument logs the model's `due` argument at
+        // `DeviceActionTools.swift:260`, BEFORE the gate at :309.
+        //
+        // Read the result from the DEVICE LOG with
+        // `scripts/mac/score-due-omission.py`, four buckets. Scoring creates is
+        // precisely what shelved this clause in July.
+        // Button: `instrumentButton("due-date", …)`.
+        InstrumentSpec(name: "due-date", confirmationMode: .autoDecline,
+                       writesEventKit: false, writesAlarms: false,
+                       defaultCells: LocalChatBackend.dueDateBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runDueDateBattery(trials: trials, cells: cells)
+                       }),
         // #199: the DECLINE lane. auto-DECLINE is mutually exclusive with
         // auto-accept — declining is the whole measurement, so no artifact can
         // be created and there is nothing to reap.

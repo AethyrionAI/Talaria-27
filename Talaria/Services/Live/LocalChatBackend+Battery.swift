@@ -1473,6 +1473,59 @@ extension LocalChatBackend {
     /// finding (the model asserts completion precisely when it meant to act
     /// and could not) says it should be far higher. Measure first, treat
     /// second — the #201 sequencing lesson.
+    /// #340: the ONE prompt that reproduces the measured defect, and nothing
+    /// else. The default set's remind prompt is already the right SHAPE — a
+    /// bare clock time with a meridiem and no day — which is the shape that
+    /// sent `due raw=""` on every production trial of 2026-08-15, so this
+    /// reuses the pinned text verbatim rather than inventing a near-copy.
+    ///
+    /// The alarm and calendar prompts are dropped ON PURPOSE, and it buys two
+    /// things: the run stops writing AlarmKit (so Owen's 2026-08-11 ruling no
+    /// longer bars it from running unattended), and it stops writing calendar
+    /// events, whose reap is the one the #343 campaign caught UNDER-DELETING
+    /// (42 created, 25 reaped). #331's dedicated container is still unshipped,
+    /// so not creating the artifact beats reaping it.
+    nonisolated static let dueDatePromptSet: [(tag: String, text: String)] = [
+        actionBatteryDefaultPrompts[0],
+    ]
+
+    /// #340: production against #200K's UNPROMOTED day-default clause.
+    ///
+    /// `.armed` is production (`includeDayDefaultClause` defaults false);
+    /// `.armedDatefix` adds *"A time with no day means the next time that clock
+    /// time comes around — never ask which day."* Two cells, one delta.
+    ///
+    /// **Why this rerun exists at all:** #200K already measured this clause and
+    /// shelved it as *"specimen killed, rate unchanged"* — but it scored
+    /// CREATES, so it could see the stall move from date questions to list
+    /// questions and could NOT see whether the created reminder carried a due
+    /// date. That is 340-D's caveat, and it is why the clause's actual purpose
+    /// has never been measured.
+    nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [.armed, .armedDatefix]
+
+    /// #340: the due-date A/B. **auto-DECLINE, and that is the design, not a
+    /// safety compromise.**
+    ///
+    /// #249's instrument (`DeviceActionTools.swift:260`) logs
+    /// `due raw=… parsed=…` immediately after parsing — line 260, against
+    /// `requestConfirmation` at line 309. So the argument the model sent is on
+    /// the record BEFORE the confirmation gate is ever consulted, and declining
+    /// costs the measurement nothing while creating nothing. Zero artifacts,
+    /// zero reap, zero residue on a real device.
+    ///
+    /// **Score it with `scripts/mac/score-due-omission.py` over the device log,
+    /// on FOUR buckets — omitted / populated / already-past / unreadable.**
+    /// Scoring creates is what shelved this clause in July; scoring "did a due
+    /// appear" would be the same error one step later, because the model's
+    /// answer when pushed to fill the field was 8:46 AM for a 2:58 PM ask.
+    /// Verbose logging MUST be on or the run produces no readable output.
+    func runDueDateBattery(trials: Int,
+                           cells: [ActionBatteryCell] = LocalChatBackend.dueDateBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
+                               includeGrabCanary: false,
+                               promptSet: Self.dueDatePromptSet)
+    }
+
     nonisolated static let declineBatteryCells: [ActionBatteryCell] = [.armed]
 
     /// #199: what does production SAY after the user declines the card?
