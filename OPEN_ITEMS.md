@@ -18098,9 +18098,35 @@ fix pickup), both clean.
   says "the permission toggle took effect". Confirmation of the exact
   refusal WORDING still owed from Owen; health-metric leg still owed.
 
-**🗳️ DESIGN QUESTION RAISED BY THE PASS (Owen's call, not yet
+> **⚖️ RULED BY OWEN 2026-08-15: ONE SWITCH GOVERNING ALL SENSOR EGRESS —
+> option (a). AND THE RULING CONFIRMS WHAT ALREADY SHIPPED; THIS QUESTION WAS
+> STALE.** Owen: *"One switch to govern all sensors. I thought this existed,
+> maybe it just wasn't honest enough."* Both halves of that are correct, verified
+> from source rather than from this entry:
+>
+> - **The gate already covers BOTH egress paths.** `PhoneQueryResponder.swift:198`
+>   — `guard settings.sensorStreamingEnabled else { return .master }` — so every
+>   `phone.query` checks the master switch and returns a `.master` denial when it
+>   is off, exactly as `SensorUploadService.start():405` does for continuous
+>   upload. A user who turns it off is not answered either way.
+> - **The copy was already made honest**, by `64f11f1c` (2026-08-06, #260 —
+>   *"the master switch says what it governs"*). The screen now reads
+>   **"Share Sensors with Hermes"** under a `// Sensor Sharing` header, captioned
+>   *"…as live streams, and as answers when your agent asks your phone directly."*
+>   The wording this question quotes ("Stream Sensors to Hermes… stops capture and
+>   drops queued samples") has not been on screen since 08-06.
+>
+> **So nothing is built and nothing needs splitting.** The question was raised by
+> a pass that predated #260's fix and was never struck when the fix landed — the
+> same staleness shape #342 is now collecting evidence on. **The sibling defect it
+> flagged is NOT covered by this ruling and stays open:** Health reads `NOT SET` in
+> Permissions while Revoke/Reset says `Health Collection: ACTIVE` — one screen, two
+> contradictory claims about one grant, which is precisely what #260 set out to
+> kill and which survived it. Unverified whether it still reproduces.
+
+~~**🗳️ DESIGN QUESTION RAISED BY THE PASS (Owen's call, not yet
 answered): should query-time answers be gated behind the STREAMING
-toggle at all?** The master switch reads *"Stream Sensors to Hermes —
+toggle at all?**~~ The master switch reads *"Stream Sensors to Hermes —
 streams the sensors you enable to your Hermes host… turning this off
 stops capture and drops queued samples"* — that describes CONTINUOUS
 UPLOAD. A `phone.query` is the opposite act (#242's whole premise:
