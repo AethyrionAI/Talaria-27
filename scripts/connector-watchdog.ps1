@@ -25,9 +25,25 @@
     single-instance enforcer makes an accidental double-fire safe — and
     resets the counter. Any hit resets the counter.
 
-    This script is COMMITTED, NOT INSTALLED: nothing in this repo executes it.
-    Installing it (and whether to instead promote the connector to an NSSM
-    service) is Owen's infra decision.
+    HISTORICAL — this script is NO LONGER INSTALLED ANYWHERE (2026-08-15).
+
+    The line that stood here, "This script is COMMITTED, NOT INSTALLED:
+    nothing in this repo executes it," was FALSE from at least 2026-07-17
+    onward: it WAS installed on OJAMD as the `TalariaConnectorWatchdog`
+    scheduled task, firing every 60s, and the header simply never got
+    updated when Owen made that infra decision. OPEN_ITEMS #113's
+    2026-07-25 note recorded the task as verified-installed, so the tracker
+    was right and this header was the stale copy.
+
+    That task was DELETED 2026-08-15 as part of the relay/connector
+    retirement (#317 / #223 Phase 4 direction), along with the relay and
+    shim services being Stopped+Disabled and `mcp_servers.hermes_mobile`
+    being disabled. So the header is accurate again today, for a completely
+    different reason than it originally claimed.
+
+    Kept in-tree as the reference implementation and as the record of what
+    the supervision tier used to do. Do not re-install it: per the standing
+    no-harden rule, this whole component is headed for deletion.
 
 .INSTALLATION (manual, on OJAMD — not executed by anything in this repo)
     Run as a Windows scheduled task, every minute, as Owen (the connector must

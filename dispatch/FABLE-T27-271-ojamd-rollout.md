@@ -632,6 +632,11 @@ Then proceed directly to Task 2.3 exactly as written in the body (listener check
 - **§4's CLAUDE.md correction is ALREADY APPLIED** — current CLAUDE.md reads "STOPPED but NOT
   disabled — StartType: Automatic". Do not re-file. (The #271 scope-line correction in
   OPEN_ITEMS.md is still owed.)
+- **`gh` IS present on the box.** §2's verified-state row says *"`gh` CLI is NOT installed on
+  OJAMD (not on PATH in the agent's shell)"* — true as stated, but it misled: `gh version
+  2.97.0` resolves fine in a normal PowerShell session on OJAMD (used 2026-08-15 to open the
+  lane's PR from the box). **The Hermes agent's shell PATH is not the box's PATH** — do not
+  generalize "the agent can't find it" into "it isn't installed."
 - **#288-C has a fresh dated baseline** as of 2026-08-10: 23 device rows / 2 active / 2 FK orphans
   with a proven pre-#285 cause (the 2026-07-06 `cleanup-stale-users.py` delete-instead-of-
   deactivate — both orphan-referenced devices present+active in

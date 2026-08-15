@@ -60,16 +60,18 @@ sessions persist.
 "no shim POST, no session pin, nothing to await" (`ModelsSettingsScreen.swift`); the
 catalog comes from the gateway (`/api/model/options` per the route table) and the pick
 persists client-side (the client's per-turn lock). The OJAMD `TalariaModelsShim`
-service is ~~stopped and disabled~~ **STOPPED but NOT disabled — `StartType: Automatic`,
-probed on OJAMD 2026-08-09 via the `hermes-ojamd` MCP, twice, two phrasings,
-with a live-clock canary (see the MCP caveat below). A reboot RESTARTS it.**
-**The Stopped state is deliberate — Owen stopped it as part of Lane 5, confirmed
-2026-08-09.** The finding is only the second half: **stopped ≠ disabled.** Its
-StartType is still `Automatic`, so Windows will start it again at the next boot
-and the shim will be listening on `:8765` with nobody calling it. **To make the
-retirement survive a reboot, set StartType to Disabled** (elevation; Owen
-pastes) — until then "retired" describes the running state, not the configured
-one, and the difference shows up the next time that box restarts. **And the MAC
+service is **STOPPED *and* DISABLED — settled 2026-08-10, re-verified live
+2026-08-15.** ✅ **S2, and the prediction fired before the fix did:** this
+paragraph used to warn that `StartType: Automatic` meant "a reboot RESTARTS
+it." The box rebooted **2026-08-09 15:39:40**, the shim came back up
+listening on `:8765` with nobody calling it — **exactly as predicted** — and
+Owen stopped it by hand three minutes later, then set StartType to Disabled.
+Its duplicate boot/logon scheduled task (the same component supervised twice)
+was **deleted 2026-08-15**, along with the `HermesGateway` and
+`TalariaConnectorWatchdog` task residue. **On OJAMD, "retired" now describes
+the configured state, not merely the running one.** Keep the general lesson
+even though this instance is discharged: *stopped ≠ disabled*, and a service
+left on `Automatic` is a retirement that expires at the next boot. **And the MAC
 shim is not stopped at all (probed 2026-08-09): `tools/models-shim/shim.py` runs
 under the hermes venv, up since Jul 24, answering 401 on `:8765`.** Harmless —
 the app provably never calls it (`ModelsShimClient` deleted from the tree) — but
@@ -84,27 +86,68 @@ a falsified mechanism while the tracker was right.)
 
 ## OJAMD services (windowless, reboot-proof)
 
+> **⚠️ STATE AS OF 2026-08-15 — most of what this section describes is now
+> STOPPED, DISABLED, or DELETED. Read it as the map of a tier being retired,
+> not of a tier that is running.** Live-verified on the box that day:
+> `HermesMobileRelay` and `TalariaModelsShim` are both **Stopped + Disabled**;
+> all three scheduled tasks (`HermesGateway`, `TalariaModelsShim`,
+> `TalariaConnectorWatchdog`) are **deleted**; `Hermes_Connector.cmd` is
+> **removed from the Startup folder** (backed up to
+> `<HERMES_HOME>\retired-supervision-20260815\`); and
+> `mcp_servers.hermes_mobile` is **`enabled: false`**, with zero
+> `hermes-mobile` processes left anywhere on the box. **The gateway is the
+> only piece of this still running.** Full inventory + retirement order:
+> `planning/reports/2026-08-10-ojamd-supervision-inventory.md`; the decision
+> and its evidence are OPEN_ITEMS #317, the lane is #271.
+
 - **Relay `:8000`** — `HermesMobileRelay` (NSSM service; `nssm.exe` at `O:\Hermes\nssm\`;
-  uvicorn from `O:\Hermes\Talaria\relay`).
+  uvicorn from `O:\Hermes\Talaria\relay`). **Stopped + Disabled since 2026-08-10**;
+  the service registration and the DB/logs remain.
 - **Shim `:8765`** — `TalariaModelsShim` (**NSSM service**, not a scheduled task).
+  **Stopped + Disabled since 2026-08-10.**
 - **Gateway/API server `:8642`** — **NOT a service and NOT a scheduled task.** It runs as
-  Owen's user `pythonw` process (`hermes gateway run`) and answers ~15–20s after start.
+  Owen's user process (`hermes gateway run`) and answers ~15–20s after start.
+  **S1 — how it STARTS, which this file never said: `Hermes_Gateway.vbs` in the
+  user Startup folder** (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`),
+  which presets `HERMES_HOME`, `PYTHONIOENCODING`, `HERMES_GATEWAY_DETACHED=1`,
+  `VIRTUAL_ENV` and `PYTHONPATH`, then runs the venv **`python.exe`** windowless
+  (window style 0) — **not `pythonw.exe`** as this file used to imply. **⛔ NEVER
+  delete that .vbs: it is the chat plane's autostart, and it is the one thing in
+  this whole section that must survive the retirement.** Relaunch by hand with
+  `wscript.exe "<that path>"`.
+  **It is a TWO-PROCESS chain and the PORT OWNER IS THE CHILD:** the venv python
+  re-execs a child on the bundled runtime (`.hermes-runtime\...\python.exe`), and
+  that child owns `:8642`. Killing only the port owner leaves the parent alive —
+  **stop the parent first, then the child**, and confirm zero survivors matching
+  `hermes_cli.main gateway run` before relaunching.
   **Do NOT `Start-Service HermesGateway`** — no such service exists, and its absence does
   **not** mean chat is down. Check the port owner instead:
   `Get-NetTCPConnection -State Listen -LocalPort 8642 → OwningProcess`. The API server is a
   **gateway adapter**, not standalone — `hermes gateway run` serves the API server + all
-  enabled platforms (Discord, etc.) in **one** process. Discord is one token away.
+  enabled platforms (Discord, etc.) in **one** process. ~~Discord is one token away.~~
+  **S6 — Discord is already CONNECTED on OJAMD** (`gateway_state.json` and
+  `/health/detailed` both report `discord: connected`; 4 of 5 platforms connected,
+  2026-08-10 and re-verified 2026-08-15). It is through the door, not one token
+  away — which also means a gateway bounce takes Discord down with chat.
 - **Connector** — a plain bat-launched process (`O:\Hermes\Talaria\scripts\start-connector.bat`,
   `PYTHONUTF8=1`). **`connector\logs\connector.log` is DEAD (last write 2026-07-02) — the
   live connector signal is `O:\Hermes\Talaria\logs\connector-watchdog.log`** (found
   2026-08-03; where the process's stdout goes now is unlocated). Supervision gap is
   **OPEN_ITEMS #113**. `restart-relay.ps1` in
   `C:\Users\Owen\.hermes\scripts\` does `Restart-Service HermesMobileRelay` then the bat.
-  **⚠️ This shape is OJAMD-ONLY (found 2026-08-09): on the Mac the connector is an MCP
-  stdio CHILD of the gateway** — `connector/.venv/bin/hermes-mobile-mcp` supervised by
-  `mcp_stdio_watchdog.py --ppid <gateway pid>`, registered in `~/.hermes/config.yaml` as
-  MCP server `hermes_mobile`. The two hosts have different connector process stories;
-  #271 (OJAMD rollout) must not assume one shape.
+  ~~**⚠️ This shape is OJAMD-ONLY (found 2026-08-09): on the Mac the connector is an MCP
+  stdio CHILD of the gateway**~~ **S5 — CORRECTED 2026-08-10: OJAMD ran BOTH shapes at
+  once.** The stdio-child shape (`connector\.venv\Scripts\hermes-mobile-mcp.exe`,
+  registered in `config.yaml` as MCP server `hermes_mobile`) is **not Mac-only** — OJAMD
+  carried it *alongside* the bat-launched process. So "two hosts, two stories" was wrong;
+  it was two shapes on one host. **All of it is now MOOT ON OJAMD (2026-08-15):**
+  `mcp_servers.hermes_mobile` is `enabled: false` and there are **zero** `hermes-mobile`
+  processes on the box (#317). The Mac still runs its own copy.
+  **The trap that outlives the correction: `config.yaml` takes effect PER PROCESS, and
+  this box has THREE readers of it** — the gateway, the Hermes **Desktop app's own
+  backend** (`hermes serve --host 127.0.0.1 --port 0`, a child of `Hermes.exe`), and the
+  CLI. Disabling an MCP server bites the gateway on its next restart and the desktop
+  backend only when the desktop app itself relaunches. Verify per process, never once.
 - **OPS:** `Start-Service HermesMobileRelay` / `Start-Service TalariaModelsShim` need
   elevation (Owen pastes). **Updates: Owen runs bare `hermes update` — that is his actual
   practice and it's fine** (the `hermes-update-safe.ps1` script exists but he has never
@@ -336,9 +379,29 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   > commits of drift" was that floor, not a measurement. Diff against a fresh
   > clone, never against this checkout's history.
   >
-  > **NOT verified: OJAMD's table** — and that is the host the phone actually
+  > ~~**NOT verified: OJAMD's table** — and that is the host the phone actually
   > talks to. The read-only MCP has no route probe. Treat OJAMD parity as
-  > ASSUMED until someone probes it directly.
+  > ASSUMED until someone probes it directly.~~
+  >
+  > **✅ S3 — DISCHARGED 2026-08-10: OJAMD's table WAS probed directly**, from a
+  > session running on the box (no MCP, so no fabrication caveat). All 37 rows
+  > live-probed, plus the `/p/{profile}` mirror. **Parity is now MEASURED, not
+  > assumed.**
+  >
+  > **⚠️ But OJAMD is on 0.20.1, not 0.20.0 — recorded 2026-08-15, and nothing
+  > in this file or the tracker knew it.** Install head
+  > `165c889e5b4277b56dadd42949a4112c1e6175a6`, `v0.20.1 (2026.8.13)`, pinned by
+  > reflog-vs-start-time (head 14:14:22, listener 15:09:08 ⇒ no drift). **Any
+  > note reasoning from "OJAMD is 0.20.0" describes a host that no longer
+  > exists.**
+  >
+  > **`/v1/capabilities` is the cheap way to answer "is that route real?"** —
+  > read live on 0.20.1, it self-describes the endpoint map and confirmed
+  > `run_approval_response: true` (previously only INFERRED from source). It also
+  > names **`POST /v1/runs/{run_id}/steer`, a route this table has never
+  > listed** — so treat the list below as verified-but-not-exhaustive, and probe
+  > `/v1/capabilities` before concluding a route is absent.
+  > (`planning/reports/2026-08-15-ojamd-auth-probe-results.md`.)
 
   **The complete `:8642` table, verified 2026-08-02 against a
   fresh 0.19.1 process and RE-VERIFIED UNCHANGED 2026-08-09 against upstream

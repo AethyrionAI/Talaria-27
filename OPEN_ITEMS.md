@@ -5307,6 +5307,25 @@ Logged 2026-07-26.
 
 ## 188. 🔧 Connector watchdog cannot distinguish relay-down from connector-down
 
+> **⚰️ MOOT BY DELETION on OJAMD — 2026-08-15.** The `TalariaConnectorWatchdog`
+> scheduled task was deleted, `Hermes_Connector.cmd` was removed from the Startup
+> folder, the relay and shim services are Stopped+Disabled, and
+> `mcp_servers.hermes_mobile` is disabled with zero `hermes-mobile` processes left
+> on the box (#317, #271). **There is no watchdog left to be ambiguous, and no
+> connector left for it to misdiagnose.**
+>
+> **This is the DECLINED fix outliving its problem, which is the outcome the
+> no-harden rule was betting on** (CLAUDE.md, Owen 2026-08-02): #188's watchdog
+> half was declined rather than built, on the grounds that hardening a component
+> with a planned end-of-life buys reliability that expires and pays in permanent
+> update friction. The component reached its end of life first. Had it been built,
+> it would have been deleted today along with everything else.
+>
+> **Not closed outright**, for two reasons: the Mac still runs its own connector
+> shape, and the **forensics gap below is a general point about this box** (no
+> auditable service-transition trace) that outlives the specific watchdog. Whoever
+> closes this should confirm both before doing so.
+
 Successor to **#113**, which closed 2026-07-25 when its duplicate-connector premise was refuted on
 the box. This is the half that survived.
 
