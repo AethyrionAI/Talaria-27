@@ -10275,6 +10275,40 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > counts are FLOORS, not counts"). It does not touch this verdict, which is 100%
 > either way, but it is now observed twice and on a second instrument.
 >
+> **📋 BARS 340-G1..G6 PRE-REGISTERED 2026-08-15, BEFORE ANY CODE, for the `@Guide`
+> ARM (`armed-dateguide`) — the layer the falsified instructions clause is NOT.**
+> 340-F killed `dayDefaultClause` (instructions layer, 0 due dates). The `due`
+> field's OWN guide still reads *"…or empty for no due date"*, so the arm changes
+> that text and nothing else. Two launches, one cell each (#341), n=20/cell,
+> auto-DECLINE, scored from the device log by `scripts/mac/score-due-omission.py`.
+> **Nothing is promoted by this run — a production guide change is Owen's call.**
+>
+> - **340-G1 (the control reproduces). `armed` omission ≥ 16/20 OF CALLS MADE.**
+>   ⚠️ **The denominator is CALLS, not trials, and that is a correction to my own
+>   340-F1**, which said "≥16/20" without saying of what and had to be reported both
+>   ways. A trial that never calls the tool cannot omit an argument, so trials is the
+>   wrong base. **If the control does not reproduce, no other bar may be read.**
+> - **340-G2 (the effect, direction registered in advance).** `armed-dateguide`
+>   omission **strictly lower** than `armed`, Fisher exact two-tailed **p < 0.05**,
+>   both over CALLS. A significant move the other way is reported as such.
+> - **340-G3 (no trading omission for wrongness) — NOT DECOMPOSABLE.** Score the
+>   UNION `omitted + already-past` and require THAT to fall. *"in 20 minutes"* →
+>   8:46 AM is what this model does when pushed to fill the field; a guide that
+>   converts `raw=""` into a past-dated value has moved the failure, not fixed it.
+>   Reporting a drop in `omitted` while `already-past` rises is a MISSED bar.
+> - **340-G4 (the arm must not cost tool calls).** Trials making ≥1 call must not
+>   fall materially against control (no significant drop at p < 0.05). A guide that
+>   buys due dates by making the model stall has re-opened what #200S fixed —
+>   the trade #200K's rollback warning names.
+> - **340-G5 (MANIPULATION RECORDED, not inferred).** The artifact must carry a row
+>   proving the arm's guide text was actually in play. **340-F had only BEHAVIOURAL
+>   evidence** the clause was injected — the arms differed in the predicted
+>   direction, which is suggestive and is not proof. #337-F records manipulation
+>   rows; this must too, or a null is uninterpretable.
+> - **340-G6 (denominators and the error path).** Per cell: generation errors,
+>   timeouts, refusals, trials scored, and thermal at both ends. **A cell with >20%
+>   unscored trials carries no verdict** (#215).
+>
 > **Residue:** one real dateless reminder titled *"Take the trash out"* exists on
 > Owen's device from this trial and is his to delete. Its absence from Reminders →
 > **Scheduled** is the user-visible replication of this entry's founding observation
