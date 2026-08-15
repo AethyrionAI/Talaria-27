@@ -1,6 +1,6 @@
 # MAC T27-319 — a Talaria build on the Mac has never authenticated to OJAMD
 
-**For:** Claude Code, next session, **on the Mac Mini** · **Tracks:** OPEN_ITEMS **#319** ·
+**For:** Claude Code, next session, **on the Mac Mini** · **Tracks:** OPEN_ITEMS **#348** ·
 **Written:** 2026-08-15, from a session running **on OJAMD itself** · **Branch:**
 `t27-271-ojamd-phase5-317` ([PR #307](https://github.com/AethyrionAI/Talaria-27/pull/307))
 
@@ -125,7 +125,7 @@ until today.
 
 ## 6. Definition of done
 
-**#319 closes when the Mac build either authenticates or is shown to be something that should
+**#348 closes when the Mac build either authenticates or is shown to be something that should
 not be running at all** — and the OJAMD access log stops accruing 401s from `100.79.222.100`.
 That last clause is the actual bar: the host's log is the scoreboard, since the whole item was
 found there and nowhere else.

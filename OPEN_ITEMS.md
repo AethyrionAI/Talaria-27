@@ -10853,6 +10853,53 @@ on.**
    right but hang off parents. A flat board loses that; a nested one needs a
    parent field.
 
+> **📊 EVIDENCE FROM 2026-08-15 — THREE STALENESS FAILURES IN ONE AFTERNOON, AND
+> THEY REFRAME THIS ENTRY'S QUESTION RATHER THAN JUST SUPPORTING IT.**
+>
+> **Re-measured the same day: 97 of 141 open cards (68%) unclassifiable**, against
+> 97 of 138 (70%) on 2026-08-12. Three days of unusually heavy activity — a device
+> campaign, a promotion, six merges — moved the absolute count **not at all**.
+> Classification does not improve as a side effect of work.
+>
+> **The three failures, all found the same afternoon:**
+>
+> 1. **Six items claimed `NOT MERGED — awaiting review` while sitting in `main`.**
+>    #321, #322, #327, #328 (plus #320's header and #331's deferral) — all merged
+>    **2026-08-11**, stale for four days. Found by `git branch --merged`.
+> 2. **PR #304 sat open, marked "decision owed", five days past its own decision.**
+>    Owen's ruling superseding it was written *inside #282's entry* on 2026-08-10 and
+>    even named the PR's disposition. Found by reading the ruling block.
+> 3. **Three tracker numbers collided** — #316/#317/#318 used for six different
+>    items. The branch **auto-merged clean**; nothing conflicted. Found by
+>    `uniq -d` over the headers.
+>
+> **NOT ONE WAS CAUGHT BY READING THE TRACKER. All three came out of mechanical
+> sweeps** — and two of them were found only because a branch-tidy chore happened to
+> run, not because anyone was looking.
+>
+> **⚠️ THE REFRAME, AND IT ARGUES AGAINST A STATUS COLUMN AS THE PRIMARY ANSWER.**
+> A `[status]` token is a field a **human writes**, so it inherits exactly the
+> failure mode above — design question 3's own worry, now demonstrated. Take the
+> three failures in turn:
+>
+> - **(1) is DERIVABLE, not declarable.** Merge state is a fact about git. A field
+>   asserting it can be wrong for four days; a *derived* answer cannot. This is the
+>   strongest single argument in the entry so far, and it points at **computing**
+>   state rather than **recording** it.
+> - **(2) is a LINK problem.** The ruling and the PR were both correct and neither
+>   pointed at the other. No status column fixes that; an entry↔PR cross-check does.
+> - **(3) is ALLOCATION, not status at all.** Nothing about columns prevents two
+>   concurrent lanes taking the same number. It needs a claimed-numbers registry or
+>   a pre-merge check.
+>
+> **So the cheapest useful thing is NOT a format change — it is a handful of
+> read-only INVARIANT CHECKS**, in the spirit of the kanban view that already
+> shipped here (additive, never writes to the tracker). Today's three failures are
+> each a one-line check: duplicate headers, claimed-merge-state vs git, open PRs vs
+> their entry's latest ruling. **That is offered as evidence for the design
+> questions, not as an answer to them** — the format decision stays Owen's, and bars
+> still pre-register before any change to how entries are written.
+
 **Bars pre-register here before any change to how entries are written.**
 
 **Cross-references:** **#261** (the split and its counting rules any format must
@@ -12224,7 +12271,7 @@ after each trial and records whether it fired.
 > **#335 CLOSES: bars A–H all met.** Downstream scoring recorded the same day at
 > #257 (gate DISCHARGED), #324 (W3 answered), #210/#210A (residual measured).
 
-## 319. 🐛 A Talaria build ON THE MAC has never once authenticated to OJAMD — 85 × 401 on `/v1/models`, zero successes, since at least 2026-08-11 and still firing — **FILED 2026-08-15 from OJAMD's own access log, found incidentally while scoring #271's bars. Routed to a Mac session; the OJAMD half is DONE (this entry is the evidence).**
+## 348. 🐛 A Talaria build ON THE MAC has never once authenticated to OJAMD — 85 × 401 on `/v1/models`, zero successes, since at least 2026-08-11 and still firing — **FILED 2026-08-15 from OJAMD's own access log, found incidentally while scoring #271's bars. Routed to a Mac session; the OJAMD half is DONE (this entry is the evidence).** **⚠️ RENUMBERED FROM #319 ON 2026-08-15, the day it landed:** the OJAMD lane filed this as #319 while **archived** #319 (XcodeGen's wrong product name) already held that number — a collision spanning BOTH files, which #261's rules make one sequence. Missed by my own post-merge check, which ran `uniq -d` over the live board ALONE; caught minutes later by `scripts/oi-invariants.py` on its first run. The archived item keeps #319 — it is closed, referenced 12 times, and cited in CLAUDE.md.
 
 **The signature, from OJAMD's `agent.log` (the host's own access log, not a
 client's account of itself):**
