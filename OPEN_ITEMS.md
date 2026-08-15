@@ -10047,6 +10047,59 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > self-tested (`past_at_call`); the miss is recorded in its own commit because it
 > reproduced #200S's blindness inside the tool built to measure #200S's blindness.
 >
+> **🎯 THE CANDIDATE FIX ALREADY EXISTS, IS ALREADY WRITTEN, AND WAS SHELVED ON A
+> METRIC THAT COULD NOT SEE IT — found 2026-08-15 while starting to build a new
+> one.** `dayDefaultClause` (`LocalChatBackend.swift:2157`) reads:
+>
+> > *" A time with no day means the next time that clock time comes around — never
+> > ask which day."*
+>
+> **`includeDayDefaultClause` defaults to `false`, so production does not carry
+> it.** It is reachable only as the `armed-datefix` cell (#200K), which already has
+> an enum case, a battery wrapper (`runDatefixBattery`), an `InstrumentRegistry`
+> entry and a Developer-screen button. **Nothing needs building to test it.**
+>
+> **#200K's own comment diagnosed today's mechanism three weeks early:** *"The
+> #200D clause licenses empty OPTIONAL fields; a bare clock time reads as an
+> AMBIGUOUS REQUIRED one, so permission doesn't reach it — this names the
+> resolution instead."* That is precisely the 2026-08-15 finding, written on
+> 2026-07-29.
+>
+> **WHY IT WAS NEVER PROMOTED, AND WHY THAT REASONING DOES NOT COVER THIS DEFECT.**
+> #200K's verdict (2026-07-29, 120 trials): *"DATEFIX: specimen killed, rate
+> unchanged — the stall is CONSERVED."* The clause killed zero-tool DATE questions
+> and zero-tool LIST questions took their place — same miss count, different field
+> — so it bought no rate improvement and was shelved.
+>
+> **But #200K scored CREATES. It measured whether the model STALLED, never whether
+> the reminder it created carried a due date.** Both arms scored remind 8/10 by
+> counting artifacts, and by today's evidence a large share of those eight in BOTH
+> arms were dateless. **The clause whose entire purpose is resolving a bare time was
+> discarded on a metric structurally blind to whether it resolved one.** This is
+> 340-D's caveat with a second promotion attached, and it is now the THIRD instance
+> of the same blindness in one lane — #200S, #200K, and this session's own scorer,
+> which counted an already-elapsed value as a clean populated call.
+>
+> **THE RECOMMENDATION, AND IT COSTS ONE UNATTENDED RUN:** re-run `armed-datefix`
+> against `armed` on today's prompt shapes and score it with
+> `scripts/mac/score-due-omission.py` over the device log — four buckets, not
+> creates. Every arm funnels through `performCreate`, so #249's instrument covers
+> the cell with no code change. **If the clause populates the due date, it is a
+> promotion candidate that has been sitting in the tree since July.**
+>
+> **A NEW @Guide ARM WAS STARTED AND DELIBERATELY REVERTED.** `ReminderCreateToolDatefix`
+> (production-matched `String?`, day-resolution in the `due` guide) was written and
+> then removed unbuilt: testing an existing measured candidate beats adding a second
+> unmeasured one, and an unused struct in the tree reads to a later maintainer as a
+> measured artifact. **What the attempt DID leave behind is a real confound, now
+> corrected at its own home:** `ReminderCreateToolGuidefix` declares `due`/`list` as
+> non-optional `String`, which MATCHED production until #200S promoted them to
+> `String?`. Its docstring still claims *"the ONLY deltas are the @Guide texts"* —
+> true when written, false since #200S. **`armed-guidefix`'s honest control is
+> `armed-schemarollback`, not a production-schema cell**, and comparing it against
+> production measures the guide change and #200S's rollback together. The struct is
+> NOT edited — it is the measured artifact of the runs that used it.
+>
 > **Residue:** one real dateless reminder titled *"Take the trash out"* exists on
 > Owen's device from this trial and is his to delete. Its absence from Reminders →
 > **Scheduled** is the user-visible replication of this entry's founding observation

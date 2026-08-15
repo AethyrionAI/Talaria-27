@@ -484,6 +484,21 @@ struct ReminderCreateToolRequiredFields: Tool {
 /// runtime accessor, so they're pinned here by comment and measured by the
 /// battery itself. Measurement cells only; production ships this ONLY
 /// after a battery verdict.
+///
+/// **⚠️ CORRECTION 2026-08-15 (#340) — "the ONLY deltas are the @Guide texts"
+/// IS NO LONGER TRUE, AND THE COMMENT WAS RIGHT WHEN IT WAS WRITTEN.** This
+/// struct declares `due`/`list` as non-optional `String`. Production declared
+/// them the same way until **#200S** promoted them to `String?`, and that
+/// promotion silently turned this cell into a TWO-delta arm: the @Guide texts
+/// AND the schema optionality. Its honest control is therefore
+/// `armed-schemarollback` (same optionality, production @Guide), **not** a
+/// production-schema cell — comparing it against production measures the guide
+/// change and #200S's rollback together and cannot separate them.
+///
+/// Nothing is changed here: the struct IS the measured artifact of the runs that
+/// used it, and editing it would invalidate them. Any future cell that wants to
+/// isolate a @Guide change against PRODUCTION must declare `due`/`list` as
+/// `String?`, or it will move the schema too and reproduce this confound.
 struct ReminderCreateToolGuidefix: Tool {
     let name = "createReminder"
     /// Production description by default — the @Guide delta is this cell's

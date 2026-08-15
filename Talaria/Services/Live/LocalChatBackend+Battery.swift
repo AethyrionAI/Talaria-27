@@ -388,6 +388,11 @@ extension LocalChatBackend {
         case routedScoped = "routed-scoped"
         /// `ReminderCreateToolGuidefix` copy: de-stalled @Guide texts on
         /// the optional fields, production description.
+        ///
+        /// **Its control is `armed-schemarollback`, not a production-schema
+        /// cell (#340, 2026-08-15):** this copy declares `due`/`list` as
+        /// non-optional, which matched production until #200S promoted them to
+        /// `String?` — so against production it moves TWO things.
         case armedGuidefix = "armed-guidefix"
         /// Production struct, `destalledDescription200` — the remfix
         /// description-var mechanism.
