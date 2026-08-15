@@ -9734,8 +9734,17 @@ names cannot.
 > and a correction that itself over-claims is the thing 338-A's false-positive bar
 > exists to prevent — arriving through the copy rather than through the detector.
 >
-> > **QUESTION FOR OWEN (second one on this entry, and this one is now load-bearing
-> > because it ships today):** should the correction be **kind-aware** — the
+> > **⚖️ RULED BY OWEN 2026-08-15, SAME DAY: LEAVE IT AS ONE STRING. No change.**
+> > The reasoning that was put to him and that he ruled against changing: on an
+> > `impersonatedCard` fire the reply IS inaccurate in one sense — it presents a
+> > fake card as the app's — so *"the reply above is inaccurate"* is **imprecise
+> > rather than false**, and "Nothing was created" is true on every fire. **My
+> > filing over-stated this as a copy DEFECT; it is a copy imprecision, and the
+> > ruling is that the imprecision costs less than a second string.** The
+> > alternative he declined is preserved below verbatim so a future lane can see
+> > what was on the table and does not re-litigate it as new.
+> >
+> > **DECLINED, kept for the record:** should the correction be **kind-aware** — the
 > > current sentence for the claim kinds, and something like *"⚠️ **That is not a
 > > confirmation card.** Nothing has been created — the card above was written by
 > > the model, not by the app."* for `impersonatedCard`? One string becomes two,

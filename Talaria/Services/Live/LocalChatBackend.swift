@@ -2206,7 +2206,15 @@ final class LocalChatBackend: HermesClientProtocol {
         if hasTools {
             capabilities = "Be direct, warm, and concise. Answering from what you know, writing and composing, summarizing, and ordinary conversation are your job and need no tool — facts you know are not guesses, and general knowledge is not device data. "
                 + (includeCompositionLicensingSentence ? composition : "")
-                + "Use the tools for the user's own data — \(Self.armedEnumeration(families: armedCapabilityFamilies, hasImageTools: hasImageTools)) — instead of guessing at it. Every action tool shows the user a confirmation card first; if they decline, accept it gracefully."
+                // #337-F-2b PROMOTED 2026-08-15 on Owen's ruling. The sentence
+                // is no longer written out here: it was a byte-for-byte DUPLICATE
+                // of `DeviceActionClauses.armedBlurbCardSentence`, and every
+                // measurement arm manipulates that constant by string match — so
+                // a promotion that edited only this line would have left the arms
+                // silently targeting a sentence production no longer shipped.
+                // One home now; the arms and production cannot drift.
+                + "Use the tools for the user's own data — \(Self.armedEnumeration(families: armedCapabilityFamilies, hasImageTools: hasImageTools)) — instead of guessing at it."
+                + DeviceActionClauses.armedBlurbShippingSentence
                 + (includeActionDestallClause ? actionDestall : "")
                 + (includeFindFirstCarveout ? findFirstCarveout : "")
                 + (includeLookupSpiralCarveout ? lookupSpiralCarveout : "")

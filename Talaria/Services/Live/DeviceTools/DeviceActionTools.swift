@@ -61,10 +61,48 @@ enum DeviceActionClauses {
     /// A replacement that kept "confirmation" would leave half the seed in
     /// place and make a null uninterpretable.
     ///
-    /// **Production still ships `armedBlurbCardSentence`.** This string is
-    /// reachable only from the `blurb-reworded` arm.
+    /// ~~**Production still ships `armedBlurbCardSentence`.** This string is
+    /// reachable only from the `blurb-reworded` arm.~~
+    /// **✅ PROMOTED 2026-08-15 on Owen's ruling — THIS IS WHAT SHIPS**, via
+    /// `armedBlurbShippingSentence` below. Evidence: 0/30 imitations and 29/30
+    /// tool calls in its own arm, from the last and worst slot at `serious`
+    /// thermal, against a control that replicated at 4/4/3 imitations and
+    /// 23/25/26 calls across three runs; pooled blurb-removed cells 0/90 and
+    /// 90/90 vs 8/60 and 48/60 (p = 0.0005, p = 8.1e-06).
     static let armedBlurbCardSentenceReworded337F2 =
         " Every action tool asks the user to approve it before anything changes; if they decline, accept that gracefully."
+
+    /// **THE SENTENCE PRODUCTION ACTUALLY SHIPS.** One name, so a future
+    /// promotion moves this alias and every arm follows automatically.
+    ///
+    /// Before 2026-08-15 the shipping text lived in TWO places — this enum and
+    /// a byte-identical literal inside `instructionsText` — while every #337-F
+    /// arm manipulated the enum copy by exact string match. Nothing enforced
+    /// that they agreed. Promoting by editing the literal alone would have left
+    /// all three manipulating arms stripping a sentence production no longer
+    /// contained; `cardClauseInstructions` returns `removed:` precisely so that
+    /// shows up in the artifact rather than reading as a null, but the honest
+    /// fix is not to have two copies.
+    static let armedBlurbShippingSentence = armedBlurbCardSentenceReworded337F2
+
+    /// The PINNED ROLLBACK — the pre-promotion sentence, kept verbatim.
+    ///
+    /// `armedBlurbCardSentence` above IS this text and is deliberately NOT
+    /// edited: it is the measured artifact of every #337-F run, and rewriting
+    /// it would silently invalidate those numbers. This alias exists so the
+    /// rollback is reachable BY INTENT rather than by remembering which of two
+    /// similarly-named constants used to ship.
+    ///
+    /// **⚠️ CONSEQUENCE FOR THE ARMS, and it is the `armed-cardfix` precedent
+    /// (#200K) repeating:** the `blurb-reworded` arm substitutes
+    /// `armedBlurbCardSentence` → reworded, and production no longer contains
+    /// the former, so that arm is now **IDENTITY WITH CONTROL** and its
+    /// `reworded=` manipulation row will report the substitution did nothing.
+    /// That is correct and expected post-promotion — it is not a broken cell —
+    /// but it means the arm can no longer measure the promotion. **Measuring a
+    /// promoted clause requires a ROLLBACK arm that substitutes the other way**,
+    /// which is #200L's shape and is not built here.
+    static let armedBlurbSentencePre337F2b = armedBlurbCardSentence
 
     /// Removes whichever of the two clause forms is present, and NOTHING else.
     /// A description with neither comes back unchanged — which is a fact the

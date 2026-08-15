@@ -46,12 +46,23 @@ struct CardClauseManipulationTests {
     @Test func theArmedBlurbSentenceIsPresentInProductionInstructions() {
         let instructions = LocalChatBackend.instructionsText(
             deviceContext: "test", hasTools: true, hasImageTools: false)
-        #expect(instructions.contains(DeviceActionClauses.armedBlurbCardSentence),
+        // #337-F-2b PROMOTED 2026-08-15: the removal target is now whatever
+        // SHIPS, read through the one alias production also uses. Asserting the
+        // literal pre-promotion sentence here is what made this test go red on
+        // the promotion — correctly, since its subject is "arm C can still find
+        // its target", not "the target says the word card".
+        #expect(instructions.contains(DeviceActionClauses.armedBlurbShippingSentence),
                 "arm C's removal target is not in production's armed instructions")
+        // And the PRE-promotion sentence must be GONE from production — this is
+        // the half that fails if someone reverts the promotion without reverting
+        // the alias, which would leave the arms stripping a sentence that is not
+        // there and every treatment silently becoming its own control.
+        #expect(!instructions.contains(DeviceActionClauses.armedBlurbSentencePre337F2b),
+                "the pre-#337-F-2b sentence is still shipping")
         let (stripped, removed) = LocalChatBackend.cardClauseInstructions(
             instructions, arm: .toolsAndBlurbStripped)
         #expect(removed)
-        #expect(!stripped.contains(DeviceActionClauses.armedBlurbCardSentence))
+        #expect(!stripped.contains(DeviceActionClauses.armedBlurbShippingSentence))
     }
 
     /// The control must be production, byte for byte — an A/B whose control
@@ -126,7 +137,8 @@ struct CardClauseManipulationTests {
         let (stripped, removed) = LocalChatBackend.cardClauseInstructions(
             instructions, arm: .blurbStripped)
         #expect(removed, "the blurb-only arm removed nothing from the instructions")
-        #expect(!stripped.contains(DeviceActionClauses.armedBlurbCardSentence))
+        // #337-F-2b PROMOTED 2026-08-15 — the arm strips what SHIPS.
+        #expect(!stripped.contains(DeviceActionClauses.armedBlurbShippingSentence))
 
         let relay = ToolEventRelay()
         let confirmations = ToolConfirmationCenter()
@@ -169,21 +181,42 @@ struct CardClauseManipulationTests {
                 "the replacement dropped the decline guidance it exists to keep")
     }
 
-    /// The reworded arm SUBSTITUTES: production's sentence gone, the
-    /// replacement present, descriptions untouched. A `removed`-only signal
-    /// cannot tell this arm from the blurb-only arm, so the presence of the
-    /// replacement is asserted directly.
+    /// ~~The reworded arm SUBSTITUTES: production's sentence gone, the
+    /// replacement present, descriptions untouched.~~
+    ///
+    /// **REWRITTEN 2026-08-15 — the arm is now IDENTITY WITH CONTROL, because
+    /// Owen promoted the sentence it used to substitute in.** What this test
+    /// pins is therefore the opposite of what it pinned yesterday: that the arm
+    /// CANNOT differ from production, that the promoted sentence is what ships,
+    /// and that the pre-promotion sentence is gone. Measuring the promotion now
+    /// needs a ROLLBACK arm substituting the other way (#200L's shape); it does
+    /// not exist yet, and this test is not a substitute for one.
     @MainActor
     @Test func theRewordedArmSubstitutesAndLeavesTheDescriptionsAlone() {
         let instructions = LocalChatBackend.instructionsText(
             deviceContext: "test", hasTools: true, hasImageTools: false)
         let (text, changed) = LocalChatBackend.cardClauseInstructions(
             instructions, arm: .blurbReworded)
-        #expect(changed, "the reworded arm changed nothing")
-        #expect(!text.contains(DeviceActionClauses.armedBlurbCardSentence),
-                "production's sentence survived the substitution")
+        // ⚠️ THIS ASSERTION INVERTED ON 2026-08-15 AND THE INVERSION IS THE
+        // POINT. The arm substitutes pre-promotion → reworded. Owen promoted the
+        // reworded sentence, so production no longer contains the pre-promotion
+        // text and the substitution finds nothing: `changed` is now FALSE and
+        // the arm is IDENTITY WITH CONTROL.
+        //
+        // That is the `armed-cardfix` precedent repeating (#200K): a treatment
+        // cell whose treatment shipped becomes identity, which is not a broken
+        // cell — it is what lets the arm POOL with the control as a re-verify.
+        // The test asserts the identity rather than deleting itself, because the
+        // property worth pinning is now "this arm cannot silently differ from
+        // production", and because a future rollback would flip it straight back.
+        #expect(!changed,
+                "the reworded arm is post-promotion identity; a change means production drifted off armedBlurbShippingSentence")
+        #expect(text == instructions, "identity arm altered the instructions")
+        // The shipping text is the reworded one either way.
         #expect(text.contains(DeviceActionClauses.armedBlurbCardSentenceReworded337F2),
-                "the replacement is not in the instructions")
+                "the promoted sentence is not in production's instructions")
+        #expect(!text.contains(DeviceActionClauses.armedBlurbSentencePre337F2b),
+                "the pre-promotion sentence is still present")
         // NOT `confirmationCardImitation(in: text) == nil`. That assertion was
         // written first and failed — correctly. The promoted
         // `cardNarrationClause` (#200J/#200K) is held CONSTANT in every arm and

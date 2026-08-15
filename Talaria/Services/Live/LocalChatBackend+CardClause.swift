@@ -149,8 +149,18 @@ extension LocalChatBackend {
         case .toolsAndBlurbStripped, .blurbStripped: break
         case .blurbReworded: break  // handled above
         }
+        // #337-F-2b PROMOTED 2026-08-15: production now ships the REWORDED
+        // sentence, so the strip arms must target what ships — otherwise they
+        // remove a sentence the instructions no longer contain and every
+        // treatment silently becomes its own control. `removed:` would have
+        // caught that in the artifact (it is why it exists), but a treatment
+        // that can only report "I did nothing" is not worth running.
+        //
+        // NOTE the arms' MEANING changed with the promotion: they now measure
+        // removing the approval sentence, not removing the card sentence.
+        // #337-F's published numbers were the latter and are not re-labelled.
         let stripped = instructions.replacingOccurrences(
-            of: DeviceActionClauses.armedBlurbCardSentence, with: "")
+            of: DeviceActionClauses.armedBlurbShippingSentence, with: "")
         return (stripped, stripped != instructions)
     }
 
