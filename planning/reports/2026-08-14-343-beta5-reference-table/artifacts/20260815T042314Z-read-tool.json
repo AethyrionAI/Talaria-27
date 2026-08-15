@@ -1,0 +1,1732 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T04:30:50Z",
+  "instrument" : "read-tool",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "armed",
+      "armed-fieldrollback"
+    ],
+    "endedCleanly" : true,
+    "id" : "41FF6536-E5AF-4037-A3A2-3DAE656472FB",
+    "kind" : "action",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "reapSummary" : "reminders=0 events=0 alarms=0 failures=0",
+    "startedAt" : "2026-08-15T04:23:41Z",
+    "thermal" : [
+      "armed:start=nominal",
+      "armed:end=fair",
+      "armed-fieldrollback:start=fair",
+      "armed-fieldrollback:end=fair"
+    ],
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1833,
+        "latencySeconds" : 2.266223334,
+        "outputTokens" : 29,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "I couldn't pinpoint your exact location to fetch the weather. Could you let me know where you are right now?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1833,
+        "latencySeconds" : 2.272434625,
+        "outputTokens" : 25,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "I couldn't pinpoint your exact location to fetch the weather. Could you share your current city or area?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1985,
+        "latencySeconds" : 5.317138417,
+        "outputTokens" : 83,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "It's clear at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1987,
+        "latencySeconds" : 4.984981125,
+        "outputTokens" : 75,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "It’s clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and a 3 mph breeze. Today’s high is 96°F, low is 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1833,
+        "latencySeconds" : 2.596622167,
+        "outputTokens" : 25,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "I couldn't locate your exact location to check the weather. Can you share your current area or city?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1833,
+        "latencySeconds" : 2.624381583,
+        "outputTokens" : 33,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "I couldn't find a place to check the weather for. Could you let me know your current location or a specific city?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1833,
+        "latencySeconds" : 2.496128875,
+        "outputTokens" : 25,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "I couldn't locate a precise location to fetch the weather. Could you provide your current city or area?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1987,
+        "latencySeconds" : 5.319954458,
+        "outputTokens" : 75,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "It's clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1985,
+        "latencySeconds" : 5.571034375,
+        "outputTokens" : 89,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "It's clear outside at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82% with a light breeze at 3 mph. Today's high will be 96°F and the low 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1985,
+        "latencySeconds" : 5.409086458,
+        "outputTokens" : 77,
+        "prompt" : "weatherbare",
+        "shape" : "armed",
+        "text" : "It's clear at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and 3 mph wind. Today’s high is 96°F and low is 77°F, with 0% chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.50006975,
+        "outputTokens" : 65,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "Clear skies in Biloxi, 86°F (feels like 86°F) with 76% humidity and 9 mph wind. Today's high is 92°F and low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.661778,
+        "outputTokens" : 77,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is 76%, and the wind is blowing at 9 mph. Today’s high is 92°F, and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.582970292,
+        "outputTokens" : 53,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "Clear skies in Biloxi today, with a high of 92°F and a low of 81°F. The air is 76% humid, and there’s a gentle 9 mph breeze. No chance of rain.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.610984792,
+        "outputTokens" : 61,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.808013833,
+        "outputTokens" : 75,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today's high is 92°F and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.846240916,
+        "outputTokens" : 67,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 76% humidity, and 9 mph wind. Today’s high is 92°F and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.705168917,
+        "outputTokens" : 59,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "Clear skies in Biloxi today, with a high of 92°F and a low of 81°F. It feels like 86°F, with 76% humidity and a 9 mph breeze. No chance of rain today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 4.018291917,
+        "outputTokens" : 77,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76% with a 9 mph wind. Today’s forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.795931875,
+        "outputTokens" : 75,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). The humidity is 76%, with a wind speed of 9 mph. Today’s high is 92°F and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1871,
+        "latencySeconds" : 3.70301075,
+        "outputTokens" : 67,
+        "prompt" : "weathernamed",
+        "shape" : "armed",
+        "text" : "Clear skies in Biloxi, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1938,
+        "latencySeconds" : 16.834319125,
+        "outputTokens" : 93,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here’s your snapshot for today:\n\n- **Health**: 2,403 steps, 62 kcal active, heart rate 72 bpm (6 hours ago), no sleep data recorded.\n- **Motion**: No pedometer data; currently stationary.\n- **Location**: 19200 Crestwick St, Saucier, United States.\n\nLet me know if you’d like to tweak anything!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1892,
+        "latencySeconds" : 15.718076875,
+        "outputTokens" : 73,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here’s how you’re doing today:\n- **Health**: 2,403 steps, 62 kcal burned, heart rate at 72 bpm (6 hours ago), and no sleep data recorded last night.\n- **Motion**: No pedometer data, but you’re currently stationary.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1892,
+        "latencySeconds" : 16.369149583,
+        "outputTokens" : 103,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here's how you're doing today:\n\n- **Health**: \n  - Steps: 2,403\n  - Active calories: 62 kcal\n  - Heart rate: 72 bpm (6 hours ago)\n  - Sleep: No data recorded.\n- **Motion**: No pedometer data; you're currently stationary.\n\nLet me know if you'd like to adjust anything or dive deeper into any area.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1938,
+        "latencySeconds" : 16.217672417,
+        "outputTokens" : 107,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here’s your snapshot for today:\n\n- **Health**: 2,403 steps, 62 kcal of activity, heart rate at 72 bpm (6 hours ago), but no sleep data recorded last night.\n- **Motion**: No pedometer data; currently stationary.\n- **Location**: You’re at 19200 Crestwick St, Saucier, United States.\n\nLet me know if you’d like to adjust anything or explore more.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1853,
+        "latencySeconds" : 2.8623745830000002,
+        "outputTokens" : 71,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here’s how you’re doing today:\n- Steps: 2,403\n- Active calories: 62 kcal\n- Heart rate: 72 bpm (6 hours ago)\n- Sleep: No data recorded.\n\nLet me know if you’d like to track anything else!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1853,
+        "latencySeconds" : 2.779134875,
+        "outputTokens" : 51,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here's your health snapshot for today:\n- Steps: 2,403\n- Active calories: 62 kcal\n- Heart rate: 72 bpm (6 hours ago)\n- Sleep: No data recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1892,
+        "latencySeconds" : 15.767085375,
+        "outputTokens" : 81,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "Here's how you're doing today:\n\n- **Health**: 2,403 steps, 62 kcal burned, heart rate at 72 bpm (6 hours ago), and no sleep data from last night.\n- **Motion**: No pedometer data, but you're currently stationary.\n\nLet me know if you'd like to track anything else!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1853,
+        "latencySeconds" : 2.724408792,
+        "outputTokens" : 53,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "You’ve taken 2,403 steps today, burned 62 kcal of active calories, and your heart rate was 72 bpm 6 hours ago. Sleep data for last night isn’t recorded.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1853,
+        "latencySeconds" : 2.775504542,
+        "outputTokens" : 59,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today, burned 62 active calories, and your heart rate was 72 bpm six hours ago. Last night’s sleep isn’t recorded. How’s it going?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1853,
+        "latencySeconds" : 2.794069875,
+        "outputTokens" : 57,
+        "prompt" : "healthbare",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today, burned 62 active calories, and your latest heart rate was 72 bpm (6 hours ago). However, there’s no sleep data recorded for last night.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.144197542,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.175462709,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.175003083,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.177694625,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.17803175,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.2124085,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.194567625,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.286509167,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.313040291,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1823,
+        "latencySeconds" : 2.361014709,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1863,
+        "latencySeconds" : 4.925999917,
+        "outputTokens" : 89,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear at your location (19200 Crestwick St, Saucier, United States), with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today's forecast shows a high of 96°F and a low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1916,
+        "latencySeconds" : 5.807161542,
+        "outputTokens" : 91,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear right now at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is at 82%, and the wind is blowing at 3 mph. Today’s forecast shows a high of 96°F and a low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1863,
+        "latencySeconds" : 5.091214,
+        "outputTokens" : 89,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear out here at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82%, and there's a light breeze at 3 mph. Today's forecast: high of 96°F, low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1916,
+        "latencySeconds" : 5.742528959,
+        "outputTokens" : 87,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear outside at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s forecast: high of 96°F, low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1916,
+        "latencySeconds" : 5.530116584,
+        "outputTokens" : 81,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear at 19200 Crestwick St, Saucier, with a temperature of 81°F (feels like 84°F). Humidity is 82%, and there's a 3 mph wind. Today's forecast: high of 96°F, low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "your current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"your current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1760,
+        "latencySeconds" : 2.822870167,
+        "outputTokens" : 33,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "I couldn't locate a specific place to check the weather. Could you tell me the city or area you're in?",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"current location\" to look up weather for."
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1914,
+        "latencySeconds" : 5.585610708,
+        "outputTokens" : 81,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It’s clear right now at 19200 Crestwick St, Saucier, with 81°F (feels like 84°F), 82% humidity, and a 3 mph wind. Today’s high is 96°F and the low is 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "current location",
+            "name" : "currentWeather",
+            "result" : "Couldn't find a place called \"current location\" to look up weather for."
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1863,
+        "latencySeconds" : 4.707500041,
+        "outputTokens" : 63,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear right now at 81°F (feels like 84°F), with 82% humidity and a 3 mph breeze. Today's forecast: high of 96°F, low of 77°F, and no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1863,
+        "latencySeconds" : 4.634302542,
+        "outputTokens" : 67,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear outside at 81°F (feels like 84°F), with 82% humidity and a gentle 3 mph wind. Today’s forecast is a high of 96°F and a low of 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1863,
+        "latencySeconds" : 4.576979417,
+        "outputTokens" : 61,
+        "prompt" : "weatherbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "It's clear right now at 81°F (feels like 84°F), with 82% humidity and a gentle 3 mph wind. Today’s high is 96°F and low is 77°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          },
+          {
+            "detail" : "19200 Crestwick St, Saucier, United States",
+            "name" : "currentWeather",
+            "result" : "Weather at 19200 Crestwick St: Clear, 81°F (feels like 84°F)\nHumidity 82%, wind 3 mph\nToday: high 96°F, low 77°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.9627735,
+        "outputTokens" : 73,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 76% humidity, and 9 mph wind. Today’s high is 92°F with a low of 81°F, and there’s no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 4.011806542,
+        "outputTokens" : 73,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, and there’s a 9 mph wind. Today’s forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.726224583,
+        "outputTokens" : 61,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today’s high is 92°F and low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.8566949580000003,
+        "outputTokens" : 71,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today's forecast shows a high of 92°F and a low of 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.74386425,
+        "outputTokens" : 63,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear, 86°F (feels like 86°F) with 76% humidity and a 9 mph wind. Today's forecast: high 92°F, low 81°F, 0% chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.903628292,
+        "outputTokens" : 79,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). The humidity is 76%, and there’s a 9 mph wind. Today’s high is 92°F, and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.664789375,
+        "outputTokens" : 61,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear, 86°F (feels like 86°F), with 76% humidity and a 9 mph wind. Today's high is 92°F and low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.812302709,
+        "outputTokens" : 63,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear, 86°F (feels like 86°F) with 76% humidity and a 9 mph wind. Today's high is 92°F and the low is 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 3.828176875,
+        "outputTokens" : 75,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F). Humidity is at 76%, with a wind speed of 9 mph. Today’s high will be 92°F and the low 81°F, with no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 76%, wind 9 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1800,
+        "latencySeconds" : 4.064432833,
+        "outputTokens" : 75,
+        "prompt" : "weathernamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "The weather in Biloxi is clear with a temperature of 86°F (feels like 86°F), 75% humidity, and a 8 mph wind. Today's high is 92°F with a low of 81°F, and there's no chance of precipitation.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "Biloxi",
+            "name" : "currentWeather",
+            "result" : "Weather at Biloxi: Clear, 86°F (feels like 86°F)\nHumidity 75%, wind 8 mph\nToday: high 92°F, low 81°F, 0% chance of precipitation"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1821,
+        "latencySeconds" : 16.143029,
+        "outputTokens" : 81,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s how you’re doing today:\n- Steps: 2,403\n- Active calories: 62 kcal\n- Heart rate: 72 bpm (6 hours ago)\n- Sleep: No data recorded.\n- Motion: Stationary activity only.\n\nLet me know if you’d like to track more or adjust anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1867,
+        "latencySeconds" : 16.400711917,
+        "outputTokens" : 113,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s how you’re doing today:\n\n- **Health**: 2,403 steps, 62 active calories, and a heart rate of 72 bpm (6 hours ago). Sleep data isn’t recorded for last night.\n- **Activity**: No pedometer data, but you’re currently stationary.\n- **Location**: You’re at 19200 Crestwick St, Saucier, United States.\n\nLet me know if you need anything else!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "",
+            "name" : "currentLocation"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1821,
+        "latencySeconds" : 15.88443125,
+        "outputTokens" : 83,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s how you’re doing today:\n- **Steps:** 2,403\n- **Active calories:** 62 kcal\n- **Heart rate:** 72 bpm (6 hours ago)\n- **Sleep:** No data recorded last night\n- **Activity:** Stationary, no pedometer data.\n\nLet me know if you’d like to adjust anything!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          },
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 3.006115625,
+        "outputTokens" : 77,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s a quick snapshot of your health today:\n- Steps: 2,403\n- Active calories: 62 kcal\n- Heart rate: 72 bpm (6 hours ago)\n- Sleep last night: no data recorded.\n\nLet me know if you’d like to track anything more or dive into other areas.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1952,
+        "latencySeconds" : 16.933386959,
+        "outputTokens" : 91,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s your snapshot for today:\n- **Steps**: 2,403\n- **Active calories**: 62 kcal\n- **Heart rate**: 72 bpm (6 hours ago)\n- **Sleep**: No data recorded (Health data may need to be enabled for tracking).\n- **Motion**: Stationary activity only.\n\nLet me know if you’d like to adjust anything!",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "calories",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "heartrate",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "sleep",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1821,
+        "latencySeconds" : 15.845716958,
+        "outputTokens" : 73,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "You’ve taken 2,403 steps today, burned 62 active calories, and your heart rate was 72 bpm (6 hours ago). There’s no step or calorie data for today’s motion, and you’re currently stationary. Sleep data for last night isn’t available either.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1913,
+        "latencySeconds" : 3.530263,
+        "outputTokens" : 65,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s how you’re doing today:\n- **Steps:** 2,403\n- **Active calories:** 62 kcal\n- **Heart rate:** 72 bpm (6 hours ago)\n- **Sleep:** No data recorded last night.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "calories",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "heartrate",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "sleep",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1952,
+        "latencySeconds" : 16.938810083,
+        "outputTokens" : 91,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s your snapshot for today:\n- Steps: 2,403\n- Active calories: 62 kcal\n- Heart rate: 72 bpm (last 6 hours)\n- Sleep: No data recorded — Health access may need checking if you expect logs.\n- Motion: Stationary, no walking\/running data.\n\nLet me know if you’d like to tweak anything.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "calories",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "heartrate",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "sleep",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1952,
+        "latencySeconds" : 16.841482416,
+        "outputTokens" : 91,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "Here’s how you’re doing today:\n- **Steps**: 2,403\n- **Calories**: 62 active calories\n- **Heart rate**: 72 bpm (last 6 hours)\n- **Sleep**: No data recorded for last night.\n- **Activity**: Stationary. No walking or running pedometer data.\n\nLet me know if you’d like to dive deeper into any area.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "calories",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "heartrate",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "sleep",
+            "name" : "readHealth"
+          },
+          {
+            "detail" : "",
+            "name" : "readMotion"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1782,
+        "latencySeconds" : 2.748332208,
+        "outputTokens" : 69,
+        "prompt" : "healthbare",
+        "shape" : "armed-fieldrollback",
+        "text" : "You’ve taken 2,403 steps today, burned 62 kcal, and your latest heart rate was 72 bpm (6 hours ago). However, there’s no sleep data for last night. Let me know if you’d like to track anything else.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "summary",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 1.9836832500000001,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You’ve taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 1.9696812920000002,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You’ve taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.011010875,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.02619,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.048779375,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.106792584,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.060615542,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.123861167,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You’ve taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.090953667,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 1752,
+        "latencySeconds" : 2.114182375,
+        "outputTokens" : 17,
+        "prompt" : "healthnamed",
+        "shape" : "armed-fieldrollback",
+        "text" : "You've taken 2,403 steps today.",
+        "timedOut" : false,
+        "toolCalls" : [
+          {
+            "detail" : "steps",
+            "name" : "readHealth"
+          }
+        ],
+        "trial" : 10
+      }
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T04:23:15Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

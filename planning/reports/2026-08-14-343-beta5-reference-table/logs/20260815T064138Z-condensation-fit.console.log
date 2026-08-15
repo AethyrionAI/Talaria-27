@@ -1,0 +1,21 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+preflight: CONDENSATION FIT START repeats=10 turns=12 ceiling=8192 contextSize=8192 budget=7168 tier=on-device (#210/#335)
+preflight: [reference] instructions this backend would send (belt-bearing) value=450 min=450 max=450 distinct=1 fit=1/1 scored=1/1 errors=0 cap=— headroom=— extra=budget=7168.0,ceiling=8192.0,chars=1841.0,contextSize=8192.0 notes=
+preflight: [reference] production toolless instructions (#229's retry shape) value=340 min=340 max=340 distinct=1 fit=1/1 scored=1/1 errors=0 cap=— headroom=— extra=chars=1314.0 notes=
+preflight: [condensation-fit] t=1 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=2 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=3 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=4 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=5 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=6 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=7 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=8 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=9 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] t=10 verdict=ARMED+FITS pre=9932 post=4205 ceiling=8192 armed=true fits=true preChars=45620 postChars=19050 condensed=8/12 memoryChars=2471 errors=0 offerFired=false
+preflight: [condensation-fit] SUMMARY armed=10/10 fits=10/10 unarmedOrUnknown=0/10 ceiling=8192
+preflight: CONDENSATION FIT DONE (#210/#335)
+instrument: COMPLETED condensation-fit (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

@@ -31,6 +31,38 @@ def era(record):
     return "unknown"
 
 
+def provenance(path):
+    """#343: is the artifact at `path` REALLY this run directory's own result?
+
+    `run-instrument.sh` takes a BASELINE COPY before launching — it copies the
+    device's existing `Documents/InstrumentRuns/latest.json` into the new run's
+    directory so a stale terminal artifact can't be adopted as this run's
+    verdict. The consequence is that **every run directory transiently contains
+    the PREVIOUS instrument's artifact**, and a scorer that keys off the
+    directory NAME will report one instrument's data under another's name.
+
+    That happened on 2026-08-15: a directory named `-intent-router-probe` —
+    a read-only probe that registers no tools — reported 40 trials and 40 tool
+    executions, which were the preceding `motion-redirect` run's. The row was
+    plausible in shape and wrong in every particular.
+
+    Returns (ok, reason). `ok` is False when the artifact is non-terminal (the
+    run never finished) or when its own `instrument` field disagrees with the
+    directory name.
+    """
+    d = json.load(open(path))
+    status = d.get("status")
+    stamped = d.get("instrument")
+    dirname = os.path.basename(os.path.dirname(os.path.abspath(path)))
+    if status not in ("completed", "refused", "failed"):
+        return False, f"status={status!r} — run did not reach a terminal state"
+    if stamped and dirname and not dirname.endswith(stamped):
+        return False, (f"instrument mismatch: artifact says {stamped!r}, "
+                       f"directory says {dirname!r} — this is a BASELINE COPY, "
+                       f"not this run's result")
+    return True, "ok"
+
+
 def fisher(a, b, c, d):
     """Two-tailed Fisher exact on [[a,b],[c,d]]. stdlib only — scipy is absent.
     Validated against five published project p-values in score-eras-test.py."""

@@ -1,0 +1,124 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: INTENT PROBE START trials=10 cells=4 baseline=10 grid=19 (#217B)
+router: [narrow-v1] baseline 10/10 expected=false tally=["other": 10] probe=What's 2+2?
+router: [narrow-v1] baseline 10/10 expected=false tally=["other": 10] probe=Write a haiku about sledding
+router: [narrow-v1] baseline 10/10 expected=false tally=["other": 10] probe=write a 50 word summary about Norway
+router: [narrow-v1] baseline 10/10 expected=false tally=["other": 10] probe=Tell me a joke about penguins
+router: [narrow-v1] baseline 10/10 expected=false tally=["other": 10] probe=Write a poem for my mom's birthday
+router: [narrow-v1] baseline 10/10 expected=true tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [narrow-v1] baseline 10/10 expected=true tally=["weather": 10] probe=What's the weather like right now?
+router: [narrow-v1] baseline 10/10 expected=true tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [narrow-v1] baseline 10/10 expected=true tally=["health": 10] probe=How many steps have I taken today?
+router: [narrow-v1] baseline 10/10 expected=true tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [narrow-v1] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [narrow-v1] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Add pick up dry cleaning to my reminders
+router: [narrow-v1] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [narrow-v1] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Wake me up at 7 tomorrow
+router: [narrow-v1] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Put lunch with Sam on my calendar Friday at noon
+router: [narrow-v1] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [narrow-v1] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=What's the weather like right now?
+router: [narrow-v1] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=Is it going to rain this afternoon?
+router: [narrow-v1] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How many steps have I taken today?
+router: [narrow-v1] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How did I sleep last night?
+router: [narrow-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=When did I last text Sam about the boat?
+router: [narrow-v1] intent 0/10 want=other armed=10/10 tally=["health": 10] probe=How much battery do I have left?
+router: [narrow-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's Sam's phone number?
+router: [narrow-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Find a coffee shop near me
+router: [narrow-v1] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Play some music
+router: [narrow-v1] intent 0/10 want=other armed=10/10 tally=["weather": 10] probe=How long will it take me to drive to the airport?
+router: [narrow-v1] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Read the label on this bottle for me
+router: [narrow-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Write a haiku about sledding
+router: [narrow-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's 2+2?
+router: [narrow-v2] baseline 10/10 expected=false tally=["other": 10] probe=What's 2+2?
+router: [narrow-v2] baseline 10/10 expected=false tally=["other": 10] probe=Write a haiku about sledding
+router: [narrow-v2] baseline 10/10 expected=false tally=["other": 10] probe=write a 50 word summary about Norway
+router: [narrow-v2] baseline 10/10 expected=false tally=["other": 10] probe=Tell me a joke about penguins
+router: [narrow-v2] baseline 10/10 expected=false tally=["other": 10] probe=Write a poem for my mom's birthday
+router: [narrow-v2] baseline 10/10 expected=true tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [narrow-v2] baseline 10/10 expected=true tally=["weather": 10] probe=What's the weather like right now?
+router: [narrow-v2] baseline 10/10 expected=true tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [narrow-v2] baseline 10/10 expected=true tally=["health": 10] probe=How many steps have I taken today?
+router: [narrow-v2] baseline 10/10 expected=true tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [narrow-v2] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [narrow-v2] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Add pick up dry cleaning to my reminders
+router: [narrow-v2] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [narrow-v2] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Wake me up at 7 tomorrow
+router: [narrow-v2] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Put lunch with Sam on my calendar Friday at noon
+router: [narrow-v2] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [narrow-v2] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=What's the weather like right now?
+router: [narrow-v2] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=Is it going to rain this afternoon?
+router: [narrow-v2] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How many steps have I taken today?
+router: [narrow-v2] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How did I sleep last night?
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=When did I last text Sam about the boat?
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=How much battery do I have left?
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's Sam's phone number?
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Find a coffee shop near me
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Play some music
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=How long will it take me to drive to the airport?
+router: [narrow-v2] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Read the label on this bottle for me
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Write a haiku about sledding
+router: [narrow-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's 2+2?
+router: [full-v1] baseline 10/10 expected=false tally=["other": 10] probe=What's 2+2?
+router: [full-v1] baseline 10/10 expected=false tally=["other": 10] probe=Write a haiku about sledding
+router: [full-v1] baseline 10/10 expected=false tally=["other": 10] probe=write a 50 word summary about Norway
+router: [full-v1] baseline 10/10 expected=false tally=["other": 10] probe=Tell me a joke about penguins
+router: [full-v1] baseline 10/10 expected=false tally=["other": 10] probe=Write a poem for my mom's birthday
+router: [full-v1] baseline 10/10 expected=true tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [full-v1] baseline 10/10 expected=true tally=["weather": 10] probe=What's the weather like right now?
+router: [full-v1] baseline 10/10 expected=true tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [full-v1] baseline 10/10 expected=true tally=["health": 10] probe=How many steps have I taken today?
+router: [full-v1] baseline 10/10 expected=true tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [full-v1] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [full-v1] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Add pick up dry cleaning to my reminders
+router: [full-v1] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [full-v1] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Wake me up at 7 tomorrow
+router: [full-v1] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Put lunch with Sam on my calendar Friday at noon
+router: [full-v1] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [full-v1] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=What's the weather like right now?
+router: [full-v1] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=Is it going to rain this afternoon?
+router: [full-v1] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How many steps have I taken today?
+router: [full-v1] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How did I sleep last night?
+router: [full-v1] intent 10/10 want=conversations armed=10/10 tally=["conversations": 10] probe=When did I last text Sam about the boat?
+router: [full-v1] intent 10/10 want=device armed=10/10 tally=["device": 10] probe=How much battery do I have left?
+router: [full-v1] intent 10/10 want=contacts armed=10/10 tally=["contacts": 10] probe=What's Sam's phone number?
+router: [full-v1] intent 10/10 want=places armed=10/10 tally=["places": 10] probe=Find a coffee shop near me
+router: [full-v1] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Play some music
+router: [full-v1] intent 0/10 want=other armed=10/10 tally=["device": 10] probe=How long will it take me to drive to the airport?
+router: [full-v1] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Read the label on this bottle for me
+router: [full-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Write a haiku about sledding
+router: [full-v1] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's 2+2?
+router: [full-v2] baseline 10/10 expected=false tally=["other": 10] probe=What's 2+2?
+router: [full-v2] baseline 10/10 expected=false tally=["other": 10] probe=Write a haiku about sledding
+router: [full-v2] baseline 10/10 expected=false tally=["other": 10] probe=write a 50 word summary about Norway
+router: [full-v2] baseline 10/10 expected=false tally=["other": 10] probe=Tell me a joke about penguins
+router: [full-v2] baseline 10/10 expected=false tally=["other": 10] probe=Write a poem for my mom's birthday
+router: [full-v2] baseline 10/10 expected=true tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [full-v2] baseline 10/10 expected=true tally=["weather": 10] probe=What's the weather like right now?
+router: [full-v2] baseline 10/10 expected=true tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [full-v2] baseline 10/10 expected=true tally=["health": 10] probe=How many steps have I taken today?
+router: [full-v2] baseline 10/10 expected=true tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [full-v2] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [full-v2] intent 10/10 want=reminder armed=10/10 tally=["reminder": 10] probe=Add pick up dry cleaning to my reminders
+router: [full-v2] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Set an alarm for 6:30
+router: [full-v2] intent 10/10 want=alarm armed=10/10 tally=["alarm": 10] probe=Wake me up at 7 tomorrow
+router: [full-v2] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Put lunch with Sam on my calendar Friday at noon
+router: [full-v2] intent 10/10 want=calendar armed=10/10 tally=["calendar": 10] probe=Do I have anything on my calendar Friday?
+router: [full-v2] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=What's the weather like right now?
+router: [full-v2] intent 10/10 want=weather armed=10/10 tally=["weather": 10] probe=Is it going to rain this afternoon?
+router: [full-v2] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How many steps have I taken today?
+router: [full-v2] intent 10/10 want=health armed=10/10 tally=["health": 10] probe=How did I sleep last night?
+router: [full-v2] intent 10/10 want=conversations armed=10/10 tally=["conversations": 10] probe=When did I last text Sam about the boat?
+router: [full-v2] intent 10/10 want=device armed=10/10 tally=["device": 10] probe=How much battery do I have left?
+router: [full-v2] intent 10/10 want=contacts armed=10/10 tally=["contacts": 10] probe=What's Sam's phone number?
+router: [full-v2] intent 10/10 want=places armed=10/10 tally=["places": 10] probe=Find a coffee shop near me
+router: [full-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Play some music
+router: [full-v2] intent 0/10 want=other armed=10/10 tally=["device": 10] probe=How long will it take me to drive to the airport?
+router: [full-v2] intent 10/10 want=other armed=0/10 tally=["other": 10] probe=Read the label on this bottle for me
+router: [full-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=Write a haiku about sledding
+router: [full-v2] intent 10/10 want=other armed=10/10 tally=["other": 10] probe=What's 2+2?
+router: INTENT PROBE DONE (#217B)
+instrument: COMPLETED intent-router-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

@@ -109,6 +109,26 @@ Track A carries four items: `routed`, `routed-scoped` and `scoped-v2` at
 The classes differ in what they license, and the published table labels every
 row with its class.
 
+> **🔴 CORRECTED 2026-08-15 BY THE RUN ITSELF — THIS SECTION'S PREMISE IS FALSE.**
+> Classes 1a and 1b rest on *frozen cell text controls the app half, so the runtime
+> is the residual*. **It does not.** #225's `ToolCallGovernor` (`5e919269`,
+> **2026-08-02**) sits **outside** the cell text and applies to every cell equally,
+> and the beta4 archive (07-31 / 08-01) **predates it**. So even the rows this
+> section calls "strongest" carry an app-side confound the design never considered
+> — a larger one than "production text moved", because it changes whether tool
+> calls happen at all. Measured: with the harness leaking the governor's budget,
+> the canary returned **31 of 40 trials dead**; the archive's twin scored 20/20
+> with no governor in existence.
+>
+> **What survives, and why the Class 1 rows are still worth what they claimed:**
+> once the leak is fixed (`beginTurn()` per trial), the governor never trips on
+> these instruments — 0 errors, 80/80 executed — so it is *behaviourally inert*
+> rather than merely present. That is what makes RT-A's and RT-B's results
+> readable. But "inert here, verified per row" is a much weaker guarantee than
+> "controlled by construction", and the section as written promised the latter.
+> Any future lane reusing this taxonomy must check for app-side machinery that
+> lives outside the cell — see `OPEN_ITEMS.md` #343's results block.
+
 **Class 1a — pinned control, beta4 re-scorable.** Cell text frozen by
 definition *and* a beta4 archive JSON exists, so both sides run through one
 classifier. **`read-tool` / `armed-fieldrollback`** (`3E53397E`, `6C3EBD86`).

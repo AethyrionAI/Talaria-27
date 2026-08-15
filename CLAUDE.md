@@ -657,6 +657,33 @@ never enters.
 `runActionBattery`'s `routed-production` cell is the routed arm. Every other
 wrapper is still unrouted.
 
+**🔴 A SECOND RULE OF THE SAME KIND (#343, 2026-08-15): EVERY BATTERY RATE MEASURED
+BETWEEN 2026-08-02 AND #343'S FIX IS GOVERNOR-STRANGLED.** #225's `ToolCallGovernor`
+(`5e919269`, 2026-08-02) caps a tool at **4 calls per turn** and the whole turn at 12
+— and the batteries **never started a turn**. `LocalChatBackend+Refusal.swift:39`:
+they call `session.respond` directly, so *every trial in a run counted as one turn*
+and after four calls of a tool that tool was refused for the remainder of the launch.
+`ToolCallGovernor.beginTurn()`'s own doc comment predicted it — *"a budget that leaked
+across turns would silently strangle a long conversation … the obvious way this fix
+becomes worse than the bug it fixes."*
+
+- **Measured:** the #343 canary returned **31 of 40 trials dead**, both sensor tools
+  failing together, on an instrument whose beta4 twin scored **20/20**. One line
+  (`toolRelay?.beginTurn()` per trial) took it to **0/40 dead**.
+- **The dates are the load-bearing part.** Any archive run dated **before 2026-08-02**
+  was measured with **no governor in existence**. Comparing such a run against a
+  post-08-02 build measures OUR GOVERNOR, not the model and not the runtime — #343
+  would have published a spectacular false "beta5 regression" on exactly this.
+- **How to apply:** before quoting any battery number, check (a) the run's date against
+  2026-08-02, and (b) whether its instrument calls `beginTurn()` per trial —
+  `+CardClause.swift` and `+Refusal.swift`'s `turn-reset` cell always did;
+  `runActionBattery` and `runShapeBattery` do only from #343 onward. A cut trial is
+  **instrument state, not behaviour**, and an instrument with no error counter reports
+  it as behaviour (see #215's sibling lesson and `21F0C10D`).
+- **Related, same lane:** `cant` is **model behaviour** (set by prefix-matching the
+  model's own reply, `LocalChatBackend+Battery.swift:318`), never instrument error —
+  scoring it as an error deletes the #214 composition-denial finding entirely.
+
 **Where it lives (#216, 2026-08-01):** the battery and the DEBUG instruments were
 split out of `LocalChatBackend.swift` (5,727 → 1,826 lines) into
 `LocalChatBackend+Battery.swift`, `+Harnesses.swift` and `+IntentRouting.swift`.

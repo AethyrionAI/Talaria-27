@@ -1,0 +1,62 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: IMAGE PROBE START trials=10 arms=img-none,img-signal,img-guide (#207)
+battery: THERMAL cell=img-none at=start state=serious (#201B)
+router: 0/10 expected=true variant=img-none band=image probe=what does this say?
+router: 0/10 expected=true variant=img-none band=image probe=read the text in this photo
+router: 0/10 expected=true variant=img-none band=image probe=what's in this picture?
+router: 10/10 expected=true variant=img-none band=image probe=scan this barcode
+router: 10/10 expected=false variant=img-none band=image-wordsonly probe=write a haiku about sledding
+router: 10/10 expected=false variant=img-none band=image-wordsonly probe=what's 2+2?
+router: 10/10 expected=false variant=img-none band=baseline probe=What's 2+2?
+router: 10/10 expected=false variant=img-none band=baseline probe=Write a haiku about sledding
+router: 10/10 expected=false variant=img-none band=baseline probe=write a 50 word summary about Norway
+router: 10/10 expected=false variant=img-none band=baseline probe=Tell me a joke about penguins
+router: 10/10 expected=false variant=img-none band=baseline probe=Write a poem for my mom's birthday
+router: 10/10 expected=true variant=img-none band=baseline probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=img-none band=baseline probe=What's the weather like right now?
+router: 10/10 expected=true variant=img-none band=baseline probe=Set an alarm for 6:30
+router: 10/10 expected=true variant=img-none band=baseline probe=How many steps have I taken today?
+router: 10/10 expected=true variant=img-none band=baseline probe=Do I have anything on my calendar Friday?
+battery: THERMAL cell=img-none at=end state=serious (#201B)
+battery: THERMAL cell=img-signal at=start state=serious (#201B)
+router: 0/10 expected=true variant=img-signal band=image probe=what does this say?
+router: 0/10 expected=true variant=img-signal band=image probe=read the text in this photo
+router: 0/10 expected=true variant=img-signal band=image probe=what's in this picture?
+router: 10/10 expected=true variant=img-signal band=image probe=scan this barcode
+router: 10/10 expected=false variant=img-signal band=image-wordsonly probe=write a haiku about sledding
+router: 10/10 expected=false variant=img-signal band=image-wordsonly probe=what's 2+2?
+router: 10/10 expected=false variant=img-signal band=baseline probe=What's 2+2?
+router: 10/10 expected=false variant=img-signal band=baseline probe=Write a haiku about sledding
+router: 10/10 expected=false variant=img-signal band=baseline probe=write a 50 word summary about Norway
+router: 10/10 expected=false variant=img-signal band=baseline probe=Tell me a joke about penguins
+router: 10/10 expected=false variant=img-signal band=baseline probe=Write a poem for my mom's birthday
+router: 10/10 expected=true variant=img-signal band=baseline probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=img-signal band=baseline probe=What's the weather like right now?
+router: 10/10 expected=true variant=img-signal band=baseline probe=Set an alarm for 6:30
+router: 10/10 expected=true variant=img-signal band=baseline probe=How many steps have I taken today?
+router: 10/10 expected=true variant=img-signal band=baseline probe=Do I have anything on my calendar Friday?
+battery: THERMAL cell=img-signal at=end state=serious (#201B)
+battery: THERMAL cell=img-guide at=start state=serious (#201B)
+router: 0/10 expected=true variant=img-guide band=image probe=what does this say?
+router: 0/10 expected=true variant=img-guide band=image probe=read the text in this photo
+router: 10/10 expected=true variant=img-guide band=image probe=what's in this picture?
+router: 10/10 expected=true variant=img-guide band=image probe=scan this barcode
+router: 10/10 expected=false variant=img-guide band=image-wordsonly probe=write a haiku about sledding
+router: 10/10 expected=false variant=img-guide band=image-wordsonly probe=what's 2+2?
+router: 10/10 expected=false variant=img-guide band=baseline probe=What's 2+2?
+router: 10/10 expected=false variant=img-guide band=baseline probe=Write a haiku about sledding
+router: 10/10 expected=false variant=img-guide band=baseline probe=write a 50 word summary about Norway
+router: 10/10 expected=false variant=img-guide band=baseline probe=Tell me a joke about penguins
+router: 10/10 expected=false variant=img-guide band=baseline probe=Write a poem for my mom's birthday
+router: 10/10 expected=true variant=img-guide band=baseline probe=Remind me to buy milk tomorrow at 9am
+router: 10/10 expected=true variant=img-guide band=baseline probe=What's the weather like right now?
+router: 10/10 expected=true variant=img-guide band=baseline probe=Set an alarm for 6:30
+router: 10/10 expected=true variant=img-guide band=baseline probe=How many steps have I taken today?
+router: 10/10 expected=true variant=img-guide band=baseline probe=Do I have anything on my calendar Friday?
+battery: THERMAL cell=img-guide at=end state=serious (#201B)
+router: IMAGE PROBE DONE (#207)
+instrument: COMPLETED image-routing-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

@@ -1,0 +1,936 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:36:44Z",
+  "instrument" : "toolless-index",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "control",
+      "treatment"
+    ],
+    "endedCleanly" : true,
+    "id" : "8657E297-598F-42F0-B84A-C6CE1A01DFE3",
+    "kind" : "toolless-index",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+
+    ],
+    "startedAt" : "2026-08-15T06:35:34Z",
+    "trials" : [
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.746752667,
+        "outputTokens" : 31,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know, right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.3637075,
+        "outputTokens" : 31,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know, right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.3872822500000002,
+        "outputTokens" : 35,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can help you write, compose, summarize, and handle everyday conversation — all from what I know, right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.365028458,
+        "outputTokens" : 29,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know right here on this device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.281717666,
+        "outputTokens" : 27,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can help you write, summarize, compose, and keep things organized with what’s in front of us.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.341267292,
+        "outputTokens" : 29,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what’s in my knowledge right now.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.263034625,
+        "outputTokens" : 29,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know right here on this device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.297879917,
+        "outputTokens" : 29,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.354540292,
+        "outputTokens" : 33,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can help you write, summarize, compose, and handle everyday conversation — all from what I know right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 354,
+        "latencySeconds" : 1.238625459,
+        "outputTokens" : 23,
+        "prompt" : "whatcanyoudo",
+        "shape" : "control",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what I know right now.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.7485365420000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.729243458,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.722404542,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.724616125,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.705824458,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "That’s 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.703675166,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.7008637910000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "That’s 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.7004778330000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.7125640000000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 357,
+        "latencySeconds" : 0.7117587910000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "control",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.217221917,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies down fast,  \nLaughter echoes on the hill—  \nWind pulls tight my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.1547019170000001,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow glides down the hill,  \nLaughter echoes in the cold—  \nWind carries the rush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.192854292,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow under wheels,  \nWind hums past the frozen hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.266493458,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow glides down the hill,  \nLaughter sparks in winter air—  \nSpeed paints fleeting joy.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.2490207500000001,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.22237225,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies in the air,  \nLaughter speeds down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.226324083,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.25896325,
+        "outputTokens" : 29,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSpeed blooms in the dark.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.228537333,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 356,
+        "latencySeconds" : 1.3945503750000001,
+        "outputTokens" : 35,
+        "prompt" : "haiku",
+        "shape" : "control",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSled glides, pure joy found.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.355985916,
+        "outputTokens" : 25,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, summarize, compose, and keep track of everyday things right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.5353493340000002,
+        "outputTokens" : 35,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, compose, summarize, and talk through everyday thoughts — all from what I know right here on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.406509334,
+        "outputTokens" : 29,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what’s in your device right now.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.758611791,
+        "outputTokens" : 49,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, compose, summarize, and talk about everyday things — like your activity, location, reminders, and the weather — all from what’s on your iPhone right now.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.4842472500000001,
+        "outputTokens" : 31,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, summarize, compose, and talk through everyday thoughts — all from what’s on your iPhone.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.38643925,
+        "outputTokens" : 25,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what’s on your device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.41707225,
+        "outputTokens" : 31,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, compose, summarize, and talk about everyday things — all from what’s on your device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.361602875,
+        "outputTokens" : 25,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what’s on your device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.9747549580000001,
+        "outputTokens" : 55,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can help you write, summarize, compose, and keep track of things from what’s on your device — like your health, activity, location, calendar, reminders, and messages — all without needing to look outside this moment.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 409,
+        "latencySeconds" : 1.4586926660000001,
+        "outputTokens" : 25,
+        "prompt" : "whatcanyoudo",
+        "shape" : "treatment",
+        "text" : "I can write, compose, summarize, and handle everyday conversation — all from what’s on this device.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.8749349160000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "Two plus two is four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.8488121670000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "Two plus two is four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.8367187500000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "Two plus two is four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.783225583,
+        "outputTokens" : 11,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "That’s four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.885473083,
+        "outputTokens" : 11,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "That’s 4, simple as that.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.8128099580000001,
+        "outputTokens" : 13,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "Two plus two is four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.8198733340000001,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.819693459,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.779938083,
+        "outputTokens" : 11,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "That’s four.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 412,
+        "latencySeconds" : 0.827704666,
+        "outputTokens" : 17,
+        "prompt" : "canary",
+        "shape" : "treatment",
+        "text" : "2 plus 2 is 4.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.368870958,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow under wheels,  \nLaughter flies down icy paths—  \nWind carries the rush.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 1
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.2624416250000001,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow flies in the air,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 2
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.384978542,
+        "outputTokens" : 25,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nWind shapes every path.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 3
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.328196208,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow under wheels,  \nWind sings down the frozen hill—  \nLaughter fills the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 4
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.357347875,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow under wheels,  \nWind sings down the icy slope—  \nLaughter cuts the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 5
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.3405050840000001,
+        "outputTokens" : 23,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow under wheels,  \nWind sings through the frozen path—  \nLaughter cuts the air.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 6
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.355209667,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow flies fast and low,  \nLaughter echoes down the hill—  \nCold wind bites the face.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 7
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.459236792,
+        "outputTokens" : 35,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow flies fast down hill,  \nLaughter echoes, cold air bites—  \nSled glides, swift and bright.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 8
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.388420375,
+        "outputTokens" : 27,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow flies in the air,  \nLaughter echoes down the hill—  \nWind pulls at my coat.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 9
+      },
+      {
+        "cant" : false,
+        "denial" : false,
+        "inputTokens" : 411,
+        "latencySeconds" : 1.20244825,
+        "outputTokens" : 21,
+        "prompt" : "haiku",
+        "shape" : "treatment",
+        "text" : "Snow under wheels,  \nLaughter echoes down the hill—  \nWind shapes fleeting paths.",
+        "timedOut" : false,
+        "toolCalls" : [
+
+        ],
+        "trial" : 10
+      }
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:35:33Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}

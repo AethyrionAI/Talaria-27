@@ -1,0 +1,41 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+router: VECTOR PROBE START trials=10 baseline=10 grid=21 meta=2 (#284)
+router: [vector] baseline 10/10 expected=false probe=What's 2+2?
+router: [vector] baseline 10/10 expected=false probe=Write a haiku about sledding
+router: [vector] baseline 10/10 expected=false probe=write a 50 word summary about Norway
+router: [vector] baseline 10/10 expected=false probe=Tell me a joke about penguins
+router: [vector] baseline 0/10 expected=false probe=Write a poem for my mom's birthday
+router: [vector] baseline 10/10 expected=true probe=Remind me to buy milk tomorrow at 9am
+router: [vector] baseline 10/10 expected=true probe=What's the weather like right now?
+router: [vector] baseline 10/10 expected=true probe=Set an alarm for 6:30
+router: [vector] baseline 10/10 expected=true probe=How many steps have I taken today?
+router: [vector] baseline 10/10 expected=true probe=Do I have anything on my calendar Friday?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=reminders tally=["deviceStatus+location+reminders": 10] probe=Remind me to buy milk tomorrow at 9am
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=reminders tally=["deviceStatus+location+reminders": 10] probe=Add pick up dry cleaning to my reminders
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=alarms tally=["alarms+deviceStatus+location": 10] probe=Set an alarm for 6:30
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=alarms tally=["alarms+deviceStatus+location+reminders": 10] probe=Wake me up at 7 tomorrow
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=calendar tally=["calendar+deviceStatus+location+reminders": 10] probe=Put lunch with Sam on my calendar Friday at noon
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=calendar tally=["alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather": 10] probe=Do I have anything on my calendar Friday?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=weather tally=["deviceStatus+location+places+weather": 10] probe=What's the weather like right now?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=weather tally=["location+weather": 10] probe=Is it going to rain this afternoon?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=health tally=["health+location": 10] probe=How many steps have I taken today?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=health tally=["deviceStatus+health+location": 10] probe=How did I sleep last night?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=conversations tally=["contacts+conversations+deviceStatus+location+reminders": 10] probe=When did I last text Sam about the boat?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=deviceStatus tally=["deviceStatus+location": 10] probe=How much battery do I have left?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=contacts tally=["contacts+deviceStatus+location+places": 10] probe=What's Sam's phone number?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=places tally=["location+places": 10] probe=Find a coffee shop near me
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=10/10 want= tally=["deviceStatus+location+places": 10] probe=Play some music
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=10/10 want= tally=["deviceStatus+location+places+weather": 10] probe=How long will it take me to drive to the airport?
+router: [vector] grid armed=10/10 groups=10/10 DANGEROUS=0/10 want= tally=["∅": 10] probe=Read the label on this bottle for me
+router: [vector] grid armed=10/10 groups=10/10 DANGEROUS=0/10 want= tally=["∅": 10] probe=Write a haiku about sledding
+router: [vector] grid armed=10/10 groups=10/10 DANGEROUS=0/10 want= tally=["∅": 10] probe=What's 2+2?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=calendar+reminders+weather tally=["alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather": 10] probe=What's my day look like tomorrow?
+router: [vector] grid armed=10/10 groups=0/10 DANGEROUS=0/10 want=reminders+weather tally=["alarms+calendar+contacts+conversations+deviceStatus+health+location+places+reminders+weather": 10] probe=Anything due today, and do I need an umbrella?
+router: [vector] META armed=0/10 tally=["∅": 10] errors=0 probe=What can you do?
+router: [vector] META armed=0/10 tally=["alarms+reminders": 10] errors=0 probe=What kinds of things can you help me with?
+router: VECTOR PROBE DONE (#284)
+instrument: COMPLETED vector-router-probe (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

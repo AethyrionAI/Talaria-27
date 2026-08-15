@@ -1,0 +1,22 @@
+battery: CONTAINER-REAP start calendars=0 lists=0 alarms=0 failures=0 outside-marked=0(not-deleted) (#331)
+preflight: FM ASYMMETRIES START repeats=10 (#324-W3/#335)
+preflight: [boundary] synthetic payload sized for ~4096 tokens value=3527 min=3527 max=3527 distinct=1 fit=10/10 scored=10/10 errors=0 cap=— headroom=— extra=chars=16450.0,measuredCharsPerToken=4.664020413949532,targetTokens=4096.0 notes=
+preflight: [boundary] synthetic payload sized for ~8192 tokens value=7037 min=7037 max=7037 distinct=1 fit=10/10 scored=10/10 errors=0 cap=— headroom=— extra=charRatioVs4096=1.995744680851064,chars=32830.0,measuredCharsPerToken=4.665340343896546,targetTokens=8192.0,tokenRatioVs4096=1.9951800396937907 notes=
+preflight: [variant] SystemLanguageModel.variant.displayName (length; the string is in notes) value=19 min=19 max=19 distinct=1 fit=10/10 scored=10/10 errors=0 cap=— headroom=— extra=contextSize=8192.0 notes=availability=available,displayName=AFM 3 Core Advanced,isCore3=false,isCoreAdvanced3=true
+preflight: [response-cap-behavior] t=1 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=2 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=3 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=4 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=5 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=6 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=7 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=8 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=9 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] t=10 TRUNCATED outTok=16>=cap=8 chars=43 text=The sea stretches endlessly, a vast expanse
+preflight: [response-cap-behavior] SUMMARY behavior=truncated truncated=10/10 withinCap=0/10 threw=0/10 timedOut=0/10 cap=8 outTok=16,16,16,16,16,16,16,16,16,16
+preflight: FM ASYMMETRIES DONE (#324-W3/#335)
+instrument: COMPLETED fm-asymmetries (#333)
+instrument: AUTO COMPLETE (#333)
+Launched application with org.aethyrion.talaria27 bundle identifier.
+Waiting for the application to terminate...
+App terminated due to signal 15.

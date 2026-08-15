@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#333** 🔧 THE UNATTENDED INSTRUMENT RUNNER — registry (45 instruments) + conductor + launch-env trigger + `run-instrument.sh`; one code path from button or env to an atomic artifact with a positive completion flag. **✅ BUILT, WITNESSED, MERGED 2026-08-12 (`f8ec228`): bars 333-A..H ALL MET — bar A ran unattended on the iPad (10 probes × 2 trials, 0 errors, 29 s), bar C witnessed by a real mid-flight kill, refusals (alarm/unattended + iPad) enforced in-app and artifacted. GATE: PASS 2145→2167 + Release. 16/45 instruments unattended-eligible (the 29 alarm-writers refuse by Owen's ruling) — **19/48 since #335 added three read-only FM instruments, 2026-08-12**. The §6 handoff queue is now RUNNABLE; watch-item residuals recorded in the entry**
 - **#338** 🛡️ **THE HONESTY GUARD — MERGED 2026-08-12** (`ActionClaimDetector` + the settle-point wiring): a turn that CLAIMS a device action while executing ZERO tool calls no longer reaches the user as-is. Three fix rounds, each closed by an adversarial re-review that COMPILED the detector and ran it over the real artifacts; final verdict SHIPPABLE. Floor 6/6 at both latch states, 544 prefixed forms of #337-A caught, zero new false positives over 112 real replies. **Bars A/B/D/E/F met; 338-C (device witness) is the only one left and needs Owen** — the entry stays open. Lane's transferable finding: all three rounds were INTERSECTIONS of two individually-correct fixes, and the sweep that catches them is now a fixture, not a reviewer's idea. **FILED 2026-08-12 on Owen's go, the hour #337-A confirmed the defect in production.** Deterministic, app-side, independent of model behaviour — it makes the app HONEST, not capable. Pure detector (fixtures drawn from tonight's REAL artifacts, curly-apostrophe case pinned) + a response whose user-facing copy is **Owen's ruling, not the lane's**. Bars 338-A..F pre-registered before code
-- **#343** 🔬 **THE beta5 REFERENCE TABLE** — a 2.5-hour attended device campaign producing ONE dated, machine-readable measurement of the on-device brain on iOS 27 **24A5408d**, carrying a *measured* beta4 column wherever a pinned control makes one honest. **A TRUE beta4-vs-beta5 A/B IS IMPOSSIBLE and no row pretends otherwise**: `whoGoesThere` is on beta5, **beta4 is GONE from `/Applications`** (verified 2026-08-12) so there is no toolchain to build a beta4 binary with, and the retained 24A5390f sim runtime **cannot generate a single trial** (#324 — `LanguageModelError -1` wrapping `ModelManagerError 1026`, `contextSize = 0`). Every cross-era row is therefore today's build on beta5 against an OLDER build on beta4, runtime and app changes confounded in the same direction; the design's whole job is to make that visible PER ROW. Built on the discovery that `handoffs/evidence/battery-runs/` holds ten machine-readable beta4 runs on `24A5390f` — **ten runs · eight with trials · SEVEN CONTRASTABLE**, and seven is the figure the bars depend on: `3CB9E45D` and `8D724EC5` carry **ZERO trials**, and `D1A99F3A` has trials but died 13 in (`endedCleanly: false`) with no twin cell, so it supports no contrast. Every cell they used still exists and is individually selectable via `TALARIA_CELLS` (#341), so the beta4 column is **RE-SCORED through tonight's classifier** rather than quoted out of tracker prose. **Bars RT-A..H pre-registered 2026-08-14 BEFORE any launch** (scorer + metrics built first: `scripts/mac/score-eras.py`). **TWO amendments measured at pre-registration, and both correct the plan's OWN reading rather than inheriting it — RT-A splits health from weather, and RT-F is a CEILING-RETENTION bar, not a rate comparison.** Carries 338-C as a powered hunt (n=13, ~99% at p ≈ 0.3) **whose null bounds nothing**, per #215. NOT RUN
+- **#343** 🔬 **THE beta5 REFERENCE TABLE** — a 2.5-hour attended device campaign producing ONE dated, machine-readable measurement of the on-device brain on iOS 27 **24A5408d**, carrying a *measured* beta4 column wherever a pinned control makes one honest. **A TRUE beta4-vs-beta5 A/B IS IMPOSSIBLE and no row pretends otherwise**: `whoGoesThere` is on beta5, **beta4 is GONE from `/Applications`** (verified 2026-08-12) so there is no toolchain to build a beta4 binary with, and the retained 24A5390f sim runtime **cannot generate a single trial** (#324 — `LanguageModelError -1` wrapping `ModelManagerError 1026`, `contextSize = 0`). Every cross-era row is therefore today's build on beta5 against an OLDER build on beta4, runtime and app changes confounded in the same direction; the design's whole job is to make that visible PER ROW. Built on the discovery that `handoffs/evidence/battery-runs/` holds ten machine-readable beta4 runs on `24A5390f` — **ten runs · eight with trials · SEVEN CONTRASTABLE**, and seven is the figure the bars depend on: `3CB9E45D` and `8D724EC5` carry **ZERO trials**, and `D1A99F3A` has trials but died 13 in (`endedCleanly: false`) with no twin cell, so it supports no contrast. Every cell they used still exists and is individually selectable via `TALARIA_CELLS` (#341), so the beta4 column is **RE-SCORED through tonight's classifier** rather than quoted out of tracker prose. **Bars RT-A..H pre-registered 2026-08-14 BEFORE any launch** (scorer + metrics built first: `scripts/mac/score-eras.py`). **TWO amendments measured at pre-registration, and both correct the plan's OWN reading rather than inheriting it — RT-A splits health from weather, and RT-F is a CEILING-RETENTION bar, not a rate comparison.** Carries 338-C as a powered hunt (n=13, ~99% at p ≈ 0.3) **whose null bounds nothing**, per #215. **🔬 RAN 2026-08-15 — RT-A MEASURED (pinned cell 20/20→0/10, p=3.33e-08, an IMPROVEMENT) · RT-B MET (reproduces #211 at p=1.083e-05) · RT-F MET (no drift, 20/20 at both canaries) · RT-C/D/E measured with NO runtime verdict, because RT-D's own bar showed the same cell swings 25/30 vs 21/30 on one night · RT-H MET · RT-G (338-C) STILL OWED.** **The headline finding is not about beta5: #225's governor (2026-08-02) POSTDATES the beta4 archive and strangled every battery since — 31/40 canary trials dead until fixed. Also found: the calendar reap silently under-deletes (42 created, 25 reaped).**
 - **#342** 📋 **KANBAN SUPPORT** — Owen's request 2026-08-12. **A read-only view SHIPPED the same night** (`scripts/oi-kanban.py`, never writes to the tracker). **Its measurement is the real input: 97 of 138 open cards (70%) are UNCLASSIFIABLE** — their state lives only in prose — and the 41 it does place are placed by keyword, crudely (#338 reads as "Blocked" because its text says "needs Owen", while it is merged with one bar owed). **So the question is whether entries get a machine-readable status at all, which changes how every entry is written — Owen's call, not a lane's.** Five design questions in the entry; bars pre-register before any format change
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
@@ -9778,7 +9778,7 @@ where the baselines live; and who reads a red. **Bars pre-register here when a l
 opens.** The hazard to design against is the one this project already names: a
 routinely-red or routinely-ignored gate is worse than none.
 
-## 343. 🔬 THE beta5 REFERENCE TABLE — one dated, machine-readable measurement of the on-device brain, with a MEASURED beta4 column where a pinned control makes one honest — **FILED 2026-08-14. Design `planning/superpowers/specs/2026-08-14-beta5-local-brain-reference-table-design.md`, plan `planning/superpowers/plans/2026-08-14-beta5-reference-table.md`, base `main` @ `23bb69a`. BARS RT-A..H PRE-REGISTERED BELOW, BEFORE ANY LAUNCH — per the convention since #215, a missed bar is a falsification, not a redefinition. NOT RUN.**
+## 343. 🔬 THE beta5 REFERENCE TABLE — one dated, machine-readable measurement of the on-device brain, with a MEASURED beta4 column where a pinned control makes one honest — **FILED 2026-08-14. Design `planning/superpowers/specs/2026-08-14-beta5-local-brain-reference-table-design.md`, plan `planning/superpowers/plans/2026-08-14-beta5-reference-table.md`, base `main` @ `23bb69a`. BARS RT-A..H PRE-REGISTERED BELOW, BEFORE ANY LAUNCH — per the convention since #215, a missed bar is a falsification, not a redefinition. ✅ RAN 2026-08-15 — results in the dated block at the end of this entry. RT-A/B/F/H answered, RT-C/D/E measured without a runtime verdict, RT-G (338-C) still owed. Header corrected in the same commit as the results, per #301's lesson.**
 
 **What this is.** A 2.5-hour attended device campaign on `whoGoesThere` (iOS 27.0
 **24A5408d**, Xcode-beta5 27A5237l). Since beta5 landed we have accumulated
@@ -10071,6 +10071,107 @@ and its positive completion flag), **#331** (the alarms-unattended ruling that
 shapes Track A), **#300** (the classifier that read a wrong verdict on both logs),
 **#339** (the regression-gate idea this campaign supplies a reference for).
 
+
+> **🔬 RAN 2026-08-15, 04:00–07:40 UTC, `whoGoesThere`, iOS 27.0 24A5408d, Debug @ `bb42415`.
+> 29 accepted artifacts · 970 trials · 599 probes · 5 fabrications · 1 STRICT specimen.
+> Full evidence `planning/reports/2026-08-14-343-beta5-reference-table/`.**
+>
+> **RT-A MEASURED · RT-B MET · RT-C/D/E measured (no runtime verdict) · RT-F MET · RT-G NOT RUN
+> (owed to Owen) · RT-H MET.**
+>
+> **🔑 THE FINDING THAT REFRAMES THE LANE IS NOT ABOUT beta5 — IT IS #225's GOVERNOR.**
+> `ToolCallGovernor` (`5e919269`, **2026-08-02**) caps a tool at 4 calls per turn, and the
+> batteries never start a turn (`LocalChatBackend+Refusal.swift:39` — they call
+> `session.respond` directly). Every trial in a run counted as ONE turn, so after four
+> `readHealth` calls the tool was refused for the rest of the launch. Canary #1 measured
+> **31 of 40 trials DEAD**, both sensor tools failing together (14 `DeviceHealthTool` +
+> 17 `MotionTool`). `beginTurn()`'s own doc comment predicts it: *"a budget that leaked across
+> turns would silently strangle a long conversation … the obvious way this fix becomes worse
+> than the bug it fixes."*
+>   - **THE DATES ARE THE STORY: the beta4 archive is 07-31/08-01 — it PREDATES the governor.**
+>     Its 20/20 was measured with no governor in existence, so no build carrying one can
+>     reproduce it, on any runtime. Every cross-era row would have been measuring OUR OWN
+>     GOVERNOR and attributing it to beta5.
+>   - **Two hypotheses falsified on the way, recorded because the elimination IS the evidence:**
+>     *permissions lost in the reinstall* (wrong — successful trials were perfect) and *the
+>     screen auto-locked* (wrong — with Auto-Lock Never the re-run was identical trial-for-trial;
+>     identical counts are deterministic, not timing).
+>   - **FIX (Owen's call, taken):** `toolRelay?.beginTurn()` per trial in `runActionBattery`
+>     (`:974`) and `runShapeBattery` (`:228`). DEBUG harness only, no production change, and it
+>     makes the harness MORE production-like. **31/40 dead → 0/40 dead from one line.**
+>   - **⚠️ CONSEQUENCE BEYOND THIS LANE: every battery rate measured between 2026-08-02 and this
+>     fix is governor-strangled.** That is a fact about the project's measurement record, not
+>     just about tonight. Carried to CLAUDE.md's measurement-discipline section.
+>
+> **RT-A (Class 1a) — MEASURED, and the direction is one nobody predicted.**
+> `metric_spurious_location` on `weathernamed`: pinned `armed-fieldrollback` **20/20 → 0/10**,
+> **p = 3.33e-08**; production `armed` 5/20 → 0/10, p = 0.14. Text byte-identical across eras,
+> **thermally matched**, weather service WORKING tonight (service-matched twin `6C3EBD86`), and
+> the metric reads the TOOL list — both beta4 twins scored 10/10 under OPPOSITE service states,
+> confirming that immunity empirically. **No directional prediction was registered**, which is
+> why a result in this direction is readable at all. #209's field-omission defect is gone here.
+>
+> **RT-B (Class 1b canary) — MET, exact reproduction.** promoted 10/10 vs rollback 0/10,
+> **p = 1.083e-05** against #211's published **1.08e-05** (`63C0EF12`); motion questions
+> unaffected 10/10 (#211 recorded 9/9). **The PAIR is the point:** RT-B holding exactly proves
+> the apparatus is sound on this runtime, so RT-A's change is not a broken instrument.
+>
+> **RT-F (drift) — MET.** canary #1 20/20, sweep re-run 20/20, canary #2 20/20 **at `serious`**.
+> #1 == #2 ⇒ no within-night drift, so every late-night row stands; both == beta4 ⇒ no level
+> shift; holding at `serious` confirms the thermal-insensitivity the beta4 twins implied.
+> **This bar is why the night has a result at all** — pinned at a ceiling, 31/40 dead was
+> unmistakably apparatus failure; on any unpinned metric it would have read as a catastrophic
+> beta5 regression. It exists because the final whole-branch review caught that Task 6 had no
+> step running the canary.
+>
+> **RT-C/D/E (Class 2) — measured, and RT-D CONSTRAINS THEM ALL.** CREATE prompts only:
+> RT-C `armed` 22/30 (p=0.005) · `routed-production` 25/30 (p=0.052); RT-D `routed-production`
+> 21/30 (p=0.002) · `routed-scoped` 14/30 (p=1.94e-06); RT-E `armed` 28/30 (p=0.49) ·
+> `armed-scopedv2` 22/30 (p=0.005) — all against beta4 30/30.
+>   - **RT-D's own bar fires against the rest of the table.** `routed-production` was measured
+>     TWICE tonight, same cell, ~7 min apart: **25/30 vs 21/30** (p = 0.36), and on `remind`
+>     alone **7/10 vs 3/10**. So **the same cell against the same beta4 baseline yields p = 0.052
+>     or p = 0.002 depending on which of tonight's runs you pick.** No Class 2 delta here may be
+>     read as a runtime effect — the design forbade it on principle; this is the measurement.
+>     **The row existed only because Owen claimed the spare attended slot.**
+>   - **Convergence:** tonight's 83% and 70% BRACKET 337-F's 77%. Three independent leak-free
+>     measurements of the production-like create rate agree; beta4's 30/30 is a ceiling no
+>     leak-free measurement has ever reproduced — a hint that the CEILING is the anomaly.
+>   - RT-E came out **thermally matched by luck** — run third, its `scopedv2` cell hit `serious`,
+>     exactly like beta4 twin `1835BBF9`. The entry predicted a mismatch.
+>
+> **Honesty: 0 fabrications in the 240 attended trials**; campaign-wide 5/970 (auto-DECLINE
+> instruments, #199's claim-after-decline shape) and **1 STRICT specimen**, vs #200J's beta4 0/40
+> and 337-G's beta5 2/120.
+>
+> **THREE MORE DEFECTS, ALL OURS:**
+> 1. **🔴 THE CALENDAR REAP UNDER-DELETES, SILENTLY.** `createReminder` 36 → reaped 39 (+3,
+>    exactly +1/run = #336(b)'s warmup signature ✓); `scheduleAlarm` 54 → 57 (+3 ✓);
+>    **`createCalendarEvent` 42 → reaped 25 (−17)**, `failures=0` every run. Reminders and alarms
+>    reconcile exactly; calendar does not. **Up to 17 test events may remain on Owen's REAL
+>    calendar.** Not cleaned up — his data, his call. NEEDS ITS OWN ITEM.
+> 2. **Plan Task 6 Step 1's build check CANNOT FAIL.** It compares the artifact's `buildSha` to
+>    `git rev-parse HEAD`, but `run-instrument.sh:137` stamps that value FROM the repo's HEAD and
+>    `InstrumentConductor.swift:71` passes it through — the same script computes both sides, and
+>    there is **no compiled-in build identity anywhere in the app**. Worked around by rebuilding
+>    and reinstalling rather than trusting it.
+> 3. **A bug in the SCORER, caught by an implausible number.** The first sweep table reported
+>    `intent-router-probe` — a read-only probe registering no tools — as 40 trials / 40 tool
+>    executions. `run-instrument.sh`'s `baseline_copy()` puts the PREVIOUS instrument's artifact
+>    in each new run directory before launch, and the scorer keyed off the directory NAME. Fixed
+>    by `provenance()` (rejects non-terminal artifacts and instrument/directory mismatches),
+>    **proven falsifiable both ways** rather than left as untested dead code.
+>
+> **⚠️ CORRECTION OWED TO THIS ENTRY'S OWN DESIGN:** the spec's Class 1a/1b definition rests on
+> *frozen cell text controls the app half*. **That is FALSE** — the governor sits OUTSIDE the
+> cell text and applies to every cell equally, so even the Class 1 rows carry an app-side
+> confound the design never considered. Corrected at the spec's own home in the same commit.
+>
+> **STILL OWED: RT-G (338-C)** — up to 13 fresh-thread production turns; no battery can witness
+> the #338 guard. And the two Track U probes that my own `--timeout 600` SIGTERM'd at ~608s
+> (`intent-router-probe` needs ~14 min; the registry already said "~585 generations is ~10
+> minutes") both re-ran clean at `--timeout 2400`, 116 and 31 probes — Class 3, nothing
+> cross-era lost.
 ## 342. 📋 KANBAN SUPPORT FOR THE TRACKER — **FILED 2026-08-12 on Owen's request ("add Kanban support… I'd like to investigate that tomorrow"). A READ-ONLY VIEW SHIPPED THE SAME NIGHT; the structural question is deliberately NOT decided, because it is his.**
 
 **What shipped (additive, reversible, zero risk to the tracker):**

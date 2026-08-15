@@ -1,0 +1,125 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "bb42415",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-15T06:43:42Z",
+  "instrument" : "cross-chat-recall-probe",
+  "osVersion" : "Version 27.0 (Build 24A5408d)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "crosschat"
+    ],
+    "endedCleanly" : true,
+    "id" : "967DB981-DA76-45BB-BA3B-35174DD2835B",
+    "kind" : "crosschat-recall",
+    "osVersion" : "Version 27.0 (Build 24A5408d)",
+    "probes" : [
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What did we decide about the boat?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What did I say my usual dose was?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Remind me what we called that project.",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What did I tell you my landlord's name was?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Which paint color did we settle on?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What was the workout plan we made?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Didn't I mention a deadline last time? What was it?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What did we talk about on Tuesday?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "Bring up what we said about the trip budget.",
+        "trials" : 10,
+        "variant" : "crosschat"
+      },
+      {
+        "band" : "routing",
+        "correct" : 0,
+        "errors" : 0,
+        "expected" : true,
+        "probe" : "What was the name of that restaurant I liked?",
+        "trials" : 10,
+        "variant" : "crosschat"
+      }
+    ],
+    "startedAt" : "2026-08-15T06:42:20Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 10
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-15T06:42:20Z",
+  "status" : "completed",
+  "trialsRequested" : 10,
+  "unattended" : true
+}
