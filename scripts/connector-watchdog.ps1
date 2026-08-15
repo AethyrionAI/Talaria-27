@@ -36,7 +36,7 @@
     was right and this header was the stale copy.
 
     That task was DELETED 2026-08-15 as part of the relay/connector
-    retirement (#317 / #223 Phase 4 direction), along with the relay and
+    retirement (#346 / #223 Phase 4 direction), along with the relay and
     shim services being Stopped+Disabled and `mcp_servers.hermes_mobile`
     being disabled. So the header is accurate again today, for a completely
     different reason than it originally claimed.

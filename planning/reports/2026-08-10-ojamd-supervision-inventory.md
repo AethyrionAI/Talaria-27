@@ -236,7 +236,7 @@ service registrations, not the models-shim tree, not the relay/connector pair.
 
 | §7 step | Status on 2026-08-15 |
 |---|---|
-| 1. `Set-Service TalariaModelsShim -StartupType Disabled` | **ALREADY DONE.** Live `Get-Service`: relay **and** shim are both `Stopped` / **`Disabled`**. §1's "StartType → Disabled queued this sitting" wording is stale — treat #317's account (stopped AND disabled 2026-08-10) as the accurate one. |
+| 1. `Set-Service TalariaModelsShim -StartupType Disabled` | **ALREADY DONE.** Live `Get-Service`: relay **and** shim are both `Stopped` / **`Disabled`**. §1's "StartType → Disabled queued this sitting" wording is stale — treat #346's account (stopped AND disabled 2026-08-10) as the accurate one. |
 | 2. Delete the disabled scheduled tasks | **All three are `Disabled`, none deleted.** `TalariaConnectorWatchdog` has joined `HermesGateway` and `TalariaModelsShim` in that state — so the two-minute RESTART churn documented in §2 has stopped (last `connector-watchdog.log` line: 2026-08-10 00:36:02). |
 
 ### Done this sitting
@@ -266,7 +266,7 @@ residue whose only remaining effect is to make the box misreadable (§2's point
 about a disabled task named `HermesGateway` sitting next to a standing "never
 `Start-Service HermesGateway`" rule).
 
-### A third MCP copy, found while doing #317 — belongs in this inventory
+### A third MCP copy, found while doing #346 — belongs in this inventory
 
 §1–§3 enumerate services, tasks and Startup entries. They miss a supervisor
 that is none of those: **the Hermes Desktop app's own backend.**

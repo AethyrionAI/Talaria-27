@@ -5311,7 +5311,7 @@ Logged 2026-07-26.
 > scheduled task was deleted, `Hermes_Connector.cmd` was removed from the Startup
 > folder, the relay and shim services are Stopped+Disabled, and
 > `mcp_servers.hermes_mobile` is disabled with zero `hermes-mobile` processes left
-> on the box (#317, #271). **There is no watchdog left to be ambiguous, and no
+> on the box (#346, #271). **There is no watchdog left to be ambiguous, and no
 > connector left for it to misdiagnose.**
 >
 > **This is the DECLINED fix outliving its problem, which is the outcome the
@@ -7006,7 +7006,7 @@ not because it is burning.**
 
 **Handoff:** `dispatch/MAC-T27-319-talaria-mac-401.md`.
 
-## 318. 🔍 SCORING RULE — the agent's tool registry is DEFERRED, so "the tool is not available to me" is not evidence of anything. Three false negatives across two sittings were the model never calling `tool_search` — **FILED 2026-08-15 on Owen's routing, root-caused live on OJAMD. Not a defect in the plugin; a methodology rule that governs every future phone bar.**
+## 347. 🔍 SCORING RULE — the agent's tool registry is DEFERRED, so "the tool is not available to me" is not evidence of anything. Three false negatives across two sittings were the model never calling `tool_search` — **FILED 2026-08-15 on Owen's routing, root-caused live on OJAMD. Not a defect in the plugin; a methodology rule that governs every future phone bar.**
 
 **The finding.** Tools are not all in the model's initial prompt on this
 host. The agent reaches them through a **deferred registry**: a turn that
@@ -7021,10 +7021,10 @@ on 2026-08-15 shows exactly that prefix in `agent.log`:
 ```
 
 **What it explains.** Three separate "the tool is not registered / not
-available to me" replies — 2026-08-10 02:05 (recorded in #317's addendum as
+available to me" replies — 2026-08-10 02:05 (recorded in #346's addendum as
 the model contradicting the log), and 2026-08-15 15:32 and 15:34 — were the
 model answering from an unsearched registry. It was not lying and the tool
-was not missing; it simply never looked. #317's addendum could only observe
+was not missing; it simply never looked. #346's addendum could only observe
 the contradiction ("the tool WAS offered — and the model answered TOOL NOT
 OFFERED"); this is the mechanism, and it retires that as a mystery.
 
@@ -7032,7 +7032,7 @@ OFFERED"); this is the mechanism, and it retires that as a mystery.
 1. **Score from `agent.log`, never from the reply.** `check_fn
    _transport_available returned False` = genuinely withheld;
    `agent.tool_executor: tool <name> completed` = genuinely ran. The model's
-   account of its own inventory is not evidence in EITHER direction — #317's
+   account of its own inventory is not evidence in EITHER direction — #346's
    addendum also caught it dressing a never-made call in a fabricated
    verbatim error block.
 2. **Forced-tool bars must say "use `tool_search` to find X, then call
@@ -7059,7 +7059,7 @@ different clocks.
   so the last POST line can postdate the close by up to a cycle. Start the
   quiet clock from that line, not from when the user says they closed it.
 
-## 316. 🐛 Plugin health query reads ALL-EMPTY from HealthKit while Settings shows Health granted — found live during #271's device pass (271-F leg 2) — **FILED 2026-08-10 on Owen's routing ("Might just want to file it, so we can troubleshoot while on the mac"). App-side; NOT an OJAMD/plugin-transport defect. NOT STARTED.**
+## 345. 🐛 Plugin health query reads ALL-EMPTY from HealthKit while Settings shows Health granted — found live during #271's device pass (271-F leg 2) — **FILED 2026-08-10 on Owen's routing ("Might just want to file it, so we can troubleshoot while on the mac"). App-side; NOT an OJAMD/plugin-transport defect. NOT STARTED.**
 
 **Observed (OJAMD device pass, 2026-08-10 01:15–01:18, all evidence in
 `agent.log`):** with Health granted on the phone and the app's Health toggle ON,
@@ -7127,7 +7127,7 @@ gating) passed both arms it could reach.
 > it is simply no longer the ALL-empty defect as filed. **Re-scope before
 > spending a Mac lane on it.**
 
-## 317. 🐛 The legacy `hermes_mobile` toolset SHADOWS the talaria plugin tools on natural phrasings — serves server-side/STALE sensor history where the plugin would gate or answer honestly — **FILED 2026-08-10, demonstrated live TWICE during #271's device pass, in both directions. The mitigation is a DECISION (it *is* the Phase-5/#223 retirement question), not a build.**
+## 346. 🐛 The legacy `hermes_mobile` toolset SHADOWS the talaria plugin tools on natural phrasings — serves server-side/STALE sensor history where the plugin would gate or answer honestly — **FILED 2026-08-10, demonstrated live TWICE during #271's device pass, in both directions. The mitigation is a DECISION (it *is* the Phase-5/#223 retirement question), not a build.**
 
 Both toolsets are live on the same agent since #271's rollout, and on natural
 phrasings the model picks the LEGACY MCP tools — their names
@@ -7168,7 +7168,7 @@ deferred to Phase 5, now with evidence; note it also removes legacy
 (b) interim tool-preference steering via `platform_hints`/SOUL — soft,
 unreliable, and adds prompt surface to a component being deleted;
 (c) live with it until #223 Phase 4 executes as planned. Cross-refs: #271
-(device pass of record), #223 (retirement), #316 (found via the same forcing
+(device pass of record), #223 (retirement), #345 (found via the same forcing
 workaround), CLAUDE.md "chat and sensors are independent paths" (this is the
 sensor plane bleeding into chat).
 
@@ -10618,22 +10618,22 @@ no MCP in the loop — the fabrication caveat does not apply to either).
 | 271-C | **MET** (2026-08-10) | send-while-closed → restart → exactly once in Inbox |
 | 271-D | **MET 2026-08-15 15:45:52** — the boundary window the addendum said had NEVER been exercised on OJAMD | turn start 15:44:57 with **no `_transport_available returned False`** ⇒ offered; `talaria_phone_query completed (40.01s, 95 chars)` = the designed prose, **completed, no throw**. Cost to know: an unreachable phone burns **40s** of turn on the internal wait. #232-counter half NOT verified |
 | 271-E / 271-G | carried | build-side, host-independent |
-| 271-F | **BOTH LEGS MET** | leg 1 (deny) 2026-08-10, 156 chars; **leg 2 (allow) 2026-08-15 15:36:11, `completed (0.10s, 134 chars)` with REAL data** (197 steps, HR 72bpm) — see #316, which did not reproduce |
+| 271-F | **BOTH LEGS MET** | leg 1 (deny) 2026-08-10, 156 chars; **leg 2 (allow) 2026-08-15 15:36:11, `completed (0.10s, 134 chars)` with REAL data** (197 steps, HR 72bpm) — see #345, which did not reproduce |
 | 271-H | **MET** | clone at `<HERMES_HOME>\plugins\talaria`; `plugins list` → enabled, **source git**; content-diff gate (see the +1 correction above) |
 | 271-I | **MET on all three bounces** (2026-08-15: 15:28, 15:47, 15:50) | listener verified twice per bounce, ~25s and ~145s. **No #264 bind race on any of them** |
-| 271-J | **MET 2026-08-15 15:47–15:52 — exercised LIVE, not asserted** | `hermes plugins disable talaria` → restart → `talaria_phone_query` **ABSENT from `/v1/toolsets`** (pre-lane state proven, not assumed) → `enable` → restart → **RESTORED**, 2 device records intact, and the same-day #317 change survived both bounces |
+| 271-J | **MET 2026-08-15 15:47–15:52 — exercised LIVE, not asserted** | `hermes plugins disable talaria` → restart → `talaria_phone_query` **ABSENT from `/v1/toolsets`** (pre-lane state proven, not assumed) → `enable` → restart → **RESTORED**, 2 device records intact, and the same-day #346 change survived both bounces |
 
 **Two corrections this lane's own execution forced:**
 1. **271-H's `+2` was arithmetic that falsified a correct edit** — see the
    struck text above. A content diff is the durable gate.
 2. **The device-pass sitting must score from `agent.log`, never from the
    model's account of its own tool inventory** — the reason is now
-   root-caused and filed as **#318**; three "TOOL NOT OFFERED" replies
+   root-caused and filed as **#347**; three "TOOL NOT OFFERED" replies
    across two sittings were the model failing to `tool_search`, not the
    tool being absent.
 
 **Phase 5 is no longer entirely OUT:** `mcp_servers.hermes_mobile` was
-disabled 2026-08-15 on Owen's explicit routing — that is #317's disposition,
+disabled 2026-08-15 on Owen's explicit routing — that is #346's disposition,
 and it is the first half of the venv/MCP retirement this entry deferred.
 Recorded there, not re-litigated here. **#288's owner: the two-paired-host
 condition is live** (iPhone + iPad, both active) and the OJAMD store is

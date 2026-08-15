@@ -29,7 +29,7 @@ Python: 3.11.15
 | Verdict | listener start **postdates** the checkout ⇒ **the running process serves `165c889e5`. No drift.** |
 
 (The listener was subsequently replaced at 15:28:06 by this session's own restart — see the
-#317 work — which serves the same head.)
+#346 work — which serves the same head.)
 
 **This settles #155.** The item asked for "the actual Hermes Agent commit (or `hermes --version`
 string if the commit is not determinable) and the date chat + sessions + model switching were

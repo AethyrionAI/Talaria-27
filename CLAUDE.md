@@ -98,7 +98,7 @@ a falsified mechanism while the tracker was right.)
 > `hermes-mobile` processes left anywhere on the box. **The gateway is the
 > only piece of this still running.** Full inventory + retirement order:
 > `planning/reports/2026-08-10-ojamd-supervision-inventory.md`; the decision
-> and its evidence are OPEN_ITEMS #317, the lane is #271.
+> and its evidence are OPEN_ITEMS #346, the lane is #271.
 
 - **Relay `:8000`** — `HermesMobileRelay` (NSSM service; `nssm.exe` at `O:\Hermes\nssm\`;
   uvicorn from `O:\Hermes\Talaria\relay`). **Stopped + Disabled since 2026-08-10**;
@@ -142,7 +142,7 @@ a falsified mechanism while the tracker was right.)
   carried it *alongside* the bat-launched process. So "two hosts, two stories" was wrong;
   it was two shapes on one host. **All of it is now MOOT ON OJAMD (2026-08-15):**
   `mcp_servers.hermes_mobile` is `enabled: false` and there are **zero** `hermes-mobile`
-  processes on the box (#317). The Mac still runs its own copy.
+  processes on the box (#346). The Mac still runs its own copy.
   **The trap that outlives the correction: `config.yaml` takes effect PER PROCESS, and
   this box has THREE readers of it** — the gateway, the Hermes **Desktop app's own
   backend** (`hermes serve --host 127.0.0.1 --port 0`, a child of `Hermes.exe`), and the

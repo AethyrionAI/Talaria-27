@@ -82,7 +82,7 @@ adjacent, not implicated.
 
 ## 4. House rules that apply to this specific lane
 
-- **Score from the host's log, never from a client's self-report.** This is **#318**, filed
+- **Score from the host's log, never from a client's self-report.** This is **#347**, filed
   today after three "the tool is not available to me" replies turned out to be a model that
   never called `tool_search`. Same discipline here: the app's own diagnostics are a hypothesis;
   OJAMD's access log is the evidence — and it is quoted above so you do not need OJAMD to
@@ -109,11 +109,11 @@ adjacent, not implicated.
 
 **Also routed to a Mac session, and adjacent to this one:**
 
-- **#316** — the plugin health read. **Re-scope before spending a lane on it:** it did NOT
+- **#345** — the plugin health read. **Re-scope before spending a lane on it:** it did NOT
   reproduce on 2026-08-15 (real data came back — 197 steps, HR 72 bpm), so it is now a narrow
   "why are active-energy and sleep specifically empty" question, and the original 01:15 AM
   observation window is a stated confound.
-- **#318** — the scoring rule above, plus its corollary that `devices.json`'s `last_seen` lags
+- **#347** — the scoring rule above, plus its corollary that `devices.json`'s `last_seen` lags
   real drain contact by ~45 s and must not be used as a liveness gate.
 
 **Repo:** branch `t27-271-ojamd-phase5-317`, PR #307 open, two commits (the lane + the S1–S6
