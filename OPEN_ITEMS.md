@@ -10309,6 +10309,66 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 >   timeouts, refusals, trials scored, and thermal at both ends. **A cell with >20%
 >   unscored trials carries no verdict** (#215).
 >
+> **🛑 340-G RAN 2026-08-15 23:19–23:22 UTC — THE @Guide ARM IS ALSO FALSIFIED, AND
+> 340-G3 CAUGHT PRECISELY THE TRADE IT WAS WRITTEN FOR.** Two launches, one cell
+> each (#341), n=20/cell, auto-DECLINE, build `6ff1012`+arm.
+>
+> | bar | control `armed` | `armed-dateguide` | verdict |
+> |---|---|---|---|
+> | **G1** control reproduces | 19/19 omitted **of calls** | — | ✅ MET |
+> | **G2** omission falls | 19/19 | **11/15** (p = 0.0294) | ✅ MET |
+> | **G3** UNION `omitted + already-past` falls | 19/19 | **15/15** (p = 1.0) | 🛑 **NOT MET** |
+> | **G4** calls must not fall | 19/20 | 14/20 (p = 0.0915) | ✅ met, flagged |
+> | **G5** manipulation RECORDED | `ReminderCreateTool` | `ReminderCreateToolDateguide` | ✅ MET |
+> | **G6** denominators / errors | 0 errors | 0 errors | ✅ MET |
+>
+> **ZERO CORRECT DUE DATES IN EITHER ARM ACROSS 34 CALLS.** The guide significantly
+> reduced omission and **every due date it bought was already elapsed when sent**.
+> Per the bar's own pre-registered wording — *"reporting a drop in `omitted` while
+> `already-past` rises is a MISSED bar"* — this is a MISS, and G2 is not reported as
+> a win around it. **The non-decomposable union bar earned its keep on its first
+> outing.**
+>
+> **THE MECHANISM, AND IT IS THE GUIDE'S OWN SECOND CLAUSE BEING IGNORED.** The run
+> was at **18:21 local**; the prompt says *"at 4:30pm"*; all four populated values
+> are byte-identical **`2026-08-15T16:30`** — today, already past. The arm's guide
+> reads *"use TODAY's date — **or tomorrow's if that time has already passed
+> today**."* The model took the first clause and dropped the second. So the finding
+> is narrower than "the @Guide layer doesn't work": **a bare time now resolves, and
+> the PAST-TIME branch does not.**
+>
+> **⚠️ AND THE RUN EXPOSED AN INSTRUMENT FLAW THAT AFFECTS 340-F TOO — THE PROMPT IS
+> A MOVING TARGET.** `actionBatteryDefaultPrompts`' remind prompt is the FIXED string
+> *"Remind me to test Talaria at 4:30pm"*. Run before 16:30 local, that time is in
+> the FUTURE and a `2026-08-15T16:30` answer scores as CORRECT; run after, the same
+> answer scores as ALREADY-PAST. **340-F ran at 15:20–15:22 (future); 340-G ran at
+> 18:19–18:21 (past).** So `already-past` was structurally *unreachable* in 340-F's
+> window and reachable in 340-G's, and the two lanes are **NOT directly comparable on
+> that bucket**. Nothing in either verdict changes — both arms within each run shared
+> their window, and both scored 100% on the union — but **any future due-date lane
+> must either pin the clock or use a day-bearing prompt**, and no cross-lane
+> comparison of the `already-past` bucket is licensed. Filed here rather than
+> silently absorbed.
+>
+> **THIRD SIGHTING OF #336's FLOOR:** artifacts record 19 and 14 calls where the log
+> carries 19 and 15 instrument lines — the treatment arm is off by one again, same
+> direction. Verdicts are unaffected (the union is 100% either way).
+>
+> **Residue:** `reminders=0 events=0 alarms=0 failures=0` — auto-decline held.
+> Thermal: control `nominal→fair`, treatment `fair→fair` — better matched than
+> 2026-08-15's promotion pair but not identical, and the control had the cooler start.
+>
+> **WHERE #340 STANDS AFTER TWO FALSIFIED CANDIDATES.** Instructions layer (#200K's
+> clause) — dead, 0 due dates. @Guide layer — reduces omission, produces only stale
+> values, union unmoved. **Both were reached by measurement and both are recorded as
+> failures rather than partial wins.** The next candidate is NOT a third prose tweak:
+> the standing options are #200S's `armed-schemarollback` (required field, with its
+> registered warning that forcing may yield wrong values — which is now DEMONSTRATED
+> twice over) or an APP-SIDE resolution that never asks the model to do date
+> arithmetic at all. **The latter is newly attractive**: `performCreate` already owns
+> `isPastDue`/`isNextMorning` and could resolve a bare clock time itself. That is a
+> production behaviour change and therefore Owen's call, not a lane's.
+>
 > **Residue:** one real dateless reminder titled *"Take the trash out"* exists on
 > Owen's device from this trial and is his to delete. Its absence from Reminders →
 > **Scheduled** is the user-visible replication of this entry's founding observation
