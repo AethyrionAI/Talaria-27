@@ -10139,6 +10139,72 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > per the scorer's own guard, that failure reports as NO DATA rather than as a
 > clean 0%.
 >
+> **🔴 340-F RAN 2026-08-15, 20:20–20:24 UTC — AND THE JULY CLAUSE IS FALSIFIED AS A
+> FIX FOR THIS DEFECT. `dayDefaultClause` PRODUCED EXACTLY ZERO DUE DATES.** Two
+> launches, one cell each (#341, so no order confound), 20 trials per arm, same
+> build `b740f0a`, both arms `serious` thermal start-to-end (matched between arms —
+> hot, but not a between-arm confound). Scored from the device log.
+>
+> | metric | `armed` | `armed-datefix` | Fisher 2-tailed |
+> |---|---|---|---|
+> | **due OMITTED, of calls made** | **8/8 (100%)** | **14/14 (100%)** | **p = 1.0** |
+> | already-past / unreadable | 0 | 0 | — |
+> | tool called, of trials | 8/20 | 14/20 | p = 0.111 |
+> | **impersonated confirmation card** | **11/20** | **4/20** | **p = 0.048** |
+> | timeouts / errors / denials | 0 | 0 | — |
+>
+> - **340-F2 NOT MET.** No reduction in omission; the point estimate is identical
+>   at 100%. The clause whose entire text is *"A time with no day means the next
+>   time that clock time comes around — never ask which day"* did not cause the
+>   model to supply a single due date.
+> - **340-F3 NOT MET.** The union `omitted + already-past` is unchanged (100% → 100%).
+>   The bar was written to catch a clause that trades omissions for wrong values;
+>   what happened instead is that nothing moved at all.
+> - **340-F4 MET.** 20 trials per arm, `endedCleanly=true`, zero timeouts, zero
+>   generation errors, zero denials. Denominators stated above.
+> - **⚠️ 340-F1 WAS WRITTEN AMBIGUOUSLY BY ME AND IS REPORTED BOTH WAYS RATHER THAN
+>   RESOLVED IN THE FLATTERING DIRECTION.** *"`armed` omission ≥ 16/20"* never said
+>   16 of WHAT. Per CALL it is 8/8 = 100% (met); per TRIAL it is 8/20 = 40% (not
+>   met), because twelve trials never called the tool and a trial that makes no call
+>   cannot omit an argument. **The substantive claim the bar existed to protect
+>   holds on either reading: every call the control made omitted the due date.**
+>   Future bars on this defect must name the denominator — calls, not trials.
+>
+> **WHAT THE CLAUSE DOES DO, and it is not nothing.** It roughly halves the stall
+> (8/20 → 14/20 trials calling the tool) and it **significantly cuts the #344
+> impersonation shape, 11/20 → 4/20, p = 0.048.** Both effects point the same way —
+> *"never ask which day"* discourages the ask-shaped reply — and together they serve
+> as a **behavioural manipulation check**, which matters because the artifact does
+> NOT record the injected instruction text. **That is an instrument gap:** the arms
+> demonstrably differed in the predicted direction, but nothing in the run PROVES the
+> clause was present. #337-F recorded manipulation rows; this instrument should too.
+>
+> **🔬 AND IT HANDS #344 ITS REAL RATE: 55% of control trials (11/20), every one with
+> ZERO tool calls** — against the 3/14 the entry was carrying from hand-run turns.
+> Recorded at #344. **`dayDefaultClause` is therefore a candidate mitigation for
+> #344 even though it is a dead end for #340**, which is a genuinely odd result and
+> is stated plainly rather than smoothed.
+>
+> **WHERE THIS LEAVES THE FIX.** The clause is an INSTRUCTIONS-layer change and it
+> failed. The `due` field's own `@Guide` still reads *"…or empty for no due date"* —
+> the model is being told, at the layer that describes the field itself, that empty
+> is a legitimate answer. **So the reverted `ReminderCreateToolDatefix` (@Guide-layer,
+> production-matched `String?`) is promoted from speculation to next-in-line — by a
+> falsification rather than by a hunch, which is the right order and is why reverting
+> it earlier was still correct.** The other live arm is #200S's
+> `armed-schemarollback` (required field), carrying its own registered warning that
+> forcing the field may produce WRONG values rather than right ones — *"in 20
+> minutes"* → 8:46 AM is what the model does under that pressure.
+>
+> **Residue: `reminders=0 events=0 alarms=0 failures=0`.** The auto-decline design
+> held; nothing was written to a real device by either arm.
+>
+> **⚠️ SECOND SIGHTING OF #336's FLOOR.** The artifacts record **8** and **14** tool
+> calls where the device log carries **9** and **15** instrument lines — off by one
+> in BOTH arms, in the same direction. #336 filed exactly this ("battery `toolCalls`
+> counts are FLOORS, not counts"). It does not touch this verdict, which is 100%
+> either way, but it is now observed twice and on a second instrument.
+>
 > **Residue:** one real dateless reminder titled *"Take the trash out"* exists on
 > Owen's device from this trial and is his to delete. Its absence from Reminders →
 > **Scheduled** is the user-visible replication of this entry's founding observation
@@ -21707,6 +21773,32 @@ what teaches the card vocabulary), **#215** (why 2/13 is not a production rate).
 > already treats an impersonated card as worth correcting even when nothing is
 > claimed. The three misses are therefore not "correctly silent on offers"; they
 > are the same harm the guard elsewhere corrects, escaping on syntax.
+>
+> **📊 THE REAL RATE, MEASURED ON-INSTRUMENT 2026-08-15 20:20 UTC — 55%, not 21%.**
+> #340's `due-date` A/B scored its trial texts against the battery's own
+> `confirmationCardImitationShapes`, and the production control produced the
+> impersonation in **11 of 20 trials, every one with ZERO tool calls**:
+>
+> > *"**Confirmation Card:** Create a reminder titled "test Talaria" at 4:30 PM today.
+> > Would you like me to proceed?"*
+> > *"Here's the confirmation: - **Title:** Test Talaria - **Time:** 4:30 PM today.
+> > Do you want me to create this reminder?"*
+>
+> This supersedes the 3/14 hand-run figure as the best estimate for this prompt
+> shape — same defect, twenty times the trials, and an instrument denominator
+> instead of a tally of screenshots. **It also confirms the shape is overwhelmingly
+> the MISSED variety**: the openers are *"Here's the confirmation…"* and a
+> label-position *"Confirmation Card:"* in roughly equal measure, so the guard
+> catches some fraction of a defect that occurs in more than half of all trials.
+>
+> **AND A SECOND CANDIDATE MITIGATION APPEARED WHERE NOBODY WAS LOOKING FOR ONE.**
+> #200K's `dayDefaultClause` — a dead end for #340, which is what that run was
+> testing — **cut this shape from 11/20 to 4/20, p = 0.048.** Plausibly because
+> *"never ask which day"* discourages the ask-shaped reply the impersonation rides
+> on. **Not a recommendation**: it is one run, the effect is on an outcome the run
+> was not designed around, and #337-F-2b's rewording remains the better-evidenced
+> route (0/90 across three replications, scored by this same broad detector).
+> Recorded so the option is not lost.
 >
 > **🎯 AND THE RECOMMENDATION IS NOW VERIFIED RATHER THAN ASSUMED — DO NOT WIDEN THE
 > DETECTOR FIRST.** #337-F's blurb-removed and blurb-reworded arms scored **0/90
