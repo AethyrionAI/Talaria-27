@@ -3578,6 +3578,25 @@ Owen eyeballs the result.
 
 Logged 2026-07-20.
 
+> **⚠️ OJAMD half RE-CONFIRMED STILL OWED — 2026-08-15, measured against the
+> GATEWAY this time, not the shim.** `GET /api/model/options` on OJAMD
+> returns **43 provider rows, of which NVIDIA NIM contributes 102 models** —
+> the largest block by a wide margin (next is Nous Portal at 37; 31 of the 43
+> providers report zero). So the pruning chore is real on this host and has
+> not been done.
+>
+> **The verification target has moved, and the entry above names the retired
+> one.** "Verify shim `/models` payload shrinks" was correct in July; since
+> #223 Lane 5 the shim is out of the model path (and as of 2026-08-10 its
+> service is Stopped **and** Disabled), so its payload is nobody's picker and
+> proves nothing. **The bar is now: `/api/model/options` on `:8642` no longer
+> carries the NVIDIA rows.** The 102-model count above is the pre-change
+> baseline to measure against.
+>
+> Note the count also drifted from the 118 recorded in July — a further
+> reason to re-measure rather than trust the filed number. Evidence:
+> `planning/reports/2026-08-15-ojamd-auth-probe-results.md` §A.
+
 ---
 
 ## 149. ✨ Claude↔Hermes MCP bridge — give Claude (this assistant) an MCP connection to talk to Hermes directly (parked idea) — **✅ CLOSED 2026-08-09: ALREADY SATISFIED. It exists, it is connected, and it was used this session to run live read-only diagnostics on OJAMD.**
@@ -3729,6 +3748,29 @@ Why it matters: Talaria depends on undocumented upstream surfaces — the Sessio
 Pattern borrowed from hermex (`uzairansaruzi/hermex`), which pins its upstream `hermes-webui` commit and requests it in bug reports.
 
 Logged 2026-07-22.
+
+**✅ THE VALUE IS CAPTURED — 2026-08-15, OJAMD, live (read-only probe run on
+the box).** What the item asked for, in the form it asked for it:
+
+| Field | Value |
+|---|---|
+| Commit | **`165c889e5b4277b56dadd42949a4112c1e6175a6`** |
+| Version string | `Hermes Agent v0.20.1 (2026.8.13)` |
+| Verified end-to-end | **2026-08-15** — `/health` 200, session create + `/api/sessions/{id}/chat` round-trips, `/api/model/options` 200 (43 providers), `/v1/models` single `hermes-agent` sentinel intact |
+
+**Pinned by REFLOG-vs-start-time, not `git log -1`**, per the standing rule:
+head arrived 14:14:22, listener started 15:09:08 ⇒ the running process
+serves that commit, no drift. Full evidence:
+`planning/reports/2026-08-15-ojamd-auth-probe-results.md`.
+
+⚠️ **And it caught a fact nothing in the tracker records: OJAMD is on
+0.20.1, not 0.20.0.** Every note reasoning from "OJAMD is 0.20.0" is
+describing a host that no longer exists. This is exactly the blast-radius
+diagnosability the item was filed to buy.
+
+**Remaining to close:** write the captured value into `UPSTREAM_TESTED_SHA`
+itself (this entry records it; the constant is still seeded `unknown`/
+`never`). That is an app-repo edit, not a box-side one.
 
 ## 156. 🧭 Agent introspection surface — Tasks, Skills, Memory, Insights, Projects, mid-run steering
 
@@ -6875,6 +6917,227 @@ the fire gate) so a mid-reconcile commit becomes a HOLD — one predicate swap i
 the composer's door condition, plus the matrix's row-3 semantics already
 shipped by #306. Evidence chain: #306's independent whole-lane review
 (2026-08-09), which traced the door predicate while verifying C2.
+
+## 318. 🔍 SCORING RULE — the agent's tool registry is DEFERRED, so "the tool is not available to me" is not evidence of anything. Three false negatives across two sittings were the model never calling `tool_search` — **FILED 2026-08-15 on Owen's routing, root-caused live on OJAMD. Not a defect in the plugin; a methodology rule that governs every future phone bar.**
+
+**The finding.** Tools are not all in the model's initial prompt on this
+host. The agent reaches them through a **deferred registry**: a turn that
+needs `talaria_phone_query` must first call `tool_search`, then
+`tool_describe`, and only then can it call the tool. Every successful call
+on 2026-08-15 shows exactly that prefix in `agent.log`:
+
+```
+15:36:04  tool_search   completed (0.20s, 1098 chars)
+15:36:07  tool_describe completed (0.04s, 102 chars)
+15:36:11  talaria_phone_query completed (0.10s, 134 chars)
+```
+
+**What it explains.** Three separate "the tool is not registered / not
+available to me" replies — 2026-08-10 02:05 (recorded in #317's addendum as
+the model contradicting the log), and 2026-08-15 15:32 and 15:34 — were the
+model answering from an unsearched registry. It was not lying and the tool
+was not missing; it simply never looked. #317's addendum could only observe
+the contradiction ("the tool WAS offered — and the model answered TOOL NOT
+OFFERED"); this is the mechanism, and it retires that as a mystery.
+
+**THE RULES, both directions:**
+1. **Score from `agent.log`, never from the reply.** `check_fn
+   _transport_available returned False` = genuinely withheld;
+   `agent.tool_executor: tool <name> completed` = genuinely ran. The model's
+   account of its own inventory is not evidence in EITHER direction — #317's
+   addendum also caught it dressing a never-made call in a fabricated
+   verbatim error block.
+2. **Forced-tool bars must say "use `tool_search` to find X, then call
+   it."** A bare "call X" can fail for a reason that has nothing to do with
+   what the bar is testing. Every bar scored MET on 2026-08-15 used the
+   explicit-search phrasing; the two failures did not.
+
+**Corollary — a measurement trap found the same sitting, worth as much as
+the rule above.** `<HERMES_HOME>\talaria\devices.json`'s `last_seen` **lags
+real drain contact by up to ~45s**: the phone POSTs `/api/platforms/talaria/
+events` on a ~25s long-poll cycle, but the persisted `last_seen` was
+observed sawtoothing 0 → 71s → 0 on a live, foregrounded app. `check_fn`
+reads the **in-memory hub** (`hub.is_live`), not that file, so the two are
+different clocks.
+- **Do not use `last_seen` as a liveness proxy, and never as a firing gate
+  for a boundary-window bar.** A first attempt at 271-D keyed on it, fired
+  into a live phone, and got a real location back instead of the unreachable
+  prose.
+- **Use the access-log POST cadence instead.** 271-D was then scored on the
+  first try: wait for the last `POST /api/platforms/talaria/events`, fire at
+  ~35–40s of quiet, and the ~15s `tool_search` hop carries execution past
+  the 60s window on its own.
+- An in-flight long-poll **logs its completion after the app is force-quit**,
+  so the last POST line can postdate the close by up to a cycle. Start the
+  quiet clock from that line, not from when the user says they closed it.
+
+## 316. 🐛 Plugin health query reads ALL-EMPTY from HealthKit while Settings shows Health granted — found live during #271's device pass (271-F leg 2) — **FILED 2026-08-10 on Owen's routing ("Might just want to file it, so we can troubleshoot while on the mac"). App-side; NOT an OJAMD/plugin-transport defect. NOT STARTED.**
+
+**Observed (OJAMD device pass, 2026-08-10 01:15–01:18, all evidence in
+`agent.log`):** with Health granted on the phone and the app's Health toggle ON,
+three `talaria_phone_query(kind:"health")` calls (`b8c726a0fba7`, `a750d7798c1e`,
+`d0bafcacd34a`) each delivered in ≤0.015s and completed in 0.06–0.13s returning
+**exactly 304 chars — `DeviceHealthTool`'s all-empty summary**: four "no data
+recorded / no sample" lines plus the tool's own parenthetical that HealthKit
+makes denied reads indistinguishable from empty ones
+(`DeviceHealthTool.swift:124-129`). Owen's read from the phone side: "health is
+granted on the phone, it just thinks it isn't."
+
+**Ruled OUT tonight, so the Mac lane doesn't re-walk them:**
+- **The transport.** 271-B measured `enqueue_to_drain=0.000s` and a 0.34s whole
+  round-trip on the same device minutes earlier; the deny leg (271-F leg 1,
+  query `7b5e629e2ea0`, 156-char designed prose) proves the phone receives,
+  gates, and answers correctly.
+- **The CLAUDE.md HealthKit gotcha** ("Settings grants alone don't suffice —
+  explicit in-app `requestAuthorization()` every process"): already handled —
+  `DeviceHealthTool.performRead` requests authorization on EVERY read
+  (`DeviceHealthTool.swift:63-70`), and the plugin path dispatches into that
+  same tool (`PhoneQueryResponder.swift:46-48`), not a parallel reimplementation.
+
+**Hypotheses for the Mac/app lane, in checking order:**
+1. **Per-type read grants.** Settings → Privacy → Health → Talaria has FOUR
+   individual read toggles (steps / active energy / heart rate / sleep). "Health
+   granted" at the app level with per-type toggles off produces exactly this
+   all-empty shape. Cheapest check, no code.
+2. **The store genuinely has no data in the queried windows** — cross-check the
+   Health app shows steps for TODAY on the device. (The legacy
+   `mcp__hermes_mobile__get_health_summary` serving steps at 01:09 is NOT a
+   counter-example: that read server-side ingested history, currency unknown.)
+3. **Protected-data unavailability** (device locked at read time) — unlikely,
+   the app was foregrounded, but it's the classic silent-empty producer.
+4. **`HealthQueryCore` window/predicate defect** (`startOfToday`, lookbacks,
+   `sleepBucketDay`) — only if 1–3 clear.
+
+**Scoring consequence for #271:** 271-F leg 1 (deny) **MET**; leg 2 (allow →
+real data) **BLOCKED by this item** — the privacy GATE is proven on-device in
+both directions reaching the read; the READ comes back empty. Recorded as
+partial in #271, not failed: the mechanism 2A-F exists to test (device-side
+gating) passed both arms it could reach.
+
+> **⚠️ DID NOT REPRODUCE — 2026-08-15, OJAMD, same device, same tool path.
+> 271-F leg 2 is now MET and this item is DOWNGRADED to a partial-emptiness
+> question.** A forced `talaria_phone_query(kind:"health")` returned
+> `completed (0.10s, **134 chars**)` — not the 304-char all-empty summary —
+> carrying **real data: "Steps today: 197" and "Latest heart rate: 72 bpm (22
+> hours ago)"**. Active energy and sleep were still "no data recorded", so
+> the read is PARTIAL, not empty.
+>
+> **What this does to the hypotheses:** #1 (per-type read grants) is no
+> longer a whole-symptom explanation — steps and heart rate are clearly
+> granted and flowing, so the app-level grant and at least two of the four
+> per-type toggles are on. The residual question is narrower and cheaper:
+> **why active energy and sleep specifically stay empty**, which is the same
+> question hypothesis #1 asks about only those two types, or hypothesis #2
+> (the store genuinely holds nothing in those windows — plausible for sleep
+> if nothing is recording it).
+>
+> **A confound worth stating rather than hiding:** the original observation
+> ran at **01:15–01:18 local**. "Steps today" and "sleep last night" are both
+> legitimately thin at 1 AM, so part of that night's all-empty shape may
+> never have been a defect at all. That does not explain the heart-rate line
+> being empty then and populated now, so something real may still be here —
+> it is simply no longer the ALL-empty defect as filed. **Re-scope before
+> spending a Mac lane on it.**
+
+## 317. 🐛 The legacy `hermes_mobile` toolset SHADOWS the talaria plugin tools on natural phrasings — serves server-side/STALE sensor history where the plugin would gate or answer honestly — **FILED 2026-08-10, demonstrated live TWICE during #271's device pass, in both directions. The mitigation is a DECISION (it *is* the Phase-5/#223 retirement question), not a build.**
+
+Both toolsets are live on the same agent since #271's rollout, and on natural
+phrasings the model picks the LEGACY MCP tools — their names
+(`get_user_location`, `get_health_summary`) are more literal matches than
+`talaria_phone_query`. The legacy tools read OJAMD-side ingested sensor
+history: no phone round-trip, no on-device privacy gate, no unreachability
+honesty beyond whatever the model volunteers.
+
+**Demonstration 1 — privacy direction (2026-08-10 01:09, app OPEN, Health
+toggle OFF):** "what's my step count today?" →
+`mcp__hermes_mobile__get_health_metric` (0.08s) +
+`get_health_summary` (0.01s, 6,099 chars) — served steps with the toggle off;
+the plugin's on-device gate was never consulted. (The gate itself is sound:
+the forcing phrasing at 01:13 fired `talaria_phone_query` and the phone
+denied with the designed prose — 271-F leg 1 MET.)
+
+**Demonstration 2 — honesty direction (2026-08-10 01:24, app CLOSED >60s,
+Discord):** "where is my phone right now" →
+`mcp__hermes_mobile__get_user_location` (0.01s, 683 chars) → the reply was
+built from a **3.1-hour-stale** position ("it can't right now but improvised"
+— Owen), instead of the plugin's designed "phone unreachable … do not retry"
+prose. 271-D could not be scored on this turn; the tool it tests never fired.
+
+**Why it matters:** the two behaviours 2A specifically built — on-device
+privacy gating and honest unreachability — are both silently bypassed by a
+toolset the retirement plan already wants gone. This is live evidence FOR
+#223's direction, and the coexistence cost is no longer hypothetical. Note
+also the relay + `TalariaModelsShim` were STOPPED AND DISABLED on 2026-08-10
+(this session), so the ingested history the legacy tools serve is now FROZEN —
+its staleness worsens by the day, which sharpens the hazard (confident answers
+from an ever-older snapshot).
+
+**Candidate dispositions (Owen's call — all gated, none built tonight):**
+(a) disable `mcp_servers.hermes_mobile` in OJAMD's `config.yaml` + gateway
+restart — this IS the venv/MCP retirement the #271 dispatch deliberately
+deferred to Phase 5, now with evidence; note it also removes legacy
+`get_health_summary`-style access to the frozen history entirely;
+(b) interim tool-preference steering via `platform_hints`/SOUL — soft,
+unreliable, and adds prompt surface to a component being deleted;
+(c) live with it until #223 Phase 4 executes as planned. Cross-refs: #271
+(device pass of record), #223 (retirement), #316 (found via the same forcing
+workaround), CLAUDE.md "chat and sensors are independent paths" (this is the
+sensor plane bleeding into chat).
+
+> **ADDENDUM same night (02:05) — the shadowing is partly STRUCTURAL, and
+> 271-D went unscored through THREE distinct obstructions.** The plugin
+> registers `talaria_phone_query` with `check_fn=_transport_available`
+> (`tools.py:62-75`, `_LIVE_WINDOW_SECONDS = 60.0`): once the phone's drain
+> is >60s quiet, the tool is WITHHELD from the toolset entirely — so whenever
+> the phone is unreachable, the legacy `hermes_mobile` tools are the ONLY
+> phone-shaped tools present, and stale-improvisation is structurally
+> guaranteed on any surface that has them. The honest-unreachable prose
+> (`tools.py:83-90`) fires only in the boundary window (offered at turn
+> start, dead by execution) and has NEVER been exercised on OJAMD. Tonight's
+> three 271-D attempts, each blocked differently: (1) Discord natural + even
+> FORCING phrasing → `mcp__hermes_mobile__get_user_location`, stale-by-3.65h
+> answer (tool likely withheld, >60s); (2) MCP-driven api_server turn, app
+> closed 30+ min → tool genuinely absent; model's reasoning honestly said so
+> but its REPLY dressed the fact as a fabricated verbatim error block for a
+> call it never made (`tool_turns=0`); (3) MCP-driven turn started 02:05:03,
+> ELEVEN SECONDS after a live drain, NO `check_fn False` warning logged (four
+> comparable turns that evening all logged it when False) ⇒ the tool WAS
+> offered — and the model answered "TOOL NOT OFFERED" without calling it
+> (in=48,178 / out=185 / tool_turns=0). Valid-run recipe for 271-D: app
+> open → close → fire the forced turn within ~45s of close so the offer
+> lands inside the window and execution lands outside it; score by
+> `agent.log` (`check_fn` + `tool_executor`), never by the model's own
+> account of its inventory.
+
+**✅ DISPOSITION (a) EXECUTED 2026-08-15 on Owen's explicit routing — the
+shadowing is GONE from the gateway plane.** Done live on the box:
+`mcp_servers.hermes_mobile.enabled: true → false` (single-line edit, backed
+up, `Compare-Object` showed exactly one line changed, PyYAML parse OK),
+then a parent-first gateway restart per the dispatch's corrected §11.4 chain.
+Verified after: **no `hermes-mobile-mcp` child spawned by the new gateway**,
+`talaria` still enabled/source git, phone re-registered on its own, listener
+confirmed twice (#264). It survived two further bounces the same day during
+271-J.
+
+**This is the first half of the Phase-5 / #223 retirement**, arriving early
+and with evidence, exactly as candidate (a) described. What it does NOT do:
+retire the relay/connector services (already Stopped+Disabled since
+2026-08-10) or delete anything.
+
+⚠️ **A THIRD COPY SURVIVES, and it is the "two of everything" trap in its
+plugin edition (see #270's correction that it is really THREE).** The Hermes
+**Desktop app runs its own backend** — PID 18048, `hermes serve --host
+127.0.0.1 --port 0`, child of `Hermes.exe` — which read `config.yaml` at its
+own start time (14:40) and **still holds a live `hermes-mobile-mcp` child**.
+So:
+- the **gateway** plane (`:8642` — phone, Discord, everything Talaria
+  speaks) is clean as of 15:28;
+- the **desktop app's** own chat still has the legacy toolset until that app
+  restarts.
+Nothing was done about it — restarting Owen's desktop app is his call, not
+this lane's, and it self-heals on the next launch. **The general lesson is
+the one worth keeping: a config change to a shared `config.yaml` takes
+effect per-process, and this box runs three processes that read it.**
 
 ## 297. 📝 Toolless capability index — the #257 conversational bar's remaining fix (spec §4's contingency, #284 plan Task 12) — **FILED 2026-08-08 on Owen's routing ("follow-up filing, merge PR #282 now"). NO LANE, NO BARS — bars pre-register HERE before any device run.**
 
@@ -10234,8 +10497,11 @@ a falsification):**
 - **271-H** (install correctness, NEW): clone lands exactly at
   `C:\Users\Owen\AppData\Local\hermes\plugins\talaria`; `hermes plugins
   list` shows `talaria` enabled, **source: git**; `plugins.enabled` gains
-  `talaria` with nothing else disturbed (line-count delta vs the pre-edit
-  backup is exactly +2).
+  `talaria` with nothing else disturbed (~~line-count delta vs the pre-edit
+  backup is exactly +2~~ **CORRECTED 2026-08-10 during execution: the delta is
+  +1** — the edit turns 2 lines into 3. The as-written +2 tripped its own gate
+  on a correct edit. **Prefer a `Compare-Object` content diff over line
+  arithmetic**; that is what settled it, and it is the better gate).
 - **271-I** (listener survives the restart, NEW — #264): after the
   plugin-loading restart, `Get-NetTCPConnection -State Listen -LocalPort
   8642` shows a LISTENER — checked TWICE, immediately and again 2 minutes
@@ -10251,6 +10517,39 @@ relay retirement) is explicitly OUT — it is a chunk of #223 Phase 4 and
 stays behind that gate. This lane is what creates the two-paired-host
 condition #288-C has been waiting on — flag #288's owner when Phase 4 (the
 device pass) completes.**
+
+**✅ EXECUTED — 2026-08-10 (install) + 2026-08-15 (bars). EVERY BAR IS NOW
+MET. This entry is the record; the dispatch's §11 amendment is the
+box-side detail.** Both sittings ran ON OJAMD (live PowerShell, canaried,
+no MCP in the loop — the fabrication caveat does not apply to either).
+
+| Bar | Verdict | Evidence |
+|---|---|---|
+| 271-A | **MET** | phone paired against OJAMD with no manual step; `devices.json` holds 2 ACTIVE rows (iPhone 2026-08-10, iPad 2026-08-12) |
+| 271-B | **MET, twice re-measured 2026-08-15** | `talaria: query delivered … enqueue_to_drain=0.000s` (15:36:11, 15:38:19) — transport leg, not whole-turn |
+| 271-C | **MET** (2026-08-10) | send-while-closed → restart → exactly once in Inbox |
+| 271-D | **MET 2026-08-15 15:45:52** — the boundary window the addendum said had NEVER been exercised on OJAMD | turn start 15:44:57 with **no `_transport_available returned False`** ⇒ offered; `talaria_phone_query completed (40.01s, 95 chars)` = the designed prose, **completed, no throw**. Cost to know: an unreachable phone burns **40s** of turn on the internal wait. #232-counter half NOT verified |
+| 271-E / 271-G | carried | build-side, host-independent |
+| 271-F | **BOTH LEGS MET** | leg 1 (deny) 2026-08-10, 156 chars; **leg 2 (allow) 2026-08-15 15:36:11, `completed (0.10s, 134 chars)` with REAL data** (197 steps, HR 72bpm) — see #316, which did not reproduce |
+| 271-H | **MET** | clone at `<HERMES_HOME>\plugins\talaria`; `plugins list` → enabled, **source git**; content-diff gate (see the +1 correction above) |
+| 271-I | **MET on all three bounces** (2026-08-15: 15:28, 15:47, 15:50) | listener verified twice per bounce, ~25s and ~145s. **No #264 bind race on any of them** |
+| 271-J | **MET 2026-08-15 15:47–15:52 — exercised LIVE, not asserted** | `hermes plugins disable talaria` → restart → `talaria_phone_query` **ABSENT from `/v1/toolsets`** (pre-lane state proven, not assumed) → `enable` → restart → **RESTORED**, 2 device records intact, and the same-day #317 change survived both bounces |
+
+**Two corrections this lane's own execution forced:**
+1. **271-H's `+2` was arithmetic that falsified a correct edit** — see the
+   struck text above. A content diff is the durable gate.
+2. **The device-pass sitting must score from `agent.log`, never from the
+   model's account of its own tool inventory** — the reason is now
+   root-caused and filed as **#318**; three "TOOL NOT OFFERED" replies
+   across two sittings were the model failing to `tool_search`, not the
+   tool being absent.
+
+**Phase 5 is no longer entirely OUT:** `mcp_servers.hermes_mobile` was
+disabled 2026-08-15 on Owen's explicit routing — that is #317's disposition,
+and it is the first half of the venv/MCP retirement this entry deferred.
+Recorded there, not re-litigated here. **#288's owner: the two-paired-host
+condition is live** (iPhone + iPad, both active) and the OJAMD store is
+auditable — baseline as of 2026-08-15 is 2 active / 2 total, zero orphans.
 
 ## 270. 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Recon was BANKED in #251 on 2026-08-05 and folded into Phase 2, but never given an entry, a lane, or bars. NOT STARTED.**
 

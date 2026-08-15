@@ -281,6 +281,12 @@ it's confirmed clean, so catch a bad edit here, not there.
 
 ### Phase 2 — Restart the gateway and verify the listener (per #264 — never trust the PID alone)
 
+> **⚠️ 2026-08-10 AMENDMENT: Tasks 2.1 and 2.2 as written below are SUPERSEDED — do not
+> paste them.** Task 2.1 kills the wrong process (the gateway is a two-process chain and the
+> port owner is the CHILD), and Task 2.2's launcher hunt is resolved (it is `Hermes_Gateway.vbs`
+> in the user Startup folder). Use the corrected blocks in **§11 (AMENDMENT — 2026-08-10)** at
+> the end of this document. Task 2.3 stands as written.
+
 **Task 2.1 — find and stop the current gateway process:**
 
 ```powershell
@@ -499,3 +505,135 @@ whole lane reversible: it is purely additive until Phase 5 (which this dispatch 
 (Phase 5, explicitly deferred), the #263(a) WATCH (unrelated, Mac-observed, still just a watch), and
 the CLAUDE.md/`#271`-scope-line corrections in §4 (recommended for the orchestrator to file, not
 executed here).
+
+---
+
+## 11. AMENDMENT — 2026-08-10 (written ON OJAMD, live PowerShell, canaried)
+
+**Provenance:** unlike the 2026-08-09 body above (probed through `mcp__hermes-ojamd`), everything
+in this section was read directly on the box by a session running on OJAMD itself — no MCP in the
+loop, so the fabrication caveat does not apply. **Phase 0 was executed this session and is GREEN**
+(Task 0.1: `HERMES_HOME\plugins` exists/empty, `plugins:` block exact two-line shape, match count 1;
+Task 0.2: `git ls-remote` exit 0 → `fd5d7d1bad0087…` — credentials already cached, SHA matches this
+dispatch's pin; no `platform_hint` block — that rider confirmed still owed; `HERMES_HOME\talaria`
+absent — fresh device store). Task 0.3 (config backup) deliberately left to run immediately before
+the Phase-1 edit, not earlier.
+
+### 11.1 §2 "Verified state" rows superseded by the 2026-08-09 reboot
+
+The box rebooted **2026-08-09 15:39:40**, after the body above was written. Three rows moved:
+
+| Row above | Now |
+|---|---|
+| Gateway PID 31472, StartTime 8/5 23:20, "no restart since before Phase 1 shipped" | **PID 37424 (child of 37420), started 2026-08-09 15:42:15**, serving install head `7aecab56db` (reflog-vs-start-time pinned; listener postdates the last checkout — no drift) |
+| `HermesMobileRelay` Running / Automatic | **Stopped** (Owen, by hand, 2026-08-10 ~00:05); StartType → Disabled queued this sitting |
+| `TalariaModelsShim` Stopped / Automatic | Auto-started by the reboot exactly as §4 warned, then stopped again by Owen; StartType → Disabled queued this sitting |
+
+**§9's last trap is DISCHARGED:** "the restart in Phase 2 is the first fresh read of `config.yaml`
+in a while" — no longer true. The 15:42:15 start already read the current `config.yaml` (last write
+14:52:33) and came up clean: `gateway_state.json` shows `api_server: connected` at 15:42:41, no
+Errno-48. Phase 2's restart re-reads a config the running process has already proven.
+
+**§7's reversibility framing needs one nuance:** with the relay Disabled, "rollback leaves OJAMD no
+worse off" now means rollback to a *relay-disabled* baseline. Reversal is one elevated line
+(`Set-Service HermesMobileRelay -StartupType Automatic; Start-Service HermesMobileRelay`) — a
+conscious call if this lane stalls mid-way, not an accident discovered at the next reboot.
+
+### 11.2 §3.5 / §8 discharged — #285's fix is ALREADY MERGED
+
+`claude/t27-285-profile-atomicity` (tip `4f6da66`) is **fully contained in main**: ahead-of-main
+= 0, merged **2026-08-08** as **GitHub PR #281** (`82625c8` "Merge PR #281: a profile switch is an
+atomic transport boundary (#285)"). The "built, awaiting his merge" line above was stale the day it
+was written. ⚠️ **Number-collision trap:** the adjacent merge `5521260` "Merge PR #285" is a
+DIFFERENT lane — GitHub PR #285 = tracker #297's toolless index. Tracker #285 = GitHub PR #281.
+Owen's belt-and-suspenders preference is therefore already satisfied on main; the only residual is
+build vintage — whether the phone's *installed build* predates the fix — which is a device-side
+question outside this lane's scope.
+
+### 11.3 CORRECTED Task 1.3 — the YAML check is real, not skippable
+
+The dispatch assumed bare `python` may lack yaml (true — PATH python is `C:\Python314`, no yaml).
+But the hermes venv python has **PyYAML 6.0.3** (verified live). Use it and treat a failure as a
+STOP, not a shrug:
+
+```powershell
+$cfg = "$env:HERMES_HOME\config.yaml"
+$backup = Get-ChildItem "$env:HERMES_HOME\config.yaml.bak-*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$before = (Get-Content $backup.FullName).Count
+$after = (Get-Content $cfg).Count
+Write-Output "Backup used: $($backup.Name)"
+Write-Output "Lines before edit: $before / after: $after / delta: $($after - $before)"
+& "$env:HERMES_HOME\hermes-agent\venv\Scripts\python.exe" -c "import yaml; yaml.safe_load(open(r'$env:HERMES_HOME\config.yaml')); print('YAML OK')"
+```
+
+**Expected:** delta exactly **`+1`** AND `YAML OK`. Either missing → restore from backup (Task
+1.2's rollback) and do not restart the gateway.
+
+> **Corrected live 2026-08-10 during execution:** the body's Task 1.3 (and the first version of
+> this amendment) said `+2` — an arithmetic slip. The edit turns 2 lines (`plugins:` +
+> `  enabled: []`) into 3 (`plugins:` + `  enabled:` + `    - talaria`): net **+1**. The
+> execution run measured +1, tripped the as-written gate, and settled it the honest way — a full
+> `Compare-Object` content diff of backup vs live showing exactly one removed and two added
+> lines, nothing else. That content diff is the better gate; prefer it over line arithmetic.
+
+### 11.4 CORRECTED Task 2.1 — the gateway is a TWO-PROCESS chain; kill both, parent first
+
+Found live: `Hermes_Gateway.vbs` launches `venv\Scripts\python.exe -m hermes_cli.main gateway run`
+(PID 37420), which re-execs a **child** on the bundled runtime interpreter
+(`.hermes-runtime\...\python.exe`, PID 37424) — and **the child owns `:8642`**. The original Task
+2.1 takes the port owner's PID and kills only the child, leaving the parent alive — which can
+respawn or linger holding state, manufacturing exactly the #264 bind-race Task 2.3 defends against.
+
+```powershell
+$conn = Get-NetTCPConnection -State Listen -LocalPort 8642 -ErrorAction Stop
+$childPid = $conn.OwningProcess | Select-Object -First 1
+$child = Get-CimInstance Win32_Process -Filter "ProcessId=$childPid"
+$parentPid = $child.ParentProcessId
+$parent = Get-CimInstance Win32_Process -Filter "ProcessId=$parentPid"
+Write-Output "child  (port owner): PID $childPid  $($child.CommandLine)"
+Write-Output "parent            : PID $parentPid  $($parent.CommandLine)"
+if ($parent.CommandLine -match 'gateway run') {
+    Write-Output "parent confirmed as gateway launcher - stopping parent first, then child"
+    Stop-Process -Id $parentPid -Force -ErrorAction SilentlyContinue
+    Stop-Process -Id $childPid  -Force -ErrorAction SilentlyContinue
+} else {
+    Write-Output "parent is NOT a gateway process - stopping only the port owner"
+    Stop-Process -Id $childPid -Force
+}
+Start-Sleep -Seconds 3
+Write-Output "--- survivors check (must be EMPTY on both) ---"
+Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'hermes_cli\.main gateway run' } |
+  Select-Object ProcessId, @{n='Cmd';e={$_.CommandLine.Substring(0,[Math]::Min(100,$_.CommandLine.Length))}}
+Get-NetTCPConnection -State Listen -LocalPort 8642 -ErrorAction SilentlyContinue
+```
+
+**Expected:** both survivor checks print nothing — no `gateway run` process of either flavor, port
+free. **If any survivor remains, stop and investigate before relaunching** (relaunching over a
+survivor is the #264 shape). `gateway.pid`/`gateway.lock` in HERMES_HOME will briefly go stale —
+the relaunch overwrites them; no manual cleanup.
+
+### 11.5 CORRECTED Task 2.2 — the launcher is known; no hunt needed
+
+The gateway's autostart is **`Hermes_Gateway.vbs` in the user Startup folder** (found and read
+live 2026-08-10; full chain documented in
+`planning/reports/2026-08-10-ojamd-supervision-inventory.md` §0 — it presets HERMES_HOME,
+PYTHONIOENCODING, HERMES_GATEWAY_DETACHED=1, VIRTUAL_ENV and PYTHONPATH, then runs the venv python
+windowless). Relaunch is one line:
+
+```powershell
+wscript.exe "C:\Users\Owen\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\Hermes_Gateway.vbs"
+```
+
+Then proceed directly to Task 2.3 exactly as written in the body (listener check at +20s and
++140s, then `/v1/health`).
+
+### 11.6 Also corrected while here
+
+- **§4's CLAUDE.md correction is ALREADY APPLIED** — current CLAUDE.md reads "STOPPED but NOT
+  disabled — StartType: Automatic". Do not re-file. (The #271 scope-line correction in
+  OPEN_ITEMS.md is still owed.)
+- **#288-C has a fresh dated baseline** as of 2026-08-10: 23 device rows / 2 active / 2 FK orphans
+  with a proven pre-#285 cause (the 2026-07-06 `cleanup-stale-users.py` delete-instead-of-
+  deactivate — both orphan-referenced devices present+active in
+  `hermes_mobile.db.pre-cleanup-20260706T123923.bak`, FK violations 0→2 across that cleanup).
+  Whatever Phase 4 mints is diffable against that count.
