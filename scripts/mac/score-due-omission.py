@@ -34,6 +34,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
+from datetime import datetime
 
 # `log` is a zsh BUILTIN — the absolute path is not decoration. Same reason the
 # project's memory note exists: a bare `log show` in zsh dies with
@@ -73,6 +74,45 @@ class Call:
     def unreadable(self) -> bool:
         return not self.omitted and self.parsed.strip() == "nil"
 
+    @property
+    def past_at_call(self) -> bool:
+        """A due that was ALREADY IN THE PAST when the call was made.
+
+        ADDED 2026-08-15 AFTER THIS SCRIPT MISSED THE CLASS IT WAS WATCHING.
+        The first run scored `raw="2026-08-15T08:46"` — emitted at 14:58:53 for
+        the prompt *"in 20 minutes"* — as POPULATED and therefore fine. It was
+        wrong by six and a half hours and landed in the past, and the model then
+        told the user it was *"created at the correct time"*.
+
+        That is the same blindness #200S had (count the call, never the
+        argument) reproduced one level up, in the very instrument built to catch
+        it. A scorer cannot know what the user meant, so it cannot score
+        "correct" in general — but "already elapsed when it was sent" is
+        mechanically decidable and is exactly the signature that was missed.
+
+        This is a SEPARATE bucket, never folded into `populated`: a past due is
+        a WRONG value, not a present one.
+        """
+        if self.omitted or self.unreadable:
+            return False
+        sent = _naive(self.raw)
+        called = _naive(self.timestamp)
+        return sent is not None and called is not None and sent < called
+
+
+def _naive(text: str) -> "datetime | None":
+    """Parse the instrument's two time shapes; None when neither fits.
+
+    Returns None rather than raising, and callers treat None as "cannot
+    judge" — an unparseable raw must never silently read as "not past".
+    """
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(text.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
 
 def extract(text: str) -> list[Call]:
     calls = []
@@ -107,7 +147,8 @@ def report(calls: list[Call]) -> int:
     n = len(calls)
     omitted = [c for c in calls if c.omitted]
     unreadable = [c for c in calls if c.unreadable]
-    populated = [c for c in calls if not c.omitted and not c.unreadable]
+    past = [c for c in calls if c.past_at_call]
+    populated = [c for c in calls if not c.omitted and not c.unreadable and not c.past_at_call]
 
     print(f"createReminder calls observed: {n}")
     print(f"  due OMITTED   (raw=\"\")            : {len(omitted)}/{n}"
@@ -116,11 +157,21 @@ def report(calls: list[Call]) -> int:
           f"  ({100 * len(populated) / n:.1f}%)")
     print(f"  due UNREADABLE (raw set, parsed=nil): {len(unreadable)}/{n}"
           f"  ({100 * len(unreadable) / n:.1f}%)")
+    print(f"  due ALREADY PAST at call time      : {len(past)}/{n}"
+          f"  ({100 * len(past) / n:.1f}%)   ← a WRONG value, not a present one")
 
     if populated:
         print("\nPopulated arguments — the model IS capable of this field:")
         for c in populated:
             print(f"  {c.timestamp}  raw={c.raw!r}  parsed={c.parsed}")
+
+    if past:
+        print("\n🔴 A due that had ALREADY ELAPSED when the model sent it.")
+        print("   This is a WRONG value and is NOT counted as populated. A scorer")
+        print("   cannot judge intent, so this bucket catches only the decidable")
+        print("   case — the class that slipped past this script's first version.")
+        for c in past:
+            print(f"  {c.timestamp}  sent raw={c.raw!r}  (already past when called)")
 
     if unreadable:
         print("\n⚠️  NEW FINDING — a non-empty due the app could not parse.")
@@ -136,9 +187,13 @@ def report(calls: list[Call]) -> int:
 
 
 def self_test() -> int:
-    """Fixtures are REAL lines from the 2026-08-15 340-C archive, plus one
-    synthetic unreadable row that has never been observed — so the branch that
-    would announce a new finding is exercised rather than assumed."""
+    """Fixtures are REAL lines from the 2026-08-15 archives, plus one synthetic
+    unreadable row that has never been observed — so the branch that would
+    announce a new finding is exercised rather than assumed.
+
+    All FOUR classes are pinned, including `past_at_call`, which was added only
+    after the first version of this script scored an already-elapsed due as a
+    clean populated call."""
     sample = (
         'Timestamp               Ty Process[PID:TID]\n'
         '2026-08-15 14:21:36.400 Df Talaria 27[25670:433ee4] [org.aethyrion.talaria27:app] '
@@ -154,7 +209,19 @@ def self_test() -> int:
     assert calls[0].omitted and not calls[0].unreadable
     assert not calls[1].omitted and not calls[1].unreadable
     assert calls[1].parsed == "Aug 15, 2026 at 9:00 AM", calls[1].parsed
+    # REAL row, and it is why past_at_call exists: sent at 14:25:52 for today
+    # 09:00, i.e. already elapsed. Format correct, VALUE wrong. The first
+    # version of this script scored it as a clean populated call.
+    assert calls[1].past_at_call, "an already-elapsed due must not read as populated"
     assert calls[2].unreadable and not calls[2].omitted, "18:00 is unreadable, not omitted"
+    assert not calls[2].past_at_call, "an unparseable raw cannot be judged past"
+    assert not calls[0].past_at_call, "an omitted due is not a past due"
+    # A FUTURE due is the only shape that may read as cleanly populated.
+    future = extract(
+        '2026-08-15 14:58:08.920 Df Talaria 27[1:1] [org.aethyrion.talaria27:app] '
+        'createReminder due raw="2026-08-16T16:00" parsed=Aug 16, 2026 at 4:00 PM\n'
+    )
+    assert len(future) == 1 and not future[0].past_at_call and not future[0].omitted
     # The banner line and the trailing separator must not parse as calls.
     assert extract("Timestamp               Ty Process[PID:TID]\n==========\n") == []
     # And the no-data path must NOT be a success. This PRINTS the guard's own
@@ -162,7 +229,7 @@ def self_test() -> int:
     print("--- exercising the no-data guard; the block below is EXPECTED ---")
     assert report([]) == 2, "empty input must exit 2, never report 0%"
     print("--- end expected block ---")
-    print("SELF-TEST PASSED — 3 fixtures, all three classes, and the no-data guard.")
+    print("SELF-TEST PASSED — 4 fixtures, all four classes, and the no-data guard.")
     return 0
 
 
