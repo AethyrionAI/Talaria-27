@@ -21458,3 +21458,36 @@ began exactly here before adding a completion claim.
 claiming ancestor of this shape), **#337-F-2b** (the reworded blurb, still UNADOPTED —
 if it is adopted, re-measure this rate before assuming it survives, since the blurb is
 what teaches the card vocabulary), **#215** (why 2/13 is not a production rate).
+
+> **⚠️ THREE CORRECTIONS TO THIS ENTRY, MADE THE SAME DAY IT WAS FILED, after reading
+> the battery's own imitation detector rather than reasoning from the guard alone.**
+>
+> **(1) THE SHAPE IS NOT NEW, AND THIS ENTRY IMPLIED IT WAS.** `confirmationCardImitationShapes`
+> (`LocalChatBackend+CardClause.swift:168`) already lists `"here's the confirmation"` and
+> `"here is the confirmation"` beside `"confirmation card"`, and its own comment records
+> **15 occurrences** of that opener in run `A7AB9960`. The shape has been measured for
+> weeks. **What is new on 2026-08-15 is that it occurred in PRODUCTION and the SHIPPING
+> GUARD missed it** — the novelty is the gap, not the prose.
+>
+> **(2) THE MEASURING INSTRUMENT IS BROADER THAN THE SHIPPING GUARD, and that asymmetry
+> is the finding stated properly.** The battery matches by `contains` in ANY position over
+> three curated shapes with apostrophe normalization; the guard matches ONE shape by
+> `hasPrefix` in label position. So the instrument that MEASURES this defect sees it and
+> the guard that should CATCH it does not. **Both of 2026-08-15's turns match the battery
+> detector; neither matches the guard's.**
+>
+> **(3) THE OPTION (c) ABOVE IS MORE CONCRETE THAN IT WAS WRITTEN, AND CHEAPER.** "Widen
+> only where the marker is followed by a field list" was speculation. **The real option is
+> to reuse `confirmationCardImitationShapes`** — already curated from observed shapes,
+> already normalized, already exercised across three #337-F runs. The 338-A tension is
+> UNCHANGED and still governs: that list is documented as *deliberately narrow for
+> MEASUREMENT*, it says nothing about offers, and it would fire on *"Here's the
+> confirmation card … Shall I create it?"*. Reuse is a starting point, not a free pass.
+>
+> **🎯 AND THE RECOMMENDATION IS NOW VERIFIED RATHER THAN ASSUMED — DO NOT WIDEN THE
+> DETECTOR FIRST.** #337-F's blurb-removed and blurb-reworded arms scored **0/90
+> imitations**, and that was scored with the BROAD detector, which matches both of
+> today's turns. So adopting #337-F-2b's reworded sentence is measured to suppress
+> exactly the shapes seen here. **Adopt the rewording, re-measure this rate, and rule on
+> #344 only if it survives** — that fixes cause instead of symptom, costs nothing against
+> 338-A, and the A/B has already been run three times.
