@@ -22599,3 +22599,20 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > the quarantined `talaria.db.accidental-2026-08-16*` files are
 > unaffected by name. OJAMD has no plugin install (Phase-2 deferral,
 > #251) — nothing to deploy there.
+
+> **🚀 DEPLOYED TO THE LIVE MAC INSTALL — 2026-08-16 16:57, Owen's "lets
+> do it then":** live checkout fast-forwarded `fd5d7d1` → `da5233a`;
+> gateway SIGTERM'd (old PID 58499, up since Aug 14) and launchd
+> respawned clean — **new listener PID 67495, verified by LISTENER not
+> process** (no Errno-48 race this time), `/health` ok on 0.20.1.
+> **Real migration outcome, verified read-only:** `talaria.db` created
+> at the restart moment, 0600; `devices.json`/`outbox.json` byte-hashes
+> IDENTICAL pre/post (sha256-compared — untouched, as designed); 4
+> devices imported (1 active), 2 outbox items — **both resolved to
+> `target_device` scope on the single active device by the 351-B
+> resolution; zero `legacy_any` rows on the real data**; both items
+> already delivered (historical); migration marker present; no
+> `.rejected` quarantines (both legacy files valid); the
+> `talaria.db.accidental-2026-08-16*` trio untouched. The reworked
+> storage layer is now what serves the phone's next drain. OJAMD: no
+> plugin install (Phase-2 deferral, #251) — out of scope.
