@@ -3712,6 +3712,23 @@ clean on a solo rerun. `aps-environment: development` verified after regen.
 
 Logged 2026-07-22.
 
+> **✅ DEVICE PASS 2026-08-15 — ALL SIX CHECKS PASS.** Phone paired to OJAMD.
+> List renders the real host skills grouped by category with Uncategorized last;
+> search filters across name, description and category (garbage returns nothing);
+> long descriptions expand and collapse cleanly; **airplane-mode refresh keeps the
+> last fetch on screen with a failure strip explaining the host took too long — the
+> data is added to, never replaced**, which is the defect this bar exists for; the
+> cron SKILLS picker and EDIT AS TEXT both round-trip.
+>
+> **⚠️ TWO PASSES ARE SOFTER THAN THE REST AND ARE RECORDED AS SUCH, not upgraded.**
+> (i) The empty-state bar asks the screen to ECHO the query back, and the run
+> recorded only "garbage returns nothing" — an empty list and an echoing empty state
+> look identical from a glance. (ii) The picker bar's load-bearing clause is that a
+> HAND-TYPED value renders `(custom)` and SURVIVES an unrelated edit round-trip;
+> Owen's note was *"these are all familiar, must be a retest"*, which reads as
+> recognition rather than exercise. Both are cheap to confirm on the next sitting
+> and neither is disputed — they are simply not evidenced to the bar's own wording.
+
 ## 165. 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at `ContentView.swift:252`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156D-insights.md` executed 2026-07-22 on the Mac Mini
@@ -3777,6 +3794,29 @@ Spliced programmatically from the distributed package (SPM checkout, pinned 130.
 Correction to the item as filed: **no patent grant exists in the distributed package** (zero patent mentions in either file, verified against the checkout and the xcframework). The upstream webrtc.org PATENTS file is not part of what Talaria redistributes and is deliberately not reproduced — the entry states the absence.
 
 Remaining optional follow-on, NOT blocking submission: an in-app acknowledgements screen (Settings → About → Licenses). Conventional but not required by App Review; the repo-level reproduction satisfies BSD-3 clause 2. Small speccable lane if ever wanted — render THIRD_PARTY_LICENSES.md (already in the repo) in a sheet — but it should not be built speculatively.
+
+> **✅ DEVICE PASS 2026-08-15 — 5 PASS, 1 PRECONDITION NOT MET.** Phone paired to
+> OJAMD. Real host numbers with a live AS OF stamp; **no fabricated zeros anywhere**;
+> by-source and by-model breakdowns render; session rows expand; airplane-mode
+> refresh keeps the numbers with an honest "host took too long" strip.
+>
+> **The strongest single result is an incidental one:** expanded session rows show
+> *"most 4 additional rows, some only 2"* — i.e. a session lacking usage data renders
+> with those fields **ABSENT rather than zeroed**. That is the no-fake-zeros rule
+> confirmed positively, by observing the honest-absence path actually taken, rather
+> than by failing to spot a `$0.00`.
+>
+> **⚠️ THE CHECKLIST'S OWN EXPECTED SET IS STALE.** It names an
+> "api_server/discord/tui split"; the host actually reports **six** sources —
+> `tui`, `desktop`, `api_server`, `acp`, `cron`, `cli`. The app is reporting reality
+> and the bar predates it. **Discord is absent** despite the #271 lane reporting it
+> connected — consistent, since connected-but-unused produces no sessions and so no
+> row, but worth knowing before anyone reads its absence as a defect.
+>
+> **NOT MET, PRECONDITION: the >600-session truncation strip.** OJAMD does not hold
+> enough sessions. Recorded as precondition-not-met rather than skipped, per the
+> bar's own instruction. **Also not evidenced:** the clause that the chat CTX gauge
+> stays unchanged and uncontradicted by this screen — not reported either way.
 
 ## 166. 🍎 App Store review-risk register — hermex's actual submission runbook mapped onto Talaria
 
