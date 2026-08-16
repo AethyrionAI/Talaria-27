@@ -22578,3 +22578,24 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > in the archived brief. The brief also confirms it ran a Talaria-27
 > beta5 `build-for-testing` (green) as part of its baseline — the app repo
 > was read/built, not modified.
+
+> **✅ MERGED — 2026-08-16 ~21:53, on Owen's "good to merge":** PR #1 →
+> `ad92f77`, PR #2 → `da5233a` (merge commits, ancestry preserved — no
+> squash, per the squash-blinds-ancestry lesson). One mechanics note for
+> the record: deleting PR #1's branch on merge made GitHub CLOSE the
+> stacked PR #2 rather than retarget it; recovered by restoring the base
+> ref, reopening, retargeting to `main` (MERGEABLE), deleting the temp
+> ref, then merging. Both head branches deleted; plugin-repo `main` now
+> carries the reworked storage layer.
+>
+> **⚠️ MERGED ≠ DEPLOYED — the live install
+> (`~/.hermes/plugins/talaria`) is still on pre-merge main (`fd5d7d1`,
+> JSON store) and stays there until Owen's explicit deploy go.** Deploy =
+> `git pull` in the live checkout + Mac gateway restart (which briefly
+> takes the chat plane AND connected Discord down — one process — and
+> per #264's ops rule the listener must be verified after the bounce,
+> not the process). First gateway start on the new code runs the
+> one-shot migration against the real `devices.json`/`outbox.json`;
+> the quarantined `talaria.db.accidental-2026-08-16*` files are
+> unaffected by name. OJAMD has no plugin install (Phase-2 deferral,
+> #251) — nothing to deploy there.
