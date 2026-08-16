@@ -159,7 +159,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#179** 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely …
 - **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F
 - **#182** 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
-- **#184** 🐛 ChatStore has three teardown paths and each clears a different subset — **✅ FIX IS ON `main` (code-read verified 2026-08-10, `5a185ba`, primitive maintained by every later lane). Open ONLY for the §F1 device row** *(header correction promised by that verification, applied 2026-08-11)*
+- **#184** 🐛 ChatStore has three teardown paths and each clears a different subset — **✅ FIX IS ON `main` (code-read verified 2026-08-10, `5a185ba`, primitive maintained by every later lane). Open ONLY for one ~30s device sub-row: clear-conversation while read-aloud is live — Owen confirmed 2026-08-16 the 08-15 sitting's third try was a REPEAT, not `clear`** *(header correction promised by that verification, applied 2026-08-11)*
 - **#185** 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match — **✅ FIX IS ON `main` (code-read verified 2026-08-10, `ChatStore.swift:3364-3402`). Open for the §F1 device row AND #293(d)'s residue — the insurance clause still reads `localAttachments[safe: index]`, not `unclaimed`** *(header correction applied 2026-08-11)*
 - **#186** 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ …
 - **#188** 🔧 Connector watchdog cannot distinguish relay-down from connector-down
@@ -4886,9 +4886,19 @@ it). NOT device-verified — sim suite only.
 > **One clause not fully evidenced:** Owen named switching-chats and new-chat
 > explicitly and reported "all 3 tries"; whether the third was `clearConversation`
 > specifically is unconfirmed. Recorded rather than assumed, because `clear` is the
-> path that historically differed. **This entry is now CLOSABLE pending that
+> path that historically differed. ~~**This entry is now CLOSABLE pending that
 > one-line confirmation** — the header correction and archive move ride the next
-> sweep, per #261.
+> sweep, per #261.~~
+>
+> **✖ NOT CLOSABLE YET — the confirmation came back NO (Owen, 2026-08-16): "no i
+> never cleared the conversation, i repeated another."** The third try repeated one
+> of the two already-named paths, so the clear-while-speaking walk-away is still
+> device-unwitnessed — and it is the path that historically differed (UI sites:
+> `ChatScreen.performClear` via the clear command, and Settings → Sessions'
+> clear action, `SessionsSettingsScreen.swift:86`). **What remains is exactly one
+> ~30-second row: start read-aloud, trigger clear-conversation while speech is
+> live, confirm audio stops immediately.** Queued for the 2026-08-16
+> iPhone-Mirroring sitting; closes on that observation alone.
 
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 

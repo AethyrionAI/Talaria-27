@@ -735,6 +735,11 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   one turn. (PASS: teardown clears consistently across all three paths;
   each attachment resolves to its own local file, neither overwritten.)
  **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **#184 PASS — the device row this item was down to.** Read-aloud was started, then each walk-away path taken while speech was live; speech stopped immediately every time. Confirms `abandonPendingRun(stopSpeech:)` on all paths at HEAD. *Owen named switching-chats and new-chat explicitly; whether the third was `clearConversation` is unconfirmed.* **#185 (duplicate-filename attachments) NOT RUN — deferred by Owen, needs two same-named files staged in Files first.**
+  **⚠️ THE THIRD PATH WAS A REPEAT — Owen, 2026-08-16: "no i never cleared the
+  conversation, i repeated another."** So the 08-15 PASS covers switch-chats and
+  new-chat only; **clear-conversation-while-speaking is still unwitnessed** and is
+  the one remaining #184 row (~30s: start read-aloud, clear the conversation,
+  confirm speech stops). See OPEN_ITEMS #184's 2026-08-16 note.
 > **✅ GROUP 2 RUN AND SCORED 2026-08-15 (Owen's sitting; phone paired to OJAMD).
 > All 20 rows attempted. Verdicts live at each item's own entry — #162, #163, #165 —
 > which are the record; this is the index.**
