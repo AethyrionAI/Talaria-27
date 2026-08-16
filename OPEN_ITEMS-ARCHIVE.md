@@ -19404,3 +19404,165 @@ only.
 > bubble after the reconcile merge. The 07-26 fix holds on device. **The
 > `localAttachments[safe: index]` insurance-clause residue stays filed at #293(d)
 > and no longer routes through this item. Swept to archive 2026-08-16.**
+
+## 75. 🔧 HUD header labels wrap/truncate — single-line hardening (GitHub #42) — **✅ CLOSED 2026-08-16: the on-device acceptance pass ran and MET — both brains, long model name, default + max Dynamic Type, everything single-line, pill shape stable. SWEPT TO ARCHIVE 2026-08-16.**
+
+> **✅ THE ACCEPTANCE PASS RAN 2026-08-16 (device `whoGoesThere`, via iPhone
+> Mirroring + computer use) — MET.** Default width, both brains (HERMES /
+> ON-DEVICE), the long model chip (`DEEPSEEK-V4-FLASH`), and a Dynamic Type
+> sweep (original notch → max standard, restored after): wordmark, model chip,
+> and brain pill stayed single-line at every size; the pill never resized out
+> of shape; no character-wrapping anywhere — the #42 failure mode is gone on
+> the shipping toolchain. **The design's pressure-release works exactly as this
+> entry predicted** ("the status label should shrink/truncate rather than
+> anything wrapping"): the status label is the sacrificial element, reading
+> `O…`/`R…` beside the CTX gauge at default size and collapsing to the bare
+> status pip at max standard size. Recorded as an observation, not a defect —
+> if a future lane wants the status legible under a live CTX gauge, that is
+> new design work, not a regression of this fix. Narrow-width (SE-class sim)
+> variant not exercised; the device's own width at max type is the shipping
+> pressure case. Verdict also recorded in
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` Group 3.
+
+> **Audit 2026-07-13:** PR #43 (`claude/talaria-27-issue-42-042f8a`→main, merged) and GitHub #42 (closed) confirm this landed; `Talaria/Core/HUD/HUDComponents.swift:476` has `hudSingleLine(minScale:)` on main. The 'BUILT IN CLOUD, not compiled or device-verified' claim is stale (merge already implies build+test pass); the real remaining work is only the on-device/sim acceptance pass (narrow widths, both brains, long model name, Dynamic Type sweep) — keep emoji 🔧 as merged-unverified.
+
+**Update 2026-07-08 (cloud session, branch `claude/talaria-27-issue-42-042f8a`):**
+BUILT IN CLOUD, not compiled or device-verified. On-device captures (issue #42)
+showed the chat header character-wrapping under width pressure: wordmark
+`HE`/`RM`/`ES`, status `ONLIN`/`E · OJAMD`, brain pill `ON-`/`DEVICE`, model
+chip hard-truncating at full size.
+- **New `hudSingleLine(minScale:)`** (`Core/HUD/HUDComponents.swift`): one
+  line, tighten → scale (floor 0.6 default) → `…` last. Opt-in, NOT baked into
+  `MonoLabel` — the voice-overlay live transcript uses MonoLabel for
+  multi-line prose and must keep wrapping.
+- **Wordmark:** `.lineLimit(1)` + `.fixedSize(horizontal: true, vertical:
+  false)` + `.layoutPriority(1)` — never gives up width; the neighboring
+  status telemetry absorbs the pressure via `hudSingleLine()`.
+- **Status line, message count, CTX label:** `hudSingleLine()`.
+- **Brain pill:** hidden ZStack width anchor = `Brain.widestMonoLabel`
+  (computed over `allCases` by character count — valid only because the label
+  is JetBrains Mono; "ON-DEVICE" today) + `fixedSize` — the pill never wraps
+  inside itself and keeps one size across brain switches. Locked by a new
+  `ChatBackendRouterTests` test.
+- **Model chip (`ModelSelector`):** `.allowsTightening` +
+  `.minimumScaleFactor(11/13)` — ~2pt of shrink before the pre-existing
+  `lineLimit(1)` `…` truncation.
+
+**Needs Mac:** CLI build + tests (**no new files → no xcodegen regen needed**),
+then the issue's acceptance pass on the iOS 27 sim + whoGoesThere: narrowest
+supported width, both brains (HERMES / ON-DEVICE), a long model name
+(`DEEPSEEK-V4-…`), and a Dynamic Type sweep — wordmark + pill are fixedSize,
+so at accessibility sizes the status label should shrink/truncate rather than
+anything wrapping. Also confirm whether mainline's milder behavior was iOS 27
+SDK-related (issue asks; the fix is robust either way).
+
+---
+
+## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ CLOSED 2026-08-16: all three device checks ran — (1) and (2) MET outright, (3) MET at the tool layer with the residual routed to the model-fidelity family. SWEPT TO ARCHIVE 2026-08-16.**
+
+> **✅ THE THREE DEVICE CHECKS RAN 2026-08-16 (device `whoGoesThere`, ON-DEVICE
+> brain, via iPhone Mirroring + computer use; full protocol — both permissions
+> revoked to None in Settings first).**
+>
+> 1. **Add-only calendar create — MET, FIRST attempt.** Calendars re-granted
+>    "Add Events Only"; "Create a calendar event called Probe 186 tomorrow at
+>    3pm" ran `createCalendarEvent`, the #4 confirm gate fired BEFORE the write
+>    (card showed title/start/duration), and after APPROVE the event landed:
+>    "Your 'Probe 186' event is set for tomorrow at 3 PM." No false denial —
+>    the `.writeOnly` accept + settled-status re-read held on device.
+> 2. **Limited contacts lookup on a LATER launch — MET.** Contacts re-granted
+>    "Limited" via the Settings picker (1 contact selected). App killed via the
+>    app switcher, relaunched cold, and "Look up Shelley Jones…" returned her
+>    number correctly on the first try (`✓ lookupContact`). The
+>    works-exactly-once failure this item documented is gone.
+> 3. **Calendar READ under add-only — MET AT THE TOOL LAYER; the user-visible
+>    reply is a HALF and the residual is NOT this item's.** The reply was
+>    honest and specific — "I couldn't fetch your calendar events directly
+>    because the tool lacks the required permissions. You'd need to enable
+>    Full Access for the calendar in Settings" — which is exactly NOT the old
+>    generic "enable it in Settings" lie (it names the widening target on a
+>    grant that genuinely cannot read). But it did not name the add-only grant.
+>    **The tool's own message DOES, verbatim** ("Calendar access is add-only,
+>    so events can't be read. To let Hermes read the calendar, choose Full
+>    Access…", `DeviceCalendarTools.swift:51` at HEAD): **the on-device model
+>    paraphrased the grant name away in relay.** That is the #200S
+>    relay-fidelity genus — a model behaviour this item's fix cannot reach —
+>    and it lands there as an observation, not here as a bar miss.
+>
+> **Post-test state:** Calendars left at Add Events Only pending Owen's
+> restore call (was Full Access); Contacts at Limited/1 (was Limited/0); a
+> "Probe 186" event sits on 2026-08-17 15:00 (the add-only grant means the
+> agent cannot delete it — hand-delete via Calendar.app, or after restoring
+> Full Access).
+
+> **✅ 2026-08-04 (quality-batch lane): all four built pieces confirmed on
+> main by direct grep, not by trusting the 176B note** —
+> `CalendarEventTool` accepts `.fullAccess, .writeOnly` AND re-reads the
+> settled status after a request (`DeviceActionTools.swift:444–448`); the
+> calendar reader's `.writeOnly` branch names the add-only grant and how to
+> widen it (`DeviceCalendarTools.swift:37`); `ContactsTool` accepts
+> `.limited` (`DeviceReadTools.swift:623`); and
+> `NSCalendarsWriteOnlyAccessUsageDescription` is in `project.yml:170`.
+> **The three owed device checks moved to
+> `dispatch/DEVICE-PASS-RUNNING-LIST.md` §F1 (one queue — #184's rule);
+> they are this item's only remaining content.** App-side work: none.
+
+Found by ultrareview Pass B (2026-07-25), verified against source.
+
+**Update 2026-07-27 — BUILT on the 176B branch (`claude/opus-t27-belt-truth-wkxblt`).**
+(1) `CalendarEventTool`: `.writeOnly` proceeds beside `.fullAccess`, and the `.notDetermined`
+branch re-reads the settled status after the request — `requestFullAccessToEvents()` reports an
+"Add Events Only" pick as `false`, so trusting the Bool alone false-denied the FIRST attempt too;
+one deliberate half-step beyond the prescribed patch. The request itself stays full-access; the
+rejected write-only-request swap stays rejected. (2) `ContactsTool` accepts `.limited` beside
+`.authorized`. (3) The calendar reader's `.writeOnly` case names the add-only grant and says
+reading needs Full Access — message fix only, as specced. (4) Insurance taken:
+`NSCalendarsWriteOnlyAccessUsageDescription` declared in `project.yml` and hand-synced into the
+generated `Info.plist` (no xcodegen on the build box; alphabetical key order matches what regen
+emits). The switches live inside `call()` with framework stores — device-verified, not
+unit-tested, per the belt's standing note. **Device checks owed:** add-only calendar grant →
+event creation succeeds on the first attempt and every one after; limited contacts grant →
+lookup works on the second launch and after; add-only grant + a calendar question → the reply
+names the grant instead of "enable it in Settings."
+
+Two device tools treat a **narrower but sufficient** grant as a denial, then hand that denial to the
+model. `LocalChatBackend` instructs the model to relay permission-denied results faithfully — so the
+user is told to go turn on a permission they already granted. That is precisely the fabrication the
+tool belt exists to prevent.
+
+1. **`CalendarEventTool` rejects `.writeOnly`** (`DeviceActionTools.swift:213–221`). The switch
+   handles `.notDetermined` and `.fullAccess`; `.writeOnly` falls to `default:`. But
+   `store.save(event, span: .thisEvent, commit: true)` at `:233` is exactly what `.writeOnly`
+   authorizes. The `.notDetermined` branch calls `requestFullAccessToEvents()` (`:215`), which
+   returns false when the user picks "Add Events Only" from Apple's sheet — so the false denial
+   lands on the first attempt and every one after. **Fix: add `case .writeOnly: break`.**
+
+2. **`ContactsTool` rejects `.limited`** (`DeviceReadTools.swift:331–340`). `status != .authorized`
+   catches the iOS 18 Contact Access Picker grant, though `unifiedContacts(matching:)` returns hits
+   from the approved subset fine. It works exactly once — `requestAccess(for:)` returns true for a
+   limited grant so the `.notDetermined` path passes through — then fails every launch after.
+   **Fix: accept `.limited`.** `NSContactsUsageDescription` is present (`project.yml:163`), no plist
+   work needed.
+
+**REJECTED — do not swap in `requestWriteOnlyAccessToEvents()`.** A refinement proposed this on the
+grounds that the tool only creates events. It fails twice over. (a) `project.yml:161` declares only
+`NSCalendarsFullAccessUsageDescription`; calling that API without the write-only key is a **hard TCC
+crash**, not a soft denial. (b) `DeviceCalendarTools.swift:28–37` — the calendar reader — has the
+identical switch shape, so priming with write-only leaves the reader seeing `.writeOnly`, falling to
+`default:`, and **never able to re-prompt** because the status is no longer `.notDetermined`. One
+use of the create tool would permanently cost the user calendar reading. Talaria both reads and
+writes calendars, so full access is the honest ask. Recorded here so nobody re-proposes it.
+
+**Related, still open — write-only dead end on the read side.** Apple's *full-access* sheet itself
+offers "Add Events Only," so `.writeOnly` is reachable from the existing code path. A user who picks
+it gets a reader saying "enable it in Settings" when they granted what they were shown, with no
+re-prompt path. The reader genuinely cannot read under write-only, so this is a message fix, not a
+logic fix: `default:` should name the write-only case and say to widen the grant.
+
+**Verified correct as-is, no change:** `ReminderCreateTool` (`DeviceActionTools.swift:107–116`) and
+`DeviceCalendarTools.swift:92–100` — EventKit has no write-only state for reminders.
+
+**Optional cheap insurance:** add `NSCalendarsWriteOnlyAccessUsageDescription` to `project.yml`
+regardless, closing the crash path if anyone reaches for that API later.
+
+Logged 2026-07-25.

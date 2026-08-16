@@ -850,18 +850,51 @@ item numbers.** Est. ~35–40 min.
 
 **Group 3 — Settings-dependent (batch these — one trip through Settings).**
 Est. ~15 min.
-- [ ] #75 — Check the chat header at: default width, both brains (HERMES /
+
+> **✅ GROUP 3 RUN 2026-08-16 — the whole trip, via iPhone Mirroring + computer
+> use (Claude drove the phone from the Mac Mini; Owen present). All three rows
+> resolved; verdicts inline below and at each item's entry.**
+>
+> - **#75 — PASS, both brains, default + max standard Dynamic Type, long model
+>   name (`DEEPSEEK-V4-FLASH`).** Wordmark/chip/pill single-line throughout;
+>   the pill never changed shape. *Observation (designed behavior at its
+>   floor, not a defect): the status label is the sacrificial element — with
+>   the CTX gauge present it reads `O…`/`R…` at default size and vanishes to
+>   the bare pip at max standard size.* Narrow-width (SE-class sim) variant
+>   not exercised; the device's own width at max type is the shipping
+>   pressure case.
+> - **Display Zoom re-test — NO LETTERBOX.** Zoomed mode applied (springboard
+>   restart), Talaria relaunched full-bleed on every observable edge; restored
+>   to Default afterward. Nothing to file; archived #83 stays dead.
+>   **⚠️ Sitting gotcha learned here: an in-sitting Display Zoom change BREAKS
+>   the iPhone Mirroring stream's geometry** (right edge clipped, survives an
+>   app relaunch) — only the restore respring healed it. Schedule any future
+>   Display Zoom row LAST in a mirroring sitting.
+> - **#186 — (1) MET, (2) MET, (3) MET AT THE TOOL LAYER; the residual is the
+>   MODEL's, not the belt's.** Full protocol: revoke both → Calendars re-grant
+>   "Add Events Only" (Settings), Contacts re-grant "Limited" via the picker
+>   (1 contact). (1) create-event succeeded FIRST attempt (`✓ createCalendarEvent`,
+>   #4 confirm gate fired, event landed). (2) contact lookup on a LATER cold
+>   launch returned the right number, first attempt. (3) the calendar READ
+>   reply was honest and non-generic ("You'd need to enable Full Access for
+>   the calendar in Settings") but did NOT name the current add-only grant —
+>   while the TOOL's own message does, verbatim ("Calendar access is add-only…",
+>   `DeviceCalendarTools.swift:51`): **the on-device model paraphrased the
+>   grant name away in relay** — #200S's fidelity genus, not a #186 defect.
+>   See #186's closing note.
+
+- [x] #75 — Check the chat header at: default width, both brains (HERMES /
   ON-DEVICE), a long model name (e.g. `DEEPSEEK-V4-...`), and a Dynamic
   Type sweep (Settings → Accessibility → Display & Text Size → Larger Text,
   several notches). (PASS: wordmark/status/model chip stay single-line with
   scale-then-truncate behavior at every size; the brain pill never resizes
   itself out of shape.)
-- [ ] Display Zoom letterbox re-test (from archived #83): set Display Zoom
+- [x] Display Zoom letterbox re-test (from archived #83): set Display Zoom
   to Larger Text, launch, check for letterboxing; if it repros, file a NEW
   item (do not reopen #83, closed as terminal against a toolchain that no
   longer exists). Restore Display Zoom to Default afterward — it affects the
   whole phone, not just Talaria.
-- [ ] #186 — Needs a Settings-level permission reset first (Settings →
+- [x] #186 — Needs a Settings-level permission reset first (Settings →
   Privacy → revoke Calendar/Contacts for Talaria). Then: (1) re-grant
   Calendar as "Add Events Only," ask the agent to create an event — must
   succeed on the FIRST attempt and every one after; (2) re-grant Contacts as
