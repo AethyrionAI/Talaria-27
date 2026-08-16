@@ -22473,3 +22473,48 @@ shim interacts; the hardcoded `_package_name()` regression noted in review), #14
 (deactivate-never-delete — held), #271 (relay retirement, the lane this ultimately
 serves), #346 (OJAMD supervision state). Review evidence: this session's
 ReportFindings (15 entries) + `handoffs/` note if written at close.
+
+> **✅ REWORK COMPLETE — 2026-08-16, same session as the filing. All twelve
+> bars MET; both PR branches pushed and CI green (3.11 + 3.12 on each).
+> Awaiting Owen's re-review; the ⛔ DO-NOT-MERGE stands until he lifts it.**
+>
+> - **Shape:** 8 commits on PR #1's branch (`a6254a3..0ddae1c` on
+>   `fix/transactional-storage-device-routing`), PR #2 rebased on top +
+>   one subtraction commit (`bb912f2`, force-with-lease). Plan:
+>   `planning/superpowers/2026-08-16-talaria-plugin-rework.md`. TDD
+>   throughout — every bar's reproduced case went RED before its fix.
+> - **Bars:** 351-A..L all MET. Suite **112 → 129** at PR #1 (both PR
+>   layouts; PR #2 passes under BOTH `pytest` and `python -m pytest`,
+>   which is 351-J's whole point — the old PR #2 head was uncollectable
+>   under the plain console script, reproduced before fixing). 3×
+>   concurrency/migration stress green; compileall green; `hermes plugins
+>   doctor . --ci` green on both layouts; ruff E/F floor clean (repo has
+>   no ruff config or CI lint step; the broad-rule findings under Owen's
+>   global ruff config are 2 worktree-name artifacts + 3 bar-mandated
+>   catch-alls + 3 pre-existing in untouched files). Live install stayed
+>   on `main` untouched; canonical `~/.hermes/talaria/talaria.db` absent
+>   before/after every run; quarantine files untouched.
+> - **🔄 ONE REVIEW FINDING HALF-FALSIFIED BY EXECUTION, corrected here
+>   per the close-out rule:** the review called the root shim's
+>   `else: from talaria import register` branch DEAD code ("unreachable;
+>   pytest only collects python_files"). **Wrong: pytest 9.1 imports a
+>   rootdir `__init__.py` during collection with `__package__` empty**, so
+>   the branch is load-bearing for the test suite — deleting it (as the
+>   rework plan's Task 9 Step 4 prescribed) produced 129 collection
+>   errors, reproduced then reverted. The branch stays, with an honest
+>   comment; its wrong-binding hazard died with the pip distribution
+>   (nothing else named `talaria` can exist to bind). The HAZARD half of
+>   the original finding (pip wheel silently shadowing the pinned
+>   checkout) was real and is closed by subtraction, not mitigation.
+> - **F13 (CLI-pair rows never auto-rotate) deliberately NOT re-plumbed:**
+>   surfaced instead — status now prints name + install_id, `pair` warns
+>   in so many words. Changing manual-pairing identity semantics is a
+>   design decision for Owen, not a rework-lane call.
+> - **Recorded for later (not bars, not done):** connection pooling /
+>   per-thread caching; `delivery_scope` column removal; core-side
+>   chat_id consumers (kanban 12-failure durable unsub, home_channel,
+>   ledger replay) still latent-armed pending the runs-transport lane —
+>   the plugin-side half is fixed (install_id is a stable address;
+>   README tells operators to persist THAT).
+> - **CI evidence:** PR #1 run 31973757431, PR #2 run 31973925722 —
+>   verify (3.11) and verify (3.12) pass on both.
