@@ -22787,3 +22787,116 @@ observation quote resolves to this item.
 > CLIs were done here, explicitly. Remaining pointer to the old commands
 > is the APP's stale SETUP card — #269-A-D, unchanged. The #251 phase-1
 > promise ("deletes the venv CLIs") is now true on every host.
+
+> **BARS — PRE-REGISTERED 2026-08-16 night, before any code (house rule).
+> Design spec: `planning/superpowers/2026-08-16-352-sensor-pipeline-retirement-design.md`
+> (verified against code at `471531b`, not transcribed from the handoff —
+> the load-bearing premise CONFIRMED: `PhoneQueryResponder` answers queries
+> through the belt's own read tools (`DeviceHealthTool.performRead`, fresh
+> `HKHealthStore` per read; `LocationTool` via the shared
+> `DeviceLocationProvider`; live `CMPedometer`/`EKEventStore`/WeatherKit) and
+> consumes NO upload queue or `SensorUploadService` state. The one real
+> coupling: `PhoneQueryResponder.deniedGate` reads the same four
+> `UserSettings` toggle keys the uploader honors — the toggles SURVIVE, their
+> copy changes. Second coupling found beyond the handoff's list: the widget's
+> health tiles ride `SensorUploadService.captureHealthSnapshot` →
+> `SharedWidgetDataStore.updateHealthMetrics` (`SensorUploadService.swift:652`)
+> as a FALLBACK — the widget's primary path queries HealthKit directly every
+> timeline pass (`HermesTimelineProvider.swift:69-96`), so the deletion
+> degrades only the locked-device/denied-auth fallback, accepted pending Q4.)**
+>
+> - **352-A (deleted, not gated):** `SensorUploadService` (all 1,149 lines:
+>   `SensorOutboxState`, the pending queues, the busy ladder,
+>   `crossCycleBackoffDeadline`), `ConnectorOutageAlertPolicy`, the
+>   InboxStore connector-outage alert members, and the sensor-outbox
+>   persistence surface (`loadSensorOutboxState`/`saveSensorOutboxState`/
+>   `clearSensorOutboxState` + the `UserDefaultsAppPersistenceStore`
+>   implementation) are GONE from the tree.
+>   `rg -n "SensorUploadService|SensorOutboxState|ConnectorOutageAlertPolicy|crossCycleBackoffDeadline|drainOutboxIfPossible" Talaria/ TalariaWidgets/ Shared/ TalariaTests/`
+>   → zero hits (the `ChatStore.swift:234` design-precedent comment reworded
+>   in the same commit). No code path POSTs `device/sensor/*`. [offline]
+> - **352-B (no capture without a query):** launch, foreground activation,
+>   background refresh, and pairing activation start NO location fix, no
+>   HealthKit snapshot/observer, no motion query. The only app-target code
+>   touching CoreLocation/HealthKit/CoreMotion after the lane: the belt read
+>   tools + `PhoneQueryResponder` (query-time), `PermissionsStore` auth
+>   surface, and the widget's own reads. PR body enumerates the surviving
+>   call sites file-by-file; each kept capture-service file names its
+>   surviving consumer (known today: `LiveMotionService`'s auth surface for
+>   `PermissionsStore`; the rest presumed deletable pending the plan's
+>   consumer enumeration). Device arm: one launch→foreground→background
+>   cycle on `whoGoesThere` shows zero capture/drain log lines. [offline +
+>   device — Owen]
+> - **352-C (query-time survives, proven):** `PhoneQueryResponderTests` and
+>   `TalariaPlatformLinkTests` pass WITHOUT behavioral edits (mechanical
+>   mock-conformance edits only, called out per file in the PR). Post-merge
+>   device arm: a live `talaria_phone_query` (health or location kind)
+>   answers on `whoGoesThere` against OJAMD. [Mac + device — Owen]
+> - **352-D (About honesty, and the drain-name collision dies):** the
+>   `// Sensor Pipeline` panel and every relay-era row (Pipeline / Paired /
+>   Access Token / Pending Location / Pending Health / Last Drain) are gone
+>   from About, including the nil-service fallback copy. The replacement
+>   section reports ONLY query-time facts (per-sensor share-toggle state +
+>   iOS authorization), makes NO link-state assertion (probe-based link
+>   honesty is #269-A's lane; #350 is why we don't assert), and contains no
+>   row named "Drain" anywhere on the page. [offline + sim screenshot]
+> - **352-E (settings keys survive; copy stops describing streams):** the
+>   four raw persisted keys (`sensorStreamingEnabled`,
+>   `healthCollectionEnabled`, `locationCollectionEnabled`,
+>   `motionCollectionEnabled`) are byte-unchanged in the codec (round-trip
+>   tests keep passing); `PhoneQueryResponder.deniedGate` behavior unchanged
+>   (its tests untouched); the Sensor Sharing captions stop claiming live
+>   streams / queued samples, and the unpaired caption stops keying on RELAY
+>   pairing (`pairingStore.isPaired` is the wrong plane for query-time —
+>   `PrivacySettingsScreen.swift:340`). [offline]
+> - **352-F (stored queue purged once — CONTINGENT on Q2):** first launch at
+>   this build removes the persisted sensor-outbox blob (a pending GPS fix +
+>   up to 500 health samples in UserDefaults) via a one-shot cleanup; a
+>   seeded-legacy-blob unit test proves removal; no surviving path re-creates
+>   the key. [offline]
+> - **352-G (manifest honesty — CONTINGENT on Q3):** `location` leaves
+>   `UIBackgroundModes` and `com.apple.developer.healthkit.background-delivery`
+>   leaves the APP entitlements (widget target untouched); two consecutive
+>   `xcodegen generate` runs byte-identical (#319); Release build green. [Mac]
+> - **352-H (#323 residue recorded, not closed):** same-commit dated note in
+>   #323: capture-behind-cover and upload-behind-cover die with this lane;
+>   the surviving exposure is a phone query answered while the cover is up
+>   (`TalariaPlatformLink` drains during covered-active). #323 stays open
+>   for the general mechanism. [docs]
+> - **352-I (close-outs, same commit, per #317):** CLAUDE.md — the
+>   fork-rationale line ("retained only for sensor ingestion…"), the iCloud
+>   Private Relay gotcha, the HealthKit-on-`SensorUploadService.start()`
+>   gotcha — README's paired-tier sensor-pipeline claims, SECURITY.md's
+>   relay-carries-sensors description, and CLEAN_CHAT_PATH.md get dated
+>   supersession corrections upstream in the landing commit; archived
+>   entries whose text asserts a still-live pipeline get #317(a) append-only
+>   pointer blocks. [docs]
+> - **352-J (gate):** `scripts/mac/lane-gate.sh` PASS (units + XCUITest +
+>   Release) on a fixed-pool `CC-lane-N` sim with calendar+reminders TCC
+>   granted immediately before the run; test count stated and MOVED — it
+>   moves DOWN here, so the PR names each deleted suite and its count so the
+>   delta reconciles. [Mac]
+> - **352-K (SETUP card — executes ONLY if Owen routes "ride" on Q1):**
+>   #269's bar 269-A-D verbatim — `rg -n 'hermes-mobile' Talaria/` returns
+>   no user-visible string; the rest of #269-A stays open and unclaimed.
+>   [offline]
+> - **Deliberately NOT this lane:** `PairingStore` / relay client / inbox /
+>   voice-bootstrap surfaces (Phase 4 territory — `isPaired` has 30+
+>   consumers beyond sensors); #323's general App-Lock fix; #269-A's probe
+>   and honest state model (except 352-K if routed); any talaria-plugin repo
+>   change; any server-side change; the #346 shadowing decision.
+>
+> **Questions for Owen (blocking only their contingent bars, not the lane):**
+> **Q1** — does 269-A-D (the stale `hermes-mobile` SETUP card,
+> `ConnectHermesHostScreen.swift:110-112`) ride this lane as an isolated
+> commit, or stay in #269-A? Recommend RIDE: it is the last user-visible
+> pointer to the retired CLIs and is separable in one commit. **Q2** — purge
+> the queued samples on upgrade (352-F)? Recommend YES: the queue is the
+> pipeline's own buffer, destined for a dead tier; leaving GPS + health
+> samples orphaned in UserDefaults forever is the worse privacy state.
+> **Q3** — drop the `location` background mode + HealthKit
+> background-delivery entitlement (352-G)? Recommend YES: both exist solely
+> for the upload path's background capture; keeping them advertises
+> capability the app no longer has. **Q4** — accept the widget fallback
+> degradation (bars preamble)? Recommend YES: the widget's primary path
+> already queries HealthKit itself every 15-minute pass.
