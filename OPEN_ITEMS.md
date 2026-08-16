@@ -3614,6 +3614,57 @@ comments document, in a flow this lane does not touch. Not chased here.
 
 Logged 2026-07-22.
 
+
+> **🔬 DEVICE PASS 2026-08-15 — 6 of 7 checks resolved, and the `needsAttention`
+> bar turns out to have NO KNOWN REPRO. Scored on the phone, paired to OJAMD.**
+>
+> | # | check | verdict |
+> |---|---|---|
+> | 1 | list renders real jobs | ✅ **PASS** — three real OJAMD jobs, correct next-runs, live AS OF stamp |
+> | 2 | five presets → `schedule_display` | ✅ PASS *(Owen, prior run)* |
+> | 3 | bad string → server message verbatim | ✅ **PASS** — `HOST REJECTED THIS TASK` is only the header; the server's own text renders beneath it (`TaskEditSheet.swift:126-140`), and Owen confirmed the second line |
+> | 4 | Run Now / Pause / Resume / Delete | ✅ **PASS** — delete confirms first; list and detail stayed in lockstep |
+> | 5 | edit does not clobber untouched fields | ✅ **PASS** — renamed a job, `deliver` still `local` |
+> | 6 | needsAttention badge | ⚠️ **NO KNOWN REPRO — see below** |
+> | 7 | timezone caveat + absolute firing | ◐ **HALF** — caveat renders and reads correctly; once-absolute firing NOT yet run |
+>
+> **⚠️ 6 IS NOT A PRODUCT FAILURE — THE PRE-REGISTERED REPRO CANNOT PRODUCE THE
+> STATE IT TESTS, AND NEITHER CAN ITS SUCCESSOR.** `derivedStatus`
+> (`CronJob.swift:129-133`) requires THREE conditions: `isRecurring` **and**
+> `nextRunAtRaw == nil` **and** (`!isEnabled` or `hasLastError`).
+>
+> - **Repro (a), the one this checklist pre-registered — `enabled: false` via
+>   PATCH — is FALSIFIED.** Executed against OJAMD job `890a5b798d16`: the host
+>   kept computing `next_run_at: 2026-08-16T14:00:00`, so `nextRunAtRaw` was not
+>   nil, the branch correctly did not fire, and the row rendered **OFF**. That is
+>   the right answer — a job someone deliberately switched off is off, not broken,
+>   and the derivation comments order `paused`/`completed` ahead of this branch for
+>   exactly that reason. Job re-enabled the same minute; `last_status=ok`.
+> - **Repro (b), an impossible recurring cron (`0 0 30 2 *`, Feb 30) — REJECTED BY
+>   THE HOST**: `{"error": "failed to find next date"}`. **So the server refuses to
+>   create a recurring job it cannot schedule**, which means it guarantees a
+>   non-null `next_run_at` at creation and the needsAttention precondition cannot
+>   be manufactured through `/api/jobs` at all.
+>
+> **DISPOSITION: verified-by-test, device-bar UNFALSIFIABLE.** Both branches are
+> already covered by `CronJobStatusTests` (recurring+disabled+no-next-run,
+> recurring+errored+no-next-run, plus the negatives), whose docstring claims EVERY
+> needsAttention branch. The UI is defensive against a server state we have no way
+> to produce on demand. **Do not spend another sitting hunting this on a device**
+> — if it is ever wanted live, the route is a server-side state that nulls
+> `next_run_at` on an existing job, not anything reachable from the app or the
+> jobs API.
+>
+> **Two host-side observations, NOT ours (Hermes upstream):** a malformed
+> `schedule` payload returns **HTTP 500 with a raw Python error leaked to the
+> client** (`'dict' object has no attribute 'strip'`), and `schedule` is accepted
+> as a **string** on write while being returned as a **dict** on read.
+>
+> **And one of mine, recorded because it is the same defect class this project
+> keeps filing:** the first probe printed `would badge: True` when every parsed
+> field was `None` — a NO-DATA condition rendered as a positive verdict, by the
+> same hand that added an explicit no-data guard to
+> `scripts/mac/score-due-omission.py` earlier the same day.
 ## 163. 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at `ContentView.swift:250`); **device checklist still owed** — header corrected 2026-08-01
 
 Dispatch `dispatch/FABLE-T27-156B-skills-browser.md` executed 2026-07-22 on the Mac Mini
