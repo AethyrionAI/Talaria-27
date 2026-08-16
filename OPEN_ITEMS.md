@@ -22664,3 +22664,42 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > - **Deliberately NOT bars:** relay/DB archival (#223/Phase-4), app-side
 >   #269-A work, runs-transport anything, and any OJAMD relay-surface
 >   deletion beyond the venv CLIs named above.
+
+> **#271 EXECUTED 2026-08-16 evening — storage/host bars MET; phone bars
+> pending Owen's device. And a premise correction first, per the close-out
+> rule: THE PLUGIN WAS ALREADY ON OJAMD.** The lane's own header ("NOT
+> STARTED") and this block's 271-C premise ("OJAMD never had the plugin")
+> were both stale — recon found a checkout at `fd5d7d1` (old pre-#351
+> main), `talaria` already in `plugins.enabled`, and LIVE legacy state:
+> `devices.json` last written 2026-08-16 11:49 (the phone has been
+> draining OJAMD's adapter), iPad paired 08-12, iPhone re-paired (rotated)
+> 16:48 today. Install date/author unrecorded anywhere — the tracker
+> simply didn't know. **271-C therefore ran as the REAL-migration bar,
+> which is strictly stronger than the fresh-install bar it replaced.**
+>
+> - **271-A ✅** `hermes plugins update talaria` fast-forwarded
+>   `fd5d7d1..da5233a`; `git rev-parse HEAD` on the box printed the full
+>   pinned sha (Owen's paste, not an MCP claim).
+> - **271-B ✅** Two-process stop (parent 14772 → child 26612), survivors
+>   check EMPTY, relaunch via the Startup `.vbs`; **14 seconds of
+>   downtime** (down 17:37:06 → up 17:37:20, watched live from the Mac);
+>   new listener verified by PORT OWNER (PID 3052); adapter registration
+>   proven remotely — unauthenticated POST to
+>   `/api/platforms/talaria/events` drew **401 `missing_bearer`**, our
+>   envelope's own fail-closed code (a 404 would have meant no adapter).
+>   Discord-reconnect glance still owed with the phone check.
+> - **271-C ✅ (amended to real migration)** `talaria.db` created and
+>   serving; `hermes talaria status` reads it and prints all 3 device
+>   rows (2 active) **with names + install ids** (351-H live on first
+>   production use); rotation history imported faithfully;
+>   `devices.json`/`outbox.json` SHA256 **identical pre/post bounce**
+>   (`98931709…` / `6190096D…`) — read, never rewritten.
+> - **271-D/E ⏳** Phone-side: the iPhone's row migrated with its token
+>   hash intact, so drain continuity (no re-pair) + a live
+>   `talaria_phone_query` round-trip are Owen's next app-open away.
+> - **271-F ⏳ OPEN** venv CLI retirement — deliberately its own
+>   Owen-gated step, not bundled tonight.
+> - **271-G ⏳** rides the phone check (a chat turn post-bounce).
+> - Desktop-app note (three readers): Hermes Desktop has run since 03:24
+>   and its backend holds the OLD plugin code until the app relaunches —
+>   Owen's timing, no urgency.
