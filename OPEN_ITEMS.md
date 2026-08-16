@@ -22717,3 +22717,45 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > about/status surface showed a stale drain readout while the plugin
 > showed connected; app-side display item, needs the exact screen/value
 > named before it gets its own number.
+
+## 352. 🐛 THE SENSOR-UPLOAD PIPELINE OUTLIVED ITS TIER — the app still captures and uploads location/health to the relay that #346 retired six days ago, so queues grow and the About page reports permanent failure — **FILED 2026-08-16 from Owen's device pass minutes after #271 closed (screenshot of Subsystem page 08/09). MEASURED, not inferred. NOT STARTED — Owen routes the shape.**
+
+**What the screen shows (Owen's screenshot, 5:48 PM):** Sensor Pipeline
+ACTIVE · Paired YES · Access Token PRESENT — all relay-era readouts — then
+**Pending Location `30.559, -89.161 · 2M AGO`**, **Pending Health `500
+SAMPLES`**, **Last Drain `LOCATION UPLOAD FAILED · 0S AGO`**. The uploader
+is faithfully retrying against relay `:8000`, which has been **Stopped +
+Disabled on OJAMD since 2026-08-10 (#346)**. The failures are honest; the
+*pipeline's existence* is the defect.
+
+**Not a plugin issue — recorded to kill the conflation permanently:** this
+surfaced the same evening #271 put the reworked plugin live on OJAMD, and
+read at first as "the drain didn't update." Two unrelated "drains": this
+page's **Last Drain = the SENSOR upload cycle** (relay path, dead tier);
+the **plugin's drain** (webhook adapter long-poll) was proven live the
+same minute by a real `talaria_phone_query` step count. The wording
+collision invited the mix-up; renaming this row rides any fix.
+
+**Costs while it stands:** battery on retry cycles (backoff-gated per the
+`crossCycleBackoffDeadline` machinery, but nonzero, forever); pending
+queues that can only grow (500 health samples and counting); a permanently
+red/orange diagnostics surface training the user to ignore failure states;
+and — per #323 — this same pipeline is what captures behind App Lock.
+
+**Route options (Owen decides; the standing direction argues for (a)):**
+- **(a) RETIRE the ingestion pipeline app-side** — #251 decision 2 already
+  ruled *"sensors ride #242, not an ingestion pipeline"*: query-time answers
+  from the phone (proven live tonight) replace uploads entirely. Deletion,
+  not robustness — the ⛔ direction. Scope: `SensorUploadService` upload
+  path + queues + this page's relay-era rows; local capture stays only
+  where query-time answers need it.
+- **(b) Interim gate** — stop the uploader when no relay is configured/
+  reachable and render this section as an honest RETIRED state instead of
+  FAILED. Smaller, but builds surface on a tier whose direction is
+  deletion.
+
+**Cross-refs:** #346 (the retirement that orphaned it), #251 (decision 2,
+query-time), #242 (the replacement, live), #323 (same pipeline behind App
+Lock — a lane here should coordinate), #113 (old supervision gap, moot if
+(a)), #223 (the deletion direction). The #271 close block's verbatim
+observation quote resolves to this item.
