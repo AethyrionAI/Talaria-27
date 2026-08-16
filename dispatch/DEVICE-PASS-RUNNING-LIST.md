@@ -740,6 +740,12 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   new-chat only; **clear-conversation-while-speaking is still unwitnessed** and is
   the one remaining #184 row (~30s: start read-aloud, clear the conversation,
   confirm speech stops). See OPEN_ITEMS #184's 2026-08-16 note.
+  **✅ THE CLEAR ROW RAN THE SAME MORNING AND MET (2026-08-16, via iPhone
+  Mirroring — Claude drove the phone, Owen listened).** Read Aloud live on a
+  fresh story reply (speaker icon confirmed in speaking state), `/clear` sent
+  ~5 s in, thread reset, and Owen's verdict: *"Started, stopped on clear."*
+  A first attempt was VOID (no audio output connected) and re-run in full.
+  **#184 CLOSED and swept to `OPEN_ITEMS-ARCHIVE.md` the same day.**
 > **✅ GROUP 2 RUN AND SCORED 2026-08-15 (Owen's sitting; phone paired to OJAMD).
 > All 20 rows attempted. Verdicts live at each item's own entry — #162, #163, #165 —
 > which are the record; this is the index.**
