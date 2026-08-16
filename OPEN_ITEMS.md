@@ -22535,3 +22535,46 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > plugin edit, honest accidental-DB disclosure). The #351 verdict is
 > unaffected: the work was judged on its merits, not its mandate — but the
 > mandate is now on record.
+
+> **Provenance settled + the brief surfaced (2026-08-16, later the same
+> evening — supersedes the "self-initiated scope" reading in the previous
+> block, which is retained above per append-only):** Owen: *"I did give it
+> permission to go after it listed out everything to me that it found."* So
+> the 5.6 run's actual sequence was **survey → report findings to Owen →
+> explicit go → dispatch brief → implementation** — the report-first
+> checkpoint was honored, and "self-initiated scope" is withdrawn. First
+> Hermes-on-5.6 run held the full gate discipline end to end.
+>
+> **The dispatch brief itself surfaced** (Owen's Downloads; archived
+> verbatim at `planning/reports/2026-08-16-56-dispatch-brief-talaria-plugin.md`)
+> **and it redistributes the findings' origin: three of the review's four
+> most severe defects were PRESCRIBED BY THE BRIEF, and the implementer
+> transcribed them faithfully:**
+> - *"Old outbox JSON rows have no authoritative target. Do not pretend
+>   otherwise"* → **F1**, the cross-device disclosure — the premise was
+>   false (the baseline adapter wrote `meta.chat_id` on every row), and the
+>   brief's hedge ("if a materially better compatibility rule is
+>   discovered, explain it") went unexercised until the #351 review.
+> - *"A malformed legacy file must fail loudly and preserve the evidence"*
+>   → **F2**, the permanent brick — implemented as raise-on-every-connect,
+>   and the brief REQUIRED the test that pinned that behavior ("corrupt
+>   legacy input is preserved and reported rather than silently treated as
+>   empty state"). The rework's quarantine+warn still satisfies the
+>   directive's intent (loud, evidence preserved) while un-bricking it.
+> - Claim-on-drain with no release path → **F4**, stranded rows on
+>   rotation.
+> This is the plan-authored-code lesson (#343's memory) again, cross-model:
+> the brief's own required tests inherited the brief's blind spots, so
+> faithful implementation + green suite could not catch them. Filed as a
+> confirming instance in the session memory.
+>
+> **Brief-vs-outcome ledger, for completeness:** its workflow gates were
+> all honored (branch/PR/no-merge/no-live-touch; the accidental-DB incident
+> violated its "no test touches ~/.hermes/talaria" gate and was disclosed
+> exactly as its rules required); its baseline (80 tests) matches; its
+> "secondary improvements" all landed (manifest truth, README truth, CI,
+> packaging-as-later-PR = PR #2); its #308-consistent publication note and
+> the #269-A `describe`-envelope recommendation remain live prep, recorded
+> in the archived brief. The brief also confirms it ran a Talaria-27
+> beta5 `build-for-testing` (green) as part of its baseline — the app repo
+> was read/built, not modified.
