@@ -22703,3 +22703,17 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > - Desktop-app note (three readers): Hermes Desktop has run since 03:24
 >   and its backend holds the OLD plugin code until the app relaunches —
 >   Owen's timing, no urgency.
+
+> **✅ #271 PHONE BARS MET — 2026-08-16, Owen's device pass, minutes after
+> the bounce:** the iPhone reconnected and drained against OJAMD with NO
+> re-pair (migrated token hash honored — 271-D); a step-count ask routed
+> through `talaria_phone_query` and returned real data (271-E — the 2A
+> headline, live on the production host through the transactional store);
+> and Hermes on OJAMD shows **discord, photon, api_server, and talaria all
+> connected** (271-B's Discord glance + 271-G). **The lane is COMPLETE
+> except 271-F (venv CLI retirement), which stays its own Owen-gated
+> step.** One observation from Owen's pass, recorded verbatim for routing:
+> *"The drain must not be updated on the about page"* — the app's
+> about/status surface showed a stale drain readout while the plugin
+> showed connected; app-side display item, needs the exact screen/value
+> named before it gets its own number.
