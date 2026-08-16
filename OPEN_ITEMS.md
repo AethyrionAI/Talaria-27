@@ -22315,3 +22315,161 @@ That reasoning was applied to session totals and **not** to the gauge. So the bu
 > - **No bar on the slash-command alternative** — a `/context` command is a different surface and a separate decision; it does not discharge this item.
 
 **Cross-references:** **#25** (the gauge's absent-not-zero rule), **#122** (the session cost/usage surface these numbers also feed), **#46** (session running totals, where the billed-vs-context distinction IS correctly stated), **#191** (the display pill, deliberately not the gauge's key), `ChatScreen.swift:806`, `ChatStore.swift:166`.
+
+## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
+
+**What the PRs are.** GPT 5.6 Sol (dispatched when the 5-hour Claude cap hit) shipped
+two stacked PRs on the #251 plugin: **PR #1** (`fix/transactional-storage-device-routing`)
+replaces the JSON device store + outbox with transactional SQLite
+(`<HERMES_HOME>/talaria/talaria.db`, WAL, `BEGIN IMMEDIATE`), migrates the legacy JSON
+on first use, and makes delivery device-targeted end to end; **PR #2**
+(`chore/package-layout-installability`, stacked on #1) moves the code into a
+conventional `talaria/` package (byte-identical renames) + root shim + pip entry point.
+Both were opened DO-NOT-MERGE awaiting review — correctly.
+
+**Review (2026-08-16, this session):** xhigh code-review — 10 finder angles → 68 raw
+candidates → dedup → adversarial verify (3 dedicated verifiers where mechanisms were
+disputed) → gap sweep. Several findings **reproduced by execution**, not inferred.
+**What verified CLEAN, for the record:** live install untouched (`~/.hermes/plugins/talaria`
+on main); the `talaria.db.accidental-2026-08-16*` quarantine exactly as the PR body
+discloses; JSON files intact; CI genuinely green; zero DELETEs (#144 survives); tokens
+SHA-256 at rest; migration never writes the legacy JSON; CLI exit codes real
+(`main.py:13419` does `sys.exit(rc)`). The PR bodies' self-reporting was honest
+throughout — the defects live in what the tests don't reach, not in what was claimed.
+
+**The 15 findings (file:line = PR #1 head layout; F1–F14 CONFIRMED, F15 PLAUSIBLE):**
+- **F1 `database.py:244` — migration discards `meta['chat_id']` → cross-device
+  disclosure.** REPRODUCED: legacy row addressed to devA drained AND acked by devB.
+  The baseline adapter wrote `meta={"chat_id": chat_id}` into every row it created,
+  so "legacy rows had no authoritative target" (PR body + README) is falsified.
+- **F2 `database.py:292` — corrupt legacy JSON/DB permanently bricks the plugin.**
+  Migration re-runs on every `connect()` (marker only on success); `MigrationError`
+  escapes `verify()` → api_server fails closed → 401 on EVERY event incl. `pair`
+  (phone can't even re-pair to recover); CLI tracebacks. Baseline quarantined
+  (`.json.corrupt`) and kept serving. REPRODUCED.
+- **F3 `store.py:139` — re-pair rotation orphans undelivered targeted rows** (new id
+  minted, old deactivated, nothing re-targets). REPRODUCED. `deactivate()` same hole.
+- **F4 `outbox.py:174` — `legacy_any` claims never released**; claimer deactivates →
+  rows undeliverable to everyone forever. REPRODUCED end-to-end.
+- **F5 `database.py:284` — marker stamped on fresh install with no legacy files** →
+  JSON appearing later silently ignored (upgrade-while-old-gateway-writes, or
+  restore-from-backup). REPRODUCED.
+- **F6 `outbox.py:165` — sync BEGIN-IMMEDIATE write txns on the gateway event loop**
+  (pending() claims unconditionally + `synchronous=FULL`). MEASURED: 3.05 s whole-loop
+  freeze under a held lock (30 s possible); same-process contention raised
+  `OperationalError` out of `dispatch()` → 500. One loop serves chat + SSE + Discord.
+- **F7 `database.py:68` — `_retry_locked` × busy_timeout compose multiplicatively**:
+  100 × 30 s ≈ 50 min worst-case synchronous block. MEASURED at small constants (5×).
+- **F8 `platform_adapter.py:63` — chat_id must be an ACTIVE device id but ids rotate
+  on re-pair**; core persists chat_ids durably (kanban 12-failure durable unsub,
+  home_channel, cron, ledger boot replay — all verified in core); dead-target registry
+  never learns (`SendResult(success=False)` classifies "unknown"). Exposure narrow
+  today (hand-written config ids), arms fully when the inbound chat path lands.
+  `install_id` — the stable identity — is unused for addressing.
+- **F9 `platform_adapter.py:65` — send() catches only `UnknownTargetError`**;
+  `MigrationError`/`OperationalError` escape as raw raises through core call sites
+  written against the SendResult contract.
+- **F10 `database.py:299` — connect() failure hygiene**: PRAGMA ladder runs before
+  the `try` that owns close (fd leak MEASURED; Windows: leaked handles pin the file);
+  0600 chmod skipped on failure → token-hash DB left 0644 permanently; 0644 window on
+  success until post-migration. Baseline chmod'd the temp 0600 before atomic replace.
+- **F11 `tools.py:84` — phone_query's honest-unreachable branch creates the DB as a
+  read side effect and can raise `MigrationError` out of the tool handler.**
+  REPRODUCED — and this is the mechanism of the accidental-DB incident the PR
+  discloses.
+- **F12 `admin.py:108` — status never prints device NAME while the same PR makes
+  `--device <id>` mandatory at >1 active** — operator guesses; wrong guess delivers a
+  private message to the wrong device. REPRODUCED.
+- **F13 `store.py:55` — CLI `pair` writes `install_id NULL`, which rotation can never
+  match** → permanent 2-active wedge; bare send refuses forever; `--all` queues to a
+  phantom row nothing drains.
+- **F14 `pytest.ini:1` (PR #2) — plain `pytest tests/` uncollectable** (13 collection
+  errors) after `tests/__init__.py` deletion; only `python -m pytest` from root works;
+  CI + README happen to use the one surviving form. REPRODUCED.
+- **F15 `pyproject.toml:23` (PR #2, PLAUSIBLE) — pip wheel silently SHADOWS the
+  pinned-SHA directory install** (top-level dir key = plugin.yaml name = ep name;
+  entry points appended last, `winners[key]=manifest` last-wins, no warning;
+  `plugins.enabled` can't discriminate) and the wheel ships no `plugin.yaml`
+  (provides_tools/kind lost → toolset never enabled → phone_query vanishes silently).
+  Verified mechanism in `hermes_cli/plugins.py:4286-4287, :3877-3897`.
+- Sub-cap tail (recorded, not bars): `_database_path` defined in two modules; 13×
+  copy-pasted txn ladder; `delivery_scope` derivable from `target_device_id` NULLness;
+  `secure_parent_dir()` reuse (core's root-guard, issue #25821, missing from the
+  hand-rolled copy); dead `all_pending_for_diagnostics`/`active_device`; connection-
+  per-op overhead (~600-860 opens/hr idle, WAL checkpoint churn on close, token lookup
+  2×/request on an UNINDEXED `token_sha256`); README overclaims ("pairing requires the
+  gateway API key" — CLI path is credential-free; "anywhere under plugins/" — scanner
+  caps at 2 levels); `--all` list-then-insert TOCTOU aborts the whole fan-out.
+
+**Verdict rationale (Owen concurred 2026-08-16):** the schema is sound, the 112-test
+suite (real cross-thread AND cross-process concurrency coverage) is the most valuable
+artifact, and the problem is real (16-worker probe: JSON store lost 97/100 concurrent
+writes; two plugin-loading processes exist on this host). The defects cluster into
+FOUR design decisions, each replaceable in place: (1) migration lives inside
+`connect()`; (2) no lifecycle re-homing on rotation; (3) sync SQLite on the loop +
+hand-rolled retry; (4) addressing by rotating device id. **Restart would re-derive
+the same schema and re-fight the same races.**
+
+**Decisions taken:** rework on the existing PR #1 branch (PRs stay open, review
+context attached); **PR #2's pip half is deleted by subtraction** (entry point +
+pyproject + wheel CI + test_packaging — audience of one, directory install is the
+real path; F15 solved by removal, house style per the ⛔ hardening rule's
+"direction is DELETION"); package move + shim retained. No live deploy; the JSON
+store keeps serving until re-review passes.
+
+> **BARS — PRE-REGISTERED 2026-08-16, before the rework touches code. Each maps to
+> findings; the reproduced cases become RED→GREEN tests, not assertions.**
+>
+> - **351-A (fail-soft, F2/F10):** corrupt/malformed legacy JSON or DB never raises
+>   out of verify/dispatch/CLI/tools — bad input is quarantined with a logged warning
+>   and auth keeps serving; the PR's own hard-fail test pins are FLIPPED, not deleted
+>   silently. connect() failure path closes the connection and the DB file is 0600
+>   from creation (pre-created before SQLite writes content); parent dir via core's
+>   `secure_parent_dir()`.
+> - **351-B (migration targeting, F1):** a legacy row whose `meta.chat_id` names a
+>   migrated device imports as `target_device` to that device; the reproduced
+>   cross-device case goes RED→GREEN (devB never sees or acks devA's row).
+> - **351-C (marker honesty, F5):** the marker records only an ACTUAL import; on a
+>   fresh install with no legacy files, JSON appearing later is imported at the next
+>   initialize (test proves the sequence).
+> - **351-D (re-homing, F3/F4):** re-pair re-targets pending targeted rows old→new
+>   AND releases stale `legacy_any` claims; both reproduced stranding cases go GREEN.
+> - **351-E (loop safety, F6/F7):** no storage call runs on the event loop from async
+>   paths (`asyncio.to_thread` boundary); `pending()` takes a write txn only when a
+>   claimable row exists; `_retry_locked` DELETED. Contention test: with the write
+>   lock held elsewhere, a drain neither raises nor stalls a loop heartbeat beyond
+>   threshold.
+> - **351-F (stable addressing, F8):** adapter `send()` resolves chat_id as active
+>   device id OR install_id; after a re-pair, a send addressed by install_id delivers
+>   to the NEW device (test). Core-side kanban/home_channel notes stay recorded here,
+>   not fixed in core.
+> - **351-G (send contract, F9):** adapter.send never raises — storage exceptions
+>   become `SendResult(success=False)` (test with injected `OperationalError`).
+> - **351-H (operator surface, F12/F13):** status prints device NAME + install_id;
+>   CLI `pair` warns its row won't auto-rotate. (The F13 wedge is documented +
+>   surfaced, not silently re-plumbed — changing CLI pairing identity is out of
+>   scope.)
+> - **351-I (tools honesty, F11):** phone_query on a virgin profile creates NO
+>   database and returns the honest-unreachable prose; with corrupt legacy state it
+>   still returns prose, never a raise (test).
+> - **351-J (PR #2 seam, F14):** both `pytest tests/` and `python -m pytest tests/`
+>   collect and pass from the repo root.
+> - **351-K (PR #2 subtraction, F15):** entry point, pyproject.toml, wheel CI step,
+>   and test_packaging deleted; directory install is the only install shape; README
+>   updated in the same commit (close-out rule — the two overclaiming README lines
+>   from the sub-cap tail are corrected here too).
+> - **351-L (whole-suite):** full plugin suite green with the count STATED AND MOVED
+>   (baseline 112 at PR1 / 114 at PR2), ruff + compileall + `hermes plugins doctor
+>   . --ci` green; `~/.hermes/plugins/talaria` stays on main untouched; canonical
+>   `~/.hermes/talaria/talaria.db` absent before and after every suite run; the
+>   quarantine files untouched.
+> - **Deliberately NOT bars:** connection pooling / per-thread caching beyond an
+>   init-state cache (recorded as follow-up), `delivery_scope` column removal,
+>   any Hermes-core change, any live deploy or gateway restart, retro-fixing
+>   kanban/home_channel consumers in core.
+
+**Cross-references:** #251 (the venture + phase arc), #263 (hub identity — PR #2's
+shim interacts; the hardcoded `_package_name()` regression noted in review), #144
+(deactivate-never-delete — held), #271 (relay retirement, the lane this ultimately
+serves), #346 (OJAMD supervision state). Review evidence: this session's
+ReportFindings (15 entries) + `handoffs/` note if written at close.
