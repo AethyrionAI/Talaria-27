@@ -718,22 +718,46 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   and ask Hermes to read back the verdict. (PASS: the item appears after a
   manual refresh/reopen — NOT automatically, that path is gone — and the
   verdict readback matches the approval. Do not expect any push banner.)
-- [ ] #21 (OJAMD side) — Ask the OJAMD-backed agent to write a fresh file,
+- [x] #21 (OJAMD side) — Ask the OJAMD-backed agent to write a fresh file,
   then tap the resulting chip. (PASS: preview sheet presents and ShareLink
-  works, matching the Mac-side PASS already recorded 2026-07-20.)
-- [ ] #21 (announcement-scan noise, passive, no setup) — over the course of
+  works, matching the Mac-side PASS already recorded 2026-07-20.) **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **PASS** — chip appeared under the write card; tapping opened the preview of `group1-probe.md` with formatting intact, and the share sheet offered AirDrop/Messages/Mail/Save-to-Files. *Cosmetic note, not a bar: the shared file is named `0B8EE768-…-group1-probe`, so a recipient receives a UUID-prefixed filename.*
+- [x] #21 (announcement-scan noise, passive, no setup) — over the course of
   this session, note whether any ordinary turn that merely *mentions* a
   MobileDL path grows an unwanted attachment bubble. (Record either outcome
-  — this is an eyeball finding, not strictly pass/fail.)
-- [ ] C1 — Run `searchPlaces` with n=20 (never run at this n before).
-  (PASS: no exception/crash.)
-- [ ] C3 — Ask a `readLocation`-shaped question and read the returned
+  — this is an eyeball finding, not strictly pass/fail.) **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **PASS (no phantom attachment).** Prompt *"What does the MobileDL folder on the host normally hold?"* — the agent ran `search_files` and answered in prose with NO attachment bubble. Stronger than the bar asked: it actually touched the file tool and still grew nothing.
+- [x] C1 — Run `searchPlaces` with n=20 (never run at this n before).
+  (PASS: no exception/crash.) **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **PASS** — *"List 20 coffee shops near me"* completed, no crash, no exception. Took 4+ tool calls (skill_view, two terminals, web_search) across two batches; the model widened its own search when OSM coverage was sparse. **This turn is one of #349's three data points.**
+- [x] C3 — Ask a `readLocation`-shaped question and read the returned
   fields. (PASS: no crash; note whether `country` is present, per the
-  disclosed MapKit-migration delta.)
-- [ ] #184/#185 — Exercise all three ChatStore teardown paths (row still
+  disclosed MapKit-migration delta.) **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **PASS** — `talaria_phone_query kind: location` returned street, city, state, ZIP and county. **The `country` question is NOT EVIDENCED either way:** the model summarised the tool payload in prose, so its absence from the answer is not proof of absence from the data. Settling it needs the raw tool result, not another prompt.
+- [x] #184/#185 — Exercise all three ChatStore teardown paths (row still
   reads "sim-only today"); send two attachments with the SAME filename in
   one turn. (PASS: teardown clears consistently across all three paths;
   each attachment resolves to its own local file, neither overwritten.)
+ **✅ RUN 2026-08-15 (Owen's sitting, phone paired to OJAMD, build with the #340 armed-dateguide arm).** **#184 PASS — the device row this item was down to.** Read-aloud was started, then each walk-away path taken while speech was live; speech stopped immediately every time. Confirms `abandonPendingRun(stopSpeech:)` on all paths at HEAD. *Owen named switching-chats and new-chat explicitly; whether the third was `clearConversation` is unconfirmed.* **#185 (duplicate-filename attachments) NOT RUN — deferred by Owen, needs two same-named files staged in Files first.**
+> **✅ GROUP 2 RUN AND SCORED 2026-08-15 (Owen's sitting; phone paired to OJAMD).
+> All 20 rows attempted. Verdicts live at each item's own entry — #162, #163, #165 —
+> which are the record; this is the index.**
+>
+> - **#162 Tasks — 5 PASS, 1 HALF, 1 RETIRED.** List renders three real OJAMD jobs
+>   with correct next-runs; bad cron keeps the sheet open and shows the server's own
+>   message verbatim; Run/Pause/Resume/Delete round-trip with no flicker; an edit
+>   left `deliver` untouched. **HALF:** the timezone caveat renders correctly but
+>   once-absolute FIRING was not run. **RETIRED — the `needsAttention` row has NO
+>   KNOWN REPRO:** `enabled:false` yields `.off` by design (executed live against
+>   job `890a5b798d16`, re-enabled the same minute), and an impossible recurring
+>   cron is REJECTED by the host ("failed to find next date"). Both branches are
+>   already unit-tested. **Do not schedule this row again.**
+> - **#163 Skills — 6 of 6 PASS**, with two recorded as SOFTER than the rest: the
+>   empty-state ECHO clause and the picker's `(custom)`-survives-an-edit clause were
+>   not evidenced to their own wording. Cheap to confirm next sitting.
+> - **#165 Insights — 5 PASS, 1 PRECONDITION NOT MET** (OJAMD lacks >600 sessions —
+>   recorded as such, not skipped). The by-source expectation in this list is STALE:
+>   it names api_server/discord/tui; the host reports six — tui, desktop, api_server,
+>   acp, cron, cli. The unpaired half remains deferred to Group 4 as written.
+>
+> **Filed from this block: #349** — the CTX gauge reports billed input as context
+> occupancy (three turns observed clamping to 100% while succeeding).
 
 **Group 2 — Drawer surfaces: Tasks / Skills / Insights (added 2026-08-06,
 batch-3). All three are `SHIPPED, on main`, still PAIRED + CONNECTED to
