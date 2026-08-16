@@ -19319,3 +19319,88 @@ it). NOT device-verified — sim suite only.
 > three teardown paths are now device-witnessed on the same primitive:
 > switch-chats and new-chat (2026-08-15), clear-conversation (2026-08-16).
 > Nothing remains open on this item.
+
+## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match — **✅ CLOSED 2026-08-16: the §F1 device row MET via iPhone Mirroring — two same-named PDFs, one turn, both contents distinct in pick order. Residue lives at #293(d). SWEPT TO ARCHIVE 2026-08-16.**
+
+> **✅ THE FIX IS ON MAIN — verified by code read 2026-08-10 (same check as
+> #184's).** `mergeAttachments` at HEAD (`ChatStore.swift:3364-3402`) carries
+> the specced fix verbatim under its own `// #185:` comment — id-first,
+> dequeue from an `unclaimed` pool, same-index insurance. The 2026-08-10
+> reland dispatch is RETIRED unrun. **Remaining: the §F1 device row, and
+> #293(d)'s residue** — the insurance clause (`:3379`) reads
+> `localAttachments[safe: index]`, not `unclaimed`, so an already-claimed
+> entry can be handed again positionally (~15% reachable per the auditor).
+> (d) stays filed in #293 as free-bucket material; it no longer routes
+> through any #184/#185 lane.
+
+> **Device debt queued 2026-08-01 (Hermes audit Part 1C):** the owed device check for
+> this item now lives in `dispatch/DEVICE-PASS-RUNNING-LIST.md` **§F1**, written as a
+> runnable check. **One queue** — do not restate it here; a check that lives in two
+> places drifts, and a check that lives only in a closed-looking item is not recorded.
+
+Found by ultrareview Pass A (2026-07-25), verified against source.
+
+`ChatStore.swift:1764`. Each remote attachment resolves via
+`localAttachments.first(where: { fileName && mimeType })`, which never dequeues the match — so N
+remote attachments sharing `(fileName, mimeType)` all resolve to `localAttachments[0]`. The
+`?? localAttachments[safe: index]` fallback shows the intent was "pair by identity, index as
+backup," but it only fires when `first(where:)` returns nil, which never happens when duplicates
+exist. **The safeguard is defeated in exactly the case it was written for.**
+
+Wrongly copied: `localStoragePath`, `voiceMemoAudioPath` (#9), `remotePath` and `remoteProfileID`
+(#21 Tier 2). The second bubble opens the first bubble's bytes; ShareLink hands out the wrong file;
+a Tier 2 re-fetch targets the wrong remote path. Invisible until tapped, and re-applied on every
+merge cycle.
+
+**Trigger is narrower than the report states.** It cites voice memos saved under a stable name —
+false: `PendingAttachment.voiceMemoFileName` (`:252`) is second-resolution
+(`Voice Memo 2026-07-06 14.30.05.txt`) and the recording is `VoiceMemo-{UUID}.m4a`
+(`VoiceMemoRecorder.swift:141`); two memos would have to be recorded in the same second. Photos are
+genuinely safe (`PendingAttachment.image` auto-names `photo_{UUID.prefix(8)}.jpg`, `:158`). **The
+only real trigger is the file picker** (`url.lastPathComponent` verbatim, `:194`/`:197`): two
+same-named files across separate picker rounds.
+
+**Fix.** Match `remote.id` first, fall back to `(fileName, mimeType)`, dequeue matches from a
+mutable copy, keep `localAttachments[safe: index]` as same-index insurance. The sibling
+message-level merge directly above (`:1668–1687`) already keys by id/`clientMessageID`/`jobID` —
+this just follows the convention already in the file.
+
+Logged 2026-07-25.
+
+**UPDATE 2026-07-26 — FIXED + suite-green on branch `claude/t27-184-185-chatstore-integrity`**
+(same run as the #184 note: 1152/105 on the pinned sim, baseline 1147/105). Implemented exactly as
+specced: id first, `(fileName, mimeType)` from an unclaimed pool second, same-index insurance
+last. Two RED-verified tests, written against the corrected trigger (two same-named files across
+separate picker rounds — NOT the voice-memo case the review cited): the generic re-minted-id echo
+resolves duplicates to distinct local entries in send order, and an id-preserving echo lets
+identity outrank the name fallback even when the echo reorders. Single-attachment path verified
+unchanged by the pre-existing round-trip test passing untouched. NOT device-verified — sim suite
+only.
+
+> **◻ NOT RUN 2026-08-15 — deferred by Owen mid-sitting, and the reason is worth
+> recording so the next attempt is cheaper.** The device row needs **two different
+> files sharing one filename**, which iOS will not produce casually: Files has no
+> "new text file", so the practical staging is two visually distinct PHOTOS saved
+> into separate folders and both renamed to the same name. That prep is the whole
+> cost of this check; the check itself is one message with both attached.
+> **PASS = two bubbles resolving to two different images. FAIL = both showing the
+> same one**, which is `mergeAttachments` pointing every duplicate name at the first
+> local match. Staged prep is the blocker, not the phone.
+
+> **✅ RAN 2026-08-16 — PASS. CLOSED.** The staging cost the 08-15 note predicted
+> was paid by machine instead: two PDFs, both named `report-185.pdf`, generated on
+> the Mac Mini with distinct marker lines ("This is FILE A/B … it resolved to
+> folder A/B"), served over the tailnet, and saved on the phone into two folders
+> (Downloads; iCloud Drive root) — the whole run driven through iPhone Mirroring +
+> computer use, Owen present. Both were attached in ONE turn on the OJAMD-paired
+> Hermes brain. Two scope facts learned en route: **send is HELD for un-extracted
+> PDFs** (#8's gate — each chip needed long-press → Extract text, and both
+> post-extraction chips carried the same derived name, so the duplicate-name
+> scenario survived extraction), and **user-side transcript chips have no preview
+> affordance** (only Hermes agent-file bubbles do, #21/#99), so the strongest
+> observable is the payload itself. That observable was decisive: **the reply
+> quoted BOTH distinct FILE lines, in pick order (B then A)** — the pre-fix bug
+> would have fed the first local match twice — and both chips render in the sent
+> bubble after the reconcile merge. The 07-26 fix holds on device. **The
+> `localAttachments[safe: index]` insurance-clause residue stays filed at #293(d)
+> and no longer routes through this item. Swept to archive 2026-08-16.**

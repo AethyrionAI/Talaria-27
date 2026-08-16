@@ -746,6 +746,19 @@ bottom moved from ~3–3.5h to ~4–4.5h and that is not shaded down.**
   ~5 s in, thread reset, and Owen's verdict: *"Started, stopped on clear."*
   A first attempt was VOID (no audio output connected) and re-run in full.
   **#184 CLOSED and swept to `OPEN_ITEMS-ARCHIVE.md` the same day.**
+  **✅ #185 RAN 2026-08-16, same iPhone-Mirroring sitting — PASS.** Two PDFs both
+  named `report-185.pdf`, distinct contents ("FILE A"/"FILE B" marker lines),
+  staged into two folders (Downloads; iCloud Drive root) via Safari → Save to
+  Files, then attached in ONE turn. Send was held by #8's un-extracted-PDF gate
+  until each chip was long-press → Extract text (working as designed — and after
+  extraction BOTH chips carried the same derived name, so the duplicate-name
+  scenario survived extraction too). The reply quoted **both distinct FILE lines,
+  in pick order** (B then A) — under the pre-fix bug both would have carried the
+  first local match. Both chips render in the sent bubble post-reconcile.
+  *Scope note for any future re-run: user-side transcript chips have NO preview
+  affordance (only Hermes agent-file bubbles open a sheet), so payload content +
+  chip survival is the maximum a device can observe for this row.* **#185 CLOSED
+  and swept — the #293(d) insurance-clause residue stays filed at #293.**
 > **✅ GROUP 2 RUN AND SCORED 2026-08-15 (Owen's sitting; phone paired to OJAMD).
 > All 20 rows attempted. Verdicts live at each item's own entry — #162, #163, #165 —
 > which are the record; this is the index.**
