@@ -22759,3 +22759,16 @@ query-time), #242 (the replacement, live), #323 (same pipeline behind App
 Lock — a lane here should coordinate), #113 (old supervision gap, moot if
 (a)), #223 (the deletion direction). The #271 close block's verbatim
 observation quote resolves to this item.
+
+> **#352 ROUTED (a) — 2026-08-16 late evening, Owen: "retired the old
+> sensor stuff" (with "Runs flipped" in the same breath). The retirement
+> lane is GO: delete the sensor-ingestion/upload path app-side per #251
+> decision 2; bars pre-register in this entry before any code. One
+> ambiguity recorded honestly: Owen's past-tense phrasing may also mean he
+> hand-retired the OJAMD venv CLIs (271-F) himself — the next session
+> VERIFIES on the box before re-doing or closing 271-F, never assumes.**
+> **Same message, #283 evidence clock: Owen flipped `useRunsTransport` ON
+> — the phone now lives on the runs transport, which is exactly the
+> plan's prerequisite for the 3E cutover decision. Watch items while
+> living on it: #322 operates only on this path; recovery/stop/steering
+> behaviors now get real-world exposure.**
