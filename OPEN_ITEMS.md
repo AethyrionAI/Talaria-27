@@ -592,6 +592,18 @@ Hermes-side nudge so the agent writes shareable artifacts into `MobileDL`.
 
 ---
 
+> **✅ OJAMD-SIDE CHIP CONFIRMED 2026-08-15** — the half that had only ever passed
+> Mac-side (2026-07-20). Agent asked to write a file; the chip appeared under the
+> write card, tapping opened a preview with formatting intact, and the share sheet
+> offered the full set (AirDrop/Messages/Mail/Save to Files). **Announcement-scan
+> noise ALSO clean in the same sitting**, and more strongly than the bar asked: a
+> turn that merely discussed the MobileDL folder ran `search_files` and still grew
+> **no** attachment bubble.
+>
+> **Cosmetic, filed here rather than as its own item:** the shared file arrives named
+> `0B8EE768-5A09-4001-A973-F2501EAD41E3-group1-probe` — the recipient sees a
+> UUID-prefixed filename. Harmless to the bar, ugly on the receiving end.
+
 ## 24. 🔧 OJAMD server-side work — 422 → Mac-side; Private Relay onboarding doc shipped (README.md + docs/index.html, 2026-07-10) — diagnostics-panel check (#24e) still open; relay-JWT persistence CLOSED 2026-07-12 (#24f) (bind/firewall/persistence/update-stability ✅)
 
 > **Audit 2026-07-13:** 24e's 'documented in onboarding/setup instructions' ask is done, not open as the rollup header implies — README.md's '6 — Pair on first launch' + 'Network notes' sections (README.md:131,168, added 2026-07-10 in commit 9964f02) and docs/index.html:451 both carry the iCloud Private Relay warning, on top of the pre-existing CLAUDE.md gotcha. Only the 'checked in the diagnostics panel' half of 24e remains open: `grep -rn "Private Relay" Talaria/` is empty and DiagnosticsSettingsScreen.swift's relay rows check pairing/session state only — so 🔧 stays correct, but 'doc … remains' is stale wording. 24f's 2026-07-12 closure is independently corroborated by commit 6630908 ('#98 DEPLOYED, #24f CLOSED … #24 rollup header updated to reflect #24f closure'), and that same commit is what left the doc wording stale. 24a/b/c/d/g/h/j check out as claimed; 24i's ✅ is already self-flagged SUPERSEDED 2026-07-04 by #55 inline.
@@ -4864,6 +4876,20 @@ it). NOT device-verified — sim suite only.
 > record and confirmed by tonight's audit source read. The "flag for Owen"
 > switch no longer exists to flip.
 
+> **✅ THE §F1 DEVICE ROW IS MET — 2026-08-15, and it was the ONLY thing left on this
+> item.** Read-aloud was started on a reply, then each walk-away path taken while
+> speech was live. **Speech stopped immediately on every path**, which is the
+> observable consequence of `abandonPendingRun(stopSpeech: true)` and the reason that
+> primitive is the right instrument for this bar — the three paths cannot be
+> distinguished by "state looks cleared", but they can by whether audio stops.
+>
+> **One clause not fully evidenced:** Owen named switching-chats and new-chat
+> explicitly and reported "all 3 tries"; whether the third was `clearConversation`
+> specifically is unconfirmed. Recorded rather than assumed, because `clear` is the
+> path that historically differed. **This entry is now CLOSABLE pending that
+> one-line confirmation** — the header correction and archive move ride the next
+> sweep, per #261.
+
 ## 185. 🐛 `mergeAttachments` points every duplicate-filename attachment at the first local match
 
 > **✅ THE FIX IS ON MAIN — verified by code read 2026-08-10 (same check as
@@ -4920,6 +4946,16 @@ resolves duplicates to distinct local entries in send order, and an id-preservin
 identity outrank the name fallback even when the echo reorders. Single-attachment path verified
 unchanged by the pre-existing round-trip test passing untouched. NOT device-verified — sim suite
 only.
+
+> **◻ NOT RUN 2026-08-15 — deferred by Owen mid-sitting, and the reason is worth
+> recording so the next attempt is cheaper.** The device row needs **two different
+> files sharing one filename**, which iOS will not produce casually: Files has no
+> "new text file", so the practical staging is two visually distinct PHOTOS saved
+> into separate folders and both renamed to the same name. That prep is the whole
+> cost of this check; the check itself is one message with both attached.
+> **PASS = two bubbles resolving to two different images. FAIL = both showing the
+> same one**, which is `mergeAttachments` pointing every duplicate name at the first
+> local match. Staged prep is the blocker, not the phone.
 
 ## 186. 🐛 Permission accept-lists reject valid grants — the tool belt tells users to enable what they enabled — **✅ VERIFIED ON MAIN 2026-08-04; only the device checks remain, queued in the running list**
 
