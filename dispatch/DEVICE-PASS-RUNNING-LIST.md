@@ -907,6 +907,70 @@ Est. ~15 min.
 
 **Group 4 — STANDALONE / UNPAIRED (§F2). Disconnect from OJAMD once, run
 this whole block, then re-pair.** Est. ~25 min.
+
+> **◐ GROUP 4 PART-RUN 2026-08-16 via iPhone Mirroring + computer use (Claude
+> drove; Owen present). FIXTURE: auto-connect OFF + base URL pointed at a
+> CLOSED port, then a full kill and cold launch — "configured but unreachable"
+> rather than "no host configured," which matters for #165 below. Restored
+> afterward: URL back to `:8642` (Test Connection `ONLINE · 23 MS`),
+> auto-connect ON.**
+>
+> **⚠️ FIXTURE GOTCHA, recorded because it nearly produced a false reading:
+> `ojamd:9999` is NOT dead** — something answers there and redirects to
+> `/login?returnTo=%2Fhealth`, so the app's Test Connection honestly reported
+> `ONLINE · 38 MS` and the first "the app is lying" reading was MINE, not the
+> app's. Verified from the Mac with `nc -z` and re-run on **`:12399`**, which
+> is genuinely refused. **Probe the port before trusting a dead-port fixture.**
+>
+> - **#225 confirmation re-run — ✅ ALL FOUR BARS MET.** Hand-launched (not via
+>   Xcode), on-device brain, fresh chat. **B1:** *"what's the weather gonna be
+>   in Gulfport tomorrow"* took **ONE** `currentWeather` call and ended on its
+>   own — against the 64-call spiral this item was filed for. **B2:** non-empty.
+>   **B3:** a real forecast (hot with thunderstorms, high 94°F, low 80°F, 37%
+>   rain) — #230's tomorrow-forecast satisfies the honesty bar by being
+>   correct. **B4:** *"remind me to call Shelley tomorrow at 4"* ran 2 tool
+>   calls (`lookupContact` → `createReminder`), staged the confirm card with
+>   **DUE POPULATED** (`Aug 17, 2026 at 4:00 PM`), and on APPROVE set it.
+>   *(Drive-by #340 datapoint: this is the day-bearing phrasing, and it was
+>   correct — consistent with 340-A's conditional finding, not a new result.)*
+> - **#190 — ✅ (a) MET, ✅ (b) MET.** (a) read-aloud started on a reply, then a
+>   session switch mid-speech: the speaker control returned to its idle state.
+>   **Scored on UI state, not by ear** — weaker evidence than #184's audio
+>   verdict; noted rather than smoothed over. (b) a forced session-open failure
+>   (Insights against the unreachable host) rendered **"Insights Unreachable —
+>   The Hermes host took too long to respond"** with a Retry button: an honest
+>   failure surface, not a blank or stuck screen.
+> - **#61 — ◐ ONE CLEAN PASS, ONE SUSPECTED MISS. Not scored a pass.** Two
+>   local sessions with short/ambiguous first turns. **Session A (attachment-only
+>   turn, no text): title "Duplicate File Resolution", preview "A duplicate
+>   filename probe resolved to folder B on A…" — exactly the bar's shape**
+>   (derived, distinct, not an echo). **Session B ("What can you do?"): title
+>   "I can write, summarize, compose, an…", which reads as the REPLY'S FIRST
+>   LINE** — the precise failure the bar names ("distinct … from the reply's
+>   first line"). Two sessions is a thin sample and the second was not the
+>   attachment-only shape; **needs one more look before any verdict**, so this
+>   row stays OPEN.
+> - **#165 (unpaired half) — ◐ ADJACENT STATE ONLY, row stays open.** The
+>   fixture produced *host configured but unreachable*, and Insights answered
+>   honestly (see #190(b)). The row's actual bar is **no host CONFIGURED** —
+>   a different cell, and the one that needs a profile removed rather than a
+>   port broken.
+> - **#123's three share-sheet rows — ⛔ NOT RUN, BLOCKED ON THE HARNESS, NOT
+>   ON THE APP.** Sharing a PDF out of Safari, the share sheet's app row could
+>   not be scrolled horizontally under iPhone Mirroring, so the **Talaria27**
+>   target was never reachable; two mis-taps landed in Journal and a Messages
+>   compose (both cancelled, nothing sent, nothing saved). The extension is
+>   correctly declared (`project.yml:463-466` — WebURL 1, Image 4, File 1,
+>   Text; pinned by `ShareExtensionConfigTests`), so **this is a mirroring
+>   limitation and NOT evidence of a defect.** Cheap by hand; leave for a
+>   phone-in-hand sitting.
+> - **#124 (Face ID) — not attempted;** needs Owen's face.
+>
+> **🐛 FILED FROM THIS BLOCK: OPEN_ITEMS #350** — the drawer footer AND the
+> settings status strip both read **`LINKED · ONLINE`** against the closed port
+> across a cold launch and 20+ s of dwell, while Test Connection on the same
+> screen was honest throughout. Asserted state, never re-derived.
+
 - [ ] #61 — Create local sessions with short/ambiguous first turns
   (attachment-only, or a reply that echoes the question), read the drawer.
   (PASS: on-device titles + previews are distinct from each other and from
