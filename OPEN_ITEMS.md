@@ -22491,3 +22491,41 @@ what teaches the card vocabulary), **#215** (why 2/13 is not a production rate).
 > exactly the shapes seen here. **Adopt the rewording, re-measure this rate, and rule on
 > #344 only if it survives** — that fixes cause instead of symptom, costs nothing against
 > 338-A, and the A/B has already been run three times.
+
+## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
+
+**The measurement, from two consecutive turns in one thread (screenshots):**
+
+| turn | reported INPUT | CTX gauge | messages in thread |
+|---|---|---|---|
+| *"What does the MobileDL folder hold?"* (1 tool call) | 101,493 | **79%** | 2 |
+| *"List 20 coffee shops near me"* (4+ tool calls) | 287,738 | **100%** | 2 |
+
+**The window is pinned by arithmetic, not assumed:** 101,493 / 0.79 = **128,472 ≈ 128K**, which is `deepseek-v4-flash`'s window. Turn 2's 287,738 exceeds it, so `contextProgress`'s `min(…, 1.0)` clamps to 100%.
+
+**🔴 BUT 287,738 CANNOT BE CONTEXT DEPTH, AND THAT IS THE WHOLE DEFECT.** A 128K model cannot hold 287K tokens; the turn **succeeded**, returning a full 20-item list. What that number actually is: the **cumulative billed input across every internal model call within the turn** — `skill_view`, two `terminal` calls, then `web_search`, each re-sending the conversation. Roughly four round-trips at ~70K each. The context was never more than ~half full.
+
+**The chain, all at HEAD:**
+- `ChatScreen.contextProgress` (`:806`) = `currentContextTokens / effectiveContextWindow`
+- `ChatStore.currentContextTokens` (`:166`) = `lastTokenUsage?.promptTokens`
+- `effectiveContextWindow` = `resolvedContextWindow(fallbackModelName:)` — correct, and not the problem
+
+**⚠️ THE CODEBASE ALREADY ARTICULATES THE EXACT DISTINCTION THIS VIOLATES, ONE FIELD AWAY.** `SessionUsageTotals`' own comment (`ChatStore.swift:169-172`):
+
+> *"Input tokens sum across turns on purpose — each turn re-reads the context, so **the sum is the billed amount, not the context size**."*
+
+That reasoning was applied to session totals and **not** to the gauge. So the bug is not an oversight about token semantics — it is the same insight failing to reach the adjacent consumer.
+
+**Why it hid for so long:** on a turn with **zero or one** tool call, `promptTokens` ≈ context depth and the gauge is approximately right. It only diverges on **agentic** turns, and it diverges *upward*, so it fails in the direction that looks like a scary-but-plausible number rather than an obviously broken one.
+
+**⛔ DO NOT "FIX" THIS BY DELETING THE GAUGE.** That was the first instinct on the night and it treats the symptom: the gauge is the only surface that could warn of a genuine context ceiling, and #25's whole lesson was that an unknown numerator must read as ABSENT rather than as a wrong number — deleting it generalises "sometimes wrong" into "never known."
+
+> **BARS — PRE-REGISTERED 2026-08-15, before any code:**
+>
+> - **349-A (reproduce the divergence, with the denominator named).** On one thread, a no-tool turn and a ≥3-tool turn. Record `promptTokens`, the resolved window, the rendered CTX%, and whether the turn SUCCEEDED. **A turn that succeeds while the gauge reads 100% is the defect**; the bar is scored on that pair, never on the percentage alone.
+> - **349-B (identify a truthful numerator).** Establish whether the host exposes per-turn context OCCUPANCY distinct from billed input — e.g. the final call's prompt tokens rather than the turn's sum, or a `contextSize`-relative field on `run.completed`. **If no such field exists, that is the finding**, and the honest options become relabelling the gauge or hiding it on multi-call turns — decided, not defaulted to.
+> - **349-C (no false GREEN).** Whatever replaces it must not read LOW on a genuinely near-full context. Over-reporting is the current bug; under-reporting is worse, because it removes the warning at the moment it matters.
+> - **349-D (the #25 invariant holds).** An unknown numerator still renders the gauge ABSENT, never `CTX 0%`.
+> - **No bar on the slash-command alternative** — a `/context` command is a different surface and a separate decision; it does not discharge this item.
+
+**Cross-references:** **#25** (the gauge's absent-not-zero rule), **#122** (the session cost/usage surface these numbers also feed), **#46** (session running totals, where the billed-vs-context distinction IS correctly stated), **#191** (the display pill, deliberately not the gauge's key), `ChatScreen.swift:806`, `ChatStore.swift:166`.
