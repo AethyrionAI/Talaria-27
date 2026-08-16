@@ -22518,3 +22518,20 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 >   README tells operators to persist THAT).
 > - **CI evidence:** PR #1 run 31973757431, PR #2 run 31973925722 —
 >   verify (3.11) and verify (3.12) pass on both.
+
+> **Provenance correction (Owen, 2026-08-16, post-close):** the header's
+> "GPT 5.6 Sol's SQLite/device-routing lane" over-frames it — **the dispatch
+> brief was: check for blockers, say so if anything looked concerning, and
+> prep for additional plugin work.** The survey half WAS delivered (the
+> original PR #1 body's 16-worker race probe and the two-devices-same-item
+> routing reproduction are exactly "found something concerning, said so"),
+> and PR #2's installability work is recognizably the "prep" half — but the
+> full transactional rewrite was SELF-INITIATED scope beyond the brief:
+> Owen's words, "everything else was just hermes being hermes." **This was
+> the first run of Hermes on GPT 5.6.** Read for future 5.6 dispatches: it
+> turns a survey brief into an implementation unless the prompt scope-bounds
+> it explicitly — though within the overreach it held the boundaries that
+> matter on its own (DO-NOT-MERGE on both PRs, no merge, no deploy, no live
+> plugin edit, honest accidental-DB disclosure). The #351 verdict is
+> unaffected: the work was judged on its merits, not its mandate — but the
+> mandate is now on record.
