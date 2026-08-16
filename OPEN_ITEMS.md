@@ -22616,3 +22616,51 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > `talaria.db.accidental-2026-08-16*` trio untouched. The reworked
 > storage layer is now what serves the phone's next drain. OJAMD: no
 > plugin install (Phase-2 deferral, #251) — out of scope.
+
+> **#271 LANE OPENED 2026-08-16 late (Owen: "Ok lets get started then",
+> immediately after #351's merge+deploy). BARS PRE-REGISTERED before any
+> OJAMD contact. Install vehicle: `hermes plugins install
+> AethyrionAI/talaria-plugin --ref da5233aaa234dda3a1f40788235c00db23f52768`
+> (the merged head — the README's own pinned-sha path) into the profile's
+> plugins dir under the manifest name `talaria`. OJAMD facts verified by
+> DIRECT Tailscale probe or Owen's pasted output wherever load-bearing;
+> the hermes-ojamd MCP is recon-only and every probe carries a clock
+> canary (the standing fabrication rule).**
+>
+> - **271-A (install provenance):** the checkout on OJAMD sits at the
+>   pinned sha, proven by `git rev-parse HEAD` output from the box (Owen
+>   paste or canary-passing probe) — never by an MCP claim alone.
+> - **271-B (registration + honest restart):** after the gateway bounce,
+>   talaria is enabled and registered; `:8642` verified by PORT OWNER
+>   (`Get-NetTCPConnection`), not process liveness (#264); Discord —
+>   which the bounce takes down with chat — is RECONNECTED afterwards.
+>   The bounce follows the two-process rule: stop the venv parent, then
+>   the runtime child, confirm zero `hermes_cli.main gateway run`
+>   survivors, relaunch ONLY via the Startup `Hermes_Gateway.vbs`
+>   (⛔ never deleted), Owen pasting.
+> - **271-C (fresh-install storage honesty, 351-C live):** OJAMD never
+>   had the plugin, so there is no legacy JSON: after first use
+>   `talaria.db` exists in `<HERMES_HOME>\talaria\`, devices table
+>   empty, NO migration marker, no `.rejected` files, and no
+>   `devices.json`/`outbox.json` invented. (Windows note, recorded not
+>   waived silently: os.chmod is effectively inert on NTFS — the 0600
+>   bar is a POSIX property; directory ACLs are the Windows story.)
+> - **271-D (wire pairing on the production host):** Owen's phone pairs
+>   against OJAMD's `POST /api/platforms/talaria/events`, drains, and
+>   `hermes talaria status` on the box shows the device with name +
+>   install_id. Wire legs probed direct-over-Tailscale where possible.
+> - **271-E (the 2A headline, live where the phone lives):**
+>   `talaria_phone_query` returns real phone data through OJAMD with the
+>   app open, and the honest-unreachable prose with it closed.
+> - **271-F (venv CLI retirement):** the legacy hermes-mobile venv CLIs
+>   on OJAMD are inventoried and retired BACKUP-FIRST into the
+>   `retired-supervision-*` pattern (#346's shape) — deletion is its own
+>   Owen-gated step, never bundled into the install.
+> - **271-G (no collateral):** a phone chat turn (Sessions API) works
+>   after the bounce; the `.vbs` autostart untouched; desktop app's
+>   config reader acknowledged (three readers, per-process — the desktop
+>   backend sees the plugin only at ITS next relaunch; not a bar, just
+>   never claimed).
+> - **Deliberately NOT bars:** relay/DB archival (#223/Phase-4), app-side
+>   #269-A work, runs-transport anything, and any OJAMD relay-surface
+>   deletion beyond the venv CLIs named above.
