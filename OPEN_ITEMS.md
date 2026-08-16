@@ -22772,3 +22772,18 @@ observation quote resolves to this item.
 > plan's prerequisite for the 3E cutover decision. Watch items while
 > living on it: #322 operates only on this path; recovery/stop/steering
 > behaviors now get real-world exposure.**
+
+> **✅ 271-F MET — 2026-08-16 night, Owen's paste, and with it #271 IS
+> COMPLETE (all bars).** Equivalence confirmed first (every replacement
+> proven live earlier tonight: `hermes talaria pair|status`, wire
+> pairing, `talaria_phone_query`; setup/service-install obsolete by
+> design). Three executables retired backup-first into
+> `%LOCALAPPDATA%\hermes\retired-supervision-20260816\`:
+> `hermes-mobile.exe`, `hermes-mobile-relay-admin.exe`,
+> `hermes-mobile-mcp.exe` (from the connector/relay `.venv\Scripts`
+> dirs); post-move `where.exe hermes-mobile` prints NOTHING — nothing
+> invocable remains. Also resolves the routing ambiguity recorded under
+> #352: "retired the old sensor stuff" was the #352(a) routing; the venv
+> CLIs were done here, explicitly. Remaining pointer to the old commands
+> is the APP's stale SETUP card — #269-A-D, unchanged. The #251 phase-1
+> promise ("deletes the venv CLIs") is now true on every host.
