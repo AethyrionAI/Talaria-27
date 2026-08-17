@@ -15313,6 +15313,33 @@ omission; a missed bar is a falsification):**
   are two WebRTC wire identifiers (not user-visible). The rest of #269-A
   (probe, honest state model, 269-A-A/B/C/E) stays open and unclaimed.**
 - **269-A-E (gate):** `lane-gate.sh` PASS, unit count moved. [Mac]
+
+> **269-A LANE OPENED — 2026-08-16 night (Owen's routing: #269-A → #270 →
+> 3C-in-new-session; #353 route (b) folds in here). Design approved in
+> discussion; spec:
+> `planning/superpowers/2026-08-16-269A-plugin-link-honesty-design.md`.
+> Bars A-A/B/C/E stand as written (D was MET via #352). Extension and one
+> adaptation, pre-registered before code:**
+> - **269-A-F (#353(b), NEW):** the About status panel gains a Plugin Link
+>   row (same composed observation), and Relay Link/Relay Identity regroup
+>   under a `// Legacy Relay` header with DERIVED severity: plugin observed
+>   LIVE ⇒ relay-unreachable renders muted `OFFLINE`, never red; plugin NOT
+>   live ⇒ red stands (the relay would be the only phone-facing channel).
+>   The derivation is a pure function with table tests; device screenshot
+>   arm shows no red ERROR row on the current rig (plugin live, relay
+>   retired). [offline + device — Owen]
+> - **269-A-A ADAPTATION (recorded, not redefined):** the bar's "negative
+>   arm from a profile/host without the plugin" was written 2026-08-09 when
+>   such a host existed; both hosts now run the adapter (#271). The 503 arm
+>   becomes a stubbed-HTTP unit test against the classifier (a real 503
+>   response through the URL-loading path), the 401/LIVE arm stays live
+>   against OJAMD, and the transport-error arm uses a refused port. Probing
+>   a live host read-only needs no gate; no live install is modified.
+> - **Deliberately NOT this lane:** the drawer footer + settings grid strip
+>   (#350's surfaces — the machinery built here is adoptable there, and
+>   #350 pre-registers its own bars); any plugin-repo change (the probe is
+>   the verified unauthenticated 401-vs-503 seam, zero new contract — the
+>   `describe` envelope stays a gated later idea); PairingStore/voice.
 - **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
   install verified by the 269-A probe, not prose; injected partial states
   detected and named; wording measured N≥10 with the error path instrumented;
@@ -22760,3 +22787,10 @@ that still carries inbox/voice/files on paper).
 sibling surface, closed same night), #269-A (probe-based link honesty),
 #223/Phase 4 (the decommission arc), #350 (assert-vs-measure — whatever
 replaces the row must not assert a live host from stored state).
+
+> **ROUTED (b) — 2026-08-16 night, Owen, minutes after filing: folds into
+> #269-A.** The honest-state lane owns this surface: retired-by-design and
+> broken become distinguishable states, and the relay rows stop reading
+> permanent red. Bars ride #269-A's entry (extension pre-registered there
+> before code). Same message routed the lane order: **#269-A → #270 → 3C
+> steering (new session + handoff for steering).**
