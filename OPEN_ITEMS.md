@@ -15340,6 +15340,19 @@ omission; a missed bar is a falsification):**
 >   #350 pre-registers its own bars); any plugin-repo change (the probe is
 >   the verified unauthenticated 401-vs-503 seam, zero new contract — the
 >   `describe` envelope stays a gated later idea); PairingStore/voice.
+
+> **✅ 269-A LANE RAN AND MERGED — 2026-08-16 night, same session
+> (`a39150e`, merge commit, GitHub PR #309, branch deleted). Bars A-A
+> (adapted arms: live 401 from OJAMD verbatim; stubbed 503/418; dead-port
+> timeout → HOST UNREACHABLE), A-B (TalariaLinkState DELETED; composer
+> takes the raw token so empty-string-is-not-a-token lives once), A-C
+> (closed vocabulary), A-E (GATE: PASS — 2233 Swift Testing + 14 XCUITest
+> + Release; 2225→2233/+9−1 reconciled), and A-F's offline half (severity
+> table all four cells) MET. REMAINING: A-F's device glance — About shows
+> Plugin Link LIVE · PAIRED and Relay Link muted OFFLINE, no red row —
+> after the next install. 269-B unchanged (blocked on #308 + restart
+> story); the rest of #269-A's arc (probe-driven state model is BUILT;
+> #350's surfaces can now adopt it) closes 269-A when the glance lands.**
 - **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
   install verified by the 269-A probe, not prose; injected partial states
   detected and named; wording measured N≥10 with the error path instrumented;
