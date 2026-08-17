@@ -15202,7 +15202,14 @@ is written.**
 > (the dispatch's own in-process-counters trap) — the status route instead
 > probes the gateway's events route unauthenticated and classifies
 > 401/503/unreachable, the SAME verified seam the app's #269-A probe uses.
-> One seam, three consumers.**
+> One seam, three consumers.** **270-C ADAPTATION #2, recorded before any
+> code: the bar's third observable read "200-with-adapter+device", but
+> gating LIVE on ≥1 device would infer a state from the ABSENCE of rows —
+> the exact inference the same bar forbids. As built: LIVE = 200 +
+> gateway-probe 401; the device list is the live state's CONTENT (an empty
+> list renders "no devices paired yet"), never its verdict. The walk's
+> evidence table maps all three states to status+payload as the bar
+> demands.**
 
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
