@@ -22808,6 +22808,121 @@ this). The 3C wire recon that ran BEFORE this filing (native
 `busy_input_mode` moot) is recorded in the session and lands in the 3C item
 when it files — it is not lost, just not this entry's story.
 
+> **📋 2026-08-17 ~17:25 — RESUME CONDITIONS + pre-registered interpretation,
+> written BEFORE the assisted repro runs.** Three things changed since filing:
+> 1. **The phone updated to iOS 27 beta 6 today** (Owen's report; no Xcode 27
+>    beta 6 exists as of ~16:00, so the installed app remains the beta5-built
+>    binary — older-built-on-newer-runtime, the safe direction of the #324
+>    dyld hazard). **The update rebooted the phone, which partially consumes
+>    step (c), the relaunch discriminator**: any purely in-memory wedge is
+>    already cleared. Interpretation table, pre-registered: repro
+>    **REPRODUCES** on today's fresh boot ⇒ the wedge is persisted state or a
+>    deterministic code path — the in-memory-only family is ELIMINATED. Repro
+>    **DOES NOT reproduce** ⇒ ambiguous (reboot-cleared in-memory wedge vs.
+>    a beta6 change vs. non-determinism) — must NOT be read as "fixed"; the
+>    Aug-16 device logarchive stays the primary evidence either way.
+> 2. **Mac gateway restarted**: listener now PID 15005, started 00:02:47,
+>    serving checkout head `3b9a963b8` (reflog reset 23:47:55 precedes the
+>    listener start ⇒ no drift; one benign xai-credentials commit past
+>    `b2369172a`).
+> 3. **whoGoesThere is now VISIBLE over the cable** (hw UDID
+>    `00008150-000E794C3C47801C`, `xctrace list devices`) — last night's
+>    log-collect blocker is cleared.
+>
+> **Order change from the pre-registered protocol, with reason:** the device
+> log COLLECT runs first, the live repro second. The Aug-16 morning window is
+> now ~31 h old in a size-bounded on-device log store — eviction risk grows
+> with every hour and with every new byte the app logs, so the read-only
+> evidence capture precedes the state-mutating repro. The repro's own window
+> is observed live (agent.log tail + screen report) and does not need the
+> archive.
+
+> **🔄 2026-08-17 evening — THE RESUME SESSION'S EVIDENCE PASS REWRITES THIS
+> ENTRY. The runs transport is EXONERATED for both stages; the "regression"
+> was three overlapping mundane causes plus (at most) two real app bugs that
+> have nothing to do with the transport.** Evidence chain, all live-verified
+> tonight (device logarchive at `/tmp/talaria-device.logarchive`; OJAMD
+> `agent.log` read via the hermes-ojamd MCP **with canaries passed** — probe
+> session `api_1787006834_b35830d1` created over HTTP minutes earlier
+> appeared verbatim in every excerpt, and `Get-Date` tracked real time):
+>
+> 1. **Repro did NOT reproduce** (per the pre-registered table: ambiguous,
+>    not "fixed"): runs ON, Mac profile, fresh thread → wire-confirmed full
+>    runs sequence at 17:28:02 (create 201 → messages GET → POST /v1/runs
+>    202 → events, ~3 s). And a faithful curl replication of the app's exact
+>    sequence against OJAMD 0.20.2 (create → messages GET → submit carrying
+>    `session_id` → status) ran clean: PROBE-OK, every step <60 ms submit
+>    latency. Both planes healthy tonight.
+> 2. **No crashes, ever.** The device archive shows every app death in both
+>    failing windows was an explicit user swipe-kill (powerd
+>    "FBProcess Graceful Termination: user initiated quit"): 4 kills
+>    11:09–11:28, one 17:51:54, four 00:00:28/00:03:15/00:03:51/00:04:30.
+>    Zero ReportCrash rows. The app's own `org.aethyrion` log rows from both
+>    windows were EVICTED by logd's per-subsystem quota (earliest surviving
+>    row ≈ Aug 17 afternoon) — the narration is gone; framework rows remain.
+> 3. **The MORNING stage was SESSIONS-plane.** OJAMD access lines: 10:36:22 /
+>    10:39:35 / 10:48:03 each = `POST /api/sessions` 201 + `POST
+>    …/chat/stream` **200 with 52,175 / 64,741 / 21,948 bytes fully
+>    streamed** to a connected phone in 9–14 s — and the phone rendered
+>    nothing. No `/v1/runs` anywhere in the phone's Aug-16 traffic, morning
+>    or evening. **Real app bug A: a fully delivered sessions-plane SSE
+>    rendered as nothing, three consecutive fresh threads.** The fused-text
+>    row (finding 4) rides ONLY the first submit (10:36:22) — the fusion
+>    happened app-side BEFORE the day's first wire contact (an unsent typo'd
+>    attempt-0 fused, minus its first 11 chars, into attempt-1's body).
+>    10:39's submit is clean; 10:48's was an attachment test. **Real app bug
+>    B: the compose fusion (#48 seed / trap-7 family).**
+> 4. **The EVENING "wedge window" coincides exactly with OJAMD being
+>    down-or-restarting.** OJAMD's gateway: plugin-arc restarts 17:26:13 and
+>    17:50:22 (gateway-restart.log), then **planned STOP 23:37:53 → dead ~9
+>    min → `hermes update` 23:46:51 → start 23:46:52 → another restart
+>    00:02:42** — healthy after. The phone's 17:47:35 turn ("What's my step
+>    count?", sessions-plane, deepseek) COMPLETED — that was the plugin
+>    deploy's verification turn, a success. Phone polls ran to 22:06:34
+>    (last one `200 0`), then stopped (app backgrounded); UI bursts at 23:34
+>    and 23:59–00:04:30 are the failing attempts — squarely inside the
+>    stop/update/restart cycle. The Mac gateway restarted 00:02:47, its
+>    checkout having moved 23:47:55: BOTH hosts were updated ~23:46-48 and
+>    both gateways bounced ~00:02:4x. **At the 00:04:40 recovery, four
+>    things changed at once** (both updates, both restarts, toggle OFF, NEW
+>    thread on the Mac) — the toggle got the credit by adjacency.
+> 5. **Why it looked like "both hosts, survives relaunch":** sends resolve
+>    from the journal's persisted hop — **birth profile, frozen endpoint
+>    (M-5/#285)** — so retries in the same thread stayed pinned to OJAMD no
+>    matter the active profile, and relaunches rehydrated the same hop.
+>    Polls/models/lists follow the ACTIVE profile (they flowed to the Mac
+>    all evening — #356 evidence 2's Mac half). A dead OJAMD port produces
+>    exactly "zero turn HTTP on either host" + phone-side timeouts.
+> 6. **Falsifications of this entry's own findings:** (a) evidence 5's
+>    "plugin merge is Mac-only — can't explain OJAMD" conflated artifacts —
+>    the talaria plugin WAS deployed to OJAMD that same evening
+>    (HANDOFF-2026-08-16-NIGHT §State-at-close), with gateway restarts; (b)
+>    the header's "runs-ON turns time out on BOTH hosts" — no failing send
+>    ever demonstrably reached ANY host, and the first runs-ON sends of the
+>    day were the 23:34+ attempts (the toggle went ON late Aug-16 evening
+>    per the night handoff; the 17:47 turn was still sessions-plane); (c)
+>    "the wedge is app-side, BEFORE the runs driver's first network call" —
+>    no longer required by any evidence: a send pinned at a dead host is
+>    wire-indistinguishable from a pre-flight park. **Evidence-log
+>    methodology note for the future: aiohttp's access log writes at
+>    response COMPLETION — absence proves nothing about arrival — and
+>    `min_messages=1` list queries HIDE created-but-never-turned sessions.**
+> 7. **Still open, needs Owen's account:** (i) morning — what did the
+>    composer/screen show (did he see the fused text in the composer)? did
+>    attempt-0 visibly fail?; (ii) evening churn — same thread or new
+>    threads? which profile? what did the failure look like on screen
+>    (instant error vs long spinner-then-timeout)?; (iii) who ran the 23:46
+>    updates and the 00:02:4x double gateway restart — him or the night
+>    session? (iv) toggle history Aug-16 (ON since 08-15 per #283 vs
+>    "flipped tonight" per the night handoff — both can be true only if it
+>    was OFF for part of the day; the morning sessions-plane traffic says it
+>    was OFF by 10:36).
+> 8. **Remaining ACTUAL work in this lane:** bug A (delivered-SSE-unrendered)
+>    and bug B (compose fusion) are app-side, unit-reproducible in
+>    principle, and transport-independent. The #283 evidence clock question
+>    is moot in its old form — there was never a runs-transport failure to
+>    clock. 3C unhold decision rides Owen's read of this note.
+
 ## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
 
 **What the 2026-08-17 recon established (source-read on the Mac install,
