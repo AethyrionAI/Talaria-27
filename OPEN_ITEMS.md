@@ -15305,7 +15305,13 @@ omission; a missed bar is a falsification):**
   was observed and never asserts a cause it cannot distinguish; every string
   maps to the observation licensing it. [offline]
 - **269-A-D (the stale SETUP card is gone):** `rg -n 'hermes-mobile'
-  Talaria/` returns no user-visible string. [offline]
+  Talaria/` returns no user-visible string. [offline] **✅ MET 2026-08-16 —
+  executed by the #352 lane (Owen's Q1 "ride along"), merged `f6b8367`: the
+  SETUP card teaches `hermes talaria pair`, and a SECOND user-visible
+  string this bar's grep caught — the manual-entry error hint in
+  `RelaySetupCodePayload.swift` — was fixed with it. Remaining grep hits
+  are two WebRTC wire identifiers (not user-visible). The rest of #269-A
+  (probe, honest state model, 269-A-A/B/C/E) stays open and unclaimed.**
 - **269-A-E (gate):** `lane-gate.sh` PASS, unit count moved. [Mac]
 - **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
   install verified by the 269-A probe, not prose; injected partial states
@@ -22940,3 +22946,15 @@ observation quote resolves to this item.
 > alert on the deployed phone was permanent); M-8 was a persisted codec
 > field with a delete-guard arm; a second user-visible `hermes-mobile`
 > string (the manual-entry hint) beyond the SETUP card.
+
+> **✅ MERGED — 2026-08-16 night, Owen: "pr looks good, merge." Merge
+> commit `f6b8367` (merge, not squash — ancestry preserved), branch
+> deleted. What remains on this item: the two DEVICE arms only —
+> 352-B (one launch→foreground→background cycle on `whoGoesThere` shows
+> zero capture/drain log lines) and 352-C (a live `talaria_phone_query`
+> answers against OJAMD) — both need a build installed on the phone.
+> First launch at this build also runs the 352-F purge (queued samples +
+> anchors + widget fallback + the stale "Sensor uploads stalled" alert),
+> so Owen's post-install About-page look should show the Phone Queries
+> panel and an inbox without the outage alert. Close this item when the
+> two arms are observed.**
