@@ -23,6 +23,21 @@ final class InboxStore {
         self.persistence = persistence
         self.sessionStore = sessionStore
         self.localState = persistence.loadInboxState()
+
+        // #352: drop any persisted #113 connector-outage alert — its producer
+        // and its clearer died with the upload pipeline, so a raised alert
+        // would otherwise sit in the inbox forever with no code left to
+        // resolve it. Persisted explicitly (didSet is inert during init).
+        if localState.localItems.contains(where: Self.isRetiredConnectorOutageAlert) {
+            localState.localItems.removeAll(where: Self.isRetiredConnectorOutageAlert)
+            persistence.saveInboxState(localState)
+        }
+    }
+
+    /// The retired #113 alert's persisted shape (payload key + kind were
+    /// inlined here when the producer died — retired names, never reused).
+    private static func isRetiredConnectorOutageAlert(_ item: InboxItem) -> Bool {
+        item.payload?["talaria.localAlert"] == "connector-outage"
     }
 
     var unreadCount: Int {
@@ -76,46 +91,6 @@ final class InboxStore {
         TalariaPlatformInboxService.merge(platformItems, into: &updated)
         guard updated != localState else { return }
         localState = updated
-    }
-
-    // MARK: - Local operational alerts (#113)
-
-    /// Marks an app-generated item so action handling never round-trips the
-    /// relay for it. Value, not presence, is checked — a relay payload could
-    /// carry the same key.
-    private static let localAlertPayloadKey = "talaria.localAlert"
-    static let connectorOutageAlertKind = "connector-outage"
-
-    /// Enqueue the connector-down alert (#113). Deduped: while one is live
-    /// in `localItems`, further raises are no-ops — the policy layer also
-    /// guards this, but the store must stay safe to call unconditionally.
-    func raiseConnectorOutageAlert() {
-        guard !localState.localItems.contains(where: { isConnectorOutageAlert($0) }) else { return }
-        let item = InboxItem(
-            type: .alert,
-            title: "Sensor uploads stalled",
-            body: "Sensor uploads can't reach the host — the connector may be down. Data keeps queuing on this device and delivers when the connector returns.",
-            priority: .high,
-            payload: [Self.localAlertPayloadKey: Self.connectorOutageAlertKind],
-            // Both actions resolve locally (submitAction short-circuits for
-            // local items): Acknowledge marks it read, Dismiss removes it.
-            primaryAction: InboxActionDescriptor(id: "acknowledge", title: "Acknowledge"),
-            secondaryAction: InboxActionDescriptor(id: "dismiss", title: "Dismiss", isDestructive: true)
-        )
-        localState.localItems.append(item)
-        items.insert(item, at: 0)
-    }
-
-    /// Remove the connector-down alert — a successful delivery proved the
-    /// connector alive. Safe to call when no alert is live.
-    func clearConnectorOutageAlert() {
-        guard localState.localItems.contains(where: { isConnectorOutageAlert($0) }) else { return }
-        localState.localItems.removeAll { isConnectorOutageAlert($0) }
-        items.removeAll { isConnectorOutageAlert($0) }
-    }
-
-    private func isConnectorOutageAlert(_ item: InboxItem) -> Bool {
-        item.payload?[Self.localAlertPayloadKey] == Self.connectorOutageAlertKind
     }
 
     private func isLocalItem(_ item: InboxItem) -> Bool {

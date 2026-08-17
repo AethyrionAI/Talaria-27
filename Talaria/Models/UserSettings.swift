@@ -204,18 +204,6 @@ struct AppEnvironmentPolicy: Equatable, Sendable {
     }()
 }
 
-enum LocationSyncPreference: String, Codable, Hashable, Sendable {
-    case foregroundOnly
-    case backgroundAllowed
-
-    var displayLabel: String {
-        switch self {
-        case .foregroundOnly: "Foreground Only"
-        case .backgroundAllowed: "Background Allowed"
-        }
-    }
-}
-
 /// Full visual environment (background, foregrounds, surfaces, textures, orb
 /// identity). The accent (`AppearanceAccent`) selects the energetic hue *inside*
 /// a theme — see `ThemePaletteCore.swift` for the resolved color tables.
@@ -354,11 +342,11 @@ struct UserSettings: Codable, Hashable, Sendable {
     var environment: AppEnvironment
     var relayConfiguration: RelayConfiguration
     var autoConnectOnLaunch: Bool
-    var locationSyncPreference: LocationSyncPreference
     // In-app permission revocation (#6): the app can't rescind an iOS grant,
-    // so revoke = durably stop USING it. These gate SensorUploadService's
-    // launch-time wiring so a revoke survives relaunch (start() would
-    // otherwise re-assert health auth and restart monitoring every launch).
+    // so revoke = durably stop USING it. Since #352 these gate
+    // `PhoneQueryResponder.deniedGate` — the flag IS the mechanism, so a
+    // revoke survives relaunch by construction (nothing captures outside a
+    // query).
     var healthCollectionEnabled: Bool
     var locationCollectionEnabled: Bool
     /// #137: master opt-in for the optional sensor streaming layer. OFF by
@@ -432,7 +420,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         environment: AppEnvironment = AppEnvironmentPolicy.currentBuild.defaultEnvironment,
         relayConfiguration: RelayConfiguration = RelayConfiguration.defaultValue(),
         autoConnectOnLaunch: Bool = true,
-        locationSyncPreference: LocationSyncPreference = .foregroundOnly,
         healthCollectionEnabled: Bool = false,
         locationCollectionEnabled: Bool = false,
         sensorStreamingEnabled: Bool = false,
@@ -464,7 +451,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.environment = environment
         self.relayConfiguration = relayConfiguration
         self.autoConnectOnLaunch = autoConnectOnLaunch
-        self.locationSyncPreference = locationSyncPreference
         self.healthCollectionEnabled = healthCollectionEnabled
         self.locationCollectionEnabled = locationCollectionEnabled
         self.sensorStreamingEnabled = sensorStreamingEnabled
@@ -498,7 +484,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         case environment
         case relayConfiguration
         case autoConnectOnLaunch
-        case locationSyncPreference
         case healthCollectionEnabled
         case locationCollectionEnabled
         case sensorStreamingEnabled
@@ -534,7 +519,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         relayConfiguration = try container.decodeIfPresent(RelayConfiguration.self, forKey: .relayConfiguration)
             ?? RelayConfiguration.migratedLegacyValue(environment: environment)
         autoConnectOnLaunch = try container.decodeIfPresent(Bool.self, forKey: .autoConnectOnLaunch) ?? true
-        locationSyncPreference = try container.decodeIfPresent(LocationSyncPreference.self, forKey: .locationSyncPreference) ?? .foregroundOnly
         healthCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .healthCollectionEnabled) ?? true
         locationCollectionEnabled = try container.decodeIfPresent(Bool.self, forKey: .locationCollectionEnabled) ?? true
         // #137: absent keys mean a pre-opt-in blob — master stays OFF here;
@@ -581,7 +565,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(environment, forKey: .environment)
         try container.encode(relayConfiguration, forKey: .relayConfiguration)
         try container.encode(autoConnectOnLaunch, forKey: .autoConnectOnLaunch)
-        try container.encode(locationSyncPreference, forKey: .locationSyncPreference)
         try container.encode(healthCollectionEnabled, forKey: .healthCollectionEnabled)
         try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
         try container.encode(sensorStreamingEnabled, forKey: .sensorStreamingEnabled)

@@ -61,20 +61,6 @@ final class PermissionsStore {
         locationService.accuracyLevel
     }
 
-    var healthBackgroundDeliveryEnabled: Bool {
-        healthService.backgroundDeliveryEnabled
-    }
-
-    func requestBackgroundLocationAccess() async {
-        _ = await locationService.requestBackgroundAuthorization()
-        capabilities = currentCapabilities()
-    }
-
-    func updateLocationSyncPreference(_ preference: LocationSyncPreference) {
-        locationService.updateSyncPreference(preference)
-        capabilities = currentCapabilities()
-    }
-
     func openLocationSystemSettings() {
         locationService.openSystemSettings()
     }
@@ -152,8 +138,7 @@ final class PermissionsStore {
     private func healthStatusDetail() -> String? {
         switch healthService.authorizationStatus {
         case .authorized:
-            let backgroundStatus = healthService.backgroundDeliveryEnabled ? "Background Sync On" : "Background Sync Off"
-            return "Read Only • \(backgroundStatus)"
+            return "Read Only"
         case .denied, .restricted:
             return "Manage in Apple Health or Settings > Privacy & Security > Health"
         default:

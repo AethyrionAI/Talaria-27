@@ -131,9 +131,8 @@ struct BackendProfilesTests {
         #expect(migrated.relayBaseURL == "http://100.110.102.59:8000/v1")
         #expect(migrated.shimBaseURL == "http://ojamd:8765")
         #expect(migrated.usesLegacyCredentialKeys)
-        // The migrated profile IS the active profile AND the sensor destination.
+        // The migrated profile IS the active profile.
         #expect(first.activeProfileID == migrated.id)
-        #expect(first.sensorDestinationProfileID == migrated.id)
 
         // Second construction over the same persistence: the SAME profile,
         // not a second migration.
@@ -363,14 +362,6 @@ struct BackendProfilesTests {
 
         // Migrated profile is active AND sensor destination.
         #expect(throws: BackendProfilesStore.DeleteError.profileIsActive) {
-            try profilesStore.deleteProfile(id: migrated.id)
-        }
-
-        // Make the Mac active; OJAMD remains the pinned sensor destination —
-        // still undeletable.
-        let activatedMac = profilesStore.setActiveProfile(mac.id)
-        #expect(activatedMac)
-        #expect(throws: BackendProfilesStore.DeleteError.profileIsSensorDestination) {
             try profilesStore.deleteProfile(id: migrated.id)
         }
 

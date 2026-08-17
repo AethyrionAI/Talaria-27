@@ -630,27 +630,12 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func settingsStorePersistsLocationSyncPreferenceChanges() async throws {
-        let suiteName = "settings-store-location-sync-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let settingsStore = SettingsStore(persistence: persistence)
-
-        settingsStore.settings.locationSyncPreference = .backgroundAllowed
-
-        let reloaded = persistence.loadUserSettings()
-        #expect(reloaded?.locationSyncPreference == .backgroundAllowed)
-    }
-
-    @Test @MainActor
     func sleepDurationUsesStableWakeDayBucket() async throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
         let bucketDay = calendar.date(from: DateComponents(year: 2026, month: 4, day: 5))!
-        let intervals: [LiveHealthService.SleepInterval] = [
+        let intervals: [HealthQueryCore.SleepInterval] = [
             .init(
                 value: HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                 startDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 4, hour: 23, minute: 0))!,
@@ -668,14 +653,14 @@ struct AppStoresTests {
             ),
         ]
 
-        let hours = LiveHealthService.aggregateSleepDuration(
+        let hours = HealthQueryCore.aggregateSleepDuration(
             intervals: intervals,
             attributedTo: bucketDay,
             calendar: calendar
         )
 
         #expect(hours == 8.5)
-        #expect(LiveHealthService.sleepBucketDay(for: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 18))!, calendar: calendar) == bucketDay)
+        #expect(HealthQueryCore.sleepBucketDay(for: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 18))!, calendar: calendar) == bucketDay)
     }
 
     @Test @MainActor
@@ -3608,25 +3593,44 @@ struct AppStoresTests {
         #expect(payload.timestamp == Date(timeIntervalSince1970: 1774983516))
     }
 
+    /// #352 (bar 352-F): the retired upload pipeline's persisted artifacts —
+    /// the outbox blob (a pending GPS fix + up to 500 health samples) and the
+    /// HealthKit query anchors — are removed on store init. Unconditional and
+    /// idempotent; no surviving path recreates either key family.
     @Test @MainActor
-    func persistenceStorePersistsAndClearsHealthQueryAnchors() async throws {
-        let suiteName = "health-anchors-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
+    func initPurgesRetiredSensorOutboxAndAnchorKeys() {
+        let suiteName = "purge-352-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        defer { suite.removePersistentDomain(forName: suiteName) }
+        suite.set(Data("junk".utf8), forKey: "hermes.sensorOutboxState")
+        suite.set(Data("anchor".utf8), forKey: "hermes.healthAnchor.stepCount")
 
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let anchorData = Data([0x01, 0x02, 0x03])
+        _ = UserDefaultsAppPersistenceStore(defaults: suite)
 
-        persistence.saveHealthQueryAnchorData(anchorData, for: "steps")
-        persistence.saveHealthQueryAnchorData(Data([0x04]), for: "heart_rate")
+        #expect(suite.data(forKey: "hermes.sensorOutboxState") == nil)
+        #expect(suite.data(forKey: "hermes.healthAnchor.stepCount") == nil)
+    }
 
-        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == anchorData)
-        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == Data([0x04]))
+    /// #352 (bar 352-F): the widget's stored health fallback fields are
+    /// nilled — the widget queries HealthKit live each pass, and a
+    /// months-stale snapshot number shown as current would lie. Pure
+    /// transform pinned here; the App-Group wrapper is a thin caller.
+    @Test
+    func clearingRetiredHealthMetricsNilsAllFourFieldsAndNothingElse() {
+        var data = HermesWidgetData.empty
+        data.steps = 5000
+        data.activeCalories = 300
+        data.sleepHours = 7.5
+        data.heartRate = 62
+        data.hostName = "keep-me"
 
-        persistence.clearHealthQueryAnchorData()
+        let cleared = SharedWidgetDataStore.clearingRetiredHealthMetrics(data)
 
-        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == nil)
-        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == nil)
+        #expect(cleared.steps == nil)
+        #expect(cleared.activeCalories == nil)
+        #expect(cleared.sleepHours == nil)
+        #expect(cleared.heartRate == nil)
+        #expect(cleared.hostName == "keep-me")
     }
 
     @Test
@@ -3944,94 +3948,6 @@ struct AppStoresTests {
 
         #expect(reloadedStore.items.contains(where: { $0.stableIdentifier == firstItem.stableIdentifier && $0.isRead }))
         #expect(!reloadedStore.items.contains(where: { $0.stableIdentifier == secondItem.stableIdentifier }))
-    }
-
-    @Test
-    func sensorOutboxStateDeduplicatesLocationAndWindowedHealthSnapshots() {
-        var outbox = SensorOutboxState()
-        let now = Date(timeIntervalSince1970: 1_774_983_516)
-
-        outbox.enqueue(
-            location: LocationUpdate(
-                latitude: 40.0,
-                longitude: -73.0,
-                altitude: nil,
-                accuracy: 20,
-                timestamp: now
-            )
-        )
-        outbox.enqueue(
-            location: LocationUpdate(
-                latitude: 41.0,
-                longitude: -74.0,
-                altitude: nil,
-                accuracy: 15,
-                timestamp: now.addingTimeInterval(30)
-            )
-        )
-
-        outbox.enqueue(
-            healthSamples: [
-                HealthSnapshot.Sample(
-                    metric: "steps",
-                    value: 1000,
-                    unit: "count",
-                    startAt: now,
-                    endAt: now.addingTimeInterval(300)
-                ),
-                HealthSnapshot.Sample(
-                    metric: "steps",
-                    value: 1200,
-                    unit: "count",
-                    startAt: now,
-                    endAt: now.addingTimeInterval(600)
-                ),
-                HealthSnapshot.Sample(
-                    metric: "heart_rate",
-                    value: 72,
-                    unit: "bpm",
-                    startAt: now,
-                    endAt: nil
-                )
-            ]
-        )
-
-        #expect(outbox.pendingLocation?.latitude == 41.0)
-        #expect(outbox.pendingHealthSamples.count == 2)
-        #expect(outbox.pendingHealthSamples.first(where: { $0.metric == "steps" })?.value == 1200)
-    }
-
-    @Test @MainActor
-    func persistenceStoreRoundTripsSensorOutboxState() {
-        let suiteName = "sensor-outbox-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let date = Date(timeIntervalSince1970: 1_774_983_516)
-        let outbox = SensorOutboxState(
-            pendingLocation: .init(
-                latitude: 40.0,
-                longitude: -73.0,
-                altitude: 12,
-                accuracy: 20,
-                recordedAt: date
-            ),
-            pendingHealthSamples: [
-                .init(
-                    metric: "heart_rate",
-                    value: 72,
-                    unit: "bpm",
-                    startAt: date,
-                    endAt: nil
-                )
-            ]
-        )
-
-        persistence.saveSensorOutboxState(outbox)
-
-        let reloaded = persistence.loadSensorOutboxState()
-        #expect(reloaded == outbox)
     }
 
     @Test @MainActor
@@ -5086,7 +5002,7 @@ struct AppStoresTests {
         // step's friction go away — that friction is the point.
         #expect(AppContainer.LaunchInitStep.backgroundBootstrap == [
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed, .sensorForegroundRefresh,
+            .commandCatalogRefresh, .gatewayModelSeed,
         ])
     }
 

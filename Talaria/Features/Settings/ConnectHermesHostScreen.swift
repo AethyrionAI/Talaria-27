@@ -107,9 +107,16 @@ struct ConnectHermesHostScreen: View {
                               color: Design.Colors.secondaryForeground)
                 }
 
-                setupStep(number: "1", command: "hermes-mobile setup", detail: "One-time registration")
-                setupStep(number: "2", command: "hermes-mobile pair-phone", detail: "Scan the code in-app")
-                setupStep(number: "3", command: "hermes-mobile service install", detail: "Background uptime")
+                // #352/#269-A-D: the old three-step venv-CLI flow is retired
+                // on every host (#271); pairing is one command on the Talaria
+                // plugin. The install story itself is deliberately not taught
+                // here — that is #269-B, gated on publication.
+                Text("Requires the Talaria plugin on your Hermes host.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+
+                setupStep(number: "1", command: "hermes talaria pair",
+                          detail: "Prints a pairing code — scan it with Pair New Device below")
             }
             .padding(Design.Spacing.lg)
         }

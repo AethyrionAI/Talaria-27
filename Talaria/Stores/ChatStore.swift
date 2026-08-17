@@ -231,8 +231,9 @@ final class ChatStore {
     var activeSessionID: String? { journal?.activeHop?.apiSessionId }
 
     /// P1 offline compose outbox (#90): turns composed while the Sessions API
-    /// is unreachable park here (the SensorUploadService pattern) and drain
-    /// oldest-first once it's reachable again.
+    /// is unreachable park here (the retired sensor-outbox pattern, #352:
+    /// debounced persistence, drain when reachable) and drain oldest-first
+    /// once it's reachable again.
     private var composeOutbox: ComposeOutboxState
     private var isDrainingComposeOutbox = false
 

@@ -33,25 +33,26 @@ enum SharedWidgetDataStore {
         return decoded
     }
 
-    static func updateHealthMetrics(from samples: [HealthSnapshot.Sample]) {
-        guard !samples.isEmpty else { return }
+    /// #352: the app-side health feed is retired; the widget queries
+    /// HealthKit itself each timeline pass and these snapshot fields were
+    /// only its fallback. Nil fields render "—" — honest, where a
+    /// months-stale step count would lie. Pure transform so the logic is
+    /// unit-testable.
+    static func clearingRetiredHealthMetrics(_ data: HermesWidgetData) -> HermesWidgetData {
+        var cleared = data
+        cleared.steps = nil
+        cleared.activeCalories = nil
+        cleared.sleepHours = nil
+        cleared.heartRate = nil
+        return cleared
+    }
 
-        var data = read()
-        for sample in samples {
-            switch sample.metric {
-            case "steps":
-                data.steps = Int(sample.value.rounded())
-            case "active_calories":
-                data.activeCalories = Int(sample.value.rounded())
-            case "sleep_duration":
-                data.sleepHours = sample.value
-            case "heart_rate":
-                data.heartRate = Int(sample.value.rounded())
-            default:
-                continue
-            }
-        }
-        data.updatedAt = .now
-        write(data)
+    /// App-Group wrapper; writes only when something actually changes so the
+    /// per-launch call doesn't churn widget reloads.
+    static func clearRetiredHealthMetrics() {
+        let data = read()
+        guard data.steps != nil || data.activeCalories != nil
+            || data.sleepHours != nil || data.heartRate != nil else { return }
+        write(clearingRetiredHealthMetrics(data))
     }
 }

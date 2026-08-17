@@ -55,7 +55,6 @@ targets:
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
-        com.apple.developer.healthkit.background-delivery: true
         # #28: WeatherTool in the device tool belt (Apple Weather, 500k
         # calls/mo free tier). Declared HERE (not just in the .entitlements
         # file) because of the #44/#48 xcodegen strip trap.
@@ -163,7 +162,6 @@ targets:
         NSCameraUsageDescription: "Hermes uses the camera to capture photos and documents for analysis."
         NSPhotoLibraryUsageDescription: "Hermes accesses your photo library to help organize and search your photos."
         NSMicrophoneUsageDescription: "Hermes uses the microphone for voice conversations in Talk Mode."
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Hermes uses your location in the background to provide contextual awareness and proactive suggestions."
         NSMotionUsageDescription: "Hermes uses motion data to understand your current activity for contextual awareness."
         NSSpeechRecognitionUsageDescription: "Hermes uses speech recognition for voice commands and local transcription."
         # #124: biometric app lock. Lives HERE, not as an INFOPLIST_KEY_
@@ -360,10 +358,11 @@ targets:
         # DTLS-SRTP via WebRTC). Declared so App Store Connect stops asking
         # per upload.
         ITSAppUsesNonExemptEncryption: false
+        # #352: `location` left this list with the upload pipeline — nothing
+        # reads location outside a foreground query now.
         UIBackgroundModes:
           - fetch
           - processing
-          - location
           - audio
         # #14 native background wake. `fetch` above powers BGAppRefreshTask;
         # the wildcard covers per-send BGContinuedProcessingTask identifiers.

@@ -28,8 +28,6 @@ struct AboutSettingsContent: View {
     @Environment(PermissionsStore.self) private var permissionsStore
     @Environment(SettingsStore.self) private var settingsStore
 
-    @State private var sensorAccessToken: Bool?
-
     private struct RowStatus {
         let text: String
         let color: Color
@@ -48,7 +46,7 @@ struct AboutSettingsContent: View {
             )
             statusPanel
             voicePanel
-            sensorPanel
+            phoneQueriesPanel
             infoGrid
             logsSection
             footerLinks
@@ -57,7 +55,6 @@ struct AboutSettingsContent: View {
         .task {
             await container.chatStore.refreshDirectHealth()
             await permissionsStore.reloadCapabilities()
-            sensorAccessToken = await container.sensorUploadService?.hasValidAccessToken()
         }
     }
 
@@ -189,14 +186,14 @@ struct AboutSettingsContent: View {
                       color: Design.Colors.mutedForeground)
 
             VStack(spacing: 0) {
-                sensorRow("Microphone", voicePermissionLabel(.microphone),
-                          voicePermissionColor(.microphone))
+                panelRow("Microphone", voicePermissionLabel(.microphone),
+                         voicePermissionColor(.microphone))
                 rowDivider
-                sensorRow("Speech Recognition", voicePermissionLabel(.speechRecognition),
-                          voicePermissionColor(.speechRecognition))
+                panelRow("Speech Recognition", voicePermissionLabel(.speechRecognition),
+                         voicePermissionColor(.speechRecognition))
                 rowDivider
-                sensorRow("Audio Route", TalkAudioRoute.currentSummary() ?? "—",
-                          Design.Colors.secondaryForeground)
+                panelRow("Audio Route", TalkAudioRoute.currentSummary() ?? "—",
+                         Design.Colors.secondaryForeground)
             }
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
@@ -228,63 +225,60 @@ struct AboutSettingsContent: View {
         }
     }
 
-    // MARK: Sensor pipeline (#15)
+    // MARK: Phone queries (#352)
+    //
+    // Replaced the relay-era "// Sensor Pipeline" panel when #352 retired the
+    // upload path. Reports ONLY what query-time actually consults: the share
+    // gates (UserSettings, the same table PhoneQueryResponder.deniedGate reads)
+    // and the iOS grants (PermissionsStore). Deliberately NO link-state row —
+    // probe-based link honesty is #269-A's lane, and #350 is why the page never
+    // asserts a live host from a stored token.
 
     @ViewBuilder
-    private var sensorPanel: some View {
+    private var phoneQueriesPanel: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Sensor Pipeline", size: 10, tracking: Design.Tracking.monoXWide,
+            MonoLabel("// Phone Queries", size: 10, tracking: Design.Tracking.monoXWide,
                       color: Design.Colors.mutedForeground)
 
-            if let s = container.sensorUploadService?.sensorDiagnostics {
-                VStack(spacing: 0) {
-                    sensorRow("Pipeline", s.isActive ? "ACTIVE" : "IDLE",
-                              s.isActive ? Design.Brand.accent : Design.Colors.mutedForeground,
-                              blinks: s.isActive)
-                    rowDivider
-                    sensorRow("Paired", s.isPaired ? "YES" : "NO",
-                              s.isPaired ? Design.Brand.accent : Design.Colors.danger)
-                    rowDivider
-                    sensorRow("Access Token", tokenLabel, tokenColor)
-                    rowDivider
-                    sensorRow("Pending Location", pendingLocationText(s),
-                              s.pendingLocation == nil ? Design.Colors.mutedForeground : Design.Brand.forge)
-                    rowDivider
-                    sensorRow("Pending Health", pendingHealthText(s),
-                              s.pendingHealthCount == 0 ? Design.Colors.mutedForeground : Design.Brand.forge)
-                    rowDivider
-                    sensorRow("Last Drain", lastDrainText(s),
-                              s.lastDrainSummary == nil ? Design.Colors.mutedForeground : Design.Colors.secondaryForeground)
-                    rowDivider
-                    sensorRow("Location", "\(s.locationAuthorization.displayLabel) · \(s.locationAccuracyLabel)",
-                              locationColor(s.locationAuthorization))
-                    rowDivider
-                    sensorRow("Health", s.healthAuthorization.displayLabel, permissionColor(s.healthAuthorization))
-                    rowDivider
-                    sensorRow("Motion", s.motionAuthorization.displayLabel, permissionColor(s.motionAuthorization))
-                }
-                .hudPanel(
-                    cornerRadius: Design.CornerRadius.lg,
-                    borderColor: Design.Colors.accentTint(0.12),
-                    fill: Design.Colors.background.opacity(0.5),
-                    innerGlow: false
-                )
-            } else {
-                MonoLabel("Sensor pipeline unavailable in this build.", size: 10,
-                          tracking: Design.Tracking.mono, color: Design.Colors.secondaryForeground)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(Design.Spacing.md)
-                    .hudPanel(
-                        cornerRadius: Design.CornerRadius.lg,
-                        borderColor: Design.Colors.accentTint(0.12),
-                        fill: Design.Colors.background.opacity(0.5),
-                        innerGlow: false
-                    )
+            VStack(spacing: 0) {
+                panelRow("Sensor Sharing",
+                         settingsStore.settings.sensorStreamingEnabled ? "ON" : "OFF",
+                         settingsStore.settings.sensorStreamingEnabled
+                            ? Design.Brand.accent : Design.Colors.mutedForeground)
+                rowDivider
+                queryGateRow("Health", enabled: settingsStore.settings.healthCollectionEnabled,
+                             permission: .health)
+                rowDivider
+                queryGateRow("Location", enabled: settingsStore.settings.locationCollectionEnabled,
+                             permission: .location)
+                rowDivider
+                queryGateRow("Motion", enabled: settingsStore.settings.motionCollectionEnabled,
+                             permission: .motion)
             }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
         }
     }
 
-    private func sensorRow(_ label: String, _ value: String, _ color: Color, blinks: Bool = false) -> some View {
+    /// One row per gated sensor: the app-level share gate and the iOS grant,
+    /// in one honest line. "OFF" when either the master or this sensor's
+    /// toggle is off (matching deniedGate's master-outranks-stream order);
+    /// "SHARED · <grant>" when the toggles pass and iOS has the last word.
+    private func queryGateRow(_ label: String, enabled: Bool, permission: PermissionType) -> some View {
+        let status = permissionsStore.capabilities
+            .first { $0.permissionType == permission }?.status
+        let shared = settingsStore.settings.sensorStreamingEnabled && enabled
+        let text = shared ? "SHARED · \(status?.displayLabel.uppercased() ?? "—")" : "OFF"
+        let color = shared ? permissionColor(status ?? .notDetermined)
+                           : Design.Colors.mutedForeground
+        return panelRow(label, text, color)
+    }
+
+    private func panelRow(_ label: String, _ value: String, _ color: Color, blinks: Bool = false) -> some View {
         HStack(spacing: Design.Spacing.sm) {
             StatusPip(color: color, diameter: 8, blinks: blinks)
             Text(label)
@@ -298,54 +292,6 @@ struct AboutSettingsContent: View {
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
-    }
-
-    private var tokenLabel: String {
-        switch sensorAccessToken {
-        case .some(true): "PRESENT"
-        case .some(false): "ABSENT"
-        case .none: "—"
-        }
-    }
-
-    private var tokenColor: Color {
-        switch sensorAccessToken {
-        case .some(true): Design.Brand.accent
-        case .some(false): Design.Colors.danger
-        case .none: Design.Colors.mutedForeground
-        }
-    }
-
-    private func pendingLocationText(_ s: SensorUploadService.SensorDiagnostics) -> String {
-        guard let loc = s.pendingLocation else { return "none" }
-        let coord = String(format: "%.3f, %.3f", loc.latitude, loc.longitude)
-        return "\(coord) · \(relativeAge(loc.recordedAt))"
-    }
-
-    private func pendingHealthText(_ s: SensorUploadService.SensorDiagnostics) -> String {
-        s.pendingHealthCount == 0 ? "none" : "\(s.pendingHealthCount) sample\(s.pendingHealthCount == 1 ? "" : "s")"
-    }
-
-    private func lastDrainText(_ s: SensorUploadService.SensorDiagnostics) -> String {
-        guard let summary = s.lastDrainSummary else { return "—" }
-        guard let at = s.lastDrainAt else { return summary }
-        return "\(summary) · \(relativeAge(at))"
-    }
-
-    private func relativeAge(_ date: Date) -> String {
-        let seconds = Int(max(0, Date().timeIntervalSince(date)))
-        if seconds < 60 { return "\(seconds)s ago" }
-        if seconds < 3600 { return "\(seconds / 60)m ago" }
-        if seconds < 86_400 { return "\(seconds / 3600)h ago" }
-        return "\(seconds / 86_400)d ago"
-    }
-
-    private func locationColor(_ level: LocationAuthorizationLevel) -> Color {
-        switch level {
-        case .always, .whenInUse: Design.Brand.accent
-        case .denied, .restricted: Design.Colors.danger
-        case .notDetermined: Design.Colors.mutedForeground
-        }
     }
 
     private func permissionColor(_ status: PermissionStatus) -> Color {

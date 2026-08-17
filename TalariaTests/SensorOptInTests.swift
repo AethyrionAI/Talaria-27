@@ -176,9 +176,6 @@ private final class InertPersistenceStore: AppPersistenceStoreProtocol {
     func saveSensorStreamingMigrationStamp() { sensorMigrationStamped = true }
     func clearSensorStreamingMigrationStamp() { sensorMigrationStamped = false }
 
-    func loadSensorOutboxState() -> SensorOutboxState { SensorOutboxState() }
-    func saveSensorOutboxState(_ state: SensorOutboxState) {}
-    func clearSensorOutboxState() {}
     func loadUserSettings() -> UserSettings? { nil }
     func saveUserSettings(_ settings: UserSettings) {}
     func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
@@ -216,67 +213,4 @@ private final class InertPersistenceStore: AppPersistenceStoreProtocol {
     func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
     func saveComposeOutboxState(_ state: ComposeOutboxState) {}
     func clearComposeOutboxState() {}
-    func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
-    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
-    func clearHealthQueryAnchorData() {}
-}
-
-@MainActor
-struct SensorStreamingGateTests {
-    /// The health gate stays FALSE in every case here: start() with health on
-    /// fires a live HealthKit auth request, and sim builds strip the
-    /// entitlement (never assert HealthKit outcomes — dispatch rule).
-    private func makeService(
-        master: @escaping @MainActor () -> Bool,
-        location: @escaping @MainActor () -> Bool = { false },
-        motion: LiveMotionService? = nil,
-        motionEnabled: @escaping @MainActor () -> Bool = { false }
-    ) -> (SensorUploadService, LiveLocationService) {
-        let locationService = LiveLocationService()
-        let service = SensorUploadService(
-            apiClient: RelayAPIClient(baseURLProvider: { "http://127.0.0.1:9" }),
-            accessTokenProvider: { nil },
-            persistence: InertPersistenceStore(),
-            isPairedProvider: { false },
-            isSensorStreamingEnabled: master,
-            isHealthCollectionEnabled: { false },
-            isLocationCollectionEnabled: location,
-            isMotionCollectionEnabled: motionEnabled,
-            locationService: locationService,
-            healthService: LiveHealthService(),
-            motionService: motion,
-            notificationCenter: NotificationCenter()
-        )
-        return (service, locationService)
-    }
-
-    @Test func masterOffMeansStartNeverActivates() {
-        let (service, locationService) = makeService(master: { false }, location: { true })
-        service.start()
-        #expect(service.sensorDiagnostics.isActive == false)
-        #expect(locationService.onLocationUpdate == nil)
-    }
-
-    @Test func masterOnWithAllSensorsOffIdlesEverySource() {
-        let (service, locationService) = makeService(master: { true })
-        service.start()
-        #expect(service.sensorDiagnostics.isActive == true)
-        #expect(locationService.onLocationUpdate == nil)
-        service.stop()
-    }
-
-    @Test func masterOnWithLocationOnWiresCapture() {
-        let (service, locationService) = makeService(master: { true }, location: { true })
-        service.start()
-        #expect(locationService.onLocationUpdate != nil)
-        service.stop()
-    }
-
-    @Test func motionGateOffLeavesMotionUnwired() {
-        let motionService = LiveMotionService()
-        let (service, _) = makeService(master: { true }, motion: motionService, motionEnabled: { false })
-        service.start()
-        #expect(motionService.onActivityUpdate == nil)
-        service.stop()
-    }
 }

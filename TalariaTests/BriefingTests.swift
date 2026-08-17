@@ -188,9 +188,6 @@ struct InboxStoreMarkReadTests {
         func loadSessionUsageIndex() -> SessionUsageIndex { SessionUsageIndex() }
         func saveSessionUsageIndex(_ index: SessionUsageIndex) {}
         func clearSessionUsageIndex() {}
-        func loadSensorOutboxState() -> SensorOutboxState { SensorOutboxState() }
-        func saveSensorOutboxState(_ state: SensorOutboxState) {}
-        func clearSensorOutboxState() {}
         func loadConversationCache() -> Conversation? { nil }
         func saveConversationCache(_ conversation: Conversation) {}
         func clearConversationCache() {}
@@ -203,9 +200,6 @@ struct InboxStoreMarkReadTests {
         func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
         func saveComposeOutboxState(_ state: ComposeOutboxState) {}
         func clearComposeOutboxState() {}
-        func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
-        func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
-        func clearHealthQueryAnchorData() {}
     }
 
     private func makeStore(

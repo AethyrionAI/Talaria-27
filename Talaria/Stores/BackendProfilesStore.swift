@@ -33,8 +33,6 @@ final class BackendProfilesStore {
         case notFound
         /// The active profile cannot be deleted — switch first.
         case profileIsActive
-        /// The sensor-destination profile cannot be deleted — repin first.
-        case profileIsSensorDestination
     }
 
     private(set) var state: BackendProfilesState {
@@ -88,8 +86,7 @@ final class BackendProfilesStore {
             )
             let fresh = BackendProfilesState(
                 profiles: [migrated],
-                activeProfileID: migrated.id,
-                sensorDestinationProfileID: migrated.id
+                activeProfileID: migrated.id
             )
             self.state = fresh
             persistence.saveBackendProfilesState(fresh)
@@ -104,14 +101,6 @@ final class BackendProfilesStore {
     var activeProfile: BackendProfile? { state.activeProfile }
 
     var activeProfileID: UUID? { state.activeProfile?.id }
-
-    var sensorDestinationProfileID: UUID? {
-        state.profile(id: state.sensorDestinationProfileID)?.id ?? state.activeProfile?.id
-    }
-
-    var sensorDestinationProfile: BackendProfile? {
-        state.profile(id: state.sensorDestinationProfileID) ?? state.activeProfile
-    }
 
     func profile(id: UUID?) -> BackendProfile? {
         state.profile(id: id)
@@ -184,18 +173,6 @@ final class BackendProfilesStore {
         return true
     }
 
-    /// Re-pins the sensor destination (M-8). Independent of the active
-    /// profile by design.
-    @discardableResult
-    func setSensorDestination(_ id: UUID) -> Bool {
-        guard state.profile(id: id) != nil else { return false }
-        guard state.sensorDestinationProfileID != id else { return true }
-        var updated = state
-        updated.sensorDestinationProfileID = id
-        state = updated
-        return true
-    }
-
     /// M-9: records that a profile's relay tokens were just minted/refreshed,
     /// so the dormant-refresh pass can skip it for the next window.
     func stampTokenRefresh(profileID: UUID?, at date: Date = .now) {
@@ -206,14 +183,13 @@ final class BackendProfilesStore {
         state = updated
     }
 
-    /// Deletes a profile. The active profile and the sensor-destination
-    /// profile are undeletable (house rule) — switch/repin first.
+    /// Deletes a profile. The active profile is undeletable (house rule) —
+    /// switch first.
     func deleteProfile(id: UUID) throws {
         guard let index = state.profiles.firstIndex(where: { $0.id == id }) else {
             throw DeleteError.notFound
         }
         guard activeProfileID != id else { throw DeleteError.profileIsActive }
-        guard sensorDestinationProfileID != id else { throw DeleteError.profileIsSensorDestination }
         var updated = state
         let removed = updated.profiles.remove(at: index)
         state = Self.normalized(updated)
@@ -223,15 +199,12 @@ final class BackendProfilesStore {
 
     // MARK: - Normalization
 
-    /// Self-heal for dangling ids: the active and sensor-destination ids must
-    /// always resolve to an existing profile (fall back to the first).
+    /// Self-heal for dangling ids: the active id must always resolve to an
+    /// existing profile (fall back to the first).
     private static func normalized(_ state: BackendProfilesState) -> BackendProfilesState {
         var normalized = state
         if normalized.profile(id: normalized.activeProfileID) == nil {
             normalized.activeProfileID = normalized.profiles.first?.id
-        }
-        if normalized.profile(id: normalized.sensorDestinationProfileID) == nil {
-            normalized.sensorDestinationProfileID = normalized.activeProfileID
         }
         return normalized
     }

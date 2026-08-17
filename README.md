@@ -5,7 +5,7 @@
 
 Talaria is a native SwiftUI iPhone app with a **fully on-device chat brain** (Apple's FoundationModels framework): streaming chat, a device tool belt (calendar, reminders, contacts, weather, health, alarms — every action confirmed in-app), sessions, themes, and voice, with zero host setup and no data leaving the phone.
 
-Pairing a self-hosted [Hermes AI agent](https://github.com/NousResearch/hermes-agent) is the **upgrade tier**: it adds your full agent, your desktop model roster, server sessions, and the sensor pipeline — through a lightweight relay sidecar, without turning your runtime into a hosted service.
+Pairing a self-hosted [Hermes AI agent](https://github.com/NousResearch/hermes-agent) is the **upgrade tier**: it adds your full agent, your desktop model roster, server sessions, and phone-aware answers — your agent can ask this phone for location, health, motion, calendar, and weather **at query time** (the talaria plugin) — without turning your runtime into a hosted service.
 
 This repository (**Talaria-27**) is the active development line, targeting **iOS 27** and built with Swift 6.2 / strict concurrency. The original iOS 26 line lives at [ChronoRixun/Talaria](https://github.com/ChronoRixun/Talaria) and is stable but frozen.
 
@@ -23,7 +23,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | On-device chat | Working — Apple FoundationModels, no host required; a Private Cloud Compute tier shows only when the entitlement and availability check actually pass (beta) |
 | Tool calls & agent files | Working |
 | Inbox / Directives & daily briefing | Working — actionable items (approvals, reminders, briefings) land in the in-app inbox; approve or dismiss in place |
-| Sensor pipeline (location / HealthKit / motion) | Working — deliberate opt-in (off by default) with per-sensor grants; resume-from-background can occasionally be flaky |
+| Phone queries (location / HealthKit / motion / calendar / weather) | Working — your agent asks the phone at query time; deliberate opt-in (off by default) with per-sensor grants. The old always-on upload pipeline was retired 2026-08-16 (#352) — nothing streams, nothing queues |
 | Model picking | Working — the full provider roster comes from the gateway's own API; a pick applies as a **per-turn model lock**, and takes effect immediately. The old models shim is retired — no third service |
 | Widgets & Live Activities | Working — status, health, and briefing widgets; alarm Live Activity; lock-screen controls |
 | Share extension | Working — share URLs, images, files, and text into Hermes from any app |
@@ -33,7 +33,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 
 Expect rough edges. There is no TestFlight or App Store distribution — you build and sign it yourself.
 
-One thing worth knowing up front: **pairing is optional.** On-device chat works out of the box. Pairing a host adds server sessions, sensor analytics, and your desktop model roster.
+One thing worth knowing up front: **pairing is optional.** On-device chat works out of the box. Pairing a host adds server sessions, phone-aware answers, and your desktop model roster.
 
 ---
 
@@ -72,7 +72,7 @@ iPhone (Talaria)
                                    → connector → hermes_mobile MCP tools
 ```
 
-Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster fetch, then a per-turn lock carried on each request). The relay carries everything else phone-facing: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster fetch, then a per-turn lock carried on each request). The relay carries the remaining legacy phone-facing surfaces: pairing and auth, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. (Sensor ingestion was retired 2026-08-16, #352 — phone data now answers **query-time asks** over the talaria plugin instead of streaming to the relay.) Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
@@ -128,7 +128,7 @@ Bind to `0.0.0.0` for Tailscale reachability. A `Dockerfile`, `docker-compose.ym
 
 ### 4 — Install and run the connector
 
-The connector is the host-side bridge that owns the durable relay connection, registers the `hermes_mobile` MCP server (the sensor tools your agent calls), and prints phone-pairing codes. **Without it, the sensor pipeline and inbox go nowhere.**
+The connector is the host-side bridge that owns the durable relay connection, registers the `hermes_mobile` MCP server, and prints phone-pairing codes. **This tier is being retired** — sensor upload is gone app-side (#352, 2026-08-16), phone queries ride the talaria plugin instead, and the inbox is served over the same plugin channel; the connector remains only for hosts still using the legacy relay surfaces above.
 
 ```bash
 cd connector

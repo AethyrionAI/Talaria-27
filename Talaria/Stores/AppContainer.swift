@@ -139,13 +139,11 @@ final class AppContainer {
     /// `chatStore.hostApprovals` → this). Reachable only behind the
     /// `useRunsTransport` Developer switch (O6: default stays OFF).
     let hostApprovalStore = HostApprovalStore()
-    let sensorUploadService: SensorUploadService?
     /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
     /// profile's gateway key, drains the plugin's durable outbox into the
-    /// Inbox, and answers the gateway's phone queries. Optional exactly like
-    /// `sensorUploadService`: nil in bare test containers and under the #144
-    /// mock-pairing gate. Foreground-only by design (spec §2.1) — see the
-    /// scene observers in `makeDefault`.
+    /// Inbox, and answers the gateway's phone queries. Optional: nil in bare
+    /// test containers and under the #144 mock-pairing gate. Foreground-only
+    /// by design (spec §2.1) — see the scene observers in `makeDefault`.
     private(set) var talariaPlatformLink: TalariaPlatformLink?
     private let apiClient: RelayAPIClient?
     /// #136: short-timeout client for launch/bootstrap-class probes (command
@@ -193,7 +191,6 @@ final class AppContainer {
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
         talkStore: TalkStore,
-        sensorUploadService: SensorUploadService? = nil,
         apiClient: RelayAPIClient? = nil,
         probeAPIClient: RelayAPIClient? = nil,
         secureStore: (any SecureStoreProtocol)? = nil,
@@ -208,7 +205,6 @@ final class AppContainer {
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
         self.talkStore = talkStore
-        self.sensorUploadService = sensorUploadService
         self.apiClient = apiClient
         self.probeAPIClient = probeAPIClient
         self.secureStore = secureStore
@@ -242,7 +238,6 @@ final class AppContainer {
         // Critical path — local-only, in order.
         case reloadCapabilities
         case loadConversationCache
-        case startSensorService
         case reconcileLiveActivities
         case updateWidgetData
         case drainShareInbox
@@ -253,23 +248,22 @@ final class AppContainer {
         case inboxLoad
         case commandCatalogRefresh
         case gatewayModelSeed
-        case sensorForegroundRefresh
 
         /// Whether the step can touch the network. `validateRestoredIdentity`
         /// is itself local but rides the background list for ordering
         /// (#3/#46); `loadConversationCache` is the persisted-cache restore
         /// (its no-cache fallback fetch rides the chat path, whose timeouts
-        /// #136 deliberately leaves alone). `sensorForegroundRefresh` drains
-        /// the sensor outbox — an inline relay upload — which is why it is
-        /// NOT on the critical path even though `startSensorService` is.
+        /// #136 deliberately leaves alone). (#352 deleted the two sensor
+        /// steps — `startSensorService` / `sensorForegroundRefresh` — with
+        /// the upload pipeline.)
         var touchesNetwork: Bool {
             switch self {
-            case .reloadCapabilities, .loadConversationCache, .startSensorService,
+            case .reloadCapabilities, .loadConversationCache,
                  .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
                  .validateRestoredIdentity:
                 false
             case .sessionBootstrap, .hostRefresh, .inboxLoad, .commandCatalogRefresh,
-                 .gatewayModelSeed, .sensorForegroundRefresh:
+                 .gatewayModelSeed:
                 true
             }
         }
@@ -277,7 +271,7 @@ final class AppContainer {
         /// The steps allowed to run before `isInitialized = true` drops the
         /// splash (#136 non-negotiable 1). Local-only, by construction.
         static let criticalPath: [LaunchInitStep] = [
-            .reloadCapabilities, .loadConversationCache, .startSensorService,
+            .reloadCapabilities, .loadConversationCache,
             .reconcileLiveActivities, .updateWidgetData, .drainShareInbox,
         ]
 
@@ -286,7 +280,7 @@ final class AppContainer {
         /// these upgrade it as each lands.
         static let backgroundBootstrap: [LaunchInitStep] = [
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed, .sensorForegroundRefresh,
+            .commandCatalogRefresh, .gatewayModelSeed,
         ]
     }
 
@@ -625,59 +619,9 @@ final class AppContainer {
         )
         profileRelaySessions.onTokensRefreshed = { profilesStore.stampTokenRefresh(profileID: $0) }
 
-        // M-8: the sensor outbox drains to the PINNED destination profile,
-        // independent of the active one — production context must not go
-        // dark when Owen switches to the Mac. When the destination IS the
-        // active profile (the default, and the only pre-Lane-M state) every
-        // provider resolves exactly as before, through the live stores.
-        let sensorDestinationIsActive: @MainActor () -> Bool = {
-            profilesStore.sensorDestinationProfileID == profilesStore.activeProfileID
-        }
-        let sensorRelayClient = RelayAPIClient {
-            if sensorDestinationIsActive() {
-                return activePairingStore?.pairedRelayConfiguration?.baseURLString
-                    ?? profilesStore.activeProfile?.relayBaseURL
-                    ?? ""
-            }
-            guard let destination = profilesStore.sensorDestinationProfileID else { return "" }
-            return profileRelaySessions.relayBaseURL(forProfileID: destination) ?? ""
-        }
         let liveLocationService = LiveLocationService()
-        liveLocationService.updateSyncPreference(settingsStore.settings.locationSyncPreference)
-        let liveHealthService = LiveHealthService(persistence: persistence)
+        let liveHealthService = LiveHealthService()
         let liveMotionService = LiveMotionService()
-        let sensorUploadService: SensorUploadService? = usesMockPairingService ? nil : SensorUploadService(
-            apiClient: sensorRelayClient,
-            accessTokenProvider: {
-                if sensorDestinationIsActive() {
-                    return await sessionStore.currentAccessToken()
-                }
-                guard let destination = profilesStore.sensorDestinationProfileID else { return nil }
-                return await profileRelaySessions.accessToken(forProfileID: destination)
-            },
-            accessTokenRefresher: {
-                if sensorDestinationIsActive() {
-                    return await relayAccessTokenRefresher()
-                }
-                guard let destination = profilesStore.sensorDestinationProfileID else { return nil }
-                return await profileRelaySessions.refreshAccessToken(forProfileID: destination)
-            },
-            persistence: persistence,
-            isPairedProvider: {
-                if sensorDestinationIsActive() {
-                    return activePairingStore?.isPaired == true
-                }
-                guard let destination = profilesStore.sensorDestinationProfileID else { return false }
-                return profileRelaySessions.isPaired(profileID: destination)
-            },
-            isSensorStreamingEnabled: { settingsStore.settings.sensorStreamingEnabled },
-            isHealthCollectionEnabled: { settingsStore.settings.healthCollectionEnabled },
-            isLocationCollectionEnabled: { settingsStore.settings.locationCollectionEnabled },
-            isMotionCollectionEnabled: { settingsStore.settings.motionCollectionEnabled },
-            locationService: liveLocationService,
-            healthService: liveHealthService,
-            motionService: liveMotionService
-        )
         // #18: two voice engines behind TalkStore's one seam. The Realtime
         // (relay + OpenAI WebRTC) engine wins when the relay is paired and
         // talk is configured; the native pipeline (SpeechAnalyzer → the chat
@@ -742,7 +686,6 @@ final class AppContainer {
             ),
             settingsStore: settingsStore,
             talkStore: TalkStore(voiceService: voiceService),
-            sensorUploadService: sensorUploadService,
             apiClient: apiClient,
             probeAPIClient: bootstrapProbeClient,
             secureStore: secureStore,
@@ -772,18 +715,6 @@ final class AppContainer {
         // chat is reachable, so a cross-store raise made a promise the
         // teardown broke. Voice states the honest refusal instead (O5's
         // shape); a voice-surface ANSWER path is #305's scope.
-
-        // #113: repeated drain retry-exhaustion (the dead-connector shape)
-        // surfaces as ONE deduped local inbox alert; the next successful
-        // delivery clears it. Weak: the service is owned by the container.
-        sensorUploadService?.onConnectorOutageAlert = { [weak container] raised in
-            guard let container else { return }
-            if raised {
-                container.inboxStore.raiseConnectorOutageAlert()
-            } else {
-                container.inboxStore.clearConnectorOutageAlert()
-            }
-        }
 
         // #97: pin/archive overlay for server-session rows — same persistence
         // seam as every other store, read by the drawer + search surfaces.
@@ -1054,14 +985,13 @@ final class AppContainer {
         // is what makes closed-app time safe, so there is nothing to hold a
         // long-poll open for once the user leaves.
         //
-        // Scene notifications rather than the sensor pipeline's start sites,
-        // deliberately: every `sensorUploadService?.start()` call sits behind
-        // `guard pairingStore.isPaired`, and that is the RELAY pairing — a
-        // plane this transport does not use and #223 is retiring. Gating the
-        // link on it would leave the whole feature dark on a gateway-only
-        // host, which is precisely the configuration the lane exists for.
-        // `start()`/`stop()` are both idempotent, so overlapping triggers are
-        // free.
+        // Scene notifications deliberately, never anything gated on
+        // `pairingStore.isPaired`: that is the RELAY pairing — a plane this
+        // transport does not use (#223 is retiring it, and #352 deleted the
+        // sensor pipeline that lived behind it). Gating the link on it would
+        // leave the whole feature dark on a gateway-only host, which is
+        // precisely the configuration the lane exists for. `start()`/`stop()`
+        // are both idempotent, so overlapping triggers are free.
         NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil, queue: .main
@@ -1387,9 +1317,8 @@ final class AppContainer {
         // on a fully functional app in splash-minimum time.
         await permissionsStore.reloadCapabilities()
         await chatStore.loadConversationIfNeeded()
-        containerLog.notice("initialize: starting sensor service")
-        sensorUploadService?.start()
         reconcileLiveActivities()
+        SharedWidgetDataStore.clearRetiredHealthMetrics()  // #352 (no-op once clean)
         updateWidgetData()
         // #123: cold-launch safety net for a share queued while the app was
         // dead — idempotent with the scene-activate drain (the inbox empties
@@ -1489,13 +1418,6 @@ final class AppContainer {
             await seedActiveModelFromGateway()
             guard isCurrent() else { return }
         }
-        // #136: the sensor foreground refresh drains the outbox — an inline
-        // relay upload — so it rides here, not the splash critical path
-        // (start() itself stays on the critical path: capture + HealthKit
-        // auth must begin at launch).
-        containerLog.notice("initialize: background bootstrap running sensor handleAppDidBecomeActive")
-        await sensorUploadService?.handleAppDidBecomeActive()
-        guard isCurrent() else { return }
         updateWidgetData()
     }
 
@@ -1689,8 +1611,6 @@ final class AppContainer {
             await seedActiveModelFromGateway()
             if Task.isCancelled { return }
         }
-        await sensorUploadService?.handleAppDidBecomeActive()
-        if Task.isCancelled { return }
         talkStore.handleAppDidBecomeActive()
         await talkStore.refreshReadiness()
         if Task.isCancelled { return }
@@ -1727,10 +1647,6 @@ final class AppContainer {
             containerLog.warning("handleSystemLaunch: BLOCKED — no access token")
             return
         }
-        containerLog.notice("handleSystemLaunch: guards passed, starting sensor service")
-
-        sensorUploadService?.start()
-        await sensorUploadService?.handleSystemLaunch()
         await talkStore.refreshReadiness()
         reconcileLiveActivities()
         await reportAppStateIfNeeded("foreground")
@@ -1746,9 +1662,9 @@ final class AppContainer {
     }
 
     /// #14: one BGAppRefreshTask pass — the native safety net complementing
-    /// relay APNs (which stays the real-time path). Drains the sensor outbox,
-    /// runs one reconcile fetch (the existing local "run finished" notification
-    /// fires on found completions), and rewrites widget data.
+    /// relay APNs (which stays the real-time path). Runs one reconcile fetch
+    /// (the existing local "run finished" notification fires on found
+    /// completions) and rewrites widget data.
     func handleBackgroundRefresh() async {
         containerLog.notice("handleBackgroundRefresh: entered")
         guard pairingStore.isPaired else {
@@ -1759,11 +1675,6 @@ final class AppContainer {
             containerLog.warning("handleBackgroundRefresh: BLOCKED — no access token")
             return
         }
-        // Cold background launches never mount the scene, so initialize()'s
-        // .task hook doesn't run — start the sensor pipeline the same way
-        // handleSystemLaunch does (idempotent for the warm case).
-        sensorUploadService?.start()
-        await sensorUploadService?.handleSystemLaunch()
         // In-memory pendingRun survives warm relaunches only — on a cold
         // background launch there is nothing pending by design (the sessions
         // drawer stays the authoritative recovery surface).
@@ -1783,8 +1694,6 @@ final class AppContainer {
         inboxStore.reset()
         await initialize()
 
-        // Start sensor data pipeline
-        sensorUploadService?.start()
         // #251-2A: a fresh pairing usually arrives with a provisioned gateway
         // key (#116), so the link has something to pair with now — don't make
         // the user bounce the app to pick it up. Idempotent when the scene
@@ -1796,53 +1705,31 @@ final class AppContainer {
     // MARK: - In-app permission revocation (#6 / OPEN_ITEMS #23)
     //
     // The app can't rescind an iOS grant, so in-app revoke means durably
-    // stopping Talaria's USE of it: collection halts immediately, and the
-    // persisted UserSettings flag keeps SensorUploadService.start() from
-    // resurrecting it on the next launch. Camera/Photos stay deep-link-only.
+    // stopping Talaria's USE of it. Since #352 the persisted UserSettings
+    // flag IS the whole mechanism: it gates PhoneQueryResponder.deniedGate,
+    // and nothing captures outside a query, so a revoke survives relaunch by
+    // construction. Camera/Photos stay deep-link-only.
 
-    /// #137: the master sensor-streaming opt-in. Enabling starts the
-    /// capture/drain loop (the upload path stays Hermes-gated underneath);
-    /// disabling stops it and drops the queued outbox — #6 revoke parity.
+    /// #137/#352: the master sensor-sharing opt-in — the switch
+    /// PhoneQueryResponder.deniedGate consults before any per-sensor flag.
     func setSensorStreamingEnabled(_ enabled: Bool) async {
         settingsStore.settings.sensorStreamingEnabled = enabled
-        if enabled {
-            restartSensorPipelineIfPaired()
-        } else {
-            sensorUploadService?.stop()
-            sensorUploadService?.resetOutbox()
-        }
         await permissionsStore.reloadCapabilities()
     }
 
     /// Revoke (`false`) or restore (`true`) the app's HealthKit use.
     /// Enabling requests the OS grant contextually first (#137 / the #69
-    /// pattern) — a no-op after the install's first decision (read-only
-    /// types re-prompt never; the start() re-assert below restores the
-    /// in-memory status).
+    /// pattern) — a no-op after the install's first decision.
     func setHealthCollectionEnabled(_ enabled: Bool) async {
         settingsStore.settings.healthCollectionEnabled = enabled
-        if enabled {
-            await permissionsStore.requestPermission(for: .health)
-            restartSensorPipelineIfPaired()
-        } else {
-            await sensorUploadService?.disableHealthCollection()
-        }
+        if enabled { await permissionsStore.requestPermission(for: .health) }
         await permissionsStore.reloadCapabilities()
     }
 
-    /// Revoke (`false`) or restore (`true`) the app's location use. Revoking
-    /// also resets the sync preference to foreground-only so a later
-    /// re-enable doesn't silently resume background sync.
+    /// Revoke (`false`) or restore (`true`) the app's location use.
     func setLocationCollectionEnabled(_ enabled: Bool) async {
         settingsStore.settings.locationCollectionEnabled = enabled
-        if enabled {
-            await permissionsStore.requestPermission(for: .location)
-            restartSensorPipelineIfPaired()
-        } else {
-            sensorUploadService?.disableLocationCollection()
-            settingsStore.settings.locationSyncPreference = .foregroundOnly
-            permissionsStore.updateLocationSyncPreference(.foregroundOnly)
-        }
+        if enabled { await permissionsStore.requestPermission(for: .location) }
         await permissionsStore.reloadCapabilities()
     }
 
@@ -1851,21 +1738,8 @@ final class AppContainer {
     /// contextually first (the #69 pattern; no-op when already determined).
     func setMotionCollectionEnabled(_ enabled: Bool) async {
         settingsStore.settings.motionCollectionEnabled = enabled
-        if enabled {
-            await permissionsStore.requestPermission(for: .motion)
-            restartSensorPipelineIfPaired()
-        } else {
-            sensorUploadService?.disableMotionCollection()
-        }
+        if enabled { await permissionsStore.requestPermission(for: .motion) }
         await permissionsStore.reloadCapabilities()
-    }
-
-    /// Re-enabling a sensor rides the normal start() wiring, which is gated
-    /// on the collection flags — a stop/start rebuilds exactly the enabled set.
-    private func restartSensorPipelineIfPaired() {
-        guard pairingStore.isPaired else { return }
-        sensorUploadService?.stop()
-        sensorUploadService?.start()
     }
 
     /// #137 one-shot grandfathering — see SensorStreamingGrandfathering.
@@ -2129,8 +2003,6 @@ final class AppContainer {
         cancelBackgroundBootstrap()
         await talkStore.endSessionIfNeeded()
         talkStore.reset()
-        sensorUploadService?.stop()
-        sensorUploadService?.resetOutbox()
         router.selectedTab = .chat
         router.activeSheet = nil
         router.resetAll()

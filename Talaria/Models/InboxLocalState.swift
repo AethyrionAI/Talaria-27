@@ -24,8 +24,7 @@ struct InboxLocalState: Codable, Hashable, Sendable {
 
 // Pre-#113 caches lack `localItems`, pre-#251-2A ones lack `platformItems` —
 // decode additively so an existing persisted inbox state never resets
-// read/dismissed bookkeeping (the #42 lesson; same shape as
-// SensorOutboxState). Encoding stays synthesized.
+// read/dismissed bookkeeping (the #42 lesson). Encoding stays synthesized.
 // The init lives in an extension so the struct keeps its memberwise and
 // default initializers.
 extension InboxLocalState {
