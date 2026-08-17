@@ -13047,6 +13047,17 @@ stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 
 ## 283. 🔧 Phase 3 slice 3A — runs transport parity (`chat/stream` → `/v1/runs` + `/events` behind a Developer switch) — **LANE OPENED 2026-08-07 (Owen: "begin on phase 3" — Q2 of the plan's §5 answered; the other eight questions stand as recommended/pending and none blocks 3A). Plan of record: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; parent arc #251; say "Plan C Phase 3" per #268.**
 
+> **⚠️ 2026-08-17 ~00:30 — THE EVIDENCE CLOCK IS STOPPED. The toggle is OFF
+> on Owen's device as of ~00:04 tonight:** runs-ON turns were timing out
+> against BOTH hosts ("it didn't work and timed out"), and flipping the
+> switch off restored chat immediately. Any "living on the runs transport
+> since 08-15" reasoning ends at 2026-08-16. The regression is **#356** (live
+> investigation log there — wire probes show both hosts' runs planes healthy
+> and the failing sends producing ZERO turn HTTP, so the wedge is app-side
+> pre-flight). This note is the #317 upstream correction for this entry's
+> "toggle ON / clock running" framing; the entry's technical content below is
+> unaffected.
+
 **3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
 required (read-only, live Mac gateway 0.20.0 @ `01a1037d1`, no install
 modification, probe session `api_1786118893_f3250a12`; full transcript + the
@@ -22796,3 +22807,64 @@ this). The 3C wire recon that ran BEFORE this filing (native
 `pending_steer` drain in the finalizer, S4's silent drop closed upstream,
 `busy_input_mode` moot) is recorded in the session and lands in the 3C item
 when it files — it is not lost, just not this entry's story.
+
+## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
+
+**What the 2026-08-17 recon established (source-read on the Mac install,
+route live-confirmed on OJAMD 0.20.1/0.20.2 via `/v1/capabilities` and in the
+Mac's serving commit `b2369172a`):**
+
+- **The native route exists and replaces §2.3's plugin steer seam.**
+  `POST /v1/runs/{run_id}/steer` (`api_server.py:7207` at `3b9a963b8`):
+  404 `run_not_found` on unknown id; 409 `run_not_accepting_steer` unless
+  status is `running` (explicitly rejects stop-then-steer); body takes
+  `input`|`message`|`text`; 400 `invalid_steer_input` on empty; calls
+  `agent.steer(text)` directly — **no `busy_input_mode` check** (the
+  handoff's "needs `steer` mode set" was the superseded pre-re-run claim;
+  S5 stands, now for the HTTP route too). On acceptance: emits a
+  **`run.steered` frame into the run's events stream** and stamps
+  `last_event: "run.steered"` on the status object.
+- **S4's constraint stands; its SILENT DROP is closed upstream.**
+  `agent.steer()` returns true for ANY non-empty text (`run_agent.py:3379`)
+  — the ACK still does not promise consumption, which still happens only at
+  a tool-result boundary (`apply_pending_steer_to_tool_results`,
+  `agent_runtime_helpers.py:4188`, appended to the last tool result with a
+  user marker). BUT a steer never consumed is now **drained by the turn
+  finalizer into `result["pending_steer"]`** (`turn_finalizer.py:755`) and
+  rides `run.completed` AND the status object, explicitly "so clients can
+  replay it as the next user turn" — the §2.6 steer-degrades-to-queue
+  behavior, substrate-side. A stronger `redirect()` primitive exists on the
+  agent but is NOT HTTP-exposed; the composer's three doors stand.
+- 3C therefore needs **no plugin deploy** for steer transport (the §3 slice
+  table's "3A + a plugin deploy" dependency is now "3A" alone for steering;
+  3D's artifact mirror still needs the plugin).
+
+**THE WIRE-PROOF BARS (pre-registered 2026-08-17 ~00:35, run follows the
+same night; live Mac gateway, HTTP only, zero config/install changes):**
+
+- **357-A (mid-tool landing, the money arm):** submit a run instructed to run
+  `terminal: sleep 20` then answer `BANANA`; fire the native steer route
+  mid-tool with an instruction to answer `PLUM`. MET iff the steer returns
+  `accepted: true`, a `run.steered` frame appears on the events stream, and
+  the final output is the steered answer (PLUM), not BANANA.
+- **357-B (mid-prose honesty):** submit a toolless compose turn (a ~200-word
+  story); fire a steer mid-compose. MET iff the HTTP ACK is `accepted: true`
+  (pre-registered expectation: the ACK stays untrustworthy) AND the terminal
+  `run.completed` / `GET /v1/runs/{id}` carries `pending_steer` containing
+  the steer text, with the output unaffected by it. **If `pending_steer` is
+  ABSENT here, the upstream contract is NOT what the source read says and
+  the app design must not lean on it — that is a falsification, recorded as
+  such, not redefined.**
+- **357-C (closed-window rejection):** steer after `/stop` → 409
+  `run_not_accepting_steer`; steer a COMPLETED run → 409; steer an unknown
+  id → 404 `run_not_found`. MET iff no closed-window arm returns a
+  false-positive acceptance.
+- **357-D (evidence discipline):** full frame/response log lands in
+  `planning/reports/2026-08-17-steer-wire-probe.md` and each arm's verdict
+  is written into THIS entry the same session.
+
+**Cross-refs:** #283 (transport lane; regressed per #356 — note the wire
+probe here does NOT depend on the app transport), #267 (queuing half of the
+one composer), #304 (approvals; a parked-on-approval steer arm needs a host
+approval-mode config change = 🔐 live-install gate, so it is DEFERRED, not
+skipped silently), #268 (why this filed as its own number).
