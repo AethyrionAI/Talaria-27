@@ -53,15 +53,19 @@ enum TalariaLinkDisplayState: Equatable {
 
     /// Two facts, composed, never conflated: the credential is only ever
     /// the SECOND word, and only when the observation earned the first.
+    /// Takes the raw token so the emptiness rule lives HERE, once — an
+    /// empty string is not a token (a cleared Keychain slot can read back
+    /// as one; the rule migrated from the retired `TalariaLinkState`).
     static func compose(
         observation: TalariaLinkObservation?,
-        hasDeviceToken: Bool
+        deviceToken: String?
     ) -> TalariaLinkDisplayState {
+        let hasDeviceToken = deviceToken?.isEmpty == false
         switch observation {
-        case .adapterLive: hasDeviceToken ? .livePaired : .liveNotPaired
-        case .adapterAbsent: .notLive
-        case .hostUnreachable: .hostUnreachable
-        case .indeterminate, .notConfigured, nil: .unknown
+        case .adapterLive: return hasDeviceToken ? .livePaired : .liveNotPaired
+        case .adapterAbsent: return .notLive
+        case .hostUnreachable: return .hostUnreachable
+        case .indeterminate, .notConfigured, nil: return .unknown
         }
     }
 }

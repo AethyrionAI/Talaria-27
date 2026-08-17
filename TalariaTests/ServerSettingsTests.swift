@@ -231,28 +231,10 @@ struct ServerSettingsTests {
         #expect(ServerProbeResult.unknown.label == "—")
     }
 
-    // MARK: - #251-2A: the PLUGIN LINK row
-
-    @Test @MainActor
-    func talariaLinkStateReadsTheDeviceTokenSlotHonestly() {
-        // A minted token in the active profile's slot is the whole signal.
-        #expect(TalariaLinkState.resolve(hasActiveProfile: true, deviceToken: "dev-token") == .paired)
-        // A profile that has never drained has no token yet — that is a real
-        // NOT PAIRED, not an unknown.
-        #expect(TalariaLinkState.resolve(hasActiveProfile: true, deviceToken: nil) == .notPaired)
-        // An empty string is not a token (a cleared Keychain slot can read
-        // back as one).
-        #expect(TalariaLinkState.resolve(hasActiveProfile: true, deviceToken: "") == .notPaired)
-        // No active profile: nothing is knowable, and the row says so rather
-        // than guessing NOT PAIRED.
-        #expect(TalariaLinkState.resolve(hasActiveProfile: false, deviceToken: nil) == .unknown)
-        #expect(TalariaLinkState.resolve(hasActiveProfile: false, deviceToken: "dev-token") == .unknown)
-
-        #expect(TalariaLinkState.unknown.label == "—")
-        #expect(TalariaLinkState.paired.label == "PAIRED")
-        #expect(TalariaLinkState.notPaired.label == "NOT PAIRED")
-    }
-
+    // #251-2A's token-only PLUGIN LINK pin lived here until #269-A replaced
+    // the mechanism: the row now composes a live probe with the credential,
+    // and every behavior (including the empty-string-is-not-a-token rule)
+    // is pinned in TalariaLinkObservationTests.
 
     // MARK: - M-13: hosted-relay retirement decode compatibility
 

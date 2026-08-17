@@ -16,19 +16,23 @@ struct TalariaLinkObservationTests {
     @Test func composeNeverLetsTheTokenDecideAlone() {
         // 269-A-B: a token + an absent adapter is NOT LIVE, never PAIRED.
         #expect(TalariaLinkDisplayState.compose(
-            observation: .adapterAbsent(status: 503), hasDeviceToken: true) == .notLive)
+            observation: .adapterAbsent(status: 503), deviceToken: "tok-1") == .notLive)
         #expect(TalariaLinkDisplayState.compose(
-            observation: .adapterLive(status: 401), hasDeviceToken: true) == .livePaired)
+            observation: .adapterLive(status: 401), deviceToken: "tok-1") == .livePaired)
         #expect(TalariaLinkDisplayState.compose(
-            observation: .adapterLive(status: 401), hasDeviceToken: false) == .liveNotPaired)
+            observation: .adapterLive(status: 401), deviceToken: nil) == .liveNotPaired)
+        // An empty string is not a token — a cleared Keychain slot can read
+        // back as one (the rule migrated from the retired TalariaLinkState).
         #expect(TalariaLinkDisplayState.compose(
-            observation: .hostUnreachable, hasDeviceToken: true) == .hostUnreachable)
+            observation: .adapterLive(status: 401), deviceToken: "") == .liveNotPaired)
         #expect(TalariaLinkDisplayState.compose(
-            observation: .indeterminate(status: 200), hasDeviceToken: true) == .unknown)
+            observation: .hostUnreachable, deviceToken: "tok-1") == .hostUnreachable)
         #expect(TalariaLinkDisplayState.compose(
-            observation: .notConfigured, hasDeviceToken: true) == .unknown)
+            observation: .indeterminate(status: 200), deviceToken: "tok-1") == .unknown)
         #expect(TalariaLinkDisplayState.compose(
-            observation: nil, hasDeviceToken: true) == .unknown)
+            observation: .notConfigured, deviceToken: "tok-1") == .unknown)
+        #expect(TalariaLinkDisplayState.compose(
+            observation: nil, deviceToken: "tok-1") == .unknown)
     }
 
     @Test func labelsAreTheClosedVocabulary() {
