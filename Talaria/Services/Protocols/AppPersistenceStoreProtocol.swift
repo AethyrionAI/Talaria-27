@@ -24,9 +24,9 @@ protocol AppPersistenceStoreProtocol {
     func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration?
     func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?)
     func clearPairedRelayConfiguration(profileScope: UUID?)
-    // Backend profiles (Lane M / #114) — the profile list plus active +
-    // sensor-destination ids, one blob, Keychain-mirrored like the pairing
-    // config so profile UUIDs survive reinstalls with the credentials they key.
+    // Backend profiles (Lane M / #114) — the profile list plus the active id,
+    // one blob, Keychain-mirrored like the pairing config so profile UUIDs
+    // survive reinstalls with the credentials they key.
     func loadBackendProfilesState() -> BackendProfilesState?
     func saveBackendProfilesState(_ state: BackendProfilesState)
     func clearBackendProfilesState()
@@ -38,9 +38,6 @@ protocol AppPersistenceStoreProtocol {
     func loadSessionUsageIndex() -> SessionUsageIndex
     func saveSessionUsageIndex(_ index: SessionUsageIndex)
     func clearSessionUsageIndex()
-    func loadSensorOutboxState() -> SensorOutboxState
-    func saveSensorOutboxState(_ state: SensorOutboxState)
-    func clearSensorOutboxState()
     func loadConversationCache() -> Conversation?
     func saveConversationCache(_ conversation: Conversation)
     func clearConversationCache()

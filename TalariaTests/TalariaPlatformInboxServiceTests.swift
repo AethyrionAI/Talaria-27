@@ -391,9 +391,6 @@ struct TalariaPlatformInboxServiceTests {
         func loadSessionUsageIndex() -> SessionUsageIndex { SessionUsageIndex() }
         func saveSessionUsageIndex(_ index: SessionUsageIndex) {}
         func clearSessionUsageIndex() {}
-        func loadSensorOutboxState() -> SensorOutboxState { SensorOutboxState() }
-        func saveSensorOutboxState(_ state: SensorOutboxState) {}
-        func clearSensorOutboxState() {}
         func loadConversationCache() -> Conversation? { nil }
         func saveConversationCache(_ conversation: Conversation) {}
         func clearConversationCache() {}

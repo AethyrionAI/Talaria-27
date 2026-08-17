@@ -356,9 +356,10 @@ struct UserSettings: Codable, Hashable, Sendable {
     var autoConnectOnLaunch: Bool
     var locationSyncPreference: LocationSyncPreference
     // In-app permission revocation (#6): the app can't rescind an iOS grant,
-    // so revoke = durably stop USING it. These gate SensorUploadService's
-    // launch-time wiring so a revoke survives relaunch (start() would
-    // otherwise re-assert health auth and restart monitoring every launch).
+    // so revoke = durably stop USING it. Since #352 these gate
+    // `PhoneQueryResponder.deniedGate` — the flag IS the mechanism, so a
+    // revoke survives relaunch by construction (nothing captures outside a
+    // query).
     var healthCollectionEnabled: Bool
     var locationCollectionEnabled: Bool
     /// #137: master opt-in for the optional sensor streaming layer. OFF by
