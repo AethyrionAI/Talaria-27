@@ -15353,6 +15353,17 @@ omission; a missed bar is a falsification):**
 > after the next install. 269-B unchanged (blocked on #308 + restart
 > story); the rest of #269-A's arc (probe-driven state model is BUILT;
 > #350's surfaces can now adopt it) closes 269-A when the glance lands.**
+
+> **✅ 269-A COMPLETE — 2026-08-16 ~10:01 PM, A-F's device glance MET on
+> `whoGoesThere` (Owen's screenshots, minutes after the corded install):
+> Plugin Link `LIVE · PAIRED` green — a live probe answering, not the
+> keychain — `// Legacy Relay` grouping with Relay Link muted `OFFLINE`
+> and Relay Identity beneath it, page hero HEALTHY, zero red rows. All
+> #269-A bars (A-A..A-F) are MET; #353 closes with this and moves to the
+> archive. #269 stays OPEN for 269-B only (blocked on #308 + the restart
+> story). Standing note kept alive here: the info grid's `HOST VERSION —`
+> stays honest-empty until a `describe` envelope exists — the richer probe
+> this entry already records as the gated plugin+app option.**
 - **269-B-A/B/C/D/E:** as written in dispatch §5 (clean e2e agent-driven
   install verified by the 269-A probe, not prose; injected partial states
   detected and named; wording measured N≥10 with the error path instrumented;
@@ -22777,36 +22788,6 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > about/status surface showed a stale drain readout while the plugin
 > showed connected; app-side display item, needs the exact screen/value
 > named before it gets its own number.
-
-## 353. 🎨 THE ABOUT STATUS PANEL'S RELAY ROWS READ PERMANENT RED AGAINST A DELIBERATELY RETIRED RELAY — the next training-to-ignore-red surface — **FILED 2026-08-16 night from Owen's post-#352 device pass (screenshot: "Relay Link — ERROR" in red on a HEALTHY page). NOT STARTED — Owen routes.**
-
-**What the screen shows:** with #352 merged and the relay Stopped + Disabled
-on OJAMD since 2026-08-10 (#346), the About page's status panel still renders
-**Relay Link — ERROR** (red) and a Relay Identity row, forever. The failure
-readout is honest — the relay IS unreachable — but the SURFACE is the same
-cost #352's filing named: a permanently red diagnostics row training the user
-to ignore failure states. The #352 lane deliberately left the status panel
-alone (its scope was the sensor pipeline; the relay rows describe a plane
-that still carries inbox/voice/files on paper).
-
-**Route options (Owen decides):**
-- **(a)** Fold into the Phase-4 relay-decommission formalization (#223's
-  arc): when the relay tier is declared closed, the rows leave with it.
-- **(b)** Fold into #269-A's honest-state work: the panel learns the
-  difference between "retired by design" and "broken", and says the former.
-- **(c)** Small standalone lane: drop or soften the relay rows now.
-
-**Cross-refs:** #346 (the retirement that made ERROR permanent), #352 (the
-sibling surface, closed same night), #269-A (probe-based link honesty),
-#223/Phase 4 (the decommission arc), #350 (assert-vs-measure — whatever
-replaces the row must not assert a live host from stored state).
-
-> **ROUTED (b) — 2026-08-16 night, Owen, minutes after filing: folds into
-> #269-A.** The honest-state lane owns this surface: retired-by-design and
-> broken become distinguishable states, and the relay rows stop reading
-> permanent red. Bars ride #269-A's entry (extension pre-registered there
-> before code). Same message routed the lane order: **#269-A → #270 → 3C
-> steering (new session + handoff for steering).**
 
 ## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). NOT STARTED — joins the queue after the routed #269-A → #270 → 3C order unless Owen re-routes.**
 

@@ -19827,3 +19827,43 @@ observation quote resolves to this item.
 >   (#346) — the next training-to-ignore-red surface, same cost family
 >   that filed this item. Deliberately out of this lane's scope
 >   (statusPanel untouched); **filed as #353, Owen routes.**
+
+## 353. 🎨 THE ABOUT STATUS PANEL'S RELAY ROWS READ PERMANENT RED AGAINST A DELIBERATELY RETIRED RELAY — the next training-to-ignore-red surface — **FILED 2026-08-16 night from Owen's post-#352 device pass (screenshot: "Relay Link — ERROR" in red on a HEALTHY page). NOT STARTED — Owen routes.**
+
+**What the screen shows:** with #352 merged and the relay Stopped + Disabled
+on OJAMD since 2026-08-10 (#346), the About page's status panel still renders
+**Relay Link — ERROR** (red) and a Relay Identity row, forever. The failure
+readout is honest — the relay IS unreachable — but the SURFACE is the same
+cost #352's filing named: a permanently red diagnostics row training the user
+to ignore failure states. The #352 lane deliberately left the status panel
+alone (its scope was the sensor pipeline; the relay rows describe a plane
+that still carries inbox/voice/files on paper).
+
+**Route options (Owen decides):**
+- **(a)** Fold into the Phase-4 relay-decommission formalization (#223's
+  arc): when the relay tier is declared closed, the rows leave with it.
+- **(b)** Fold into #269-A's honest-state work: the panel learns the
+  difference between "retired by design" and "broken", and says the former.
+- **(c)** Small standalone lane: drop or soften the relay rows now.
+
+**Cross-refs:** #346 (the retirement that made ERROR permanent), #352 (the
+sibling surface, closed same night), #269-A (probe-based link honesty),
+#223/Phase 4 (the decommission arc), #350 (assert-vs-measure — whatever
+replaces the row must not assert a live host from stored state).
+
+> **ROUTED (b) — 2026-08-16 night, Owen, minutes after filing: folds into
+> #269-A.** The honest-state lane owns this surface: retired-by-design and
+> broken become distinguishable states, and the relay rows stop reading
+> permanent red. Bars ride #269-A's entry (extension pre-registered there
+> before code). Same message routed the lane order: **#269-A → #270 → 3C
+> steering (new session + handoff for steering).**
+
+
+> **✅ CLOSED — 2026-08-16 ~10:01 PM, fixed by the #269-A lane it was
+> routed into (route (b), same night as filing; merged `a39150e`, GitHub
+> PR #309) and OBSERVED ON DEVICE minutes later (Owen's screenshots):
+> the relay rows now sit under a `// Legacy Relay` header, Relay Link
+> reads muted `OFFLINE` — severity derived from the measured plugin link
+> (`legacyRelayReadsAsError`, table-tested) — and the About page shows
+> zero red rows on the current rig. Bar 269-A-F carries the evidence.**
+
