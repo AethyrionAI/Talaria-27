@@ -31,7 +31,7 @@ The phone talks directly to the Hermes gateway's Sessions API on `:8642` with Be
 
 ### Relay
 
-The relay carries everything phone-facing except chat: pairing and auth, sensor ingestion, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap.
+The relay carries the legacy phone-facing surfaces except chat: pairing and auth, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap. (**Sensor ingestion was retired 2026-08-16, #352** — the app no longer captures or uploads sensor data; phone data answers query-time asks over the talaria plugin. On the production host the relay itself has been stopped and disabled since 2026-08-10, #346.)
 
 > **⚠️ APNs push is UNUSED SURFACE as of 2026-08-09, and that is a security
 > fact worth stating plainly.** The app's entire notification surface was
@@ -59,8 +59,8 @@ The relay carries everything phone-facing except chat: pairing and auth, sensor 
 The connector runs on the same machine as the Hermes Agent:
 
 - **WebSocket auth:** Authenticates to the relay using a credential obtained during setup
-- **Sensor data:** Stored locally in SQLite at `~/.hermes-mobile/state/sensors.db`
-- **MCP tools:** The `query_sensor_data` tool opens a read-only SQLite connection, preventing write-based SQL injection even if the LLM crafts a malicious query
+- **Sensor data:** Historical only since #352 (2026-08-16) — the app no longer uploads sensor data. Previously ingested rows remain in SQLite at `~/.hermes-mobile/state/sensors.db` on hosts that ran the relay
+- **MCP tools:** The `query_sensor_data` tool opens a read-only SQLite connection, preventing write-based SQL injection even if the LLM crafts a malicious query (serves only the historical rows above; disabled on the production host, #346)
 - **OpenAI API key:** Stored in `~/.hermes-mobile/secrets.json` (not in state.json), used only for Realtime voice sessions
 
 ### iOS App

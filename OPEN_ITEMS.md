@@ -6918,6 +6918,20 @@ sound and is not what failed), **#272** (the App Lock re-prompt loop, fixed
 on the deletion path, which is context for how much to invest in fixing its
 half rather than deleting it sooner).
 
+> **#352 RESIDUE NOTE — 2026-08-16, the retirement lane (bar 352-H).** Facts
+> 2 and 3 above CANNOT RECUR: #352 deleted the capture-behind-cover and
+> upload-behind-cover code whole (`SensorUploadService`, its
+> `handleAppDidBecomeActive` chain, the drains — the exact lines in the §V1
+> capture no longer exist), and the `location` background mode + health
+> background-delivery entitlement left the manifest with them. **What this
+> does NOT close:** fact 1 (a full inference turn behind the cover) is
+> untouched, voice is #302's lane, and one NEW covered-state exposure is
+> recorded honestly — a `talaria_phone_query` arriving while the cover is up
+> is still ANSWERED (`TalariaPlatformLink` long-polls during covered-active,
+> and `PhoneQueryResponder` reads sensors at query time; same root cause —
+> the cover never changes `scenePhase`). The general mechanism question
+> ((a)-(d) above) stays open and is this entry's remaining work.
+
 ## 322. 📝 Cancellation takes a FINAL STATUS READ — one bounded `GET /v1/runs/{id}` on the abandon/stop path so the CTX gauge stops holding the prior run's numbers — **FILED 2026-08-10 on Owen's ruling (interactive pending review), KNOWINGLY SUPERSEDING his 2026-08-09 acceptance of the stale gauge (the conflict was surfaced before this filing — see the supersession pointer under archived #292). ✅ BUILT 2026-08-11 on `t27-321-322-stop-completes` — bars 322-A..E ALL MET, the kill clause did NOT fire (the honest-unknown state is #25's existing gauge-hide, not a new one); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #321. ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `024926f` ("Merge #321 + #322"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.****
 
 **Origin and the superseded ruling, stated plainly.** #292's fix cancelled the

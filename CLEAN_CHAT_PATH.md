@@ -7,6 +7,12 @@
 > references `HermesMobile/` paths that are now `Talaria/`, a TestFlight step
 > that is explicitly out of scope, and open questions that have since been
 > answered). The authoritative parts are in this header.
+>
+> **Supersession note (#352, 2026-08-16):** every mention below of the sensor
+> pipeline, sensor uploads, or "sensors stay on the relay" is historical — the
+> app-side sensor-ingestion/upload path was deleted whole. Phone data now
+> answers the agent's **query-time asks** over the talaria plugin (#251
+> decision 2 / #242); nothing streams and nothing queues.
 
 ## Verified SSE contract
 

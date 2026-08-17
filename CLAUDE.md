@@ -9,8 +9,11 @@ dated notes; closed items live verbatim in `OPEN_ITEMS-ARCHIVE.md` (split by #26
 ## What this is
 
 **Talaria** is a native SwiftUI iOS client for the owner's self-hosted **Hermes** agent.
-It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay are retained
-**only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
+It is **forked from `dylan-buck/Hermes-iOS`**; the upstream shell + relay were retained
+**only** for sensor ingestion + the `hermes_mobile` MCP tools — **a rationale that is now
+HISTORICAL: #352 (2026-08-16) deleted the app-side sensor-ingestion/upload path** (sensors
+are query-time via the talaria plugin, #251 decision 2/#242), and the `hermes_mobile`
+toolset is disabled on OJAMD (#346). **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
 write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
@@ -453,10 +456,14 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   also trigger redaction. Console.app's default view suppresses `.info` — use `.notice`+ for
   diagnostics that must be visible. `TalariaLog` gates verbose diagnostics behind
   `UserSettings.verboseLogging` (the Developer screen toggle).
-- **iCloud Private Relay** intercepts HTTP to Tailscale IPs and blocks sensor delivery —
-  disable it.
-- **HealthKit** needs an explicit in-app `requestAuthorization()` on every
-  `SensorUploadService.start()` — Settings grants alone don't suffice.
+- **iCloud Private Relay** intercepts HTTP to Tailscale IPs — moot for sensors since #352
+  (nothing uploads), but the mechanism stands for any other HTTP-to-tailnet path the app
+  ever grows.
+- ~~**HealthKit** needs an explicit in-app `requestAuthorization()` on every
+  `SensorUploadService.start()`~~ — **superseded by #352 (2026-08-16): the service is
+  deleted.** The surviving form of the lesson: HealthKit read grants are invisible by
+  design, so `DeviceHealthTool.performRead` does its own `requestAuthorization()` per
+  read — which is why query-time needs no launch-time re-assert.
 - `Restart-ScheduledTask` doesn't exist in PowerShell 5.1 — use `Start-ScheduledTask`.
 - `mdfind -name` beats `find` for locating files on the Mac Mini.
 - **#24f is DEAD — never cite it as a cause.** The relay is DB-backed

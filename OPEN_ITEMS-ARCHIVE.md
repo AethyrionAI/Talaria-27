@@ -1294,6 +1294,13 @@ Last gate to working voice. After the #17 fixes, `talk/readiness` truthfully rep
 
 **Found 2026-07-04** (on-device, during connector-outage testing). `SensorUploadService.drainOutboxIfPossible()` drains location first and `break`s the entire loop on a location `.failed`, so it never reaches the health block. When location persistently returns `deliveryState=retry` (connector down / busy / forward stalled), the health outbox climbs unbounded even though health itself is fine — observed 475→481+ live. `LocationUploadOutcome` has no `.retry` case, so a transient `retry` is mis-mapped to a hard `.failed` that wedges the loop. **Fix (iOS, Fable):** a location failure must not `break` past health; give location its own transient retry/backoff (mirror health's `.retry` handling); drain the two outboxes on independent passes so neither can starve the other. Distinct from #24a (that was a poison *health* sample wedging health; this is the *location* path wedging health). GitHub issue snippet drafted.
 
+
+> **#317(a) POINTER — appended 2026-08-16 by the #352 lane (original text
+> above untouched).** The audit's owed remaining step ("device
+> re-verification of the original connector-outage scenario") is DISCHARGED
+> BY DELETION: #352 removed `drainOutboxIfPossible` and the whole upload
+> path, so the scenario can no longer occur. Nothing remains owed here.
+
 ## 54. ✅ Relay restart forces connector re-attach — RESOLVED (nonce DB-persisted + race-safe eviction, verified 2026-07-09)
 
 > **Mac deployment re-verified 2026-07-15:** `verify-phase1.sh --restart-check` on the Mini —
@@ -2509,6 +2516,13 @@ correct and NOT a shrinking denominator. Worth rewording if anyone touches that 
 Logged 2026-07-11.
 
 ---
+
+
+> **#317(a) POINTER — appended 2026-08-16 by the #352 lane (original text
+> above untouched).** The closing line's "Dispatchable as its own small lane
+> whenever desired" is DEAD: #352 deleted `SensorUploadService`, the outbox,
+> and its persistence whole. Nothing here is dispatchable — the hardening
+> target no longer exists.
 
 ## 105. ✅ OJAMD startup-layer hygiene — stale relay launcher retired (NSSM-only at boot)
 
