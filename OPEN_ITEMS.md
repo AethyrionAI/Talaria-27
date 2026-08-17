@@ -23088,6 +23088,53 @@ as silent success; the turn should surface a visible failure state.
 cache-restore scrub family), #295 (placeholder-removal recovery arm), #48
 (seed), #90 (outbox). Sessions still live on OJAMD for forensics.
 
+> **📋 2026-08-17 evening — LANE OPENED (Owen picked this over 3C/#359).
+> Code-read verdict first, then BARS, pre-registered before any fix code
+> (#215 convention).**
+>
+> **What the code-read CONFIRMED (ChatStore.swift, tonight):** every stream
+> update handler (`.textDelta` :694, `.reasoningDelta` :716, `.toolActivity`
+> :724, `.artifactProduced` :781) and the entire reply-landing block of
+> `.finished` (:848–937) are guarded by
+> `firstIndex(where: { $0.id == placeholderID })` and SKIP SILENTLY when the
+> placeholder row is absent — after which `.finished` still settles the turn
+> as a success (user row `.delivered` :941-945, `streamingMessageID = nil`
+> :959, held turn resolved `.completed` :977). **A placeholder lost
+> mid-stream converts a fully delivered reply into an invisible clean
+> success.** The sessions driver itself is defended (stall guard → thrown →
+> `.interrupted`; #235 F1 empty clean-close arms recovery) — the hole is
+> store-side. Known placeholder-removers: `armPendingRunRecovery` (:1227),
+> the cold-load placeholder scrub (:550), `.interrupted` late-duplicate
+> teardown (:984); a conversation object swapped mid-stream (cache reload —
+> the pre-stream save deliberately EXCLUDES the placeholder) has the same
+> effect without any remover firing.
+>
+> **THE BARS (pre-registered before fix code):**
+> - **358-A (defect documented RED-first):** a unit test drives the sessions
+>   stream fixture through deltas + `.finished` with the placeholder removed
+>   mid-stream, on PRE-fix code, and proves the silent-success shape: turn
+>   settles, user row `.delivered`, NO assistant row, NO failure surfaced.
+>   MET iff the test was observed failing-as-honest (i.e., asserting the
+>   DESIRED behavior and red) before the fix commit touches production code.
+> - **358-B (the fix):** same scenario post-fix: the resolved final message
+>   LANDS in the transcript (appended when the slot is gone — the reply the
+>   user paid for must render) and the turn still settles cleanly. MET iff
+>   358-A's test is green and no other suite member moved red.
+> - **358-C (the ledger — instrument the error path):** every streamed turn
+>   ends with ONE `.notice` line recording events-parsed / deltas-applied /
+>   deltas-dropped-no-placeholder / final-delivery outcome, so the NEXT
+>   occurrence of this family self-diagnoses even under logd quota. MET iff
+>   a unit test observes the ledger via a test seam AND the drop counter is
+>   nonzero in the 358-A scenario.
+> - **358-D (honesty):** the Saturday-morning TRIGGER stays UNIDENTIFIED on
+>   the record — this lane removes the silent-drop failure CLASS and
+>   instruments the pipeline; it must NOT claim to explain the 08-16
+>   morning. A trigger reproduction later is #358 follow-on work, informed
+>   by the ledger. (This bar is met by the close-out text saying exactly
+>   this.)
+> - **358-E:** `scripts/mac/lane-gate.sh` green (TALARIA_SIM_NAME from the
+>   CC-lane pool, TCC pre-granted) before any PR.
+
 ## 359. 🐛 Compose fusion — an unsent attempt's text, minus exactly its first 11 characters, fused invisibly onto the retype in ONE submit body — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. Stored artifact exists; UNREPRODUCED; app-side.**
 
 **The artifact (durable, on OJAMD):** session `api_1786894582_1a3f2651`
