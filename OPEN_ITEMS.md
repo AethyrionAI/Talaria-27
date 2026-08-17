@@ -13057,6 +13057,16 @@ stays verbatim (the audit's own caution). Dup-search done 2026-08-07: the
 > pre-flight). This note is the #317 upstream correction for this entry's
 > "toggle ON / clock running" framing; the entry's technical content below is
 > unaffected.
+>
+> **✅ 2026-08-17 evening — THE CLOCK RESTARTS, and the stop-note above is
+> itself superseded in one respect:** #356's resume-session evidence pass
+> EXONERATED the runs transport for both stages of the Aug-16 breakage (the
+> "wedge is app-side pre-flight" framing above did not survive — the failing
+> sends were pinned at a stopped/mid-update OJAMD via the M-5 birth-profile
+> hop; full chain in #356's 2026-08-17 block). The toggle is ON again as of
+> tonight's repro (~17:28, wire-confirmed full runs sequence on the Mac).
+> **3E cutover evidence accrues from 2026-08-17; the 08-15→08-16 stretch
+> stays discarded** (can't distinguish transport time from the incident).
 
 **3A-0 BLOCKING PROBE — ✅ ANSWERED 2026-08-07 before any code, as the plan
 required (read-only, live Mac gateway 0.20.0 @ `01a1037d1`, no install
@@ -22923,6 +22933,32 @@ when it files — it is not lost, just not this entry's story.
 >    is moot in its old form — there was never a runs-transport failure to
 >    clock. 3C unhold decision rides Owen's read of this note.
 
+> **📋 2026-08-17 evening — OWEN'S ANSWERS to point 7, verbatim-anchored,
+> and the lane's disposition:**
+> - (i) Morning: **"No"** — he never saw fused text in the composer. **This
+>   narrows bug B decisively: the fusion happened in the invisible
+>   submit-build/drain path, not as visible composer text the user sent.**
+> - (ii) Evening churn detail: not recalled ("huh?") — the behavioral
+>   sub-question closes UNRESOLVED; the reconstruction stands on wire
+>   evidence alone, and the 23:34-burst-was-it-a-send question stays open
+>   harmlessly.
+> - (iii) The 23:46 dual `hermes update` + 00:02:4x dual gateway restart:
+>   **"I did, I normally run it to end the night."** The evening outage
+>   window was Owen's own nightly maintenance routine colliding with his
+>   own debugging — the last mystery of the timeline, closed.
+> - (iv) Toggle history: ON 08-15, then "I had turned them off at some
+>   point or a claude session did when testing" — consistent with the
+>   morning being sessions-plane and the night handoff's "flipped tonight."
+> - **"3C can come off of hold"** — recorded in #357.
+>
+> **INVESTIGATION COMPLETE. The two real bugs are filed as their own items
+> (#358 bug A: delivered-SSE-unrendered; #359 bug B: compose fusion) per
+> the "a phase name is not a filing" rule (#268). This entry's remaining
+> open question is only its own closure** — the header's "runs transport
+> regression" describes a thing that never existed, every finding is
+> corrected upstream in place (this entry, #283, #357), and nothing else
+> here is owed. Close on Owen's read.
+
 ## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
 
 **What the 2026-08-17 recon established (source-read on the Mac install,
@@ -23005,3 +23041,84 @@ skipped silently), #268 (why this filed as its own number).
 > Deferred with reason: the parked-on-approval steer arm (needs a host
 > approval-mode config = 🔐 gate). **The steering lane's remaining work is
 > the APP half, and it stays held behind #356.**
+
+> **✅ 2026-08-17 evening — THE APP HALF IS OFF HOLD (Owen: "3c can come
+> off of hold").** #356's investigation exonerated the runs transport (the
+> Aug-16 breakage was host maintenance + M-5 hop pinning + two unrelated
+> app bugs, filed #358/#359) and tonight's device repro ran the full runs
+> sequence wire-clean. The 3C app half (composer gate §2.5 + #267 queue
+> §2.6, consuming this entry's wire facts: `run.steered` = landed signal,
+> ACK = submit-only, `pending_steer` = the next-message surface) is the
+> next lane; **its bars pre-register HERE before any code, per the #215
+> convention.**
+
+## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
+
+**The evidence (from #356's 2026-08-17 block, all wire-verified):** on
+2026-08-16 10:36:22 / 10:39:35 / 10:48:03, the phone created three fresh
+OJAMD sessions (`api_1786894582_1a3f2651` / `api_1786894775_b12e3166` /
+`api_1786895283_c106262f`) and ran one sessions-plane `chat/stream` turn in
+each. OJAMD's access log shows **200 with 52,175 / 64,741 / 21,948 bytes
+fully streamed** in 9–14 s — aiohttp logs at response completion with the
+real byte count, so the phone's URLSession received entire SSE bodies. The
+phone displayed nothing for any of them (Owen retried in a new thread each
+time, then swipe-killed the app repeatedly 10:57–11:28). The third turn was
+an attachment test (two inlined PDF extracts) — so the failure spans plain
+and attachment turns. The app's own os_log narration for the window is
+logd-quota-evicted (verified; `verboseLogging` was ON, the rows are simply
+gone), so the client-side failure point is NOT yet localized.
+
+**Known code-side candidate (unverified — recorded as a lead, not a
+verdict):** `ChatStore`'s stream consumer keys `.textDelta` /
+`.completed` handling to the placeholder row by id
+(`conv.messages.firstIndex(where: { $0.id == placeholderID })`) and drops
+updates SILENTLY when the placeholder is absent. Anything that removes the
+placeholder mid-turn (e.g. `armPendingRunRecovery`, cache-restore scrubs,
+a second send's cleanup) turns a live stream into invisible no-ops with no
+error surfaced. Whether that is THIS bug is exactly what the reproduction
+must establish — write the failing unit test first (systematic-debugging
+Phase 4 / TDD), driving the send path with a stub SSE fixture (mind the
+URLProtocol sub-512B buffering trap) and an induced placeholder loss.
+
+**Also owed by this lane:** an HONESTY fix independent of the root cause —
+a fully-consumed stream whose updates all fell on the floor must not end
+as silent success; the turn should surface a visible failure state.
+
+**Cross-refs:** #356 (parent investigation), #237 (adopted-echo dedup — the
+cache-restore scrub family), #295 (placeholder-removal recovery arm), #48
+(seed), #90 (outbox). Sessions still live on OJAMD for forensics.
+
+## 359. 🐛 Compose fusion — an unsent attempt's text, minus exactly its first 11 characters, fused invisibly onto the retype in ONE submit body — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. Stored artifact exists; UNREPRODUCED; app-side.**
+
+**The artifact (durable, on OJAMD):** session `api_1786894582_1a3f2651`
+row 27938, user content:
+`"hort Astory, about 150 words, plain proseTell me a short story, about 150 words, plain prose."`
+= attempt-0 (`"Tell me a short Astory, about 150 words, plain prose"`,
+Owen's typo'd first try of the morning) MINUS its first 11 chars
+(`"Tell me a s"`), concatenated with no separator onto the corrected
+retype. One submit carried it (the 10:36:22 `chat/stream` — the day's
+FIRST wire contact, so the fusion predates any network activity).
+
+**The decisive behavioral fact (Owen, 2026-08-17): he never saw the fused
+text in the composer.** So the merge happened in the send path AFTER
+composer read — the suspects are the submit-body assembly and the
+held-turn/outbox drain seams, not visible composer restore. Attempt-0
+itself never produced wire traffic (nothing in OJAMD's access log before
+10:36:22): it died app-side, its text survived somewhere
+(hold/outbox/seed), and the next send's body picked it up. The 11-char
+offset is the signature to explain — find what stores or consumes a
+character offset/prefix length (#48 seed cursor state, a partial-echo
+adoption, an attributed-string range) that could slice exactly
+`"Tell me a s"`.
+
+**Merge-site suspects (from #356's handoff, now narrowed by the
+invisible-to-Owen fact):** the #48 seed restore, trap-7 diverged-live-text
+handling, `drainComposeOutboxIfPossible` / `fireHeldTurnIfReady`
+(`ChatStore.swift` ~2600+), and `holdComposedTurn`'s interaction with a
+send that wedges before its first network call. Reproducing unit test
+FIRST; the fused string above is the oracle.
+
+**Cross-refs:** #356 (parent), #306 (hold matrix), #90 (outbox), #48
+(seed), #268 (why this is its own number). Occurred once in the record
+(the other two morning submits are clean — verified 2026-08-17 by direct
+`/messages` reads).
