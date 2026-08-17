@@ -22725,3 +22725,74 @@ as current; `docs/` index matches the README's story). No app code.
 #269-A/#353 (the surfaces the Status table should describe), #251 (the
 plugin venture the Setup section should teach), #223/Phase 4 (the relay
 tier's formal end, which a later pass can fold in).
+
+## 356. 🐛 RUNS TRANSPORT REGRESSION — runs-ON turns time out on BOTH hosts; Owen flipped the toggle OFF 2026-08-17 ~00:04 to get chat working — **FILED 2026-08-17 ~00:25, mid-investigation (this entry is the live log; systematic-debugging Phase 1 in progress). PRE-EMPTS the 3C steering lane the 2026-08-17 handoff routed — 3C's app half builds on this transport, so this closes first. The #283 header's "evidence clock running since 08-15" is FALSIFIED as of tonight: the toggle is OFF on the device.**
+
+**Symptom (Owen, 2026-08-17 ~00:10):** with `useRunsTransport` ON, sending a
+message "didn't work and timed out" — against BOTH OJAMD and the Mac. Flipping
+the toggle OFF restored chat immediately (Mac sessions-plane turn at 00:04:40
+worked end-to-end: models → create 201 → chat/stream 200, 8 KB reply).
+
+**Evidence so far (all live-verified tonight, ~00:10–00:25):**
+
+1. **Both hosts' runs planes are HEALTHY at the wire.** Minimal probe (POST
+   `/v1/runs` bare input, subscribe `/events`, status read) ran clean on BOTH:
+   Mac 202 in 2.5 ms → deltas → `run.completed` ~6 s (`run_e6ddb6e6…`); OJAMD
+   202 in 11 ms → completed ~15 s (`run_660088…`). Taxonomy exactly what the
+   app decodes. So the server-side runs plane is not down; whatever breaks is
+   app-side or shape-specific.
+2. **The failing sends produced NO turn HTTP on either host.** Mac agent.log,
+   Aug 16 17:00 → Aug 17 00:08: the phone fetched `/v1/models`, session lists,
+   and plugin-events polls all evening — but ZERO `POST /v1/runs`, zero
+   session creates, zero `/messages` history pre-fetches until the successful
+   00:04:40 sessions-plane turn. OJAMD's session list shows NO new phone
+   sessions in the evening failing window either. The runs driver's FIRST
+   network call (`ensureHopForTurn` create on a new thread, or
+   `fetchRunsHistory` on a reused one) never fired ⇒ the turn wedges in the
+   app BEFORE the driver's first request.
+3. **The weirdness started Aug 16 MORNING, before any of last night's
+   merges.** OJAMD sessions 10:38–10:50 (api_1786894582/94775/95283, fresh
+   threads, deepseek-v4-flash): each turn COMPLETED server-side in 9–14 s —
+   while Owen was evidently retrying in new threads. So at that point turns
+   DID reach the host and finish; the phone still didn't show them. Two
+   distinct manifestations, or one bug seen at two stages.
+4. **A corrupted user row landed on OJAMD at 10:38** (`api_1786894582`, row
+   27938): `"hort Astory, about 150 words, plain proseTell me a short story,
+   about 150 words, plain prose."` — the TAIL of a typo'd first attempt
+   (missing exactly its first 11 chars, "Tell me a s") fused with the full
+   corrected retry. Server got this in ONE submit ⇒ the app's compose /
+   held-turn / outbox machinery fused two attempts into one body. Likely
+   secondary damage from retry-during-weirdness, but it is a real app-side
+   text-fusion defect with a stored artifact.
+5. **Suspect-elimination:** upstream v0.20.2 released 2026-08-16 12:24 CDT —
+   AFTER the 10:38 garble, so it cannot have caused the morning breakage
+   (OJAMD now runs it; its runs plane probes clean). The 0.20.1→0.20.2
+   api_server diff doesn't touch runs event emission. The plugin merge
+   (b478718) is Mac-only — can't explain OJAMD. Last night's app build
+   deployed ~22:00 — AFTER the morning garble. The only constant across both
+   hosts and the whole day is the APP with runs ON + Owen's device state.
+
+**Working hypothesis (Phase 1, unconfirmed):** a wedged pre-flight gate in
+ChatStore's runs-era machinery — `pendingRun`/held-turn hold
+(`isTranscriptBusy`, #306 matrix) or reconcile-loop interaction — holds every
+subsequent send without network activity until the user gives up. The fused
+text (finding 4) implicates the held-turn/outbox merge path (#48 seed /
+trap 7 territory). NOT yet reproduced under instrumentation.
+
+**Next steps (pre-registered):** (a) assisted live repro: Owen sends ONE
+runs-ON turn on a fresh Mac-profile thread while the Mac gateway log is
+tailed — discriminates "no HTTP" (pre-flight wedge) vs "submit lands, phone
+misses completion"; (b) `sudo log collect --device-udid` off the phone for
+the evening window — the app's own os_log lines around the failing sends;
+(c) whether an app relaunch clears it (in-memory vs persisted wedge);
+(d) reproduce → failing test → fix, per systematic-debugging. Bars
+pre-register HERE before any fix code.
+
+**Cross-refs:** #283 (the transport lane this regresses; its evidence clock
+stops tonight), #306/#307 (the hold matrix under suspicion), #295 (cold-load
+recovery pass), #322 (final-status read), #267/3C (steering lane held behind
+this). The 3C wire recon that ran BEFORE this filing (native
+`POST /v1/runs/{run_id}/steer` proven present on both hosts' installs,
+`pending_steer` drain in the finalizer, S4's silent drop closed upstream,
+`busy_input_mode` moot) is recorded in the session and lands in the 3C item
+when it files — it is not lost, just not this entry's story.
