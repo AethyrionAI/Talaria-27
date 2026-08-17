@@ -162,7 +162,6 @@ struct PrivacySettingsScreen: View {
                     }
                     permissionsSection
                     sensorStreamingSection
-                    locationSection
                     appLockSection
                     spotlightSection
                     revokeSection
@@ -392,84 +391,6 @@ struct PrivacySettingsScreen: View {
                 }
             }
         )
-    }
-
-    // MARK: Location
-
-    private var locationSection: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
-            MonoLabel("// Location", size: 10, tracking: Design.Tracking.monoXWide,
-                      color: Design.Colors.mutedForeground)
-
-            VStack(alignment: .leading, spacing: Design.Spacing.md) {
-                HStack {
-                    Text("Accuracy")
-                        .font(Design.Typography.body(14, weight: .regular))
-                        .foregroundStyle(Design.Colors.foreground)
-                    Spacer()
-                    MonoLabel(permissionsStore.locationAccuracyLevel.displayLabel, size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: accuracyColor)
-                }
-
-                HStack(spacing: Design.Spacing.xxs) {
-                    syncSegment("Foreground Only", pref: .foregroundOnly)
-                    syncSegment("Background", pref: .backgroundAllowed)
-                }
-                .padding(Design.Spacing.xxs)
-                .background(Design.Colors.background.opacity(0.5),
-                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
-                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
-                }
-            }
-            .padding(Design.Spacing.md)
-            .hudPanel(
-                cornerRadius: Design.CornerRadius.lg,
-                borderColor: Design.Colors.accentTint(0.12),
-                fill: Design.Colors.background.opacity(0.5),
-                innerGlow: false
-            )
-        }
-    }
-
-    private var accuracyColor: Color {
-        switch permissionsStore.locationAccuracyLevel {
-        case .full: Design.Brand.accent
-        case .reduced: Design.Brand.forge
-        case .unknown: Design.Colors.mutedForeground
-        }
-    }
-
-    private func syncSegment(_ label: String, pref: LocationSyncPreference) -> some View {
-        let active = settingsStore.settings.locationSyncPreference == pref
-        return Button {
-            selectSync(pref)
-        } label: {
-            Text(label.uppercased())
-                .font(Design.Typography.display(10, weight: .semibold, relativeTo: .caption2))
-                .tracking(Design.Tracking.button)
-                .foregroundStyle(active ? Design.Colors.background : Design.Colors.secondaryForeground)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Design.Spacing.sm)
-                .background(active ? Design.Brand.accent : Color.clear,
-                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func selectSync(_ pref: LocationSyncPreference) {
-        settingsStore.settings.locationSyncPreference = pref
-        permissionsStore.updateLocationSyncPreference(pref)
-        guard pref == .backgroundAllowed else { return }
-        Task {
-            switch permissionsStore.locationAuthorizationLevel {
-            case .denied, .restricted:
-                permissionsStore.openLocationSystemSettings()
-            case .always, .whenInUse, .notDetermined:
-                await permissionsStore.requestBackgroundLocationAccess()
-            }
-        }
     }
 
     // MARK: App Lock (#124)

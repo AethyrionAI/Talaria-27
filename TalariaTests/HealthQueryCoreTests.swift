@@ -3,9 +3,9 @@ import HealthKit
 import Testing
 @testable import Talaria
 
-/// Shared HealthKit query core (#15) — the logic both the app snapshot and the
-/// widget tiles run. `LiveHealthService`'s statics forward here; these tests
-/// pin the core directly so the forwards can't silently diverge from it.
+/// Shared HealthKit query core (#15) — the logic the widget tiles and the
+/// query-time health reads run (#352 deleted the app-snapshot consumer and
+/// the `LiveHealthService` forwards; the core is pinned directly here).
 struct HealthQueryCoreTests {
 
     private var utcCalendar: Calendar {

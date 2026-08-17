@@ -403,8 +403,5 @@ struct TalariaPlatformInboxServiceTests {
         func loadComposeOutboxState() -> ComposeOutboxState { ComposeOutboxState() }
         func saveComposeOutboxState(_ state: ComposeOutboxState) {}
         func clearComposeOutboxState() {}
-        func loadHealthQueryAnchorData(for identifier: String) -> Data? { nil }
-        func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {}
-        func clearHealthQueryAnchorData() {}
     }
 }

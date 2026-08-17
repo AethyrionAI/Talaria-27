@@ -6,10 +6,12 @@ import Foundation
 /// Signal: an ACTIVE PAIRING. Every pre-#137 sensor start was gated on
 /// `isPaired` and nothing else beyond the #6 revoke flags, so pairing WAS the
 /// app-level sensor consent — the permissions onboarding ran exactly once, at
-/// pair. The alternatives are all weaker: outbox history is cleared from disk
-/// on every full drain (unreliable negative), HealthKit read grants are
-/// unreadable by design (in-memory only), and `locationSyncPreference` covers
-/// a single sensor.
+/// pair. The alternatives were all weaker: outbox history was cleared from
+/// disk on every full drain (unreliable negative), HealthKit read grants are
+/// unreadable by design (in-memory only), and the old per-sensor location
+/// sync preference covered a single sensor. (#352 deleted the upload-era
+/// machinery those alternatives lived in; the toggles this migrates now gate
+/// query-time answers.)
 ///
 /// What that signal buys is deliberately narrow (#137, 2026-07-24): STREAMING
 /// and motion, never health or location. Pairing is evidence the device was

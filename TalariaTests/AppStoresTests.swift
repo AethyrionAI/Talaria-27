@@ -630,27 +630,12 @@ struct AppStoresTests {
     }
 
     @Test @MainActor
-    func settingsStorePersistsLocationSyncPreferenceChanges() async throws {
-        let suiteName = "settings-store-location-sync-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let settingsStore = SettingsStore(persistence: persistence)
-
-        settingsStore.settings.locationSyncPreference = .backgroundAllowed
-
-        let reloaded = persistence.loadUserSettings()
-        #expect(reloaded?.locationSyncPreference == .backgroundAllowed)
-    }
-
-    @Test @MainActor
     func sleepDurationUsesStableWakeDayBucket() async throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
 
         let bucketDay = calendar.date(from: DateComponents(year: 2026, month: 4, day: 5))!
-        let intervals: [LiveHealthService.SleepInterval] = [
+        let intervals: [HealthQueryCore.SleepInterval] = [
             .init(
                 value: HKCategoryValueSleepAnalysis.asleepCore.rawValue,
                 startDate: calendar.date(from: DateComponents(year: 2026, month: 4, day: 4, hour: 23, minute: 0))!,
@@ -668,14 +653,14 @@ struct AppStoresTests {
             ),
         ]
 
-        let hours = LiveHealthService.aggregateSleepDuration(
+        let hours = HealthQueryCore.aggregateSleepDuration(
             intervals: intervals,
             attributedTo: bucketDay,
             calendar: calendar
         )
 
         #expect(hours == 8.5)
-        #expect(LiveHealthService.sleepBucketDay(for: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 18))!, calendar: calendar) == bucketDay)
+        #expect(HealthQueryCore.sleepBucketDay(for: calendar.date(from: DateComponents(year: 2026, month: 4, day: 5, hour: 18))!, calendar: calendar) == bucketDay)
     }
 
     @Test @MainActor
@@ -3606,27 +3591,6 @@ struct AppStoresTests {
         let payload = try RelayCoders.makeDecoder().decode(TimestampPayload.self, from: data)
 
         #expect(payload.timestamp == Date(timeIntervalSince1970: 1774983516))
-    }
-
-    @Test @MainActor
-    func persistenceStorePersistsAndClearsHealthQueryAnchors() async throws {
-        let suiteName = "health-anchors-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defaults.removePersistentDomain(forName: suiteName)
-
-        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
-        let anchorData = Data([0x01, 0x02, 0x03])
-
-        persistence.saveHealthQueryAnchorData(anchorData, for: "steps")
-        persistence.saveHealthQueryAnchorData(Data([0x04]), for: "heart_rate")
-
-        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == anchorData)
-        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == Data([0x04]))
-
-        persistence.clearHealthQueryAnchorData()
-
-        #expect(persistence.loadHealthQueryAnchorData(for: "steps") == nil)
-        #expect(persistence.loadHealthQueryAnchorData(for: "heart_rate") == nil)
     }
 
     @Test

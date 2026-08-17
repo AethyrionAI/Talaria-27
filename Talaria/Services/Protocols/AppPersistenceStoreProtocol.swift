@@ -58,10 +58,6 @@ protocol AppPersistenceStoreProtocol {
     func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar
     func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar)
     func clearAgentAttachmentSidecar()
-    func loadHealthQueryAnchorData(for identifier: String) -> Data?
-    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String)
-    func clearHealthQueryAnchorData()
-
     /// #137: whether the sensor opt-in grandfathering has already been
     /// considered on this device. Keychain-mirrored in the real store, so it
     /// shares the PAIRING's lifetime rather than the app container's — a

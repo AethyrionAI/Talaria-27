@@ -16,7 +16,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         // the conversation cache and is cleared with it on unpair/reset —
         // it names what the agent wrote, so it must not outlive the pairing.
         static let agentAttachmentSidecar = "hermes.agentAttachmentSidecar"
-        static let healthAnchorPrefix = "hermes.healthAnchor."
         // #137: deliberately the SAME string the migration first stamped into
         // UserDefaults. Re-keying would have read every already-migrated
         // install as never-migrated and re-fired the migration on all of
@@ -320,25 +319,6 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearAgentAttachmentSidecar() {
         defaults.removeObject(forKey: Keys.agentAttachmentSidecar)
-    }
-
-    func loadHealthQueryAnchorData(for identifier: String) -> Data? {
-        defaults.data(forKey: Keys.healthAnchorPrefix + identifier)
-    }
-
-    func saveHealthQueryAnchorData(_ data: Data?, for identifier: String) {
-        let key = Keys.healthAnchorPrefix + identifier
-        if let data {
-            defaults.set(data, forKey: key)
-        } else {
-            defaults.removeObject(forKey: key)
-        }
-    }
-
-    func clearHealthQueryAnchorData() {
-        for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(Keys.healthAnchorPrefix) {
-            defaults.removeObject(forKey: key)
-        }
     }
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {

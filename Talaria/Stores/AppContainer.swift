@@ -620,8 +620,7 @@ final class AppContainer {
         profileRelaySessions.onTokensRefreshed = { profilesStore.stampTokenRefresh(profileID: $0) }
 
         let liveLocationService = LiveLocationService()
-        liveLocationService.updateSyncPreference(settingsStore.settings.locationSyncPreference)
-        let liveHealthService = LiveHealthService(persistence: persistence)
+        let liveHealthService = LiveHealthService()
         let liveMotionService = LiveMotionService()
         // #18: two voice engines behind TalkStore's one seam. The Realtime
         // (relay + OpenAI WebRTC) engine wins when the relay is paired and
