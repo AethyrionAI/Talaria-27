@@ -5086,7 +5086,7 @@ struct AppStoresTests {
         // step's friction go away — that friction is the point.
         #expect(AppContainer.LaunchInitStep.backgroundBootstrap == [
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
-            .commandCatalogRefresh, .gatewayModelSeed, .sensorForegroundRefresh,
+            .commandCatalogRefresh, .gatewayModelSeed,
         ])
     }
 

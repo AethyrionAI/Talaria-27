@@ -182,13 +182,14 @@ struct TalariaPlatformInboxServiceTests {
 
     // MARK: - Store integration
 
-    /// #113: locally-raised operational alerts still lead. The fetched source
-    /// changed under InboxStore; the ordering contract did not.
+    /// A locally-persisted app item (the `localItems` half of the blob —
+    /// #113's producer is gone since #352, but persisted rows survive
+    /// tolerant decode) still leads drained platform items on screen.
     @Test func localAlertsLeadDrainedPlatformItems() async {
         let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
         let store = await makeStore(persistence: persistence)
         store.receivePlatformItems([platformItem(id: "a", text: "from the agent")])
-        store.raiseConnectorOutageAlert()
 
         await store.loadInbox(force: true)
 
@@ -199,15 +200,18 @@ struct TalariaPlatformInboxServiceTests {
 
     /// The clobber guard: InboxStore is the single writer of the persisted
     /// inbox blob. A drain that merged straight into persistence would be
-    /// erased by the store's very next `localState` write (a #113 alert here;
+    /// erased by the store's very next `localState` write (a markRead here;
     /// in production, any markRead/dismiss), silently losing delivered items.
-    @Test func drainedItemsSurviveALaterStoreWrite() async {
+    @Test func drainedItemsSurviveALaterStoreWrite() async throws {
         let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
         let store = await makeStore(persistence: persistence)
         store.receivePlatformItems([platformItem(id: "a")])
         #expect(persistence.inboxState.platformItems.count == 1)
 
-        store.raiseConnectorOutageAlert()
+        await store.loadInbox(force: true)
+        let localAlert = try #require(store.items.first { $0.type == .alert })
+        store.markRead(localAlert)
 
         #expect(persistence.inboxState.platformItems.count == 1)
     }
@@ -249,13 +253,13 @@ struct TalariaPlatformInboxServiceTests {
         #expect(store.items.first?.isRead == false)
     }
 
-    /// #113 alerts are NOT preserved — they are operational state about this
-    /// device's pipeline, re-raised by the next failed drain if still true.
+    /// Local app items are NOT preserved across reset — they are operational
+    /// state about this device, not agent history.
     @Test func resetStillClearsLocalAlerts() async {
         let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
         let store = await makeStore(persistence: persistence)
         store.receivePlatformItems([platformItem(id: "a")])
-        store.raiseConnectorOutageAlert()
 
         store.reset()
         await store.loadInbox(force: true)
@@ -263,6 +267,21 @@ struct TalariaPlatformInboxServiceTests {
         #expect(persistence.inboxState.localItems.isEmpty)
         #expect(store.items.count == 1)
         #expect(store.items.first?.type == .notification)
+    }
+
+    /// The shape the retired #113 outage alert persisted with — kept as the
+    /// local-item fixture so these tests keep exercising the `localItems`
+    /// half of the blob (tolerant decode keeps old rows alive on upgrade).
+    private static func localAlertFixture() -> InboxItem {
+        InboxItem(
+            type: .alert,
+            title: "Local alert",
+            body: "App-generated operational alert.",
+            priority: .high,
+            payload: ["talaria.localAlert": "test-fixture"],
+            primaryAction: InboxActionDescriptor(id: "acknowledge", title: "Acknowledge"),
+            secondaryAction: InboxActionDescriptor(id: "dismiss", title: "Dismiss", isDestructive: true)
+        )
     }
 
     // MARK: - Read state (Task 11 ruling)

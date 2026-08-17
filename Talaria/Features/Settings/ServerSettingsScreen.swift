@@ -248,7 +248,6 @@ struct ServerSettingsScreen: View {
 
     private func profileCard(_ profile: BackendProfile) -> some View {
         let isActive = container.profilesStore?.activeProfileID == profile.id
-        let isSensorDestination = container.profilesStore?.sensorDestinationProfileID == profile.id
         let isPaired = container.profileRelaySessions?.isPaired(profileID: profile.id) ?? false
         let probes = reachability[profile.id] ?? ServerProfileReachability()
 
@@ -256,7 +255,6 @@ struct ServerSettingsScreen: View {
             profileCardBody(
                 profile,
                 isActive: isActive,
-                isSensorDestination: isSensorDestination,
                 isPaired: isPaired,
                 probes: probes
             )
@@ -269,7 +267,6 @@ struct ServerSettingsScreen: View {
                 profileActions(
                     profile,
                     isActive: isActive,
-                    isSensorDestination: isSensorDestination,
                     isPaired: isPaired
                 )
             } label: {
@@ -286,7 +283,6 @@ struct ServerSettingsScreen: View {
     private func profileCardBody(
         _ profile: BackendProfile,
         isActive: Bool,
-        isSensorDestination: Bool,
         isPaired: Bool,
         probes: ServerProfileReachability
     ) -> some View {
@@ -324,9 +320,6 @@ struct ServerSettingsScreen: View {
                         if isActive {
                             tag("ACTIVE", color: Design.Brand.accent)
                         }
-                        if isSensorDestination {
-                            tag("SENSORS", color: Design.Colors.secondaryForeground)
-                        }
                     }
                 }
                 // #153: reserve the gutter the actions menu floats in, so
@@ -357,7 +350,6 @@ struct ServerSettingsScreen: View {
             profileActions(
                 profile,
                 isActive: isActive,
-                isSensorDestination: isSensorDestination,
                 isPaired: isPaired
             )
         }
@@ -369,7 +361,6 @@ struct ServerSettingsScreen: View {
     private func profileActions(
         _ profile: BackendProfile,
         isActive: Bool,
-        isSensorDestination: Bool,
         isPaired: Bool
     ) -> some View {
         Button {
@@ -396,14 +387,7 @@ struct ServerSettingsScreen: View {
                 Label("Forget Pairing", systemImage: "link.badge.plus")
             }
         }
-        if !isSensorDestination {
-            Button {
-                container.profilesStore?.setSensorDestination(profile.id)
-            } label: {
-                Label("Route Sensors Here", systemImage: "sensor")
-            }
-        }
-        if !isActive && !isSensorDestination {
+        if !isActive {
             // #153: confirms before deleting — this purges Keychain
             // credentials, so it is strictly more destructive than Forget
             // Pairing, which already confirmed.
@@ -484,8 +468,6 @@ struct ServerSettingsScreen: View {
             reachability[profile.id] = nil
         } catch BackendProfilesStore.DeleteError.profileIsActive {
             deleteErrorMessage = "Switch to another profile before deleting the active one."
-        } catch BackendProfilesStore.DeleteError.profileIsSensorDestination {
-            deleteErrorMessage = "Route sensors to another profile before deleting this one."
         } catch {
             deleteErrorMessage = error.localizedDescription
         }

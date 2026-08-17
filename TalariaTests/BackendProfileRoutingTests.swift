@@ -223,45 +223,6 @@ struct BackendProfileRoutingTests {
         #expect(single.map(\.id) == ["m1", "m2", "m3"])
     }
 
-    // MARK: - M-8: sensors stay pinned
-
-    @Test @MainActor
-    func sensorDestinationIgnoresActiveProfileSwitch() throws {
-        let persistence = makePersistence("sensors")
-        let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
-        let ojamd = try #require(profilesStore.activeProfile)
-        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
-        profilesStore.upsert(mac)
-
-        // OJAMD's pairing minted a relay URL of its own.
-        persistence.savePairedRelayConfiguration(
-            PairedRelayConfiguration(
-                baseURLString: "http://100.110.102.59:8000/v1",
-                hostDisplayName: "ojamd",
-                pairedAt: Date(timeIntervalSince1970: 1_752_600_000), // whole-second: ISO8601 round-trip safe
-                relayUserID: UUID()
-            ),
-            profileScope: nil
-        )
-
-        let factory = ProfileRelaySessionFactory(
-            persistence: persistence,
-            secureStore: MockSecureStore(),
-            profileResolver: { profilesStore.profile(id: $0) },
-            activeProfileIDProvider: { profilesStore.activeProfileID }
-        )
-
-        // Switch the ACTIVE profile to the Mac — the sensor destination must
-        // still be OJAMD, resolving OJAMD's pairing-minted relay URL.
-        let switched = profilesStore.setActiveProfile(mac.id)
-        #expect(switched)
-        #expect(profilesStore.activeProfileID == mac.id)
-        #expect(profilesStore.sensorDestinationProfileID == ojamd.id)
-        #expect(factory.relayBaseURL(forProfileID: ojamd.id) == "http://100.110.102.59:8000/v1")
-        #expect(factory.isPaired(profileID: ojamd.id))
-        #expect(factory.isPaired(profileID: mac.id) == false)
-    }
-
     // MARK: - M-7: push-watch routing
 
     @Test @MainActor

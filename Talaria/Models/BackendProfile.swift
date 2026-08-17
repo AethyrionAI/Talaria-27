@@ -107,32 +107,28 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
 /// per-profile credential — survive clean reinstalls together with the
 /// credentials they scope.
 ///
-/// `activeProfileID` / `sensorDestinationProfileID` live HERE rather than on
-/// `UserSettings`: splitting them from the profile list would let a reinstall
-/// recover the profiles but lose which one is active / owns the sensors.
+/// `activeProfileID` lives HERE rather than on `UserSettings`: splitting it
+/// from the profile list would let a reinstall recover the profiles but lose
+/// which one is active. (#352 removed `sensorDestinationProfileID` — the M-8
+/// sensor-destination pin — with the upload pipeline; old blobs carrying the
+/// key decode fine, the value is simply ignored.)
 struct BackendProfilesState: Codable, Hashable, Sendable {
     var profiles: [BackendProfile] = []
     /// Default target for NEW sessions and the relay-plane interactive
     /// surfaces (device files, inbox polling, talk).
     var activeProfileID: UUID?
-    /// Where the sensor outbox drains — pinned independently of the active
-    /// profile so production context never goes dark on a switch (M-8).
-    var sensorDestinationProfileID: UUID?
 
     private enum CodingKeys: String, CodingKey {
         case profiles
         case activeProfileID
-        case sensorDestinationProfileID
     }
 
     init(
         profiles: [BackendProfile] = [],
-        activeProfileID: UUID? = nil,
-        sensorDestinationProfileID: UUID? = nil
+        activeProfileID: UUID? = nil
     ) {
         self.profiles = profiles
         self.activeProfileID = activeProfileID
-        self.sensorDestinationProfileID = sensorDestinationProfileID
     }
 
     /// Tolerant decode — same rationale as `BackendProfile`.
@@ -140,7 +136,6 @@ struct BackendProfilesState: Codable, Hashable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         profiles = try container.decodeIfPresent([BackendProfile].self, forKey: .profiles) ?? []
         activeProfileID = try container.decodeIfPresent(UUID.self, forKey: .activeProfileID)
-        sensorDestinationProfileID = try container.decodeIfPresent(UUID.self, forKey: .sensorDestinationProfileID)
     }
 
     func profile(id: UUID?) -> BackendProfile? {
