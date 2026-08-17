@@ -22794,3 +22794,36 @@ replaces the row must not assert a live host from stored state).
 > permanent red. Bars ride #269-A's entry (extension pre-registered there
 > before code). Same message routed the lane order: **#269-A → #270 → 3C
 > steering (new session + handoff for steering).**
+
+## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). NOT STARTED — joins the queue after the routed #269-A → #270 → 3C order unless Owen re-routes.**
+
+**Half 1 — the bug (MEASURED by Owen, mechanism SUSPECTED, not diagnosed):**
+the two persisted inbox items read as NEW again after every rebuild/update.
+Read marks live in the persisted inbox blob (`hermes.inboxState` →
+`readItemIDs`) and UserDefaults survives an upgrade-install, so the naive
+story doesn't explain it. **The suspicious mechanism, recorded for the lane
+to verify first:** `InboxStore.reset()` DELIBERATELY clears read marks while
+preserving platform items ("operational annotations go, agent history
+stays" — pinned by `resetPreservesPlatformItemsAndClearsReadMarks`), and
+`reset()` runs on every pairing change and profile switch
+(`handlePairingRemoved` / `handlePairingActivated` /
+`handleActiveProfileChanged`). If a rebuild/re-sign trips any of those paths
+on first launch (identity revalidation? keychain-vs-defaults skew after a
+re-sign?), the marks die by design. The lane's first job is a device-log
+answer to WHICH path fires on a plain rebuild — not a guess. (Note the #352
+deploy re-signed the app the same night this was observed — entitlements
+changed — so a signing-transition trigger is plausible and checkable.)
+
+**Half 2 — the feature:** user-side DELETE for inbox rows, and eventually
+prune (bulk/age-based). Platform rows are the ONLY copy — the plugin drops
+its outbox row on ack — so delete is real deletion of agent history:
+bars must make the affordance deliberate (swipe + confirm, or edit-mode),
+decide whether delete implies read, and decide what if anything is owed to
+the plugin side (nothing, today: the row is already acked and gone
+server-side). #144's deactivate-never-delete governs SERVER rows, not the
+user's own local copy — but cite the distinction in the design so nobody
+re-litigates it.
+
+**Cross-refs:** #251-2A (the platform inbox), #144 (deactivate-never-delete
+— server-side, distinguished above), #352 (the same-night re-sign, a
+candidate trigger for half 1), #98/#97 (existing read/dismiss bookkeeping).
