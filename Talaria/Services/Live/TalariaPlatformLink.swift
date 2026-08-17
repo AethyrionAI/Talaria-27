@@ -451,6 +451,33 @@ final class TalariaPlatformLink {
         return (http.statusCode, data)
     }
 
+    // MARK: - Link probe (#269-A)
+
+    /// Short and dedicated: a probe answers a screen's `.task`, not a
+    /// long-poll.
+    private static let probeTimeout: TimeInterval = 4
+
+    /// Read-only, side-effect-free liveness probe — an UNAUTHENTICATED POST
+    /// to the events route. Auth rejection precedes verb dispatch, so a
+    /// registered adapter answers 401 without draining or acking anything;
+    /// an absent platform answers 503 (the verified 2026-08-09 seam).
+    /// Deliberately NOT a TurnContext turn: it never re-pairs, never touches
+    /// the Keychain, and cannot be superseded into side effects because it
+    /// has none.
+    func probeLinkState() async -> TalariaLinkObservation {
+        guard var base = gatewayBaseURL(), !base.isEmpty else { return .notConfigured }
+        while base.hasSuffix("/") { base.removeLast() }
+        guard let url = URL(string: base + Self.eventsPath) else { return .notConfigured }
+        var request = URLRequest(url: url, timeoutInterval: Self.probeTimeout)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("{}".utf8)
+        guard let (_, response) = try? await session.data(for: request),
+              let http = response as? HTTPURLResponse
+        else { return .hostUnreachable }
+        return TalariaLinkObservation.classify(status: http.statusCode)
+    }
+
     private func logEnvelopeError(status: Int, data: Data, verb: String) {
         if let envelope = try? JSONDecoder().decode(TalariaEnvelopeError.self, from: data) {
             Self.logger.error(

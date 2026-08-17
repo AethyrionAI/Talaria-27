@@ -568,6 +568,60 @@ struct TalariaPlatformLinkTests {
         #expect(await secure.retrieve(key: Self.deviceIDKey) == "dev12")
         #expect(recorder.count(containing: "\"pair\"") == 0)
     }
+
+    // MARK: - Link probe (#269-A)
+
+    @Test func probeClassifies401AsAdapterLiveAndSendsNoBearer() async {
+        defer { StubURLProtocol.handler = nil }
+        let recorder = Recorder()
+        let link = await makeLink(secureStore: MockSecureStore()) { request in
+            recorder.record(request.value(forHTTPHeaderField: "Authorization") ?? "NONE")
+            return (401, Data(#"{"error":"missing_bearer"}"#.utf8))
+        }
+        #expect(await link.probeLinkState() == .adapterLive(status: 401))
+        #expect(recorder.all == ["NONE"])  // unauthenticated by design
+    }
+
+    @Test func probeClassifies503AsAdapterAbsent() async {
+        defer { StubURLProtocol.handler = nil }
+        let link = await makeLink(secureStore: MockSecureStore()) { _ in
+            (503, Data(#"{"error":"platform_unavailable"}"#.utf8))
+        }
+        #expect(await link.probeLinkState() == .adapterAbsent(status: 503))
+    }
+
+    @Test func probeClassifiesUnexpectedStatusAsIndeterminate() async {
+        defer { StubURLProtocol.handler = nil }
+        let link = await makeLink(secureStore: MockSecureStore()) { _ in
+            (418, Data())
+        }
+        #expect(await link.probeLinkState() == .indeterminate(status: 418))
+    }
+
+    @Test func probeClassifiesTransportFailureAsHostUnreachable() async {
+        defer { StubURLProtocol.handler = nil }
+        // A nil handler result is the stub's transport-failure convention.
+        let link = await makeLink(secureStore: MockSecureStore()) { _ in nil }
+        #expect(await link.probeLinkState() == .hostUnreachable)
+    }
+
+    @Test func probeWithNoGatewayURLIsNotConfigured() async {
+        defer { StubURLProtocol.handler = nil }
+        StubURLProtocol.handler = { _ in (401, Data()) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubURLProtocol.self]
+        let link = TalariaPlatformLink(
+            gatewayBaseURL: { nil },
+            installID: { "install-abc" },
+            deviceName: { "TestPhone" },
+            credentialScopeID: { Self.scope },
+            secureStore: MockSecureStore(),
+            responder: nil,
+            onItemsReceived: { _ in },
+            session: URLSession(configuration: configuration)
+        )
+        #expect(await link.probeLinkState() == .notConfigured)
+    }
 }
 
 /// Minimal request/response stub: hands every request to a static handler and
