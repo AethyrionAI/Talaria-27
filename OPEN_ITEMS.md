@@ -15264,6 +15264,21 @@ is written.**
 > - **§3 corrections all landed upstream:** memory note (2026-08-09),
 >   #270's own entry (2026-08-09), #251's cron-ticker framing and
 >   Phase-1 "next restart" note (this close-out, same commit).
+> - **Environment observation during the sitting (Owen: "took a couple of
+>   restarts to get any of the messaging platforms to come up… don't
+>   think that's an us thing") — CONFIRMED NOT US, mechanism read from
+>   `errors.log`:** the Mac gateway runs `gateway run --replace`, so
+>   rapid successive restarts form a kill chain — instance #1 (23:39:20)
+>   SIGTERM'd at 23:43:02 by its successor, instance #2 (23:43:36)
+>   SIGTERM'd THREE SECONDS after startup, instance #3 (23:44:37) had no
+>   successor and survived with all platforms up. Each doomed instance
+>   died mid-platform-connect, which reads as "platforms won't come up."
+>   Zero talaria lines in the window. **The ops lesson is #264's, one
+>   layer up: after a bounce, wait out one full startup before judging it
+>   — and never issue a second `--replace` while the first is still
+>   connecting.** Filed as a note, not an item; the honcho 30s init
+>   timeout in the same window is that plugin's own network init,
+>   unrelated.
 
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
