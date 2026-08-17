@@ -23134,6 +23134,32 @@ cache-restore scrub family), #295 (placeholder-removal recovery arm), #48
 >   this.)
 > - **358-E:** `scripts/mac/lane-gate.sh` green (TALARIA_SIM_NAME from the
 >   CC-lane pool, TCC pre-granted) before any PR.
+>
+> **✅ 2026-08-17 evening — BARS A, B, C, E ALL MET, same session; D met by
+> this text.**
+> - **358-A MET:** `StreamPlaceholderLossTests.finishedWithLostPlaceholderStillLandsTheReply`
+>   observed RED on pre-fix code (failed at the lands-the-reply expectation:
+>   no assistant row after a fully delivered stream — the silent-success
+>   shape live). The duplicate-guard and intact-path baselines passed
+>   pre-fix, as predicted.
+> - **358-B MET:** fix = `TurnStreamLedger` counting on every update handler
+>   plus a `.finished` else-arm that appends the resolved final message when
+>   the placeholder slot is gone (stamping usage/duration/servingModel;
+>   skipping when a #120 pre-merged copy exists or content+attachments are
+>   empty). All 4 tests green post-fix.
+> - **358-C MET:** `lastTurnStreamLedger` (harness-visible) + one log line
+>   per turn at the stream terminal — `.notice` only when something dropped
+>   or the landing needed the else-arm, `.info` on clean turns. Ledger test
+>   green (dropped ≥ 2 in the loss scenario, `appended-without-placeholder`
+>   delivery; intact path `replaced-placeholder`, zero drops).
+> - **358-E MET:** GATE: PASS — 2237 Swift Testing tests (the four new
+>   tests ran by name), 14 XCUITest, Release build clean; only skips are
+>   the known-permanent CondenserFidelityTests pair.
+> - **358-D (honesty, met by this text): the Saturday-morning TRIGGER
+>   remains UNIDENTIFIED.** This lane removed the silent-drop failure CLASS
+>   at the finish boundary and instrumented the pipeline; it does NOT claim
+>   to explain the 08-16 morning. If the trigger fires again, the ledger's
+>   one-line witness is designed to survive logd quota and name it.
 
 ## 359. 🐛 Compose fusion — an unsent attempt's text, minus exactly its first 11 characters, fused invisibly onto the retype in ONE submit body — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. Stored artifact exists; UNREPRODUCED; app-side.**
 

@@ -512,6 +512,7 @@
 		E66E1DCD6DDC6DFDF214ED71 /* SpaceGrotesk-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */; };
 		E720D0212714D677520D0169 /* ToolCallGovernorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48706B93FBAD7CE6804E50 /* ToolCallGovernorTests.swift */; };
 		E91BA6F1F84BEBD94CE8DA22 /* HermesStatusWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */; };
+		E98F73DEC8E0634C91628D39 /* StreamPlaceholderLossTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C4018012CDB1C0BA907938 /* StreamPlaceholderLossTests.swift */; };
 		E9ADDD5D9D9BD8E28B6D317B /* ContextOverflowGuardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20BF8A2E3B81ED9F412DFD07 /* ContextOverflowGuardTests.swift */; };
 		E9B07CADC065C3C2336EFB93 /* DeviceRegistrationRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B97713AF7CC8487DD32F1F15 /* DeviceRegistrationRequest.swift */; };
 		E9CC8616807E52B13A4B50D9 /* EntitlementServiceProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18522BB94AC368FD831EA0FF /* EntitlementServiceProtocol.swift */; };
@@ -877,6 +878,7 @@
 		7331AE6024E5FB7F16FAD6C3 /* IdlePollingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdlePollingTests.swift; sourceTree = "<group>"; };
 		7384C6AD13192056C32579A4 /* Icon-CerealBox@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CerealBox@3x.png"; sourceTree = "<group>"; };
 		748DD049912B74AF82FFBE76 /* PendingAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAttachment.swift; sourceTree = "<group>"; };
+		74C4018012CDB1C0BA907938 /* StreamPlaceholderLossTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamPlaceholderLossTests.swift; sourceTree = "<group>"; };
 		75E8507FBB67016B53C79546 /* Icon-GlitchGarden@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-GlitchGarden@3x.png"; sourceTree = "<group>"; };
 		7669868F6A925CB1B752A569 /* CronJobService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobService.swift; sourceTree = "<group>"; };
 		77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlashCommandMenu.swift; sourceTree = "<group>"; };
@@ -1415,6 +1417,7 @@
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
 				692CE05A577894FFE49EDDF3 /* SpotlightOpenIntentTests.swift */,
 				6D9C8AE622EA2B105C222872 /* StreamLossClassificationTests.swift */,
+				74C4018012CDB1C0BA907938 /* StreamPlaceholderLossTests.swift */,
 				A4179E9760576771F8ACA947 /* TalariaLinkObservationTests.swift */,
 				DAC26BEA596A26F21093FF52 /* TalariaPlatformInboxServiceTests.swift */,
 				A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */,
@@ -2840,6 +2843,7 @@
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,
 				31AFEA785F400F5330324795 /* SpotlightOpenIntentTests.swift in Sources */,
 				E55D967594F813AE526B9E1E /* StreamLossClassificationTests.swift in Sources */,
+				E98F73DEC8E0634C91628D39 /* StreamPlaceholderLossTests.swift in Sources */,
 				D23895BDEF61FB1877FC951D /* TalariaLinkObservationTests.swift in Sources */,
 				75212356F983F9CF7023E51D /* TalariaPlatformInboxServiceTests.swift in Sources */,
 				073F514793203C57186558F6 /* TalariaPlatformLinkTests.swift in Sources */,

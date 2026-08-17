@@ -138,6 +138,28 @@ final class ChatStore {
     /// hides an item the store would still honor is a gate in name only.
     var isTranscriptBusy: Bool { streamingMessageID != nil || pendingRun != nil }
 
+    /// #358: per-turn witness of the stream pipeline. Every update handler
+    /// keys on the streaming placeholder row and previously SKIPPED SILENTLY
+    /// when it was absent — a fully delivered reply could render as nothing
+    /// with no failure surfaced anywhere (#356's morning stage). The ledger
+    /// counts what applied and what dropped, and one `.notice` line per turn
+    /// makes the next occurrence self-diagnosing even under logd's
+    /// per-subsystem quota (which evicted the evidence the first time).
+    struct TurnStreamLedger: Equatable {
+        enum FinalDelivery: String {
+            case replacedPlaceholder = "replaced-placeholder"
+            case appendedWithoutPlaceholder = "appended-without-placeholder"
+            case alreadyPresent = "already-present"
+            case none = "none"
+        }
+        var updatesApplied = 0
+        var updatesDropped = 0
+        var finalDelivery: FinalDelivery = .none
+    }
+
+    // harness-visible (#358): read by the placeholder-loss tests.
+    private(set) var lastTurnStreamLedger: TurnStreamLedger?
+
     /// #203 (1A): how long a streaming turn may go with NO sign of life
     /// before the UI says so. 8s is comfortably past a normal on-device
     /// first token (#208 measured whole turns at 35–49 output tokens) and
@@ -675,6 +697,8 @@ final class ChatStore {
 
         streamingTask = Task { [weak self] in
             guard let self else { return }
+            // #358: the turn's stream ledger — see TurnStreamLedger's doc.
+            var ledger = TurnStreamLedger()
             for await update in stream {
                 if Task.isCancelled { break }
                 // #295: refresh the captured session id on every event —
@@ -699,6 +723,9 @@ final class ChatStore {
                             conv.messages[idx].toolActivities[i].isActive = false
                         }
                         self.conversation = conv
+                        ledger.updatesApplied += 1
+                    } else {
+                        ledger.updatesDropped += 1
                     }
                     if self.autoReadAloudEnabled?() == true {
                         self.speechOutput?.enqueueStreamChunk(delta, messageID: placeholderID)
@@ -717,6 +744,9 @@ final class ChatStore {
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         conv.messages[idx].reasoning = (conv.messages[idx].reasoning ?? "") + delta
                         self.conversation = conv
+                        ledger.updatesApplied += 1
+                    } else {
+                        ledger.updatesDropped += 1
                     }
 
                 case .toolActivity(let event):
@@ -764,6 +794,9 @@ final class ChatStore {
                             }
                         }
                         self.conversation = conv
+                        ledger.updatesApplied += 1
+                    } else {
+                        ledger.updatesDropped += 1
                     }
                     if event.phase == .started {
                         // Show tool progress on Lock Screen / Dynamic Island
@@ -779,16 +812,20 @@ final class ChatStore {
                     // by id, so a re-delivery can never double the row.
                     self.lastStreamActivityAt = .now
                     if var conv = self.conversation,
-                       let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }),
-                       !conv.messages[idx].attachments.contains(where: { $0.id == attachment.id }) {
-                        // #262: stamp the generation point — the mirror of the
-                        // tool-chip anchor above — so the chip renders inline
-                        // where the file was written and stays there while the
-                        // rest of the turn streams beneath it.
-                        var anchored = attachment
-                        anchored.anchorOffset = conv.messages[idx].content.count
-                        conv.messages[idx].attachments.append(anchored)
-                        self.conversation = conv
+                       let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
+                        if !conv.messages[idx].attachments.contains(where: { $0.id == attachment.id }) {
+                            // #262: stamp the generation point — the mirror of the
+                            // tool-chip anchor above — so the chip renders inline
+                            // where the file was written and stays there while the
+                            // rest of the turn streams beneath it.
+                            var anchored = attachment
+                            anchored.anchorOffset = conv.messages[idx].content.count
+                            conv.messages[idx].attachments.append(anchored)
+                            self.conversation = conv
+                        }
+                        ledger.updatesApplied += 1
+                    } else {
+                        ledger.updatesDropped += 1
                     }
                     continuedSend?.tick()
 
@@ -933,6 +970,34 @@ final class ChatStore {
                                 conv.messages[slot] = resolved
                             }
                             self.conversation = conv
+                            ledger.finalDelivery = .replacedPlaceholder
+                        }
+                    } else if var conv = self.conversation {
+                        // #358: the placeholder is gone — a recovery arm, a
+                        // scrub, or a mid-stream cache reload took it — but the
+                        // reply was fully delivered and must land anyway. The
+                        // placeholder-derived merges above (tool chips, streamed
+                        // reasoning/artifacts) have no source without the row;
+                        // the final message itself is the authoritative payload.
+                        var resolved = finalMessage
+                        resolved.codeDiff = diff
+                        if resolved.usage == nil { resolved.usage = usage }
+                        if resolved.turnDuration == nil {
+                            resolved.turnDuration = self.pendingMessageSentAt.map {
+                                Date.now.timeIntervalSince($0)
+                            }
+                        }
+                        if resolved.servingModel == nil,
+                           resolved.brain == nil || resolved.brain == ChatBackendRouter.Brain.hermes.rawValue {
+                            resolved.servingModel = self.activeModelName
+                        }
+                        if conv.messages.contains(where: { $0.id == resolved.id }) {
+                            // #120: a mid-stream merge already adopted this row.
+                            ledger.finalDelivery = .alreadyPresent
+                        } else if !resolved.content.isEmpty || !resolved.attachments.isEmpty {
+                            conv.messages.append(resolved)
+                            self.conversation = conv
+                            ledger.finalDelivery = .appendedWithoutPlaceholder
                         }
                     }
                     // The direct stream completed, so this message definitively
@@ -1125,6 +1190,14 @@ final class ChatStore {
                         after: acceptedJobID == nil ? .failedOutright : .failedAfterAccept
                     )
                 }
+            }
+            self.lastTurnStreamLedger = ledger
+            // Anomalies at .notice (visible in Console by default, survives as
+            // one line under logd quota); clean turns at .info.
+            if ledger.updatesDropped > 0 || ledger.finalDelivery == .appendedWithoutPlaceholder {
+                chatLog.notice("turn stream ledger: applied \(ledger.updatesApplied, privacy: .public) dropped \(ledger.updatesDropped, privacy: .public) delivery \(ledger.finalDelivery.rawValue, privacy: .public) (#358)")
+            } else {
+                chatLog.info("turn stream ledger: applied \(ledger.updatesApplied, privacy: .public) delivery \(ledger.finalDelivery.rawValue, privacy: .public)")
             }
         }
         await streamingTask?.value
