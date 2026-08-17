@@ -647,8 +647,6 @@
 	<string>Hermes reads your health data to offer personalized wellness insights.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Hermes does not write health data, but this permission is required by the system.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Hermes uses your location in the background to provide contextual awareness and proactive suggestions.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Hermes uses your location to provide contextual recommendations and nearby suggestions.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -700,7 +698,6 @@
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
-		<string>location</string>
 		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>

@@ -34,6 +34,9 @@ struct AboutSettingsContent: View {
         let blinks: Bool
     }
 
+    /// #269-A: the measured plugin-link state (probe + credential, composed).
+    @State private var pluginLink: TalariaLinkDisplayState = .unknown
+
     var body: some View {
         VStack(spacing: Design.Spacing.lg) {
             SubsystemHero(
@@ -45,6 +48,7 @@ struct AboutSettingsContent: View {
                 accented: isHealthy
             )
             statusPanel
+            legacyRelayPanel
             voicePanel
             phoneQueriesPanel
             infoGrid
@@ -55,6 +59,14 @@ struct AboutSettingsContent: View {
         .task {
             await container.chatStore.refreshDirectHealth()
             await permissionsStore.reloadCapabilities()
+            if let profile = container.profilesStore?.activeProfile {
+                async let token = container.talariaDeviceToken(for: profile)
+                async let observation = container.talariaPlatformLink?.probeLinkState()
+                pluginLink = TalariaLinkDisplayState.compose(
+                    observation: await observation,
+                    deviceToken: await token
+                )
+            }
         }
     }
 
@@ -87,9 +99,7 @@ struct AboutSettingsContent: View {
         VStack(spacing: 0) {
             statusRow("Hermes API", hermesAPIStatus)
             rowDivider
-            statusRow("Relay Link", relayStatus)
-            rowDivider
-            statusRow("Relay Identity", identityStatus)
+            statusRow("Plugin Link", pluginLinkStatus)
             rowDivider
             statusRow("Location", locationStatus)
         }
@@ -99,6 +109,45 @@ struct AboutSettingsContent: View {
             fill: Design.Colors.background.opacity(0.5),
             innerGlow: false
         )
+    }
+
+    private var pluginLinkStatus: RowStatus {
+        switch pluginLink {
+        case .livePaired:
+            RowStatus(text: pluginLink.label, color: Design.Brand.accent, blinks: false)
+        case .notLive:
+            RowStatus(text: pluginLink.label, color: Design.Brand.forge, blinks: false)
+        case .unknown, .liveNotPaired, .hostUnreachable:
+            RowStatus(text: pluginLink.label, color: Design.Colors.mutedForeground, blinks: false)
+        }
+    }
+
+    // MARK: Legacy relay (#353(b))
+    //
+    // The relay is a retiring tier (#346/#223). Red here is reserved for
+    // "the phone-facing channel is down": with the plugin link measured
+    // LIVE, an unreachable relay renders muted OFFLINE — a fact, not an
+    // alarm. With the plugin NOT live the relay is the only channel and an
+    // outage stays red. Derivation:
+    // TalariaLinkObservation.legacyRelayReadsAsError (table-tested).
+
+    private var legacyRelayPanel: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Legacy Relay", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(spacing: 0) {
+                statusRow("Relay Link", relayStatus)
+                rowDivider
+                statusRow("Relay Identity", identityStatus)
+            }
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
     }
 
     private func statusRow(_ label: String, _ status: RowStatus) -> some View {
@@ -132,11 +181,22 @@ struct AboutSettingsContent: View {
     }
 
     private var relayStatus: RowStatus {
+        // #353(b): severity derives from measurement. (The old permanently
+        // blinking STANDBY arm collapses into the derived pair — a forever
+        // pulse against a retired relay was the same training-to-ignore
+        // cost in miniature.)
+        let pluginLive = pluginLink == .livePaired || pluginLink == .liveNotPaired
         switch sessionStore.state.connectionStatus {
-        case .connected:    RowStatus(text: "LINKED",     color: Design.Brand.accent,  blinks: false)
-        case .connecting:   RowStatus(text: "CONNECTING", color: Design.Brand.forge,   blinks: true)
-        case .disconnected: RowStatus(text: "STANDBY",    color: Design.Brand.forge,   blinks: true)
-        case .error:        RowStatus(text: "ERROR",      color: Design.Colors.danger, blinks: false)
+        case .connected:
+            return RowStatus(text: "LINKED", color: Design.Brand.accent, blinks: false)
+        case .connecting:
+            return RowStatus(text: "CONNECTING", color: Design.Brand.forge, blinks: true)
+        case .disconnected, .error:
+            if TalariaLinkObservation.legacyRelayReadsAsError(
+                pluginLive: pluginLive, relayReachable: false) {
+                return RowStatus(text: "ERROR", color: Design.Colors.danger, blinks: false)
+            }
+            return RowStatus(text: "OFFLINE", color: Design.Colors.mutedForeground, blinks: false)
         }
     }
 
