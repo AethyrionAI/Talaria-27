@@ -22900,3 +22900,10 @@ observation quote resolves to this item.
 > capability the app no longer has. **Q4** — accept the widget fallback
 > degradation (bars preamble)? Recommend YES: the widget's primary path
 > already queries HealthKit itself every 15-minute pass.
+>
+> **✅ OWEN SIGNED OFF — 2026-08-16 night, same session as the bars:
+> "1.ride along 2. Purge 3. Yes 4. Yes."** All four recommendations stand:
+> Q1 269-A-D rides as an isolated commit (352-K live), Q2 purge (352-F
+> live), Q3 manifest/entitlement drops (352-G live), Q4 widget-fallback
+> degradation accepted. Every contingent bar is now unconditional; the
+> lane is GO.
