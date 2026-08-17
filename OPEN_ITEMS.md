@@ -22827,3 +22827,29 @@ re-litigates it.
 **Cross-refs:** #251-2A (the platform inbox), #144 (deactivate-never-delete
 — server-side, distinguished above), #352 (the same-night re-sign, a
 candidate trigger for half 1), #98/#97 (existing read/dismiss bookkeeping).
+
+## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). NOT STARTED — runs after the #269-A/#270 merges, before or alongside the 3C steering session.**
+
+**Why a pass rather than more per-lane close-outs:** #352/#269-A corrected
+the lines their results falsified (per the close-out rule), but the README's
+STRUCTURE still tells the old story: the Setup section walks the full
+relay + connector install as the pairing path (now the legacy tier — the
+plugin path `hermes talaria pair` is the real one and appears nowhere in
+Setup); the architecture diagram still draws `Sensors → Relay :8000 →
+connector` (deleted app-side by #352); the requirements table still lists
+"Relay & connector — Python 3.11+, uvicorn" as if required; and the Status
+table's About/diagnostics descriptions predate the #269-A/#353 surfaces
+(measured Plugin Link, Legacy Relay grouping). `docs/` (the Pages site)
+carries the same story and should move in the same pass — remember docs/ is
+the WEB ROOT, not a place for specs.
+
+**Shape when it runs:** one docs-only lane; bars pre-register in this entry
+(candidate shape: Setup leads with gateway + plugin pairing and demotes
+relay/connector to a clearly-labeled legacy section; the diagram matches
+the shipped architecture; no instruction teaches a retired command or tier
+as current; `docs/` index matches the README's story). No app code.
+
+**Cross-refs:** #352 (sensor retirement close-outs already in README),
+#269-A/#353 (the surfaces the Status table should describe), #251 (the
+plugin venture the Setup section should teach), #223/Phase 4 (the relay
+tier's formal end, which a later pass can fold in).
