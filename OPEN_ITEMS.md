@@ -15178,6 +15178,32 @@ name, and the desktop `plugin.id` must ALL read `talaria`. **Shared state
 vocabulary with #269 settles at the host sitting before either lane's copy
 is written.**
 
+> **LANE OPENED — 2026-08-16 night (Owen: "270", after #269-A completed).
+> Task 1's blocking ASSUMEDs BOTH RESOLVED, read-only:** (1) the shipped
+> app CANNOT predate the SDK surface — `desktop-build-stamp.json` says
+> Hermes.app was built 2026-08-16 08:17Z, minutes after the checkout's
+> HEAD (`b2369172a`, 08:03Z) landed; the STOP condition does not fire.
+> (2) `auth_middleware` requires the session token on every `/api/` path
+> outside `_PUBLIC_API_PATHS`, and `/api/plugins` is NOT in that list —
+> the pane's backend routes are authenticated under headless `serve`
+> (kanban's `ctx.rest` proves the credential path daily). **Owen's §8
+> routings, same message:** 🔐 GATE GRANTED for Tasks 6+ (one sitting;
+> removal path stated: `rm -rf` both new trees, `config.yaml` untouched) ·
+> PANES_AREA pane · vocabulary **NOT INSTALLED / INSTALLED · NOT LIVE /
+> LIVE** (deliberately the #269-A app family, one word list across phone,
+> pane, and future chat prose) · device rows IN (id/name/active/last-seen,
+> tokens never on the wire). §8.2 (repo stays private until the app goes
+> public) was already decided in the 2026-08-16 brief. **Two dispatch
+> corrections for the post-#351 repo:** the plugin package moved
+> (`talaria/` package + load-bearing root shim — Task 4 imports
+> accordingly), and 270-F's suite baseline is **129**, not 60. **Design
+> refinement for 270-C's middle observable, recorded before code:** the
+> backend cannot honestly read the GATEWAY's adapter from its own process
+> (the dispatch's own in-process-counters trap) — the status route instead
+> probes the gateway's events route unauthenticated and classifies
+> 401/503/unreachable, the SAME verified seam the app's #269-A probe uses.
+> One seam, three consumers.**
+
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
 **The correction that produced it (Owen, 2026-08-05 late, quoted in #251):**
