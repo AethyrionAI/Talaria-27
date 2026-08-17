@@ -298,9 +298,9 @@ struct PrivacySettingsScreen: View {
             VStack(spacing: 0) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xs) {
                     HStack(spacing: Design.Spacing.sm) {
-                        // #260(C), Owen's routing: ONE switch governs ALL
-                        // sensor egress — streams and query-time answers —
-                        // and its words say so instead of "streaming".
+                        // #260(C)/#352: ONE switch governs all sensor egress,
+                        // which since #352 means exactly one thing — answering
+                        // the agent's query-time asks. Nothing streams.
                         Text("Share Sensors with Hermes")
                             .font(Design.Typography.callout)
                             .foregroundStyle(Design.Colors.foreground)
@@ -336,12 +336,11 @@ struct PrivacySettingsScreen: View {
     }
 
     private var sensorStreamingCaption: String {
-        if !container.pairingStore.isPaired {
-            return "Requires a paired Hermes host — sharing stays idle until one is connected. Each sensor asks for its iOS permission when you turn it on."
-        }
-        // #260(C): honest about BOTH acts this one switch gates — continuous
-        // streaming AND answering the agent's query-time asks.
-        return "Sends the sensors you enable to your Hermes host — as live streams, and as answers when your agent asks your phone directly. Each sensor asks for its iOS permission when you turn it on. Turning this off stops capture, drops queued samples, and declines sensor queries."
+        // #260(C)/#352: one caption for every state — the toggle's meaning
+        // doesn't depend on any link (RELAY pairing was the wrong plane for
+        // query-time, and asserting the plugin link from a stored token is
+        // the #350 trap). Answered on demand, never streamed, nothing queues.
+        "Lets your Hermes agent ask this phone for the sensors you enable — answered on demand, never streamed. Each sensor asks for its iOS permission when you turn it on. Turning this off declines sensor queries."
     }
 
     private var sensorStreamingBinding: Binding<Bool> {
@@ -366,7 +365,7 @@ struct PrivacySettingsScreen: View {
             Toggle("", isOn: sensorStreamBinding(sensor))
                 .labelsHidden()
                 .tint(Design.Brand.accent)
-                .accessibilityLabel("Stream \(sensor.displayLabel)")
+                .accessibilityLabel("Share \(sensor.displayLabel)")
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
