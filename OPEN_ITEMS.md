@@ -22868,3 +22868,25 @@ probe here does NOT depend on the app transport), #267 (queuing half of the
 one composer), #304 (approvals; a parked-on-approval steer arm needs a host
 approval-mode config change = 🔐 live-install gate, so it is DEFERRED, not
 skipped silently), #268 (why this filed as its own number).
+
+> **✅ 2026-08-17 ~00:45 — THE WIRE-PROOF RAN THE SAME NIGHT: BARS 357-A, 357-B,
+> 357-C ALL MET, first pass; 357-D met by
+> `planning/reports/2026-08-17-steer-wire-probe.md` + this note.** Live Mac
+> gateway (listener `b2369172a`), HTTP only, nothing modified. A: steer fired
+> mid-`sleep 20` → `accepted: true`, `run.steered` frame between
+> `tool.started` and `tool.completed`, final output **PLUM** over the
+> instructed BANANA — the 08-06 result reproduced via the CLIENT-REACHABLE
+> native route. B: mid-prose steer ACK'd `accepted: true` (untrustworthy, as
+> pre-registered), story output unaffected, and **`pending_steer` carried the
+> steer text verbatim on BOTH `run.completed` and the status object** — the
+> upstream replay contract is real on the wire, not just in source. C:
+> completed→409, unknown→404, stop-then-steer→409; zero false acceptances.
+> **Consequence for the app design:** the composer can (1) trust
+> `run.steered` as the LANDED signal, (2) treat the HTTP ACK as
+> submit-confirmation only, and (3) render a mid-prose steer as
+> "will send as your next message" off `pending_steer` at turn end — no
+> client-side guessing about tool-result boundaries required for honesty
+> (the §2.5 gate remains as UX affordance, not as the only safety).
+> Deferred with reason: the parked-on-approval steer arm (needs a host
+> approval-mode config = 🔐 gate). **The steering lane's remaining work is
+> the APP half, and it stays held behind #356.**
