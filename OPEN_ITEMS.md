@@ -22907,3 +22907,22 @@ observation quote resolves to this item.
 > live), Q3 manifest/entitlement drops (352-G live), Q4 widget-fallback
 > degradation accepted. Every contingent bar is now unconditional; the
 > lane is GO.
+
+> **🔧 LANE RAN — 2026-08-16 night, same session, inline per Owen. ALL
+> OFFLINE/MAC BARS MET; ⛔ PR OPEN DO-NOT-MERGE awaiting Owen's review.**
+> Branch `claude/t27-352-sensor-retirement`, 9 commits `af0f88f..afe7472`,
+> **GitHub PR #308** (GitHub number, not this tracker's #308) — 44 files,
+> +361/−4,376. `GATE: PASS` (2225 Swift Testing + 14 XCUITest + Release;
+> only skips = the permanent CondenserFidelityTests pair). Count trail
+> green at every commit: 2263/178 → 2224/173 → 2222/173 → 2225/173.
+> 352-A/D/E/F/G/H/I/J/K MET with evidence in the PR body; **352-B/C's
+> device arms remain** (zero capture/drain lines over a
+> launch→foreground→background cycle; a live `talaria_phone_query`
+> answers) — they run on `whoGoesThere` after Owen merges and installs.
+> Four discoveries beyond the plan, all handled in-lane and recorded in
+> the PR: PermissionsStore consumes all three capture services (slimmed to
+> auth-only, not deleted); the persisted #113 outage alert had no clearer
+> left (dropped on init + test — without this the "Sensor uploads stalled"
+> alert on the deployed phone was permanent); M-8 was a persisted codec
+> field with a delete-guard arm; a second user-visible `hermes-mobile`
+> string (the manual-entry hint) beyond the SETUP card.
