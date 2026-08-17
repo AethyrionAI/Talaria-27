@@ -51,6 +51,23 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
+
+        purgeRetiredSensorUploadArtifacts()
+    }
+
+    /// #352: the sensor-upload pipeline is retired. Its persisted outbox (a
+    /// pending GPS fix + up to 500 health samples) and HealthKit query
+    /// anchors have no reader left — remove them. Unconditional and
+    /// idempotent: removing an absent key is free, and no surviving path
+    /// recreates either key family. Key strings are inlined because their
+    /// `Keys` constants died with the pipeline; they are retired names, never
+    /// to be reused.
+    private func purgeRetiredSensorUploadArtifacts() {
+        defaults.removeObject(forKey: "hermes.sensorOutboxState")
+        for key in defaults.dictionaryRepresentation().keys
+        where key.hasPrefix("hermes.healthAnchor.") {
+            defaults.removeObject(forKey: key)
+        }
     }
 
     /// Single source of the store's encode config. The off-main sensor-outbox

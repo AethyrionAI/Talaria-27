@@ -1318,6 +1318,7 @@ final class AppContainer {
         await permissionsStore.reloadCapabilities()
         await chatStore.loadConversationIfNeeded()
         reconcileLiveActivities()
+        SharedWidgetDataStore.clearRetiredHealthMetrics()  // #352 (no-op once clean)
         updateWidgetData()
         // #123: cold-launch safety net for a share queued while the app was
         // dead — idempotent with the scene-activate drain (the inbox empties

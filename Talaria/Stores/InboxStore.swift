@@ -23,6 +23,21 @@ final class InboxStore {
         self.persistence = persistence
         self.sessionStore = sessionStore
         self.localState = persistence.loadInboxState()
+
+        // #352: drop any persisted #113 connector-outage alert — its producer
+        // and its clearer died with the upload pipeline, so a raised alert
+        // would otherwise sit in the inbox forever with no code left to
+        // resolve it. Persisted explicitly (didSet is inert during init).
+        if localState.localItems.contains(where: Self.isRetiredConnectorOutageAlert) {
+            localState.localItems.removeAll(where: Self.isRetiredConnectorOutageAlert)
+            persistence.saveInboxState(localState)
+        }
+    }
+
+    /// The retired #113 alert's persisted shape (payload key + kind were
+    /// inlined here when the producer died — retired names, never reused).
+    private static func isRetiredConnectorOutageAlert(_ item: InboxItem) -> Bool {
+        item.payload?["talaria.localAlert"] == "connector-outage"
     }
 
     var unreadCount: Int {

@@ -3593,6 +3593,46 @@ struct AppStoresTests {
         #expect(payload.timestamp == Date(timeIntervalSince1970: 1774983516))
     }
 
+    /// #352 (bar 352-F): the retired upload pipeline's persisted artifacts —
+    /// the outbox blob (a pending GPS fix + up to 500 health samples) and the
+    /// HealthKit query anchors — are removed on store init. Unconditional and
+    /// idempotent; no surviving path recreates either key family.
+    @Test @MainActor
+    func initPurgesRetiredSensorOutboxAndAnchorKeys() {
+        let suiteName = "purge-352-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        defer { suite.removePersistentDomain(forName: suiteName) }
+        suite.set(Data("junk".utf8), forKey: "hermes.sensorOutboxState")
+        suite.set(Data("anchor".utf8), forKey: "hermes.healthAnchor.stepCount")
+
+        _ = UserDefaultsAppPersistenceStore(defaults: suite)
+
+        #expect(suite.data(forKey: "hermes.sensorOutboxState") == nil)
+        #expect(suite.data(forKey: "hermes.healthAnchor.stepCount") == nil)
+    }
+
+    /// #352 (bar 352-F): the widget's stored health fallback fields are
+    /// nilled — the widget queries HealthKit live each pass, and a
+    /// months-stale snapshot number shown as current would lie. Pure
+    /// transform pinned here; the App-Group wrapper is a thin caller.
+    @Test
+    func clearingRetiredHealthMetricsNilsAllFourFieldsAndNothingElse() {
+        var data = HermesWidgetData.empty
+        data.steps = 5000
+        data.activeCalories = 300
+        data.sleepHours = 7.5
+        data.heartRate = 62
+        data.hostName = "keep-me"
+
+        let cleared = SharedWidgetDataStore.clearingRetiredHealthMetrics(data)
+
+        #expect(cleared.steps == nil)
+        #expect(cleared.activeCalories == nil)
+        #expect(cleared.sleepHours == nil)
+        #expect(cleared.heartRate == nil)
+        #expect(cleared.hostName == "keep-me")
+    }
+
     @Test
     func phonePairingCodeNormalizesAndFormatsManualEntry() throws {
         let normalized = try PhonePairingCode.normalize("ab cd-efgh")

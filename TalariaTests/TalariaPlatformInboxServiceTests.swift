@@ -269,16 +269,34 @@ struct TalariaPlatformInboxServiceTests {
         #expect(store.items.first?.type == .notification)
     }
 
+    /// #352 (bar 352-F sibling): a persisted #113 connector-outage alert has
+    /// no producer and no clearer left — the store drops it on init, from
+    /// memory AND from the persisted blob, so it can't sit in the inbox
+    /// forever.
+    @Test func initDropsRetiredConnectorOutageAlerts() async {
+        let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(
+            Self.localAlertFixture(payloadValue: "connector-outage"))
+        let store = await makeStore(persistence: persistence)
+
+        await store.loadInbox(force: true)
+
+        #expect(persistence.inboxState.localItems.isEmpty)
+        #expect(store.items.isEmpty)
+    }
+
     /// The shape the retired #113 outage alert persisted with — kept as the
     /// local-item fixture so these tests keep exercising the `localItems`
     /// half of the blob (tolerant decode keeps old rows alive on upgrade).
-    private static func localAlertFixture() -> InboxItem {
+    /// The default payload value is deliberately NOT "connector-outage": the
+    /// #352 init drop removes that kind, and these fixtures must survive it.
+    private static func localAlertFixture(payloadValue: String = "test-fixture") -> InboxItem {
         InboxItem(
             type: .alert,
             title: "Local alert",
             body: "App-generated operational alert.",
             priority: .high,
-            payload: ["talaria.localAlert": "test-fixture"],
+            payload: ["talaria.localAlert": payloadValue],
             primaryAction: InboxActionDescriptor(id: "acknowledge", title: "Acknowledge"),
             secondaryAction: InboxActionDescriptor(id: "dismiss", title: "Dismiss", isDestructive: true)
         )
