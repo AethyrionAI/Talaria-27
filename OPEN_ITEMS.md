@@ -15211,6 +15211,60 @@ is written.**
 > evidence table maps all three states to status+payload as the bar
 > demands.**
 
+> **✅ ALL BARS MET — 2026-08-16 late night, one sitting exactly as gated
+> (build → PR → live walk with Owen's eyes on the pane and this session's
+> hands on the files). Repo: `AethyrionAI/talaria-plugin` PR #3 (GitHub
+> number), branch `feat/desktop-face-v0` @ `f307109`, ⛔ DO-NOT-MERGE
+> awaiting Owen's review.**
+> - **270-A MET:** `plugin.js` installed 23:25:39 with Hermes.app running →
+>   pane appeared WITHOUT restart (Owen's screenshot, NOT INSTALLED card);
+>   a visibly-marked save at 23:34:57 re-rendered live ("Talaria (reload
+>   test)" observed), then reverted. Hot-reload is REAL — the SKILL.md
+>   self-contradiction resolves in favor of "the directory is watched."
+> - **270-B MET:** one unedited `plugin.js` rendered NOT INSTALLED from the
+>   backend's authenticated 404 (23:25–23:36) AND LIVE after the backend
+>   existed (post-23:39). Bonus evidence: unauthenticated probes of a
+>   mounted (kanban) and unmounted (talaria) namespace both read 401 — the
+>   auth wall is uniform, mount state leaks nothing unauthenticated, and
+>   the pane is the observer of record.
+> - **270-C MET, all three states OBSERVED live:** NOT INSTALLED ←
+>   authenticated 404 (no dashboard mounted) · INSTALLED · NOT LIVE ←
+>   200 + `adapter.observation: "unreachable"` (watched during the
+>   gateway's rebind window, Owen's screenshot: "The gateway did not
+>   answer the liveness probe") · LIVE ← 200 + `"live"`/401 (the #269-A
+>   seam). The `absent`/503 middle variant is test-pinned (loopback-server
+>   arm), not live-observed — both hosts run the adapter. No state derives
+>   from the absence of another; devices are the LIVE state's content
+>   (adaptation 2), and the walk's payload for each state is recorded in
+>   the PR + this block.
+> - **270-D MET, demonstrated:** `dashboard/` written 23:36:07 under the
+>   RUNNING backend → pane held NOT INSTALLED across refetches; after
+>   Owen's app restart (new serve child PID 10607) the same pane showed
+>   LIVE with no `plugin.js` edit. Import-time mount proven, not assumed.
+> - **270-E MET, body recorded:** authenticated
+>   `GET /api/plugins/talaria/status` (via a throwaway loopback dashboard,
+>   started and stopped for the capture) → device fields exactly
+>   `['active','id','last_seen','name']`, no token material; the
+>   projection is a WHITELIST (test-pinned) so a future store column
+>   cannot leak; color grep literally clean.
+> - **270-F MET:** suite **129 → 138** under BOTH `pytest tests/ -q` and
+>   `python -m pytest tests/ -q`; `compileall` green;
+>   `hermes plugins doctor . --ci` green (registration intact). No
+>   Talaria-27 Swift changes; `lane-gate.sh` not cited.
+> - **Live-install final state (verified intentional):**
+>   `~/.hermes/desktop-plugins/talaria/plugin.js` and
+>   `~/.hermes/plugins/talaria/dashboard/{manifest.json,plugin_api.py}`
+>   remain installed — byte-identical to PR #3's head — and the pane is in
+>   daily service; `config.yaml` untouched. Owen may remove per the stated
+>   path at any time; the PR remains the repo's record and merges on his
+>   review.
+> - **Vocabulary RECORDED for #269-B (close-out item 4):** NOT INSTALLED /
+>   INSTALLED · NOT LIVE / LIVE — already shipped app-side by #269-A's
+>   display family; the future chat prose uses the same three words.
+> - **§3 corrections all landed upstream:** memory note (2026-08-09),
+>   #270's own entry (2026-08-09), #251's cron-ticker framing and
+>   Phase-1 "next restart" note (this close-out, same commit).
+
 ## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
 
 **The correction that produced it (Owen, 2026-08-05 late, quoted in #251):**
@@ -17789,7 +17843,12 @@ registry probe confirms tool registered + gated + honest handler; CLI
 full cycle pair→status→unpair worked, record deactivated not deleted.
 `~/.hermes/config.yaml` gained `talaria` under `plugins.enabled`. The
 running gateway sees the plugin at its next restart (harmless — toolset
-reads unavailable until Phase 2 heartbeats flip check_fn). **OJAMD
+reads unavailable until Phase 2 heartbeats flip check_fn).
+**[#270 close-out note, 2026-08-16 (dispatch §3 item 4): "next restart"
+understates the current state — a `dashboard/` added later needs a
+BACKEND restart, and the backend (the desktop-spawned `serve`) is a
+DIFFERENT process from the gateway. Two restart surfaces, not one —
+demonstrated live by bar 270-D.]** **OJAMD
 install deliberately deferred to Phase 2** — Phase 1 adds no user value
 there and the venv CLIs it retires are only worth touching when pairing
 becomes consumable.
@@ -18346,7 +18405,14 @@ lane opens.
 > `hermes gateway run` puts **two cron tickers on one `state.db`** (double-fire
 > risk). Any serve adoption — including the desktop app's own
 > `hermes serve --port 0` backend, which is how the `plugin.js` pane would be
-> reached — must account for it. Source: D dossier `:804-805`;
+> reached — must account for it.
+> **[CORRECTED 2026-08-16 by #270's close-out (dispatch §3 item 3): the
+> hazard framing over-attributed it to the slice — the desktop app spawns
+> `serve --port 0` WHENEVER it runs (`main.ts:8167`), pane or no pane, so
+> the second ticker exists the moment Hermes.app opens. #270 inherits an
+> ambient condition (its v0 is read-only and writes no cron-adjacent
+> state); the ticker is a separate standing finding, scored against no
+> lane's bars.]** Source: D dossier `:804-805`;
 > `hermes_cli/main.py:10388`. Related, same probe: the tui_gateway ws credential is
 > **spawn-owned** (a per-process `_SESSION_TOKEN` unless
 > `HERMES_DASHBOARD_SESSION_TOKEN` is injected at spawn), so a client that did not
