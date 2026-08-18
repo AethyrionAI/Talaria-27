@@ -22896,6 +22896,61 @@ skipped silently), #268 (why this filed as its own number).
 >   DEVICE pass (live long-tool turn against the Mac gateway, PLUM-style)
 >   is OWED at close and recorded here either way.
 
+> **✅ 2026-08-17 late night — THE APP HALF SHIPPED (branch
+> `3c-steering-app-half`, slices 1–3c, PR #312). Per-bar verdicts, written
+> the same session per the close-out rule:**
+>
+> - **357-E MET.** Door selection unit-asserted per (setting × feasibility):
+>   `resolvePlainSend` (5 arms) + the explicit-menu resolver
+>   `ComposerDoor.explicitDoors` (5 arms), `SteeringComposerDoorsTests`; the
+>   degradation path asserted end-to-end (closed door → the NAMED queue
+>   fallback; prose-phase steer → the `pending_steer` conversion under
+>   357-G). The door taken is NAMED in the UI (#180): the commit control
+>   wears the resolved door's badge (clock = queue, branch = steer) with a
+>   matching accessibility label, the door-status strip names
+>   STEERED/INTERRUPTED, and the queue fallback surfaces as the existing
+>   QUEUED chip. Non-default doors stay reachable: the commit control
+>   long-presses into the explicit three-door menu. **Noted edge
+>   (deliberate):** with the #306 hold slot TAKEN the composer is #315's
+>   `busyNoCommit` (Stop only) — no commit control, so no menu, so
+>   steer/interrupt are unreachable in exactly that state. #315's door was
+>   left untouched on purpose; a follow-up affordance is Owen's call.
+> - **357-F MET.** `RunTurnPhaseTracker` pure (7 tests incl. out-of-order /
+>   duplicate tool events; reasoning keeps the window open), AND ChatStore
+>   derives it live from its own stream decode
+>   (`storeDerivesTurnPhaseFromTheStream`, `aNewTurnResetsThePhase`) — noted
+>   BEFORE the placeholder guard, so a #358-style placeholder loss cannot
+>   blind the phase.
+> - **357-G MET.** The ACK renders submit-only ("Steering the running
+>   turn"); `run.steered` is the ONLY thing that flips the chip to "Applied
+>   to the running turn" (`steerSubmitsAndLandsOnlyOnTheFrame`; chip states
+>   pinned). Missed steer → `pending_steer` → hold-first conversion, fires
+>   as the next user turn; occupied hold → #48 seed; both asserted. 409 →
+>   `.windowClosed` and 404 → `.runGone` pinned at the classifier
+>   (`RunsFrameParserTests:52-56`); both fall back to the NAMED hold — the
+>   text is KEPT (the chip), not left sitting in the composer as the bar's
+>   letter sketched. Spirit met (nothing silently lost, door named); delta
+>   recorded here.
+> - **357-H MET.** `interruptActiveTurnAndResend`: the explicit-Stop path
+>   (`cancelStreaming(hardStopHost: true)`), consumer wind-down awaited,
+>   then ONE fresh turn. Ordering test-asserted (`stop` strictly precedes
+>   the resend on the client's ordered event log), no-double-send asserted,
+>   and a held turn never rides along (#306 row 2 untouched:
+>   `interruptNeverAutoFiresAHeldTurn`). UI: "Stop & send as a new message"
+>   menu item; strip label "Stopped — sending as a new message" (the bar's
+>   wording — and the 306-J vocabulary test now covers the chip strings
+>   too).
+> - **357-I MET.** Row 3 (stream-lost/run-live) offers QUEUE only, in BOTH
+>   resolvers (`row3StreamLostRunLiveQueuesRegardlessOfSetting`,
+>   `row3OffersQueueOnly`).
+> - **357-J: gate half MET — `lane-gate.sh` GATE: PASS on CC-lane-1, 2285
+>   Swift Testing (count MOVED from the 2245 baseline) + 14 XCUITest, only
+>   the known-permanent CondenserFidelity skip pair, Release build clean.
+>   THE DEVICE PASS IS STILL OWED** — the steer arm's live long-tool turn
+>   (Mac gateway, PLUM-style) gets recorded here when run, either way. RED
+>   was observed first on every slice (TDD; the missing-symbol build
+>   failures and assertion failures are in the session logs).
+
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
