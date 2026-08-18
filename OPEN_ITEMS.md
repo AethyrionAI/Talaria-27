@@ -24204,6 +24204,39 @@ cutoff math in production; until then the backdated tests carry it.
 Archive move per #261 on Owen's formal close. OJAMD: 0.4.0 rides the
 same later rollout as 0.3.0 (one `hermes plugins update` covers both).
 
+**2026-08-18 ~17:30 — OJAMD ROLLOUT DONE (Owen + a box-side session):
+0.4.0 live on OJAMD — the mirror (#362) and hygiene (#363) now run on
+BOTH hosts; "Mac-profile only" is superseded.** Two findings from the
+rollout, recorded here at 0.4.0's home:
+1. **Hermes plugin-guard flagged the plugin DANGEROUS during OJAMD's
+   update** — key-shaped fixture strings in the test files tripped the
+   scanner (auto-disable risk). Fix: **`457de49`** ("tests: build dummy
+   API keys at runtime so plugin-guard stops flagging updates as
+   DANGEROUS"), pushed to main by the box-side session — VERIFIED from
+   here against GitHub before adoption: real commit, child of `a8b5f7a`,
+   **tests-only** (tests/test_envelope.py + tests/test_smoke.py, +9/−2,
+   zero runtime files). OJAMD re-updated onto it and scanned clean, no
+   dangerous verdicts, no auto-disables (Owen's report). Lesson for
+   future plugin work: fixture credentials must be BUILT at runtime,
+   never committed as literal key-shaped strings — the guard reads the
+   whole tree.
+2. **The Mac's `hermes plugins update talaria` 403s** ("Write access to
+   repository not granted") — the CLI presents its own stored credential,
+   which no longer has access, and ignores the checkout's git config (a
+   local `credential.helper` was set and the CLI still 403'd; OJAMD's
+   update worked, so the rot is Mac-side). PAPERCUT, not a blocker: the
+   loaded checkout (`~/.hermes/plugins/talaria`) was pulled to `457de49`
+   directly with gh credentials. **No gateway bounce needed or done** —
+   the diff is tests-only, so the running listener's loaded code is
+   byte-identical; the guard sees the fixed fixtures on its next natural
+   scan. The papercut bites the next CLI-driven update on the Mac —
+   worth one look at where hermes stores its git credential when someone
+   is in there anyway.
+**Still owed: the phone-side verification pass** (evening handoff's
+5-minute list): profile switch to OJAMD (#354's switch arm + #350's
+CHECKING presentation), one file-write turn (mirror chip on OJAMD), a
+reopen (closes #364's terminal-not-write_file caveat on OJAMD's shape).
+
 ## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. BUILT OVERNIGHT on Owen's go ("Do 364"): ALL BARS 364-A..F MET, PR #316 merged `d03246e8`, OTA build 2787 installed, DEVICE-PROVEN 2026-08-18 ~07:19 (the #362 negative-arm chip rebuilt from stored args alone — its mirror item was long acked+dropped). OJAMD's storage shape MEASURED the same morning (~09:00, direct API read — full stored args confirmed on 0.20.3 there too; the one honest gap is that the probed rows were `terminal`, not `write_file`, and the degrade arms cover it either way). Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 twice — it read "NOT STARTED" after the device proof, then "OJAMD UNVERIFIED" for the seven minutes between the 08:55 re-home and the 09:02 measurement.)**
 
 **What was found (live-probed on the Mac, Hermes 0.20.3 / head
