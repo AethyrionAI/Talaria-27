@@ -23928,3 +23928,28 @@ handoff — "untracked at repo root, origin unknown, untouched" — is
 therefore RETIRED for this file; it is tracked from `05c6b595` onward.**
 The lesson kept: in a repo with deliberately-untracked files, stage by
 name, never by wildcard.
+
+**2026-08-18 ~09:00 — OJAMD IS BACK, and its STORAGE SHAPE IS MEASURED
+(consequence 3 discharged): stored rows carry FULL `function.arguments`
+on OJAMD 0.20.3 too.** Direct `/health` probe: ok, version **0.20.3** —
+the host auto-updated past 0.20.1 while it was down, so it now matches
+the Mac. A read-only probe session (`api_1787061424_3a75d21d`) read back
+via `GET /api/sessions/{id}/messages` (direct API read, not
+agent-mediated — no fabrication caveat) shows every stored assistant
+row's `tool_calls[].function.arguments` carrying the complete args JSON
+verbatim (`terminal` calls, full command strings, byte-exact incl.
+nested quoting). Honest caveat: the probed rows are `terminal` calls,
+not `write_file` — the storage mechanism is generic (rows store
+whatever args JSON the turn emitted), so reconstruction is expected to
+work on OJAMD-hosted threads, but a `write_file` row on OJAMD has not
+itself been observed; the #364 degrade arms cover any surprise either
+way. Also measured in the same probe (this half IS agent-mediated,
+canaried per the standing discipline — Get-Date tracked real time, the
+load-bearing question asked twice, verbatim CLI output quoted both
+times, and the rollout runbook's step 1 re-verifies it before anything
+acts on it): **talaria plugin on OJAMD = enabled, 0.2.0, git source** —
+so the pending rollout is a plain `hermes plugins update talaria`
+(0.2.0 → 0.4.0, one update covers #362's mirror and #363's hygiene) +
+gateway restart, Owen pastes, per the routing recorded in #362/#363.
+**The rollout is UNBLOCKED as of this morning.** Probe residue on the
+host: session `api_1787061424_3a75d21d` — harmless; delete at will.
