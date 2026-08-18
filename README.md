@@ -43,7 +43,7 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 - **Streaming chat** via the Hermes Sessions API (SSE), with markdown, code blocks, inline images, and agent file downloads
 - **Voice mode** — real-time WebRTC speech-to-speech, server-side voice, continuous mic, mute/barge-in, multimodal image support; falls back to an on-device engine when the relay is unpaired or unreachable
 - **Inbox / Directives** — your agent pushes to-dos, approvals, reminders, and a daily briefing to the phone; approve or dismiss in place, and the verdict lands back on the host
-- **Sensor pipeline** — location, 11 HealthKit metrics, and CoreMotion activity delivered to Hermes in the background; your agent gets live context about you and you own all the data
+- **Phone-aware answers** — your agent asks the phone for location, HealthKit metrics, motion activity, calendar, and weather **at query time** over the talaria plugin; deliberate opt-in with per-sensor grants, and nothing streams in the background (the always-on upload pipeline was retired 2026-08-16, #352)
 - **Model picking, gateway-native** — pick from your full provider roster in Settings → Models; the pick rides every turn as a model lock and pins the live session through the gateway itself (no shim, no restart)
 - **Agent files** — files your agent generates surface as tappable share bubbles in chat
 - **Widgets & Live Activities** — agent status, health tiles, and briefing widgets; alarm Live Activities; lock-screen toggle controls
@@ -57,22 +57,28 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 
 ## Architecture
 
-Two independent paths, each talking to a dedicated service on your host:
+On-device chat needs no host at all. Paired, the phone talks to your Hermes machine on two planes — plus a third, legacy one you only run if you still need it:
 
 ```
 iPhone (Talaria)
   │
-  ├─ Chat, sessions & models ─→  Hermes Sessions API  :8642
-  │    SSE streaming, sync          hermes gateway run
-  │    model roster + per-turn lock
-  │    Bearer auth (API_SERVER_KEY)
+  ├─ Chat, sessions, models, runs ─→  Hermes Sessions API   :8642
+  │    SSE streaming + mid-turn          hermes gateway run
+  │    steering, model roster +
+  │    per-turn lock, Bearer auth
+  │    (API_SERVER_KEY)
   │
-  └─ Sensors, inbox, files, ──→  HermesMobile Relay   :8000
-       voice bootstrap             sidecar (Python/uvicorn)
-                                   → connector → hermes_mobile MCP tools
+  ├─ Plugin link ──────────────────→  talaria plugin        :8642
+  │    pairing · query-time phone        (same gateway process)
+  │    asks · inbox / directives ·
+  │    daily briefing
+  │
+  └─ LEGACY (optional): realtime- ─→  HermesMobile Relay    :8000
+       voice bootstrap, agent-file       sidecar (Python/uvicorn)
+       downloads                         → connector → hermes_mobile MCP
 ```
 
-Chat connects **directly** to the Sessions API — it never transits the relay — and model selection rides the same connection (roster fetch, then a per-turn lock carried on each request). The relay carries the remaining legacy phone-facing surfaces: pairing and auth, the inbox/directives channel, scheduled runs (e.g. the daily briefing), agent-file downloads, and the voice WebRTC bootstrap. (Sensor ingestion was retired 2026-08-16, #352 — phone data now answers **query-time asks** over the talaria plugin instead of streaming to the relay.) Both services are independently restartable. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy**: current builds touch it only for the realtime-voice WebRTC bootstrap and agent-file downloads, and it is on a retirement path (#223) — skip it unless you need those two things today. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
@@ -80,11 +86,11 @@ Chat connects **directly** to the Sessions API — it never transits the relay �
 
 | Component | Requirement |
 |-----------|-------------|
-| iOS app | iOS 27 (beta), Xcode 27 beta (iOS 27 SDK), Apple Developer account |
-| Host OS | macOS or Windows (Linux untested) |
-| Hermes | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured |
-| Network | Tailscale (recommended) or other private network access |
-| Relay & connector | Python 3.11+, uvicorn |
+| iOS app | iOS 27 (beta), Xcode 27 beta (iOS 27 SDK), Apple Developer account — **this is the whole list for on-device mode** |
+| Host OS (upgrade tier) | macOS or Windows (Linux untested) |
+| Hermes (upgrade tier) | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured, with the talaria plugin for pairing and phone-aware answers |
+| Network (upgrade tier) | Tailscale (recommended) or other private network access |
+| Relay & connector (legacy tier — optional) | Python 3.11+, uvicorn; only if you still need realtime server voice or agent-file downloads |
 
 > Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
 
@@ -92,11 +98,24 @@ Chat connects **directly** to the Sessions API — it never transits the relay �
 
 ## Setup
 
-### 1 — Install Hermes Agent
+### 1 — Generate and build the Xcode project (this is all on-device mode needs)
+
+The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+
+```bash
+xcodegen generate
+open Talaria.xcodeproj
+```
+
+Regenerate whenever Swift files are added or removed — sources are listed explicitly in the project. Set your own signing team and bundle identifier locally. Build to your iPhone with Xcode 27 beta.
+
+On first launch the app works immediately in on-device mode — no account, no host, no cloud login. Everything below is the **upgrade tier**.
+
+### 2 — Install Hermes Agent
 
 Follow the [Hermes Agent](https://github.com/NousResearch/hermes-agent) install instructions for your host OS. Confirm `hermes` is in your PATH and a profile is configured.
 
-### 2 — Start the Hermes gateway (Sessions API)
+### 3 — Start the Hermes gateway (Sessions API)
 
 ```bash
 hermes gateway run
@@ -106,7 +125,28 @@ This starts the Sessions API on `:8642`. Use NSSM (Windows) or a launchd agent (
 
 > ⚠️ Do not run `hermes gateway install` on Windows — it creates a conflicting scheduled task that fights the manual service for port 8642.
 
-### 3 — Deploy the relay sidecar
+### 4 — Pair the phone (talaria plugin)
+
+Pairing is one command on the host — it requires the talaria plugin on your Hermes install (`hermes talaria status` to check):
+
+```bash
+hermes talaria pair
+```
+
+It prints a QR code and a one-time code. In the app: **Settings → Server → Pair New Device**, then scan the QR or enter the code. For hosted chat, also enter your gateway URL (`http://your-host:8642`) and that host's `API_SERVER_KEY` under **Settings → Uplink** (the key lives in the Hermes `.env` — `~/.hermes/.env` on macOS, `%LOCALAPPDATA%\hermes\.env` on Windows). Each paired profile keeps its own key in the Keychain, and you can pair more than one machine.
+
+> ⚠️ **iCloud Private Relay** intercepts HTTP to Tailscale IPs. Disable it on your iPhone for Tailscale addresses, or the app will not reach your services.
+
+---
+
+### Legacy tier (optional): relay sidecar + connector
+
+**Skip this unless you need realtime server voice or agent-file downloads today.** These are the last two surfaces the relay tier still carries; the tier is on a retirement path (#223). Sensor upload is gone app-side (#352), phone queries ride the talaria plugin, and the inbox is served over the plugin channel — none of that needs the relay anymore.
+
+<details>
+<summary>Relay + connector install (legacy)</summary>
+
+Deploy the relay sidecar:
 
 ```bash
 cd relay
@@ -126,9 +166,7 @@ Key environment variables (`.env` in the relay directory):
 
 Bind to `0.0.0.0` for Tailscale reachability. A `Dockerfile`, `docker-compose.yml`, and `fly.toml` are included if you'd rather run the relay containerized or hosted.
 
-### 4 — Install and run the connector
-
-The connector is the host-side bridge that owns the durable relay connection, registers the `hermes_mobile` MCP server, and prints phone-pairing codes. **This tier is being retired** — sensor upload is gone app-side (#352, 2026-08-16), phone queries ride the talaria plugin instead, and the inbox is served over the same plugin channel; the connector remains only for hosts still using the legacy relay surfaces above.
+Then install and run the connector — the host-side bridge that owns the durable relay connection and registers the `hermes_mobile` MCP server:
 
 ```bash
 cd connector
@@ -137,28 +175,9 @@ pip install -e .
 hermes-mobile setup        # validates Hermes, pairs against your relay, registers the MCP server
 ```
 
-See [connector/README.md](connector/README.md) for the full wizard options (including `--skip-mcp` and background-service install).
+Relay-tier phone pairing uses `hermes-mobile pair-phone` (QR + short-lived code; in the app, paste your relay URL with the code). See [connector/README.md](connector/README.md) for the full wizard options.
 
-### 5 — Generate and build the Xcode project
-
-The Xcode project is generated from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
-
-```bash
-xcodegen generate
-open Talaria.xcodeproj
-```
-
-Regenerate whenever Swift files are added or removed — sources are listed explicitly in the project. Set your own signing team and bundle identifier locally. Build to your iPhone with Xcode 27 beta.
-
-### 6 — Launch, then pair (optional)
-
-On first launch the app works immediately in on-device mode — no account, no cloud login. To connect your Hermes machine:
-
-1. On the host, run `hermes-mobile pair-phone`. It prints a QR code and a short-lived 8-character code.
-2. In the app, scan the QR code or tap **Enter Code Manually**, paste your relay URL, and enter the code.
-3. For hosted chat, go to **Settings → Uplink** and enter your gateway URL (`http://your-host:8642`) and that host's `API_SERVER_KEY` (in the Hermes `.env` — `~/.hermes/.env` on macOS, `%LOCALAPPDATA%\hermes\.env` on Windows). Each paired profile keeps its own key.
-
-> ⚠️ **iCloud Private Relay** intercepts HTTP to Tailscale IPs. Disable it on your iPhone for Tailscale addresses, or the app will not reach your services.
+</details>
 
 ---
 
@@ -179,8 +198,8 @@ TalariaShare/         Share extension (URLs, images, files, text → Hermes)
 Shared/               Theme palette tables shared between app and widget targets
 TalariaTests/         Unit tests (Swift Testing)
 TalariaUITests/       UI tests (XCTest/XCUITest)
-relay/                HermesMobile relay sidecar (Python/FastAPI)
-connector/            Host-side bridge: relay connection, hermes_mobile MCP tools, pairing
+relay/                HermesMobile relay sidecar (Python/FastAPI; legacy tier — voice bootstrap + file downloads)
+connector/            Host-side bridge for the legacy relay tier (relay connection, hermes_mobile MCP tools)
 tools/models-shim/    Legacy model-switching shim (Python; retired — current app builds are gateway-native)
 tools/appicons/       Alternate app icon gallery renderer
 project.yml           XcodeGen project definition (source of truth)
@@ -202,7 +221,7 @@ dispatch/             In-flight agent task specs (temporary)
 
 ## Network notes
 
-- Both services (`8642`, `8000`) should be reachable from your phone's Tailscale IP
+- The gateway (`:8642`) must be reachable from your phone's Tailscale IP; `:8000` matters only if you run the legacy relay tier
 - Bind each service to `0.0.0.0`, not `127.0.0.1`
 - Add Windows Firewall inbound rules for each port if on Windows (a Tailscale process-level allow rule also covers this)
 - iCloud Private Relay must be disabled (or Tailscale IPs excluded) for HTTP to Tailscale addresses

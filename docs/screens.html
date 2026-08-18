@@ -127,7 +127,7 @@ button { font: inherit; }
 const SHOTS = [
   { src:"img/01_onboarding.png", label:"HANDSHAKE", group:"MAIN FLOW", title:"Pairing, or not.", alt:"Talaria pairing screen",
     desc:"The only screen you can skip entirely. Scan the QR your host prints, or type the 8-character code — but the app is fully usable if you never come here at all.",
-    notes:["Short-lived 8-character pairing code, printed by `hermes-mobile pair-phone` on the host","Relay URL entered by hand if you'd rather not scan","Device-bound pairing key, stored in the iOS Keychain"] },
+    notes:["One-time pairing code, printed by `hermes talaria pair` on the host","Code entered by hand if you'd rather not scan the QR","Device-bound pairing key, stored in the iOS Keychain"] },
   { src:"img/02_chat.png", label:"CHAT", group:"MAIN FLOW", title:"Streaming, with the work shown.", alt:"Talaria chat screen",
     desc:"Reasoning and answer channels stay separate. Tool activity renders as a live card — every step, its duration, and what's still running — and destructive actions wait for your confirmation.",
     notes:["Live context meter in the header, so you can see the window filling","Model chip switches the provider roster mid-session without a restart","Calendar diffs, file bubbles and inline images render natively","Background continuation: leave the app, come back, the stream reconciles"] },
