@@ -24506,3 +24506,34 @@ multi-device append cheap), #364 (whose reconstruction is why the chip
 appears on reopen anyway — the honest fallback that masked this for a
 day), #365 (filed the same evening, rides PR #320's docs), #109 (the
 iPad's existence in the fleet).
+
+**2026-08-18 ~18:30 — LANE OPEN (Owen: "Ok lets do it" — path 2, the real
+fix). Code read done; the seams verified, not assumed:**
+`outbox.append_for_devices(text, device_ids, meta, kind)` already fans out
+ONE independently-acknowledged targeted row per device atomically
+(`BEGIN IMMEDIATE`, `_insert_targeted`, dedup on device ids), and
+`pending(device_id)` serves per-device — so cross-device claiming is
+structurally impossible, answering the lane's one design question. The
+mirror's change is: `_single_active_device()` (exactly-one gate) becomes
+all-active-devices (≥1 gate), the append becomes `append_for_devices`,
+and `HUB.wake` fires per device. The zero-device arm stays fail-closed;
+the module docstring's "exactly one active device" contract text is
+corrected in the same commit (close-out in place).
+
+**BARS (366-A..E, before code):**
+- **366-A (fan-out, unit):** a qualifying write with TWO active devices
+  appends TWO `kind="artifact"` rows, each targeted to a distinct device
+  id with identical content/meta, independently ackable; the wake fires
+  once per device.
+- **366-B (single-device regression):** one active device behaves as
+  today — one targeted row, one wake.
+- **366-C (fail-closed unchanged):** zero devices → no row; the
+  non-write / empty-session / non-API-plane / unparseable-args gates
+  byte-identical; never-raises pinned against a raising
+  `append_for_devices`.
+- **366-D (suite/CI):** plugin suite green with the count MOVED from 170;
+  CI both Pythons; plugin.yaml 0.4.0 → 0.5.0.
+- **366-E (deploy, per-slice):** Mac pull + bounce + LISTENER verify;
+  OJAMD via Owen's paste; live proof = a write turn on OJAMD producing a
+  LIVE chip with both devices active — the exact fixture that failed
+  tonight.
