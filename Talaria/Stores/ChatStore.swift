@@ -176,6 +176,34 @@ final class ChatStore {
         steerAttempt.map { !$0.landed } ?? false
     }
 
+    /// #357-H: the interrupt door's in-flight text — set for the stop's
+    /// wind-down window, cleared the moment the fresh turn posts. Depth-1
+    /// like the steer attempt.
+    private(set) var interruptResendText: String?
+
+    /// #357-E/G/H: what the composer's status strip shows for the running
+    /// turn's door — pure derivation, so the states are unit-testable
+    /// without a live stream. An interrupt outranks a lingering steer
+    /// attempt: it is the user's latest action.
+    nonisolated static func doorStatusChip(
+        steerAttempt: SteerAttempt?, interruptResendText: String?
+    ) -> DoorStatusChipModel? {
+        if let interruptResendText {
+            return DoorStatusChipModel(text: interruptResendText, state: .interrupting)
+        }
+        if let steerAttempt {
+            return DoorStatusChipModel(
+                text: steerAttempt.text,
+                state: steerAttempt.landed ? .steered : .steering
+            )
+        }
+        return nil
+    }
+
+    var doorStatusChip: DoorStatusChipModel? {
+        Self.doorStatusChip(steerAttempt: steerAttempt, interruptResendText: interruptResendText)
+    }
+
     /// #357-E: whether the client is holding a run a steer could address —
     /// the resolver's `runIDAvailable` input. Nil before the submit ACK and
     /// on planes with no runs transport.
@@ -205,6 +233,33 @@ final class ChatStore {
             chatLog.notice("steer: door closed (\(String(describing: outcome), privacy: .public)) — falling back to the queue (#357-E)")
             return holdComposedTurn(trimmed)
         }
+    }
+
+    /// #357-H: the INTERRUPT door — always an explicit user choice, never a
+    /// plain send's resolution. Stop the running turn for real (the same
+    /// explicit-Stop path the Stop button takes, host `/stop` included where
+    /// the plane has one), wait for the cancelled consumer to wind down,
+    /// then post the text as a fresh turn. The ordering is the bar: stop
+    /// before send, one send total — the text never also enters the hold, so
+    /// there is no second path for it to fire from.
+    @discardableResult
+    func interruptActiveTurnAndResend(_ text: String) async -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard isTranscriptBusy else { return false }
+        guard interruptResendText == nil else { return false }
+        // Capture BEFORE cancelStreaming nils it — this is the only handle
+        // on the consumer whose teardown "the stop settles" waits for.
+        let windDown = streamingTask
+        interruptResendText = trimmed
+        cancelStreaming(hardStopHost: true)
+        await windDown?.value
+        chatLog.notice("interrupt door: stopped — posting the text as a fresh turn (#357-H)")
+        // Cleared as the fresh turn takes over: from here the text is a real
+        // user row, and the chip's story would be stale.
+        interruptResendText = nil
+        await sendMessage(trimmed)
+        return true
     }
 
     /// #203 (1A): how long a streaming turn may go with NO sign of life

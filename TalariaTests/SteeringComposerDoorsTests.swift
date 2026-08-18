@@ -108,4 +108,112 @@ struct SteeringComposerDoorsTests {
             ) == .queued)
         }
     }
+
+    // MARK: - 357-E: the explicit door menu (which doors are even offered)
+
+    @Test func allThreeDoorsOfferedMidTurnWhenEverythingIsFree() {
+        #expect(ComposerDoor.explicitDoors(
+            streamLostRunLive: false, runIDAvailable: true,
+            steerAttemptOutstanding: false, holdSlotFree: true
+        ) == [.queued, .steered, .interrupted])
+    }
+
+    @Test func row3OffersQueueOnly() {
+        // #357-I: stream-lost/run-live offers QUEUE only — no steer (the run
+        // is unreachable) and no interrupt (no fire into a live pendingRun).
+        #expect(ComposerDoor.explicitDoors(
+            streamLostRunLive: true, runIDAvailable: true,
+            steerAttemptOutstanding: false, holdSlotFree: true
+        ) == [.queued])
+    }
+
+    @Test func outstandingSteerRemovesTheSteerDoorOnly() {
+        // Depth-1: while one steer is unresolved the menu stops offering a
+        // second, but queue and interrupt stay reachable.
+        #expect(ComposerDoor.explicitDoors(
+            streamLostRunLive: false, runIDAvailable: true,
+            steerAttemptOutstanding: true, holdSlotFree: true
+        ) == [.queued, .interrupted])
+    }
+
+    @Test func noRunIDRemovesTheSteerDoorOnly() {
+        #expect(ComposerDoor.explicitDoors(
+            streamLostRunLive: false, runIDAvailable: false,
+            steerAttemptOutstanding: false, holdSlotFree: true
+        ) == [.queued, .interrupted])
+    }
+
+    @Test func occupiedHoldRemovesTheQueueDoorOnly() {
+        // The #306 hold is depth-1; a taken slot closes the queue door but
+        // the running turn can still be steered or interrupted.
+        #expect(ComposerDoor.explicitDoors(
+            streamLostRunLive: false, runIDAvailable: true,
+            steerAttemptOutstanding: false, holdSlotFree: false
+        ) == [.steered, .interrupted])
+    }
+
+    // MARK: - 357-E/G: the door status chip (the steer attempt's on-screen state)
+
+    @Test func steeringChipNamesTheDoorAndNeverSaysApplied() {
+        let chip = DoorStatusChipModel(text: "reply PLUM", state: .steering)
+        #expect(chip.doorName == ComposerDoor.steered.displayName)
+        #expect(chip.statusLine == ComposerDoor.steered.waitingStatusLine)
+        // 357-G: submitted must not read as applied — the ACK is submit-only.
+        #expect(!chip.statusLine.localizedCaseInsensitiveContains("applied"))
+    }
+
+    @Test func steeredChipReadsApplied() {
+        let chip = DoorStatusChipModel(text: "reply PLUM", state: .steered)
+        #expect(chip.doorName == ComposerDoor.steered.displayName)
+        #expect(chip.statusLine.localizedCaseInsensitiveContains("applied"))
+    }
+
+    @Test func interruptingChipCarriesTheBarLabel() {
+        // 357-H's prescribed label, verbatim.
+        let chip = DoorStatusChipModel(text: "new question", state: .interrupting)
+        #expect(chip.doorName == ComposerDoor.interrupted.displayName)
+        #expect(chip.statusLine == "Stopped — sending as a new message")
+    }
+
+    @Test func chipVocabularyNeverSaysSent() {
+        // 306-J extended to the status chip: no form of "sent" for a message
+        // that has not been posted. ("sending" in the interrupt label is the
+        // in-progress post the bar itself prescribes — and contains no "sent".)
+        for state in [DoorStatusChipModel.State.steering, .steered, .interrupting] {
+            let chip = DoorStatusChipModel(text: "x", state: state)
+            #expect(!chip.doorName.localizedCaseInsensitiveContains("sent"))
+            #expect(!chip.statusLine.localizedCaseInsensitiveContains("sent"))
+        }
+    }
+
+    // MARK: - 357-E/G/H: the store's chip derivation (pure)
+
+    @Test func noAttemptNoChip() {
+        #expect(ChatStore.doorStatusChip(steerAttempt: nil, interruptResendText: nil) == nil)
+    }
+
+    @Test func outstandingSteerDerivesSteeringChip() {
+        let chip = ChatStore.doorStatusChip(
+            steerAttempt: ChatStore.SteerAttempt(text: "reply PLUM"),
+            interruptResendText: nil
+        )
+        #expect(chip == DoorStatusChipModel(text: "reply PLUM", state: .steering))
+    }
+
+    @Test func landedSteerDerivesSteeredChip() {
+        var attempt = ChatStore.SteerAttempt(text: "reply PLUM")
+        attempt.landed = true
+        let chip = ChatStore.doorStatusChip(steerAttempt: attempt, interruptResendText: nil)
+        #expect(chip == DoorStatusChipModel(text: "reply PLUM", state: .steered))
+    }
+
+    @Test func interruptWinsOverALingeringSteerAttempt() {
+        // An interrupt fired while a steer attempt is still winding down is
+        // the user's LATEST action — the chip reports it, not the steer.
+        let chip = ChatStore.doorStatusChip(
+            steerAttempt: ChatStore.SteerAttempt(text: "old steer"),
+            interruptResendText: "new question"
+        )
+        #expect(chip == DoorStatusChipModel(text: "new question", state: .interrupting))
+    }
 }

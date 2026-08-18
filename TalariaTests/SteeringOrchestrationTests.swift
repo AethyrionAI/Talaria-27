@@ -29,8 +29,14 @@ struct SteeringOrchestrationTests {
         var steerOutcome: SteerSubmitOutcome = .submitted
         private(set) var steeredTexts: [String] = []
 
+        /// 357-H's ordering witness: every stop and send in arrival order.
+        private(set) var orderedEvents: [String] = []
+
         @discardableResult
-        func hardStopActiveRun() -> Bool { hostStopIsIssuable }
+        func hardStopActiveRun() -> Bool {
+            orderedEvents.append("stop")
+            return hostStopIsIssuable
+        }
 
         func steerActiveRun(text: String) async -> SteerSubmitOutcome {
             steeredTexts.append(text)
@@ -50,6 +56,7 @@ struct SteeringOrchestrationTests {
             clientMessageID: UUID
         ) -> AsyncStream<StreamingUpdate> {
             sentMessages.append(message)
+            orderedEvents.append("send:\(message)")
             let autoFinish = autoFinishSends
             return AsyncStream { continuation in
                 continuation.yield(.messageSent(jobID: UUID()))
@@ -204,5 +211,57 @@ struct SteeringOrchestrationTests {
         #expect(store.pendingComposerSeed == "reply MANGO", "the steer text restores via the #48 seed when the hold is taken")
         let userHoldFired = await pollUntil { client.sentMessages.contains("the user's own queued message") }
         #expect(userHoldFired, "the user's explicit hold keeps its slot and fires")
+    }
+
+    // MARK: - 357-H: the interrupt door — stop first, then ONE fresh turn
+
+    @Test @MainActor
+    func interruptStopsThenPostsExactlyOneFreshTurn() async throws {
+        let client = SteeringManualClient()
+        client.hostStopIsIssuable = true
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let sendTask = await startTurn("write a story", store: store, client: client)
+
+        client.autoFinishSends = true
+        #expect(await store.interruptActiveTurnAndResend("new question"))
+        _ = await sendTask.value
+
+        // The ordering is the bar: the host stop goes out BEFORE the fresh
+        // turn posts, and the text posts exactly once — no double-send.
+        let stopIndex = try #require(client.orderedEvents.firstIndex(of: "stop"))
+        let resendIndex = try #require(client.orderedEvents.firstIndex(of: "send:new question"))
+        #expect(stopIndex < resendIndex, "stop settles before the fresh turn posts")
+        #expect(client.sentMessages.filter { $0 == "new question" }.count == 1)
+        #expect(store.doorStatusChip == nil, "the interrupt chip does not outlive the orchestration")
+        #expect(store.isTranscriptBusy == false)
+    }
+
+    @Test @MainActor
+    func interruptRefusedWhenNothingIsRunning() async {
+        let client = SteeringManualClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+
+        #expect(await store.interruptActiveTurnAndResend("nothing to interrupt") == false)
+        #expect(client.orderedEvents.isEmpty, "an idle composer neither stops nor posts")
+    }
+
+    @Test @MainActor
+    func interruptNeverAutoFiresAHeldTurn() async throws {
+        // #306 row 2: a stopped turn never auto-fires the held message. The
+        // interrupt door's fresh turn is the INTERRUPT text alone — the held
+        // turn parks (restores), it does not ride along.
+        let client = SteeringManualClient()
+        client.hostStopIsIssuable = true
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        store.composerLiveText = { "" }
+        let sendTask = await startTurn("write a story", store: store, client: client)
+
+        #expect(store.holdComposedTurn("held follow"))
+        client.autoFinishSends = true
+        #expect(await store.interruptActiveTurnAndResend("urgent question"))
+        _ = await sendTask.value
+
+        #expect(client.sentMessages.filter { $0 == "urgent question" }.count == 1)
+        #expect(!client.sentMessages.contains("held follow"), "row 2: stop must not fire the hold")
     }
 }

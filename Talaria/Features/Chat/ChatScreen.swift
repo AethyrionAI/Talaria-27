@@ -312,7 +312,11 @@ struct ChatScreen: View {
                     onQueueMessage: queueComposedMessage,
                     onChipSendNow: { Task { await chatStore.sendHeldTurnNow() } },
                     onChipEdit: editQueuedMessage,
-                    onChipCancel: { chatStore.cancelHeldTurn() }
+                    onChipCancel: { chatStore.cancelHeldTurn() },
+                    // #357: the running turn's steer/interrupt status, and
+                    // the explicit door menu's dispatch.
+                    doorStatusChip: chatStore.doorStatusChip,
+                    onExplicitDoor: commitComposedMessage(via:)
                 )
                 // Lane J (J-3): same readable measure as the transcript —
                 // the composer card (attachment strip included) must not
@@ -1524,20 +1528,26 @@ struct ChatScreen: View {
     /// there is nothing to wait on — fall through to a normal send, which is
     /// what an immediate fire would have done anyway.
     private func queueComposedMessage() {
-        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !content.isEmpty, !content.hasPrefix("/") else { return }
         // #357-E: the plain mid-turn send resolves its door from Owen's
         // setting + the turn's state; the resolver owns feasibility (row-3
         // queue-only, depth-1, no-run-id fallback) and the store names the
         // door actually taken.
-        let door = ComposerDoor.resolvePlainSend(
+        commitComposedMessage(via: ComposerDoor.resolvePlainSend(
             setting: settingsStore.settings.midTurnSendAction,
             streamLostRunLive: chatStore.isInReconcileWindow,
             runIDAvailable: chatStore.canSteerActiveTurn,
             steerAttemptOutstanding: chatStore.steerAttemptOutstanding
-        )
-        if door == .steered {
-            let steered = content
+        ))
+    }
+
+    /// #357-E/H: one committed mid-turn message, through a NAMED door — the
+    /// plain send resolves its door above; the commit control's menu passes
+    /// one explicitly.
+    private func commitComposedMessage(via door: ComposerDoor) {
+        let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !content.isEmpty, !content.hasPrefix("/") else { return }
+        switch door {
+        case .steered:
             messageText = ""
             if settingsStore.settings.hapticFeedbackEnabled {
                 HapticEngine.messageSent()
@@ -1546,22 +1556,41 @@ struct ChatScreen: View {
                 // A steer whose door turns out closed falls back to the
                 // hold inside the store; only a full refusal (depth-1 race,
                 // turn already over) hands the text back.
-                if await chatStore.steerActiveTurn(steered) == false {
-                    if messageText.isEmpty { messageText = steered }
+                if await chatStore.steerActiveTurn(content) == false {
+                    if messageText.isEmpty { messageText = content }
                 }
             }
-            return
-        }
-        if chatStore.holdComposedTurn(content) {
+        case .interrupted:
             messageText = ""
             if settingsStore.settings.hapticFeedbackEnabled {
                 HapticEngine.messageSent()
             }
-        } else if !chatStore.isTranscriptBusy {
-            sendMessage()
+            Task { @MainActor in
+                if await chatStore.interruptActiveTurnAndResend(content) == false {
+                    if !chatStore.isTranscriptBusy {
+                        // The turn ended between render and tap — a fresh
+                        // send IS the second half of the user's intent.
+                        await chatStore.sendMessage(content)
+                        scrollToBottom()
+                    } else if messageText.isEmpty {
+                        // Depth-1 refusal mid-orchestration: hand the text
+                        // back — nothing lost, nothing silently replaced.
+                        messageText = content
+                    }
+                }
+            }
+        case .queued:
+            if chatStore.holdComposedTurn(content) {
+                messageText = ""
+                if settingsStore.settings.hapticFeedbackEnabled {
+                    HapticEngine.messageSent()
+                }
+            } else if !chatStore.isTranscriptBusy {
+                sendMessage()
+            }
+            // A depth-1 refusal while the turn still runs leaves the text in
+            // the composer — nothing is lost, nothing silently replaced.
         }
-        // A depth-1 refusal while the turn still runs leaves the text in the
-        // composer — nothing is lost, nothing silently replaced.
     }
 
     /// #306: chip Edit — the held text comes back to the composer for the

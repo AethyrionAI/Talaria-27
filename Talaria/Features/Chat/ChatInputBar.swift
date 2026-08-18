@@ -24,6 +24,15 @@ struct ChatInputBar: View {
     let onChipSendNow: () -> Void
     let onChipEdit: () -> Void
     let onChipCancel: () -> Void
+    /// #357-E/G/H: the RUNNING turn's door status (steer submitted/applied,
+    /// interrupt in flight; nil = no attempt). Distinct from `queuedChip`,
+    /// which is the NEXT turn's held message — both can be on screen at once
+    /// (steer outstanding + a second send held).
+    let doorStatusChip: DoorStatusChipModel?
+    /// #357-E: a door chosen EXPLICITLY from the commit control's menu — the
+    /// non-default doors stay reachable regardless of Owen's plain-send
+    /// setting.
+    let onExplicitDoor: (ComposerDoor) -> Void
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
@@ -184,6 +193,13 @@ struct ChatInputBar: View {
 
             // Composer container
             VStack(spacing: 0) {
+                // #357: the running turn's door status — above the held
+                // chip so the two read in turn order (this turn, then the
+                // next).
+                if let doorStatusChip {
+                    doorStatusStrip(doorStatusChip)
+                }
+
                 // #306: the held-message chip — composer-attached, above the
                 // input, so the queued text is visible, editable and
                 // cancellable for as long as it is held.
@@ -641,10 +657,35 @@ struct ChatInputBar: View {
         .accessibilityLabel("Stop generating")
     }
 
-    /// #306: the queue-commit control — the send arrow wearing a queue
-    /// badge. Committing HOLDS the message against this thread; it posts
-    /// only after the running turn actually completes. The label never says
-    /// "sent" (C1).
+    /// #357-E: the door a plain tap on the commit control takes right now —
+    /// the same pure resolution `ChatScreen` dispatches through (the #278
+    /// discipline: surface and store read one predicate), so the badge can
+    /// name the door honestly instead of always wearing the queue clock.
+    private var plainSendDoor: ComposerDoor {
+        ComposerDoor.resolvePlainSend(
+            setting: settingsStore.settings.midTurnSendAction,
+            streamLostRunLive: chatStore.isInReconcileWindow,
+            runIDAvailable: chatStore.canSteerActiveTurn,
+            steerAttemptOutstanding: chatStore.steerAttemptOutstanding
+        )
+    }
+
+    /// #357-E/I: which doors the commit control's long-press menu offers —
+    /// feasibility from the same store facts the resolver reads.
+    private var availableExplicitDoors: [ComposerDoor] {
+        ComposerDoor.explicitDoors(
+            streamLostRunLive: chatStore.isInReconcileWindow,
+            runIDAvailable: chatStore.canSteerActiveTurn,
+            steerAttemptOutstanding: chatStore.steerAttemptOutstanding,
+            holdSlotFree: canQueueMessage
+        )
+    }
+
+    /// #306: the queue-commit control — the send arrow wearing the door's
+    /// badge. Committing HOLDS the message against this thread (or, when
+    /// Owen's setting picks steer, submits it against the running turn); the
+    /// label never says "sent" (C1). Long-press names every open door
+    /// explicitly (#357-E).
     private var queueCommitButton: some View {
         Button(action: handleQueueAction) {
             Image(systemName: "arrow.up")
@@ -657,7 +698,7 @@ struct ChatInputBar: View {
                         .strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
                 }
                 .overlay(alignment: .topTrailing) {
-                    Image(systemName: "clock.fill")
+                    Image(systemName: plainSendDoor == .steered ? "arrow.triangle.branch" : "clock.fill")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(Design.Brand.accentBright)
                         .padding(2)
@@ -668,8 +709,50 @@ struct ChatInputBar: View {
                 .contentShape(Rectangle())
         }
         .hoverEffect(.highlight)
-        .accessibilityLabel("Queue message")
+        .accessibilityLabel(plainSendDoor == .steered ? "Steer the running turn" : "Queue message")
+        .contextMenu {
+            ForEach(availableExplicitDoors, id: \.self) { door in
+                Button { handleExplicitDoor(door) } label: {
+                    switch door {
+                    case .queued:
+                        Label("Queue — after this turn", systemImage: "clock")
+                    case .steered:
+                        Label("Steer the running turn", systemImage: "arrow.triangle.branch")
+                    case .interrupted:
+                        Label("Stop & send as a new message", systemImage: "stop.circle")
+                    }
+                }
+            }
+        }
         .transition(.scale.combined(with: .opacity))
+    }
+
+    /// #357-E/G/H: the running turn's door status — name + honesty state,
+    /// nothing else. Control-free on purpose: a steer that has reached the
+    /// host can be neither edited nor recalled (contrast the queued chip's
+    /// Edit/Cancel). Never a transcript row (#282/identity ruling).
+    private func doorStatusStrip(_ chip: DoorStatusChipModel) -> some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+            MonoLabel(
+                chip.doorName,
+                size: 9,
+                tracking: Design.Tracking.mono,
+                color: chip.state == .interrupting ? Design.Brand.forge : Design.Brand.accentBright
+            )
+            Text(chip.text)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.foreground)
+                .lineLimit(2)
+            Text(chip.statusLine)
+                .font(Design.Typography.caption2)
+                .foregroundStyle(Design.Colors.mutedForeground)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.sm)
+        .padding(.bottom, Design.Spacing.xxs)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("chat.doorStatusChip")
     }
 
     /// #306: the held-message chip — the door name, the text, its status,
@@ -736,12 +819,24 @@ struct ChatInputBar: View {
     /// #306: the queue gesture — same dictation settling as the send
     /// gesture, then the hold instead of the post.
     private func handleQueueAction() {
-        if speechService.isListening {
-            speechService.stopListening()
-            text = mergedDictationText(speechService.transcript)
-            dictationBaseText = ""
-        }
+        settleDictationIntoText()
         onQueueMessage()
+    }
+
+    /// #357-E: an explicit door from the commit control's menu — same
+    /// dictation settling, then the chosen door instead of the resolved one.
+    private func handleExplicitDoor(_ door: ComposerDoor) {
+        settleDictationIntoText()
+        onExplicitDoor(door)
+    }
+
+    /// A live dictation session's transcript merges into the draft before
+    /// any commit gesture acts on it.
+    private func settleDictationIntoText() {
+        guard speechService.isListening else { return }
+        speechService.stopListening()
+        text = mergedDictationText(speechService.transcript)
+        dictationBaseText = ""
     }
 
     // MARK: - Clipboard

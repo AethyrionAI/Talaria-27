@@ -42,6 +42,64 @@ enum ComposerDoor: String, CaseIterable, Hashable, Sendable {
     /// the #180 visible-degradation rule. The chip then offers
     /// Send now / Edit / Discard, and NOTHING auto-fires.
     static let surfacedStatusLine = "The turn this was waiting on didn't produce an answer"
+
+    /// #357-E/I: which doors the EXPLICIT affordance (the commit control's
+    /// menu) offers for the running turn — feasibility only; the plain
+    /// send's default lives in `resolvePlainSend`.
+    /// - Row 3 (stream lost, run live) offers QUEUE only: the run is
+    ///   unreachable for steering, and an interrupt's resend would fire
+    ///   into a live `pendingRun` (#306/#307).
+    /// - Steer needs a live run id and is depth-1; queue is depth-1 via the
+    ///   #306 hold slot.
+    static func explicitDoors(
+        streamLostRunLive: Bool,
+        runIDAvailable: Bool,
+        steerAttemptOutstanding: Bool,
+        holdSlotFree: Bool
+    ) -> [ComposerDoor] {
+        if streamLostRunLive { return holdSlotFree ? [.queued] : [] }
+        var doors: [ComposerDoor] = []
+        if holdSlotFree { doors.append(.queued) }
+        if runIDAvailable && !steerAttemptOutstanding { doors.append(.steered) }
+        doors.append(.interrupted)
+        return doors
+    }
+}
+
+/// #357-E/G/H: the control-free status strip for a live steer or interrupt
+/// attempt — the door name and the honesty state, nothing else. No Edit, no
+/// Cancel: a steer that has reached the host can be neither reworked nor
+/// recalled, so the chip only reports. A chip, never a transcript row
+/// (#282/identity ruling). Renders alongside the queued-turn chip when both
+/// exist (steer outstanding + a second send held).
+struct DoorStatusChipModel: Equatable {
+    enum State: Equatable {
+        /// Submitted — the HTTP ACK. Must never read as applied (357-G).
+        case steering
+        /// `run.steered` seen on the events stream — THE applied signal.
+        case steered
+        /// The interrupt door: stop issued, the text about to post as a
+        /// fresh turn (357-H).
+        case interrupting
+    }
+
+    let text: String
+    let state: State
+
+    var doorName: String {
+        switch state {
+        case .steering, .steered: ComposerDoor.steered.displayName
+        case .interrupting: ComposerDoor.interrupted.displayName
+        }
+    }
+
+    var statusLine: String {
+        switch state {
+        case .steering: ComposerDoor.steered.waitingStatusLine
+        case .steered: "Applied to the running turn"
+        case .interrupting: "Stopped — sending as a new message"
+        }
+    }
 }
 
 /// What the composer renders for a held message: the chip's view model,
