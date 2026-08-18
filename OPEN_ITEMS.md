@@ -22399,7 +22399,7 @@ mapping tests via behavior-preserving stubs before the logic landed
   Release clean.** MessageIdentityUITests passed at gate on the erased
   sim — further support for #236's sim-state aggravator note.
 
-## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
+## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; PR open, merge is Owen's review.**
 
 **The measurement, from two consecutive turns in one thread (screenshots):**
 
@@ -22443,6 +22443,87 @@ the gauge to an honest metric; REMOVE only if it cannot be made honest
 ("i've been leaning towards remove but you keep convincing me to keep it.
 Try to fix, remove if you can't"). Lane queued this session behind
 #354/#350.**
+
+**2026-08-18 ~13:45 — WIRE PROBE + BUILD (Owen's ruling applied: fix,
+not remove). Branch `349-ctx-gauge`; PR open.**
+
+**349-B's probe, run live on the Mac gateway (0.20.3, session
+`api_1787076366_1a70c892` — residue, delete at will):**
+- Toolless turn ("reply BANANA"): `input_tokens` **23,370** — the true
+  depth of a fresh thread (system + memory), honest occupancy.
+- Three-tool turn (three `terminal` calls): `input_tokens` **46,953** on
+  a thread whose real depth was ~23.5K — the SUM of per-call re-reads,
+  ~2×, reproducing the filing's divergence ON THE WIRE (its production
+  arm hit 287K on a 128K window at 4+ calls).
+- **The usage object carries ONLY `input_tokens`/`output_tokens`/
+  `total_tokens` + `runtime` — no per-call breakdown, no final-call
+  field, no occupancy field. Stored rows have `token_count: null` on
+  every message. `/v1/capabilities` advertises nothing context-shaped.
+  349-B's finding: NO truthful per-turn occupancy field exists on this
+  host.** So per the pre-registered bar, the honest option is ELECTED,
+  not defaulted: render occupancy only when the number IS occupancy.
+
+**Design:** `Conversation.contextOccupancyTokens` — the last
+usage-carrying hermes message's `promptTokens` IFF that message has no
+tool activities; otherwise nil. No stale carry-forward: an older
+toolless reading would UNDERSTATE current depth (349-C's worse
+direction — the false-low that removes the warning when it matters).
+`ChatStore.currentContextTokens` delegates; `lastTokenUsage` (receipt
+card, session totals) is untouched — those correctly show billed spend.
+
+**Verdicts:**
+- **349-A — MET (wire + production).** The divergence pair is recorded
+  with the denominator named: the filing's device pair (101K/79% and
+  287K/100%-clamped on a SUCCEEDING turn, window pinned by arithmetic at
+  128K) + today's wire pair above. The turn succeeding while the gauge
+  reads 100% was the defect; both records carry it.
+- **349-B — MET (the finding).** No occupancy field exists (probe above).
+- **349-C — MET.** A rendered value is always the latest turn's own
+  measured depth; tool turns render ABSENT, and absent cannot read low.
+  The no-carry-forward rule is pinned
+  (`gaugeNumeratorNeverCarriesAStaleReadingForward`).
+- **349-D — MET.** nil flows through ChatScreen's existing absent
+  machinery (both consumer sites guard nil; no `CTX 0%` path exists).
+  Suite: `ConversationCardInputTests` 10 → 15, RED observed on both
+  positive tests against a nil stub before the logic landed.
+- **The #46 comment's insight now reaches its adjacent consumer** — the
+  gauge is capacity, the totals are spend, and each is labeled by what
+  it measures.
+
+**2026-08-18 ~14:10 — DESIGN AMENDED BY THE GATE (recorded honestly): the
+first cut read the numerator from message rows only, and the full suite
+caught two LEGITIMATE store-level feeds it severed** — the #322 cancel
+final-status read (the stopped run's numbers land on `lastTokenUsage`
+with no message row) and the cached-metadata restore
+(`conversation.latestUsage`). Both had pins
+(`aSuccessfulReadPutsTheStoppedRunsOwnNumbersOnTheGauge`,
+`chatStoreLoadsLatestUsageFromConversationMetadata`) and both went RED —
+the suite doing exactly its job. Reworked:
+`Conversation.contextOccupancyTokens(for:)` gates the PASSED store-level
+usage on the latest hermes message's tool activities — every #322/#25
+channel keeps feeding the gauge, and a tool-using turn (settled OR
+mid-stream) renders it absent. A toolless streaming tail keeps the prior
+honest value (the existing #25 mid-stream rule, now pinned:
+`gaugeNumeratorSurvivesAToollessStreamingTail`). All three affected
+suites green (AppStores, CancelFinalStatusRead, ConversationCardInput
+10 → 15).
+
+**2026-08-18 ~14:40 — GATE, stated honestly (the #354 shape again):** the
+contiguous `lane-gate.sh` run on an ERASED CC-lane-1 reported **Swift
+Testing PASS at 2336** (count MOVED from 2331 by exactly this lane's +5)
+and **Release PASS**, failing only on
+`MessageIdentityUITests.testQueuedChipCancelRemovesHeldMessageWithNothingPosted`
+— the #236 family, on a diff that touches one read-only computed property
+nowhere near the send/queue path, and a test that failed once earlier
+today on #354's entirely different diff and passed #350's gate in
+between. The suite then ran **2/2 in isolation** and the **full XCUITest
+bundle 14/14** on the same commit. Every gate component is green on
+`349-ctx-gauge` HEAD. **#236 occurrence 5, recorded here to avoid a
+cross-PR edit of that entry (its occ-3+4 note rides PR #317; consolidate
+at merge): an ERASED-sim occurrence — the sim-state aggravator alone no
+longer explains this suite's rate. Today's tally: ~2 of 5 bundle-context
+runs across THREE different diffs. If the rate holds, the suite's budget
+premise deserves its own lane.**
 
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 

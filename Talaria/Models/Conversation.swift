@@ -11,6 +11,27 @@ struct Conversation: Codable, Identifiable, Hashable, Sendable {
     var messages: [Message]
     var lastActivity: Date
     var latestUsage: TokenUsage?
+
+    /// #349: gates the gauge's numerator. `promptTokens` IS context
+    /// occupancy only when the turn it describes made no tool calls — on
+    /// agentic turns the wire's `input_tokens` is the SUM of billed input
+    /// across every internal model call (wire-measured 2026-08-18: 46,953 on
+    /// a thread whose true depth was ~23.5K; 287K-on-a-128K-window in the
+    /// production filing), so the gauge renders ABSENT rather than a wrong
+    /// number (#25). The usage is PASSED IN because the store-level feed
+    /// (`ChatStore.lastTokenUsage`) has channels no message row carries —
+    /// the #322 cancel final-status read and the cached-metadata restore —
+    /// and all of them describe the LATEST settled turn, whose tool
+    /// activities live on the latest hermes message. A tool-using turn gates
+    /// the gauge even mid-stream; there is no stale carry-forward (an older
+    /// toolless reading would UNDERSTATE current depth, the false-low that
+    /// removes the ceiling warning when it matters).
+    func contextOccupancyTokens(for usage: TokenUsage?) -> Int? {
+        guard let prompt = usage?.promptTokens else { return nil }
+        let lastHermes = messages.last(where: { $0.sender == .hermes })
+        return (lastHermes?.toolActivities.isEmpty ?? true) ? prompt : nil
+    }
+
     /// One-line on-device preview generated alongside the title (#4.8).
     /// nil until the first completed exchange has been summarized (and in
     /// pre-#4.8 caches).

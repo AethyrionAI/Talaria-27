@@ -293,8 +293,14 @@ final class ChatStore {
     /// Context window size for the active model (e.g., 400000).
     private(set) var contextWindow: Int?
 
+    /// #349: `lastTokenUsage` stays the SOURCE (its #322 cancel-read and
+    /// cache-restore channels have no message row), but the gauge renders it
+    /// only when the latest turn made no tool calls — on tool turns
+    /// promptTokens is the billed SUM, a spend number, and the gauge's job
+    /// is capacity. `lastTokenUsage` itself is untouched: the receipt card
+    /// and session totals correctly show billed spend.
     var currentContextTokens: Int? {
-        lastTokenUsage?.promptTokens
+        conversation?.contextOccupancyTokens(for: lastTokenUsage)
     }
 
     /// #46: session running totals over every metered Hermes turn. Input
