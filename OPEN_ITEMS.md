@@ -22549,8 +22549,14 @@ PASS (the evening rollout verification), both fixed on branch
    turn-scope fix lands, since it was a tool turn.
 Owen's pass also confirmed the OJAMD chip renders on reopen (attribution
 between mirror-hold-attach and #364 reconstruction pending the outbox-row
-timing query, box-side); the LIVE-attach miss is warmup-race-shaped, and
-the same query discriminates.
+timing query, box-side). **The LIVE-attach behavior DIFFERS BY HOST (Owen,
+same evening): on the Mac the preview appears live, mid-thread — the 3D
+pass's created=delivered-same-second shape — while OJAMD's first test
+needed leave-and-return.** Two candidate stories, discriminated cheaply:
+a SECOND write turn on the warmed link (live chip ⇒ warmup race, no bug)
+vs the outbox-row timing query (delivered-during-turn ⇒ app-side attach
+miss on OJAMD; delivered-at-reopen ⇒ the HUB wake/drain not firing
+host-side on Windows). Awaiting Owen's retest.
 
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
