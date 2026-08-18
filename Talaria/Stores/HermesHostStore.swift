@@ -5,6 +5,9 @@ enum HermesHostConnectionState: Equatable, Sendable {
     case offline
     case unreachable
     case notConnected
+    /// #350: paired (or host-configured) but reachability NOT yet measured.
+    /// #25 governs its rendering: no ONLINE claim, no green, anywhere.
+    case checking
 }
 
 @MainActor

@@ -335,8 +335,10 @@ struct SessionsDrawer: View {
     var model: SessionsDrawerModel
     /// Footer host status line (driven by the host screen).
     var hostName: String = "HERMES HOST"
-    var hostDetail: String = "LINKED"
-    var hostOnline: Bool = true
+    // #350: the defaults must not assert reachability (only previews/tests
+    // ever fall back to them — both live call sites pass measured values).
+    var hostDetail: String = "LINKED · —"
+    var hostOnline: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
 
@@ -464,8 +466,9 @@ struct ConversationListPane: View {
     var model: SessionsDrawerModel
     /// Footer host status line (driven by the host screen).
     var hostName: String = "HERMES HOST"
-    var hostDetail: String = "LINKED"
-    var hostOnline: Bool = true
+    // #350: see the drawer note — defaults must not assert reachability.
+    var hostDetail: String = "LINKED · —"
+    var hostOnline: Bool = false
     /// Drawer chrome seam: non-nil when the pane lives in the slide-in
     /// drawer — list actions dismiss the drawer and the header shows a
     /// close X (with Esc bound). Nil in the split-view sidebar, where the

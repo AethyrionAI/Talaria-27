@@ -278,6 +278,9 @@ struct ConnectHermesHostScreen: View {
             return Design.Brand.forge
         case .notConnected:
             return Design.Colors.secondaryForeground
+        case .checking:
+            // #350: unknown is not good news — no accent, no alarm.
+            return Design.Colors.secondaryForeground
         }
     }
 
@@ -298,6 +301,8 @@ struct ConnectHermesHostScreen: View {
             return "wifi.exclamationmark"
         case .notConnected:
             return "desktopcomputer"
+        case .checking:
+            return "ellipsis.circle"
         }
     }
 
@@ -311,6 +316,8 @@ struct ConnectHermesHostScreen: View {
             return "Status Unavailable"
         case .notConnected:
             return "No Host"
+        case .checking:
+            return "Checking…"
         }
     }
 
@@ -324,6 +331,8 @@ struct ConnectHermesHostScreen: View {
             return hostStore.lastErrorMessage ?? "We couldn't refresh host status from the relay."
         case .notConnected:
             return "Set up from your Hermes machine"
+        case .checking:
+            return "Measuring host status"
         }
     }
 }

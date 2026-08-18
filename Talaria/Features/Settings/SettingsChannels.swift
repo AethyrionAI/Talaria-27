@@ -54,6 +54,8 @@ enum SettingsCardValues {
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
+        // #350: unknown renders as unknown — no LINKED claim, no accent.
+        case .checking: "CHECKING"
         }
     }
 
@@ -126,6 +128,7 @@ enum SettingsCardValues {
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "ON-DEVICE" // unreachable — handled above
+        case .checking: "CHECKING" // #350: measurement pending, no claim
         }
         return "\(link) · \(host) · \(model)"
     }

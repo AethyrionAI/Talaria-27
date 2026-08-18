@@ -84,13 +84,14 @@ struct AboutSettingsContent: View {
             connectionOnline: effectiveConnectionState == .online)
     }
 
-    /// Direct-or-relay reachability — moved here verbatim from
-    /// SettingsChannelsScreen so both surfaces read the identical signal
-    /// (previously this hero checked `directConnectionStatus == .connected`
-    /// only, which missed relay-online cases the grid card already counted).
+    /// #350: the shared measured truth — see
+    /// `ChatConnectionPresentation.settingsEffectiveState` (one function,
+    /// three surfaces; the verbatim private copies are gone).
     private var effectiveConnectionState: HermesHostConnectionState {
-        if container.chatStore.directConnectionStatus == .connected { return .online }
-        return hostStore.connectionState
+        ChatConnectionPresentation.settingsEffectiveState(
+            direct: container.chatStore.directConnectionStatus,
+            hostFallback: hostStore.connectionState,
+            hostConfigured: container.profilesStore?.activeProfile?.gatewayBaseURL.isEmpty == false)
     }
 
     // MARK: Status panel
