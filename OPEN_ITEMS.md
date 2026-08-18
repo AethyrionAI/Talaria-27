@@ -24537,3 +24537,22 @@ corrected in the same commit (close-out in place).
   OJAMD via Owen's paste; live proof = a write turn on OJAMD producing a
   LIVE chip with both devices active — the exact fixture that failed
   tonight.
+
+**2026-08-18 ~18:50 — BUILT; PER-BAR VERDICTS (talaria-plugin PR #6,
+branch `366-multi-device-mirror`; merge is Owen's review, deploy after):**
+- **366-A — MET.** Two active devices → two `kind="artifact"` targeted
+  rows (distinct ids, identical content/meta), one wake each — the old
+  multi-device fail-closed pin INVERTED, RED observed first.
+- **366-B — MET.** The single-device happy path is byte-equivalent
+  (existing pins untouched and green — one targeted row, one wake).
+- **366-C — MET.** Zero devices → no row; every other gate untouched;
+  never-raise pinned against the NEW seam (`append_for_devices` raising
+  is swallowed, `test_handler_never_raises_on_fanout`); independent ack
+  pinned (`mark_delivered` on one device's copy leaves the other's
+  pending).
+- **366-D — MET (local): suite 170 → 172 green under the hermes venv;
+  plugin.yaml 0.4.0 → 0.5.0** (version pin test moved with it). CI both
+  Pythons pending on the PR — green before merge, Owen's gate.
+- **366-E — OPEN (deploy leg):** after Owen's merge — Mac pull + bounce +
+  LISTENER verify; OJAMD via Owen's paste; live proof = an OJAMD write
+  turn producing a LIVE chip with both devices active.
