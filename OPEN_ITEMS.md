@@ -23426,7 +23426,7 @@ turns out to read the router).
 > **✅ 2026-08-17 ~22:20 — PR #313 MERGED by Owen (merge commit
 > `0d94e94`). CLOSED-SHAPE; archive move per #261 on his formal close.**
 
-## 362. 🔧 Phase 3 slice 3D — the artifact mirror (plugin-side) — **FILED 2026-08-17 ~22:30 per #268 ("a phase name is not a filing") as the lane teed for the next session. NOT STARTED — no bars yet; they pre-register here when the lane opens, after the design read.**
+## 362. 🔧 Phase 3 slice 3D — the artifact mirror (plugin-side) — **FILED 2026-08-17 ~22:30 per #268; opened and CLOSED-SHAPE the same night (2026-08-17 late → 2026-08-18 ~00:00): ALL BARS 3D-A..H MET, both PRs merged (app #315 → `ce69b57`, plugin #4 → `3d6f4b3`), deployed live on the Mac, device-proven. Archive move per #261 on Owen's formal close. Dated blocks below are the record.**
 
 **What it is:** the Phase 3 plan's 3D leg — agent-produced artifacts
 mirrored to the phone over the talaria plugin (the design of record is
@@ -23662,3 +23662,77 @@ installs from Safari (whoGoesThere was not corded; MamaPhonePrime is the
 only paired-visible phone). **Remaining: Owen relaunches Hermes Desktop
 (the probe cache lives in ITS serve process — 3D-F measures after), then
 the 3D-H device pass.**
+
+**2026-08-17 ~23:40 — 3D-H DEVICE EVIDENCE (positive arm MET; negative
+arm's PHRASING corrected by the device):**
+- **Positive arm MET, both sides:** Owen's device run — "test.md include a
+  small haiku about paper" on the runs path → WRITE_FILE pill → chip
+  `test.md, MD · 95 bytes` → preview renders the haiku. Host row
+  `28ff3b66cf7e`: kind=artifact, 95 bytes (exact match), path
+  `/Users/owenjones/test.md`, **created and delivered the same second**
+  (HUB.wake → parked drain). The path is outside MobileDL, so on the runs
+  plane the mirror is the ONLY possible content source — this chip cannot
+  be explained by Tier-2 fetch or stream args.
+- **The negative arm's bar text assumed a fiction the device corrected:**
+  "a session the phone doesn't own" — the phone's drawer browses EVERY
+  api_server session on the host, so the API-created negative-arm session
+  (`api_1787027867_ce97c731`, row `0cf847558cef`, 12 bytes, drained
+  23:38:34) simply appeared as an openable thread, and Owen opened it. The
+  PROTECTED invariant, restated honestly: **never a chip on the WRONG
+  thread, never an inbox row** — and attaching on the RIGHT thread when
+  the user opens it inside the hold window is correct behavior
+  (`heldItemAttachesWhenItsThreadOpens` pinned exactly this in unit).
+  Owen's visual confirms owed: no chip on the test.md thread for the
+  negative file, no inbox row. The bar is REFINED, not weakened — the
+  wrong-thread and inbox arms were always the substance; "doesn't own"
+  was a wrong model of session visibility, corrected per the close-out
+  rule the day it was learned.
+
+**2026-08-18 ~00:00 — FINAL VERDICTS; #362 IS CLOSED-SHAPE:**
+- **3D-F — MET, measured live:** ~12 probe lines/min all day → Owen quit
+  and relaunched Hermes Desktop (new serve PID 47404 at 23:39:37 — the
+  first "restart" left PID 18986 alive, which is the three-readers trap
+  doing its thing) → **1 line in minute 23:39, zero in the minutes
+  after.** The 60 s cache floor holds on the live box.
+- **3D-H — MET.** Positive arm both sides (the 23:40 block above).
+  Negative arm as REFINED there: no chip on any wrong thread, no inbox
+  row (Owen's screenshots; the inbox badge never lit). The reopened
+  negative-arm thread stayed chipless through leave-and-return —
+  EXPLAINED, not mysterious: the app's stored-transcript mapping puts no
+  path into refetched activity `detail`, so the correlator's refetch
+  match found nothing and the honest drop held (the conservative
+  direction; live phone-originated turns attach via the stream-side
+  retry, as test.md proved). The refetch-side gap and its startling
+  fix-shape are #364.
+- Residue routed: #363 (outbox hygiene, filed above), #364 (below),
+  OJAMD rollout of plugin 0.3.0 (blocked on Owen's host-side Hermes
+  trouble; `hermes plugins update` + gateway restart when it returns —
+  until then the mirror runs on the Mac profile only).
+
+## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. NOT STARTED — investigation + likely app-side lane; no live-install gate.**
+
+**What was found (live-probed on the Mac, Hermes 0.20.3 / head
+`133381508`):** `GET /api/sessions/{id}/messages` returns assistant rows
+whose `tool_calls[].function.arguments` carry the COMPLETE args JSON —
+`{"path": ..., "content": ...}` verbatim — on BOTH lanes (verified on the
+sync-chat negative-arm session AND the runs-lane test.md session; the
+runs stream still drops args, so N1 stands for LIVE frames — this is
+about STORAGE). Consequences worth a lane:
+1. **The app could reconstruct Tier-1 chips at refetch time from stored
+   args** — closing #362's refetch-matching gap (no `detail` to match →
+   honest drop) and shrinking reliance on the #277 sidecar for
+   Hermes-hosted threads. The mirror keeps the LIVE half (chips mid-turn,
+   HUB.wake immediacy); stored args would own the REFETCH half.
+2. **#277's stated premise is falsified at this host version** — the
+   sidecar doc comment (`AgentAttachmentSidecar.swift`: "stores a tool
+   call as name + preview only, never args/content") and any tracker text
+   repeating it need dated corrections IN THE LANE THAT BUILDS ON THIS
+   (not before — the premise may have been true on the version it was
+   written against; check history before correcting, and scope the
+   correction to a version claim).
+3. **Verify on OJAMD's version before designing around it** — one host's
+   storage shape is not both hosts', and OJAMD is the daily driver.
+
+**Cross-refs:** #362 (where the gap was found), #277 (the sidecar whose
+premise moves), #21 (Tier 1's history), N1 in the Phase 3 plan (stream
+vs storage now diverge on purpose).
