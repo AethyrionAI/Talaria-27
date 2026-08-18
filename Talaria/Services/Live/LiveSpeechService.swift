@@ -183,6 +183,38 @@ final class LiveSpeechService {
     }
 }
 
+/// #360: the transcript-assembly policy, extracted pure so it is testable.
+/// Correct under BOTH readings of the SDK contract
+/// (`SpeechModuleResult.range` + progressive finalization): a result whose
+/// text starts with everything finalized so far is a cumulative snapshot
+/// (the #4.15 hedge, one layer down); anything else is the text of the
+/// unfinalized range and concatenates as-is — the recognizer owns token
+/// spacing (continuation ranges carry their own leading whitespace; a range
+/// boundary can split a word), so no separator is ever invented or removed.
+struct DictationTranscriptAssembler: Equatable {
+    private(set) var finalized = ""
+    private(set) var volatileTail = ""
+
+    var transcript: String { finalized + volatileTail }
+
+    mutating func acceptVolatile(_ text: String) {
+        if !finalized.isEmpty, text.hasPrefix(finalized) {
+            volatileTail = String(text.dropFirst(finalized.count))
+        } else {
+            volatileTail = text
+        }
+    }
+
+    mutating func acceptFinal(_ text: String) {
+        if !finalized.isEmpty, text.hasPrefix(finalized) {
+            finalized = text
+        } else {
+            finalized += text
+        }
+        volatileTail = ""
+    }
+}
+
 private actor DictationController {
     private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "org.aethyrion.talaria",
@@ -203,6 +235,10 @@ private actor DictationController {
     private var reservedLocale: Locale?
     private var analyzerTask: Task<Void, Never>?
     private var resultsTask: Task<Void, Never>?
+    // #360: armed by a final result, cancelled by any later result — fires
+    // `.finished` when the recognizer goes quiet after finalizing, so
+    // auto-stop survives whether or not the results stream ends on its own.
+    private var finishGraceTask: Task<Void, Never>?
     private var inputContinuation: AsyncStream<AnalyzerInput>.Continuation?
     private var outputContinuation: AsyncStream<Event>.Continuation?
 
@@ -303,20 +339,40 @@ private actor DictationController {
         }
 
         resultsTask = Task { [weak self] in
+            var assembler = DictationTranscriptAssembler()
             do {
                 for try await result in transcriber.results {
                     let text = String(result.text.characters)
                     if result.isFinal {
                         Self.logger.verbose("Received final dictation result")
-                        await self?.emit(.finished(text))
-                        await self?.stop()
-                        break
+                        assembler.acceptFinal(text)
                     } else {
                         Self.logger.verbose("Received partial dictation result")
-                        await self?.emit(.partial(text))
+                        assembler.acceptVolatile(text)
+                    }
+                    await self?.emit(.partial(assembler.transcript))
+                    // #360: a mid-stream `isFinal` only finalizes a range and
+                    // must not stop the session (the pre-#360 truncation).
+                    // But whether the results stream ends on its own after
+                    // the LAST final is unverified on device, and auto-stop
+                    // rides `.finished` — so a final arms a short grace that
+                    // finishes the utterance if the recognizer goes quiet,
+                    // and any later result disarms it.
+                    if result.isFinal {
+                        await self?.armFinishGrace(transcript: assembler.transcript)
+                    } else {
+                        await self?.disarmFinishGrace()
                     }
                 }
+                if !Task.isCancelled {
+                    Self.logger.verbose("Dictation results stream ended")
+                    await self?.emit(.finished(assembler.transcript))
+                }
+                await self?.stop()
             } catch {
+                // A cancelled results task is the user's own stop, not a
+                // failure — stopListening() already owns the teardown.
+                if error is CancellationError { return }
                 Self.logger.error("Transcriber results failed: \(error.localizedDescription, privacy: .public)")
                 await self?.emit(.failed)
                 await self?.stop()
@@ -326,12 +382,36 @@ private actor DictationController {
         return outputStream
     }
 
+    private static let finishGrace: Duration = .seconds(1)
+
+    private func armFinishGrace(transcript: String) {
+        finishGraceTask?.cancel()
+        finishGraceTask = Task { [weak self] in
+            try? await Task.sleep(for: Self.finishGrace)
+            guard !Task.isCancelled else { return }
+            await self?.finishAfterGrace(transcript: transcript)
+        }
+    }
+
+    private func disarmFinishGrace() {
+        finishGraceTask?.cancel()
+        finishGraceTask = nil
+    }
+
+    private func finishAfterGrace(transcript: String) {
+        Self.logger.verbose("Dictation finish grace elapsed after a final result")
+        emit(.finished(transcript))
+        stop()
+    }
+
     func stop() {
         Self.logger.verbose("Stopping dictation controller")
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
         inputContinuation?.finish()
         inputContinuation = nil
+        finishGraceTask?.cancel()
+        finishGraceTask = nil
 
         analyzerTask?.cancel()
         resultsTask?.cancel()
