@@ -22975,6 +22975,13 @@ skipped silently), #268 (why this filed as its own number).
 >   header pip keyed to a DORMANT profile's health (OJAMD down) while the
 >   ACTIVE Mac profile streamed this entire pass.
 
+> **✅ 2026-08-17 ~21:05 — PR #312 MERGED by Owen (merge commit `296d6e0`,
+> a real merge, ancestry preserved). The 3C app half is on main. This entry
+> is CLOSED-SHAPE: every bar A..J MET, wire leg + app half both shipped and
+> merged; the archive move per #261 rides Owen's formal close. 3D (artifact
+> mirror) and the 3E cutover decision are NOT this entry — they get their
+> own numbers when routed (#268).**
+
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
