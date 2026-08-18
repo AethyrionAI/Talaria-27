@@ -123,8 +123,8 @@ a:hover { color: #CDF8FB; }
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#FFC14D;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.07);padding:5px 10px;border-radius:5px;display:inline-block">HOST · OPTIONAL</div>
       </div>
       <div style="flex:1 1 420px;min-width:0">
-        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Deploy the relay sidecar</h2>
-        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">The relay carries everything phone-facing except chat: pairing and auth, sensor ingestion, the inbox and directives channel, scheduled runs like the daily briefing, agent-file downloads, and the voice WebRTC bootstrap. A Dockerfile, docker-compose.yml and fly.toml are included if you'd rather run it containerised.</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Legacy tier: the relay sidecar <em style="font-style:italic;color:#FFC14D">(optional)</em></h2>
+        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">Skip this unless you need realtime server voice or agent-file downloads — the last two surfaces the relay tier still carries, and it's on a retirement path. Pairing, phone asks, and the inbox ride the talaria plugin now, and sensor ingestion is gone outright (phone data answers query-time asks; nothing streams). A Dockerfile, docker-compose.yml and fly.toml are included if you'd rather run it containerised.</p>
         <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">cd relay
 pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
@@ -155,8 +155,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#FFC14D;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.07);padding:5px 10px;border-radius:5px;display:inline-block">HOST · OPTIONAL</div>
       </div>
       <div style="flex:1 1 420px;min-width:0">
-        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Install and run the connector</h2>
-        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">The connector is the host-side bridge: it owns the durable relay connection, registers the hermes_mobile MCP server — the sensor tools your agent actually calls — and prints phone-pairing codes. Without it, the sensor pipeline and inbox go nowhere.</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Legacy tier: the connector <em style="font-style:italic;color:#FFC14D">(optional)</em></h2>
+        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">Only needed alongside the legacy relay above. The connector is the host-side bridge for that tier: it owns the durable relay connection and registers the hermes_mobile MCP server. Relay-tier phone pairing (hermes-mobile pair-phone) lives here too — current builds pair over the talaria plugin instead, in step 06.</p>
         <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">cd connector
 python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -e .
@@ -187,8 +187,8 @@ open Talaria.xcodeproj</pre>
       </div>
       <div style="flex:1 1 420px;min-width:0">
         <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Launch — then pair, if you want to</h2>
-        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">On first launch the app works immediately in on-device mode: no account, no cloud login, nothing to configure. To connect your Hermes machine, run hermes-mobile pair-phone on the host — it prints a QR code and a short-lived 8-character code. In the app, scan it or tap Enter Code Manually, paste your relay URL, and enter the code. For hosted chat, go to Settings → Uplink and add your gateway URL and that host's API_SERVER_KEY — it's in the Hermes .env (~/.hermes/.env on macOS; %LOCALAPPDATA%\hermes\.env on Windows).</p>
-        <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">hermes-mobile pair-phone</pre>
+        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">On first launch the app works immediately in on-device mode: no account, no cloud login, nothing to configure. To connect your Hermes machine, run hermes talaria pair on the host (it requires the talaria plugin — hermes talaria status to check). It prints a QR code and a one-time code; in the app, go to Settings → Server → Pair New Device and scan it or enter the code. For hosted chat, also add your gateway URL and that host's API_SERVER_KEY under Settings → Uplink — the key is in the Hermes .env (~/.hermes/.env on macOS; %LOCALAPPDATA%\hermes\.env on Windows).</p>
+        <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">hermes talaria pair</pre>
       </div>
     </div>
 
