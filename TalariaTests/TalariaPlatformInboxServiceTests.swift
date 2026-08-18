@@ -233,9 +233,16 @@ struct TalariaPlatformInboxServiceTests {
     /// `reset()` runs on every pairing change and every profile switch. The
     /// platform cache is the ONLY copy of these messages — the plugin drops
     /// an item from its outbox the moment the phone acks it — so clearing it
-    /// there deletes the user's agent history outright. The local
-    /// annotations (read marks) are the part that must go.
-    @Test func resetPreservesPlatformItemsAndClearsReadMarks() async throws {
+    /// there deletes the user's agent history outright.
+    ///
+    /// #354 design correction (2026-08-18): the marks BELONGING to surviving
+    /// platform rows survive with them. The prior pin asserted
+    /// `readItemIDs.isEmpty` after reset — that design was the read-mark
+    /// resurrection Owen reported (items preserved, their marks cleared, so
+    /// every reset re-badged old agent messages as NEW). Marks are
+    /// annotations ON the rows: they share the rows' lifetime, not the
+    /// relay session's.
+    @Test func resetPreservesPlatformItemsWithTheirReadMarks() async throws {
         let persistence = MemoryPersistence()
         let store = await makeStore(persistence: persistence)
         store.receivePlatformItems([platformItem(id: "a", text: "from the agent")])
@@ -249,8 +256,62 @@ struct TalariaPlatformInboxServiceTests {
 
         #expect(store.items.map { $0.payload?["platformID"] } == ["a"])
         #expect(persistence.inboxState.platformItems.count == 1)
-        #expect(persistence.inboxState.readItemIDs.isEmpty)
-        #expect(store.items.first?.isRead == false)
+        #expect(persistence.inboxState.readItemIDs == [landed.stableIdentifier])
+        #expect(store.items.first?.isRead == true)
+        #expect(store.unreadCount == 0)
+    }
+
+    /// The dismiss half of the same correction: a dismissed platform row
+    /// stayed hidden only while its dismissed mark lived, so reset used to
+    /// resurrect those too.
+    @Test func resetKeepsDismissedPlatformItemsDismissed() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a"), platformItem(id: "b")])
+        await store.loadInbox(force: true)
+        let dismissed = try #require(store.items.first { $0.payload?["platformID"] == "b" })
+        await store.dismiss(dismissed)
+        #expect(store.items.count == 1)
+
+        store.reset()
+        await store.loadInbox(force: true)
+
+        #expect(store.items.map { $0.payload?["platformID"] } == ["a"])
+        #expect(persistence.inboxState.dismissedItemIDs == [dismissed.stableIdentifier])
+    }
+
+    /// Marks whose rows do NOT survive the reset die with them — the
+    /// preservation is scoped to surviving rows, not a blanket keep.
+    @Test func resetStillClearsMarksForClearedRows() async throws {
+        let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a")])
+        await store.loadInbox(force: true)
+        let alert = try #require(store.items.first { $0.type == .alert })
+        store.markRead(alert)
+
+        store.reset()
+
+        #expect(persistence.inboxState.readItemIDs.contains(alert.stableIdentifier) == false)
+    }
+
+    /// #354's reported shape end-to-end: the marks survive reset AND a store
+    /// relaunch (new store over the same persistence — the cold-launch half
+    /// of "every rebuild re-badges my items as NEW").
+    @Test func readMarksSurviveResetAcrossAStoreRelaunch() async throws {
+        let persistence = MemoryPersistence()
+        let first = await makeStore(persistence: persistence)
+        first.receivePlatformItems([platformItem(id: "a")])
+        await first.loadInbox(force: true)
+        first.markRead(try #require(first.items.first))
+        first.reset()
+
+        let relaunched = await makeStore(persistence: persistence)
+        await relaunched.loadInbox(force: true)
+
+        #expect(relaunched.items.count == 1)
+        #expect(relaunched.unreadCount == 0)
     }
 
     /// Local app items are NOT preserved across reset — they are operational
@@ -267,6 +328,112 @@ struct TalariaPlatformInboxServiceTests {
         #expect(persistence.inboxState.localItems.isEmpty)
         #expect(store.items.count == 1)
         #expect(store.items.first?.type == .notification)
+    }
+
+    // MARK: - #354 user-side delete / clear-all
+
+    /// Platform rows are the device's own copy — the server row was acked
+    /// and dropped the moment it drained — so the user may delete them
+    /// outright. The row goes, its marks go with it, and the persisted blob
+    /// agrees. (#144's deactivate-never-delete governs SERVER rows, not the
+    /// user's local copy.)
+    @Test func deleteRemovesAPlatformRowAndItsMarks() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a"), platformItem(id: "b")])
+        await store.loadInbox(force: true)
+        let doomed = try #require(store.items.first { $0.payload?["platformID"] == "a" })
+        store.markRead(doomed)
+
+        store.delete(doomed)
+
+        #expect(store.items.map { $0.payload?["platformID"] } == ["b"])
+        #expect(persistence.inboxState.platformItems.map { $0.payload?["platformID"] } == ["b"])
+        #expect(persistence.inboxState.readItemIDs.contains(doomed.stableIdentifier) == false)
+    }
+
+    /// A local app row deletes the same way — it is also a device-local copy.
+    @Test func deleteRemovesALocalRow() async throws {
+        let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
+        let store = await makeStore(persistence: persistence)
+        await store.loadInbox(force: true)
+        let alert = try #require(store.items.first { $0.type == .alert })
+
+        store.delete(alert)
+
+        #expect(store.items.isEmpty)
+        #expect(persistence.inboxState.localItems.isEmpty)
+    }
+
+    @Test func deleteIsIdempotent() async throws {
+        let persistence = MemoryPersistence()
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a")])
+        await store.loadInbox(force: true)
+        let doomed = try #require(store.items.first)
+
+        store.delete(doomed)
+        store.delete(doomed)
+
+        #expect(store.items.isEmpty)
+        #expect(persistence.inboxState.platformItems.isEmpty)
+    }
+
+    /// Rows the store does not own (relay-fetched) are not deletable — their
+    /// lifecycle is dismiss. Delete on one is a no-op everywhere, and the
+    /// affordance says so up front.
+    @Test func deleteLeavesRelayFetchedRowsAlone() async throws {
+        let persistence = MemoryPersistence()
+        let relayRow = InboxItem(
+            type: .approval,
+            title: "Approve",
+            body: "relay-fetched",
+            isActionable: true
+        )
+        let store = await makeStore(persistence: persistence, service: StubRelayInboxService(rows: [relayRow]))
+        await store.loadInbox(force: true)
+        let fetched = try #require(store.items.first)
+        #expect(store.canDelete(fetched) == false)
+
+        store.delete(fetched)
+
+        #expect(store.items.count == 1)
+    }
+
+    /// The affordance the UI keys swipe-delete on: owned rows (platform +
+    /// local) offer delete; relay-fetched rows do not.
+    @Test func deleteAvailabilityMatchesRowOrigin() async throws {
+        let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a")])
+        await store.loadInbox(force: true)
+
+        let platform = try #require(store.items.first { $0.type == .notification })
+        let local = try #require(store.items.first { $0.type == .alert })
+        #expect(store.canDelete(platform) == true)
+        #expect(store.canDelete(local) == true)
+    }
+
+    /// Clear-all is the bulk form: every owned row and its marks go, in one
+    /// persisted write. Marks belonging to rows the store does NOT own
+    /// (relay annotations) survive untouched.
+    @Test func clearAllRemovesOwnedRowsWithTheirMarks() async throws {
+        let persistence = MemoryPersistence()
+        persistence.inboxState.localItems.append(Self.localAlertFixture())
+        persistence.inboxState.readItemIDs.insert("FOREIGN-RELAY-MARK")
+        let store = await makeStore(persistence: persistence)
+        store.receivePlatformItems([platformItem(id: "a"), platformItem(id: "b")])
+        await store.loadInbox(force: true)
+        store.markRead(try #require(store.items.first { $0.payload?["platformID"] == "a" }))
+
+        store.clearAllInboxItems()
+
+        #expect(store.items.isEmpty)
+        #expect(persistence.inboxState.platformItems.isEmpty)
+        #expect(persistence.inboxState.localItems.isEmpty)
+        #expect(persistence.inboxState.readItemIDs == ["FOREIGN-RELAY-MARK"])
     }
 
     /// #352 (bar 352-F sibling): a persisted #113 connector-outage alert has
@@ -364,7 +531,10 @@ struct TalariaPlatformInboxServiceTests {
 
     // MARK: - Harness
 
-    private func makeStore(persistence: MemoryPersistence) async -> InboxStore {
+    private func makeStore(
+        persistence: MemoryPersistence,
+        service: (any InboxServiceProtocol)? = nil
+    ) async -> InboxStore {
         let sessionStore = AppSessionStore(
             bootstrapService: MockSessionBootstrapService(),
             syncCoordinator: MockSyncCoordinator(),
@@ -374,10 +544,22 @@ struct TalariaPlatformInboxServiceTests {
         )
         await sessionStore.bootstrap()
         return InboxStore(
-            inboxService: TalariaPlatformInboxService(persistence: persistence),
+            inboxService: service ?? TalariaPlatformInboxService(persistence: persistence),
             persistence: persistence,
             sessionStore: sessionStore
         )
+    }
+
+    /// #354: a stand-in for the legacy relay feed — rows the store does NOT
+    /// own and must refuse to delete.
+    @MainActor
+    private final class StubRelayInboxService: InboxServiceProtocol {
+        let rows: [InboxItem]
+        init(rows: [InboxItem]) { self.rows = rows }
+        func fetchInbox(accessToken: String?) async throws -> [InboxItem] { rows }
+        func submitAction(itemID: UUID, actionID: String, accessToken: String?) async throws -> InboxActionResult {
+            InboxActionResult(itemID: itemID, actionID: actionID, status: .completed, completedAt: .now)
+        }
     }
 
     @MainActor

@@ -119,6 +119,47 @@ final class InboxStore {
         }
     }
 
+    // MARK: - #354 user-side delete / clear-all
+
+    /// Whether `delete(_:)` will act on this row. The store owns platform and
+    /// local rows — device-local copies (the platform server row was acked
+    /// and dropped the moment it drained; #144's deactivate-never-delete
+    /// governs SERVER rows, not this copy). Relay-fetched rows are not ours
+    /// to delete — dismiss is their lifecycle.
+    func canDelete(_ item: InboxItem) -> Bool {
+        localState.platformItems.contains { $0.id == item.id }
+            || localState.localItems.contains { $0.id == item.id }
+    }
+
+    /// Removes an owned row outright, with its marks — one persisted write.
+    /// Deleting the row deletes its dedupe memory too, which is fine: the
+    /// plugin never redelivers an acked item, so nothing can re-mint it.
+    func delete(_ item: InboxItem) {
+        guard canDelete(item) else { return }
+        var updated = localState
+        updated.platformItems.removeAll { $0.id == item.id }
+        updated.localItems.removeAll { $0.id == item.id }
+        updated.readItemIDs.remove(item.stableIdentifier)
+        updated.dismissedItemIDs.remove(item.stableIdentifier)
+        localState = updated
+        items.removeAll { $0.id == item.id }
+    }
+
+    /// The bulk form — every owned row and its marks, one persisted write.
+    /// Marks belonging to rows this store does not own (relay annotations)
+    /// survive untouched.
+    func clearAllInboxItems() {
+        var updated = localState
+        let removedIDs = Set((updated.platformItems + updated.localItems).map(\.stableIdentifier))
+        guard !removedIDs.isEmpty else { return }
+        updated.platformItems = []
+        updated.localItems = []
+        updated.readItemIDs.subtract(removedIDs)
+        updated.dismissedItemIDs.subtract(removedIDs)
+        localState = updated
+        items.removeAll { removedIDs.contains($0.stableIdentifier) }
+    }
+
     private func submitAction(for item: InboxItem, actionID: String) async {
         // #113: app-generated items have no server row — acting on one must
         // never hit the relay (the id would 404 and surface as an error).
@@ -190,7 +231,7 @@ final class InboxStore {
         }
     }
 
-    /// Clears the device-local bookkeeping — read/dismissed marks, #113
+    /// Clears the device-local bookkeeping — relay/local read marks, #113
     /// operational alerts — and the visible list.
     ///
     /// #251-2A: `platformItems` deliberately SURVIVE. Every other slice of
@@ -199,11 +240,21 @@ final class InboxStore {
     /// plugin drops an item from its outbox the moment the phone acks it.
     /// Clearing them on a pairing change or a profile switch would delete the
     /// user's agent messages outright, with no re-fetch to recover them.
+    ///
+    /// #354: marks BELONGING to the surviving platform rows survive with
+    /// them. Marks are annotations ON rows and share the rows' lifetime —
+    /// clearing them while preserving the rows is what re-badged old agent
+    /// messages as NEW on every reset (pairing change, profile switch, and
+    /// the launch-path pairing clear). Marks for rows this reset actually
+    /// clears still die with their rows.
     func reset() {
         items = []
         lastErrorMessage = nil
         var preserved = InboxLocalState()
         preserved.platformItems = localState.platformItems
+        let survivingIDs = Set(preserved.platformItems.map(\.stableIdentifier))
+        preserved.readItemIDs = localState.readItemIDs.intersection(survivingIDs)
+        preserved.dismissedItemIDs = localState.dismissedItemIDs.intersection(survivingIDs)
         // Clear FIRST, then assign: `localState`'s didSet is what writes the
         // preserved copy back, so a clear afterwards would erase it.
         persistence.clearInboxState()
