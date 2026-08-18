@@ -22508,6 +22508,23 @@ honest value (the existing #25 mid-stream rule, now pinned:
 suites green (AppStores, CancelFinalStatusRead, ConversationCardInput
 10 → 15).
 
+**2026-08-18 ~14:40 — GATE, stated honestly (the #354 shape again):** the
+contiguous `lane-gate.sh` run on an ERASED CC-lane-1 reported **Swift
+Testing PASS at 2336** (count MOVED from 2331 by exactly this lane's +5)
+and **Release PASS**, failing only on
+`MessageIdentityUITests.testQueuedChipCancelRemovesHeldMessageWithNothingPosted`
+— the #236 family, on a diff that touches one read-only computed property
+nowhere near the send/queue path, and a test that failed once earlier
+today on #354's entirely different diff and passed #350's gate in
+between. The suite then ran **2/2 in isolation** and the **full XCUITest
+bundle 14/14** on the same commit. Every gate component is green on
+`349-ctx-gauge` HEAD. **#236 occurrence 5, recorded here to avoid a
+cross-PR edit of that entry (its occ-3+4 note rides PR #317; consolidate
+at merge): an ERASED-sim occurrence — the sim-state aggravator alone no
+longer explains this suite's rate. Today's tally: ~2 of 5 bundle-context
+runs across THREE different diffs. If the rate holds, the suite's budget
+premise deserves its own lane.**
+
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
 **What the PRs are.** GPT 5.6 Sol (dispatched when the 5-hour Claude cap hit) shipped
