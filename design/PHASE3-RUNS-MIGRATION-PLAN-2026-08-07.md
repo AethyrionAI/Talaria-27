@@ -334,6 +334,17 @@ source. Three options:
   works for the desktop face later. Costs: a live-install deploy (§4.5), and the content now
   arrives on a *different* channel than the turn, so the app must correlate by `session_id`/
   `turn_id` (both are in the hook payload).
+  **[2026-08-17, 3D lane open — the turn_id half of that correlation key is DEAD ON ARRIVAL,
+  verified at Hermes head `133381508`: turn_id is host-generated
+  (`agent/turn_context.py:556-562`, `session:task:uuid8`) and never rides the runs event
+  stream (`api_server.py:6596-6605` — tool.started = `{event, run_id, timestamp, tool,
+  preview}` only), so the app has nothing to match it against. Nor does run_id reach the
+  hook: on a session-carrying run, `effective_task_id = session_id or run_id`
+  (`api_server.py:6878`) means the hook's task_id is just the session id. The workable key
+  the 3D design actually uses: `session_id` + `path` (the stream's `preview` IS the path for
+  write_file — `agent/display.py` PREVIEW_KEYS) + a same-host timestamp window (hook and
+  stream events stamp the same host clock). The hook payload's turn_id still rides the
+  mirror item for bookkeeping. Refined bars live in #362.]**
 - **(b) Accept the loss on remote turns** — chips announce a path, no inline content. Honest, but
   it undoes work Owen device-verified 12 hours ago (258-E MET).
 - **(c) Keep artifact-bearing turns on the sessions plane** — rejected: S21 says we cannot know in

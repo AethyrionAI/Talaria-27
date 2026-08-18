@@ -23453,3 +23453,126 @@ has run since 2026-08-17) — a ruling, not a build.
 carries), #361 (where the flags came from), #269-B (plugin publication
 gate), #251 (the plugin venture), #223/Phase 4 (relay retirement this
 mirror advances).
+
+**2026-08-17 ~23:00 (lane open) — carried-in flag 1 IDENTIFIED, and the
+filed mechanism is FALSIFIED: there is no bad key.** The ~5 s `127.0.0.1`
+401 client is the **#270 v0 desktop pane's own liveness probe working as
+designed.** The chain, all verified live tonight: `TalariaPane`
+(`desktop-plugin/plugin.js:73`) polls `GET /api/plugins/talaria/status`
+with `refetchInterval: 5000` → the desktop-spawned headless `hermes serve`
+backend handles it and `probe_gateway_adapter()`
+(`dashboard/plugin_api.py:82-100`) fires one deliberately
+**unauthenticated** `POST /api/platforms/talaria/events` per poll — the
+401 IS the "adapter live" verdict (the #269-A classification; the
+docstring says so in place, and auth rejection precedes verb dispatch so
+nothing drains). Attribution pinned without packet capture: the spam runs
+~12/min all day and paused exactly across the desktop app's 20:07–20:09
+restart window tonight (12 → 3 → 0 → 7 → 12/min), matching the serve
+process's 20:09:23 start; UA `Python-urllib/3.11` = the hermes venv
+(3.11.15) that process runs under. Volume: ~17,280 access-log 401
+lines/day in `agent.log` (7,749 in the current rotation, which starts
+2026-08-05 — the first hits are `curl/8.7.1`, the #270 lane's own hand
+probes). **The hazard the flag pointed at is real and stands:** probe 401s
+drown any GENUINE auth failure on exactly the channel 3D builds on, and
+poison every log read this lane makes. Fix is a design choice routed to
+Owen with the lane plan — rate-limit/cache the probe plugin-side (keeps
+the cross-process honesty, cuts the noise ~6–12×) vs. tag it filterable
+vs. leave-and-filter. No fix built yet; the probe itself is CORRECT
+behavior, so silencing it entirely is not on the menu.
+
+**2026-08-17 late night — design read DONE; BARS PRE-REGISTERED (per #215,
+before any code). Two design premises verified at Hermes head `133381508`
+and one plan claim corrected (dated note now in the plan doc §2.8):**
+(1) N10 holds — `pre_tool_call` fires synchronously on the tool-dispatch
+path on BOTH lanes with full `args` + `session_id`/`turn_id`/
+`tool_call_id` (+new `api_request_id`, `middleware_trace`, and a `modify`
+action; observer hooks unaffected; a raising hook never breaks the tool
+call). (2) **The plan's `session_id`/`turn_id` correlation key is half
+dead:** `turn_id` is host-generated and never rides the runs stream, and
+on a session-carrying run `task_id = session_id` (`api_server.py:6878`) so
+the hook sees no run_id either. The workable key: **session_id + path**
+(the runs `tool.started`'s `preview` IS the path for write_file) + the
+same-host timestamp, with the app's existing tool-activity rows as the
+match target (name+preview survive transcript refetch). (3) Scope
+discriminator for "API-plane turns only": both api_server entry routes
+bind `platform="api_server"` into `gateway.session_context`
+(`_bind_api_server_session`, sessions `:6373`, runs `:6887`) — readable
+from the hook; contextvar-to-thread propagation gets pinned by test + one
+live probe, fallback = mirror on bare `session_id` non-empty and let the
+app drop.
+
+**BARS (3D-A..H) — a missed bar is a falsification, not a redefinition:**
+- **3D-A (app correlation, unit):** an `artifact`-kind link item for
+  session S / path P attaches Tier-1 content to exactly the message whose
+  `write_file`/`create_file` tool activity matches (session + path +
+  unfilled), sessions-plane attachment shape (staged bytes,
+  sidecar-persisted). A mismatched item — unknown session, unknown path,
+  already filled — is DROPPED (no attachment, anywhere) and still ACKED
+  (no redelivery loop). Content comes only from the item, never invented.
+- **3D-B (plugin hook, unit):** the `pre_tool_call` handler writes a
+  `kind="artifact"` outbox row (text = file content; meta =
+  `{session_id, turn_id, tool_call_id, path, ts}`) targeted at the single
+  active device, and produces NO row and NEVER RAISES for: non-write
+  tools, missing args, empty session_id, non-API-plane turns, 0 or >1
+  active devices (fail-closed, matching untargeted-send semantics).
+- **3D-C (app routing, unit):** `artifact` items route to the chat-side
+  handler, never the inbox; `kind="message"` behavior byte-identical
+  (existing link/inbox tests untouched and green).
+- **3D-D (timing, integration):** an item arriving BEFORE its
+  `tool.started` activity is held and attaches when the activity lands
+  (bounded hold, then honest drop); an item drained AFTER run completion
+  + transcript refetch attaches to the refetched message and survives
+  thread reopen via the sidecar.
+- **3D-E (honest absence preserved):** the runs stream still yields zero
+  `.artifactProduced` (3A-D's pinned test untouched); on a runs turn,
+  Tier-1 content can arrive ONLY via the mirror channel.
+- **3D-F (probe noise, live):** the #270 pane probe stops writing ~12
+  401 lines/min to `agent.log` — cadence measured before/after on the
+  live box (mechanism per Owen's pick, options in the lane plan).
+- **3D-G (gate):** `lane-gate.sh` PASS (units + Release), app count MOVED
+  from 2289; plugin suite green, count MOVED from its pytest-reported
+  baseline (~132 by grep; measure at run time).
+- **3D-H (device, Owen):** on whoGoesThere over the runs path: an
+  agent-written text file renders a chip with the REAL content via the
+  plugin channel; a `write_file` on a session the phone doesn't own
+  produces NO chip and NO inbox row.
+
+**Known open flags carried into the plan (decisions, not bars):** no TTL
+on outbox rows — a never-drained artifact mirror accumulates in
+`talaria.db` forever (flagged; policy is Owen's call); `kind` today is
+hardcoded `"message"` (plugin gains a real `kind` parameter — schema has
+no CHECK on it); deploy order is app-half-first (an old app would render
+artifact items as junk inbox rows); the gateway bounce that deploys the
+plugin ALSO advances the serving Hermes from `3b9a963b8` to the checkout
+head (`133381508`+) — named to Owen as part of the go; and the desktop's
+own `hermes serve` process is a separate plugin reader needing its own
+restart for the probe fix (the three-readers trap, CLAUDE.md).
+
+**2026-08-17 late night — OWEN'S ROUTINGS (all four, in-session, on the
+lane's gating questions):** (1) **build now** — bars + plan read rides in
+parallel, PRs are his checkpoints; (2) **per-slice live-install go
+GRANTED** in the plan §5 Q6 shape — "3D is approved, including the plugin
+deploy, the gateway bounce, and the desktop-app restart," with the named
+cost accepted (the bounce advances the serving Hermes from `3b9a963b8` to
+checkout head `133381508`+); deploys still land only after his PR
+reviews; (3) **probe noise → CACHE the probe** (dashboard-side, 60 s
+success / 10 s failure floors — plan Task P3); (4) **outbox TTL → none
+in-lane; follow-up FILED as #363.** Lane plan of record:
+`planning/superpowers/2026-08-17-3d-artifact-mirror.md`.
+
+## 363. 🔧 Outbox hygiene — talaria plugin outbox/devices rows are retained forever by design; artifact-kind rows (3D, #362) make the cost content-sized — **FILED 2026-08-17 late night out of #362's design read, per Owen's routing ("no TTL now, file follow-up"). NOT STARTED — no bars; scope TBD when it opens.**
+
+**What it is:** `outbox_items` rows are never deactivated after delivery
+and never expire undelivered (`README.md:81` "Devices and delivered items
+are retained rather than deleted"; verified by grep — nothing ever sets
+`outbox_items.active = 0`). Fine for chat-sized `message` rows; #362's
+`kind="artifact"` rows carry whole file contents, so a device that stops
+draining (offline phone, uninstalled app) accumulates content-sized rows
+in `talaria.db` indefinitely. When this opens: decide retention policy
+(deactivate-never-delete per the #144 shape; delivered-row cleanup vs
+undelivered TTL are separate questions), and remember the plugin is NOT
+under the do-not-harden rule (that rule is relay/connector-specific — the
+plugin is the future, actively developed).
+
+**Cross-refs:** #362 (where the cost arrives), #351 (storage discipline
+precedents), #144 (deactivate-never-delete shape).
