@@ -27,6 +27,9 @@ enum InboxRowTapAction: Equatable {
 struct InboxScreen: View {
     @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
+    /// #354: clear-all is real deletion of the only copy — it fires only
+    /// through the alert below.
+    @State private var confirmingClearAll = false
 
     var body: some View {
         ZStack {
@@ -56,45 +59,86 @@ struct InboxScreen: View {
         // visible for the back affordance (the hidden-toolbar treatment
         // predated any call site).
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            // #354: bulk prune, offered only while something is deletable.
+            if inboxStore.items.contains(where: { inboxStore.canDelete($0) }) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Clear") { confirmingClearAll = true }
+                        .font(Design.Typography.mono(12, weight: .medium))
+                        .tint(Design.Colors.danger)
+                        .accessibilityLabel("Clear all inbox items")
+                }
+            }
+        }
+        // #193: an alert, not a confirmationDialog — the dialog's cancel role
+        // does not render on iOS 26/27, and a destructive gate needs a
+        // visible decline.
+        .alert("Clear all inbox items?", isPresented: $confirmingClearAll) {
+            Button("Clear All", role: .destructive) { inboxStore.clearAllInboxItems() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Agent messages exist only on this device — the server copy was dropped on delivery. This cannot be undone.")
+        }
         .task { await inboxStore.loadInbox(force: true) }
         .refreshable { await inboxStore.loadInbox(force: true) }
     }
 
     // MARK: - List
 
+    // #354: a `List` (not the ScrollView it replaced) because swipe-to-delete
+    // rides `.swipeActions` — the SessionsDrawer precedent. All chrome is
+    // stripped (clear backgrounds, hidden separators) so the rows keep their
+    // own hudPanel cards.
     private var itemList: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                header
+        List {
+            header
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: Design.Spacing.sm, leading: Design.Spacing.md,
+                    bottom: Design.Spacing.md, trailing: Design.Spacing.md))
 
-                LazyVStack(spacing: Design.Spacing.sm) {
-                    ForEach(inboxStore.items) { item in
-                        InboxItemRow(
-                            item: item,
-                            onPrimaryAction: {
-                                Task { await inboxStore.performPrimaryAction(for: item) }
-                            },
-                            onSecondaryAction: {
-                                Task { await inboxStore.dismiss(item) }
-                            },
-                            onOpenDetails: {
-                                switch InboxRowTapAction.resolve(for: item) {
-                                case .openBriefing:
-                                    router.navigate(to: .briefing(item))
-                                case .markRead:
-                                    inboxStore.markRead(item)
-                                case .ignore:
-                                    break
-                                }
-                            }
-                        )
+            ForEach(inboxStore.items) { item in
+                InboxItemRow(
+                    item: item,
+                    onPrimaryAction: {
+                        Task { await inboxStore.performPrimaryAction(for: item) }
+                    },
+                    onSecondaryAction: {
+                        Task { await inboxStore.dismiss(item) }
+                    },
+                    onOpenDetails: {
+                        switch InboxRowTapAction.resolve(for: item) {
+                        case .openBriefing:
+                            router.navigate(to: .briefing(item))
+                        case .markRead:
+                            inboxStore.markRead(item)
+                        case .ignore:
+                            break
+                        }
+                    }
+                )
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(
+                    top: Design.Spacing.sm / 2, leading: Design.Spacing.md,
+                    bottom: Design.Spacing.sm / 2, trailing: Design.Spacing.md))
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // #354: only owned rows (platform + local copies) offer
+                    // delete; relay rows keep their dismiss lifecycle.
+                    if inboxStore.canDelete(item) {
+                        Button(role: .destructive) {
+                            inboxStore.delete(item)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 }
-                .padding(.top, Design.Spacing.md)
             }
-            .padding(.horizontal, Design.Spacing.md)
-            .padding(.vertical, Design.Spacing.sm)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 1)
         .redacted(reason: inboxStore.isLoading ? .placeholder : [])
         .scrollEdgeEffectStyle(.soft, for: .top)
     }
