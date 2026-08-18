@@ -23576,3 +23576,69 @@ plugin is the future, actively developed).
 
 **Cross-refs:** #362 (where the cost arrives), #351 (storage discipline
 precedents), #144 (deactivate-never-delete shape).
+
+**2026-08-18 early — BOTH HALVES BUILT, RED-first throughout; gate running.**
+Plugin half: **talaria-plugin PR #4** (branch `3d-artifact-mirror`,
+DO-NOT-MERGE until Owen's review; CI green 3.11+3.12; suite **138 → 157**,
+the 138 baseline measured by pytest — the entry's earlier "~132 by grep"
+undercount stands corrected). Three commits: `kind` param on
+`outbox.append`/`append_for_devices` (132562a); `talaria/artifact_mirror.py`
+pre_tool_call observer (dda8f4d — fail-closed on: non-write tools, empty
+session_id, non-API-plane turns via `gateway.session_context`, unparseable
+args, 0/>1 active devices; never raises; real-session-context round-trip
+pinned in test); probe cache (d98d702 — 60 s verdict / 10 s failure floors,
+per-URL). plugin.yaml 0.2.0 → 0.3.0. App half (branch
+`3d-artifact-mirror-app`, commits 53af419..f9ec26c): `ArtifactMirrorItem`
+typed parse (7 tests), drain routing fork — artifacts never reach the
+inbox, malformed mirror items go NOWHERE (4 tests), the correlator —
+session+path match, pointer-upgrade-in-place (no dup chip), bounded hold
+(600 s) with attach-before-expiry retry order, drop-never-guess (13
+tests), real-ChatStore integration incl. the openSession retry call site
+and sidecar reopen survival (3 tests), and the 3D-E runs-plane cross
+(suite 36 → 37; the pinned 3A-D test untouched). **34 new Swift tests, all
+green in suite-scoped runs; full gate in flight.**
+
+**Two nuances recorded while fresh:** (1) the desktop app's own backend
+(`hermes serve`) is ALSO an api_server, so desktop chat file-writes pass
+the `_api_plane()` gate and will queue mirror items the phone drains and
+honestly drops (wrong session → held → expired) — harmless, content-sized,
+rides #363's hygiene scope; a plugin-side discriminator between the two
+api_server processes doesn't exist today. (2) The `.toolActivity`
+mid-stream retry call site has unit coverage only via the correlator
+fakes — the real-stream wiring is exercised by the 3D-H device leg, not by
+a sim test (noted so the verdict doesn't overclaim).
+
+**2026-08-18 early — PER-BAR VERDICTS (build phase; the deploy legs stay
+open):**
+- **3D-A — MET (unit).** Attach-to-the-right-message, pointer-upgrade
+  keeps the id, mismatch/hold/expiry drop with nothing attached anywhere,
+  ack unconditional upstream (`ArtifactMirrorCorrelatorTests`, 13 tests;
+  `ArtifactMirrorChatStoreTests` foreign-session arm).
+- **3D-B — MET (plugin unit).** 13 mirror tests incl. the real
+  `gateway.session_context` round-trip and every fail-closed gate;
+  never-raises pinned against raising outbox/store/plane seams.
+- **3D-C — MET.** Routing fork tested both ways; malformed artifact items
+  go nowhere; existing inbox tests untouched and green in the gate.
+- **3D-D — MET (unit + real-ChatStore integration).** Early-arrival hold →
+  attach on activity; late arrival after refetch attaches to server-id
+  rows and survives reopen via the sidecar; the openSession retry call
+  site pinned. The `.toolActivity` mid-stream call site has fake-transcript
+  coverage only — the real-stream wiring is 3D-H's device leg (noted
+  above; the verdict does not overclaim it).
+- **3D-E — MET.** New cross test: zero `.artifactProduced` on a real runs
+  stream + exactly one Tier-1 chip after the mirror upgrade; the pinned
+  3A-D test untouched (suite 36 → 37).
+- **3D-F — OPEN (deploy leg).** The cache is built and unit-tested (PR #4);
+  the cadence measurement happens on the live box after deploy + desktop
+  restart.
+- **3D-G — MET (app half): GATE: PASS on CC-lane-1, Swift Testing
+  2289 → 2317 (+28, the exact new-test count), 14 XCUITest (known
+  CondenserFidelity skip pair only), Release clean. Plugin suite 138 → 157
+  green, CI green both Pythons.**
+- **3D-H — OPEN (device leg, Owen driving; after both merges + deploy).**
+
+**PRs: app = Talaria-27 #315 (gate PASS recorded in the body); plugin =
+talaria-plugin #4 (DO-NOT-MERGE until Owen's review). Merge/deploy order:
+#315 first, then the plugin deploy + gateway bounce + desktop restart
+(per-slice go granted 2026-08-17 late night, above), then 3D-F cadence
+measurement and the 3D-H device pass.**

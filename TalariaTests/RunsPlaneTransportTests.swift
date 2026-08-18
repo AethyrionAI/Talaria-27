@@ -570,6 +570,68 @@ struct RunsPlaneTransportTests {
         #expect(finished.message.attachments.allSatisfy { $0.localStoragePath == nil })
     }
 
+    // MARK: - 3D-E: the mirror is the only Tier-1 source on this plane
+
+    /// #362: a runs turn that wrote a file, then its mirror item arriving
+    /// over the plugin channel. The stream itself still yields ZERO
+    /// `.artifactProduced` (3A-D stands untouched); the prose-swept Tier-2
+    /// pointer (whitelist-RELATIVE path) is upgraded IN PLACE by the mirror
+    /// item (host-ABSOLUTE path — only the leaf name links them), so the
+    /// message ends with exactly one chip, Tier-1, same attachment id.
+    @Test @MainActor
+    func mirrorItemUpgradesTheRunsPlanePointerWithoutASecondChip() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
+            #"{"event":"tool.started","run_id":"run-r1","timestamp":1.0,"tool":"write_file","preview":"O:\\Hermes\\MobileDL\\a.txt"}"#,
+            #"{"event":"tool.completed","run_id":"run-r1","timestamp":1.1,"tool":"write_file"}"#,
+            #"{"event":"run.completed","run_id":"run-r1","timestamp":1.2,"output":"Saved it to MobileDL/a.txt for you.","usage":{"input_tokens":3,"output_tokens":3,"total_tokens":6}}"#,
+        ]))
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "mirror-upgrade")
+        let updates = await collect(from: client)
+
+        // The stream stays honest: no artifact update rode it.
+        #expect(!updates.contains { if case .artifactProduced = $0 { return true } else { return false } })
+
+        var finished = try #require(finishedPayload(updates)).message
+        let pointer = try #require(finished.attachments.first)
+        #expect(pointer.localStoragePath == nil)
+        finished.toolActivities = [
+            ToolActivity(label: "write_file", startedAt: .now, isActive: false,
+                         detail: #"O:\Hermes\MobileDL\a.txt"#)
+        ]
+
+        let transcript = MirrorTranscriptDouble(sessionID: "sess-r", messages: [finished])
+        let correlator = ArtifactMirrorCorrelator(transcript: transcript)
+        correlator.receive(
+            ArtifactMirrorItem(
+                platformItemID: "i1", sessionID: "sess-r", path: #"O:\Hermes\MobileDL\a.txt"#,
+                content: "the real bytes", turnID: nil, toolCallID: nil, hostTimestamp: nil
+            )
+        )
+
+        let upgraded = try #require(transcript.messages.first)
+        #expect(upgraded.attachments.count == 1)
+        #expect(upgraded.attachments.first?.id == pointer.id)
+        #expect(upgraded.attachments.first?.localStoragePath != nil)
+    }
+
+    @MainActor
+    private final class MirrorTranscriptDouble: ArtifactMirrorTranscript {
+        var mirrorSessionID: String?
+        var messages: [Message]
+        init(sessionID: String, messages: [Message]) {
+            self.mirrorSessionID = sessionID
+            self.messages = messages
+        }
+        var mirrorMessages: [Message] {
+            get { messages }
+            set { messages = newValue }
+        }
+        func persistMirrorAttachments() {}
+    }
+
     // MARK: - 3A-H: the attachment wrap
 
     @Test @MainActor

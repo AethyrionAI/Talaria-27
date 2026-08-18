@@ -963,7 +963,18 @@ final class AppContainer {
             // marked delivered and will never send again.
             onItemsReceived: { [weak container] items in
                 guard let container else { return }
-                container.inboxStore.receivePlatformItems(items)
+                // #362 3D-C: artifact-kind items fork to the mirror
+                // correlator and never reach the inbox — an artifact rendered
+                // as an inbox row is a file's contents pasted into a
+                // notification. The drain's ack upstream is unconditional, so
+                // items the correlator ends up dropping are still acked (the
+                // no-redelivery half of bar 3D-A).
+                let split = ArtifactMirrorRouting.split(items)
+                for artifact in split.artifacts {
+                    container.chatStore.artifactMirror.receive(artifact)
+                }
+                guard !split.passthrough.isEmpty else { return }
+                container.inboxStore.receivePlatformItems(split.passthrough)
                 // …then nudge a repaint. `receivePlatformItems` lands the
                 // CACHE only; without this the drain stays invisible until
                 // the user next opens the Inbox — including the chat
