@@ -1349,6 +1349,14 @@ final class ChatStore {
             // #357: the turn is over on every path through here — an attempt
             // that neither landed nor drained has nothing left to wait on.
             self.steerAttempt = nil
+            // #361: the terminal is connectivity EVIDENCE, in both
+            // directions — copy the client's live status into the banner's
+            // snapshot. The probe loop can starve for minutes behind a sick
+            // dormant profile's relay sweep (2026-08-17: 25+ minutes of
+            // OFFLINE over a host that answered every turn); a turn that
+            // just completed or just failed is fresher truth than whatever
+            // snapshot the last probe left behind.
+            self.directConnectionStatus = self.hermesClient.connectionStatus
             // Anomalies at .notice (visible in Console by default, survives as
             // one line under logd quota); clean turns at .info.
             if ledger.updatesDropped > 0 || ledger.finalDelivery == .appendedWithoutPlaceholder {
