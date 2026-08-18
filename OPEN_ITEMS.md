@@ -24270,6 +24270,31 @@ rollout, recorded here at 0.4.0's home:
 CHECKING presentation), one file-write turn (mirror chip on OJAMD), a
 reopen (closes #364's terminal-not-write_file caveat on OJAMD's shape).
 
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). NOT STARTED — observation only; no diagnosis attempted yet.**
+
+**What was observed (build 2808, whoGoesThere):** Server settings →
+select OJAMD → back → a full-screen Talaria connecting/orb screen for
+~10 s before the chat UI returned. The #247 profile-switch design is
+deliberately NON-blocking — verdicts land as a toast (~5 s) while the UI
+stays usable — and no recorded design presents an interstitial on switch.
+
+**Honest unknowns, recorded before anyone anchors:** whether this is NEW
+on 2808 or long-standing-but-newly-noticed (Owen has switched profiles
+many times this month); whether it is the cold-launch splash machinery
+(#136's local-state-ready gate) re-presenting on a switch, a blocking
+await in the switch path (session/catalog refresh against the new host?),
+or something else. #350 changed connection PRESENTATION states today but
+touched nothing full-screen — not assumed innocent, not assumed guilty.
+
+**When it opens:** reproduce on a switch back to Mac (is it
+direction-agnostic?), read `handleActiveProfileChanged`'s await chain
+against what the root view gates on, and check whether the ~10 s tracks
+the #247 probe window or the OJAMD session-list fetch.
+
+**Cross-refs:** #247 (the non-blocking switch design), #350 (today's
+presentation change, for elimination), #136 (the splash's
+local-state-ready gate).
+
 ## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. BUILT OVERNIGHT on Owen's go ("Do 364"): ALL BARS 364-A..F MET, PR #316 merged `d03246e8`, OTA build 2787 installed, DEVICE-PROVEN 2026-08-18 ~07:19 (the #362 negative-arm chip rebuilt from stored args alone — its mirror item was long acked+dropped). OJAMD's storage shape MEASURED the same morning (~09:00, direct API read — full stored args confirmed on 0.20.3 there too; the one honest gap is that the probed rows were `terminal`, not `write_file`, and the degrade arms cover it either way). Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 twice — it read "NOT STARTED" after the device proof, then "OJAMD UNVERIFIED" for the seven minutes between the 08:55 re-home and the 09:02 measurement.)**
 
 **What was found (live-probed on the Mac, Hermes 0.20.3 / head
