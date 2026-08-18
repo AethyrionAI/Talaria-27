@@ -23816,3 +23816,29 @@ VERDICTS; PR OPEN, MERGE IS OWEN'S MORNING REVIEW:**
   (host down; the degrade arms make it safe either way); the runs
   EVENT-STREAM args absence (N1 stands — the mirror remains the LIVE
   content source; reconstruction owns the REFETCH half).
+
+**2026-08-18 ~07:19 — DEVICE-PROVEN (beyond the pre-registered bars; #364
+merged as `d03246e8`, OTA build 2787).** Owen reopened the #362
+negative-arm thread on the phone: the chip renders
+`talaria-…ative.md, MD · 12 bytes` and the preview shows `NEGATIVE ARM`.
+**The attribution is airtight because the mirror was NOT available to
+this thread:** its item was drained and acked 2026-08-17 23:38:34, then
+dropped app-side (no matching thread open, no path detail on the
+refetched row), and an acked item is never redelivered — and no sidecar
+record ever existed for it (the chip never rendered live). Stored-args
+reconstruction is therefore the only possible source. This also confirms
+the SESSIONS lane end-to-end on device (the thread was created via
+`POST /api/sessions/{id}/chat`); the RUNS lane's storage shape was
+curl-verified the same night on the test.md session. **364-A and 364-C
+now carry device evidence, not just unit evidence.**
+
+**`AGENTS.md` — now TRACKED DELIBERATELY (Owen, 2026-08-18: "I guess
+agents is fine to leave in there").** It entered the repo by MISTAKE:
+a `git add -A` in commit `05c6b595` swept up the long-untracked root file
+(a 793-line Codex-flavored companion to CLAUDE.md, origin unknown), and
+it merged inside PR #316, a lane about something else entirely. Owen was
+told before he ruled, and ruled keep. **The standing note in every
+handoff — "untracked at repo root, origin unknown, untouched" — is
+therefore RETIRED for this file; it is tracked from `05c6b595` onward.**
+The lesson kept: in a repo with deliberately-untracked files, stage by
+name, never by wildcard.
