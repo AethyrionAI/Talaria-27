@@ -24395,3 +24395,56 @@ so the pending rollout is a plain `hermes plugins update talaria`
 gateway restart, Owen pastes, per the routing recorded in #362/#363.
 **The rollout is UNBLOCKED as of this morning.** Probe residue on the
 host: session `api_1787061424_3a75d21d` — harmless; delete at will.
+
+
+**2026-08-18 ~18:05 — THE OJAMD write_file CAVEAT IS CLOSED, with airtight
+attribution:** tonight's two OJAMD chips (ojamd-test.md, ojamd-test2.md)
+rendered on reopen with **zero mirror items in existence** (OJAMD's
+outbox was probed: the mirror never enqueued — #366's finding), so
+stored-args reconstruction is the only possible source, now proven on
+OJAMD with real `write_file` rows on the daily-driver host. The morning
+note's "probed rows were terminal, not write_file" gap is discharged.
+Reconstruction is also currently the ONLY chip source on OJAMD until
+#366 resolves — the honest fallback carrying the feature.
+
+## 366. 🐛 The artifact mirror fail-closes on MULTI-DEVICE hosts — OJAMD carries 2 active device rows, so every artifact is silently dropped by the v0 single-device gate — **FILED 2026-08-18 evening; ROOT CAUSE of the OJAMD live-chip miss from tonight's rollout verification (both tests). Plugin-side; the fix needs a lane; the immediate unblock is a data chore that needs Owen's pick.**
+
+**The evidence chain, all probed tonight (canaried box-side session
+`api_1787093877_6207971a` — Get-Date tracked real time across both
+probes, failures reported honestly):**
+- OJAMD's `outbox_items` holds **exactly 1 row** (a `message` from
+  Aug 10). Tonight's two `ojamd-test*.md` writes produced **zero artifact
+  rows** — an ENQUEUE failure, not drain latency.
+- The plugin IS loaded and serving in the running gateway: the iPhone
+  device row's `last_seen` updated at 17:57:40 local — during Owen's
+  second test. The listener (PID 32652, started 16:55:41) postdates the
+  0.4.0 runtime files on disk (16:53:27), so it runs 0.4.0 code (457de49
+  at 17:08 is tests-only, irrelevant to the running process).
+- **`devices` has TWO active rows:** iPhone `05d985a73288` (created
+  2026-08-16, last_seen tonight) AND iPad `36930d3f90a7` (created
+  2026-08-12, last_seen 2026-08-13, still `active=1`). The #362 mirror
+  fail-closes on "0-or->1 active devices" BY DESIGN (v0 constraint) — so
+  on OJAMD it drops every artifact, deterministically. The Mac has one
+  active device, which is why it attaches live there.
+- Also present: an OLD deactivated iPhone row (`d2b76121d499`,
+  deactivated 2026-08-16 when the current pairing re-registered).
+
+**Two paths, decided by Owen:**
+1. **Immediate unblock (data chore, #144 shape — deactivate, never
+   delete):** deactivate the iPad row on OJAMD (its last_seen is Aug 13).
+   One UPDATE on the box; restores the v0 single-device world and the
+   mirror works tonight. ⚠️ Only if the iPad's Talaria install is
+   genuinely idle — if the iPad still drains, deactivating breaks ITS
+   inbox. Owen knows which it is.
+2. **The real fix (plugin lane):** the mirror appends FOR ALL ACTIVE
+   DEVICES (`append_for_devices` already exists — #362 built it), making
+   multi-device hosts first-class. Small, tested, rides the normal PR +
+   Owen-review path; #363's hygiene already bounds the storage cost.
+   The v0 gate was a deliberate simplification, not a bug — but OJAMD is
+   now measured proof the simplification bites the daily driver.
+
+**Cross-refs:** #362 (the gate's design), #363 (retention that makes
+multi-device append cheap), #364 (whose reconstruction is why the chip
+appears on reopen anyway — the honest fallback that masked this for a
+day), #365 (filed the same evening, rides PR #320's docs), #109 (the
+iPad's existence in the fleet).
