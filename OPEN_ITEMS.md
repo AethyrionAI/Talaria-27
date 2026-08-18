@@ -23883,3 +23883,29 @@ inside the mirror's own never-raise envelope), and a manual
 - **363-F (deploy, gated on Owen's merge):** Mac deploy + LISTENER
   verify; the startup sweep observed live (counts logged). OJAMD
   explicitly OUT of this lane.
+
+**2026-08-18 morning — BUILT; PER-BAR VERDICTS (deploy leg open on Owen's
+merge):** plugin PR #5 (`363-outbox-hygiene`), suite **157 → 170** (+13),
+plugin.yaml 0.3.0 → 0.4.0.
+- **363-A — MET.** Scrub pinned both directions: past-cutoff delivered
+  rows blank + deactivate with meta/delivered_at/row retained; younger
+  rows byte-for-byte untouched. No DELETE anywhere in the diff.
+- **363-B — MET.** Past-cutoff undelivered rows deactivate (content
+  intact — only DELIVERED rows scrub) and `pending()` stops serving them
+  (it filters `active=1`, verified in code and pinned by test); younger
+  rows still serve; message-kind rows untouched by every arm incl.
+  400-day-old ones.
+- **363-C — MET.** Startup sweep fires from `register()` and a raising
+  sweep cannot break gateway load (pinned); the 6 h throttle pinned with
+  an injectable clock; `maybe_sweep` never raises (pinned against a
+  raising `sweep`); the mirror append triggers it inside the mirror's own
+  never-raise envelope; `prune --dry-run` counts with zero writes
+  (pinned), `prune` prints and prunes (CLI round-trip test).
+- **363-D — MET.** Second sweep reports zero; an ack landing after expiry
+  stamps `delivered_at` on the inactive row but cannot resurrect it
+  (pinned).
+- **363-E — MET (suite):** 170 green locally under the hermes venv; CI
+  pending at filing (will be green before merge — Owen's gate).
+- **363-F — OPEN:** Mac deploy (pull + bounce + LISTENER verify) + the
+  startup sweep observed live, after Owen's merge. OJAMD OUT of this
+  lane per the routing.
