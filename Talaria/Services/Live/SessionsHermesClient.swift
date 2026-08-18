@@ -1033,7 +1033,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         return (response.sessionId ?? id, convo)
     }
 
-    nonisolated private static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage, sessionId: String) -> Message? {
+    nonisolated static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage, sessionId: String) -> Message? {   // harness-visible (#364)
         let sender: MessageSender
         switch (m.role ?? "").lowercased() {
         case "user": sender = .user
@@ -1046,14 +1046,42 @@ final class SessionsHermesClient: HermesClientProtocol {
         // #10: restore the tool timeline when the API includes tool_calls on
         // an assistant row. The stored transcript carries no position data, so
         // reloaded chips anchor at the head of the message (offset 0).
-        let activities: [ToolActivity]
+        //
+        // #364: the server ALSO stores each call's full `arguments` (verified
+        // 0.20.3, both lanes), so a write tool's Tier-1 chip is rebuilt right
+        // here from the server's own record — verbatim content, never
+        // invention — and the activity detail gets the path, which is what
+        // lets the #362 mirror correlator match a refetched row. Rows whose
+        // calls carry no/unparseable arguments map exactly as pre-#364.
+        var activities: [ToolActivity] = []
+        var attachments: [MessageAttachment] = []
         if sender == .hermes {
-            activities = m.toolCalls.compactMap { call in
-                guard let name = call.name, !name.isEmpty, name != "_thinking" else { return nil }
-                return ToolActivity(label: name, startedAt: ts, isActive: false, detail: call.detail)
+            for call in m.toolCalls {
+                guard let name = call.name, !name.isEmpty, name != "_thinking" else { continue }
+                var detail = call.detail
+                if Self.isWrittenFileTool(name),
+                   let raw = call.arguments,
+                   let args = try? JSONDecoder().decode(WrittenFileArgs.self, from: Data(raw.utf8)),
+                   let path = args.path, !path.isEmpty {
+                    if detail == nil || detail?.isEmpty == true { detail = path }
+                    if let content = args.content,
+                       var staged = MessageAttachment.agentFile(remotePath: path, content: content) {
+                        if let rowID = m.id {
+                            staged = MessageAttachment(
+                                id: Self.stableAgentFileAttachmentID(
+                                    sessionId: sessionId, serverRowID: rowID, path: path
+                                ),
+                                kind: staged.kind,
+                                fileName: staged.fileName,
+                                mimeType: staged.mimeType,
+                                localStoragePath: staged.localStoragePath
+                            )
+                        }
+                        attachments.append(staged)
+                    }
+                }
+                activities.append(ToolActivity(label: name, startedAt: ts, isActive: false, detail: detail))
             }
-        } else {
-            activities = []
         }
 
         // #121: restore the reasoning pane on resume. The stored transcript
@@ -1078,8 +1106,32 @@ final class SessionsHermesClient: HermesClientProtocol {
             timestamp: ts,
             status: .delivered,
             toolActivities: activities,
-            reasoning: reasoning
+            reasoning: reasoning,
+            attachments: attachments
         )
+    }
+
+    /// #364: the write tools whose stored/streamed args carry a
+    /// reconstructable `{path, content}` — the same pair `parseWrittenFile`
+    /// accepts on the live stream.
+    nonisolated static func isWrittenFileTool(_ name: String) -> Bool {
+        name == "write_file" || name == "create_file"
+    }
+
+    /// #364: deterministic attachment identity for a chip rebuilt from a
+    /// stored row's args — the #237 pattern with its own domain, keyed by
+    /// session, row, and path, so every refetch of the same write maps to
+    /// the same UUID and the sidecar replay's id-dedupe holds across
+    /// refetches. Rows without a server id fall back to a fresh UUID,
+    /// matching `stableMessageID`'s posture.
+    nonisolated static func stableAgentFileAttachmentID(sessionId: String, serverRowID: Int, path: String) -> UUID {
+        let digest = SHA256.hash(data: Data("talaria-agentfile:\(sessionId):\(serverRowID):\(path)".utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+                           bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11],
+                           bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
     /// #237: deterministic message identity from the server's own row id —
@@ -2281,7 +2333,7 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
     }
 
-    private struct SessionMessagesResponse: Decodable {
+    struct SessionMessagesResponse: Decodable {   // harness-visible (#364)
         let sessionId: String?
         let data: [StoredMessage]
         enum CodingKeys: String, CodingKey {
@@ -2343,16 +2395,25 @@ final class SessionsHermesClient: HermesClientProtocol {
         struct StoredToolCall: Decodable {
             let name: String?
             let detail: String?
+            /// #364: the raw args JSON the server stored for this call —
+            /// `function.arguments` (the observed 0.20.3 shape) or a flat
+            /// `arguments` key. Tolerant: absent/null/non-string fold to nil,
+            /// and nil means "map exactly as pre-#364" — which is also the
+            /// posture on hosts whose storage never carried args (OJAMD is
+            /// unverified): the wire shape itself is the gate.
+            let arguments: String?
 
             enum CodingKeys: String, CodingKey {
-                case name, tool, function, preview
+                case name, tool, function, preview, arguments
                 case toolName = "tool_name"
             }
             struct FunctionEnvelope: Decodable {
                 let name: String?
+                let arguments: String?
             }
             init(from decoder: Decoder) throws {
                 let c = try decoder.container(keyedBy: CodingKeys.self)
+                let function = try? c.decodeIfPresent(FunctionEnvelope.self, forKey: .function)
                 var resolved: String?
                 for key in [CodingKeys.name, .toolName, .tool] {
                     if let value = try? c.decodeIfPresent(String.self, forKey: key), value.isEmpty == false {
@@ -2360,12 +2421,12 @@ final class SessionsHermesClient: HermesClientProtocol {
                         break
                     }
                 }
-                if resolved == nil,
-                   let function = try? c.decodeIfPresent(FunctionEnvelope.self, forKey: .function) {
-                    resolved = function.name
-                }
+                if resolved == nil { resolved = function?.name }
                 name = resolved
                 detail = (try? c.decodeIfPresent(String.self, forKey: .preview)) ?? nil
+                let nested = function?.arguments
+                let flat = (try? c.decodeIfPresent(String.self, forKey: .arguments)) ?? nil
+                arguments = nested ?? flat
             }
         }
     }

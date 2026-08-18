@@ -129,6 +129,20 @@ final class ArtifactMirrorCorrelator {
             return true
         }
 
+        // Pass 3 (#364) — no unfilled match, but SOME message in this
+        // session already carries a chip for the path (stored-args
+        // reconstruction or an earlier delivery beat us): the item is
+        // settled — consume it rather than holding a duplicate to expiry.
+        // Ordered after pass 2 on purpose: same-path-written-twice must
+        // fill the unfilled message first, never vanish into this check.
+        if messages.contains(where: { message in
+            message.sender.isAgentAuthored && message.attachments.contains {
+                Self.attachmentMatchesPath($0, path: item.path)
+            }
+        }) {
+            return true
+        }
+
         return false
     }
 

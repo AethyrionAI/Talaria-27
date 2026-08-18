@@ -13,6 +13,16 @@ import Foundation
 /// next thread evicts — so leaving a thread and coming back lost every chip
 /// in it, while the bytes sat untouched under Application Support.
 ///
+/// **[2026-08-18, #364 — the "name + preview only" premise above is
+/// HOST-VERSION-SCOPED and falsified on 0.20.3: `/messages` returns each
+/// call's full `function.arguments` (path + content, both lanes — probed
+/// live on the Mac), and `mapStoredMessage` now rebuilds Tier-1 chips from
+/// them under deterministic ids. The sidecar REMAINS load-bearing: it is
+/// the only carrier of #262 inline anchors across a refetch, of records
+/// from hosts whose storage lacks args (OJAMD unverified as of this note),
+/// and of pre-#364 rows — `replaying` gained a same-file skip for exactly
+/// that crossing.]**
+///
 /// This is the second, thread-keyed copy of just the attachment RECORDS —
 /// never the file bytes, which are already on disk and are not duplicated
 /// here.
@@ -134,6 +144,14 @@ struct AgentAttachmentSidecar: Codable, Hashable, Sendable {
         for (index, row) in claimedBy {
             var seen = Set(result[index].attachments.map(\.id))
             for attachment in row.attachments where seen.insert(attachment.id).inserted {
+                // #364: a pre-#364 record carries the streaming-time random
+                // id, while stored-args reconstruction now rebuilds the same
+                // file under a deterministic id — id-dedupe alone would
+                // double the chip on that one crossing. Same-file skip; a
+                // record for a genuinely different file still replays.
+                guard !result[index].attachments.contains(where: {
+                    $0.representsSameAgentFile(as: attachment)
+                }) else { continue }
                 result[index].attachments.append(attachment)
             }
         }
