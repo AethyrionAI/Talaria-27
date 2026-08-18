@@ -23195,3 +23195,85 @@ FIRST; the fused string above is the oracle.
 (seed), #268 (why this is its own number). Occurred once in the record
 (the other two morning submits are clean — verified 2026-08-17 by direct
 `/messages` reads).
+
+> **📋 2026-08-17 evening — FIRST INVESTIGATION PASS: one hypothesis
+> FALSIFIED by Owen's answer; five candidate sites ELIMINATED by the
+> artifact's own bytes; mechanism REMAINS UNIDENTIFIED.**
+> - **Eliminated by the separator/order test** (the artifact butt-joins with
+>   NO separator, remnant first): the #48 ask-seed (replaces wholesale), the
+>   share-seed (joins with `"\n"`), the Stop-restore (replaces or surfaces,
+>   never joins), the outbox drain (sends `turn.text` verbatim), and
+>   `mergedDictationText` (always joins with a single space).
+> - **The dictation range-finalization hypothesis** — SDK-confirmed that
+>   `DictationTranscriber` results are range-scoped with progressive
+>   finalization, and our controller's mishandling produces EXACTLY a
+>   beheaded live preview (see #360) — predicted the artifact byte-for-byte
+>   via "beheaded preview + user retypes at cursor." **Pre-registered
+>   discriminator put to Owen: were the morning prompts dictated? Answer:
+>   "Typed." FALSIFIED for this artifact** (recorded, not redefined — the
+>   mishandling itself is real and filed as #360).
+> - What survives every elimination: the fused string must have been the
+>   composer's (or a captured turn's) literal content at submit-build time,
+>   and no store/UI code path found so far can behead a typed string by
+>   exactly its first 11 characters. Remaining suspect space: the
+>   TextField/keyboard layer itself on iOS 27 beta (programmatic
+>   `messageText` writes racing active typing — the send-path clear, seed
+>   consumption), or an unobserved path. **Next viable steps when this lane
+>   resumes:** (i) a TextField-race reproduction harness (programmatic write
+>   + synthesized typing), (ii) a send-time provenance witness (length +
+>   prefix log on submit, #358-ledger style) so a recurrence
+>   self-identifies. Occurred once in the record; not worth blocking 3C on.
+
+## 360. 🔧 Dictation range-finalization robustness — `DictationController` assumes single-range, single-final transcriber results; the SDK contract is range-scoped with progressive finalization — **FILED 2026-08-17 evening, out of #359's investigation (whose artifact it did NOT cause — Owen typed those prompts; the falsification is recorded in #359). BARS PRE-REGISTERED BELOW BEFORE FIX CODE.**
+
+**The SDK contract (read from the beta5 swiftinterface, not recall, per the
+standing memory):** `SpeechModuleResult` requires `range: CMTimeRange` +
+`resultsFinalizationTime`, and `isFinal` is derived (range vs finalization
+time) — results are RANGE-scoped, finalization is progressive, and multiple
+finals per session are permitted by construction. `DictationTranscriber.
+Result.text` is the text OF ITS RANGE.
+
+**What our code assumes instead**
+(`LiveSpeechService.swift`, `DictationController.resultsTask`): every
+result's text is the WHOLE utterance (each `.partial` overwrites the entire
+transcript), and the FIRST `isFinal` ends the utterance (`emit(.finished)`
++ `stop()` + `break`). Under the range-scoped reading, a mid-dictation
+finalization beheads the live preview (later volatile text covers only the
+unfinalized range) and truncates the utterance at the first finalized
+boundary.
+
+**HONESTY, up front: no device evidence that `.progressiveShortDictation`
+actually emits mid-stream finals or range-scoped volatiles today.** This
+lane makes the controller correct under BOTH readings of the documented
+contract (the #4.15 `incrementalReasoningDelta` hedge pattern, applied one
+layer down), and makes the logic unit-testable at all — it is robustness
+under a documented contract, not a claimed live defect. If a live repro of
+either shape ever surfaces, it lands here as evidence, not as a surprise.
+
+**Fix design:** extract a pure `DictationTranscriptAssembler` (finalized
+accumulator + volatile tail; a volatile/final whose text `hasPrefix` the
+accumulated finalized text is treated as a cumulative snapshot — the hedge
+— otherwise as a range suffix, whitespace-aware join); the controller
+emits `.partial(assembled)` per result and `.finished(assembled)` when the
+results STREAM ends, never breaking at `isFinal`; plain cancellation must
+not emit `.failed`.
+
+**THE BARS (pre-registered before fix code):**
+- **360-A (RED-first):** the current result-handling logic is extracted
+  VERBATIM into the assembler (behavior-preserving refactor), and the
+  desired-semantics tests are observed RED against it: (1) volatile text
+  after a mid-stream final keeps the finalized prefix; (2) a second final
+  accumulates instead of replacing; (3) a cumulative-snapshot volatile is
+  not doubled; (4) the finished transcript carries everything.
+- **360-B:** post-fix, all assembler tests green, and the controller wires
+  through it: no `break` at `isFinal`, `.finished` at stream end,
+  cancellation emits nothing.
+- **360-C (equivalence guard):** under the one-final-then-stream-end shape
+  (today's assumed short-dictation reality), emissions are equivalent to
+  current behavior (same partials, same finished text, auto-stop still
+  fires) — asserted by a scripted-sequence test.
+- **360-D:** `lane-gate.sh` green before any PR.
+
+**Cross-refs:** #359 (the investigation that surfaced this), #4.15 (the
+hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
+(voice memos — separate path, untouched).
