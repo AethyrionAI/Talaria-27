@@ -22721,7 +22721,7 @@ re-litigates it.
 — server-side, distinguished above), #352 (the same-night re-sign, a
 candidate trigger for half 1), #98/#97 (existing read/dismiss bookkeeping).
 
-## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). NOT STARTED — runs after the #269-A/#270 merges, before or alongside the 3C steering session.**
+## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). SHIPPED 2026-08-17 night: ALL BARS 355-A..E MET (`d3e4b176`, PR #314 merged `41f02b2` on Owen's "merge 314") — Setup teaches the real tiers, the plugin link is drawn in the diagram, relay/connector demoted to a labeled Legacy section, docs/ pages aligned; gate PASS (docs-only, counts unchanged). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for a day after the ship and cost a wrong work-menu recommendation before Owen caught it.)**
 
 **Why a pass rather than more per-lane close-outs:** #352/#269-A corrected
 the lines their results falsified (per the close-out rule), but the README's
@@ -22809,7 +22809,7 @@ tier's formal end, which a later pass can fold in).
 > Owen's formal close.**
 
 
-## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
+## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. CLOSED-SHAPE 2026-08-17 ~21:05: the app half (composer gate §2.5 + #267 queue §2.6) joined this entry once #356 exonerated the transport; ALL BARS 357-A..J MET, wire leg + app half shipped and merged (PR #312, merge `296d6e0`), steering DEVICE-PROVEN ~20:49 (PLUM over BANANA, `run.steered` 3 ms after submit). Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18, stale-header sweep — it still described the lane's opening morning.)**
 
 **What the 2026-08-17 recon established (source-read on the Mac install,
 route live-confirmed on OJAMD 0.20.1/0.20.2 via `/v1/capabilities` and in the
@@ -23044,7 +23044,7 @@ skipped silently), #268 (why this filed as its own number).
 > mirror) and the 3E cutover decision are NOT this entry — they get their
 > own numbers when routed (#268).**
 
-## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
+## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. SHIPPED the same evening (Owen's pick over 3C/#359): bars 358-A/B/C/E MET (PR #310, merge `2bd98e48`) — the silent-drop failure CLASS at the finish boundary is removed and the `TurnStreamLedger` witness instruments the pipeline; 358-D honest: the 08-16 morning TRIGGER remains UNIDENTIFIED, and if it ever fires again the ledger's one-line witness is built to survive logd quota and name it. WATCH, not open build work. (Header updated 2026-08-18, stale-header sweep.)**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
 2026-08-16 10:36:22 / 10:39:35 / 10:48:03, the phone created three fresh
@@ -23216,7 +23216,7 @@ FIRST; the fused string above is the oracle.
 >   prefix log on submit, #358-ledger style) so a recurrence
 >   self-identifies. Occurred once in the record; not worth blocking 3C on.
 
-## 360. 🔧 Dictation range-finalization robustness — `DictationController` assumes single-range, single-final transcriber results; the SDK contract is range-scoped with progressive finalization — **FILED 2026-08-17 evening, out of #359's investigation (whose artifact it did NOT cause — Owen typed those prompts; the falsification is recorded in #359). BARS PRE-REGISTERED BELOW BEFORE FIX CODE.**
+## 360. 🔧 Dictation range-finalization robustness — `DictationController` assumes single-range, single-final transcriber results; the SDK contract is range-scoped with progressive finalization — **FILED 2026-08-17 evening, out of #359's investigation (whose artifact it did NOT cause — Owen typed those prompts; the falsification is recorded in #359). SHIPPED the same evening: ALL BARS 360-A..D MET (PR #311, merge `2210e56b`), gate PASS. Residual, stated honestly: the auto-stop grace timing is review-verified, not unit-tested — a device dictation pass is the honest closer. (Header updated 2026-08-18, stale-header sweep.)**
 
 **The SDK contract (read from the beta5 swiftinterface, not recall, per the
 standing memory):** `SpeechModuleResult` requires `range: CMTimeRange` +
@@ -23298,7 +23298,7 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 > - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
 >   this lane's suite), 14 XCUITest, Release clean.
 
-## 361. 🐛 HERMES HOST OFFLINE banner + header pip key off a DORMANT profile's health — the app reads "down" while the ACTIVE profile is online and streaming — **FILED 2026-08-17 night, out of the #357 device pass (Owen's report + console evidence, same session). App-side; UI honesty. UNLOCALIZED.**
+## 361. 🐛 HERMES HOST OFFLINE banner + header pip key off a DORMANT profile's health — the app reads "down" while the ACTIVE profile is online and streaming — **FILED 2026-08-17 night, out of the #357 device pass (Owen's report + console evidence, same session). LOCALIZED AND SHIPPED the same night: bars 361-A..D MET (PR #313, merge `0d94e94`). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18, stale-header sweep.)**
 
 **Observed (whoGoesThere, branch build `c183ffa`, 20:44–20:49):** active
 profile = Mac Mini (server screen showed it ACTIVE + GATEWAY ONLINE), OJAMD
