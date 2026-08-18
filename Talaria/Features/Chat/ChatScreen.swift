@@ -93,6 +93,9 @@ struct ChatScreen: View {
 
     // HUD shells (presentation only — see SessionsDrawer / ModelSelector).
     @State private var modelModel = ModelSelectorModel()
+    /// #361: single-flights the host/relay sweep so the direct-health probe
+    /// (the offline banner's input) is never starved behind it.
+    @State private var healthTicker = ChatHealthTicker()
 
     // Lane J (J-4): ⌘K presents the Lane F search screen directly from the
     // chat surface — no need to open the drawer first. Same screen, same
@@ -540,17 +543,25 @@ struct ChatScreen: View {
     /// Initial chat bootstrap: enable polling, refresh relay host + direct
     /// Sessions API health, then load the conversation. Extracted from `body`'s
     /// `.task` to keep that view expression cheap to type-check.
+    /// #361: the host/relay sweep and the direct probe run through the
+    /// ticker — the sweep can sit in minute-scale timeouts against a sick
+    /// dormant profile, and the banner's probe must not wait on it.
     private func startChatSession() async {
         chatStore.setPollingEnabled(true)
-        await hostStore.refresh()
-        await chatStore.refreshDirectHealth()
+        await healthTicker.tick(
+            hostRefresh: { await hostStore.refresh() },
+            directRefresh: { await chatStore.refreshDirectHealth() }
+        )
         await chatStore.loadConversationIfNeeded()
     }
 
     /// Periodically re-checks relay host status and direct Sessions API health
     /// while the chat screen is visible. #175: cadence and the
     /// foreground-only rule live in `ChatHealthPollPolicy` — this used to be
-    /// a flat 10s loop that ran while backgrounded too.
+    /// a flat 10s loop that ran while backgrounded too. #361: each tick goes
+    /// through `ChatHealthTicker`, so the direct probe lands on cadence even
+    /// while the host sweep hangs (single-flight — a stuck sweep doesn't
+    /// stack).
     private func monitorConnectionStatus() async {
         var unchangedProbes = 0
         var lastStatus = chatStore.directConnectionStatus
@@ -564,8 +575,10 @@ struct ChatScreen: View {
                 unchangedProbes = 0
                 continue
             }
-            await hostStore.refresh()
-            await chatStore.refreshDirectHealth()
+            await healthTicker.tick(
+                hostRefresh: { await hostStore.refresh() },
+                directRefresh: { await chatStore.refreshDirectHealth() }
+            )
             let status = chatStore.directConnectionStatus
             if status == lastStatus {
                 unchangedProbes += 1

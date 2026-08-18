@@ -45,3 +45,27 @@ enum ChatHealthPollPolicy {
         case background
     }
 }
+
+/// #361: executes one health tick. The direct-Sessions probe drives the
+/// offline banner and must NEVER wait on the host/relay sweep — on
+/// 2026-08-17 the sweep sat in minute-scale timeouts against a sick dormant
+/// profile and the probe starved for 25+ minutes while the banner lied
+/// OFFLINE. The sweep is fired single-flight (a hanging one must not stack
+/// copies of itself) and the tick returns when the DIRECT half is done.
+@MainActor
+final class ChatHealthTicker {
+    private var hostRefreshTask: Task<Void, Never>?
+
+    func tick(
+        hostRefresh: @escaping @MainActor () async -> Void,
+        directRefresh: @MainActor () async -> Void
+    ) async {
+        if hostRefreshTask == nil {
+            hostRefreshTask = Task { @MainActor [weak self] in
+                await hostRefresh()
+                self?.hostRefreshTask = nil
+            }
+        }
+        await directRefresh()
+    }
+}
