@@ -22525,6 +22525,33 @@ longer explains this suite's rate. Today's tally: ~2 of 5 bundle-context
 runs across THREE different diffs. If the rate holds, the suite's budget
 premise deserves its own lane.**
 
+
+**2026-08-18 ~18:00 — TWO POST-MERGE DEFECTS FOUND BY OWEN'S OJAMD DEVICE
+PASS (the evening rollout verification), both fixed on branch
+`349-refetch-hole`:**
+1. **The refetch hole.** Live, the gauge correctly hid on the tool turn
+   (Owen's screenshot has no CTX badge — the merged fix working). On
+   REOPEN it came back reading **68% with the summed 87K**: a refetched
+   turn SPLITS into rows — the tool-call row carries the activities, the
+   prose tail carries none — and the merged gate only checked the last
+   message. Fix: TURN-scoped gate (any tool activity since the last
+   user-authored message hides the gauge); RED observed first on the
+   exact split-row shape from the device
+   (`gaugeNumeratorAbsentWhenARefetchedTurnSplitsAcrossRows`).
+2. **The denominator.** deepseek-v4-flash resolved through the fallback
+   table's blanket `deepseek → 128_000` — a V3-era number; 87,111/128,000
+   is exactly the observed 68%. **The host catalog carries NO context
+   field** (schema probed live: `/api/model/options` models are bare id
+   strings), so the table is load-bearing. deepseek-v4 is a **1M** family
+   (verified against DeepSeek's own docs, HF, OpenRouter, and the V4
+   paper) — `deepseek-v4 → 1_000_000` added ahead of the generic arm.
+   Real occupancy on Owen's turn: ~9% — and hidden anyway once the
+   turn-scope fix lands, since it was a tool turn.
+Owen's pass also confirmed the OJAMD chip renders on reopen (attribution
+between mirror-hold-attach and #364 reconstruction pending the outbox-row
+timing query, box-side); the LIVE-attach miss is warmup-race-shaped, and
+the same query discriminates.
+
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
 **What the PRs are.** GPT 5.6 Sol (dispatched when the 5-hour Claude cap hit) shipped
