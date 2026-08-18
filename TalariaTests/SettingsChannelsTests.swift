@@ -265,4 +265,84 @@ struct SettingsChannelsTests {
             }
         }
     }
+
+    // MARK: - #350: link state is a measurement, not an assertion
+
+    /// The cold-launch lie, pinned as an assertion first: an UNPROBED direct
+    /// status must never present as online. (Before #350, `.disconnected`
+    /// and `.connecting` both mapped to `.online` "optimistically" — a green
+    /// LINKED · ONLINE against a dead port, across a cold launch.)
+    @Test func coldLaunchNeverClaimsOnline() {
+        #expect(ChatConnectionPresentation.effectiveState(.disconnected) != .online)
+        #expect(ChatConnectionPresentation.effectiveState(.connecting) != .online)
+    }
+
+    /// The full mapping: measured verdicts present as themselves; anything
+    /// unmeasured is `.checking` — #25's absent-not-asserted, as a link state.
+    @Test func effectiveStateMapsMeasurementsOnly() {
+        #expect(ChatConnectionPresentation.effectiveState(.connected) == .online)
+        #expect(ChatConnectionPresentation.effectiveState(.error) == .offline)
+        #expect(ChatConnectionPresentation.effectiveState(.disconnected) == .checking)
+        #expect(ChatConnectionPresentation.effectiveState(.connecting) == .checking)
+    }
+
+    /// `.checking`'s detail names what IS known (paired) and leaves what
+    /// isn't ABSENT — no ONLINE claim anywhere in it.
+    @Test func checkingDetailCarriesNoOnlineClaim() {
+        let detail = ChatConnectionPresentation.sessionsHostDetail(.checking)
+        #expect(detail == "LINKED · —")
+        #expect(detail.contains("ONLINE") == false)
+    }
+
+    /// The settings surfaces' shared truth (previously three verbatim
+    /// private copies — the #256 drift shape). Measured connected wins;
+    /// a measured direct ERROR outranks stale relay memory (the relay
+    /// fallback could keep a dead link green); no verdict + a configured
+    /// host is `.checking`; no verdict + hostless keeps the host-store
+    /// story byte-identical.
+    @Test func settingsEffectiveStateIsOneMeasuredTruth() {
+        // Measured online.
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .connected, hostFallback: .notConnected, hostConfigured: true) == .online)
+        // Measured direct failure cannot stay green via relay memory.
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .error, hostFallback: .online, hostConfigured: true) == .unreachable)
+        // Unprobed + configured host: checking, never online.
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .disconnected, hostFallback: .online, hostConfigured: true) == .checking)
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .connecting, hostFallback: .notConnected, hostConfigured: true) == .checking)
+        // Hostless: the on-device story unchanged.
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .disconnected, hostFallback: .notConnected, hostConfigured: false) == .notConnected)
+        #expect(ChatConnectionPresentation.settingsEffectiveState(
+            direct: .disconnected, hostFallback: .unreachable, hostConfigured: false) == .unreachable)
+    }
+
+    /// The card/strip values render `.checking` as explicitly unknown —
+    /// no LINKED, no CONNECTED, no accent.
+    @Test func checkingRendersExplicitlyUnknownInSettings() {
+        #expect(SettingsCardValues.uplink(state: .checking, isDirect: false) == "CHECKING")
+        let strip = SettingsCardValues.statusStrip(
+            state: .checking, isDirect: false,
+            hostName: "OJAMD", modelName: "deepseek-v4-flash", brainLabel: nil)
+        #expect(strip.contains("LINKED") == false)
+        #expect(strip.contains("CONNECTED") == false)
+        #expect(strip.hasPrefix("CHECKING"))
+        #expect(SettingsCardAccent.uplink(state: .checking) == false)
+    }
+
+
+    /// The banner is an ALARM and `.checking` is not an alarm: without this
+    /// rule the honest cold-launch state would flash the red offline banner
+    /// on every launch until the first probe lands. It fires only on a
+    /// MEASURED non-online state, and never unpaired.
+    @Test func connectionBannerWaitsForAMeasurement() {
+        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .checking) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .online) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .offline) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .unreachable) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: false, state: .offline) == false)
+    }
+
 }

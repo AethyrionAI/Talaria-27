@@ -22324,6 +22324,34 @@ active):**
   Swift Testing count MOVED from 2340, Release clean; PR for Owen's
   review.
 
+**2026-08-18 ~12:55 — TWO DESIGN AMENDMENTS FOUND MID-BUILD (recorded
+before the gate, per the pre-registration culture):**
+1. **The banner rule.** `showsConnectionBanner` was `isPaired && state !=
+   .online` — with the honest mapping that would FLASH THE RED OFFLINE
+   BANNER on every paired cold launch until the first probe lands, which
+   is exactly the false-negative the old optimistic arm was defending
+   against. Elected rule, extracted testable
+   (`ChatConnectionPresentation.showsConnectionBanner`): the banner is an
+   ALARM and `.checking` is not an alarm — it fires only on a MEASURED
+   non-online state, never unpaired. The header still shows CHECKING with
+   a dim pip through the window. (This is the honest version of what the
+   optimism was for.)
+2. **Drawer defaults hardened.** `SessionsDrawer.hostDetail`/`hostOnline`
+   defaulted to `"LINKED"`/`true` — only previews/tests ever reach the
+   defaults (both live call sites pass mapped values; verified by grep),
+   but an asserting default is the #342 shape in miniature. Now
+   `"LINKED · —"`/`false`.
+
+**350-D scope note, stated honestly:** the sim leg exercised the app but
+the paired-surface fixture (drawer footer / settings strip on a
+configured-dead host) is NOT reachable in the sim without real keychain
+credentials — the unpaired sim routes to the on-device brain and renders
+local-truth surfaces (which stayed honest throughout). The mapping and
+every surface value are unit-pinned (350-A..C + the banner rule); the
+honest closer for 350-D's visual half is OWEN'S ORIGINAL FIXTURE re-run
+on device post-merge (auto-connect off, base URL on the verified-refused
+`:12399`, cold launch — 30 seconds, and he has done it once already).
+
 ## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
 
 **The measurement, from two consecutive turns in one thread (screenshots):**

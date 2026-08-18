@@ -12,9 +12,11 @@ enum ChatConnectionPresentation {
         case .error:
             return .offline
         case .connecting, .disconnected:
-            // Not yet probed (or a probe is in flight). Stay optimistic so we
-            // never flash a false offline state before the first probe resolves.
-            return .online
+            // #350: not yet probed (or a probe is in flight) is CHECKING,
+            // never online. The old "stay optimistic" arm rendered
+            // LINKED · ONLINE against a dead port across a cold launch —
+            // #25: an unknown must render as unknown, never confident green.
+            return .checking
         }
     }
 
@@ -24,7 +26,42 @@ enum ChatConnectionPresentation {
         case .offline: return "OFFLINE"
         case .unreachable: return "UNREACHABLE"
         case .notConnected: return "NOT CONNECTED"
+        case .checking:
+            // Paired IS a known local fact; reachability is absent until
+            // measured (#25).
+            return "LINKED · —"
         }
+    }
+
+    /// #350: the settings surfaces' one shared truth (previously three
+    /// verbatim private copies — the #256 drift shape). A measured direct
+    /// verdict always outranks relay-plane memory: `.connected` is the only
+    /// way to green, and a measured `.error` cannot stay green through a
+    /// stale relay-online fallback. With no direct verdict, a configured
+    /// host is `.checking`; hostless keeps the host-store story unchanged.
+    static func settingsEffectiveState(
+        direct: ConnectionStatus,
+        hostFallback: HermesHostConnectionState,
+        hostConfigured: Bool
+    ) -> HermesHostConnectionState {
+        switch direct {
+        case .connected:
+            return .online
+        case .error:
+            return .unreachable
+        case .connecting, .disconnected:
+            return hostConfigured ? .checking : hostFallback
+        }
+    }
+
+    /// #350: the offline banner is an ALARM, and `.checking` is not an
+    /// alarm — without this rule the honest cold-launch state would flash
+    /// the red banner on every launch until the first probe lands, which is
+    /// exactly what the old optimistic mapping was defending against. The
+    /// header still says CHECKING with a dim pip; the banner waits for a
+    /// MEASURED offline.
+    static func showsConnectionBanner(isPaired: Bool, state: HermesHostConnectionState) -> Bool {
+        isPaired && state != .online && state != .checking
     }
 }
 
@@ -764,7 +801,8 @@ struct ChatScreen: View {
     // out of `body` as plain Bools keeps that (already large) view expression
     // within the Swift type-checker's complexity budget.
     private var showsConnectionBanner: Bool {
-        pairingStore.isPaired && effectiveConnectionState != .online
+        ChatConnectionPresentation.showsConnectionBanner(
+            isPaired: pairingStore.isPaired, state: effectiveConnectionState)
     }
 
     private var isChatHostOnline: Bool {
@@ -1040,6 +1078,7 @@ struct ChatScreen: View {
         case .offline: return "OFFLINE"
         case .unreachable: return "UNREACHABLE"
         case .notConnected: return "NO HOST"
+        case .checking: return "CHECKING"
         }
     }
 
@@ -1065,6 +1104,9 @@ struct ChatScreen: View {
             return Design.Brand.forge
         case .notConnected:
             return Design.Colors.dimForeground
+        case .checking:
+            // #350: unknown is not good news — never the online accent.
+            return Design.Colors.dimForeground
         }
     }
 
@@ -1081,6 +1123,8 @@ struct ChatScreen: View {
             return "Unreachable"
         case .notConnected:
             return "Not Connected"
+        case .checking:
+            return "Checking…"
         }
     }
 
@@ -1441,6 +1485,8 @@ struct ChatScreen: View {
             return "wifi.exclamationmark"
         case .notConnected:
             return "desktopcomputer"
+        case .checking:
+            return "ellipsis.circle"
         }
     }
 
@@ -1454,6 +1500,8 @@ struct ChatScreen: View {
             return "Could not refresh host status"
         case .notConnected:
             return "No Hermes host connected"
+        case .checking:
+            return "Checking host status"
         }
     }
 
@@ -1467,12 +1515,14 @@ struct ChatScreen: View {
             return hostStore.lastErrorMessage ?? "Check your relay connection or refresh your session."
         case .notConnected:
             return "Pair a Hermes host from Settings to send messages through your Mac."
+        case .checking:
+            return "Measuring the connection to your Hermes host."
         }
     }
 
     private var connectionBannerActionLabel: String {
         switch effectiveConnectionState {
-        case .online, .offline, .notConnected:
+        case .online, .offline, .notConnected, .checking:
             return "Settings"
         case .unreachable:
             return "Retry"
@@ -1483,7 +1533,7 @@ struct ChatScreen: View {
         switch effectiveConnectionState {
         case .unreachable:
             Task { await hostStore.refresh() }
-        case .online, .offline, .notConnected:
+        case .online, .offline, .notConnected, .checking:
             router.presentSheet(.settings)
         }
     }

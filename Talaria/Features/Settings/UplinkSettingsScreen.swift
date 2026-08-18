@@ -107,11 +107,14 @@ struct UplinkSettingsScreen: View {
     /// paywall instead of enabling a new host. Inert while dormant.
     @State private var paywallPresented = false
 
-    /// Prefers the direct Sessions API probe over the relay-based host state, so
-    /// the link reads "online" when chat works even if the relay is down.
+    /// #350: the shared measured truth — one function, three surfaces. The
+    /// direct probe still outranks relay-based host state; it just may no
+    /// longer claim online without a measurement.
     private var effectiveConnectionState: HermesHostConnectionState {
-        if container.chatStore.directConnectionStatus == .connected { return .online }
-        return hostStore.connectionState
+        ChatConnectionPresentation.settingsEffectiveState(
+            direct: container.chatStore.directConnectionStatus,
+            hostFallback: hostStore.connectionState,
+            hostConfigured: !gatewayBaseURL.isEmpty)
     }
 
     private var isDirect: Bool {
@@ -207,6 +210,7 @@ struct UplinkSettingsScreen: View {
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
+        case .checking: "CHECKING"
         }
     }
 
@@ -215,6 +219,7 @@ struct UplinkSettingsScreen: View {
         case .online: Design.Brand.accent
         case .offline, .unreachable: Design.Brand.forge
         case .notConnected: Design.Colors.mutedForeground
+        case .checking: Design.Colors.mutedForeground
         }
     }
 
@@ -224,6 +229,7 @@ struct UplinkSettingsScreen: View {
         case .offline: "\(hostDisplay) · STANDBY"
         case .unreachable: "UNREACHABLE · CHECK UPLINK"
         case .notConnected: "NOT CONFIGURED"
+        case .checking: "\(hostDisplay) · —"
         }
     }
 
