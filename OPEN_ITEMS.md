@@ -24553,6 +24553,12 @@ branch `366-multi-device-mirror`; merge is Owen's review, deploy after):**
 - **366-D — MET (local): suite 170 → 172 green under the hermes venv;
   plugin.yaml 0.4.0 → 0.5.0** (version pin test moved with it). CI both
   Pythons pending on the PR — green before merge, Owen's gate.
-- **366-E — OPEN (deploy leg):** after Owen's merge — Mac pull + bounce +
-  LISTENER verify; OJAMD via Owen's paste; live proof = an OJAMD write
-  turn producing a LIVE chip with both devices active.
+- **366-E — MAC HALF DONE (Owen merged PR #6 → `8edfb66`, in-session):**
+  live checkout pulled to the merge, gateway bounced — clean respawn
+  first try (listener PID 50722, 18:33:06; the #264 race is
+  intermittent, now 1-for-3 across this arc's bounces), `/health` ok,
+  plugin **0.5.0** enabled, agent.log `✓ talaria connected` on the new
+  head. **OJAMD half = Owen's paste** (`hermes plugins update talaria` →
+  0.5.0 + gateway bounce per the evening runbook); then the live proof:
+  an OJAMD write turn producing a LIVE chip with both devices active —
+  the exact fixture that failed.
