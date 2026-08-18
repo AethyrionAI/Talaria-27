@@ -22747,6 +22747,39 @@ as current; `docs/` index matches the README's story). No app code.
 plugin venture the Setup section should teach), #223/Phase 4 (the relay
 tier's formal end, which a later pass can fold in).
 
+> **📋 2026-08-17 ~21:50 — LANE OPENED (Owen's pick: "361, then 355"; #361
+> shipped as PR #313 the same evening). BARS, pre-registered before any
+> docs edit (#215 convention). Command facts verified live first:
+> `hermes talaria pair|status|unpair|send` exists on this Mac's install;
+> realtime WebRTC voice still gates on relay pairing (`VoiceEngineRouter`);
+> agent-file DOWNLOADS remain the relay sidecar's one durable serving job
+> (#21 Tier 2).**
+>
+> - **355-A (Setup teaches the real tiers):** Setup leads with tier 0
+>   (build & run, no host) and the upgrade tier (install Hermes →
+>   `hermes gateway run` → pair via `hermes talaria pair`); the
+>   relay + connector walk moves to a clearly-labeled LEGACY section that
+>   no main-path step requires, and no instruction anywhere teaches a
+>   retired command or tier as current.
+> - **355-B (architecture matches shipped):** the diagram draws on-device
+>   brain + chat/sessions/models/runs (steering included) direct to
+>   `:8642` + the plugin link (pairing, query-time phone asks,
+>   inbox/briefing); no `Sensors → Relay` arrow anywhere; the relay
+>   appears only inside the legacy section with its two real remaining
+>   jobs (realtime-voice bootstrap, agent-file downloads).
+> - **355-C (tables honest):** Requirements marks relay/connector
+>   legacy-optional; the Status table matches today's surfaces (#352
+>   query-time sensors, #269-A/#353 plugin-link/legacy-relay grouping,
+>   voice fallback wording).
+> - **355-D (docs/ tells the same story):** `docs/index.html` +
+>   `docs/setup.html` move in the same pass (no "live sensor feed", no
+>   relay-as-current, pairing = the plugin path); MET iff a grep for the
+>   retired-as-current claims comes back empty across README + docs/.
+> - **355-E (gate + PR):** docs-only diff, lane-gate run anyway per the
+>   standing before-any-PR rule; verdicts land here; Owen reads the PR
+>   (the README is the repo's face).
+
+
 ## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
 
 **What the 2026-08-17 recon established (source-read on the Mac install,
