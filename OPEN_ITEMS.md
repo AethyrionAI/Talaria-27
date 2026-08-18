@@ -19610,6 +19610,19 @@ gate's full XCUITest run.
 > load rather than rendering slowly (a polling-loop fix aims at the wrong
 > layer if so), and the `.xcresult` should be captured then.
 
+> **📉 OCCURRENCES 3 + 4 — 2026-08-18, the #354 lane's two gate runs (09:51,
+> 10:08), same assertion text ("the on-device reply for 'warm' should
+> render").** Passed in ISOLATION on the same binary (76 s), and the diff
+> audit holds (inbox-only lane). NEW aggravator measured the same day:
+> accumulated sim state. A bundle-alone re-run on the dirty pool sim GREW
+> the failure set (`testQueuedChipCancelRemovesHeldMessageWithNothingPosted`
+> joined); after `simctl erase` + TCC re-grant the full bundle ran 14/14 on
+> the same commit. The #354 lane had deliberately seeded app/container
+> state during its diagnosis — pool sims accumulate every lane's residue,
+> and this suite is the first to visibly pay for it. Remedy that worked:
+> erase the pool sim (same UDID survives; re-grant TCC) before gating a
+> lane that seeded state.
+
 ## 235. 🐛 CRITICAL (Owen, 2026-08-03): remote chats DROP THE FINAL ANSWER when the stream dies mid-turn — chips render, the answer lands in the server store, the app never fetches it — **FIX BUILT same day; 235-A/B/C green in suite; 235-D verdict: request stamp wins, no timeout change; ⚠️ 235-E RAN 2026-08-04 AND FAILED AS SHIPPED — the zombie-stream gap, spun into #246**
 
 > **✅ 235-E MET — 2026-08-04 afternoon, build 1987 (the #246 fix):** the
@@ -22707,7 +22720,7 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > showed connected; app-side display item, needs the exact screen/value
 > named before it gets its own number.
 
-## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). NOT STARTED — joins the queue after the routed #269-A → #270 → 3C order unless Owen re-routes.**
+## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). OPENED 2026-08-18 on Owen's morning routing (swipe + clear-all): half 1 DIAGNOSED (reset() clears marks for rows it preserves; launch trigger sim-reproduced, log-pinned) and BUILT — ALL BARS 354-A..E MET, 354-F's components green with the gate story recorded honestly (two gate runs tripped only on #236's known-flaky suite; clean-sim bundle 14/14). PR open; merge is Owen's review. STILL OPEN behind the PR: which trigger fires on OWEN'S device (his two in-chat answers), and the initialize() token-guard policy finding, routed to him. Dated blocks below are the record.**
 
 **Half 1 — the bug (MEASURED by Owen, mechanism SUSPECTED, not diagnosed):**
 the two persisted inbox items read as NEW again after every rebuild/update.
@@ -22841,6 +22854,60 @@ reset deliberately PRESERVES is wrong under every trigger.**
   first), Swift Testing count MOVED from 2331, Release clean. PR for
   Owen's review; his merge is the gate.**
 
+
+**2026-08-18 ~11:15 — BUILT; PER-BAR VERDICTS (branch `354-inbox-hygiene`,
+commit `b0026be2`; PR open, merge is Owen's review). RED observed first on
+every behavioral change — assertion-RED for the reset fix (3 failing
+expectations against old behavior), missing-symbol RED for the new API:**
+- **354-A — MET.** `resetPreservesPlatformItemsWithTheirReadMarks` (the
+  defective pin REWRITTEN, per the tests-written-after-a-defect discipline
+  — its RED direction observed before the fix),
+  `resetKeepsDismissedPlatformItemsDismissed` (the dismiss half — dismissed
+  platform rows used to resurrect too), and the scope guard
+  `resetStillClearsMarksForClearedRows` (marks whose rows are cleared still
+  die — the preservation cannot over-reach).
+- **354-B — MET.** `readMarksSurviveResetAcrossAStoreRelaunch` — the
+  reported shape end-to-end: reset + store relaunch over the same
+  persistence, unreadCount stays 0.
+- **354-C — MET.** Delete removes row + marks in one persisted write
+  (platform and local arms), idempotent, and REFUSED for relay-fetched
+  rows (`canDelete` false + no-op delete, pinned with a stub relay
+  service).
+- **354-D — MET.** `clearAllRemovesOwnedRowsWithTheirMarks` — bulk form,
+  one write; a seeded foreign relay mark SURVIVES (the subtraction is
+  scoped to removed rows, never a blanket wipe).
+- **354-E — MET (unit + sim).** `canDelete` is the single affordance rule
+  the swipe keys on (store membership, not payload heuristics); clear-all
+  fires only through the alert (#193 — an `.alert`, NOT
+  `confirmationDialog`, whose cancel role does not render on iOS 26/27).
+  Sim-verified end-to-end on CC-lane-1: swipe reveals Delete on a platform
+  row and the deletion LANDS IN THE CONTAINER BLOB (verified in the plist,
+  not the screen); Clear All → alert with visible Cancel → empty blob +
+  "All Caught Up" + the Clear button correctly disappears. List conversion
+  rides the SessionsDrawer pattern; HUD cards render unchanged.
+- **354-F — components green; the gate story stated honestly.** Two full
+  `lane-gate.sh` runs on CC-lane-1 FAILED — both times only on
+  `MessageIdentityUITests` (#236's known-flaky suite; my diff touches no
+  chat/transcript code and inbox code does not run at launch). The gate
+  re-run itself reported **Swift Testing PASS at 2340 (count MOVED +9,
+  exactly this lane's new tests)** and **Release build PASS**. The failing
+  test passed in ISOLATION on the same binary (76 s); a bundle-alone run
+  on the by-then-dirty sim GREW the failure set (a second MessageIdentity
+  test joined), and after `simctl erase` + TCC re-grant the full XCUITest
+  bundle ran **14/14, 0 failures** on the same commit. Verdict: every gate
+  component green on `b0026be2`, never in one contiguous invocation; the
+  contiguous failures are #236 (occurrence recorded there) plus sim-state
+  contamination from this lane's own container-seeding experiments —
+  which is a REAL aggravator worth knowing: this lane's diagnosis seeded
+  app state deliberately, and the pool sims accumulate it. Erase before
+  gate when a lane has seeded state.
+
+**Residue, routed:** (1) WHICH trigger fires on Owen's device stays open —
+his two in-chat answers (items NEW again after build 2787? phone currently
+paired?) discriminate; an optional corded `log collect` settles it. The
+class fix kills the symptom under every trigger either way. (2) The
+`initialize()` token-guard finding (clears pairing on a bare keychain
+miss) is FILED above for Owen's routing — not built here.
 
 ## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). SHIPPED 2026-08-17 night: ALL BARS 355-A..E MET (`d3e4b176`, PR #314 merged `41f02b2` on Owen's "merge 314") — Setup teaches the real tiers, the plugin link is drawn in the diagram, relay/connector demoted to a labeled Legacy section, docs/ pages aligned; gate PASS (docs-only, counts unchanged). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for a day after the ship and cost a wrong work-menu recommendation before Owen caught it.)**
 
