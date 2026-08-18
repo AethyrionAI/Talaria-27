@@ -22804,6 +22804,10 @@ tier's formal end, which a later pass can fold in).
 > - **355-E MET:** GATE: PASS on CC-lane-1 (2285 Swift Testing + 14
 >   XCUITest, unchanged — exactly right for a docs-only diff).
 
+> **✅ 2026-08-17 ~22:25 — PR #314 MERGED (merge commit `41f02b2`, on
+> Owen's instruction: "merge 314"). CLOSED-SHAPE; archive move per #261 on
+> Owen's formal close.**
+
 
 ## 357. 🔧 Phase 3 slice 3C — STEERING, wire-proof leg (native `/v1/runs/{run_id}/steer`) — **FILED 2026-08-17 ~00:35. Owen's go given 2026-08-17 ~00:05 ("You can go on either") for the live steer-fire; probe target = the Mac gateway. BARS 357-A..D PRE-REGISTERED BELOW, BEFORE THE RUN, per the #215 convention. The APP half of 3C (composer gate §2.5 + #267 queue §2.6) is NOT this entry yet — it is held behind #356 (the runs transport the composer would ride is wedged app-side) and its bars pre-register here when that lane opens.**
 
@@ -23418,3 +23422,6 @@ turns out to read the router).
 >   online now when mac mini is selected."** The become-active chain was
 >   deliberately left untouched (#145/#285 semantics) — safe because
 >   terminal-evidence corrects the snapshot regardless.
+
+> **✅ 2026-08-17 ~22:20 — PR #313 MERGED by Owen (merge commit
+> `0d94e94`). CLOSED-SHAPE; archive move per #261 on his formal close.**
