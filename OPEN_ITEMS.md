@@ -23333,3 +23333,30 @@ turns out to read the router).
 >   falsified mechanism corrected (done above, this note); device re-check
 >   recorded here: with OJAMD still down, a fresh launch may show OFFLINE
 >   only until the first success (probe or turn), then honest thereafter.
+
+> **✅ 2026-08-17 ~21:40 — ALL BARS 361-A..D MET (branch
+> `361-offline-banner-staleness`, PR #313). Per-bar verdicts:**
+> - **361-A MET (assertion-RED observed):** on pre-fix code a completed turn
+>   left the snapshot `.error` (the recorded issue reads
+>   `directConnectionStatus → .error`); post-fix the stream's post-terminal
+>   block copies the client's live status — `DirectHealthTests.
+>   completedTurnFlipsAStaleErrorSnapshotToConnected`.
+> - **361-B MET:** `ChatHealthTicker` — the tick returns when the DIRECT
+>   half completes, a forever-hanging sweep neither delays it nor stacks
+>   (single-flight); wired into `startChatSession` +
+>   `monitorConnectionStatus`. Test-host-wedge lesson recorded: the first
+>   hanging-stub draft leaked its continuations and the runner never exited
+>   (SWIFT TASK CONTINUATION MISUSE) — releasable-hang stubs per the
+>   settle-box rule.
+> - **361-C MET (assertion-RED observed):** a failed turn's terminal takes
+>   the snapshot to `.error` — traffic is evidence in both directions.
+> - **361-D MET:** gate GATE: PASS on CC-lane-1 (2289 Swift Testing, +4
+>   exactly, 14 XCUITest, Release clean); entry's falsified mechanism
+>   corrected upstream (the 21:20 note). **Device re-check, same night,
+>   OJAMD still down:** fresh corded install launched 21:37:57; zero
+>   `models failed` lines this launch; first probe 200 on the gateway at
+>   21:38:43 and cadence alive (21:39:11/14/17) where the pre-fix build
+>   managed ZERO probes in 25+ minutes; **Owen's visual: "Banner shows
+>   online now when mac mini is selected."** The become-active chain was
+>   deliberately left untouched (#145/#285 semantics) — safe because
+>   terminal-evidence corrects the snapshot regardless.
