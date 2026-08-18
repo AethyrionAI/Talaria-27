@@ -23842,3 +23842,44 @@ handoff — "untracked at repo root, origin unknown, untouched" — is
 therefore RETIRED for this file; it is tracked from `05c6b595` onward.**
 The lesson kept: in a repo with deliberately-untracked files, stage by
 name, never by wildcard.
+
+**2026-08-18 morning — LANE OPEN (Owen: "363, let's square this away
+while I'm at work today"); his three routings, in-session: (1) SCRUB AT
+7 DAYS — delivered artifact rows blank their text and deactivate (row +
+meta + delivered_at retained, never DELETE, the #144 shape); undelivered
+artifact rows deactivate at 7 days (an 8-day-offline phone loses queued
+artifacts, honestly); (2) ARTIFACTS ONLY in v0 — message-kind rows keep
+today's forever-retention; (3) per-slice deploy go GRANTED — his PR
+review stays the merge gate, then the Mac deploy (pull + bounce +
+listener verify) lands while he's at work. OJAMD rides the later 0.3.x
+rollout regardless.**
+
+**Design (concrete, before code):** new `talaria/hygiene.py` —
+`sweep(now)` does both UPDATEs in one transaction and returns counts;
+ISO-8601 string cutoffs (the store's own format, lexicographically
+chronological). Triggers: gateway startup via `register()` (wrapped — a
+raising sweep must never break load), throttled opportunistic (≥6 h
+apart) after a mirror append (one monotonic read on the hot path,
+inside the mirror's own never-raise envelope), and a manual
+`hermes talaria prune [--dry-run]` CLI. No schema change: scrubbed ≡
+`kind='artifact' AND delivered_at NOT NULL AND active=0 AND text=''`.
+
+**BARS (363-A..F):**
+- **363-A (scrub, unit):** delivered artifact rows past 7 d blank text +
+  deactivate with meta/delivered_at/row retained; younger rows untouched
+  byte-for-byte. Never a DELETE.
+- **363-B (expiry + scope, unit):** undelivered artifact rows past 7 d
+  deactivate and `pending()` stops serving them; younger still serve;
+  message-kind rows untouched by EVERY arm.
+- **363-C (triggers, unit):** startup sweep fires from `register()` and a
+  raising sweep cannot break gateway load; the opportunistic trigger
+  honors the 6 h throttle (injectable clock) and never raises; `prune
+  --dry-run` reports counts with zero writes.
+- **363-D (idempotence + safety, unit):** second sweep reports zero; a
+  swept row is never re-served or re-scrubbed; an ack landing after
+  expiry cannot resurrect a row.
+- **363-E (suite/CI):** plugin suite green, count MOVED from 157; CI
+  green both Pythons.
+- **363-F (deploy, gated on Owen's merge):** Mac deploy + LISTENER
+  verify; the startup sweep observed live (counts logged). OJAMD
+  explicitly OUT of this lane.
