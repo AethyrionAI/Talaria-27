@@ -23909,3 +23909,22 @@ plugin.yaml 0.3.0 → 0.4.0.
 - **363-F — OPEN:** Mac deploy (pull + bounce + LISTENER verify) + the
   startup sweep observed live, after Owen's merge. OJAMD OUT of this
   lane per the routing.
+
+**2026-08-18 ~07:45 — DEPLOYED; 363-F MET; #363 IS CLOSED-SHAPE (all bars
+met, merged `a8b5f7a`, live on the Mac).** Owen merged PR #5 from work
+(CI green both Pythons); the armed watch fired the deploy: live install
+pulled to `a8b5f7a` (0.4.0), gateway bounced — **clean respawn first try
+this time** (listener PID 87691, started 07:41:15; the Errno-48 race is
+real-but-intermittent, one-for-two across this lane's two bounces).
+Live observation, stated honestly: `register()`'s hygiene arm prints ONLY
+on failure and printed nothing (clean load), and `hermes talaria prune
+--dry-run` — a command that did not exist before this merge — ran the
+same sweep mechanics against the real `talaria.db` and reported an
+honest zero ("Would scrub 0 … past 7-day retention"): both live artifact
+rows (`28ff3b66cf7e` 95 B, `0cf847558cef` 12 B — both delivered, ~1 day
+old) are correctly untouched. **WATCH NOTE: the first NONZERO live
+observation arrives naturally ~2026-08-25** when those rows cross the
+cutoff — one `sqlite3` query or `prune --dry-run` then confirms the
+cutoff math in production; until then the backdated tests carry it.
+Archive move per #261 on Owen's formal close. OJAMD: 0.4.0 rides the
+same later rollout as 0.3.0 (one `hermes plugins update` covers both).
