@@ -88,6 +88,12 @@ final class ResilientHermesClient: HermesClientProtocol {
     /// only `primary` can answer for one.
     var activeRunID: String? { primary.activeRunID }
 
+    /// #357 (3C): same rule again — only `primary` can hold the run a steer
+    /// addresses; a fallback forward would always `.noActiveRun`.
+    func steerActiveRun(text: String) async -> SteerSubmitOutcome {
+        await primary.steerActiveRun(text: text)
+    }
+
     func finalRunUsage(runID: String) async -> TokenUsage? {
         await primary.finalRunUsage(runID: runID)
     }

@@ -1234,6 +1234,66 @@ extension SessionsHermesClient {
         return true
     }
 
+    // MARK: - Steer (#357, 3C)
+
+    /// `POST /v1/runs/{run_id}/steer` on the turn's frozen endpoint — the
+    /// native route the 2026-08-17 wire probe proved (`api_server.py:7207`
+    /// at `3b9a963b8`: body takes `input`|`message`|`text`; 409 unless
+    /// `running`; emits `run.steered` on acceptance). Mirrors
+    /// `answerApproval`'s transport discipline: classify, never guess.
+    func steerActiveRun(text: String) async -> SteerSubmitOutcome {
+        guard let context = activeRunContext else { return .noActiveRun }
+        struct SteerBody: Encodable { let input: String }
+        do {
+            let body = try JSONEncoder().encode(SteerBody(input: text))
+            let request = try makeRequest(
+                path: "\(Self.runsPath)/\(context.runID)/steer",
+                method: "POST",
+                body: body,
+                accept: "application/json",
+                endpoint: context.endpoint
+            )
+            let (data, response) = try await session.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                return .unreachable("The host returned a non-HTTP response.")
+            }
+            runsTransportLogger.notice(
+                "runs: steer for \(context.runID, privacy: .public) → HTTP \(httpResponse.statusCode, privacy: .public)"
+            )
+            return Self.classifySteerSubmit(status: httpResponse.statusCode, body: data)
+        } catch {
+            runsTransportLogger.error(
+                "runs: steer for \(context.runID, privacy: .public) did NOT reach the host — \(error.localizedDescription, privacy: .public)"
+            )
+            return .unreachable(failureMessage(for: error))
+        }
+    }
+
+    /// HTTP → outcome, and nothing else — the `classifyApprovalAnswer`
+    /// shape. The 409's code is read structured-first, raw-body substring as
+    /// the tolerant fallback; an unrecognizable status falls to `.rejected`
+    /// with the host's words rather than a guessed arm.
+    nonisolated static func classifySteerSubmit(status: Int, body: Data) -> SteerSubmitOutcome {
+        if (200 ..< 300).contains(status) { return .submitted }
+        let payload = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any]
+        var code = payload?["code"] as? String
+        if code == nil, let errorObject = payload?["error"] as? [String: Any] {
+            code = errorObject["code"] as? String
+        }
+        let bodyText = String(decoding: body, as: UTF8.self)
+        switch status {
+        case 404:
+            return .runGone
+        case 409 where code == "run_not_accepting_steer" || bodyText.contains("run_not_accepting_steer"):
+            return .windowClosed
+        default:
+            let message = (payload?["error"] as? [String: Any])?["message"] as? String
+                ?? (payload?["error"] as? String)
+                ?? String(bodyText.prefix(200))
+            return .rejected("HTTP \(status). \(message)")
+        }
+    }
+
     // MARK: - Stop (Task 7, #283 S23)
 
     /// The runs plane's REAL server-side interrupt. Before this, "Stop" only

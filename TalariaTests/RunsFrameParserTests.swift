@@ -47,6 +47,18 @@ struct RunsFrameParserTests {
         #expect(SessionsHermesClient.decodePendingSteer(raw) == "STEER-MANGO: ignore the story and reply only with the word MANGO.")
     }
 
+    @Test func steerSubmitClassifierArmsAreDistinct() {
+        typealias C = SessionsHermesClient
+        #expect(C.classifySteerSubmit(status: 200, body: Data(#"{"object":"hermes.run.steer","accepted":true}"#.utf8)) == .submitted)
+        #expect(C.classifySteerSubmit(status: 409, body: Data(#"{"error":{"code":"run_not_accepting_steer"}}"#.utf8)) == .windowClosed)
+        #expect(C.classifySteerSubmit(status: 409, body: Data(#"{"detail":"run_not_accepting_steer"}"#.utf8)) == .windowClosed)
+        #expect(C.classifySteerSubmit(status: 404, body: Data(#"{"error":"run_not_found"}"#.utf8)) == .runGone)
+        guard case .rejected = C.classifySteerSubmit(status: 500, body: Data("boom".utf8)) else {
+            Issue.record("an unrecognizable status must fall to .rejected, never a guessed arm")
+            return
+        }
+    }
+
     @Test func pendingSteerAbsentOrEmptyReadsNil() {
         #expect(SessionsHermesClient.decodePendingSteer(#"{"event":"run.completed","run_id":"r1","output":"done"}"#) == nil)
         #expect(SessionsHermesClient.decodePendingSteer(#"{"event":"run.completed","run_id":"r1","output":"done","pending_steer":""}"#) == nil)
