@@ -1,11 +1,11 @@
 import Foundation
 
 /// #306 constraint C1: the composer names the DOOR a mid-turn commit goes
-/// through, from day one. v1 implements `.queued` only; `.steered` and
-/// `.interrupted` are slice 3C's doors — present here as cases every switch
-/// must handle, so 3C FILLS THEM IN rather than rewriting a Bool into an
-/// enum. If a future lane finds itself deleting this enum, constraint C1
-/// failed and the #306 routing verdict was wrong — say so in writing.
+/// through, from day one. v1 implemented `.queued` only; #357's 3C app half
+/// (2026-08-17) filled in `.steered` and `.interrupted` exactly as C1
+/// intended — no Bool was rewritten into an enum. If a future lane finds
+/// itself deleting this enum, constraint C1 failed and the #306 routing
+/// verdict was wrong — say so in writing.
 ///
 /// Wording rule (bar 306-J): the word "sent" — any form of it — never
 /// appears for a message that has not been posted.
@@ -13,11 +13,12 @@ enum ComposerDoor: String, CaseIterable, Hashable, Sendable {
     /// #306 v1: the app-held queue — fires exactly once, after a turn that
     /// actually completed.
     case queued
-    /// 3C: mid-turn steering on the runs plane. Present, unimplemented —
-    /// nothing constructs it in v1.
+    /// #357 (3C): mid-turn steering on the runs plane — submit is
+    /// `ChatStore.steerActiveTurn`; `run.steered` alone renders applied.
     case steered
-    /// 3C: interrupt-and-resend, honest only where Stop is a real host
-    /// interrupt (`POST /v1/runs/{id}/stop`). Present, unimplemented.
+    /// #357 (3C): interrupt-and-resend — honest because Stop is a real host
+    /// interrupt (`POST /v1/runs/{id}/stop`, #304);
+    /// `ChatStore.interruptActiveTurnAndResend` owns the ordering.
     case interrupted
 
     /// The chip's door name.
