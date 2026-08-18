@@ -24270,6 +24270,17 @@ rollout, recorded here at 0.4.0's home:
 CHECKING presentation), one file-write turn (mirror chip on OJAMD), a
 reopen (closes #364's terminal-not-write_file caveat on OJAMD's shape).
 
+**2026-08-18 ~19:10 — the update-credential papercut is BOTH-HOSTS and now
+fully decoded:** the plugin repo is PRIVATE, and bare `hermes plugins
+update talaria` carries no GitHub credential on either host — the Mac
+403'd this afternoon, and OJAMD failed the same way tonight when Owen ran
+it from plain PowerShell. Today's OJAMD successes came from the box-side
+Claude Code session, whose `gh` auth the update inherited. Working paths:
+run the update inside a gh-credentialed session, or direct
+`git -C <plugin dir> -c credential.helper="!gh auth git-credential" pull`.
+A durable fix (a stored deploy credential, or making the repo readable to
+a machine token) is Owen's routing call — filed here, not built.
+
 ## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). NOT STARTED — observation only; no diagnosis attempted yet.**
 
 **What was observed (build 2808, whoGoesThere):** Server settings →
