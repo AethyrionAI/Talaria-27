@@ -293,8 +293,13 @@ final class ChatStore {
     /// Context window size for the active model (e.g., 400000).
     private(set) var contextWindow: Int?
 
+    /// #349: keyed to `Conversation.contextOccupancyTokens`, NOT
+    /// `lastTokenUsage.promptTokens` — the latter is the billed sum on tool
+    /// turns (a spend number), and the gauge's job is capacity.
+    /// `lastTokenUsage` itself is untouched: the receipt card and session
+    /// totals correctly show billed spend.
     var currentContextTokens: Int? {
-        lastTokenUsage?.promptTokens
+        conversation?.contextOccupancyTokens
     }
 
     /// #46: session running totals over every metered Hermes turn. Input

@@ -11,6 +11,23 @@ struct Conversation: Codable, Identifiable, Hashable, Sendable {
     var messages: [Message]
     var lastActivity: Date
     var latestUsage: TokenUsage?
+
+    /// #349: the CTX gauge's numerator. `promptTokens` IS context occupancy
+    /// only for a turn that made no tool calls — on agentic turns the wire's
+    /// `input_tokens` is the SUM of billed input across every internal model
+    /// call (wire-measured 2026-08-18: 46,953 on a thread whose true depth
+    /// was ~23.5K; 287K-on-a-128K-window in the production filing), so the
+    /// gauge renders ABSENT rather than a wrong number (#25). Computed from
+    /// the last usage-carrying hermes message so the reading and the
+    /// tool-activity gate come from the SAME turn — no stale carry-forward
+    /// (an older toolless reading would UNDERSTATE current depth, which is
+    /// the direction that removes the ceiling warning when it matters).
+    var contextOccupancyTokens: Int? {
+        guard let last = messages.last(where: { $0.sender == .hermes && $0.usage != nil }) else {
+            return nil
+        }
+        return last.toolActivities.isEmpty ? last.usage?.promptTokens : nil
+    }
     /// One-line on-device preview generated alongside the title (#4.8).
     /// nil until the first completed exchange has been summarized (and in
     /// pre-#4.8 caches).
