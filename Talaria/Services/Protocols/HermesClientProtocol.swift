@@ -81,6 +81,25 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
     }
 }
 
+/// #357 (3C): how a steer SUBMIT resolved. Every arm distinct, none of them
+/// "applied" — the applied signal is `StreamingUpdate.steerLanded` and only
+/// that (bar 357-G; the wording rule 306-J means the UI never says "sent"
+/// off any of these).
+enum SteerSubmitOutcome: Equatable, Sendable {
+    /// 2xx `accepted: true` — the host took the text. "We asked", no more.
+    case submitted
+    /// 409 `run_not_accepting_steer` — the run is past taking steers.
+    case windowClosed
+    /// 404 `run_not_found` — the run is gone (TTL, reap, wrong host).
+    case runGone
+    /// This client has no in-flight run to address.
+    case noActiveRun
+    /// The POST demonstrably did not land (transport/config failure).
+    case unreachable(String)
+    /// Anything else the host said, verbatim-ish.
+    case rejected(String)
+}
+
 @MainActor
 protocol HermesClientProtocol {
     var connectionStatus: ConnectionStatus { get }
@@ -216,6 +235,12 @@ protocol HermesClientProtocol {
     /// correctly skipped and the gauge goes unknown.
     var activeRunID: String? { get }
 
+    /// #357 (3C): submit a steer against the client's in-flight run over the
+    /// native route. The outcome classifies the SUBMIT only — `submitted` is
+    /// "we asked", exactly the `hardStopActiveRun` reading; applied is a
+    /// stream fact (`StreamingUpdate.steerLanded`), never an HTTP one.
+    func steerActiveRun(text: String) async -> SteerSubmitOutcome
+
     /// #322: ONE bounded, best-effort `GET /v1/runs/{id}` taken on the
     /// cancellation path so the CTX gauge stops holding the PRIOR run's
     /// numbers after a Stop.
@@ -297,6 +322,10 @@ extension HermesClientProtocol {
     // from. Both defaults are the honest absence the caller renders as an
     // unknown gauge — never a fabricated zero and never the prior number.
     var activeRunID: String? { nil }
+    // #357 (3C): no runs plane, so no run to steer — the honest absence.
+    // `SessionsHermesClient` overrides with the real POST; the router
+    // forwards by routing lock.
+    func steerActiveRun(text: String) async -> SteerSubmitOutcome { .noActiveRun }
     func finalRunUsage(runID: String) async -> TokenUsage? { nil }
     // #304: no runs plane to answer on — the honest dead end, never a fake
     // success. `SessionsHermesClient` overrides with the real POST;

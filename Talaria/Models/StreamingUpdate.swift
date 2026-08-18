@@ -75,6 +75,15 @@ enum StreamingUpdate: Sendable {
     /// #304: the parked approval was resolved — by this client's own POST or
     /// by anyone else holding the run id. Idempotent card-teardown signal.
     case approvalResolved(runID: String, choice: String?)
+    /// #357-G (3C): the host's `run.steered` frame — the steer LANDED at a
+    /// tool-result boundary. This, never the HTTP ACK, is the applied signal.
+    case steerLanded
+    /// #357-G (3C): the turn ended with `pending_steer` — a steer that never
+    /// met a boundary, drained by the turn finalizer "so clients can replay
+    /// it as the next user turn". Carries the steer text verbatim; emitted
+    /// BEFORE `.finished` so the store can convert it ahead of terminal
+    /// processing (the #306 fire runs at `.finished`).
+    case steerUnconsumed(String)
     case finished(Message, TokenUsage?, CodeDiff?)
     case failed(String)
     /// P1 (#90): the turn never reached the Sessions API at all (transport

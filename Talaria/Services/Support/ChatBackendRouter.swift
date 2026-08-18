@@ -535,6 +535,13 @@ final class ChatBackendRouter: HermesClientProtocol {
         return backend(for: brain).activeRunID
     }
 
+    /// #357 (3C): forwarded by routing lock exactly like `hardStopActiveRun`
+    /// — no lock means no run to steer, the honest absence.
+    func steerActiveRun(text: String) async -> SteerSubmitOutcome {
+        guard let brain = runningBrain else { return .noActiveRun }
+        return await backend(for: brain).steerActiveRun(text: text)
+    }
+
     /// #322: the final status read, and it is deliberately **NOT** gated on
     /// `runningBrain` the way every other run-scoped forward here is.
     ///

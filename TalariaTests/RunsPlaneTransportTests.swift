@@ -407,6 +407,8 @@ struct RunsPlaneTransportTests {
             case .approvalRequested(let request):
                 return "approvalRequested(\(request.question == nil ? "degraded" : "question"))"
             case .approvalResolved(_, let choice): return "approvalResolved(\(choice ?? "?"))"
+            case .steerLanded: return "steerLanded"
+            case .steerUnconsumed(let text): return "steerUnconsumed(\(text))"
             case .finished: return "finished"
             case .failed(let text): return "failed(\(text))"
             case .unreachable(let text): return "unreachable(\(text))"
@@ -465,6 +467,38 @@ struct RunsPlaneTransportTests {
         // all (runs `run.completed` carries no runtime block).
         #expect(!updates.contains { if case .contextPrimed = $0 { return true } else { return false } })
         #expect(!updates.contains { if case .modelResolved = $0 { return true } else { return false } })
+    }
+
+    // MARK: - #357-G (3C slice 1): steer signals ride the driver
+
+    /// The 2026-08-17 wire probe's arm-A frame sequence (steer landed
+    /// mid-tool) plus arm B's `pending_steer` drain on `run.completed` —
+    /// the driver must yield the applied signal where the frame sits, and
+    /// the unconsumed drain BEFORE `.finished` (the store converts it ahead
+    /// of the #306 fire).
+    @Test @MainActor
+    func steerSignalsYieldInWireOrder() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
+            #"{"event":"tool.started","run_id":"run-r1","timestamp":1.0,"tool":"terminal","preview":"sleep 20"}"#,
+            #"{"event":"run.steered","run_id":"run-r1","timestamp":1.1,"accepted":true}"#,
+            #"{"event":"tool.completed","run_id":"run-r1","timestamp":1.2,"tool":"terminal"}"#,
+            #"{"event":"message.delta","run_id":"run-r1","timestamp":1.3,"delta":"PLUM"}"#,
+            #"{"event":"run.completed","run_id":"run-r1","timestamp":1.4,"output":"PLUM","pending_steer":"STEER-MANGO: reply only MANGO."}"#,
+        ]))
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "steer")
+        let updates = await collect(from: client)
+
+        #expect(labels(updates) == [
+            "toolActivity(terminal:started)",
+            "steerLanded",
+            "toolActivity(terminal:completed)",
+            "textDelta(PLUM)",
+            "steerUnconsumed(STEER-MANGO: reply only MANGO.)",
+            "finished",
+        ])
     }
 
     // MARK: - 3A-G: history rides the submit body, fetched first

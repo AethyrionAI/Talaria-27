@@ -160,6 +160,114 @@ final class ChatStore {
     // harness-visible (#358): read by the placeholder-loss tests.
     private(set) var lastTurnStreamLedger: TurnStreamLedger?
 
+    /// #357 (3C): one steer attempt per turn, depth-1 like the #306 hold.
+    /// `landed` flips only on `StreamingUpdate.steerLanded` — the ACK is
+    /// submit-only and must never read as applied (bar 357-G).
+    struct SteerAttempt: Equatable {
+        let text: String
+        var landed = false
+    }
+
+    private(set) var steerAttempt: SteerAttempt?
+
+    /// The door resolver's depth-1 input: a submitted steer nobody has seen
+    /// land yet. A landed one no longer blocks the next send's steer door.
+    var steerAttemptOutstanding: Bool {
+        steerAttempt.map { !$0.landed } ?? false
+    }
+
+    /// #357-H: the interrupt door's in-flight text — set for the stop's
+    /// wind-down window, cleared the moment the fresh turn posts. Depth-1
+    /// like the steer attempt.
+    private(set) var interruptResendText: String?
+
+    /// #357-F: the running turn's phase, derived from the stream this store
+    /// already decodes (tool-in-flight = the §2.5 steer window; a UX
+    /// affordance, not the steer's safety — `pending_steer` is). Reset at
+    /// stream start: the phase belongs to exactly one turn.
+    private(set) var runTurnPhase = RunTurnPhaseTracker()
+
+    /// #357-E/G/H: what the composer's status strip shows for the running
+    /// turn's door — pure derivation, so the states are unit-testable
+    /// without a live stream. An interrupt outranks a lingering steer
+    /// attempt: it is the user's latest action.
+    nonisolated static func doorStatusChip(
+        steerAttempt: SteerAttempt?, interruptResendText: String?
+    ) -> DoorStatusChipModel? {
+        if let interruptResendText {
+            return DoorStatusChipModel(text: interruptResendText, state: .interrupting)
+        }
+        if let steerAttempt {
+            return DoorStatusChipModel(
+                text: steerAttempt.text,
+                state: steerAttempt.landed ? .steered : .steering
+            )
+        }
+        return nil
+    }
+
+    var doorStatusChip: DoorStatusChipModel? {
+        Self.doorStatusChip(steerAttempt: steerAttempt, interruptResendText: interruptResendText)
+    }
+
+    /// #357-E: whether the client is holding a run a steer could address —
+    /// the resolver's `runIDAvailable` input. Nil before the submit ACK and
+    /// on planes with no runs transport.
+    var canSteerActiveTurn: Bool { hermesClient.activeRunID != nil }
+
+    /// #357-I: the #278 reconcile window — a run is live but this client's
+    /// stream is gone. The resolver's row-3 input: queue only.
+    var isInReconcileWindow: Bool { pendingRun != nil && streamingMessageID == nil }
+
+    /// #357-E: the STEER door. Submits against the in-flight run; a door
+    /// that fails to open falls back to the QUEUE door (the #306 hold) so
+    /// the text always has an honest landing — and the log names which door
+    /// actually took it (#180).
+    @discardableResult
+    func steerActiveTurn(_ text: String) async -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard isTranscriptBusy else { return false }
+        guard !steerAttemptOutstanding else { return false }
+        let outcome = await hermesClient.steerActiveRun(text: trimmed)
+        switch outcome {
+        case .submitted:
+            steerAttempt = SteerAttempt(text: trimmed)
+            chatLog.notice("steer: submitted — awaiting run.steered (#357)")
+            return true
+        case .windowClosed, .runGone, .noActiveRun, .unreachable, .rejected:
+            chatLog.notice("steer: door closed (\(String(describing: outcome), privacy: .public)) — falling back to the queue (#357-E)")
+            return holdComposedTurn(trimmed)
+        }
+    }
+
+    /// #357-H: the INTERRUPT door — always an explicit user choice, never a
+    /// plain send's resolution. Stop the running turn for real (the same
+    /// explicit-Stop path the Stop button takes, host `/stop` included where
+    /// the plane has one), wait for the cancelled consumer to wind down,
+    /// then post the text as a fresh turn. The ordering is the bar: stop
+    /// before send, one send total — the text never also enters the hold, so
+    /// there is no second path for it to fire from.
+    @discardableResult
+    func interruptActiveTurnAndResend(_ text: String) async -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        guard isTranscriptBusy else { return false }
+        guard interruptResendText == nil else { return false }
+        // Capture BEFORE cancelStreaming nils it — this is the only handle
+        // on the consumer whose teardown "the stop settles" waits for.
+        let windDown = streamingTask
+        interruptResendText = trimmed
+        cancelStreaming(hardStopHost: true)
+        await windDown?.value
+        chatLog.notice("interrupt door: stopped — posting the text as a fresh turn (#357-H)")
+        // Cleared as the fresh turn takes over: from here the text is a real
+        // user row, and the chip's story would be stale.
+        interruptResendText = nil
+        await sendMessage(trimmed)
+        return true
+    }
+
     /// #203 (1A): how long a streaming turn may go with NO sign of life
     /// before the UI says so. 8s is comfortably past a normal on-device
     /// first token (#208 measured whole turns at 35–49 output tokens) and
@@ -671,6 +779,10 @@ final class ChatStore {
         // have cleared it) documents "captured at stream start" at the one
         // place a new stream actually starts.
         activeStreamRun = nil
+        // #357: same principle — a steer attempt belongs to exactly one turn,
+        // and so does the phase derived from its stream.
+        steerAttempt = nil
+        runTurnPhase = RunTurnPhaseTracker()
         restartPendingPollingIfNeeded()
 
         // #14: attachment sends are the deliberately-backgroundable long path —
@@ -715,6 +827,9 @@ final class ChatStore {
                     continuedSend?.advance(to: .accepted)
 
                 case .textDelta(let delta):
+                    // #357-F: the phase reads the RUN, not the row — noted
+                    // before the placeholder guard on purpose.
+                    self.runTurnPhase.noteProseDelta()
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         conv.messages[idx].content += delta
@@ -737,6 +852,9 @@ final class ChatStore {
                 case .reasoningDelta(let delta):
                     continuedSend?.tick()
                     self.lastStreamActivityAt = .now
+                    // #357-F: reasoning is a separate channel — the note is
+                    // an explicit no-op, so the mapping stays visible here.
+                    self.runTurnPhase.noteReasoningDelta()
                     // #4.15: accumulate the `_thinking` channel on the streaming
                     // placeholder — the bubble shows the newest line verbatim
                     // while the model reasons, ahead of any answer text.
@@ -751,6 +869,12 @@ final class ChatStore {
 
                 case .toolActivity(let event):
                     self.lastStreamActivityAt = .now
+                    // #357-F: same rule as `.textDelta` — the phase reads the
+                    // RUN, before the placeholder guard.
+                    switch event.phase {
+                    case .started: self.runTurnPhase.noteToolStarted()
+                    case .completed: self.runTurnPhase.noteToolCompleted()
+                    }
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         switch event.phase {
@@ -875,6 +999,36 @@ final class ChatStore {
                     // #304: idempotent teardown — our own POST's echo or
                     // someone else's answer (bar 304-E).
                     self.hostApprovals?.markResolved(runID: runID, choice: choice)
+
+                case .steerLanded:
+                    // #357-G: THE applied signal — the one thing allowed to
+                    // render a steer as landed.
+                    self.steerAttempt?.landed = true
+                    chatLog.notice("steer: run.steered landed (#357)")
+
+                case .steerUnconsumed(let text):
+                    // #357-G: the turn ended without consuming the steer —
+                    // the finalizer drained it "to replay as the next user
+                    // turn". Convert it: the #306 hold first (this arrives
+                    // BEFORE `.finished`, so the transcript is still busy and
+                    // the hold both takes and then fires at the terminal);
+                    // an occupied hold falls to the #48 seed when the
+                    // composer is free; a busy composer gets a visible
+                    // notice. Nothing is silently lost.
+                    if self.holdComposedTurn(text) {
+                        chatLog.notice("steer: unconsumed — converted to the held next message (#357-G)")
+                    } else if (self.composerLiveText?() ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        self.seedComposer(text)
+                        chatLog.notice("steer: unconsumed — hold occupied, restored to the composer (#357-G)")
+                    } else {
+                        self.conversation?.messages.append(Message(
+                            sender: .system,
+                            content: "A steer didn't catch this turn: \u{201C}\(text)\u{201D}",
+                            status: .delivered
+                        ))
+                        chatLog.notice("steer: unconsumed — hold and composer both occupied, surfaced as a notice (#357-G)")
+                    }
+                    self.steerAttempt = nil
 
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
@@ -1192,6 +1346,9 @@ final class ChatStore {
                 }
             }
             self.lastTurnStreamLedger = ledger
+            // #357: the turn is over on every path through here — an attempt
+            // that neither landed nor drained has nothing left to wait on.
+            self.steerAttempt = nil
             // Anomalies at .notice (visible in Console by default, survives as
             // one line under logd quota); clean turns at .info.
             if ledger.updatesDropped > 0 || ledger.finalDelivery == .appendedWithoutPlaceholder {
@@ -1348,6 +1505,8 @@ final class ChatStore {
         streamingTask = nil
         streamingMessageID = nil
         streamingUserMessageID = nil
+        // #357: the departing turn's steer attempt leaves with it.
+        steerAttempt = nil
         // #295: this cancellation doesn't route through `cancelStreaming`,
         // so it has to clear the capture itself — "releases everything the
         // departing run holds" above is the promise this line keeps honest.

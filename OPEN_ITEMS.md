@@ -22896,6 +22896,85 @@ skipped silently), #268 (why this filed as its own number).
 >   DEVICE pass (live long-tool turn against the Mac gateway, PLUM-style)
 >   is OWED at close and recorded here either way.
 
+> **✅ 2026-08-17 late night — THE APP HALF SHIPPED (branch
+> `3c-steering-app-half`, slices 1–3c, PR #312). Per-bar verdicts, written
+> the same session per the close-out rule:**
+>
+> - **357-E MET.** Door selection unit-asserted per (setting × feasibility):
+>   `resolvePlainSend` (5 arms) + the explicit-menu resolver
+>   `ComposerDoor.explicitDoors` (5 arms), `SteeringComposerDoorsTests`; the
+>   degradation path asserted end-to-end (closed door → the NAMED queue
+>   fallback; prose-phase steer → the `pending_steer` conversion under
+>   357-G). The door taken is NAMED in the UI (#180): the commit control
+>   wears the resolved door's badge (clock = queue, branch = steer) with a
+>   matching accessibility label, the door-status strip names
+>   STEERED/INTERRUPTED, and the queue fallback surfaces as the existing
+>   QUEUED chip. Non-default doors stay reachable: the commit control
+>   long-presses into the explicit three-door menu. **Noted edge
+>   (deliberate):** with the #306 hold slot TAKEN the composer is #315's
+>   `busyNoCommit` (Stop only) — no commit control, so no menu, so
+>   steer/interrupt are unreachable in exactly that state. #315's door was
+>   left untouched on purpose; a follow-up affordance is Owen's call.
+> - **357-F MET.** `RunTurnPhaseTracker` pure (7 tests incl. out-of-order /
+>   duplicate tool events; reasoning keeps the window open), AND ChatStore
+>   derives it live from its own stream decode
+>   (`storeDerivesTurnPhaseFromTheStream`, `aNewTurnResetsThePhase`) — noted
+>   BEFORE the placeholder guard, so a #358-style placeholder loss cannot
+>   blind the phase.
+> - **357-G MET.** The ACK renders submit-only ("Steering the running
+>   turn"); `run.steered` is the ONLY thing that flips the chip to "Applied
+>   to the running turn" (`steerSubmitsAndLandsOnlyOnTheFrame`; chip states
+>   pinned). Missed steer → `pending_steer` → hold-first conversion, fires
+>   as the next user turn; occupied hold → #48 seed; both asserted. 409 →
+>   `.windowClosed` and 404 → `.runGone` pinned at the classifier
+>   (`RunsFrameParserTests:52-56`); both fall back to the NAMED hold — the
+>   text is KEPT (the chip), not left sitting in the composer as the bar's
+>   letter sketched. Spirit met (nothing silently lost, door named); delta
+>   recorded here.
+> - **357-H MET.** `interruptActiveTurnAndResend`: the explicit-Stop path
+>   (`cancelStreaming(hardStopHost: true)`), consumer wind-down awaited,
+>   then ONE fresh turn. Ordering test-asserted (`stop` strictly precedes
+>   the resend on the client's ordered event log), no-double-send asserted,
+>   and a held turn never rides along (#306 row 2 untouched:
+>   `interruptNeverAutoFiresAHeldTurn`). UI: "Stop & send as a new message"
+>   menu item; strip label "Stopped — sending as a new message" (the bar's
+>   wording — and the 306-J vocabulary test now covers the chip strings
+>   too).
+> - **357-I MET.** Row 3 (stream-lost/run-live) offers QUEUE only, in BOTH
+>   resolvers (`row3StreamLostRunLiveQueuesRegardlessOfSetting`,
+>   `row3OffersQueueOnly`).
+> - **357-J: gate half MET — `lane-gate.sh` GATE: PASS on CC-lane-1, 2285
+>   Swift Testing (count MOVED from the 2245 baseline) + 14 XCUITest, only
+>   the known-permanent CondenserFidelity skip pair, Release build clean.
+>   THE DEVICE PASS IS STILL OWED** — the steer arm's live long-tool turn
+>   (Mac gateway, PLUM-style) gets recorded here when run, either way. RED
+>   was observed first on every slice (TDD; the missing-symbol build
+>   failures and assertion failures are in the session logs).
+
+> **✅ 2026-08-17 ~20:49 — 357-J's DEVICE HALF MET, the same night. ALL BARS
+> 357-A..J ARE NOW MET.** The steer arm ran live on whoGoesThere (branch
+> build `c183ffa`, corded deploy via the Xcode bridge) against the Mac
+> gateway — deliberately the SAME listener the wire probe used (PID 15005,
+> up since 00:02:47; the checkout under it has since auto-updated to
+> `133381508`, so no gateway restarts were made tonight). The pass:
+> `sleep 20 && echo BANANA` turn on the runs plane, steer fired mid-tool
+> from the composer's steer door. Console (launch session `c3b881500`):
+> `runs: steer for run_7c513cc20b4943eb9723b30a1038e138 → HTTP 200` →
+> `steer: submitted — awaiting run.steered (#357)` →
+> `steer: run.steered landed (#357)` **3 ms later**, turn finished ~15 s on
+> with output **PLUM** over the instructed BANANA (29 s total, TERMINAL
+> chip). The 08-06/08-17 wire result reproduced through the app's own
+> composer, on-device. (Which affordance submitted the steer — the
+> long-press menu vs the Settings toggle — is not distinguishable in the
+> log; the door, the ACK-vs-applied rendering, and the outcome are.)
+> - **Incidental #306 row-2 device confirmation (first attempt, 20:47):**
+>   the text took the QUEUE door (plain tap, default setting), Owen hit
+>   Stop, and the log shows `mid-turn hold: Stop — held text restored to
+>   the composer (#306 O2)` — restore-not-fire, live on device.
+> - **Filed out of this pass: #361** — the HERMES HOST OFFLINE banner +
+>   header pip keyed to a DORMANT profile's health (OJAMD down) while the
+>   ACTIVE Mac profile streamed this entire pass.
+
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
@@ -23149,3 +23228,34 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 >   auto-stop timing.
 > - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
 >   this lane's suite), 14 XCUITest, Release clean.
+
+## 361. 🐛 HERMES HOST OFFLINE banner + header pip key off a DORMANT profile's health — the app reads "down" while the ACTIVE profile is online and streaming — **FILED 2026-08-17 night, out of the #357 device pass (Owen's report + console evidence, same session). App-side; UI honesty. UNLOCALIZED.**
+
+**Observed (whoGoesThere, branch build `c183ffa`, 20:44–20:49):** active
+profile = Mac Mini (server screen showed it ACTIVE + GATEWAY ONLINE), OJAMD
+profile down for host-side Hermes trouble (server screen: GATEWAY OFFLINE —
+that half is correct). The chat header showed "HERMES • OFFLINE" and the red
+HERMES HOST OFFLINE banner ("Your Hermes host isn't responding…") persisted
+across the whole session — while the active Mac profile answered every turn
+and streamed the #357 steer pass end-to-end. Owen's report in the moment:
+"OJAMD is having issues with hermes and its reflecting like the whole app
+is down, but its not." Console for the same window: repeated
+`listSessions: 'OJAMD' unreachable — The request timed out.` and
+`ProfileRelaySession refresh: dormant profile 'OJAMD' failed`.
+
+**The shape (recorded as a LEAD, not a verdict — nothing code-read yet):**
+some aggregate connection status (whatever the banner + header pip read) is
+apparently fed by probes that walk paired profiles (`listSessions`, the
+dormant-profile refresh) rather than by the ACTIVE profile's health, so one
+dead dormant profile reads as "the host is down." #180 cuts both ways:
+claiming DOWN while up is the same class of lie as claiming UP while down —
+it sends the user to Settings to fix a connection that is fine. First step
+when the lane opens: localize which publisher the banner and the header pip
+actually read, on-code, before touching anything; then key them to the
+active profile, with dormant-profile trouble surfaced per-profile (the
+server screen already does that half right).
+
+**Cross-refs:** #357 (the device pass that evidenced it), #285 (profile
+hops / frozen endpoints — the multi-profile machinery this status sits on),
+#180 (visible degradation), #192 (router lock/brain surface, if the pip
+turns out to read the router).

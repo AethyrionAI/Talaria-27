@@ -64,6 +64,7 @@ struct SessionsSettingsScreen: View {
                     }
                     statsRow
                     shelfSection
+                    midTurnSendSection
                     recentSection
                     manageSection
                     footerNote
@@ -160,6 +161,49 @@ struct SessionsSettingsScreen: View {
                 innerGlow: false
             )
         }
+    }
+
+    /// #357 (3C): Owen's send-behavior toggle. QUEUE is the shipped #306
+    /// default; STEER is safe to prefer in any phase because a steer that
+    /// misses its window degrades honestly into the queued next message —
+    /// the composer names whichever door a send actually took.
+    private var midTurnSendSection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            MonoLabel("// Mid-turn send", size: 10, tracking: Design.Tracking.monoXWide,
+                      color: Design.Colors.mutedForeground)
+
+            VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+                HStack(spacing: Design.Spacing.sm) {
+                    Text("Send While Streaming")
+                        .font(Design.Typography.callout)
+                        .foregroundStyle(Design.Colors.foreground)
+                    Spacer()
+                    Picker("", selection: midTurnSendBinding) {
+                        Text("Queues").tag(MidTurnSendAction.queue)
+                        Text("Steers").tag(MidTurnSendAction.steer)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 180)
+                }
+                Text("Queues: the message waits and posts when the current turn finishes. Steers: the message redirects the running turn if it can still take direction — otherwise it queues, and the composer says which happened.")
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+            }
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    private var midTurnSendBinding: Binding<MidTurnSendAction> {
+        Binding(
+            get: { settingsStore.settings.midTurnSendAction },
+            set: { settingsStore.settings.midTurnSendAction = $0 }
+        )
     }
 
     private var showEmptySessionsBinding: Binding<Bool> {
