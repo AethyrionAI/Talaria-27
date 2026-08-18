@@ -23425,3 +23425,31 @@ turns out to read the router).
 
 > **✅ 2026-08-17 ~22:20 — PR #313 MERGED by Owen (merge commit
 > `0d94e94`). CLOSED-SHAPE; archive move per #261 on his formal close.**
+
+## 362. 🔧 Phase 3 slice 3D — the artifact mirror (plugin-side) — **FILED 2026-08-17 ~22:30 per #268 ("a phase name is not a filing") as the lane teed for the next session. NOT STARTED — no bars yet; they pre-register here when the lane opens, after the design read.**
+
+**What it is:** the Phase 3 plan's 3D leg — agent-produced artifacts
+mirrored to the phone over the talaria plugin (the design of record is
+`design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`; the plugin arc's own
+state lives in the 2026-08-16 handoffs `…-351-PLUGIN-REVIEW-AND-REWORK`
+and `…-NIGHT-352-LANE-AND-PLUGIN-ARC`). Plugin-side work on a live Hermes
+install — the 🔐 per-experiment gate applies to anything that modifies
+one.
+
+**Carried-in flags (from #361's 2026-08-17 investigation, both host-side):**
+1. A `127.0.0.1` python client on the Mac is 401-spamming
+   `POST /api/platforms/talaria/events` every ~5 s (bad key — the plugin's
+   own host-side component?). First stop for this lane: identify and fix
+   or silence it before building more on that channel.
+2. Transient ATS -1022 flakes on the app's plugin-link/relay-family loads
+   at scene transitions (iOS 27 beta 6; immediate retries succeed; #166b's
+   exception itself stands). Worth remembering when reading link logs —
+   a flaked POST is not a down channel.
+
+**Sequencing:** after this, 3E is the cutover DECISION (its evidence clock
+has run since 2026-08-17) — a ruling, not a build.
+
+**Cross-refs:** #357 (3C, closed-shape — the steering the runs plane now
+carries), #361 (where the flags came from), #269-B (plugin publication
+gate), #251 (the plugin venture), #223/Phase 4 (relay retirement this
+mirror advances).
