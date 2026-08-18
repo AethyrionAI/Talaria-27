@@ -22927,7 +22927,7 @@ ReportFindings (15 entries) + `handoffs/` note if written at close.
 > showed connected; app-side display item, needs the exact screen/value
 > named before it gets its own number.
 
-## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). OPENED 2026-08-18 on Owen's morning routing (swipe + clear-all): half 1 DIAGNOSED (reset() clears marks for rows it preserves; launch trigger sim-reproduced, log-pinned) and BUILT — ALL BARS 354-A..E MET, 354-F's components green with the gate story recorded honestly (two gate runs tripped only on #236's known-flaky suite; clean-sim bundle 14/14). PR open; merge is Owen's review. STILL OPEN behind the PR: which trigger fires on OWEN'S device (his two in-chat answers), and the initialize() token-guard policy finding, routed to him. Dated blocks below are the record.**
+## 354. 🐛+🎨 INBOX HYGIENE: read marks resurrect on rebuild/update, and platform rows can neither be deleted nor pruned — **FILED 2026-08-16 night from Owen's report mid-#269-A ("Everytime we rebuild or update, the two that I have are marked new again. Plus, we need a way to prune on the user side eventually."). OPENED 2026-08-18 on Owen's morning routing (swipe + clear-all), BUILT the same day (ALL BARS 354-A..E MET, gate components green), MERGED as PR #317, and DEVICE-CONFIRMED on build 2808 the same afternoon (the install-over-2787 that used to resurrect the marks left them READ; swipe-delete + Clear rendering). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Open residue: the initialize() token-guard policy finding, routed to Owen. Dated blocks below are the record.**
 
 **Half 1 — the bug (MEASURED by Owen, mechanism SUSPECTED, not diagnosed):**
 the two persisted inbox items read as NEW again after every rebuild/update.
@@ -23115,6 +23115,20 @@ paired?) discriminate; an optional corded `log collect` settles it. The
 class fix kills the symptom under every trigger either way. (2) The
 `initialize()` token-guard finding (clears pairing on a bare keychain
 miss) is FILED above for Owen's routing — not built here.
+
+**2026-08-18 ~15:15 — DEVICE-CONFIRMED (Owen, in-chat, after installing
+build 2808 over 2787): "the items were not marked as new this time. And I
+have the option to clear and swipe individual ones to remove."** The
+2808 install is exactly the rebuild/update shape that fired the resurrect
+on every prior install, and the marks HELD — the class fix is proven on
+the reporting device, trigger-agnostic (which specific reset path fires
+on this phone is now an academic question; the fix preserves marks under
+all of them). Half 2's swipe-delete and Clear affordances confirmed
+rendering. **#354 is CLOSED-SHAPE: all bars met, merged (PR #317),
+device-confirmed. Archive move per #261 on Owen's formal close.**
+Remaining routed residue, unchanged: the `initialize()` token-guard
+policy finding (clears pairing on a bare keychain miss — filed above,
+Owen routes whether that policy changes).
 
 ## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). SHIPPED 2026-08-17 night: ALL BARS 355-A..E MET (`d3e4b176`, PR #314 merged `41f02b2` on Owen's "merge 314") — Setup teaches the real tiers, the plugin link is drawn in the diagram, relay/connector demoted to a labeled Legacy section, docs/ pages aligned; gate PASS (docs-only, counts unchanged). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for a day after the ship and cost a wrong work-menu recommendation before Owen caught it.)**
 
