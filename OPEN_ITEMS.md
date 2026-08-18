@@ -22230,7 +22230,7 @@ same verdict at 1/20 exposure against 338-A's zero-false-positive bar).
 #344 stands as a DOCUMENTED LIMIT, watch-only: reopen only if the rate
 climbs or the shape appears attached to a completion claim. No build.**
 
-## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch
+## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch — **BUILT 2026-08-18 on Owen's go: bars 350-A..C + the banner rule MET (unit), 350-E MET (GATE: PASS, one contiguous run on an erased pool sim — 2337 units / 14 XCUITest / Release clean); 350-D's visual half owed as Owen's 30-second device fixture re-run post-merge (recorded honestly below). PR open; merge is Owen's review.**
 
 **MEASURED 2026-08-16 on `whoGoesThere` (build in hand, via iPhone Mirroring + computer use), incidentally, while standing up Group 4's standalone block. Not sought.**
 
@@ -22351,6 +22351,40 @@ every surface value are unit-pinned (350-A..C + the banner rule); the
 honest closer for 350-D's visual half is OWEN'S ORIGINAL FIXTURE re-run
 on device post-merge (auto-connect off, base URL on the verified-refused
 `:12399`, cold launch — 30 seconds, and he has done it once already).
+
+
+**2026-08-18 ~13:30 — PER-BAR VERDICTS (branch `350-link-honesty`, commit
+`adecba5b`; PR open, merge is Owen's review). RED observed on all five
+mapping tests via behavior-preserving stubs before the logic landed
+(11 assertion issues, each on the intended expectation):**
+- **350-A — MET.** `.disconnected`/`.connecting` → `.checking`, never
+  `.online`; measured verdicts map to themselves;
+  `sessionsHostDetail(.checking)` = "LINKED · —" (no ONLINE claim); the
+  `.checking` pip/accent is never the online green (pinned via the
+  extracted values; every switch arm across chat header, banner, Connect
+  screen, and Uplink screen was compiler-forced and hand-written non-green).
+- **350-B — MET.** `settingsEffectiveState` replaces all three verbatim
+  private copies (deleted — one call target by construction); a measured
+  direct `.error` renders `.unreachable` and can no longer stay green
+  through stale relay memory; no-verdict + configured host → `.checking`;
+  the hostless arm is byte-identical to the old fallback.
+- **350-C — MET.** `uplink(.checking)` = "CHECKING", `statusStrip`
+  carries no LINKED/CONNECTED and prefixes CHECKING,
+  `SettingsCardAccent.uplink(.checking)` = false.
+- **Banner rule (amendment 1) — MET.**
+  `connectionBannerWaitsForAMeasurement` pins: never for `.checking`,
+  only for measured non-online, never unpaired.
+- **350-D — unit half MET; visual half OWED as recorded in the scope
+  note above:** the paired-surface fixture is unreachable in an unpaired
+  sim; Owen's original device fixture (auto-connect off, cold launch on
+  refused `:12399`) is the honest closer post-merge — expected reading:
+  CHECKING (dim pip) rather than LINKED · ONLINE, and the red banner only
+  after the probe actually fails.
+- **350-E — MET: GATE: PASS in ONE CONTIGUOUS RUN on an erased CC-lane-1
+  — Swift Testing 2337 (count MOVED from 2331 by exactly this lane's +6),
+  XCUITest 14/14 (the known CondenserFidelity unit-suite skip pair only),
+  Release clean.** MessageIdentityUITests passed at gate on the erased
+  sim — further support for #236's sim-state aggravator note.
 
 ## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
 
