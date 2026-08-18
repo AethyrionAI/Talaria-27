@@ -22951,6 +22951,30 @@ skipped silently), #268 (why this filed as its own number).
 >   was observed first on every slice (TDD; the missing-symbol build
 >   failures and assertion failures are in the session logs).
 
+> **✅ 2026-08-17 ~20:49 — 357-J's DEVICE HALF MET, the same night. ALL BARS
+> 357-A..J ARE NOW MET.** The steer arm ran live on whoGoesThere (branch
+> build `c183ffa`, corded deploy via the Xcode bridge) against the Mac
+> gateway — deliberately the SAME listener the wire probe used (PID 15005,
+> up since 00:02:47; the checkout under it has since auto-updated to
+> `133381508`, so no gateway restarts were made tonight). The pass:
+> `sleep 20 && echo BANANA` turn on the runs plane, steer fired mid-tool
+> from the composer's steer door. Console (launch session `c3b881500`):
+> `runs: steer for run_7c513cc20b4943eb9723b30a1038e138 → HTTP 200` →
+> `steer: submitted — awaiting run.steered (#357)` →
+> `steer: run.steered landed (#357)` **3 ms later**, turn finished ~15 s on
+> with output **PLUM** over the instructed BANANA (29 s total, TERMINAL
+> chip). The 08-06/08-17 wire result reproduced through the app's own
+> composer, on-device. (Which affordance submitted the steer — the
+> long-press menu vs the Settings toggle — is not distinguishable in the
+> log; the door, the ACK-vs-applied rendering, and the outcome are.)
+> - **Incidental #306 row-2 device confirmation (first attempt, 20:47):**
+>   the text took the QUEUE door (plain tap, default setting), Owen hit
+>   Stop, and the log shows `mid-turn hold: Stop — held text restored to
+>   the composer (#306 O2)` — restore-not-fire, live on device.
+> - **Filed out of this pass: #361** — the HERMES HOST OFFLINE banner +
+>   header pip keyed to a DORMANT profile's health (OJAMD down) while the
+>   ACTIVE Mac profile streamed this entire pass.
+
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
@@ -23204,3 +23228,34 @@ hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 >   auto-stop timing.
 > - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
 >   this lane's suite), 14 XCUITest, Release clean.
+
+## 361. 🐛 HERMES HOST OFFLINE banner + header pip key off a DORMANT profile's health — the app reads "down" while the ACTIVE profile is online and streaming — **FILED 2026-08-17 night, out of the #357 device pass (Owen's report + console evidence, same session). App-side; UI honesty. UNLOCALIZED.**
+
+**Observed (whoGoesThere, branch build `c183ffa`, 20:44–20:49):** active
+profile = Mac Mini (server screen showed it ACTIVE + GATEWAY ONLINE), OJAMD
+profile down for host-side Hermes trouble (server screen: GATEWAY OFFLINE —
+that half is correct). The chat header showed "HERMES • OFFLINE" and the red
+HERMES HOST OFFLINE banner ("Your Hermes host isn't responding…") persisted
+across the whole session — while the active Mac profile answered every turn
+and streamed the #357 steer pass end-to-end. Owen's report in the moment:
+"OJAMD is having issues with hermes and its reflecting like the whole app
+is down, but its not." Console for the same window: repeated
+`listSessions: 'OJAMD' unreachable — The request timed out.` and
+`ProfileRelaySession refresh: dormant profile 'OJAMD' failed`.
+
+**The shape (recorded as a LEAD, not a verdict — nothing code-read yet):**
+some aggregate connection status (whatever the banner + header pip read) is
+apparently fed by probes that walk paired profiles (`listSessions`, the
+dormant-profile refresh) rather than by the ACTIVE profile's health, so one
+dead dormant profile reads as "the host is down." #180 cuts both ways:
+claiming DOWN while up is the same class of lie as claiming UP while down —
+it sends the user to Settings to fix a connection that is fine. First step
+when the lane opens: localize which publisher the banner and the header pip
+actually read, on-code, before touching anything; then key them to the
+active profile, with dormant-profile trouble surfaced per-profile (the
+server screen already does that half right).
+
+**Cross-refs:** #357 (the device pass that evidenced it), #285 (profile
+hops / frozen endpoints — the multi-profile machinery this status sits on),
+#180 (visible degradation), #192 (router lock/brain surface, if the pip
+turns out to read the router).
