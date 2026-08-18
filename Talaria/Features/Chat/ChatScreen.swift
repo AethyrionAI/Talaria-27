@@ -1526,6 +1526,32 @@ struct ChatScreen: View {
     private func queueComposedMessage() {
         let content = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty, !content.hasPrefix("/") else { return }
+        // #357-E: the plain mid-turn send resolves its door from Owen's
+        // setting + the turn's state; the resolver owns feasibility (row-3
+        // queue-only, depth-1, no-run-id fallback) and the store names the
+        // door actually taken.
+        let door = ComposerDoor.resolvePlainSend(
+            setting: settingsStore.settings.midTurnSendAction,
+            streamLostRunLive: chatStore.isInReconcileWindow,
+            runIDAvailable: chatStore.canSteerActiveTurn,
+            steerAttemptOutstanding: chatStore.steerAttemptOutstanding
+        )
+        if door == .steered {
+            let steered = content
+            messageText = ""
+            if settingsStore.settings.hapticFeedbackEnabled {
+                HapticEngine.messageSent()
+            }
+            Task { @MainActor in
+                // A steer whose door turns out closed falls back to the
+                // hold inside the store; only a full refusal (depth-1 race,
+                // turn already over) hands the text back.
+                if await chatStore.steerActiveTurn(steered) == false {
+                    if messageText.isEmpty { messageText = steered }
+                }
+            }
+            return
+        }
         if chatStore.holdComposedTurn(content) {
             messageText = ""
             if settingsStore.settings.hapticFeedbackEnabled {

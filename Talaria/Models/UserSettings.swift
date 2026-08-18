@@ -390,6 +390,12 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// (OPEN_ITEMS #187), so the shelf filters them client-side. The active
     /// session and any pinned session are exempt from the filter regardless.
     var showEmptySessions: Bool
+    /// #357 (3C, Owen's directive 2026-08-17): what a plain SEND does while
+    /// a turn is still streaming — queue as the next message (the #306
+    /// hold, the default and today's shipped behavior) or steer the running
+    /// turn (safe to prefer in any phase: a steer that misses degrades via
+    /// `pending_steer` into exactly what queue would have done, named).
+    var midTurnSendAction: MidTurnSendAction
     /// #124: biometric app lock (`.deviceOwnerAuthentication` — biometry with
     /// passcode fallback, never biometry-only). Default OFF, free tier.
     var appLockEnabled: Bool
@@ -440,6 +446,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         verboseLogging: Bool = false,
         spotlightIndexingEnabled: Bool = false,
         showEmptySessions: Bool = false,
+        midTurnSendAction: MidTurnSendAction = .queue,
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate,
         useRunsTransport: Bool = false,
@@ -471,6 +478,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.verboseLogging = verboseLogging
         self.spotlightIndexingEnabled = spotlightIndexingEnabled
         self.showEmptySessions = showEmptySessions
+        self.midTurnSendAction = midTurnSendAction
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
         self.useRunsTransport = useRunsTransport
@@ -504,6 +512,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case verboseLogging
         case spotlightIndexingEnabled
         case showEmptySessions
+        case midTurnSendAction
         case appLockEnabled
         case appLockGracePeriod
         case useRunsTransport
@@ -545,6 +554,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
         spotlightIndexingEnabled = try container.decodeIfPresent(Bool.self, forKey: .spotlightIndexingEnabled) ?? false
         showEmptySessions = try container.decodeIfPresent(Bool.self, forKey: .showEmptySessions) ?? false
+        midTurnSendAction = try container.decodeIfPresent(MidTurnSendAction.self, forKey: .midTurnSendAction) ?? .queue
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
         useRunsTransport = try container.decodeIfPresent(Bool.self, forKey: .useRunsTransport) ?? false

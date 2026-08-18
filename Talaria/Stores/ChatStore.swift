@@ -176,6 +176,15 @@ final class ChatStore {
         steerAttempt.map { !$0.landed } ?? false
     }
 
+    /// #357-E: whether the client is holding a run a steer could address —
+    /// the resolver's `runIDAvailable` input. Nil before the submit ACK and
+    /// on planes with no runs transport.
+    var canSteerActiveTurn: Bool { hermesClient.activeRunID != nil }
+
+    /// #357-I: the #278 reconcile window — a run is live but this client's
+    /// stream is gone. The resolver's row-3 input: queue only.
+    var isInReconcileWindow: Bool { pendingRun != nil && streamingMessageID == nil }
+
     /// #357-E: the STEER door. Submits against the in-flight run; a door
     /// that fails to open falls back to the QUEUE door (the #306 hold) so
     /// the text always has an honest landing — and the log names which door
