@@ -22222,6 +22222,14 @@ what teaches the card vocabulary), **#215** (why 2/13 is not a production rate).
 > #344 only if it survives** — that fixes cause instead of symptom, costs nothing against
 > 338-A, and the A/B has already been run three times.
 
+
+**2026-08-18 ~09:45 — OWEN'S RULING (in-chat): LEAVE AS SPECIFIED ("I
+believe leave as specified unless you have a good reason not to" — and no
+good reason exists: the entry's own measured recommendation reaches the
+same verdict at 1/20 exposure against 338-A's zero-false-positive bar).
+#344 stands as a DOCUMENTED LIMIT, watch-only: reopen only if the rate
+climbs or the shape appears attached to a completion claim. No build.**
+
 ## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch
 
 **MEASURED 2026-08-16 on `whoGoesThere` (build in hand, via iPhone Mirroring + computer use), incidentally, while standing up Group 4's standalone block. Not sought.**
@@ -22247,6 +22255,10 @@ The drawer reading was re-checked after **20+ seconds** of dwell and did not cha
 **Bars pre-register in this entry before any code**, per the standing rule.
 
 **Cross-references:** **#180** (the umbrella — the app hides its own degradation), **#191** (the status pill's local-brain honesty, where "a local brain's status line may not assert a host" was already reasoned through), **#25** (absent-not-zero), **#342** (asserted vs derived state), **#54** (transport-level reconnect, a different layer).
+
+
+**2026-08-18 ~09:45 — Owen's go, in-chat: "good to start 350 as well."
+Lane queued this session, after #354 opens.**
 
 ## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
 
@@ -22285,6 +22297,13 @@ That reasoning was applied to session totals and **not** to the gauge. So the bu
 > - **No bar on the slash-command alternative** — a `/context` command is a different surface and a separate decision; it does not discharge this item.
 
 **Cross-references:** **#25** (the gauge's absent-not-zero rule), **#122** (the session cost/usage surface these numbers also feed), **#46** (session running totals, where the billed-vs-context distinction IS correctly stated), **#191** (the display pill, deliberately not the gauge's key), `ChatScreen.swift:806`, `ChatStore.swift:166`.
+
+
+**2026-08-18 ~09:45 — OWEN'S RULING (in-chat): TRY TO FIX FIRST — re-key
+the gauge to an honest metric; REMOVE only if it cannot be made honest
+("i've been leaning towards remove but you keep convincing me to keep it.
+Try to fix, remove if you can't"). Lane queued this session behind
+#354/#350.**
 
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
@@ -22720,6 +22739,19 @@ re-litigates it.
 **Cross-refs:** #251-2A (the platform inbox), #144 (deactivate-never-delete
 — server-side, distinguished above), #352 (the same-night re-sign, a
 candidate trigger for half 1), #98/#97 (existing read/dismiss bookkeeping).
+
+
+**2026-08-18 ~09:40 — OWEN'S ROUTINGS (in-chat, from work): LANE OPEN, and
+the prune UX is picked: BOTH swipe-to-delete AND clear-all ("swipe and
+clear all preferably"). Delete-implies-read and the deliberate-affordance
+shape (confirm vs edit-mode) are left to the lane's design — resolve
+against the code and pre-register with the bars before fix code. Half 1's
+diagnosis stays the first job (a log-pinned answer to WHICH reset path
+fires on a plain rebuild, not a guess). Sim-repro caveat carried in from
+the standing memory: CODE_SIGNING_ALLOWED=NO builds silently kill keychain
+writes and can SELF-UN-PAIR, which would itself fire `handlePairingRemoved
+→ reset()` — a sim reproduction must use a signed build or account for
+that confound, or it will "confirm" the suspect path trivially.**
 
 ## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). SHIPPED 2026-08-17 night: ALL BARS 355-A..E MET (`d3e4b176`, PR #314 merged `41f02b2` on Owen's "merge 314") — Setup teaches the real tiers, the plugin link is drawn in the diagram, relay/connector demoted to a labeled Legacy section, docs/ pages aligned; gate PASS (docs-only, counts unchanged). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for a day after the ship and cost a wrong work-menu recommendation before Owen caught it.)**
 
