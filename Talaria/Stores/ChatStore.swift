@@ -181,6 +181,12 @@ final class ChatStore {
     /// like the steer attempt.
     private(set) var interruptResendText: String?
 
+    /// #357-F: the running turn's phase, derived from the stream this store
+    /// already decodes (tool-in-flight = the §2.5 steer window; a UX
+    /// affordance, not the steer's safety — `pending_steer` is). Reset at
+    /// stream start: the phase belongs to exactly one turn.
+    private(set) var runTurnPhase = RunTurnPhaseTracker()
+
     /// #357-E/G/H: what the composer's status strip shows for the running
     /// turn's door — pure derivation, so the states are unit-testable
     /// without a live stream. An interrupt outranks a lingering steer
@@ -773,8 +779,10 @@ final class ChatStore {
         // have cleared it) documents "captured at stream start" at the one
         // place a new stream actually starts.
         activeStreamRun = nil
-        // #357: same principle — a steer attempt belongs to exactly one turn.
+        // #357: same principle — a steer attempt belongs to exactly one turn,
+        // and so does the phase derived from its stream.
         steerAttempt = nil
+        runTurnPhase = RunTurnPhaseTracker()
         restartPendingPollingIfNeeded()
 
         // #14: attachment sends are the deliberately-backgroundable long path —
@@ -819,6 +827,9 @@ final class ChatStore {
                     continuedSend?.advance(to: .accepted)
 
                 case .textDelta(let delta):
+                    // #357-F: the phase reads the RUN, not the row — noted
+                    // before the placeholder guard on purpose.
+                    self.runTurnPhase.noteProseDelta()
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         conv.messages[idx].content += delta
@@ -841,6 +852,9 @@ final class ChatStore {
                 case .reasoningDelta(let delta):
                     continuedSend?.tick()
                     self.lastStreamActivityAt = .now
+                    // #357-F: reasoning is a separate channel — the note is
+                    // an explicit no-op, so the mapping stays visible here.
+                    self.runTurnPhase.noteReasoningDelta()
                     // #4.15: accumulate the `_thinking` channel on the streaming
                     // placeholder — the bubble shows the newest line verbatim
                     // while the model reasons, ahead of any answer text.
@@ -855,6 +869,12 @@ final class ChatStore {
 
                 case .toolActivity(let event):
                     self.lastStreamActivityAt = .now
+                    // #357-F: same rule as `.textDelta` — the phase reads the
+                    // RUN, before the placeholder guard.
+                    switch event.phase {
+                    case .started: self.runTurnPhase.noteToolStarted()
+                    case .completed: self.runTurnPhase.noteToolCompleted()
+                    }
                     if var conv = self.conversation,
                        let idx = conv.messages.firstIndex(where: { $0.id == placeholderID }) {
                         switch event.phase {

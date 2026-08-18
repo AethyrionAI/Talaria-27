@@ -213,6 +213,59 @@ struct SteeringOrchestrationTests {
         #expect(userHoldFired, "the user's explicit hold keeps its slot and fires")
     }
 
+    // MARK: - 357-F: the store derives the turn phase from its own stream
+
+    @Test @MainActor
+    func storeDerivesTurnPhaseFromTheStream() async throws {
+        let client = SteeringManualClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let sendTask = await startTurn("write a story", store: store, client: client)
+        let stream = try #require(client.continuations.last)
+
+        #expect(store.runTurnPhase.phase == .awaitingFirstSignal)
+
+        stream.yield(.toolActivity(ToolCallEvent(name: "run_command")))
+        let opened = await pollUntil { store.runTurnPhase.phase == .toolInFlight }
+        #expect(opened, "tool.started opens the steer window")
+
+        // Reasoning is a separate channel — it must not close the window.
+        stream.yield(.reasoningDelta("thinking…"))
+        let reasoned = await pollUntil {
+            store.conversation?.messages.last?.reasoning?.isEmpty == false
+        }
+        #expect(reasoned)
+        #expect(store.runTurnPhase.phase == .toolInFlight)
+
+        stream.yield(.textDelta("Once"))
+        let prose = await pollUntil { store.runTurnPhase.phase == .prose }
+        #expect(prose, "prose flowing ends tool-in-flight")
+
+        stream.yield(.finished(Message(sender: .hermes, content: "Once upon", status: .delivered), nil, nil))
+        stream.finish()
+        _ = await sendTask.value
+    }
+
+    @Test @MainActor
+    func aNewTurnResetsThePhase() async throws {
+        let client = SteeringManualClient()
+        let store = ChatStore(hermesClient: client, persistence: Self.makePersistence())
+        let firstTask = await startTurn("first turn", store: store, client: client)
+        let first = try #require(client.continuations.last)
+
+        first.yield(.textDelta("prose"))
+        let prose = await pollUntil { store.runTurnPhase.phase == .prose }
+        #expect(prose)
+        first.yield(.finished(Message(sender: .hermes, content: "prose", status: .delivered), nil, nil))
+        first.finish()
+        _ = await firstTask.value
+
+        let secondTask = await startTurn("second turn", store: store, client: client)
+        #expect(store.runTurnPhase.phase == .awaitingFirstSignal,
+                "the phase belongs to exactly one turn")
+        client.continuations.last?.finish()
+        _ = await secondTask.value
+    }
+
     // MARK: - 357-H: the interrupt door — stop first, then ONE fresh turn
 
     @Test @MainActor
