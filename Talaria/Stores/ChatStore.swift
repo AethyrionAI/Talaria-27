@@ -388,6 +388,12 @@ final class ChatStore {
     /// the thread has no server handle yet (a brand-new chat before its first
     /// turn). Nil means "do not record" — never "record under a guess".
     private var agentAttachmentThreadID: String? { activeSessionID ?? lastOpenedSessionID }
+
+    /// #362 3D: attaches plugin-mirrored artifacts to the right turn — the
+    /// runs plane's Tier-1 content source. Lazy because the correlator holds
+    /// `self` (weakly) as its transcript surface.
+    @ObservationIgnored private(set) lazy var artifactMirror =
+        ArtifactMirrorCorrelator(transcript: self)
     /// Set when the in-flight send just re-queued its turn (still
     /// unreachable) — tells the drain loop to stop instead of spinning.
     private var didQueueComposeTurnDuringSend = false
@@ -919,6 +925,11 @@ final class ChatStore {
                         }
                         self.conversation = conv
                         ledger.updatesApplied += 1
+                        // #362 3D-D: a mirrored artifact often drains BEFORE
+                        // its tool.started frame is applied (HUB.wake races
+                        // the SSE read) — this activity may be the match a
+                        // held item is waiting for.
+                        self.artifactMirror.retryPending()
                     } else {
                         ledger.updatesDropped += 1
                     }
@@ -1194,6 +1205,9 @@ final class ChatStore {
                     continuedSend?.finish(success: true)
                     // #306 matrix row 1: the ONE terminal that fires.
                     self.resolveHeldTurn(after: .completed)
+                    // #362 3D-D: the finish merge may have brought in the
+                    // activities a held mirror item matches on.
+                    self.artifactMirror.retryPending()
 
                 case .interrupted(let sessionId, let runId):
                     // #237: a late duplicate from a dying stream must not
@@ -3283,6 +3297,9 @@ final class ChatStore {
             // ever needed for ONE crossing — the first return after the chip
             // was made on a client-minted placeholder id.
             recordAgentAttachments(under: id)
+            // #362 3D-D: a mirror item drained while ANOTHER thread was open
+            // holds until its thread appears — this open may be that thread.
+            artifactMirror.retryPending()
             onConversationChanged?()
             // P1 (#90): the Sessions client already adopted the thread into
             // the journal (identity + current hop); this sync is the no-op
@@ -4343,3 +4360,24 @@ extension ChatStore {
     }
 }
 #endif
+
+// MARK: - ArtifactMirrorTranscript (#362 3D)
+
+extension ChatStore: ArtifactMirrorTranscript {
+    /// The correlator's session gate is the same identity the sidecar files
+    /// under — hop first, drawer-open fallback, nil for a thread with no
+    /// server handle (which can then never be a match target: honest).
+    var mirrorSessionID: String? { agentAttachmentThreadID }
+
+    var mirrorMessages: [Message] {
+        get { conversation?.messages ?? [] }
+        set {
+            guard var conv = conversation else { return }
+            conv.messages = newValue
+            conversation = conv
+            persistence.saveConversationCache(conv)
+        }
+    }
+
+    func persistMirrorAttachments() { recordAgentAttachments() }
+}
