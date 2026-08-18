@@ -537,6 +537,10 @@ final class NativeVoicePipelineService: VoiceSessionServiceProtocol {
                 // #223 Lane 5: header attribution is a chat-surface concern;
                 // ChatStore consumes it. Never spoken.
                 break
+            case .steerLanded, .steerUnconsumed:
+                // #357 (3C): steering outcomes are a composer concern —
+                // ChatStore renders applied/queued. Never spoken.
+                break
             case .finished(let message, _, _):
                 let final = message.content.isEmpty ? streamedText : message.content
                 finalizeAssistantItem(text: final)

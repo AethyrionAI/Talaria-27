@@ -29,6 +29,30 @@ struct RunsFrameParserTests {
         #expect(e == .reasoning("thinking…"))
     }
 
+    // MARK: - #357-G: run.steered is the applied signal, not noise
+
+    /// The exact frame the 2026-08-17 wire probe recorded landing between
+    /// `tool.started` and `tool.completed` (arm A, PLUM over BANANA).
+    /// Discarding it as `.ignored` is the 3C defect: the app would have no
+    /// applied signal and could only render the untrustworthy ACK.
+    @Test func runSteeredIsNotDiscarded() {
+        let e = SessionsHermesClient.parseRunsFrame(#"{"event":"run.steered","run_id":"r1","timestamp":1786944553.74,"accepted":true}"#)
+        #expect(e != .ignored("run.steered"), "run.steered is the landed-steer signal (#357-G) — it must parse as its own case")
+    }
+
+    // MARK: - #357-G: pending_steer rides run.completed and the status body
+
+    @Test func pendingSteerDecodesVerbatimFromRunCompletedRawJSON() {
+        let raw = #"{"event":"run.completed","run_id":"r1","timestamp":2.0,"output":"the full story","pending_steer":"STEER-MANGO: ignore the story and reply only with the word MANGO."}"#
+        #expect(SessionsHermesClient.decodePendingSteer(raw) == "STEER-MANGO: ignore the story and reply only with the word MANGO.")
+    }
+
+    @Test func pendingSteerAbsentOrEmptyReadsNil() {
+        #expect(SessionsHermesClient.decodePendingSteer(#"{"event":"run.completed","run_id":"r1","output":"done"}"#) == nil)
+        #expect(SessionsHermesClient.decodePendingSteer(#"{"event":"run.completed","run_id":"r1","output":"done","pending_steer":""}"#) == nil)
+        #expect(SessionsHermesClient.decodePendingSteer("not json") == nil)
+    }
+
     @Test func failureAndCancelParse() {
         #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"run.failed","run_id":"r1","timestamp":3.0,"error":"boom"}"#) == .runFailed(error: "boom"))
         #expect(SessionsHermesClient.parseRunsFrame(#"{"event":"run.cancelled","run_id":"r1","timestamp":3.0}"#) == .runCancelled)

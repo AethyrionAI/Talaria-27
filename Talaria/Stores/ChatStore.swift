@@ -876,6 +876,17 @@ final class ChatStore {
                     // someone else's answer (bar 304-E).
                     self.hostApprovals?.markResolved(runID: runID, choice: choice)
 
+                case .steerLanded:
+                    // #357-G (3C slice 1): the wire signal is decoded and
+                    // logged; the attempt-state orchestration (applied
+                    // notice, chip conversion) lands with the door slice —
+                    // nothing emits these updates until the steer door
+                    // exists, so log-only is honest here, not a swallow.
+                    chatLog.notice("steer: run.steered landed (#357)")
+
+                case .steerUnconsumed(let text):
+                    chatLog.notice("steer: turn ended with pending_steer (\(text.count, privacy: .public) chars) — conversion lands with the door slice (#357)")
+
                 case .finished(let finalMessage, let usage, let diff):
                     finishedViaHermesHop = finalMessage.sender == .hermes
                         && (finalMessage.brain == nil || finalMessage.brain == ChatBackendRouter.Brain.hermes.rawValue)

@@ -150,6 +150,11 @@ extension SessionsHermesClient {
         case runCompleted(output: String, rawJSON: String)
         case runFailed(error: String)
         case runCancelled
+        /// #357-G: the LANDED-steer signal — emitted when `agent.steer()`
+        /// accepted the text (wire-proven 2026-08-17 arm A, between
+        /// `tool.started` and `tool.completed`). This frame, never the HTTP
+        /// ACK, is what may render a steer as applied.
+        case runSteered(accepted: Bool)
         case ignored(String)
     }
 
@@ -182,6 +187,20 @@ extension SessionsHermesClient {
     /// fabricated `exit_code 1` would be worse than the ✓ it replaces: the
     /// real-data-only rule, and #296's own thesis.
     nonisolated static let unspecifiedHostError = "The host reported an error."
+
+    /// #357-G: reads the top-level `pending_steer` string from a
+    /// `run.completed` frame's raw JSON or a run-status body — the upstream
+    /// drain of a steer that never met a tool-result boundary
+    /// (`turn_finalizer.py:755`, wire-proven 2026-08-17 arm B). Absent or
+    /// empty reads as nil: there is nothing to replay.
+    nonisolated static func decodePendingSteer(_ rawJSON: String) -> String? {
+        guard let data = rawJSON.data(using: .utf8),
+              let payload = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let text = payload["pending_steer"] as? String,
+              !text.isEmpty
+        else { return nil }
+        return text
+    }
 
     /// Reads `error` from a `tool.completed` frame or a run-status body, where
     /// it is a **union** on the wire.
@@ -246,6 +265,10 @@ extension SessionsHermesClient {
             return .runFailed(error: (payload["error"] as? String) ?? "")
         case "run.cancelled":
             return .runCancelled
+        case "run.steered":
+            // Absent `accepted` reads true — the frame is only emitted on
+            // acceptance today; a future explicit false arrives verbatim.
+            return .runSteered(accepted: (payload["accepted"] as? Bool) ?? true)
         case "approval.request":
             // #304 (bar 304-A): the host's question, fields verbatim. The
             // choice set is COMPUTED PER REQUEST host-side
@@ -605,6 +628,13 @@ extension SessionsHermesClient {
                     // them apart — which is 296-A, and why that path stays
                     // separate from this one.
                     continuation.yield(.toolActivity(ToolCallEvent(name: name, phase: .completed, detail: error)))
+                case .runSteered(let accepted):
+                    // #357-G: the landed signal. An explicit `accepted: false`
+                    // (never observed; the frame is emitted on acceptance) is
+                    // not a landing and yields nothing.
+                    if accepted {
+                        continuation.yield(.steerLanded)
+                    }
                 case .runCompleted(let output, let rawJSON):
                     let usage = Self.decodeRunUsage(rawJSON)
                     // #25: the resumed session's CTX numerator. Tolerant —
@@ -612,6 +642,12 @@ extension SessionsHermesClient {
                     // honestly unknown.
                     if let usage {
                         usageIndex?.record(sessionID: hop.sessionId, usage: usage)
+                    }
+                    // #357-G: a steer the turn never consumed is announced
+                    // before the terminal so the store converts it ahead of
+                    // the #306 fire.
+                    if let pendingSteer = Self.decodePendingSteer(rawJSON) {
+                        continuation.yield(.steerUnconsumed(pendingSteer))
                     }
                     let message = runsFinalMessage(
                         output: output,
@@ -1167,6 +1203,13 @@ extension SessionsHermesClient {
                 assembledReasoning: assembledReasoning,
                 profileID: profileID
             )
+            // #357-G: the status body is the SECOND source of the
+            // pending-steer drain (bar text: "run.completed AND the final
+            // status read") — a client that lost the stream still learns
+            // its steer never landed.
+            if let pendingSteer = Self.decodePendingSteer(snapshot.rawJSON) {
+                continuation.yield(.steerUnconsumed(pendingSteer))
+            }
             // The poll just completed a round trip and came back with an
             // answer — whatever killed the stream, the host is reachable.
             connectionStatus = .connected
