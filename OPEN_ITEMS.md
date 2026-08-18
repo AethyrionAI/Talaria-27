@@ -22753,6 +22753,95 @@ writes and can SELF-UN-PAIR, which would itself fire `handlePairingRemoved
 → reset()` — a sim reproduction must use a signed build or account for
 that confound, or it will "confirm" the suspect path trivially.**
 
+**2026-08-18 ~10:00 — HALF 1 DIAGNOSED: the mechanism is `reset()` BY
+CONSTRUCTION, and the launch trigger is REPRODUCED in the sim (log-pinned,
+not guessed).** Static sweep first: the resurrect signature (items survive,
+marks die) is produced by exactly one thing in the codebase —
+`InboxStore.reset()` preserves `platformItems` while clearing
+`readItemIDs`/`dismissedItemIDs` — and reset() has exactly three callers,
+all in AppContainer: `handlePairingActivated`, `handlePairingRemoved`,
+`handleActiveProfileChanged`. Identifier drift is ruled out
+(`stableIdentifier` = the persisted row's own UUID, synthesized-Codable
+round-trip; single blob writer; symmetric ISO8601 coders).
+
+**Sim reproduction (CC-lane-1, the 2026-08-18 00:07 gate build, seeded
+container):** a plain unpaired launch and a reinstall-relaunch both leave
+marks byte-intact (phases A/B). Seeding a pairing record with an EMPTY
+access-token keychain slot (phase C) fires, in one launch:
+`initialize: ABORT — no access token, clearing pairing` →
+`handlePairingRemoved` (chatStore's "journal reset" line brackets it) →
+the app's container blob ends `readItemIDs: []` with both platform items
+preserved — **the exact reported symptom, log-pinned end-to-end.**
+Two methodology notes, recorded so the next lane doesn't trip: (1)
+`simctl spawn defaults` reads/writes the sim's OUTSIDE preferences domain
+— the app READS seeds from it but WRITES to its container plist, so
+verify app writes in `get_app_container`'s Preferences plist, never via
+`defaults export`; (2) the phase-C "reload: persisted pairing recovered"
+line was the harness echoing the outside-domain seed back, not app
+behavior.
+
+**What is and is not pinned:** the MECHANISM and the launch-path trigger
+shape are proven. WHICH trigger fires on Owen's device per rebuild is
+NOT — the phase-C path on a real device would also clear the pairing
+record (one-shot unless something recreates it), and Owen's drain
+demonstrably works, so his per-rebuild trigger may equally be the
+`handleActiveProfileChanged` arm (he profile-switched Mac↔OJAMD
+repeatedly this week) or a launch-time credential-scope skew making
+`currentAccessToken()` read the wrong slot. Two 10-second device answers
+discriminate (asked in-session): is the phone paired right now, and did
+the two items resurrect after this morning's build-2787 install? A
+corded `log collect` tonight settles it for good if needed. **The fix
+below does not wait on that answer, because clearing marks for rows the
+reset deliberately PRESERVES is wrong under every trigger.**
+
+**Design (before code):**
+- **Class fix:** `reset()` scopes mark-clearing to what it actually
+  clears — marks whose ids belong to surviving `platformItems` survive
+  with them (`intersection` on `stableIdentifier`); relay/local
+  annotations still die. The existing pinned test
+  `resetPreservesPlatformItemsAndClearsReadMarks` encodes the defective
+  design and is REWRITTEN in the same commit (per the
+  tests-written-after-a-defect discipline, its RED direction is verified
+  before the fix).
+- **Delete (Owen: swipe):** `InboxStore.delete(_:)` removes a
+  platform/local row AND its marks; platform delete is real deletion of
+  the only copy (server row long acked+dropped — #144's
+  deactivate-never-delete governs SERVER rows, not the user's local
+  copy). Delete-implies-read resolves itself: a removed row has no unread
+  state. Relay-fetched rows keep dismiss; delete targets platform+local
+  rows only. The row-level affordance decision is extracted testable
+  (the `InboxRowTapAction` precedent); the List conversion needed for
+  native swipe keeps the HUD look (plain style, hidden scroll background).
+- **Clear-all (Owen: yes):** `clearAllInboxItems()` behind a
+  confirmation dialog — removes platform+local rows and their marks.
+- **Finding FILED, not built here:** `initialize()`'s token-guard
+  answers a missing keychain read with `clearLocalPairing()` — a
+  destructive response to possibly-transient state, and the only
+  launch-path reset trigger. Owen routes whether that policy changes
+  (cross-ref #46/#15).
+
+**BARS (354-A..F, pre-registered before fix code):**
+- **354-A (class fix, unit):** after reset(), marks for surviving
+  platformItems survive (read AND dismissed), marks for relay/local ids
+  are cleared, platformItems byte-identical, visible list emptied. The
+  rewritten pin goes RED against the old behavior first.
+- **354-B (resurrect regression, unit):** the full shape — persisted
+  platform items + read marks → reset() (the handlePairingRemoved arm) →
+  fresh load → items still read. RED against current code first.
+- **354-C (delete, unit):** delete removes the row and its marks from
+  the persisted blob; a second delete of the same row is a no-op; unread
+  count reflects removal; relay-fetched rows are not deletable through
+  this API.
+- **354-D (clear-all, unit):** clears platform+local rows and their
+  marks, persists empty, empty state logic unaffected for future items.
+- **354-E (affordance, unit):** the extracted row-affordance decision
+  offers delete exactly for platform+local rows; the clear-all action
+  only fires through the confirm path.
+- **354-F (gate):** `lane-gate.sh` PASS on a pool sim (TCC re-grant
+  first), Swift Testing count MOVED from 2331, Release clean. PR for
+  Owen's review; his merge is the gate.**
+
+
 ## 355. 📝 README (+ docs site) REFRESH PASS once the current arc lands — the setup story still teaches the legacy tier as the main path — **FILED 2026-08-16 night on Owen's ask mid-#269-A ("Once this is all done, can you also make a note to update the readme?"). SHIPPED 2026-08-17 night: ALL BARS 355-A..E MET (`d3e4b176`, PR #314 merged `41f02b2` on Owen's "merge 314") — Setup teaches the real tiers, the plugin link is drawn in the diagram, relay/connector demoted to a labeled Legacy section, docs/ pages aligned; gate PASS (docs-only, counts unchanged). CLOSED-SHAPE; archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for a day after the ship and cost a wrong work-menu recommendation before Owen caught it.)**
 
 **Why a pass rather than more per-lane close-outs:** #352/#269-A corrected
