@@ -3984,6 +3984,16 @@ struct AppStoresTests {
         #expect(ChatStore.inferredContextWindow(for: "claude-sonnet-4.6") == 1_000_000)
     }
 
+    /// #349 follow-up (Owen's OJAMD pass): deepseek-v4 is a 1M-token family
+    /// — the blanket deepseek → 128K arm is a V3-era number and made the
+    /// gauge read 68% on a ~9%-full window. V4 first, generic second.
+    @Test @MainActor
+    func chatStoreInfersDeepseekV4MillionTokenWindow() {
+        #expect(ChatStore.inferredContextWindow(for: "deepseek-v4-flash") == 1_000_000)
+        #expect(ChatStore.inferredContextWindow(for: "deepseek-v4") == 1_000_000)
+        #expect(ChatStore.inferredContextWindow(for: "deepseek-chat") == 128_000)
+    }
+
     // MARK: - CTX denominator reconciliation (#4)
 
     @Test @MainActor

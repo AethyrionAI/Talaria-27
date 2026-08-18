@@ -22525,6 +22525,39 @@ longer explains this suite's rate. Today's tally: ~2 of 5 bundle-context
 runs across THREE different diffs. If the rate holds, the suite's budget
 premise deserves its own lane.**
 
+
+**2026-08-18 ~18:00 — TWO POST-MERGE DEFECTS FOUND BY OWEN'S OJAMD DEVICE
+PASS (the evening rollout verification), both fixed on branch
+`349-refetch-hole`:**
+1. **The refetch hole.** Live, the gauge correctly hid on the tool turn
+   (Owen's screenshot has no CTX badge — the merged fix working). On
+   REOPEN it came back reading **68% with the summed 87K**: a refetched
+   turn SPLITS into rows — the tool-call row carries the activities, the
+   prose tail carries none — and the merged gate only checked the last
+   message. Fix: TURN-scoped gate (any tool activity since the last
+   user-authored message hides the gauge); RED observed first on the
+   exact split-row shape from the device
+   (`gaugeNumeratorAbsentWhenARefetchedTurnSplitsAcrossRows`).
+2. **The denominator.** deepseek-v4-flash resolved through the fallback
+   table's blanket `deepseek → 128_000` — a V3-era number; 87,111/128,000
+   is exactly the observed 68%. **The host catalog carries NO context
+   field** (schema probed live: `/api/model/options` models are bare id
+   strings), so the table is load-bearing. deepseek-v4 is a **1M** family
+   (verified against DeepSeek's own docs, HF, OpenRouter, and the V4
+   paper) — `deepseek-v4 → 1_000_000` added ahead of the generic arm.
+   Real occupancy on Owen's turn: ~9% — and hidden anyway once the
+   turn-scope fix lands, since it was a tool turn.
+Owen's pass also confirmed the OJAMD chip renders on reopen (attribution
+between mirror-hold-attach and #364 reconstruction pending the outbox-row
+timing query, box-side). **The LIVE-attach behavior DIFFERS BY HOST (Owen,
+same evening): on the Mac the preview appears live, mid-thread — the 3D
+pass's created=delivered-same-second shape — while OJAMD's first test
+needed leave-and-return.** Two candidate stories, discriminated cheaply:
+a SECOND write turn on the warmed link (live chip ⇒ warmup race, no bug)
+vs the outbox-row timing query (delivered-during-turn ⇒ app-side attach
+miss on OJAMD; delivered-at-reopen ⇒ the HUB wake/drain not firing
+host-side on Windows). Awaiting Owen's retest.
+
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
 **What the PRs are.** GPT 5.6 Sol (dispatched when the 5-hour Claude cap hit) shipped
@@ -24236,6 +24269,31 @@ rollout, recorded here at 0.4.0's home:
 5-minute list): profile switch to OJAMD (#354's switch arm + #350's
 CHECKING presentation), one file-write turn (mirror chip on OJAMD), a
 reopen (closes #364's terminal-not-write_file caveat on OJAMD's shape).
+
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). NOT STARTED — observation only; no diagnosis attempted yet.**
+
+**What was observed (build 2808, whoGoesThere):** Server settings →
+select OJAMD → back → a full-screen Talaria connecting/orb screen for
+~10 s before the chat UI returned. The #247 profile-switch design is
+deliberately NON-blocking — verdicts land as a toast (~5 s) while the UI
+stays usable — and no recorded design presents an interstitial on switch.
+
+**Honest unknowns, recorded before anyone anchors:** whether this is NEW
+on 2808 or long-standing-but-newly-noticed (Owen has switched profiles
+many times this month); whether it is the cold-launch splash machinery
+(#136's local-state-ready gate) re-presenting on a switch, a blocking
+await in the switch path (session/catalog refresh against the new host?),
+or something else. #350 changed connection PRESENTATION states today but
+touched nothing full-screen — not assumed innocent, not assumed guilty.
+
+**When it opens:** reproduce on a switch back to Mac (is it
+direction-agnostic?), read `handleActiveProfileChanged`'s await chain
+against what the root view gates on, and check whether the ~10 s tracks
+the #247 probe window or the OJAMD session-list fetch.
+
+**Cross-refs:** #247 (the non-blocking switch design), #350 (today's
+presentation change, for elimination), #136 (the splash's
+local-state-ready gate).
 
 ## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. BUILT OVERNIGHT on Owen's go ("Do 364"): ALL BARS 364-A..F MET, PR #316 merged `d03246e8`, OTA build 2787 installed, DEVICE-PROVEN 2026-08-18 ~07:19 (the #362 negative-arm chip rebuilt from stored args alone — its mirror item was long acked+dropped). OJAMD's storage shape MEASURED the same morning (~09:00, direct API read — full stored args confirmed on 0.20.3 there too; the one honest gap is that the probed rows were `terminal`, not `write_file`, and the degrade arms cover it either way). Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 twice — it read "NOT STARTED" after the device proof, then "OJAMD UNVERIFIED" for the seven minutes between the 08:55 re-home and the 09:02 measurement.)**
 
