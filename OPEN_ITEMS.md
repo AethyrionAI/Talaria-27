@@ -23266,3 +23266,70 @@ server screen already does that half right).
 hops / frozen endpoints — the multi-profile machinery this status sits on),
 #180 (visible degradation), #192 (router lock/brain surface, if the pip
 turns out to read the router).
+
+> **🔬 2026-08-17 ~21:20 — ROOT CAUSE LOCALIZED (same night, live evidence:
+> app console session `c3b881500` + the Mac gateway access log — and the
+> filed mechanism above is CORRECTED by it, see the note at the end).**
+>
+> **The chain (all verified on-code + on-wire):** banner + header pip ←
+> `ChatScreen.effectiveConnectionState` ←
+> `ChatConnectionPresentation.effectiveState(chatStore.directConnectionStatus)`
+> ← a poll-refreshed SNAPSHOT (`private(set) var directConnectionStatus`,
+> written ONLY by `refreshDirectHealth()`; the snapshot exists because
+> `SessionsHermesClient` is not `@Observable`). What happened on device:
+> 1. **20:44:18 (launch bootstrap):** the one-shot probe died at ATS —
+>    `Sessions API /v1/models failed: …App Transport Security policy…` (a
+>    transient: the CIDR exception provably works, chat flowed all night —
+>    beta-6 launch-window flake; exactly ONE such line all session) — and
+>    wrote `.error`. The banner went OFFLINE from second zero.
+> 2. **The probe then starved.** `/v1/models` reached the gateway at
+>    20:44:38 and 20:44:53 (both 200) and NEVER AGAIN in 25+ minutes of
+>    foreground use. Both the bootstrap and every poll tick serialize
+>    `hostStore.refresh()` BEFORE `refreshDirectHealth()`
+>    (`startChatSession`, `monitorConnectionStatus`), and the refresh path
+>    was drowning in serial ~60 s timeouts against the sick dormant OJAMD
+>    relay (`listSessions: 'OJAMD' unreachable — timed out` at 20:44:38/57,
+>    20:47:30/31, 20:48:15/16/17; `refresh: dormant profile 'OJAMD' failed —
+>    timed out` 20:45:19). The become-active chain also carries
+>    `refreshDirectHealth` but logged `chain exceeded its foreground budget —
+>    cutting it short` (20:45:04) and `superseding an in-flight activation`
+>    (20:45:07/12) before reaching it.
+> 3. **Meanwhile the LIVE status was right and nobody read it.** The
+>    sessions client writes `connectionStatus = .connected` on every
+>    successful turn (it streamed the whole #357 pass); the banner reads
+>    only the stale snapshot. `.error` written once at 20:44:18 painted
+>    OFFLINE for the entire session.
+>
+> **Correction to this entry's filed mechanism (close-out rule):** the
+> dormant profile does NOT "bleed into an aggregate status" — `listSessions`
+> tolerates partial failure and never writes `connectionStatus`. The dormant
+> profile's real crime is STARVING the probe (it sits, with minute-scale
+> timeouts, ahead of the direct-health refresh in every serialized chain).
+> Wrong in letter, right in effect; the fix below addresses both the
+> staleness and the starvation.
+>
+> **Also observed, NOT this lane:** (a) Mac-side `127.0.0.1` python client
+> 401-spamming `POST /api/platforms/talaria/events` every 5 s (host-side
+> plugin with a bad key — flag for the 3D plugin lane); (b) transient ATS
+> -1022 on the app's relay-family (`:8000`) and platform-events loads
+> clustered at scene transitions, with an immediate retry succeeding
+> (beta-6 flake; the #166b exception itself stands — chat proved it).
+>
+> **THE BARS (pre-registered before fix code, #215 convention):**
+> - **361-A (traffic is evidence — RED first):** with the snapshot seeded
+>   `.error`, a successfully COMPLETED turn must flip
+>   `directConnectionStatus` to the live client status at its terminal — no
+>   probe involved. RED on pre-fix code documents the staleness; the #306
+>   manual-client suites are the harness pattern.
+> - **361-B (probe not starved):** the health tick's direct-health half
+>   completes even when the host/relay refresh hangs FOREVER (never-resolving
+>   stub; settle-box + bounded pump, no Task.value racing). Single-flight on
+>   the host-refresh half — a hanging sweep must not pile up either. The
+>   tick moves into a unit-testable seam; the view loop stays thin.
+> - **361-C (honest in BOTH directions):** a FAILED turn's terminal copies
+>   the live status too — traffic can take the banner offline, not only the
+>   probe. Unit-asserted.
+> - **361-D (gate + device + close-out):** lane-gate green; this entry's
+>   falsified mechanism corrected (done above, this note); device re-check
+>   recorded here: with OJAMD still down, a fresh launch may show OFFLINE
+>   only until the first success (probe or turn), then honest thereafter.
