@@ -23277,3 +23277,31 @@ not emit `.failed`.
 **Cross-refs:** #359 (the investigation that surfaced this), #4.15 (the
 hedge pattern), #131/#82/#198 (this controller's prior hardening), #9
 (voice memos — separate path, untouched).
+
+> **✅ 2026-08-17 late evening — BARS A, B, C, D ALL MET, same session.**
+> - **360-A MET:** the verbatim extraction went in first; the
+>   desired-semantics tests were observed RED against it — 5 of 8 failed
+>   (beheading, second-final accumulation, finished-carries-everything,
+>   range join, empty-volatile), the 3 cumulative-mode guards passing on
+>   both semantics as predicted.
+> - **360-B MET:** hedged assembler in (`hasPrefix` = cumulative snapshot;
+>   otherwise range text, PLAIN concatenation — the recognizer owns token
+>   spacing, decided when the mid-word-boundary test contradicted invented
+>   separators; one test's INPUT was corrected to carry its own leading
+>   space, modeling that contract). Controller: no `break` at `isFinal`,
+>   `.finished` at stream end, `CancellationError` emits nothing. 8/8
+>   green.
+> - **360-C MET, with one addition beyond the pre-registered design:**
+>   review flagged that moving `.finished` to stream-end GAMBLES the
+>   device-proven auto-stop UX on an unverified assumption (does the
+>   results stream end by itself after the last final?). A **1 s
+>   finish-grace** was added: a final arms it, any later result disarms
+>   it, its firing (or stream end, whichever first) finishes the
+>   utterance. Single-final world: auto-stop preserved (+1 s). Multi-final
+>   world: no truncation. Double-finish impossible (`stop()` nils the
+>   continuation and cancels the results task, whose cancellation path
+>   emits nothing). The grace is review-verified, not unit-tested (actor +
+>   real clock); a device dictation pass remains the honest closer for the
+>   auto-stop timing.
+> - **360-D MET:** GATE: PASS — 2245 Swift Testing tests (exactly +8 for
+>   this lane's suite), 14 XCUITest, Release clean.
