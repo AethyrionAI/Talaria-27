@@ -23052,6 +23052,62 @@ skipped silently), #268 (why this filed as its own number).
 > next lane; **its bars pre-register HERE before any code, per the #215
 > convention.**
 
+> **📋 2026-08-17 late evening — THE APP-HALF BARS, pre-registered before
+> any code (lane opens next session; this session teed it up after #358 +
+> #360 landed on the same seam).** Design of record: §2.5/§2.6 of the
+> Phase 3 plan, as MODIFIED by this entry's wire facts — the native steer
+> route replaces §2.3's plugin seam; `run.steered` gives the applied
+> signal §2.5 assumed could not exist, so the tool-in-flight heuristic is
+> a UX affordance, not the only safety; `pending_steer` is the honest
+> landing for every missed steer. The §2.6 QUEUE door already shipped as
+> #306's hold (holdComposedTurn + chip + fire-on-completed) — this lane
+> builds the STEER and INTERRUPT doors and the picker, it does not rebuild
+> the queue.
+>
+> - **357-E (one composer, three doors, named — with a user-set DEFAULT
+>   door):** with a runs-plane turn in flight the composer offers per
+>   §2.6: STEER, QUEUE (the existing #306 hold), INTERRUPT-and-resend.
+>   **Owen's directive (2026-08-17, mid-lane): a Settings toggle chooses
+>   what a plain mid-turn SEND does — queue or steer** ("we should
+>   probably have an option in settings to toggle what send does. Does it
+>   queue, or does it steer?"). Default = QUEUE (today's shipped #306
+>   behavior; steer is the opt-in). The setting picks the user's INTENT;
+>   the state machine keeps owning feasibility — a steer-preference send
+>   in the prose phase still fires the steer and degrades HONESTLY via
+>   357-G's `pending_steer` conversion (this is exactly why the wire facts
+>   make the preference safe to honor, and why §2.6's "the composer picks
+>   the door" survives: the composer picks within the user's declared
+>   default). The door taken is NAMED in the UI (#180 visible
+>   degradation), and the non-default door stays reachable as an explicit
+>   affordance. MET iff door selection per (turn phase × setting) is
+>   unit-asserted, including the degradation path.
+> - **357-F (phase tracking, pure):** ChatStore derives the phase from the
+>   stream it already decodes (`tool.started` without a matching
+>   `tool.completed` = tool-in-flight; completed + prose flowing = prose
+>   phase; stream-lost/run-live = row 3). Pure logic, unit-tested,
+>   including out-of-order/duplicate tool events.
+> - **357-G (steer submit + the honesty contract):** steer POSTs the
+>   native route on the turn's FROZEN endpoint (#285). The HTTP ACK
+>   renders as submitted only ("steering…"), NEVER applied. `run.steered`
+>   on the events stream is THE applied signal. A turn that ends with
+>   `pending_steer` converts the steer text into the thread's held
+>   next-message (the #306 chip, labeled as "didn't catch this turn —
+>   sends next") — nothing silently lost. MET iff fixture-stream tests
+>   cover: applied (frame seen), missed (no frame + `pending_steer` →
+>   chip), 409 closed-window (composer keeps the text + honest notice),
+>   404 unknown-run. **A steer that renders "sent" on ACK alone is this
+>   lane's named failure (§2.5).**
+> - **357-H (interrupt door):** INTERRUPT = `hardStopActiveRun()` then the
+>   text posts as a fresh turn once the stop settles — labeled "stopped —
+>   sending as a new message". MET iff the ordering is test-asserted with
+>   no double-send.
+> - **357-I (row-3 supersession honored):** stream-lost/run-live offers
+>   QUEUE only (no steer — unreachable anyway; no fire into a live
+>   `pendingRun`, #306/#307).
+> - **357-J (gate + device):** lane-gate green before PR; the steer arm's
+>   DEVICE pass (live long-tool turn against the Mac gateway, PLUM-style)
+>   is OWED at close and recorded here either way.
+
 ## 358. 🐛 Delivered-but-unrendered turns — three consecutive sessions-plane SSE replies fully streamed to the phone, nothing rendered (the REAL bug #356's morning stage exposed) — **FILED 2026-08-17 evening, out of #356's resume-session evidence pass. UNREPRODUCED under instrumentation; app-side; transport-independent.**
 
 **The evidence (from #356's 2026-08-17 block, all wire-verified):** on
