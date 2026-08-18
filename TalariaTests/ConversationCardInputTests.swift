@@ -248,6 +248,24 @@ struct ConversationCardInputTests {
         #expect(conv.contextOccupancyTokens(for: usage) == 30000)
     }
 
+    /// Owen's OJAMD device pass (2026-08-18 evening) found the refetch
+    /// hole: a REFETCHED turn splits into rows — the tool-call row carries
+    /// the activities, the prose tail carries none — so a last-message gate
+    /// un-hid the gauge with the summed 87K. The gate is TURN-scoped: any
+    /// tool activity since the last user message hides it.
+    @Test func gaugeNumeratorAbsentWhenARefetchedTurnSplitsAcrossRows() {
+        let usage = TokenUsage(promptTokens: 87111, completionTokens: 200, totalTokens: 87311)
+        var toolRow = Message(sender: .hermes, content: "")
+        toolRow.toolActivities = [ToolActivity(label: "write_file", startedAt: .now, isActive: false, detail: "O:\\Hermes\\ojamd-test.md")]
+        let proseTail = message(.hermes, "Done — the file has a rain haiku.")
+        let conv = conversation([
+            message(.user, "write ojamd-test.md with a haiku"),
+            toolRow, proseTail,
+        ])
+
+        #expect(conv.contextOccupancyTokens(for: usage) == nil)
+    }
+
     @Test func gaugeNumeratorAbsentWithNoUsage() {
         let conv = conversation([message(.user, "hi"), message(.hermes, "hello")])
 

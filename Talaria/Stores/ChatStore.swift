@@ -4312,6 +4312,9 @@ final class ChatStore {
         if n.contains("gemma-4-31b") || n.contains("gemma-4-26b") { return 256_000 }
         if n.contains("gemma-3") { return 131_072 }
         if n.contains("gemma") { return 8_192 }
+        // deepseek-v4 is a 1M family (verified 2026-08-18; the blanket arm
+        // below is the V3-era number).
+        if n.contains("deepseek-v4") { return 1_000_000 }
         if n.contains("deepseek") { return 128_000 }
         if n.contains("llama") { return 131_072 }
         if n.contains("qwen") { return 131_072 }

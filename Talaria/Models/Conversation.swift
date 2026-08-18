@@ -28,8 +28,16 @@ struct Conversation: Codable, Identifiable, Hashable, Sendable {
     /// removes the ceiling warning when it matters).
     func contextOccupancyTokens(for usage: TokenUsage?) -> Int? {
         guard let prompt = usage?.promptTokens else { return nil }
-        let lastHermes = messages.last(where: { $0.sender == .hermes })
-        return (lastHermes?.toolActivities.isEmpty ?? true) ? prompt : nil
+        // TURN-scoped, not last-message: a REFETCHED turn splits into rows
+        // (the tool-call row carries the activities, the prose tail carries
+        // none), and a last-message gate un-hid the gauge with the summed
+        // input on reopen — Owen's OJAMD device pass, 2026-08-18 evening.
+        // Any tool activity since the last user-authored message hides it.
+        for message in messages.reversed() {
+            if message.sender == .user || message.sender == .voiceUser { break }
+            if !message.toolActivities.isEmpty { return nil }
+        }
+        return prompt
     }
 
     /// One-line on-device preview generated alongside the title (#4.8).
