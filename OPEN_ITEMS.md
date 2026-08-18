@@ -22260,6 +22260,70 @@ The drawer reading was re-checked after **20+ seconds** of dwell and did not cha
 **2026-08-18 ~09:45 — Owen's go, in-chat: "good to start 350 as well."
 Lane queued this session, after #354 opens.**
 
+**2026-08-18 ~11:40 — LANE OPEN (Owen's go this morning); MECHANISM READ
+FROM SOURCE; DESIGN ELECTED; BARS PRE-REGISTERED BEFORE CODE.**
+
+**The lie, located exactly (two independent halves):**
+1. `SessionsHermesClient.connectionStatus` initializes `.disconnected` and
+   `ChatConnectionPresentation.effectiveState` maps `.connecting` AND
+   `.disconnected` → `.online` ("stay optimistic so we never flash a false
+   offline before the first probe resolves") — so a cold launch renders
+   LINKED · ONLINE with a green pip on the chat header, the split-view
+   sidebar footer, and the drawer footer (all three ride this one J-8
+   mapping via `ContentView.chatConnectionState`) before ANY probe has
+   run, and keeps rendering it until a probe lands.
+2. The settings surfaces (`AboutSettingsContent` /
+   `SettingsChannelsScreen` / `UplinkSettingsScreen`) each carry a
+   VERBATIM-DUPLICATED `effectiveConnectionState` that claims `.online`
+   only on a measured `.connected` — but falls back to
+   `hostStore.connectionState` (relay-plane memory) for EVERY other direct
+   status, including a measured `.error`: a direct-plane probe failure
+   cannot darken a stale relay-online. Three copies of one computation is
+   the #256 drift shape this same file already documents.
+
+**Design (elected from the entry's open options — the "relabel to name
+what is actually known" + measured-state option, no new polling
+machinery; the #361 ticker already re-probes every 10–30 s while
+active):**
+- `HermesHostConnectionState` gains **`.checking`** — the honest
+  paired-but-unmeasured state. #25 governs its rendering everywhere: no
+  ONLINE text, no green (detail "LINKED · —": paired IS a local fact;
+  reachability is absent until measured).
+- `effectiveState`: `.connected` → `.online`; `.error` → `.offline`;
+  `.connecting`/`.disconnected` → `.checking`. The optimistic arm dies.
+- The settings triple collapses into ONE extracted pure function
+  (`settingsEffectiveState(direct:hostFallback:hostConfigured:)` beside
+  the J-8 mapping): measured `.connected` → `.online`; measured `.error`
+  → `.unreachable` (a direct-plane failure outranks relay memory — the
+  relay is Stopped+Disabled on the daily driver anyway); no verdict +
+  host configured → `.checking`; no verdict + hostless → the hostStore
+  fallback unchanged (the ON-DEVICE story keeps its honesty).
+- `SettingsCardValues.uplink`/`statusStrip` + `SettingsCardAccent.uplink`
+  gain compiler-forced `.checking` arms: "CHECKING", no LINKED claim, no
+  accent.
+
+**BARS (350-A..E):**
+- **350-A (mapping, unit):** `.disconnected` and `.connecting` present as
+  `.checking` — never `.online`; `.connected` → `.online`; `.error` →
+  `.offline`. `sessionsHostDetail(.checking)` carries no ONLINE claim and
+  the pip/accent for `.checking` is not the online green.
+- **350-B (one settings truth, unit):** the extracted function replaces
+  all three private copies (they are DELETED — by construction there is
+  one call target); measured `.error` can no longer render green through
+  the relay fallback; no-verdict + configured host → `.checking`;
+  hostless arm byte-identical to today.
+- **350-C (values, unit):** `uplink(.checking)`, `statusStrip(.checking)`
+  and `SettingsCardAccent.uplink(.checking) == false` render the
+  explicitly-unknown form — no "LINKED"/"CONNECTED", no green.
+- **350-D (the entry's own fixture, sim):** cold launch with a configured
+  host on a verified-REFUSED port — no surface renders ONLINE/green
+  before the first probe, and after it the presentation is a measured
+  offline form. Screenshots recorded.
+- **350-E (gate):** `lane-gate.sh` PASS on an ERASED pool sim (the #354
+  lesson — this lane seeds no state, but the pool carries other lanes'),
+  Swift Testing count MOVED from 2340, Release clean; PR for Owen's
+  review.
+
 ## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 9:43 PM on `whoGoesThere`, paired to OJAMD, model `deepseek-v4-flash`. Filed on Owen's device pass; he had independently reached "I'm leaning towards remove it."**
 
 **The measurement, from two consecutive turns in one thread (screenshots):**
