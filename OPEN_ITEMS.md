@@ -23642,3 +23642,23 @@ talaria-plugin #4 (DO-NOT-MERGE until Owen's review). Merge/deploy order:
 #315 first, then the plugin deploy + gateway bounce + desktop restart
 (per-slice go granted 2026-08-17 late night, above), then 3D-F cadence
 measurement and the 3D-H device pass.**
+
+**2026-08-17 ~23:35 — MERGED AND DEPLOYED (Owen's "lets do it", in-session):**
+app PR #315 → merge `ce69b57`; plugin PR #4 → merge `3d6f4b3` (both real
+merges). Live deploy on the Mac under the granted go: plugin pulled to
+`3d6f4b3` (0.3.0), gateway bounced — **the #264 Errno-48 race fired on the
+first respawn exactly as documented** (healthy PID, "✗ api_server failed
+to connect", headless) and the budgeted second restart landed it: listener
+**PID 45333, started 23:31:18**, serving the checkout head by
+reflog-vs-start-time (`/health` now reports **0.20.3** — the head advanced
+past 0.20.1 with the auto-update, as the go named). Adapter answers 401
+unauthenticated; no mirror-registration failure line; CLI reads plugin
+0.3.0 enabled. **Also identified in passing: the `talaria-push` INFO lines
+in agent.log are the #223 push-v1 resident watcher** — a `gateway:startup`
+hook at `~/.hermes/hooks/talaria-push/` (APNs ping on session-run
+completion, 4 s poll), installed ~Aug 4, pre-existing and unrelated to
+this lane. **OTA staged: main @ `ce69b57`, v1.0.0 build 2781** — phone
+installs from Safari (whoGoesThere was not corded; MamaPhonePrime is the
+only paired-visible phone). **Remaining: Owen relaunches Hermes Desktop
+(the probe cache lives in ITS serve process — 3D-F measures after), then
+the 3D-H device pass.**
