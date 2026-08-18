@@ -23736,3 +23736,43 @@ about STORAGE). Consequences worth a lane:
 **Cross-refs:** #362 (where the gap was found), #277 (the sidecar whose
 premise moves), #21 (Tier 1's history), N1 in the Phase 3 plan (stream
 vs storage now diverge on purpose).
+
+**2026-08-18 ~00:15 (lane open, Owen's overnight go: "Do 364") — code read
+done; BARS PRE-REGISTERED (per #215, before any code).** The gap located
+exactly: `SessionsHermesClient.StoredToolCall` decodes `name` (drift-
+tolerant) + `preview`→detail and DROPS `function.arguments`;
+`mapStoredMessage` (:1036) builds detail-less activities and no
+attachments. Design: reconstruct at the mapping, degrade to today's
+behavior when arguments are absent/malformed (which is ALSO the OJAMD-
+unverified posture — no version gate needed, the wire shape itself is the
+gate). Deterministic attachment ids (the #237 stableMessageID pattern,
+keyed session:row:path) make reconstruction idempotent across refetches;
+a path-aware skip in the sidecar replay handles the one crossing where a
+pre-364 streaming-time record meets a post-364 reconstructed chip.
+
+**BARS (364-A..F):**
+- **364-A (reconstruction, unit):** a stored assistant row whose
+  `write_file`/`create_file` tool_call carries parseable
+  `function.arguments` `{path, content}` maps to a message with ONE
+  Tier-1 staged attachment (deterministic id) AND an activity whose
+  `detail` is the path; absent/null/malformed/non-string arguments, and
+  content-less or non-write calls, map EXACTLY as today (activity only,
+  no attachment, no crash). Flat `arguments` tolerated beside nested.
+- **364-B (no dup, unit):** the same row mapped twice yields the same
+  attachment id; sidecar replay onto a row already carrying a chip for
+  the same file adds NOTHING (the pre-364-record crossing); the mirror
+  correlator drops its item as already-filled when reconstruction beat it.
+- **364-C (the #362 gap closed, integration):** the negative-arm shape —
+  openSession of a thread whose stored row carries write args — renders
+  the chip with NO mirror item and NO sidecar record; and a mirror item
+  arriving anyway changes nothing.
+- **364-D (honesty):** content comes ONLY from verbatim stored arguments —
+  no new prose harvesting, no invention; a pointer-only write stays
+  pointer-only.
+- **364-E (close-out):** the #277 premise ("name + preview only, never
+  args/content") corrected as a DATED, VERSION-SCOPED note at its homes
+  (the `AgentAttachmentSidecar.swift` header; any tracker text repeating
+  it) in the same commit — the sidecar remains load-bearing (anchors,
+  pre-364 records, arg-less hosts) and the correction must say so.
+- **364-F (gate):** `lane-gate.sh` PASS (units + Release), count MOVED
+  from 2317. PR opened; merge is Owen's morning review — NOT overnight.
