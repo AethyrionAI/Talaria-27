@@ -23560,23 +23560,6 @@ success / 10 s failure floors — plan Task P3); (4) **outbox TTL → none
 in-lane; follow-up FILED as #363.** Lane plan of record:
 `planning/superpowers/2026-08-17-3d-artifact-mirror.md`.
 
-## 363. 🔧 Outbox hygiene — talaria plugin outbox/devices rows are retained forever by design; artifact-kind rows (3D, #362) make the cost content-sized — **FILED 2026-08-17 late night out of #362's design read, per Owen's routing ("no TTL now, file follow-up"). NOT STARTED — no bars; scope TBD when it opens.**
-
-**What it is:** `outbox_items` rows are never deactivated after delivery
-and never expire undelivered (`README.md:81` "Devices and delivered items
-are retained rather than deleted"; verified by grep — nothing ever sets
-`outbox_items.active = 0`). Fine for chat-sized `message` rows; #362's
-`kind="artifact"` rows carry whole file contents, so a device that stops
-draining (offline phone, uninstalled app) accumulates content-sized rows
-in `talaria.db` indefinitely. When this opens: decide retention policy
-(deactivate-never-delete per the #144 shape; delivered-row cleanup vs
-undelivered TTL are separate questions), and remember the plugin is NOT
-under the do-not-harden rule (that rule is relay/connector-specific — the
-plugin is the future, actively developed).
-
-**Cross-refs:** #362 (where the cost arrives), #351 (storage discipline
-precedents), #144 (deactivate-never-delete shape).
-
 **2026-08-18 early — BOTH HALVES BUILT, RED-first throughout; gate running.**
 Plugin half: **talaria-plugin PR #4** (branch `3d-artifact-mirror`,
 DO-NOT-MERGE until Owen's review; CI green 3.11+3.12; suite **138 → 157**,
@@ -23709,7 +23692,110 @@ arm's PHRASING corrected by the device):**
   trouble; `hermes plugins update` + gateway restart when it returns —
   until then the mirror runs on the Mac profile only).
 
-## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. NOT STARTED — investigation + likely app-side lane; no live-install gate.**
+## 363. 🔧 Outbox hygiene — talaria plugin outbox/devices rows are retained forever by design; artifact-kind rows (3D, #362) make the cost content-sized — **FILED 2026-08-17 late night out of #362's design read, per Owen's routing ("no TTL now, file follow-up"). OPENED AND CLOSED-SHAPE 2026-08-18 (Owen's morning routings: scrub@7d, artifacts-only, per-slice deploy go): ALL BARS 363-A..F MET, plugin PR #5 merged `a8b5f7a` (0.4.0), deployed live on the Mac (listener verified; honest-zero sweep observed). WATCH: first natural nonzero sweep ~2026-08-25. Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" for half a day after the close.)**
+
+**What it is:** `outbox_items` rows are never deactivated after delivery
+and never expire undelivered (`README.md:81` "Devices and delivered items
+are retained rather than deleted"; verified by grep — nothing ever sets
+`outbox_items.active = 0`). Fine for chat-sized `message` rows; #362's
+`kind="artifact"` rows carry whole file contents, so a device that stops
+draining (offline phone, uninstalled app) accumulates content-sized rows
+in `talaria.db` indefinitely. When this opens: decide retention policy
+(deactivate-never-delete per the #144 shape; delivered-row cleanup vs
+undelivered TTL are separate questions), and remember the plugin is NOT
+under the do-not-harden rule (that rule is relay/connector-specific — the
+plugin is the future, actively developed).
+
+**Cross-refs:** #362 (where the cost arrives), #351 (storage discipline
+precedents), #144 (deactivate-never-delete shape).
+
+**2026-08-18 morning — LANE OPEN (Owen: "363, let's square this away
+while I'm at work today"); his three routings, in-session: (1) SCRUB AT
+7 DAYS — delivered artifact rows blank their text and deactivate (row +
+meta + delivered_at retained, never DELETE, the #144 shape); undelivered
+artifact rows deactivate at 7 days (an 8-day-offline phone loses queued
+artifacts, honestly); (2) ARTIFACTS ONLY in v0 — message-kind rows keep
+today's forever-retention; (3) per-slice deploy go GRANTED — his PR
+review stays the merge gate, then the Mac deploy (pull + bounce +
+listener verify) lands while he's at work. OJAMD rides the later 0.3.x
+rollout regardless.**
+
+**Design (concrete, before code):** new `talaria/hygiene.py` —
+`sweep(now)` does both UPDATEs in one transaction and returns counts;
+ISO-8601 string cutoffs (the store's own format, lexicographically
+chronological). Triggers: gateway startup via `register()` (wrapped — a
+raising sweep must never break load), throttled opportunistic (≥6 h
+apart) after a mirror append (one monotonic read on the hot path,
+inside the mirror's own never-raise envelope), and a manual
+`hermes talaria prune [--dry-run]` CLI. No schema change: scrubbed ≡
+`kind='artifact' AND delivered_at NOT NULL AND active=0 AND text=''`.
+
+**BARS (363-A..F):**
+- **363-A (scrub, unit):** delivered artifact rows past 7 d blank text +
+  deactivate with meta/delivered_at/row retained; younger rows untouched
+  byte-for-byte. Never a DELETE.
+- **363-B (expiry + scope, unit):** undelivered artifact rows past 7 d
+  deactivate and `pending()` stops serving them; younger still serve;
+  message-kind rows untouched by EVERY arm.
+- **363-C (triggers, unit):** startup sweep fires from `register()` and a
+  raising sweep cannot break gateway load; the opportunistic trigger
+  honors the 6 h throttle (injectable clock) and never raises; `prune
+  --dry-run` reports counts with zero writes.
+- **363-D (idempotence + safety, unit):** second sweep reports zero; a
+  swept row is never re-served or re-scrubbed; an ack landing after
+  expiry cannot resurrect a row.
+- **363-E (suite/CI):** plugin suite green, count MOVED from 157; CI
+  green both Pythons.
+- **363-F (deploy, gated on Owen's merge):** Mac deploy + LISTENER
+  verify; the startup sweep observed live (counts logged). OJAMD
+  explicitly OUT of this lane.
+
+**2026-08-18 morning — BUILT; PER-BAR VERDICTS (deploy leg open on Owen's
+merge):** plugin PR #5 (`363-outbox-hygiene`), suite **157 → 170** (+13),
+plugin.yaml 0.3.0 → 0.4.0.
+- **363-A — MET.** Scrub pinned both directions: past-cutoff delivered
+  rows blank + deactivate with meta/delivered_at/row retained; younger
+  rows byte-for-byte untouched. No DELETE anywhere in the diff.
+- **363-B — MET.** Past-cutoff undelivered rows deactivate (content
+  intact — only DELIVERED rows scrub) and `pending()` stops serving them
+  (it filters `active=1`, verified in code and pinned by test); younger
+  rows still serve; message-kind rows untouched by every arm incl.
+  400-day-old ones.
+- **363-C — MET.** Startup sweep fires from `register()` and a raising
+  sweep cannot break gateway load (pinned); the 6 h throttle pinned with
+  an injectable clock; `maybe_sweep` never raises (pinned against a
+  raising `sweep`); the mirror append triggers it inside the mirror's own
+  never-raise envelope; `prune --dry-run` counts with zero writes
+  (pinned), `prune` prints and prunes (CLI round-trip test).
+- **363-D — MET.** Second sweep reports zero; an ack landing after expiry
+  stamps `delivered_at` on the inactive row but cannot resurrect it
+  (pinned).
+- **363-E — MET (suite):** 170 green locally under the hermes venv; CI
+  pending at filing (will be green before merge — Owen's gate).
+- **363-F — OPEN:** Mac deploy (pull + bounce + LISTENER verify) + the
+  startup sweep observed live, after Owen's merge. OJAMD OUT of this
+  lane per the routing.
+
+**2026-08-18 ~07:45 — DEPLOYED; 363-F MET; #363 IS CLOSED-SHAPE (all bars
+met, merged `a8b5f7a`, live on the Mac).** Owen merged PR #5 from work
+(CI green both Pythons); the armed watch fired the deploy: live install
+pulled to `a8b5f7a` (0.4.0), gateway bounced — **clean respawn first try
+this time** (listener PID 87691, started 07:41:15; the Errno-48 race is
+real-but-intermittent, one-for-two across this lane's two bounces).
+Live observation, stated honestly: `register()`'s hygiene arm prints ONLY
+on failure and printed nothing (clean load), and `hermes talaria prune
+--dry-run` — a command that did not exist before this merge — ran the
+same sweep mechanics against the real `talaria.db` and reported an
+honest zero ("Would scrub 0 … past 7-day retention"): both live artifact
+rows (`28ff3b66cf7e` 95 B, `0cf847558cef` 12 B — both delivered, ~1 day
+old) are correctly untouched. **WATCH NOTE: the first NONZERO live
+observation arrives naturally ~2026-08-25** when those rows cross the
+cutoff — one `sqlite3` query or `prune --dry-run` then confirms the
+cutoff math in production; until then the backdated tests carry it.
+Archive move per #261 on Owen's formal close. OJAMD: 0.4.0 rides the
+same later rollout as 0.3.0 (one `hermes plugins update` covers both).
+
+## 364. 🔍 Stored transcripts carry FULL tool args (path + content) on 0.20.3 — refetch-side Tier-1 reconstruction is possible, and a #277 premise is host-version-falsified — **FILED 2026-08-18 ~00:00 out of #362's device pass. BUILT OVERNIGHT on Owen's go ("Do 364"): ALL BARS 364-A..F MET, PR #316 merged `d03246e8`, OTA build 2787 installed, DEVICE-PROVEN 2026-08-18 ~07:19 (the #362 negative-arm chip rebuilt from stored args alone — its mirror item was long acked+dropped). OJAMD's storage shape still UNVERIFIED (the degrade arms make that safe either way). Archive move per #261 on Owen's formal close. Dated blocks below are the record. (Header updated 2026-08-18 — it read "NOT STARTED" after the device proof.)**
 
 **What was found (live-probed on the Mac, Hermes 0.20.3 / head
 `133381508`):** `GET /api/sessions/{id}/messages` returns assistant rows
@@ -23842,89 +23928,3 @@ handoff — "untracked at repo root, origin unknown, untouched" — is
 therefore RETIRED for this file; it is tracked from `05c6b595` onward.**
 The lesson kept: in a repo with deliberately-untracked files, stage by
 name, never by wildcard.
-
-**2026-08-18 morning — LANE OPEN (Owen: "363, let's square this away
-while I'm at work today"); his three routings, in-session: (1) SCRUB AT
-7 DAYS — delivered artifact rows blank their text and deactivate (row +
-meta + delivered_at retained, never DELETE, the #144 shape); undelivered
-artifact rows deactivate at 7 days (an 8-day-offline phone loses queued
-artifacts, honestly); (2) ARTIFACTS ONLY in v0 — message-kind rows keep
-today's forever-retention; (3) per-slice deploy go GRANTED — his PR
-review stays the merge gate, then the Mac deploy (pull + bounce +
-listener verify) lands while he's at work. OJAMD rides the later 0.3.x
-rollout regardless.**
-
-**Design (concrete, before code):** new `talaria/hygiene.py` —
-`sweep(now)` does both UPDATEs in one transaction and returns counts;
-ISO-8601 string cutoffs (the store's own format, lexicographically
-chronological). Triggers: gateway startup via `register()` (wrapped — a
-raising sweep must never break load), throttled opportunistic (≥6 h
-apart) after a mirror append (one monotonic read on the hot path,
-inside the mirror's own never-raise envelope), and a manual
-`hermes talaria prune [--dry-run]` CLI. No schema change: scrubbed ≡
-`kind='artifact' AND delivered_at NOT NULL AND active=0 AND text=''`.
-
-**BARS (363-A..F):**
-- **363-A (scrub, unit):** delivered artifact rows past 7 d blank text +
-  deactivate with meta/delivered_at/row retained; younger rows untouched
-  byte-for-byte. Never a DELETE.
-- **363-B (expiry + scope, unit):** undelivered artifact rows past 7 d
-  deactivate and `pending()` stops serving them; younger still serve;
-  message-kind rows untouched by EVERY arm.
-- **363-C (triggers, unit):** startup sweep fires from `register()` and a
-  raising sweep cannot break gateway load; the opportunistic trigger
-  honors the 6 h throttle (injectable clock) and never raises; `prune
-  --dry-run` reports counts with zero writes.
-- **363-D (idempotence + safety, unit):** second sweep reports zero; a
-  swept row is never re-served or re-scrubbed; an ack landing after
-  expiry cannot resurrect a row.
-- **363-E (suite/CI):** plugin suite green, count MOVED from 157; CI
-  green both Pythons.
-- **363-F (deploy, gated on Owen's merge):** Mac deploy + LISTENER
-  verify; the startup sweep observed live (counts logged). OJAMD
-  explicitly OUT of this lane.
-
-**2026-08-18 morning — BUILT; PER-BAR VERDICTS (deploy leg open on Owen's
-merge):** plugin PR #5 (`363-outbox-hygiene`), suite **157 → 170** (+13),
-plugin.yaml 0.3.0 → 0.4.0.
-- **363-A — MET.** Scrub pinned both directions: past-cutoff delivered
-  rows blank + deactivate with meta/delivered_at/row retained; younger
-  rows byte-for-byte untouched. No DELETE anywhere in the diff.
-- **363-B — MET.** Past-cutoff undelivered rows deactivate (content
-  intact — only DELIVERED rows scrub) and `pending()` stops serving them
-  (it filters `active=1`, verified in code and pinned by test); younger
-  rows still serve; message-kind rows untouched by every arm incl.
-  400-day-old ones.
-- **363-C — MET.** Startup sweep fires from `register()` and a raising
-  sweep cannot break gateway load (pinned); the 6 h throttle pinned with
-  an injectable clock; `maybe_sweep` never raises (pinned against a
-  raising `sweep`); the mirror append triggers it inside the mirror's own
-  never-raise envelope; `prune --dry-run` counts with zero writes
-  (pinned), `prune` prints and prunes (CLI round-trip test).
-- **363-D — MET.** Second sweep reports zero; an ack landing after expiry
-  stamps `delivered_at` on the inactive row but cannot resurrect it
-  (pinned).
-- **363-E — MET (suite):** 170 green locally under the hermes venv; CI
-  pending at filing (will be green before merge — Owen's gate).
-- **363-F — OPEN:** Mac deploy (pull + bounce + LISTENER verify) + the
-  startup sweep observed live, after Owen's merge. OJAMD OUT of this
-  lane per the routing.
-
-**2026-08-18 ~07:45 — DEPLOYED; 363-F MET; #363 IS CLOSED-SHAPE (all bars
-met, merged `a8b5f7a`, live on the Mac).** Owen merged PR #5 from work
-(CI green both Pythons); the armed watch fired the deploy: live install
-pulled to `a8b5f7a` (0.4.0), gateway bounced — **clean respawn first try
-this time** (listener PID 87691, started 07:41:15; the Errno-48 race is
-real-but-intermittent, one-for-two across this lane's two bounces).
-Live observation, stated honestly: `register()`'s hygiene arm prints ONLY
-on failure and printed nothing (clean load), and `hermes talaria prune
---dry-run` — a command that did not exist before this merge — ran the
-same sweep mechanics against the real `talaria.db` and reported an
-honest zero ("Would scrub 0 … past 7-day retention"): both live artifact
-rows (`28ff3b66cf7e` 95 B, `0cf847558cef` 12 B — both delivered, ~1 day
-old) are correctly untouched. **WATCH NOTE: the first NONZERO live
-observation arrives naturally ~2026-08-25** when those rows cross the
-cutoff — one `sqlite3` query or `prune --dry-run` then confirms the
-cutoff math in production; until then the backdated tests carry it.
-Archive move per #261 on Owen's formal close. OJAMD: 0.4.0 rides the
-same later rollout as 0.3.0 (one `hermes plugins update` covers both).
