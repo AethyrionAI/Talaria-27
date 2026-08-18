@@ -252,6 +252,19 @@ extension MessageAttachment {
     /// carries the bytes inline (`args.content`), so the client rebuilds the file
     /// locally and stages it for the share sheet. Text content only (Tier 1).
     /// Returns nil if the content can't be staged to disk.
+    /// #364: "is this the same agent-written file as `other`?" — the
+    /// same-file predicate the sidecar replay uses to keep a pre-#364
+    /// streaming-time record from doubling a chip that stored-args
+    /// reconstruction already rebuilt. Leaf-name identity, agent files only
+    /// (voice memos and images never collide here); two distinct files
+    /// sharing a leaf inside ONE message is accepted as a non-case, the same
+    /// tolerance the #362 correlator's path match carries.
+    func representsSameAgentFile(as other: MessageAttachment) -> Bool {
+        kind == "file" && other.kind == "file"
+            && voiceMemoAudioPath == nil && other.voiceMemoAudioPath == nil
+            && !fileName.isEmpty && fileName == other.fileName
+    }
+
     static func agentFile(remotePath: String, content: String) -> MessageAttachment? {
         let lastComponent = lastPathComponentAcrossHosts(remotePath)
         let fileName = lastComponent.isEmpty ? "agent_output.txt" : lastComponent

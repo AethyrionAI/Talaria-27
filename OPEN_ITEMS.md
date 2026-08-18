@@ -23776,3 +23776,43 @@ pre-364 streaming-time record meets a post-364 reconstructed chip.
   pre-364 records, arg-less hosts) and the correction must say so.
 - **364-F (gate):** `lane-gate.sh` PASS (units + Release), count MOVED
   from 2317. PR opened; merge is Owen's morning review — NOT overnight.
+
+**2026-08-18 ~00:30 — BUILT OVERNIGHT (Owen's go: "Do 364"); PER-BAR
+VERDICTS; PR OPEN, MERGE IS OWEN'S MORNING REVIEW:**
+- **364-A — MET.** `StoredToolCall` decodes `function.arguments` (nested
+  primary, flat tolerated); `mapStoredMessage` rebuilds the chip via the
+  same `WrittenFileArgs` drift tolerance the live stream uses
+  (path/file_path/filename · content/text), fills activity `detail` with
+  the path (preview still wins when stored), and every degrade arm maps
+  byte-identically to pre-#364: absent/null/malformed/non-JSON args,
+  content-less (pointer-only) writes — detail still filled from a real
+  path, content NEVER fabricated — and non-write tools. 14 tests
+  (`StoredArgsReconstructionTests`), incl. staged-bytes verbatim read-back.
+- **364-B — MET.** Deterministic ids (`stableAgentFileAttachmentID`, the
+  #237 pattern keyed session:row:path; rows without a server id keep
+  fresh UUIDs honestly); sidecar `replaying` gained the same-file skip —
+  the pre-364-record crossing yields ONE chip, a different-file record
+  still replays; the mirror correlator now CONSUMES an already-filled
+  item (new pass 3, ordered after the unfilled-match pass so
+  same-path-twice still fills first) instead of holding it to expiry.
+- **364-C — MET.** The #362 negative-arm shape reconstructs with no
+  mirror item and no sidecar record; a mirror item arriving anyway is
+  consumed with zero mutation (pinned in
+  `mirrorItemDropsWhenReconstructionAlreadyFilled`).
+- **364-D — MET.** Content only ever from verbatim stored `arguments`; no
+  prose-harvesting change; empty-string content stages a real empty file.
+- **364-E — MET.** The #277 premise corrected at its home
+  (`AgentAttachmentSidecar.swift` header) as a dated, VERSION-SCOPED note
+  (falsified on 0.20.3; OJAMD unverified; the sidecar stays load-bearing
+  for #262 anchors, arg-less hosts, and pre-364 rows — and the note says
+  so). Tracker text: this entry is the record; the #21/#277 archive
+  entries get pointer blocks per #261/#317(a) at Owen's formal close.
+- **364-F — MET (gate): GATE: PASS on CC-lane-1 — Swift Testing
+  2317 → 2331 (+14 exact), 14 XCUITest (known CondenserFidelity skip pair
+  only), Release clean.** Adjacent regression suites
+  (`ArtifactMirrorCorrelatorTests`, `AgentFileChipPersistenceTests`,
+  `StoredWriteFileRowMappingTests`) green untouched.
+- **Not in scope, unchanged:** OJAMD verification of the storage shape
+  (host down; the degrade arms make it safe either way); the runs
+  EVENT-STREAM args absence (N1 stands — the mirror remains the LIVE
+  content source; reconstruction owns the REFETCH half).
