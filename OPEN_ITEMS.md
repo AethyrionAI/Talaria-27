@@ -24279,7 +24279,11 @@ Claude Code session, whose `gh` auth the update inherited. Working paths:
 run the update inside a gh-credentialed session, or direct
 `git -C <plugin dir> -c credential.helper="!gh auth git-credential" pull`.
 A durable fix (a stored deploy credential, or making the repo readable to
-a machine token) is Owen's routing call — filed here, not built.
+a machine token) is Owen's routing call — **RULED 2026-08-18 ("i'll
+pass. Making the repo public when we're done at least"): no token; the
+papercut resolves itself when the repo goes PUBLIC at the #269-B
+publication moment. Until then the gh-credentialed one-liner is the
+update path, by design.**
 
 ## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). NOT STARTED — observation only; no diagnosis attempted yet.**
 
