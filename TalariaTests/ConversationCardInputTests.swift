@@ -201,55 +201,59 @@ struct ConversationCardInputTests {
     /// input across every internal call (wire-measured 2026-08-18: 46,953 on
     /// a thread whose true depth was ~23.5K; 287K-on-a-128K-window in the
     /// production filing). The gauge numerator must go ABSENT (#25) rather
-    /// than render a wrong number.
+    /// than render a wrong number. The usage rides in from the store feed
+    /// (#322's cancel-read and cache-restore channels carry no message row).
     @Test func gaugeNumeratorReadsToollessTurnsOnly() {
-        var toolless = Message(sender: .hermes, content: "BANANA")
-        toolless.usage = TokenUsage(promptTokens: 23370, completionTokens: 6, totalTokens: 23376)
-        let conv = conversation([message(.user, "hi"), toolless])
+        let usage = TokenUsage(promptTokens: 23370, completionTokens: 6, totalTokens: 23376)
+        let conv = conversation([message(.user, "hi"), message(.hermes, "BANANA")])
 
-        #expect(conv.contextOccupancyTokens == 23370)
+        #expect(conv.contextOccupancyTokens(for: usage) == 23370)
     }
 
     @Test func gaugeNumeratorAbsentOnToolTurns() {
+        let usage = TokenUsage(promptTokens: 46953, completionTokens: 107, totalTokens: 47060)
         var toolTurn = Message(sender: .hermes, content: "done")
-        toolTurn.usage = TokenUsage(promptTokens: 46953, completionTokens: 107, totalTokens: 47060)
         toolTurn.toolActivities = [ToolActivity(label: "terminal", startedAt: .now, isActive: false, detail: "date")]
         let conv = conversation([message(.user, "run date"), toolTurn])
 
-        #expect(conv.contextOccupancyTokens == nil)
+        #expect(conv.contextOccupancyTokens(for: usage) == nil)
     }
 
-    /// No stale carry-forward: an older toolless reading UNDERSTATES the
-    /// depth after later turns grow the history — 349-C's worse direction.
-    /// The latest usage-carrying turn decides, alone.
+    /// No stale carry-forward: once the latest turn used tools, an older
+    /// toolless reading may not stand in — it UNDERSTATES the depth after
+    /// the history grew, 349-C's worse direction. The latest hermes message
+    /// decides, alone.
     @Test func gaugeNumeratorNeverCarriesAStaleReadingForward() {
-        var old = Message(sender: .hermes, content: "early")
-        old.usage = TokenUsage(promptTokens: 10000, completionTokens: 5, totalTokens: 10005)
+        let usage = TokenUsage(promptTokens: 90000, completionTokens: 50, totalTokens: 90050)
         var toolTurn = Message(sender: .hermes, content: "later, with tools")
-        toolTurn.usage = TokenUsage(promptTokens: 90000, completionTokens: 50, totalTokens: 90050)
         toolTurn.toolActivities = [ToolActivity(label: "web_search", startedAt: .now, isActive: false, detail: nil)]
-        let conv = conversation([message(.user, "a"), old, message(.user, "b"), toolTurn])
+        let conv = conversation([
+            message(.user, "a"), message(.hermes, "early toolless"),
+            message(.user, "b"), toolTurn,
+        ])
 
-        #expect(conv.contextOccupancyTokens == nil)
+        #expect(conv.contextOccupancyTokens(for: usage) == nil)
     }
 
-    /// A usage-less streaming tail does not hide the last completed turn —
-    /// the numerator reads the last message that HAS usage (mid-stream, the
-    /// gauge keeps the previous turn's honest value, the existing #25 rule).
-    @Test func gaugeNumeratorSkipsUsagelessTails() {
-        var toolless = Message(sender: .hermes, content: "settled")
-        toolless.usage = TokenUsage(promptTokens: 30000, completionTokens: 9, totalTokens: 30009)
-        let streaming = message(.hermes, "still streaming…", status: .sending)
-        let conv = conversation([message(.user, "q"), toolless, streaming])
+    /// A toolless streaming tail does not hide the settled reading — the
+    /// gauge keeps the previous turn's honest value mid-stream (the existing
+    /// #25 rule); only tool activity gates it.
+    @Test func gaugeNumeratorSurvivesAToollessStreamingTail() {
+        let usage = TokenUsage(promptTokens: 30000, completionTokens: 9, totalTokens: 30009)
+        let conv = conversation([
+            message(.user, "q"), message(.hermes, "settled"),
+            message(.user, "again"), message(.hermes, "still streaming…", status: .sending),
+        ])
 
-        #expect(conv.contextOccupancyTokens == 30000)
+        #expect(conv.contextOccupancyTokens(for: usage) == 30000)
     }
 
-    @Test func gaugeNumeratorAbsentWithNoUsageAnywhere() {
+    @Test func gaugeNumeratorAbsentWithNoUsage() {
         let conv = conversation([message(.user, "hi"), message(.hermes, "hello")])
 
-        #expect(conv.contextOccupancyTokens == nil)
+        #expect(conv.contextOccupancyTokens(for: nil) == nil)
     }
+
 }
 
 // MARK: - The voice path reaches the generator at all (280-A, 280-E)

@@ -22490,6 +22490,24 @@ card, session totals) is untouched — those correctly show billed spend.
   gauge is capacity, the totals are spend, and each is labeled by what
   it measures.
 
+**2026-08-18 ~14:10 — DESIGN AMENDED BY THE GATE (recorded honestly): the
+first cut read the numerator from message rows only, and the full suite
+caught two LEGITIMATE store-level feeds it severed** — the #322 cancel
+final-status read (the stopped run's numbers land on `lastTokenUsage`
+with no message row) and the cached-metadata restore
+(`conversation.latestUsage`). Both had pins
+(`aSuccessfulReadPutsTheStoppedRunsOwnNumbersOnTheGauge`,
+`chatStoreLoadsLatestUsageFromConversationMetadata`) and both went RED —
+the suite doing exactly its job. Reworked:
+`Conversation.contextOccupancyTokens(for:)` gates the PASSED store-level
+usage on the latest hermes message's tool activities — every #322/#25
+channel keeps feeding the gauge, and a tool-using turn (settled OR
+mid-stream) renders it absent. A toolless streaming tail keeps the prior
+honest value (the existing #25 mid-stream rule, now pinned:
+`gaugeNumeratorSurvivesAToollessStreamingTail`). All three affected
+suites green (AppStores, CancelFinalStatusRead, ConversationCardInput
+10 → 15).
+
 ## 351. 🔧 TALARIA-PLUGIN SQLITE/DEVICE-ROUTING LANE (repo PRs #1/#2, GPT 5.6 Sol, 2026-08-16): REVIEWED — 14 CONFIRMED + 1 PLAUSIBLE findings; verdict KEEP + REWORK, not restart — **FILED 2026-08-16. Owen routed: "File it in OPEN_ITEMS then do the rework yourself." Rework runs on the existing PR #1 branch; ⛔ NEITHER PR MERGES until the rework passes re-review. (PR numbers here are GitHub numbers in `AethyrionAI/talaria-plugin`, not tracker numbers.)**
 
 **What the PRs are.** GPT 5.6 Sol (dispatched when the 5-hour Claude cap hit) shipped
