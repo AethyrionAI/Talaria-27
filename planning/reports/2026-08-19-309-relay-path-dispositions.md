@@ -1,5 +1,13 @@
 # #309 — the 16 surviving relay paths, with adapt-or-delete dispositions
 
+> **✅ ANSWERED 2026-08-19, the same day, ahead of the scheduled review.**
+> Owen ruled all three questions at the foot of this report: **(1) voice
+> re-homes onto the PLUGIN** — route (b), a phone-held provider key, is
+> rejected — now filed as **#383**; **(2) path 16's personalities and quick
+> commands are an ACCEPTED LOSS**; **(3) #310 opens AFTER #368.** The table
+> below is accepted as written — no row flipped. Read §"Questions for Owen"
+> as the record of what was asked, not as anything still outstanding.
+
 **Written 2026-08-19 AM for Owen's Thursday review.** Every path below was
 re-grepped at HEAD `f48add84` this morning; the call sites are line-cited so
 the table can be checked rather than believed. Nothing here is a fix, a
@@ -123,15 +131,24 @@ cause.
 
 ---
 
-## Questions for Owen (Thursday)
+## Questions for Owen — ALL THREE ANSWERED 2026-08-19
 
 1. **Voice's new home — (a) plugin route, or (b) phone-held provider key?**
-   Recommendation **(a)**; (b) puts a provider credential on the device.
+   Recommendation was **(a)**; (b) puts a provider credential on the device.
+   → **RULED (a), the plugin route. Filed as #383**, where the rejection of
+   (b) is recorded as a standing constraint rather than a preference — so a
+   later lane cannot reach for it as a shortcut when the plugin work proves
+   bigger than expected.
 2. **Path 16's non-skill halves — build a gateway source for personalities
-   and quick commands, or accept the loss?** Recommendation: **accept the
-   loss for v1** and let the catalog be skills-plus-local; nothing in the
-   shipped UI has proven those two halves earn a new host surface.
-3. **Sequencing:** does #310 open now (it gates seven rows and #365's real
-   cause), or after #368's cutover lands? Recommendation: **after #368** —
-   one transport change at a time, and #365 has a one-line symptom fix
-   available in the meantime.
+   and quick commands, or accept the loss?** Recommendation was **accept the
+   loss for v1**.
+   → **RULED: accept the loss.** After the adapt the catalog is
+   skills-plus-local. **The two missing halves are a ruled omission, not a
+   regression** — and whatever surfaces them must degrade honestly (#180)
+   rather than render an empty section. Recorded at #309 so a later session
+   does not read the gap as a defect and "fix" it.
+3. **Sequencing:** #310 now, or after #368's cutover? Recommendation was
+   **after #368**.
+   → **RULED: after #368**, trigger = that merge. Recorded at #310, together
+   with the note that #365 upgraded #310 from an onboarding blocker to the
+   unblock for a live, every-profile-switch UI stall.

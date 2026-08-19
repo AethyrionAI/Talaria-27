@@ -4353,6 +4353,38 @@ argument for making the relay more robust.
 > 16-path table with adapt/delete dispositions; Thursday's ruling reviews
 > the table rather than deciding the direction.
 
+
+> **✅ 2026-08-19 — ALL THREE OF THE BRIEF'S QUESTIONS RULED (Owen), a day
+> ahead of the scheduled Thursday review. The 16-path table
+> (`planning/reports/2026-08-19-309-relay-path-dispositions.md`) is
+> ACCEPTED as written: 12 DELETE / 4 ADAPT, no row flipped.**
+>
+> 1. **Voice's new home — (a) THE PLUGIN ROUTE.** The app asks the host to
+>    mint a realtime session over the talaria platform link; the provider key
+>    stays host-side, which is the one property the relay was actually
+>    buying. **(b) — a phone-held provider key — is REJECTED**, and that
+>    rejection is the substantive half of this ruling: it would have moved a
+>    provider credential onto the device, a security posture change nobody
+>    had asked for. **Filed the same minute as #383** per #268 — it is a
+>    design and a build, not a re-point, and it is the only row in the table
+>    that is.
+> 2. **Path 16 (`GET commands`) — ACCEPT THE LOSS** for personalities and
+>    quick commands. `/v1/skills` covers the skills half; the other two get
+>    no new host surface. Consequence, stated so a later session does not
+>    read the gap as a defect: **after the adapt, the command catalog is
+>    skills-plus-local, and the two missing halves are a RULED omission, not
+>    a regression.** Whatever surfaces them must degrade honestly (#180)
+>    rather than render an empty section.
+> 3. **Sequencing — #310 opens AFTER #368**, not now. One transport change at
+>    a time. Recorded at #310 with the trigger.
+>
+> **What this leaves #309 as:** the inventory and the dispositions are
+> settled, so this item is no longer the open question it was filed as. It
+> stays OPEN as the register the Phase 4 lanes work from — paths 7 and 16
+> (both plain re-points) ride those lanes; paths 1–4/6/8/9 wait on #310; path
+> 5 rides #375's remaining scope; paths 13–15 need only a lane; paths 11–12
+> are #383.
+
 ## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
 
 `Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
@@ -4364,6 +4396,21 @@ honest #180 degradation for relay-less profiles (#15/#94 recovery ladders scoped
 to relay-bearing profiles only), migration-safe decode of existing persisted
 profiles (the §1.5 persisted-state discipline — existing users' stored profiles
 must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
+
+
+> **✅ 2026-08-19 — SEQUENCING RULED (Owen): this opens AFTER #368**, in
+> answer to #309's brief question 3. Rationale as recommended: one transport
+> change at a time. **⏰ TRIGGER: #368's merge.**
+>
+> **Why it matters more than the filing implied.** #310 was filed as a
+> zero-setup blocker — a new user should not have to type a relay URL. This
+> morning's #365 diagnosis added a present-tense cost: the relay auth chain
+> (#309 paths 1–4) runs from `AppSessionStore.bootstrap()`, which
+> `handleActiveProfileChanged` AWAITS, so every profile switch today blocks
+> the whole UI behind doomed round trips to relays retired on both hosts.
+> **#310 is what makes deleting that chain expressible**, and #365's own fix
+> only suppresses the symptom. Read this item as unblocking a live cost, not
+> only a future onboarding story.
 
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
 
@@ -12258,4 +12305,61 @@ of that one.
 for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
+
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). NOT STARTED; bars pre-register here before any code.**
+
+**What moves.** #309 paths 11 and 12 — the app's entire realtime voice
+bootstrap:
+
+- `GET talk/readiness` (`LiveVoiceSessionService.swift:192`) — may a realtime
+  session start?
+- `POST talk/session` (`:278`) — mint one.
+
+Both speak to the **relay**, which is retired on both hosts (#346 OJAMD
+2026-08-10, #375 Mac 2026-08-18). **So realtime voice is, as of last night,
+bootstrapped against nothing.** That is the present-tense state this item
+exists to fix — not a future tidy-up.
+
+**The ruled route: (a) the PLUGIN.** The app asks the host to mint the
+session over the talaria platform link; the provider key stays host-side.
+
+**Route (b) was REJECTED, and the reason is the load-bearing part of the
+ruling:** minting the realtime session directly from the phone would put a
+PROVIDER CREDENTIAL ON THE DEVICE. That is a security posture change nobody
+asked for, and it is cheaper to reject now than to unwind after it ships.
+Do not re-propose (b) as a shortcut when the plugin work turns out to be
+bigger than expected — raise it with Owen as a decision instead.
+
+**What makes it buildable at all:** the realtime key is now present on
+**both** hosts (#254-D/#303, recorded runnable in the 2026-08-18 week plan).
+Before that, (a) had nowhere to read a key from on OJAMD.
+
+**⚠️ The platform link does not currently carry voice.** #309's own
+inventory says so in as many words: *"a `POST /api/platforms/talaria/events`
+plugin does not currently carry voice."* So this is a plugin-side build plus
+an app-side client swap, not a URL change — which is exactly why it is
+numbered separately from the twelve DELETE rows and the two plain re-points.
+
+**Live-install gate:** the plugin half needs a deploy and a gateway bounce on
+each host, so it rides Owen's **per-experiment go** under the standing rule
+(#251/3C/3D precedent: per-slice, named in this entry when granted). Nothing
+deploys before that.
+
+**⛔ And the no-hardening rule bites here in its post-retirement form**
+(Owen, 2026-08-18): if this build stalls, the fix is NOT "bring the relay
+back up and leave voice on it." A restored relay is a migration bridge, not
+a home. The restore recipes in #375's evidence block are two commands each
+and exist for exactly that bounded purpose.
+
+**Bars — pre-register in this entry BEFORE any code** (#215 convention).
+None are written yet, deliberately: the plugin-side shape is undesigned, and
+writing bars against a guess is how a lane gets bars it can pass without
+proving anything. First move is a design pass, not a build.
+
+**Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
+venture), #375 (the retirement that made this urgent), #254-D/#303 (the
+realtime key on both hosts), #138 (realtime self-barge-in — a live voice
+defect this must not regress), #303 (the engine-pin race — its cold-launch
+arm reads a realtime *permission*, so it has an interest in whatever
+replaces `talk/readiness`).
 
