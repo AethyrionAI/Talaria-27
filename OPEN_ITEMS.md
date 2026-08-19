@@ -12109,6 +12109,24 @@ scope: **wholesale, or a permanent dual path?**
 > gate over a targeted run, happening: three green suites said nothing about
 > them.**
 >
+> **📱 2026-08-19 09:02 — OTA STAGED: `main @ 1a983144`, Release, BUILD
+> 2848.** Install from phone Safari at
+> `https://owens-mac-mini.tail5663a6.ts.net` (dev-signed upgrade-install in
+> place; app data persists). **Verified END TO END over the tailnet, not
+> just staged locally:** manifest 200 and titled `Talaria 27 (main @
+> 1a983144 Release)`, `Talaria27.ipa` 200 at 12,247,387 bytes.
+>
+> **Quote build 2848 in every 3E-H result.** #200D's lesson is that a result
+> from a stale install is indistinguishable from the staged one unless the
+> record names its build — `ota-stage.sh` stamps the commit count into
+> `CFBundleVersion` precisely so that check is possible. If the phone reads
+> anything other than 2848, the walk below has not been run on the cutover.
+>
+> **The Runs Transport row IS visible in this Release build** — checked
+> rather than assumed: `flagsSection` sits OUTSIDE `DeveloperSettingsScreen`'s
+> `#if DEBUG` blocks, unlike the batteries/monetization sections. So step 5
+> is real on an OTA build.
+
 > **3E-H, the device leg — the exact walk (evening, ~5 min):**
 > 1. A tool-using turn ("write test-3e.md with a short haiku") → WRITE_FILE
 >    pill → chip with **real content** (#362's mirror on the active host).
