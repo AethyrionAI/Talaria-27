@@ -24577,3 +24577,16 @@ branch `366-multi-device-mirror`; merge is Owen's review, deploy after):**
   0.5.0 + gateway bounce per the evening runbook); then the live proof:
   an OJAMD write turn producing a LIVE chip with both devices active —
   the exact fixture that failed.
+
+**2026-08-18 ~19:25 — 366-E MET; #366 IS CLOSED-SHAPE (all bars met,
+merged `8edfb66`, 0.5.0 live on BOTH hosts).** OJAMD updated + bounced
+(Owen, per the runbook), then the live proof on the exact failed fixture:
+"Write a file called Ojamd-fix.md with a haiku about snowboarding" →
+**chip rendered LIVE, mid-thread** (`Ojamd-fix.md, MD · 81 bytes`,
+preview working; Owen's screenshot, 19:04–19:05), with both device rows
+active — the fan-out delivering where the v0 gate silently dropped.
+Bonus confirmation in the same screenshot: the CTX gauge correctly ABSENT
+on the tool turn (#349's gate, live arm) while the spend receipt still
+shows the billed 87.3K. Both hosts now run the full plugin stack at
+parity: mirror + hygiene + multi-device, 0.5.0. Archive move per #261 on
+Owen's formal close.
