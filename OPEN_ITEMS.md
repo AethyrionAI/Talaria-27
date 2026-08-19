@@ -4562,6 +4562,14 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 > **2026-08-18:** four routes put to Owen at the ballot (recommendation:
 > (c), a `forgeText` token — least invasive, no curated-hue retune). Pick
 > pending.
+
+> **2026-08-18 ~22:45 — ROUTE RULED (Owen): (c), the `forgeText` token.**
+> A second token for text uses: dark themes resolve it to the hero amber
+> unchanged; light themes get a legible variant clearing 4.5:1. No
+> curated-hue retune; the ~64 text call sites migrate mechanically;
+> `DesignThemeTests`' byte-identity guard (Deep Field × cyan) must hold.
+> Lane not scheduled this week (the board's build slots are full) — next
+> free design slot; bars pre-register here when it opens.
 ## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.**
 
 **Measured, not inferred.** Owen ran `sleep 90 && echo Done` on the `HERMES`
@@ -11707,7 +11715,13 @@ PR #320's CTX fixes in one build.
   doorbell ruling, so the go is treated as PENDING until confirmed in his own
   words.** The app-side dead-code deletion needs no go and can ride any lane.
 
-## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." NOT STARTED — the exact screen/value naming is owed from Owen before bars (asked at the 08-18 ballot, unanswered).**
+## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.**
+
+> **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check
+> first (not elected): the About content's last-drain readout may still be
+> fed by the legacy relay drain path, which the plugin tier (#251) no longer
+> drives — the same derived-vs-asserted family as #350. Small diagnosis +
+> fix; free-bucket candidate once #368/#302 land.
 
 ## 377. 🔧 Private Relay detection row in diagnostics — **FILED 2026-08-18 night, re-homed from #24e's second half at #24's close (the rollup's one live residue). NOT STARTED.**
 
