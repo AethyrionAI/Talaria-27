@@ -201,7 +201,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#365** 🔍 profile-switch ~10 s connecting interstitial — observation only, not diagnosed
 - **#367** 🐛 duplicate file chips on reopen — fixed + merged (PR #321); owed: the reopen check (shared with #349)
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — RULED GO 2026-08-18; build Wed/Thu; bars pre-register in the entry
-- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — RULED file+fix 2026-08-18; lane this week
+- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — RULED file+fix 2026-08-18; LANE OPEN 2026-08-19, bars pre-registered
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · the rollback arm
@@ -12171,7 +12171,7 @@ scope: **wholesale, or a permanent dual path?**
 > 5. Glance at Settings → Developer: the Runs Transport row reads ON without
 >    anyone having touched it. That is the migration, visible.
 
-## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. NOT STARTED; bars pre-register here before code.**
+## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. LANE OPEN 2026-08-19 evening: mechanism re-read at HEAD, design elected, BARS 369-A..F PRE-REGISTERED BEFORE CODE (dated block below).**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
   token keychain slot → `initialize: ABORT — no access token, clearing pairing`
@@ -12180,6 +12180,110 @@ scope: **wholesale, or a permanent dual path?**
 - Fix direction: a keychain miss reads as LOCKED/UNAVAILABLE (hold + retry,
   surface honestly per #180), never as UNPAIRED. Cross-ref #46/#15 for the
   keychain-availability lessons.
+
+> **2026-08-19 evening — LANE OPEN (Owen's routing tonight: Wednesday's device
+> minutes ride to Friday, "let's move forward in the meantime"). MECHANISM
+> RE-READ AT HEAD; DESIGN ELECTED; BARS PRE-REGISTERED BEFORE CODE.**
+>
+> **The guard at HEAD** (`AppContainer.swift:1318-1321`, unchanged since the
+> filing):
+>
+> ```swift
+> guard await sessionStore.currentAccessToken() != nil else {
+>     containerLog.warning("initialize: ABORT — no access token, clearing pairing")
+>     await pairingStore.clearLocalPairing()
+>     return
+> }
+> ```
+>
+> **Three findings from the code read, each of which changes the fix's shape.**
+>
+> 1. **The destructive arm is an OUTLIER, not a policy.** The same condition is
+>    guarded in three sibling paths — `runForegroundActivation:1571`,
+>    `handleSystemLaunch:1658`, `handleBackgroundRefresh:1686` — and every one
+>    of them logs `BLOCKED` and returns. **Only the launch path destroys.** So
+>    the fix is making one guard behave like its own three siblings, which is a
+>    far smaller claim than inventing a policy.
+> 2. **`retrieve` cannot tell ABSENT from LOCKED, by construction** — so the
+>    guard cannot be repaired by inspecting the cause.
+>    `KeychainSecureStore.retrieveSync` (`:54-67`) collapses every
+>    non-`errSecSuccess` OSStatus into `nil`: `errSecItemNotFound`,
+>    `errSecInteractionNotAllowed` (locked) and `errSecMissingEntitlement` are
+>    one identical reading upstream. **Consequence: the launch path must be
+>    non-destructive for ALL causes**, not for a distinguished subset.
+> 3. **🔴 THE OBVIOUS FIX SHIPS A WORSE BUG — "just don't clear" STRANDS THE
+>    LAUNCH SPLASH FOR THE PROCESS'S WHOLE LIFE.** `shouldShowLaunchSplash` is
+>    `pairingStore.isPaired && !isInitialized` (`:220-221`) — the exact pair
+>    #365 is about. A hold that returns before `isInitialized = true` leaves a
+>    paired install on the full-screen splash forever, and nothing retries it:
+>    `initialize()` has exactly ONE caller in the tree (`AppEntry.swift:126`).
+>    Found by reading, before shipping it.
+>
+> **Design elected.** The unreadable-credential launch becomes a HOLD that is
+> non-destructive, honest, and retried:
+> - the pairing is **never** cleared on this path;
+> - the **local critical path still runs** — it is credential-free by design
+>   (#136: "degraded is the DEFAULT launch posture"; the steps are
+>   `reloadCapabilities` → `loadConversationIfNeeded` → `reconcileLiveActivities`
+>   → `updateWidgetData` → `drainShareInbox`), so holding it hostage to a relay
+>   token is what strands the splash and silently skips the share drain;
+> - only the **relay-backed half** (`startBackgroundBootstrap`) is deferred;
+> - the hold is **named in state** and **retried** on the existing
+>   `refreshCredentialState` hooks (`protectedDataDidBecomeAvailable` +
+>   `didBecomeActive`, wired at `:1103-1113`) — hooks that already exist for
+>   exactly this pre-unlock case;
+> - it is **surfaced** (#180/#25) rather than rendering as healthy.
+>
+> **Rejected alternative, recorded:** clear the pairing only when protected data
+> IS available (a "distinguish the cause" fix). Rejected on finding 2 — the
+> reading is indistinguishable for the other causes, and #46/#15's history is
+> precisely that a self-heal firing on an unreadable credential set orphans a
+> healthy pairing.
+>
+> **Scope, fixed before code, and #309 governs it:** paths 1–4 of #309's table —
+> the relay auth chain that MINTS this access token — are dispositioned
+> **DELETE**. So this lane invests NOTHING in that chain: no refresh-on-miss, no
+> widened `SecureStoreProtocol`, no new relay call. **A corollary for whoever
+> executes that deletion: once the access-token slot is gone, an unchanged guard
+> reads nil on EVERY launch and unpairs every user, every time.**
+>
+> **Corroboration that this is not theoretical:** the project's own recorded
+> simulator behaviour — a `CODE_SIGNING_ALLOWED=NO` build silently loses
+> keychain writes and the app then **self-un-pairs** — is this exact path
+> firing. #354's phase-C reproduction (pairing seeded, token slot empty →
+> `ABORT — no access token, clearing pairing` → `handlePairingRemoved`) is the
+> log-pinned instance.
+>
+> **BARS (369-A..F) — written before any code, per #215.**
+>
+> - **369-A (the destruction is gone; unit):** a paired install whose
+>   access-token slot is EMPTY finishes `initialize()` with the pairing intact —
+>   `isPaired` still true, `pairedRelayConfiguration` preserved. **Mutation
+>   control: restoring `clearLocalPairing()` must turn this RED.**
+> - **369-B (the hold does not strand the splash; unit):** the same launch ends
+>   `isInitialized == true` and `shouldShowLaunchSplash == false`, with the hold
+>   flag SET and the relay-backed half NOT started (scored on the bootstrap
+>   double's call counters, held across a bounded window — a negative assertion
+>   that must survive the async spawn, not just precede it).
+> - **369-C (the hold is retried, not permanent; unit):** with the token
+>   readable again, the retry entry point clears the hold and starts the
+>   relay-backed half exactly once. This pins the failure mode a bare
+>   "don't clear" fix would ship.
+> - **369-D (surfaced, not silent; #180/#25):** the About identity row reads the
+>   hold as a named warning instead of a healthy identity. **Honest limit,
+>   declared in advance:** `RowStatus` is a private view type with no test
+>   surface anywhere in the tree, so the ROW itself is code-read; what is
+>   test-covered is the container state it reads.
+> - **369-E (nothing smuggled; #368's 3E-J discipline):** the three sibling
+>   guards keep their existing non-destructive behaviour, no new relay call
+>   appears on any launch path, and `LaunchInitStep`'s critical-path order is
+>   unchanged.
+> - **369-F (gate):** `scripts/mac/lane-gate.sh` PASS — Debug suite + Release
+>   build, with the test count MOVED from the 2372 baseline.
+>
+> **No device bar.** The instrument is the simulator (#354's phase-C seeding);
+> this is a keychain-state question, not a hardware one.
+
 
 ## 370. 🧹 The calendar REAP silently UNDER-DELETES — 42 created vs 25 reaped in #343's campaign (−17), possibly on Owen's REAL calendar — **FILED 2026-08-18 night per #268, from #343's own "NEEDS ITS OWN ITEM" (2026-08-15) — verified unfiled until tonight. NOT STARTED; the first bar is a measurement.**
 
