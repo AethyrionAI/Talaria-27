@@ -11624,12 +11624,12 @@ full-screen rather than as a connection state.
 
 1. `AppRootView.shouldShowSplash` (`:51`) ORs in
    `container.shouldShowLaunchSplash`.
-2. `AppContainer.shouldShowLaunchSplash` (`AppContainer.swift:219`) returns
+2. `AppContainer.shouldShowLaunchSplash` (`AppContainer.swift:220`) returns
    `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`.
-3. `handleActiveProfileChanged` (`:2145`) calls `cancelBackgroundBootstrap()`
+3. `handleActiveProfileChanged` (`:2146`) calls `cancelBackgroundBootstrap()`
    as its second statement, which sets `backgroundBootstrapTask = nil`
-   (`:1377`).
-4. The same handler then `await sessionStore.bootstrap()` (`:2235`), and
+   (`:1378`).
+4. The same handler then `await sessionStore.bootstrap()` (`:2236`), and
    `bootstrap()` sets `isBootstrapping = true` for its whole duration
    (`AppSessionStore.swift:103`, cleared by `defer` at `:108`).
 
@@ -11664,6 +11664,17 @@ is fast, this diagnosis is wrong.
 **Cross-filed:** this is the concrete cost of #309's paths 1–4 still being
 on the blocking UI path — recorded in this morning's disposition brief,
 `planning/reports/2026-08-19-309-relay-path-dispositions.md` §3.
+
+**⚠️ THE SIM REPRO THE WEEK PLAN ASKED FOR WAS NOT RUN, AND THE REASON IS
+ITSELF THE FINDING.** The stall only occurs on a path guarded by
+`pairingStore.isPaired && await sessionStore.currentAccessToken() != nil`
+(`AppContainer.swift:2235`) — i.e. only a PAIRED profile reaches
+`bootstrap()` at all. Pairing is minted by the relay
+(`POST phone-pairing/redeem`, #309 path 6), and **both relays are retired**,
+so a fresh simulator cannot be brought into the state that reproduces this.
+The repro survives only where a pairing already exists on disk — Owen's
+phone. So the device check (365-C) is not a nicer version of the sim repro;
+it is the only version. Recorded rather than quietly skipped.
 
 **Bars, pre-registered here before any fix code:**
 
