@@ -65,9 +65,6 @@ struct ServerSettingsScreen: View {
     /// Pairing already did.
     @State private var pendingDelete: BackendProfile?
     @State private var deleteErrorMessage: String?
-    /// #116: outcome of the last "Refresh Provisioning" action — honest
-    /// summary text (what was filled, or that the host reported nothing).
-    @State private var provisioningMessage: String?
     /// #127: the connect gate's locked state — presents the Connected
     /// paywall instead of the add/pair action. Inert while dormant.
     @State private var paywallPresented = false
@@ -110,9 +107,6 @@ struct ServerSettingsScreen: View {
                         )
                     }
                     profileCards
-                    if let provisioningMessage {
-                        infoNotice(provisioningMessage)
-                    }
                     talariaLinkPanel
                     addProfileButton
                     autoConnectPanel
@@ -349,13 +343,6 @@ struct ServerSettingsScreen: View {
             Label(isPaired ? "Re-Pair" : "Pair", systemImage: "link")
         }
         if isPaired {
-            // #116: re-pull the host's provisioning bundle — the token
-            // rotation path (URLs are only ever filled when empty).
-            Button {
-                Task { await refreshProvisioning(profile) }
-            } label: {
-                Label("Refresh Provisioning", systemImage: "arrow.triangle.2.circlepath")
-            }
             Button(role: .destructive) {
                 pendingForget = profile
             } label: {
@@ -460,19 +447,6 @@ struct ServerSettingsScreen: View {
             .font(Design.Typography.caption)
             .foregroundStyle(Design.Colors.secondaryForeground)
             .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// #116: user-initiated provisioning refresh for one profile. `.refresh`
-    /// endpoints are only filled when empty (#223 Lane 5: gateway URL only).
-    private func refreshProvisioning(_ profile: BackendProfile) async {
-        guard let service = container.provisioningService else { return }
-        do {
-            let outcome = try await service.applyProvisioning(profileID: profile.id, mode: .refresh)
-            provisioningMessage = outcome.summary(profileName: profile.name)
-            await probeAllProfiles()
-        } catch {
-            provisioningMessage = "\(profile.name): provisioning refresh failed — \(error.localizedDescription)"
-        }
     }
 
     // MARK: Plugin link (#251-2A)

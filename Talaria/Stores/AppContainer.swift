@@ -105,10 +105,6 @@ final class AppContainer {
     /// endpoint + auth plane as Tasks and Skills; read-only over
     /// `GET /api/sessions`. Nil in bare test containers.
     var insightsStore: InsightsStore? // harness-visible setter (#180 wiring test)
-    /// #116: post-pair provisioning bundle — auto-fills a profile's shim
-    /// URL/token (+ empty gateway URL) from the relay after a successful
-    /// pair, and backs the Server screen's "Refresh Provisioning" action.
-    private(set) var provisioningService: ProvisioningService?
     /// #127: the Connected-tier entitlement source (StoreKit 2). Nil in bare
     /// test containers; `connectGateVerdict(for:)` treats nil as unknown,
     /// which only matters once the (dormant) gate is active.
@@ -810,28 +806,6 @@ final class AppContainer {
         profilesStore.onActiveProfileChanged = { [weak container] profile in
             await container?.handleActiveProfileChanged(to: profile)
         }
-        // #116: the post-pair provisioning bundle. The fetch rides the
-        // profile's OWN relay + freshly minted access token (works for the
-        // active and dormant slots alike). #223 Lane 5: only the gateway URL
-        // still applies — the descriptor's shim fields are ignored.
-        let provisioningService = ProvisioningService(
-            profileResolver: { profilesStore.profile(id: $0) },
-            upsertProfile: { profilesStore.upsert($0) },
-            fetchDescriptor: { profile in
-                guard let token = await profileRelaySessions.accessToken(forProfileID: profile.id),
-                      !token.isEmpty else {
-                    throw ProvisioningService.ServiceError.notPaired
-                }
-                let client = profileRelaySessions.apiClient(forProfileID: profile.id)
-                let response: DeviceProvisioningResponse = try await client.get(
-                    path: "device/provisioning",
-                    accessToken: token
-                )
-                return response.provisioning
-            }
-        )
-        container.provisioningService = provisioningService
-
         // #127: the Connected-tier entitlement source. Started even while
         // the gate is dormant — the Transaction.updates listener is StoreKit
         // hygiene (unfinished transactions re-deliver until observed), and a
@@ -841,20 +815,10 @@ final class AppContainer {
         entitlementService.start()
 
         // M-9: a successful pair mints fresh relay tokens — stamp freshness.
-        // #116: …and the relay can now answer the provisioning fetch — key
-        // the profile automatically (fill-empty-only: a manual value is never
-        // clobbered, and a redeem failure never reaches here — the #94
-        // redeem-first ordering is untouched upstream in pair()).
+        // (#375/#309 path 5: the post-pair provisioning fetch that used to
+        // hang off this hook is deleted with the relay it spoke to.)
         runtimePairingStore.onProfileTokensMinted = { profileID in
             profilesStore.stampTokenRefresh(profileID: profileID)
-            guard let resolvedID = profileID ?? profilesStore.activeProfileID else { return }
-            Task { @MainActor in
-                do {
-                    _ = try await provisioningService.applyProvisioning(profileID: resolvedID, mode: .fillEmptyOnly)
-                } catch {
-                    containerLog.notice("provisioning auto-fill skipped: \(error.localizedDescription, privacy: .public)")
-                }
-            }
         }
         // Keychain hygiene: a deleted profile's credential slot dies with it.
         // The migrated (legacy-keyed) profile is undeletable in practice —
