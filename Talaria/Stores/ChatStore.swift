@@ -1809,12 +1809,21 @@ final class ChatStore {
             // upload that can outlast the budget — so it is already correct
             // in this exact window (confirmed in Task 1's report, and pinned
             // here by `expirationArmsRecoveryEvenWithZeroStreamingUpdatesProcessed`).
-            // `runId` has no channel here at all (see `activeStreamRun`'s own
-            // doc) — `nil` is honest, not a placeholder for something missing.
+            // ~~`runId` has no channel here at all — `nil` is honest, not a
+            // placeholder for something missing.~~ **#368 (3E): that stopped
+            // being true at #322.** `cancelledRunID` is captured at the top of
+            // this function under the read-before-clear discipline, and on the
+            // runs plane it IS this turn's run — the one whose recovery we are
+            // arming. Passing it is what puts this arm on the same status-read
+            // instrument the `.interrupted` arm uses; passing nil left the
+            // background-expiration path alone on the positional session
+            // re-read, which is an incomplete collapse rather than a
+            // conservative one. Still nil on any plane without run ids, which
+            // is the original comment's honest half and is unchanged.
             armPendingRunRecovery(
                 placeholderID: placeholderID,
                 sessionId: sessionId,
-                runId: nil,
+                runId: cancelledRunID,
                 userMessageID: userMessageID
             )
             armedRecovery = true

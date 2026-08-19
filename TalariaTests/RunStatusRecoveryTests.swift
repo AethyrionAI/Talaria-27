@@ -262,6 +262,59 @@ struct RunStatusRecoveryTests {
         #expect(store.hasActiveReconcileLoop == false)
     }
 
+    // MARK: - The expiration arm joins the collapse
+
+    /// #368: the background-expiration path (`cancelStreaming(hardStopHost:
+    /// false)` — the OS revoking a continued-send budget, never a user Stop)
+    /// used to arm recovery with `runId: nil`, which left it alone on the
+    /// positional session re-read after every other arm had moved.
+    ///
+    /// It now carries the id `cancelStreaming` already captured at the top of
+    /// itself for #322. Mutation that turns this red: pass `nil` again — the
+    /// store then reaches for `reconcileFromServer()` and both assertions
+    /// flip.
+    @Test @MainActor
+    func theBackgroundExpirationArmRecoversByRunIdToo() async throws {
+        let client = RunRecoveryClient(
+            resolution: .answered(content: "recovered after the budget was revoked", usage: nil),
+            streamHangsInsteadOfInterrupting: true
+        )
+        // This arm needs a live hop: it recovers `sessionId` from
+        // `activeStreamRun ?? activeSessionID`, both of which resolve from
+        // the journal. Without one the guard falls through to the
+        // finalize-the-placeholder branch and nothing is armed at all —
+        // which would make the first assertion below pass vacuously.
+        let journalSuite = "run-status-recovery-journal-\(UUID().uuidString)"
+        let journalDefaults = UserDefaults(suiteName: journalSuite)!
+        journalDefaults.removePersistentDomain(forName: journalSuite)
+        let journal = ConversationJournalStore(
+            persistence: UserDefaultsAppPersistenceStore(defaults: journalDefaults)
+        )
+        journal.beginHop(apiSessionId: "probe-session", primingUsage: nil, profileID: nil)
+        let store = makeStore(client: client, journal: journal)
+
+        // A send that never terminates on its own, then the system revoking
+        // the background budget underneath it.
+        let sending = Task { @MainActor in await store.sendMessage("do the thing") }
+        var waited = 0
+        while store.isStreaming == false, waited < 200 {
+            try? await Task.sleep(for: .milliseconds(5))
+            waited += 1
+        }
+        #expect(store.isStreaming, "fixture never started streaming")
+        store.cancelStreaming(hardStopHost: false)
+        sending.cancel()
+
+        await store.reconcilePendingRuns()
+        await pumpUntilLoopRetires(store)
+
+        #expect(client.resolveCallCount > 0,
+                "nothing was armed at all — the assertion below would pass vacuously")
+        #expect(client.reconcileFromServerCallCount == 0,
+                "the expiration arm must recover by run id, not by re-reading the session")
+        #expect(store.conversation?.messages.last?.content == "recovered after the budget was revoked")
+    }
+
     // MARK: - Fixtures
 
     /// The `.interrupted` arm arms the reconcile loop before any manual pass
@@ -278,13 +331,14 @@ struct RunStatusRecoveryTests {
     }
 
     @MainActor
-    private func makeStore(client: RunRecoveryClient) -> ChatStore {
+    private func makeStore(client: RunRecoveryClient, journal: ConversationJournalStore? = nil) -> ChatStore {
         let suiteName = "run-status-recovery-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         return ChatStore(
             hermesClient: client,
-            persistence: UserDefaultsAppPersistenceStore(defaults: defaults)
+            persistence: UserDefaultsAppPersistenceStore(defaults: defaults),
+            journal: journal
         )
     }
 }
@@ -303,6 +357,10 @@ private final class RunRecoveryClient: HermesClientProtocol {
     /// How many `resolveDroppedRun` calls return nil before the verdict lands.
     private let resolvesAfterCalls: Int
     private let sessionRowTimestamp: Date
+    /// When true the stream opens a placeholder and then never terminates —
+    /// the shape the expiration arm has to be driven through, since it only
+    /// fires on a turn that is still live.
+    private let streamHangsInsteadOfInterrupting: Bool
 
     private(set) var resolveCallCount = 0
     private(set) var reconcileFromServerCallCount = 0
@@ -312,11 +370,13 @@ private final class RunRecoveryClient: HermesClientProtocol {
     init(
         resolution: DroppedRunResolution,
         resolvesAfterCalls: Int = 1,
-        sessionRowTimestamp: Date = .now
+        sessionRowTimestamp: Date = .now,
+        streamHangsInsteadOfInterrupting: Bool = false
     ) {
         self.resolution = resolution
         self.resolvesAfterCalls = resolvesAfterCalls
         self.sessionRowTimestamp = sessionRowTimestamp
+        self.streamHangsInsteadOfInterrupting = streamHangsInsteadOfInterrupting
     }
 
     func connect() async {}
@@ -333,8 +393,16 @@ private final class RunRecoveryClient: HermesClientProtocol {
                 Message(id: userID, clientMessageID: clientMessageID, sender: .user, content: message, status: .sent),
             ]
         )
+        let hangs = streamHangsInsteadOfInterrupting
         return AsyncStream { continuation in
             Task { @MainActor in
+                if hangs {
+                    // Open the turn and leave it open. Only the caller's own
+                    // cancellation ends it — which is what the expiration
+                    // path is.
+                    continuation.yield(.textDelta("…"))
+                    return
+                }
                 continuation.yield(.interrupted(sessionId: "probe-session", runId: Self.runID))
                 continuation.finish()
             }
@@ -348,6 +416,10 @@ private final class RunRecoveryClient: HermesClientProtocol {
     func clearConversation() async throws -> Conversation { Conversation(title: "Hermes") }
 
     var currentRunIsServerRecoverable: Bool { true }
+
+    /// #322's read-before-clear source. The expiration arm reads this to
+    /// learn which run it is arming recovery for.
+    var activeRunID: String? { Self.runID }
 
     /// The legacy instrument. Deliberately offers a TEMPTING candidate — a
     /// hermes row the positional filter would happily adopt — so any

@@ -241,7 +241,12 @@ struct RunsPlaneTransportTests {
         /// `statusTransportFailures` gives the status GET — so a test can pin
         /// `hardStopActiveRun()`'s behavior when its own POST never reaches
         /// the host.
-        stopTransportFails: Bool = false
+        stopTransportFails: Bool = false,
+        /// #368 bar 3E-I: makes `POST /v1/runs` itself answer non-2xx — the
+        /// shape a host with no runs plane produces. After the cutover this
+        /// is the one failure the app cannot fall back from, so it has to
+        /// fail VISIBLY rather than silently or with an invented answer.
+        submitStatus: Int = 202
     ) -> RunsStubURLProtocol.Script {
         RunsStubURLProtocol.Script(
             response: { request in
@@ -268,6 +273,9 @@ struct RunsPlaneTransportTests {
                     }
                     return try reply(200, messagesBody)
                 case "/v1/runs":
+                    guard submitStatus == 202 else {
+                        return try reply(submitStatus, #"{"error":"Not Found"}"#)
+                    }
                     return try reply(202, #"{"run_id":"run-r1","status":"started"}"#)
                 case "/v1/runs/run-r1/events":
                     return try reply(eventsStatus, sseBody, contentType: "text/event-stream")
@@ -1068,6 +1076,47 @@ struct RunsPlaneTransportTests {
         #expect(failures.first == "tool budget exhausted")
         #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
         #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } })
+    }
+
+    /// **Bar 3E-I (#368) — the cutover's own risk, pinned.**
+    ///
+    /// After the flip there is no second turn transport to fall back to, so a
+    /// host that cannot serve `/v1/runs` has exactly one honest outcome: say
+    /// so. This asserts all three halves of that — the failure is REPORTED
+    /// (one `.failed`), it is NOT DRESSED AS ANYTHING ELSE (no `.finished`,
+    /// no `.interrupted` promising a recovery that cannot come, no
+    /// `.unreachable` offering to park a turn the host actively refused), and
+    /// it CARRIES WORDS (a spinner that never resolves is the failure mode
+    /// this bar exists to forbid).
+    ///
+    /// The run is never committed here — the submit is what commits it — so
+    /// `.interrupted` would be a lie about server-side state, not merely a
+    /// worse label.
+    @Test @MainActor
+    func aHostThatCannotServeRunsFailsVisiblyRatherThanSilently() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: "",
+            submitStatus: 404
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "no-runs-plane")
+        let updates = await collect(from: client)
+
+        let failures = updates.compactMap { update -> String? in
+            if case let .failed(text) = update { return text }
+            return nil
+        }
+        #expect(failures.count == 1, "exactly one terminal failure, never silence")
+        #expect(failures.first?.isEmpty == false, "a failure with no words is the spinner this bar forbids")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } },
+                "nothing was committed server-side — promising a recovery would be a lie about the host")
+        #expect(!updates.contains { if case .unreachable = $0 { return true } else { return false } },
+                "the host answered; it refused. Parking the turn offline would misreport that")
+        // And no stop was issued for a run that never existed.
+        #expect(RunsStubURLProtocol.count("/v1/runs/run-r1/stop") == 0)
     }
 
     /// Stale-hop parity with the sessions plane. A hop persisted from a

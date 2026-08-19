@@ -206,7 +206,7 @@ struct DeveloperSettingsScreen: View {
 
                 flagRow(
                     "Runs Transport (Phase 3)",
-                    detail: "/v1/runs + status-poll recovery · #283",
+                    detail: "Default since the #368 cutover · off = legacy sessions plane",
                     isOn: runsTransportBinding
                 )
             }
@@ -509,6 +509,8 @@ struct DeveloperSettingsScreen: View {
 
     /// #283: no side effect — the client reads this through
     /// `SessionsHermesClient.useRunsTransportProvider`, armed once at launch.
+    /// #368 (3E): ON is now the default; this row is the one-week escape
+    /// hatch Owen's 2026-08-19 ruling kept, and #382 removes it.
     private var runsTransportBinding: Binding<Bool> {
         Binding(
             get: { settingsStore.settings.useRunsTransport },

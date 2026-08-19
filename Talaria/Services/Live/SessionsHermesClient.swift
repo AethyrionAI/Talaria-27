@@ -238,10 +238,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// all three turn paths (sync, stream, priming).
     var modelSelection: ModelSelection?
 
-    /// #283 (Phase 3 slice 3A): Developer-screen switch for the runs-plane
-    /// transport (`/v1/runs` + status-poll recovery), armed by AppContainer
-    /// from the persisted setting. Default `false` — the sessions path stays
-    /// the default transport until 3A-F passes. Read once per turn by both
+    /// #283 (3A) → **#368 (3E): DEFAULT `true` since the cutover.** The
+    /// runs-plane transport (`/v1/runs` + status-poll recovery), armed by
+    /// AppContainer from the persisted setting; the surviving switch is a
+    /// one-week escape hatch, and its deletion is #382. Read once per turn by both
     /// `performSyncTurn` and `sendStreaming` (Task 5 wired this dispatch, in
     /// this same branch), so a mid-turn toggle can never split one turn
     /// across two transports.
