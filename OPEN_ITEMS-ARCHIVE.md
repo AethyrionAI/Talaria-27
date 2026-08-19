@@ -33931,3 +33931,19 @@ accepted limitation) when the host sitting scopes Phase 3's later slices.
 
 > **✅ CLOSED 2026-08-18 night — Owen's formal close on the ruling above.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 380. 📝 The query-time sensor CONSENT question — **FILED 2026-08-18 night, re-homed from #137's moot-close. DECISION, Owen routes.**
+
+- #352 made sensors query-time (`DeviceHealthTool` does per-read
+  `requestAuthorization()`), and #137's migration-written toggles now gate
+  `PhoneQueryResponder.deniedGate` (unit-covered). Question: does the
+  query-time world need its own consent surface/copy, or do per-read OS
+  prompts + the existing toggles suffice?
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): the per-read OS
+> prompts + the existing toggles SUFFICE.** No new consent surface; the one
+> deliverable is a single line of Settings copy describing the query-time
+> model, re-homed to #173's honest-copy floor lane (noted there).
+
+> **✅ CLOSED 2026-08-18 night — Owen's formal close on the ruling above.
+> Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**

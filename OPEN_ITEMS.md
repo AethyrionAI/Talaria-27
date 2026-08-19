@@ -211,7 +211,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e)
 - **#378** 🧭 156c — Memory surface; scope decision first (local files vs Honcho)
 - **#379** 🧭 156e — Projects surface; post-launch candidate
-- **#380** 📝 query-time sensor consent question (re-homed from #137)
 - **#381** 🎨 steer unreachable while composer is busyNoCommit with the hold slot taken — affordance is Owen's call
 
 > **2026-08-18 night — archive sweep 4:** the six-slice board audit closed
@@ -2809,6 +2808,10 @@ Logged 2026-07-23.
 > have; trigger = upstream shipping such a field. Floor build queued this week
 > (free bucket); bars pre-register here before code.
 
+> **2026-08-18 ~22:40 — one rider re-homed here:** the floor lane also
+> carries **#380's one-line Settings copy** (describing the query-time
+> sensor model) — same honest-copy shape, same surface family.
+
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
 > **2026-08-10:** Owen reports the Control Center controls now WORK (#58's note). This item's cold-first-tap discriminator is the ONLY thing left open here — one 30-second check next sitting (force-quit, tap the same control twice; if only the first is swallowed, the shape is established; if neither, close with #58).
@@ -4274,6 +4277,10 @@ silently drop it.**
 > is reachable. Any real voice-reachable answer surface — like any
 > approval that outlives its screen — is designed here, with scoped teardown
 > as part of that design, not bolted onto #304.
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): decision
+> DEFERRED until 3E (#368) lands.** The runs plane changes what an approval
+> push even is; re-put the question after the cutover.
 
 ## 312. 🔬 Continuity fabric DEVICE PASS — Group 7 has genuinely never run once — **FILED 2026-08-09 (successor A of #93's split; Owen ruled the split). The oldest owed verification on the board, on mechanisms four later lanes (#97, #114, #240, #283) now depend on.**
 
@@ -5799,6 +5806,10 @@ routinely-red or routinely-ignored gate is worse than none.
 > cadence, subset, and what "regression" means for a stochastic rate (a band
 > and an n, per #215). Owen routes; no lane until then.
 
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): routing
+> DEFERRED** until this week's instrument runs (#199A, #372) show what a
+> band-and-n regression definition looks like in practice.
+
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
 
 **The measurement** (artifact `run-20260812-214629-F6C46C82`, spiral battery, 120
@@ -5918,6 +5929,13 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 **#196** (the disclaimer tic — this is its inverse: "I did" instead of "I can't"),
 **#331** (reap-on-start, which is why residue is not the first explanation),
 `planning/reports/2026-08-12-333-runner-witnesses/225-spiral-artifact.json`.
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): the WARM-UP
+> mechanism is ELECTED** on #343's exact per-family fit (plus #340-F/G's
+> corroborating off-by-ones); the "battery `toolCalls` are FLOORS" caveat
+> stands as written. Remaining build shrinks to **336-C alone** (the
+> recorder-integrity test, RED-witnessed); 336-A and 336-E are retired by
+> the election.
 
 ## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any fix lane.**
 
@@ -9805,6 +9823,13 @@ conversation. Owen routes each lane.
 > #310 · #311 · #375. Lane 6 still needs its re-scope conversation before
 > any dispatch.
 
+> **2026-08-18 ~22:40 — LANE 6 RETIRED (Owen, recommendations batch).** Both
+> readings of what it was have dead consumers — #238 deleted the
+> notification surface the re-attach reading served, and tonight's #311
+> ruling (mirror + reconstruction are the home) answered the files-mount
+> reading. The re-scope conversation this entry asked for is hereby had and
+> closed. **Decommission gates now read exactly: #309 · #310 · #375.**
+
 ## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
@@ -11693,14 +11718,17 @@ PR #320's CTX fixes in one build.
 
 ## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.**
 
+> **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
+> `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
+> later if ever wanted. Buildable when routed; not scheduled this week.
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
 
-## 380. 📝 The query-time sensor CONSENT question — **FILED 2026-08-18 night, re-homed from #137's moot-close. DECISION, Owen routes.**
-
-- #352 made sensors query-time (`DeviceHealthTool` does per-read
-  `requestAuthorization()`), and #137's migration-written toggles now gate
-  `PhoneQueryResponder.deniedGate` (unit-covered). Question: does the
-  query-time world need its own consent surface/copy, or do per-read OS
-  prompts + the existing toggles suffice?
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
+> post-launch.**
 
 ## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.**
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
+> limitation for now — WATCH.** Trigger: #368's cutover landing, which
+> reshapes the composer surface this rides on; re-examine then.
