@@ -1234,6 +1234,75 @@ extension SessionsHermesClient {
         return true
     }
 
+    // MARK: - #368 (3E): the dropped-run recovery read
+
+    /// One `GET /v1/runs/{id}` on behalf of `ChatStore`'s recovery loop —
+    /// the runs plane's replacement for `reconcileFromServer()`.
+    ///
+    /// **Deliberately built on `readRunStatus`, not `pollRunToTerminal`.**
+    /// The loop, the interval and the wall-clock budget live in the caller
+    /// (`ChatStore`), which already owns a generation-guarded task and a
+    /// deadline; starting a second loop down here would be #292's shape —
+    /// two budgets for one recovery, neither aware of the other.
+    ///
+    /// The four `RunStatusRead` cases collapse to three verdicts plus `nil`:
+    /// - `.terminal` → a real verdict, mapped below.
+    /// - `.gone` → `.gone`. The caller retires its loop rather than grinding.
+    /// - `.live` → `nil`, "keep polling". **Including `waiting_for_approval`,
+    ///   which #304 C5 proves is not a pending-approval oracle** — the status
+    ///   keeps reading it for the rest of the run after a timeout, so no card
+    ///   is raised from it here (bar 304-F) and no verdict is drawn from it.
+    /// - `.unreadable` → `nil`. One flaky GET says nothing about the run; the
+    ///   caller's budget is what bounds the retrying.
+    ///
+    /// Usage is recorded into the session's index on the way past, exactly as
+    /// `deliverPolledTerminal` does, so a recovered turn's numbers reach the
+    /// CTX gauge by the same route a streamed one's do.
+    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+        switch await readRunStatus(runID: runID, profileID: nil) {
+        case .gone:
+            runsTransportLogger.notice(
+                "runs: recovery read for \(runID, privacy: .public) — host no longer has this run (404); nothing further to wait for"
+            )
+            return .gone
+        case .live, .unreadable:
+            return nil
+        case .terminal(let snapshot):
+            let resolution = Self.resolution(from: snapshot)
+            // Parity with `deliverPolledTerminal`: a recovered turn's numbers
+            // reach the CTX gauge by the same route a streamed one's do.
+            if case .answered(_, let usage) = resolution, let usage {
+                usageIndex?.record(sessionID: sessionID, usage: usage)
+            }
+            return resolution
+        }
+    }
+
+    /// The terminal snapshot → verdict mapping. A pure function on purpose:
+    /// every arm is scorable from a literal status body, with no URL session
+    /// and no store — the mapping is where the honesty rules live, so it is
+    /// the part that must be cheap to test.
+    ///
+    /// The `completed`-with-no-text arm is **#235 F1 reused rather than
+    /// restated**: a terminal status carrying no answer must not paint an
+    /// empty bubble. Here that means `.endedWithoutAnswer`.
+    nonisolated static func resolution(from snapshot: RunStatusSnapshot) -> DroppedRunResolution {
+        switch snapshot.status {
+        case "completed":
+            let output = snapshot.output ?? ""
+            guard !output.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return .endedWithoutAnswer
+            }
+            return .answered(content: output, usage: decodeRunUsage(snapshot.rawJSON))
+        case "failed":
+            return .failed(runFailureText(snapshot.error ?? ""))
+        default:
+            // `cancelled`, `stopped`, or a terminal status name this build
+            // does not know. The run is over and there is no answer.
+            return .endedWithoutAnswer
+        }
+    }
+
     // MARK: - Steer (#357, 3C)
 
     /// `POST /v1/runs/{run_id}/steer` on the turn's frozen endpoint — the

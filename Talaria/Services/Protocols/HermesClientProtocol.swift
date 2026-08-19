@@ -81,6 +81,40 @@ struct HermesSessionInfo: Identifiable, Hashable, Sendable {
     }
 }
 
+/// #368 (Phase 3 slice 3E): how ONE recovery read of a dropped run resolved.
+///
+/// The runs plane's answer to the question the sessions plane could only
+/// guess at. `reconcileFromServer()` re-reads a SESSION and adopts
+/// positionally — "the newest hermes row stamped later than the client's own
+/// `sentAt`" — which is a heuristic over someone else's clock. This reads the
+/// RUN, by the id the app already holds, and the host answers about that run
+/// and no other.
+///
+/// `nil` (not a case here) is the "keep polling" answer and covers four
+/// outcomes the caller treats identically: the run is still live, the read
+/// failed, the body was unparseable, or this client has no runs plane at all.
+/// Only the four cases below are verdicts.
+enum DroppedRunResolution: Equatable, Sendable {
+    /// Terminal with an answer. `content` is the run's own `output`;
+    /// `usage` is the run's own usage block, or nil when the host sent none
+    /// (rendered as honestly unknown, never as the prior run's number).
+    case answered(content: String, usage: TokenUsage?)
+    /// Terminal, and the host reported a failure. The string is already the
+    /// user-facing honest form — no reason is invented for a bare
+    /// `error: true` (296-C1's union).
+    case failed(String)
+    /// Terminal with nothing to show: `cancelled`, `stopped`, an unknown
+    /// terminal status, or `completed` with an empty output. **Deliberately
+    /// distinct from `.answered("")`** — #235 F1's rule is that a terminal
+    /// status carrying no text must never paint an empty bubble.
+    case endedWithoutAnswer
+    /// `404` — the host no longer has this run (status TTL expired, the run
+    /// was reaped, or the id belongs to another host). No amount of further
+    /// polling produces an answer, so the caller stops rather than grinding
+    /// out its budget.
+    case gone
+}
+
 /// #357 (3C): how a steer SUBMIT resolved. Every arm distinct, none of them
 /// "applied" — the applied signal is `StreamingUpdate.steerLanded` and only
 /// that (bar 357-G; the wording rule 306-J means the UI never says "sent"
@@ -259,6 +293,27 @@ protocol HermesClientProtocol {
     /// nil: no runs plane, nothing to read.
     func finalRunUsage(runID: String) async -> TokenUsage?
 
+    /// #368 (3E): ONE bounded recovery read of a run whose stream dropped —
+    /// `GET /v1/runs/{id}` — resolving it by its own identity instead of by
+    /// re-reading the session and guessing which row is the answer.
+    ///
+    /// **This replaces `reconcileFromServer()` as the recovery instrument on
+    /// the runs plane, and the two are not interchangeable.** The session
+    /// re-read adopts the newest hermes row newer than a CLIENT-side
+    /// `sentAt`, so it can adopt an unrelated later turn's reply, and it
+    /// cannot resolve at all when the phone's clock runs ahead of the host's
+    /// (#293(b), measured-but-unfixed under the old machinery). Neither
+    /// failure is reachable here: the id names the run.
+    ///
+    /// **One request per call, like `finalRunUsage` above and for the same
+    /// #292 reason** — the caller owns the loop, its interval and its
+    /// budget, so an implementation must not start one of its own.
+    ///
+    /// The default is `nil`: a client with no runs plane (mock / legacy relay
+    /// / the on-device brain) has no run to read, and `nil` is the caller's
+    /// "not resolved" answer either way.
+    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution?
+
     /// #304 (Phase 3 slice 3B): answer a HOST approval parked on a `/v1/runs`
     /// run — `POST /v1/runs/{run_id}/approval {"choice": …}`. Declared beside
     /// `hardStopActiveRun()` because it is the same seam shape: a run-scoped
@@ -327,6 +382,11 @@ extension HermesClientProtocol {
     // forwards by routing lock.
     func steerActiveRun(text: String) async -> SteerSubmitOutcome { .noActiveRun }
     func finalRunUsage(runID: String) async -> TokenUsage? { nil }
+    // #368 (3E): no runs plane, so no run to read — `nil` is "keep polling",
+    // which for a client that will never have an answer simply means the
+    // caller's own budget retires the loop. Same honest-absence shape as
+    // `activeRunID`/`finalRunUsage` above.
+    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? { nil }
     // #304: no runs plane to answer on — the honest dead end, never a fake
     // success. `SessionsHermesClient` overrides with the real POST;
     // `ResilientHermesClient`/`ChatBackendRouter` override to forward.

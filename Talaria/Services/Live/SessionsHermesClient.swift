@@ -1148,6 +1148,26 @@ final class SessionsHermesClient: HermesClientProtocol {
                            bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
+    /// #368 (3E): deterministic identity for a reply adopted from a RUN
+    /// STATUS read — the #237 pattern with its own domain, keyed by the run
+    /// id (globally unique, and the only stable handle a status read gives
+    /// us; the recovered answer has no server ROW id to key on, which is
+    /// exactly why the sessions reconcile had to guess positionally).
+    ///
+    /// Determinism is what makes the adoption idempotent: two recovery passes
+    /// racing the same terminal status produce the SAME id, so the second
+    /// merges instead of duplicating — #237's shape, prevented rather than
+    /// cleaned up after.
+    nonisolated static func stableRecoveredRunMessageID(runID: String) -> UUID {
+        let digest = SHA256.hash(data: Data("talaria-run:\(runID)".utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+                           bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11],
+                           bytes[12], bytes[13], bytes[14], bytes[15]))
+    }
+
     /// The reasoning to restore for a resumed assistant row, or nil (#121).
     /// Prefers `reasoning_content` (the live channel's key, matching
     /// `decodeRunReasoning`'s per-entry preference), falling back to

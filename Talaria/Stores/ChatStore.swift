@@ -526,6 +526,36 @@ final class ChatStore {
     var reconcileWallClockBudget: Duration = .seconds(120)
     // harness-visible
     var reconcilePollInterval: Duration = .seconds(2)
+
+    /// #368 (3E): the RUN-ID recovery loop's own budget and interval — the
+    /// pair that replaces `reconcileWallClockBudget`/`reconcilePollInterval`
+    /// the moment a `PendingRun` carries a run id.
+    ///
+    /// **Longer is safe here for the reason #145 Part C says 120s was not
+    /// safe there.** That budget was written against `reconcileFromServer()`,
+    /// an unbounded gateway fetch whose per-attempt cost could be a full
+    /// 60s `URLSession` timeout — so an attempt counter (and very nearly a
+    /// wall clock) could not bound the loop at all. `resolveDroppedRun` is
+    /// ONE `GET /v1/runs/{id}` carrying the interactive request timeout, so
+    /// the per-attempt cost is bounded by construction and the wall clock
+    /// really is the ceiling: worst case here is the budget plus one
+    /// interval plus one bounded read.
+    ///
+    /// **600s, not the status TTL's 3600s.** The host keeps the answer
+    /// readable for an hour, so nothing is lost when this retires — a
+    /// reopened thread refetches. Ten minutes covers a long tool-using turn
+    /// that dropped its stream, and stops the app polling for an hour behind
+    /// a screen nobody is looking at (#292's lesson, one layer up).
+    ///
+    /// **5s, not 2s.** The live poll's 2s exists to catch a run that finished
+    /// while its stream was dying, inside one interval. This loop is already
+    /// past that: the stream is gone, the user is waiting on a recovery, and
+    /// 5s is well inside what reads as "it came back" while costing 2.5x
+    /// fewer requests over a budget five times as long.
+    // harness-visible: tests shrink these the same way they shrink the pair above.
+    var runRecoveryWallClockBudget: Duration = .seconds(600)
+    // harness-visible
+    var runRecoveryPollInterval: Duration = .seconds(5)
     /// #145 Part C: lets a test watch the loop retire itself instead of sleeping
     /// a fixed duration and asserting on a stopwatch (which would be flaky under
     /// load — #183's territory).
@@ -1475,7 +1505,11 @@ final class ChatStore {
     /// stored identifiers it has in scope) — only this identical middle is
     /// factored out, so a future edit to one arm's recovery mechanics can't
     /// silently drift from the other's.
-    private func armPendingRunRecovery(
+    // harness-visible (#368): widened from `private` so the suite can re-arm a
+    // pending run against an ALREADY-RESOLVED run id and drive
+    // `adoptRecoveredRun`'s idempotence guard directly. Private in spirit —
+    // the two production call sites are the ones named above.
+    func armPendingRunRecovery(
         placeholderID: UUID,
         sessionId: String,
         runId: String?,
@@ -3533,15 +3567,24 @@ final class ChatStore {
 
     private func performReconcilePendingRuns() async {
         guard let pending = pendingRun else { return }
-        if await attemptReconcile(pending) == false {
+        // #368 (3E): only `.keepPolling` arms the loop. `.unrecoverable` (the
+        // host 404'd the run id) must NOT — grinding a budget against a run
+        // the host has already forgotten is the #145 shape wearing a new
+        // face, and the answer will never change.
+        if await attemptReconcile(pending) == .keepPolling {
             startReconcileLoopIfNeeded()
         }
     }
 
     private func startReconcileLoopIfNeeded() {
-        guard reconcileTask == nil, pendingRun != nil else { return }
-        let budget = reconcileWallClockBudget
-        let interval = reconcilePollInterval
+        guard reconcileTask == nil, let pending = pendingRun else { return }
+        // #368 (3E): the run-id path is a different instrument with a
+        // different cost, so it gets its own budget — see the knobs' docs.
+        // Read ONCE, here, from the pending run that armed the loop: a loop
+        // must not change its own deadline halfway through.
+        let onRunPlane = pending.runId != nil
+        let budget = onRunPlane ? runRecoveryWallClockBudget : reconcileWallClockBudget
+        let interval = onRunPlane ? runRecoveryPollInterval : reconcilePollInterval
         // #293(a): the same token as the poll loop's — this teardown cleared
         // `reconcileTask` unconditionally, so a loop finishing one main-actor
         // hop after a newer one was armed would nil the NEW task's handle.
@@ -3556,7 +3599,10 @@ final class ChatStore {
             while !Task.isCancelled, ContinuousClock.now < deadline {
                 try? await Task.sleep(for: interval)
                 guard !Task.isCancelled, let pending = self.pendingRun else { break }
-                if await self.attemptReconcile(pending) { break }
+                // #368 (3E): `.resolved` and `.unrecoverable` both end the
+                // loop — one because there is an answer, one because there
+                // never will be. Only `.keepPolling` goes round again.
+                if await self.attemptReconcile(pending) != .keepPolling { break }
             }
             // #306 matrix row 3's other tail: the budget ran out with no
             // adoption and the run is still unresolved — SURFACE the held
@@ -3571,12 +3617,178 @@ final class ChatStore {
         }
     }
 
-    /// One reconcile pass: fetch the server's view of the session; if the
-    /// assistant reply landed after the run started, adopt it, notify, and clear
-    /// the pending run. Returns true when resolved.
+    /// #368 (3E): what ONE recovery pass concluded. Three arms, because the
+    /// old `Bool` could not say the third: a run the host has 404'd is
+    /// unresolved AND unpollable, and treating that as "keep trying" is how a
+    /// loop outlives the thing it is waiting for.
+    enum ReconcilePassOutcome: Equatable {
+        /// A reply was adopted (or the run's own terminal verdict was
+        /// surfaced). The pending run is cleared.
+        case resolved
+        /// Nothing yet. The caller's budget decides how long that stays true.
+        case keepPolling
+        /// The host cannot answer about this run at all — polling on would be
+        /// grinding. The pending run stays live (nothing was adopted and
+        /// nothing is claimed), but this client stops asking.
+        case unrecoverable
+    }
+
+    /// One recovery pass. **Two instruments behind one door, chosen by
+    /// whether the dropped run has an id (#368, 3E):**
+    ///
+    /// - **With a run id** — every turn on the runs plane — one
+    ///   `GET /v1/runs/{id}`. The host answers about THAT run: its own
+    ///   output, its own usage, its own terminal verdict.
+    /// - **Without one** — the pre-cutover sessions stream, and the
+    ///   background-expiration arm that has no id channel — the legacy
+    ///   session re-read below, which adopts positionally against a client
+    ///   clock. Kept for exactly as long as a run-id-less pending run can
+    ///   exist, and no longer.
     @discardableResult
-    private func attemptReconcile(_ pending: PendingRun) async -> Bool {
-        guard let serverConvo = await hermesClient.reconcileFromServer() else { return false }
+    private func attemptReconcile(_ pending: PendingRun) async -> ReconcilePassOutcome {
+        if let runID = pending.runId {
+            return await attemptRunStatusReconcile(pending, runID: runID)
+        }
+        return await attemptSessionReconcile(pending)
+    }
+
+    /// #368 (3E): the runs plane's recovery pass — one `GET /v1/runs/{id}`,
+    /// resolving the dropped run by its own identity.
+    ///
+    /// Four verdicts, and **none of them invents anything**:
+    /// - `.answered` → adopt. The text is the run's own output, the usage is
+    ///   the run's own usage block, and the identity is derived from the run
+    ///   id, so a racing second pass merges rather than duplicating (#237
+    ///   prevented, not cleaned up after).
+    /// - `.failed` → surface the host's own words as a system row. Better
+    ///   than the pre-#368 behaviour, which was to keep polling a run that
+    ///   had already failed until the budget expired and say nothing.
+    /// - `.endedWithoutAnswer` → the run is over with nothing to show
+    ///   (cancelled, stopped, or `completed` carrying no text — #235 F1's
+    ///   rule). Stop watching; claim nothing.
+    /// - `.gone` → the host has forgotten this run. `.unrecoverable`.
+    /// - `nil` → still live, or the read failed. `.keepPolling`.
+    private func attemptRunStatusReconcile(_ pending: PendingRun, runID: String) async -> ReconcilePassOutcome {
+        guard let resolution = await hermesClient.resolveDroppedRun(
+            runID: runID,
+            sessionID: pending.sessionId
+        ) else { return .keepPolling }
+
+        switch resolution {
+        case .answered(let content, let usage):
+            adoptRecoveredRun(pending, runID: runID, content: content, usage: usage)
+            return .resolved
+        case .failed(let text):
+            chatLog.notice("run recovery: \(runID, privacy: .public) reached a FAILED status — surfacing the host's own words")
+            appendRunFailureNotice(text)
+            settlePendingRun(pending, runID: runID, adopted: false)
+            return .resolved
+        case .endedWithoutAnswer:
+            chatLog.notice("run recovery: \(runID, privacy: .public) ended with nothing to show — clearing the watch without a claim")
+            settlePendingRun(pending, runID: runID, adopted: false)
+            return .resolved
+        case .gone:
+            return .unrecoverable
+        }
+    }
+
+    /// #368 (3E): the host's own failure words for a recovered run, as a
+    /// `.system` row — the same vehicle #328's stop notice uses, and for the
+    /// same reasons (no new rendered state, survives the transcript cache).
+    /// The text arrives already honest: `runFailureText` invents no reason
+    /// for a bare `error: true` (296-C1's union).
+    private func appendRunFailureNotice(_ text: String) {
+        guard var conv = conversation else { return }
+        conv.messages.append(Message(sender: .system, content: text, status: .failed))
+        conversation = conv
+        if let conversation { persistence.saveConversationCache(conversation) }
+        onConversationChanged?()
+    }
+
+    /// Adopts a run-status answer into the transcript. Deliberately an APPEND
+    /// rather than the legacy path's whole-conversation replace: the local
+    /// thread is already correct except for the missing reply, and the run
+    /// status has no other rows to merge.
+    ///
+    /// **The reply lands at the TAIL by construction**, which is Owen's #235
+    /// F3 placement rule getting for free what the legacy path needs
+    /// `placingRecoveredReply` to arrange.
+    private func adoptRecoveredRun(_ pending: PendingRun, runID: String, content: String, usage: TokenUsage?) {
+        guard var conv = conversation else {
+            settlePendingRun(pending, runID: runID, adopted: false)
+            return
+        }
+        let replyID = SessionsHermesClient.stableRecoveredRunMessageID(runID: runID)
+        // Idempotence: a second pass resolving the same terminal status
+        // computes the same id and finds this row already present.
+        guard !conv.messages.contains(where: { $0.id == replyID }) else {
+            settlePendingRun(pending, runID: runID, adopted: true)
+            return
+        }
+        // #4.15: the server transcript filters `_thinking`, so reasoning that
+        // streamed before the drop survives only in the pending run. Partial
+        // by definition — the stream died mid-think.
+        let partial = pending.partialReasoning.flatMap { $0.isEmpty ? nil : $0 }
+        conv.messages.append(Message(
+            id: replyID,
+            sender: .hermes,
+            content: content,
+            status: .delivered,
+            reasoning: partial,
+            usage: usage,
+            // #46: two real timestamps, not an estimate — the send and now.
+            turnDuration: Date().timeIntervalSince(pending.sentAt),
+            servingModel: activeModelName
+        ))
+        // The prompt this reply answers stopped being "working" the moment
+        // the answer landed.
+        if let idx = conv.messages.firstIndex(where: { $0.id == pending.userMessageID }),
+           conv.messages[idx].status == .working {
+            conv.messages[idx].status = .sent
+        }
+        conversation = conv
+        if let usage { lastTokenUsage = usage }
+        settlePendingRun(pending, runID: runID, adopted: true)
+    }
+
+    /// The bookkeeping every run-status verdict shares, in ONE place so the
+    /// four arms cannot drift apart the way two copies of a teardown do.
+    /// `adopted` gates only the parts that presuppose a reply.
+    private func settlePendingRun(_ pending: PendingRun, runID: String, adopted: Bool) {
+        // #237: this run has resolved — a late duplicate interrupt for it is
+        // noise from here on, never a re-arm.
+        resolvedRunIDs.insert(runID)
+        pendingRun = nil
+        pendingMessageSentAt = nil
+        onRunResolved?(pending.sessionId)
+        if adopted, let conversation {
+            persistence.saveConversationCache(conversation)
+            onConversationChanged?()
+            // P1 (#90): the recovered exchange ran on the active hop's server
+            // session — journal it and bump the waterline.
+            journal?.sync(with: conversation, lastExchangeViaActiveHop: true)
+            finalizeOnDeviceIntelligence()
+        }
+        // #306 matrix row 3 resolved: whatever the verdict, this client is no
+        // longer waiting on the dropped run — the held message may now fire
+        // (the gate re-checks busyness).
+        resolveHeldTurn(after: .reconciled)
+    }
+
+    /// The legacy session re-read: fetch the server's view of the session; if
+    /// the assistant reply landed after the run started, adopt it, notify,
+    /// and clear the pending run.
+    ///
+    /// **Its two known weaknesses are why #368 routes around it rather than
+    /// improving it:** the candidate filter is positional (`the newest hermes
+    /// row newer than sentAt`), so an unrelated later turn on the same hop
+    /// can satisfy it; and `pending.sentAt` is a CLIENT clock compared with
+    /// strict `>` against HOST timestamps, so a phone running ahead of its
+    /// host never matches at all (#293(b), logged below and deliberately
+    /// never "fixed" on a hypothesis). Neither is reachable from
+    /// `attemptRunStatusReconcile`.
+    private func attemptSessionReconcile(_ pending: PendingRun) async -> ReconcilePassOutcome {
+        guard let serverConvo = await hermesClient.reconcileFromServer() else { return .keepPolling }
         let reply = serverConvo.messages.last(where: {
             $0.sender == .hermes
                 && $0.timestamp > pending.sentAt
@@ -3598,7 +3810,7 @@ final class ChatStore {
             chatLog.notice(
                 "reconcile pass found no candidate (#293b): sentAt=\(pending.sentAt.timeIntervalSince1970, privacy: .public) newestHermesRow=\(newestHostRow?.timeIntervalSince1970 ?? -1, privacy: .public) delta=\(newestHostRow.map { $0.timeIntervalSince(pending.sentAt) } ?? .nan, privacy: .public) hermesRows=\(serverConvo.messages.filter { $0.sender == .hermes }.count, privacy: .public)"
             )
-            return false
+            return .keepPolling
         }
 
         // #235 F3: the prompt text lives in the PRE-adoption conversation
@@ -3664,7 +3876,7 @@ final class ChatStore {
         // #306 matrix row 3 resolved: the dropped run's reply was adopted —
         // the held message may now fire (the gate re-checks busyness).
         resolveHeldTurn(after: .reconciled)
-        return true
+        return .resolved
     }
 
     // MARK: - On-device intelligence (#4.8 × #4.15)
