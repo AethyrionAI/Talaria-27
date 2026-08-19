@@ -79,7 +79,14 @@ shim is not stopped at all (probed 2026-08-09): `tools/models-shim/shim.py` runs
 under the hermes venv, up since Jul 24, answering 401 on `:8765`.** Harmless —
 the app provably never calls it (`ModelsShimClient` deleted from the tree) — but
 "the shim is retired" describes the MODEL PATH, not the processes: one host will
-resurrect its listener on reboot and the other never stopped its own. The old dual-write
+resurrect its listener on reboot and the other never stopped its own. **→ SUPERSEDED
+2026-08-18 ~22:46 (#375, Owen's go): the Mac shim AND the Mac dev relay are booted
+out with their LaunchAgents retired backup-first — no reboot resurrection on either
+host, and "retired" finally describes the CONFIGURED state on BOTH hosts.** Restore
+recipes live in #375's evidence block (the relay's pairing DB is untouched, so a
+restore needs no re-pair) — and per Owen's same-night direction ruling (#309), any
+restore is a temporary migration bridge, never a fallback: capability gaps adapt to
+the runs interface / talaria plugin instead. The old dual-write
 description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary

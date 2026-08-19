@@ -11775,6 +11775,37 @@ PR #320's CTX fixes in one build.
 > fresh-bounced gateway serves **Hermes 0.20.4**; OJAMD measured **0.20.3**
 > on 08-18 (#349 wire probe). Version notes rot in days — probe live.
 
+> **✅ SECOND HALF EXECUTED 2026-08-18 ~22:45 — the Mac SHIM and DEV RELAY
+> retired too, on Owen's go ("shim and dev relay can go as well, via
+> subagent"), with his direction ruling recorded at #309 (adapt forward,
+> never fall back).** Evidence, condensed from the agent's report:
+> - Both were `RunAtLoad`+`KeepAlive` LaunchAgents (so `bootout` was the
+>   correct verb — a kill would have respawned): `com.aethyrion.talaria.
+>   modelsshim` (shim.py `:8765`, PID 87376) and `org.aethyrion.talaria-relay`
+>   (uvicorn `:8000`, PID 87367), both up since Aug 11 15:32.
+> - **Zero live clients at retirement** — LISTEN only on both ports; the
+>   relay's recent log traffic was one unpaired localhost client collecting
+>   401s. No host WS live.
+> - Plists copied (byte-verified) AND moved `.retired` into
+>   `~/.hermes/retired-supervision-20260818/` — same pattern as the
+>   connector. Bootouts exit 0, clean uvicorn shutdown logged, **no respawn
+>   at 45 s / 2.5 min, both ports free, both labels gone.**
+> - **Collateral clean:** gateway untouched (`:8642` 200, PID 75604
+>   unchanged), `com.talaria.ota-http` intact, `relay/hermes_mobile.db` +
+>   all logs untouched, repo clean.
+> - **Restore recipes are in the agent report and are two commands each**
+>   (`mv` the `.retired` plist back + `launchctl bootstrap gui/501 …`);
+>   the relay's pairing DB is untouched, so a restore comes back with
+>   pairings intact — the two-second fallback if Saturday's voice checks
+>   surface a relay-riding bootstrap. Per the #309 direction ruling, any
+>   such restore is a MIGRATION BRIDGE, not a home.
+>
+> **The Mac now matches OJAMD: the legacy tier's supervision is fully
+> retired on both hosts. THIS ENTRY'S ONLY REMAINING SCOPE is the app-side
+> dead-code deletion PR** (`ProvisioningService.swift`,
+> `ProfileRelaySession.downloadAgentFile`) — gated lane, this week's free
+> bucket.
+
 ## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.**
 
 > **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check
