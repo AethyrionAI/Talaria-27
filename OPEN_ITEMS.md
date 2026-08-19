@@ -4632,6 +4632,24 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 > free design slot; bars pre-register here when it opens.
 ## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.**
 
+> **✅ 2026-08-19 — ROUTE 1's QUESTION DISSOLVES rather than being answered,
+> and this is #368's cutover doing it (`33108d05`).** Route 1 was "make a
+> SESSIONS-plane Stop actually reach the host", gated on bar 328-A's route
+> probe that nobody ever ran. **After the cutover no ordinary turn is on the
+> sessions plane**, so every default Stop is a runs Stop and really does
+> `POST /v1/runs/{id}/stop`. There is nothing left for 328-A to unblock, and
+> it should not be run: it would be answering a question about a path the
+> product no longer takes.
+>
+> **🔴 THE ITEM DOES NOT CLOSE YET, and the reason is precise.** #368 kept
+> the Developer switch for one week (Owen's flip-now-delete-next-week
+> ruling), so a user CAN still turn the swallowed-Stop plane back on. The
+> honest state is: **route 1 is moot on the default path today, and moot
+> outright when #382 lands** (⏰ 2026-08-26) and the sessions turn transport
+> is deleted. **Close this at #382, not before** — and close it as
+> *dissolved*, never as *fixed*: nobody made a sessions Stop reach the host,
+> the sessions turn stopped existing.
+
 **Measured, not inferred.** Owen ran `sleep 90 && echo Done` on the `HERMES`
 profile (KIMI-K3, ordinary sessions `chat/stream`), lost the stream, and pressed
 Stop in the reconcile window. The composer freed (#321 working). Ninety seconds
@@ -6132,6 +6150,18 @@ in this codebase — `ChatBackendRouter.finishRun(_ id:)`,
 `bootstrapGeneration`. Auditor's own read: ~90% the shape is wrong, **~35%
 reachable** (the window is one main-actor hop). **Latent shape, not a live
 bug** — fix is three tokens and matches the file's own convention.
+
+> **2026-08-19 — (b)'s EXPOSURE SHRANK; the finding is not refuted.**
+> #368's cutover (`33108d05`) routes every run-id recovery through
+> `GET /v1/runs/{id}`, which has **no timestamp predicate at all** — so the
+> client-clock-vs-host-clock comparison this finding is about is unreachable
+> from the default path. It survives only on the legacy
+> `attemptSessionReconcile` arm, which **#382 deletes** (⏰ 2026-08-26).
+> The #368 lane added a negative control for the skew shape
+> (`aHostClockBehindTheClientStillResolves`), so the behaviour is now pinned
+> rather than merely reasoned about. **Do not close (b) on this** — nothing
+> measured the skew, and the measurement-only logging stays where it is
+> until the arm goes.
 
 **(b) INSTRUMENTED 2026-08-07 night, NOT fixed — deliberately.** The strict
 comparison is untouched and no slack was added (a behavior change pending
@@ -12006,20 +12036,22 @@ scope: **wholesale, or a permanent dual path?**
 >   smuggling one into this diff.
 
 
-> **📬 2026-08-19 — PR OPENED: https://github.com/AethyrionAI/Talaria-27/pull/322**
-> (`t27-368-3e-cutover` → `main`, 10 commits, `GATE: PASS`). Body =
-> `handoffs/PR-BODY-368.md` (gitignored). **AWAITING OWEN'S REVIEW — not
-> merged.** ⚠️ When it merges, correct THIS line in the same commit: a
-> "NOT MERGED" text that outlives its merge is the four-day-stale shape
-> #322/#328 already produced once, and the PR number here being 322 makes
-> that confusion easier, not harder — PR #322 and tracker #322 are
-> different things (CLAUDE.md's standing disambiguation rule).
+> **✅ 2026-08-19 — MERGED as `33108d05` ("Merge pull request #322 from
+> AethyrionAI/t27-368-3e-cutover"), on Owen's go. `GATE: PASS` at merge.**
+> ~~PR OPENED / awaiting review.~~ Corrected in the merge's own follow-up
+> commit rather than days later — the four-day-stale shape #322/#328 each
+> produced once. Body = `handoffs/PR-BODY-368.md` (gitignored).
+> ⚠️ **PR #322 and TRACKER #322 are different things** (CLAUDE.md's standing
+> disambiguation rule); both appear in this entry's neighbourhood.
+>
+> **THE RUNS PLANE IS NOW THE DEFAULT REMOTE TRANSPORT.** Remaining on this
+> item: **3E-H, the device leg** (Owen, evening — the five-step walk above).
+> The deletion half is **#382**, ⏰ 2026-08-26.
 
-> **📌 CLOSE-OUT DEBT, listed now so it cannot be forgotten at merge (#317).**
-> These corrections are OWED and deliberately NOT written yet — the results
-> that falsify them are on `t27-368-3e-cutover` and unmerged, and a tracker
-> that claims a merged state before the merge is the exact four-day-stale
-> shape #328/#322 already produced once. Land them **in the merge commit**:
+> **✅ 2026-08-19 — CLOSE-OUT DEBT PAID, in the merge's own follow-up commit
+> (#317).** Every entry below now carries its dated correction. The list is
+> kept rather than deleted so the discipline is auditable: this is what was
+> owed, and it was paid at the merge rather than four days after it.
 >
 > - **#328** — route 1's question DISSOLVES rather than being answered. Its
 >   entry says route 1 is "still gated on 328-A's route probe, which nobody
@@ -12107,6 +12139,14 @@ scope: **wholesale, or a permanent dual path?**
   negative test caught shipped code deleting from the real default calendar.
 
 ## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). NOT STARTED.**
+
+> **2026-08-19 — the surface this rides is now the DEFAULT** (#368 merged as
+> `33108d05`). #368 did **not** build this — deliberately: a restored chip's
+> provenance is its own question, and folding it into a transport cutover
+> would have smuggled an unmeasured change in (bar 3E-J forbade exactly
+> that). What changed is that the design question is **answerable** rather
+> than blocked on which plane wins. Still NOT STARTED; bars pre-register
+> here before any code.
 
 - A restored chip on a run that completed while the app was away renders ✓ with
   no evidence behind it. Same honesty family as #327/#328; the fix surface is

@@ -23144,6 +23144,19 @@ not a feature.**
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
 
+> **➕ APPENDED 2026-08-19 (#317 ruling (a) — append-only, the original bytes
+> above are untouched): THIS IS NO LONGER A PERMANENT NO-OP.** This entry's
+> close recorded that the cancel-read's value was tied to the runs rollout.
+> **That rollout landed today** — #368's cutover, merged as `33108d05`,
+> makes the runs plane the default remote transport, so an ordinary Stop now
+> has a `/v1/runs/{id}` to take its one bounded final status read against.
+> The mechanism shipped in August; what changed is that it is now on the
+> path the phone actually takes.
+>
+> One honest caveat, from #368's own scope: the Developer switch survives
+> for a week (Owen's flip-now-delete-next-week ruling, #382, ⏰ 2026-08-26),
+> so a user who turns it off returns to the no-op. Unconditional at #382.
+
 ## 321. 🐛 Stop is only HALF a Stop during the reconcile window — `cancelStreaming` never clears `pendingRun`, so the composer stays busy after the user stops the run — **FILED 2026-08-10 by the #315 lane, per #268 (found while fixing the door; given a number the day it was found rather than left as a sentence inside #315). ✅ FIXED 2026-08-11 on `t27-321-322-stop-completes` — bars 321-A..F ALL MET, RED witnessed by restoring `ChatStore.swift` to its `5c8fed7` bytes (34 tests / 2 suites, 35 issues); `GATE: PASS`, 2100 tests / 160 suites. Shipped in one commit with #322. ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `024926f` ("Merge #321 + #322"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.****
 
 **What changed to make this reachable.** #315 moved the composer's commit door

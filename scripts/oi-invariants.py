@@ -45,6 +45,15 @@ HEADER = re.compile(r"^## (\d+[A-Z]?)\.", re.M)
 # Branch names as they appear in entry prose: `t27-321-322-stop-completes`
 BRANCH = re.compile(r"`(claude/[a-zA-Z0-9._/-]+|t27-[a-zA-Z0-9._-]+|probe/[a-zA-Z0-9._/-]+)`")
 STALE_MERGE = re.compile(r"NOT MERGED|awaiting review", re.I)
+# This tracker RETRACTS a claim by striking it through and writing the
+# correction beside it — `~~NOT MERGED — awaiting review.~~ **✅ MERGED as …**`
+# is the house idiom (#328, archived #322, #368 all use it). A struck span is
+# a claim that is no longer being made, so it must not trip the check below.
+# Deliberately SINGLE-LINE (no DOTALL): a span that opens on one line and
+# closes on another is not stripped, so an unbalanced `~~` can only produce a
+# FALSE ALARM, never a missed one. Fail safe, same posture as the gate's
+# failure-advice classifier.
+STRUCK = re.compile(r"~~.+?~~")
 
 
 def git(*args: str) -> str | None:
@@ -91,7 +100,7 @@ def check_claimed_merge_state() -> tuple[bool, str, list[str]]:
     parts = re.split(r"^## (\d+[A-Z]?)\.", text, flags=re.M)
     for i in range(1, len(parts) - 1, 2):
         num, body = parts[i], parts[i + 1]
-        if not STALE_MERGE.search(body):
+        if not STALE_MERGE.search(STRUCK.sub("", body)):
             continue
         for br in set(BRANCH.findall(body)):
             # Only judge branches that still exist somewhere git can see.
