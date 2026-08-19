@@ -11610,6 +11610,81 @@ the #247 probe window or the OJAMD session-list fetch.
 presentation change, for elimination), #136 (the splash's
 local-state-ready gate).
 
+
+> **✅ 2026-08-19 AM — DIAGNOSED FROM CODE AT HEAD `f48add84`. Mechanism
+> pinned; it is neither new on 2808 nor #350's doing, and it is not the #247
+> verdict path. It is #136's own carve-out, which names this exact case in a
+> comment.**
+
+**The interstitial is `LaunchSplashView`** (`AppRootView.swift:22-23`), the
+cold-launch splash — presented over `MainTabView`, which is why it reads as
+full-screen rather than as a connection state.
+
+**The chain, four lines, all cited:**
+
+1. `AppRootView.shouldShowSplash` (`:51`) ORs in
+   `container.shouldShowLaunchSplash`.
+2. `AppContainer.shouldShowLaunchSplash` (`AppContainer.swift:219`) returns
+   `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`.
+3. `handleActiveProfileChanged` (`:2145`) calls `cancelBackgroundBootstrap()`
+   as its second statement, which sets `backgroundBootstrapTask = nil`
+   (`:1377`).
+4. The same handler then `await sessionStore.bootstrap()` (`:2235`), and
+   `bootstrap()` sets `isBootstrapping = true` for its whole duration
+   (`AppSessionStore.swift:103`, cleared by `defer` at `:108`).
+
+So during a profile switch both conjuncts are true and the splash is shown,
+for exactly as long as `bootstrap()` takes.
+
+**This is DELIBERATE, and #136 says so in the code being read:** the comment
+directly above the return names *"profile-switch re-home"* as one of the
+bootstraps that **keep today's splash**, in contrast with the launch
+background task, which must not hold it. So no regression happened — the
+behaviour has been there since #136, and Owen noticed it now because the
+duration grew.
+
+**Why ~10 s — and this is the part that makes #365 more than cosmetic.**
+`bootstrap()` runs against the **RELAY**, not the gateway:
+`bootstrapService` is `LiveSessionBootstrapService`, built on
+`RelayAPIClient`, and it calls `POST device/register`
+(`LiveSessionBootstrapService.swift:110`) and `GET session` (`:132`). **Both
+hosts' relays are now retired** — OJAMD's since 2026-08-10 (#346), the Mac's
+since 2026-08-18 (#375) — so those calls cannot succeed. Worse, the `catch`
+runs a recovery ladder before giving up: `attemptRefreshAndReload`
+(`:131`), then `recoverSessionByReRegistering` (`:138`) — each another
+doomed round trip. Three-plus sequential failures against a dead endpoint is
+a ~10 s shape.
+
+**Direction-agnostic, and newly so:** Owen saw it switching TO OJAMD, whose
+relay had been down since 08-10. Since last night the Mac's is down too, so
+the stall should now reproduce in **both** directions. That is a cheap
+falsifiable prediction for the next device sitting — if a switch to the Mac
+is fast, this diagnosis is wrong.
+
+**Cross-filed:** this is the concrete cost of #309's paths 1–4 still being
+on the blocking UI path — recorded in this morning's disposition brief,
+`planning/reports/2026-08-19-309-relay-path-dispositions.md` §3.
+
+**Bars, pre-registered here before any fix code:**
+
+- **365-A (symptom, unit).** A profile switch presents no launch splash:
+  `shouldShowLaunchSplash` is false while a switch-driven bootstrap is in
+  flight, and STILL TRUE for the two cases #136 deliberately kept (a paired
+  cold launch before `isInitialized`, and an unpaired forced
+  re-registration). The second half is the bar that stops the fix from
+  being "delete the gate".
+- **365-B (no new silence).** With the splash suppressed, the switch still
+  reports itself — #247's verdict toast is the surface, and it must be
+  reachable during the window the splash used to cover.
+- **365-C (device, Owen).** A switch in BOTH directions lands without an
+  interstitial, and the #247 toast still arrives.
+
+**⚠️ Route not taken, and why it is recorded rather than done:** the real
+cause is that a profile switch calls a relay bootstrap at all. Fixing THAT
+is #309 path 1–4 + #310, not this item — and #365 must not quietly become
+the relay-decommission lane. The bars above treat the symptom on purpose,
+which is the honest scope for a one-line gate change.
+
 ## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen.**
 
 **The mechanism (from tonight's evidence; code-verified when the lane
