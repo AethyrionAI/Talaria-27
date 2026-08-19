@@ -12281,6 +12281,39 @@ scope: **wholesale, or a permanent dual path?**
 > **REMAINING on this item:** the app-side dead-code deletion PR
 > (`ProvisioningService.swift`, `ProfileRelaySession.downloadAgentFile`) —
 > gated lane, no live-install go needed.
+
+> **✅ 2026-08-19 evening — HALF OF THAT REMAINDER IS DONE, and the other half
+> turned out not to be what this entry called it.** Branch
+> `375-relay-deadcode-deletion`, `GATE: PASS` (Swift Testing **2372 → 2365**,
+> exactly the 7 tests deleted — the count moved by the deletion and nothing
+> else; XCUITest 14; Release clean).
+>
+> **DELETED (#309 path 5, ruled):** `ProvisioningService.swift` + its suite,
+> the container property, the construction block, the post-pair auto-fill hook
+> (`stampTokenRefresh` stays), and **Server settings' "Refresh Provisioning"
+> button** — user-visible, and named here rather than buried: it called
+> `device/provisioning` on a retired relay, so it could only ever report an
+> error.
+>
+> **🔴 NOT DELETED, because this entry's own description of it is wrong:
+> `ProfileRelaySession.downloadAgentFile` is NOT dead code.** It backs #21
+> Tier 2's fetchable agent-file bubbles, and **two live paths still mint
+> them**: `SessionsHermesClient:1878-1886` (a `write_file`/`create_file` whose
+> args carry NO `content` falls through to `.fetchableAgentFile` — the
+> args-carry-content case is the Tier 1 bubble) and `:1988`'s announcement
+> scan (any `MobileDL/…` path named in prose). Both produce a **tappable**
+> bubble (`ChatStore.fetchAgentFile:2288`) whose only retrieval route is the
+> relay — so with both relays retired the affordance does not merely sit
+> unused, **it promises a download it cannot perform**.
+>
+> The transport half of "dead" was right; the reachability half was not. The
+> options were put to Owen rather than chosen here: **(a)** delete the
+> downloader AND stop minting fetchable bubbles (honest today, app-side, costs
+> visibility of files whose bytes never rode the tool args); **(b)** adapt
+> onto the plugin as an on-demand fetch verb — the standing adapt-forward
+> direction, a real build with a host-side half, wanting its own number the
+> way voice got #383; **(c)** leave it and let the bubbles keep lying.
+> Recommended: **(a) now, (b) filed.** **AWAITING OWEN'S PICK.**
 >
 > **TWO MORE LEGACY PIECES FOUND IN THE SWEEP, deliberately untouched
 > (outside tonight's scope, recorded per #268):** the Mac still runs
