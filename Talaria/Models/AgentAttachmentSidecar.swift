@@ -149,13 +149,33 @@ struct AgentAttachmentSidecar: Codable, Hashable, Sendable {
                 // file under a deterministic id — id-dedupe alone would
                 // double the chip on that one crossing. Same-file skip; a
                 // record for a genuinely different file still replays.
-                guard !result[index].attachments.contains(where: {
-                    $0.representsSameAgentFile(as: attachment)
+                //
+                // #367: and the skip is TURN-scoped, not row-scoped — a
+                // refetched turn SPLITS into rows (the tool-call row and
+                // the prose tail), reconstruction decorates the sibling,
+                // and this record's anchor row is chip-free. One write,
+                // one chip, per turn; a user-authored row bounds the scan
+                // so the same path written in another turn still replays.
+                let span = turnSpan(around: index, in: result)
+                guard !span.contains(where: { spanIndex in
+                    result[spanIndex].attachments.contains {
+                        $0.representsSameAgentFile(as: attachment)
+                    }
                 }) else { continue }
                 result[index].attachments.append(attachment)
             }
         }
         return result
+    }
+
+    /// #367: the contiguous non-user-authored run around `index` — the
+    /// refetched turn the row belongs to.
+    private static func turnSpan(around index: Int, in messages: [Message]) -> Range<Int> {
+        var lower = index
+        while lower > 0, !messages[lower - 1].sender.isUserAuthored { lower -= 1 }
+        var upper = index + 1
+        while upper < messages.count, !messages[upper].sender.isUserAuthored { upper += 1 }
+        return lower..<upper
     }
 
     /// The tier-2 key. Sender is in the digest so a user row echoing the
