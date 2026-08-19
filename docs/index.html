@@ -134,7 +134,7 @@ button { font: inherit; }
         <div style="display:flex;flex-direction:column;gap:0">
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Your full desktop provider roster, live from the gateway</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Server sessions synced with the agent you already run</span></div>
-          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Sensor pipeline: location, 11 HealthKit metrics, CoreMotion activity</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Phone-aware answers: location, health, calendar, weather, motion — at query time</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Inbox and directives — your agent pushes work to your pocket</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Realtime WebRTC voice, and agent-file downloads in chat</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Multiple host profiles, each with its own key in the Keychain</span></div>
@@ -192,9 +192,9 @@ button { font: inherit; }
         <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Share URLs, images, files and text into Hermes from any app.</div>
       </div>
       <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
-        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Sensor pipeline</div>
-        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.09);color:#FFC14D">WORKING · CAVEAT</span></div>
-        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Deliberate opt-in, off by default, with per-sensor grants. Resume-from-background can occasionally be flaky.</div>
+        <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Phone queries</div>
+        <div><span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:.16em;padding:5px 11px;border-radius:20px;border:1px solid rgba(84,230,240,.34);background:rgba(84,230,240,.09);color:#54E6F0">WORKING</span></div>
+        <div style="flex:3 1 320px;font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Your agent asks the phone for location, health, calendar, weather and motion at query time. Deliberate opt-in with per-sensor grants; nothing streams in the background.</div>
       </div>
       <div class="srow" style="display:flex;flex-wrap:wrap;gap:12px 28px;align-items:start;padding:20px 4px;border-bottom:1px solid rgba(84,230,240,.14)">
         <div style="flex:1 1 230px;font-size:16px;font-weight:500;color:#EAF6F8;line-height:1.4">Voice mode</div>
@@ -246,8 +246,8 @@ button { font: inherit; }
       </div>
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">05</div>
-        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Sensor pipeline</div>
-        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Location, 11 HealthKit metrics and CoreMotion activity delivered in the background. Your agent gets live context; you own all the data.</div>
+        <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Phone-aware answers</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Your agent asks the phone for location, health, calendar, weather and motion at query time. Per-sensor opt-in; nothing streams in the background.</div>
       </div>
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">06</div>
@@ -330,9 +330,9 @@ hermes talaria pair · status</div>
           <div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
               <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#FFC14D">──→</span>
-              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#FFC14D">VOICE &amp; AGENT FILES · LEGACY</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#FFC14D">VOICE · LEGACY</span>
             </div>
-            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">The relay tier's last two jobs: the realtime-voice WebRTC bootstrap and agent-file downloads. Optional, on a retirement path — pairing, phone asks and the inbox moved to the plugin, and sensor ingestion is gone outright (query-time asks instead).</div>
+            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">The relay tier's last job: the realtime-voice WebRTC bootstrap. Optional, on a retirement path — pairing, phone asks, the inbox, and agent-file downloads all moved to the plugin, and sensor ingestion is gone outright (query-time asks instead).</div>
           </div>
           <div style="border-left:1px solid rgba(84,230,240,.14);padding-left:32px">
             <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">

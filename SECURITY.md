@@ -12,7 +12,7 @@ We will acknowledge receipt within 48 hours and work with you on a fix.
 
 ## Deployment model
 
-Talaria is designed for **private-network self-hosting**. The expected deployment puts **both** host services — the Sessions API on `:8642` and the relay on `:8000` — on a Tailscale tailnet or equivalent private network, reachable only by your own devices. None of the services are intended to be exposed to the public internet.
+Talaria is designed for **private-network self-hosting**. The expected deployment puts the Hermes gateway (Sessions API on `:8642`) on a Tailscale tailnet or equivalent private network, reachable only by your own devices. The gateway is the only service current builds require; the legacy relay tier (`:8000`) is optional and needed only for realtime server voice. None of the services are intended to be exposed to the public internet.
 
 > **Corrected 2026-08-09.** This section previously named a **third service, a
 > "models shim" on `:8765`, and told self-hosters to deploy and firewall it.
@@ -31,7 +31,7 @@ The phone talks directly to the Hermes gateway's Sessions API on `:8642` with Be
 
 ### Relay
 
-The relay carries the legacy phone-facing surfaces except chat: pairing and auth, the inbox/directives channel, scheduled runs, agent-file downloads, and the voice WebRTC bootstrap. (**Sensor ingestion was retired 2026-08-16, #352** — the app no longer captures or uploads sensor data; phone data answers query-time asks over the talaria plugin. On the production host the relay itself has been stopped and disabled since 2026-08-10, #346.)
+The relay is a legacy tier whose surface has been narrowing steadily. Pairing, the inbox/directives channel, scheduled runs, and phone queries all migrated to the talaria plugin (same gateway process). **Sensor ingestion was retired outright 2026-08-16, #352** — the app no longer captures or uploads sensor data; phone data answers query-time asks over the talaria plugin. The relay's remaining job is the realtime-voice WebRTC bootstrap; agent-file downloads are partially superseded by the plugin's artifact mirror. On the production host the relay has been stopped and disabled since 2026-08-10 (#346).
 
 > **⚠️ APNs push is UNUSED SURFACE as of 2026-08-09, and that is a security
 > fact worth stating plainly.** The app's entire notification surface was
@@ -67,14 +67,14 @@ The connector runs on the same machine as the Hermes Agent:
 
 - **Service URLs:** Configured during onboarding, persisted locally. Not hardcoded.
 - **Credentials:** Stored in the iOS Keychain (service name: `org.aethyrion.talaria.session`), mirrored so pairing survives app reinstalls
-- **Health data:** Read-only HealthKit access, uploaded to the relay only when the connector is connected and acknowledges receipt
+- **Health data:** Read-only HealthKit access, queried at request time by the agent over the talaria plugin. The old always-on upload pipeline was deleted 2026-08-16 (#352); nothing streams in the background
 - **Camera/mic:** Requested just-in-time, not at launch. Camera frames for voice mode are sent directly to OpenAI via WebRTC, not through the relay — **and only when your selected brain permits it.** Since August 2026 the brain selection governs voice, not just chat: the router consults it *before* pairing is even considered, so choosing the on-device brain keeps realtime voice — and therefore any camera frame reaching OpenAI — from starting at all. Selecting an on-device brain is a privacy control, not only a routing preference.
 
 ### Known Limitations
 
 - **Scoped ATS exception:** The app permits insecure HTTP only to the Tailscale CGNAT range (`100.64.0.0/10`, via an `NSExceptionDomains` entry) because the default deployment uses plain HTTP to Tailscale IP addresses, which App Transport Security would otherwise block. TLS enforcement remains active for every other connection the app makes. Traffic to your host is still encrypted in transit by Tailscale (WireGuard), but iOS-level TLS is not enforced on that path. If you serve the backends over HTTPS (e.g. `tailscale serve` with MagicDNS), you can remove even this scoped exception from `project.yml` locally. (Verified 2026-07-22: with no exception, or with only `NSAllowsLocalNetworking`, ATS blocks tailnet IP traffic outright — the exception is load-bearing, and the CIDR scoping was confirmed with an outside-range negative control.)
 - **MCP tool token in URL:** The voice mode MCP tool token is passed as a query parameter (`?token=...`). This is a constraint of the MCP Streamable HTTP protocol. The token is short-lived (valid only during the active voice session), server-to-server (OpenAI → relay, never in a browser), and invalidated when the session ends.
-- **Sensor data retention:** Health and location data is retained for 90 days locally on the connector host. Users should be aware of this when granting access to the machine.
+- **Sensor data retention (historical):** Hosts that previously ran the connector may retain up to 90 days of health and location data in SQLite at `~/.hermes-mobile/state/sensors.db`. No new data is collected since the upload pipeline was removed (2026-08-16, #352). Users should be aware of this historical data when granting access to the machine.
 
 ## Supported Versions
 

@@ -74,11 +74,11 @@ iPhone (Talaria)
   │    daily briefing
   │
   └─ LEGACY (optional): realtime- ─→  HermesMobile Relay    :8000
-       voice bootstrap, agent-file       sidecar (Python/uvicorn)
-       downloads                         → connector → hermes_mobile MCP
+       voice WebRTC bootstrap            sidecar (Python/uvicorn)
+                                         → connector → hermes_mobile MCP
 ```
 
-Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy**: current builds touch it only for the realtime-voice WebRTC bootstrap and agent-file downloads, and it is on a retirement path (#223) — skip it unless you need those two things today. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy**: current builds touch it only for the realtime-voice WebRTC bootstrap, and it is on a retirement path (#223) — skip it unless you need server voice today. Agent-file downloads are handled by the plugin's artifact mirror; the relay's download path is superseded. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
@@ -90,7 +90,7 @@ Chat connects **directly** to the Sessions API — server sessions, model select
 | Host OS (upgrade tier) | macOS or Windows (Linux untested) |
 | Hermes (upgrade tier) | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured, with the talaria plugin for pairing and phone-aware answers |
 | Network (upgrade tier) | Tailscale (recommended) or other private network access |
-| Relay & connector (legacy tier — optional) | Python 3.11+, uvicorn; only if you still need realtime server voice or agent-file downloads |
+| Relay & connector (legacy tier — optional) | Python 3.11+, uvicorn; only if you still need realtime server voice |
 
 > Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
 
@@ -141,7 +141,7 @@ It prints a QR code and a one-time code. In the app: **Settings → Server → P
 
 ### Legacy tier (optional): relay sidecar + connector
 
-**Skip this unless you need realtime server voice or agent-file downloads today.** These are the last two surfaces the relay tier still carries; the tier is on a retirement path (#223). Sensor upload is gone app-side (#352), phone queries ride the talaria plugin, and the inbox is served over the plugin channel — none of that needs the relay anymore.
+**Skip this unless you need realtime server voice today.** That is the last surface the relay tier still carries; the tier is on a retirement path (#223). Sensor upload is gone app-side (#352), phone queries ride the talaria plugin, the inbox is served over the plugin channel, and agent-file downloads are handled by the plugin's artifact mirror — none of that needs the relay anymore.
 
 <details>
 <summary>Relay + connector install (legacy)</summary>

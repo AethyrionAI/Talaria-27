@@ -50,7 +50,7 @@
   <p><strong>Paired with your own server (optional).</strong> You can connect
   Talaria to a <a href="https://github.com/NousResearch/hermes-agent">Hermes
   agent</a> running on your own computer. In that mode, the content you send —
-  messages, attachments, voice, and any sensor data you explicitly enable —
+  messages, attachments, and voice —
   travels over your own private network (for example, a Tailscale tailnet you
   operate) to your own machine. That machine, and any AI model providers you
   have configured on it under your own accounts, process your data under
@@ -82,13 +82,13 @@
     <tr><td>Calendars &amp; Reminders</td><td>Letting the assistant read and create events and reminders when you ask it to.</td></tr>
     <tr><td>Contacts</td><td>Letting the assistant look up people you reference, on your request.</td></tr>
     <tr><td>Location</td><td>Answering location-based requests (including weather via Apple's WeatherKit, which receives your approximate location to return a forecast).</td></tr>
-    <tr><td>Health (HealthKit)</td><td>Only if you opt in while paired: sending the health metrics you select to your own server. Health data is never sent anywhere else, and never to us.</td></tr>
+    <tr><td>Health (HealthKit)</td><td>Read at query time when your agent asks (via the talaria plugin). Health data is read on the device and the answer sent to your own server only in response to a specific request. Never sent anywhere else, and never to us.</td></tr>
     <tr><td>Face ID</td><td>The optional App Lock. Biometric matching happens entirely inside iOS; the app only learns "unlocked" or "not."</td></tr>
-    <tr><td>Motion &amp; Fitness</td><td>Only if you opt in while paired: activity context for your own server.</td></tr>
+    <tr><td>Motion &amp; Fitness</td><td>Read at query time when your agent asks for activity context. Sent only to your own server, only in response to a specific request.</td></tr>
   </table>
   <p class="muted">Permissions are optional; each feature degrades gracefully
-  without its grant. Sensor sharing to a paired server is governed by a single
-  explicit switch, off by default.</p>
+  without its grant. Phone data is read only at query time when the agent
+  asks, with per-sensor opt-in; nothing streams in the background.</p>
 
   <h2>What we receive: nothing</h2>
   <p>The app contains no analytics, advertising, or crash-reporting SDKs, and

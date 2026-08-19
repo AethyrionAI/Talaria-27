@@ -4,7 +4,7 @@ Talaria is a personal self-hosting project. Issues and pull requests are welcome
 
 ## What this project is
 
-Talaria is a native iOS app + relay sidecar built specifically for self-hosters running [Hermes Agent](https://github.com/NousResearch/hermes-agent) on their own hardware. It is not a general-purpose Hermes client and is not designed for managed or cloud-hosted backends.
+Talaria is a native iOS app built specifically for self-hosters running [Hermes Agent](https://github.com/NousResearch/hermes-agent) on their own hardware. It is not a general-purpose Hermes client and is not designed for managed or cloud-hosted backends.
 
 ## Before you open a PR
 
@@ -29,7 +29,9 @@ export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
 
 > ⚠️ The project uses explicit source file listings via XcodeGen. If you add or remove Swift files, run `xcodegen generate` and commit the regenerated `project.pbxproj`.
 
-**Relay sidecar**
+**Relay sidecar (legacy — optional)**
+
+The relay tier is on a retirement path. Current builds need it only for the realtime-voice WebRTC bootstrap; pairing, phone queries, the inbox, and model picking all ride the gateway now. Skip this unless you need server voice today.
 
 ```bash
 cd relay
@@ -37,22 +39,13 @@ pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-**Connector**
+The connector (`connector/`) is the host-side bridge for the relay tier. Only needed alongside the relay above.
 
 ```bash
 cd connector
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 hermes-mobile setup
-```
-
-Required for the sensor pipeline and inbox — it registers the `hermes_mobile` MCP tools and prints pairing codes. Chat works without it; sensors and inbox do not.
-
-**Models shim**
-
-```bash
-cd tools/models-shim
-python shim.py
 ```
 
 ## Code conventions
