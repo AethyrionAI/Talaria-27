@@ -11975,6 +11975,52 @@ scope: **wholesale, or a permanent dual path?**
 >   by the flip. Recorded because "checked and found nothing" is a different
 >   fact from "not checked".
 
+
+> **✅ 2026-08-19 ~08:55 — `GATE: PASS`. THE LANE'S CODE IS COMPLETE; what
+> remains is Owen's review, the merge, and the device leg.**
+> `scripts/mac/lane-gate.sh` on `CC-lane-1` (TCC granted immediately before,
+> per the standing hang trap): Debug suite **2372 Swift Testing / 185 suites
+> + 14 XCUITest**, and the **Release build** — the check a Debug-only stack
+> cannot make (#218). **The count MOVED from the 2351 baseline (+21)**, so
+> this is not `test-without-building` re-running a stale `.xctest`.
+> Two skips, both the known-permanent `CondenserFidelityTests` pair (needs
+> Apple Intelligence hardware); no new skip was introduced.
+>
+> **SCORECARD**
+>
+> | bar | verdict | evidence |
+> |---|---|---|
+> | 3E-A cutover default + migration | **MET** | `RunsTransportSwitchTests` (6) — incl. the pre-cutover blob whose explicit `false` is migrated, and the post-cutover opt-out that STICKS |
+> | 3E-B recovery collapse + 2 controls | **MET** | `RunStatusRecoveryTests` — unrelated-newer-row control and the #293(b) skew control both pass |
+> | 3E-C durability past 120 s | **MET** | the run-id loop reads its own budget; scaled, not slept |
+> | 3E-D exactly once | **MET** | deterministic id from the run id; the late-duplicate arm re-measured on the default path |
+> | 3E-E deletion | **NOT SCORED — moved to #382** | Owen's ruling; pre-registered as conditional |
+> | 3E-F #328 route 1 | **MET (app half)** | default turn is a runs turn (3E-A) × `hardStopActiveRunPostsStopWithAuth` / `cancelStreamingDefaultPostsStop`. ⚠️ **Honest limit: the one line that arms the provider from settings (`AppContainer.swift:744`) is CODE-READ, not test-covered.** 3E-H is what closes it end to end. |
+> | 3E-G gate | **MET** | above |
+> | 3E-H device | **OWED — Owen, PM slot** | see below |
+> | 3E-I honesty on a runs-less host | **MET** | `RunsPlaneTransportTests.aHostThatCannotServeRunsFailsVisiblyRatherThanSilently` — one `.failed` with words, never `.interrupted` or `.unreachable` |
+> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason |
+>
+> **What the full suite caught that the targeted suites could not:** four
+> existing tests modelled the OLD recovery and went red on the flip
+> (`lateDuplicateInterruptNeverResolvesTwice` and three #306 matrix tests).
+> Their fixtures now implement `resolveDroppedRun` rather than being pushed
+> back onto the legacy branch — otherwise #237 and the hold-slot matrix
+> would be exercising a path #382 deletes. **This is the argument for the
+> gate over a targeted run, happening: three green suites said nothing about
+> them.**
+>
+> **3E-H, the device leg — the exact walk (evening, ~5 min):**
+> 1. A tool-using turn ("write test-3e.md with a short haiku") → WRITE_FILE
+>    pill → chip with **real content** (#362's mirror on the active host).
+> 2. Background the app mid-turn, return → the answer **recovers**. This is
+>    the bar with the most new machinery behind it.
+> 3. Stop mid-tool → confirm from **the host's own log**, not the app's UI
+>    (#328's whole lesson: the UI has lied about this before).
+> 4. Leave the thread and return → transcript intact, chip persists.
+> 5. Glance at Settings → Developer: the Runs Transport row reads ON without
+>    anyone having touched it. That is the migration, visible.
+
 ## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. NOT STARTED; bars pre-register here before code.**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
