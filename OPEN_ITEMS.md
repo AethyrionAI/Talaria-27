@@ -201,7 +201,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#365** 🔍 profile-switch ~10 s connecting interstitial — observation only, not diagnosed
 - **#367** 🐛 duplicate file chips on reopen — fixed + merged (PR #321); owed: the reopen check (shared with #349)
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — RULED GO 2026-08-18; build Wed/Thu; bars pre-register in the entry
-- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — RULED file+fix 2026-08-18; LANE OPEN 2026-08-19, bars pre-registered
+- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — FIXED 2026-08-19 (hold, never unpair), gate PASS; merge is Owen's review
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · the rollback arm
@@ -12171,7 +12171,7 @@ scope: **wholesale, or a permanent dual path?**
 > 5. Glance at Settings → Developer: the Runs Transport row reads ON without
 >    anyone having touched it. That is the migration, visible.
 
-## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. LANE OPEN 2026-08-19 evening: mechanism re-read at HEAD, design elected, BARS 369-A..F PRE-REGISTERED BEFORE CODE (dated block below).**
+## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. BUILT 2026-08-19 evening on `369-launch-token-guard`: bars 369-A..F pre-registered before code and ALL MET, RED-first and mutation-checked, `GATE: PASS` (2375 Swift Testing / 14 XCUITest / Release clean). PR open; merge is Owen's review.**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
   token keychain slot → `initialize: ABORT — no access token, clearing pairing`
@@ -12283,6 +12283,99 @@ scope: **wholesale, or a permanent dual path?**
 >
 > **No device bar.** The instrument is the simulator (#354's phase-C seeding);
 > this is a keychain-state question, not a hardware one.
+
+
+> **✅ 2026-08-19 evening — BUILT on `369-launch-token-guard`, `GATE: PASS`.
+> Bars 369-A..F ALL MET (369-D with the limit it declared in advance).**
+> Commits: `f0be1c27` (bars, written before any code) · `34a9495f` (the fix
+> and its tests).
+>
+> **The gate:** Debug suite **2375 Swift Testing / 14 XCUITest** plus the
+> **Release build**. The count MOVED from the 2372 baseline by **exactly +3**,
+> this lane's three tests — so this is not `test-without-building` re-running
+> a stale `.xctest`. Two skips, both the known-permanent
+> `CondenserFidelityTests` pair; no new skip introduced.
+>
+> **What changed:**
+> - `initialize()`'s nil-token arm no longer calls `clearLocalPairing()`. It
+>   takes a **HOLD**: the pairing is preserved, the local critical path runs,
+>   and only `startBackgroundBootstrap()` is deferred.
+> - `retryCredentialHoldIfNeeded()` resumes the deferred half, wired into the
+>   `protectedDataDidBecomeAvailable` + `didBecomeActive` hooks that already
+>   existed for the sibling pre-unlock case (`AppContainer.swift:1090-1096`).
+>   Idempotent, so both hooks firing on one unlock start one bootstrap.
+> - `credentialsUnreadableHold` is cleared at BOTH pairing-lifecycle reset
+>   sites, so a hold cannot outlive the launch that took it.
+> - About's identity row reads **`CREDENTIAL UNREADABLE`** (forge, not danger).
+>
+> **SCORECARD**
+>
+> | bar | verdict | evidence |
+> |---|---|---|
+> | 369-A destruction gone | **MET** | `anUnreadableAccessTokenAtLaunchNeverDestroysThePairing` — and it was seen RED first, failing on `isPaired == false`: the defect reproduced in a test before any fix existed |
+> | 369-B hold without stranding the splash | **MET** | `anUnreadableAccessTokenHoldsTheRelayHalfWithoutStrandingTheSplash` — splash drops, hold named, relay half absent across a bounded window |
+> | 369-C hold is retried | **MET** | `theCredentialHoldIsRetriedOnceTheTokenBecomesReadable` — clears on a readable token, runs the deferred half, and a second retry does not double-run it |
+> | 369-D surfaced, not silent | **MET, at the limit declared in advance** | the container state is test-covered; the About ROW is code-read, because `RowStatus` is a private view type with no test surface anywhere in the tree — the limit was written into the bar BEFORE the build, not discovered at scoring time |
+> | 369-E nothing smuggled | **MET** | the three sibling guards are untouched, no new relay call appears on any launch path, `LaunchInitStep` is unchanged (diff-verified) |
+> | 369-F gate | **MET** | above |
+>
+> **🔬 MUTATION-CHECKED, and one bar needed it specifically.** In the RED run,
+> 369-B's *"the relay half must not run"* assertion **passed for the wrong
+> reason** — the old code had already cleared the pairing and returned, so no
+> bootstrap could start either way. A green assertion that cannot fail is not
+> evidence, so the fix was deliberately mutated (`startBackgroundBootstrap()`
+> made unconditional) and 369-B went **RED on exactly that line**
+> (`AppStoresTests.swift:5101`), then the mutation was reverted. 369-A and
+> 369-C were witnessed RED directly.
+>
+> **A self-correction recorded because it is the SAME error class this lane
+> exists to fix.** The About row's first draft read
+> `LOCKED — WAITING FOR UNLOCK`. That names a **cause** — and finding 2 of
+> this entry's own pre-registration says the nil cannot distinguish locked
+> from absent from unentitled. Caught in review before the gate; the row now
+> names the observation only. Writing the rule down did not stop me from
+> breaking it one screen later.
+>
+> **🔎 CORROBORATION FOUND MID-BUILD — the defect has already cost this
+> project a class.** `UITestSecureStore`'s docstring (#135) records this exact
+> guard un-pairing the app *"milliseconds after a successful pair"* on
+> unsigned sim builds, because `CODE_SIGNING_ALLOWED=NO` makes the simulator
+> keychain reject every write. An entire test-only class exists to route
+> around this behaviour. **The workaround stays** — it also buys
+> relaunch-durable tokens across the UITest harness — but the reason it was
+> written is now fixed at the root, and the sim's self-un-pairing was never a
+> simulator quirk: it was this guard, doing what it was written to do.
+>
+> **What this lane deliberately does NOT do:**
+> - **No widening of `SecureStoreProtocol`** to carry the OSStatus. It would
+>   make the cause knowable, and #309 dispositions this whole credential chain
+>   (paths 1–4) **DELETE** — so the investment dies with the thing it informs.
+> - **No refresh-on-miss.** That is a relay call, on a plane being retired
+>   (Owen's 2026-08-18 direction ruling: adapt forward, never fall back).
+> - **No retro-repair** of installs already unpaired by this guard. They
+>   re-paired at the time; there is nothing left to recover.
+> - **The first guard (`isPaired`) is untouched**, so a gateway-only install
+>   still skips `initialize()` entirely. That is a separate question from this
+>   defect and it is NOT filed here as fixed — see the note below.
+>
+> **⚠️ ONE THING FOUND WHILE READING — checked before it was written down,
+> and it is SMALLER than it first looked.** `initialize()`'s FIRST guard is
+> `pairingStore.isPaired`, and `isPaired` means "has a paired **relay**
+> configuration" — the record is written by exactly one path, the relay
+> redeem (`PairingStore.swift:145`, #309 path 6). So on a gateway-only or
+> local-brain install the whole local critical path is skipped at launch,
+> which reads at first like a second instance of this lane's own shape: local
+> work gated on a retired plane's credential.
+>
+> **It mostly is not, and the check is why that can be said:** every step in
+> that list has an independent driver — `drainShareInbox` from the
+> scene-activate path (`AppEntry.swift:172`), `loadConversationIfNeeded` from
+> `ChatScreen`/`AskHermesIntent`, and `reloadCapabilities` /
+> `reconcileLiveActivities` / `updateWidgetData` from 23 other call sites.
+> What is left is a **timing** question (these land on activation or on view
+> rather than at launch) rather than a lost-work one, and it is **unmeasured**.
+> Recorded here rather than fixed or filed as a defect; it belongs with
+> #309's execution, when the `isPaired` gate is revisited anyway.
 
 
 ## 370. 🧹 The calendar REAP silently UNDER-DELETES — 42 created vs 25 reaped in #343's campaign (−17), possibly on Owen's REAL calendar — **FILED 2026-08-18 night per #268, from #343's own "NEEDS ITS OWN ITEM" (2026-08-15) — verified unfiled until tonight. NOT STARTED; the first bar is a measurement.**
