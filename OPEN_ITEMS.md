@@ -12314,6 +12314,10 @@ scope: **wholesale, or a permanent dual path?**
 > direction, a real build with a host-side half, wanting its own number the
 > way voice got #383; **(c)** leave it and let the bubbles keep lying.
 > Recommended: **(a) now, (b) filed.** **AWAITING OWEN'S PICK.**
+
+> **📬 2026-08-19 — PR OPENED for the provisioning half:
+> https://github.com/AethyrionAI/Talaria-27/pull/324 — NOT MERGED; merge is
+> Owen's review.** ⚠️ **PR #324 is not tracker #324** (the beta5 SDK audit).
 >
 > **TWO MORE LEGACY PIECES FOUND IN THE SWEEP, deliberately untouched
 > (outside tonight's scope, recorded per #268):** the Mac still runs
