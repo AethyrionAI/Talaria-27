@@ -24590,3 +24590,43 @@ on the tool turn (#349's gate, live arm) while the spend receipt still
 shows the billed 87.3K. Both hosts now run the full plugin stack at
 parity: mirror + hygiene + multi-device, 0.5.0. Archive move per #261 on
 Owen's formal close.
+
+**2026-08-18 ~19:25 — 366-E MET; #366 IS CLOSED-SHAPE (all bars met,
+merged `8edfb66`, 0.5.0 live on BOTH hosts).** OJAMD updated + bounced
+(Owen, per the runbook), then the live proof on the exact failed fixture:
+"Write a file called Ojamd-fix.md with a haiku about snowboarding" →
+**chip rendered LIVE, mid-thread** (`Ojamd-fix.md, MD · 81 bytes`,
+preview working; Owen's screenshot, 19:04–19:05), with both device rows
+active — the fan-out delivering where the v0 gate silently dropped. The
+CTX gauge was correctly ABSENT on the live tool turn (#349's gate, live
+arm). Both hosts now run the full plugin stack at parity: mirror +
+hygiene + multi-device, 0.5.0. Archive move per #261 on Owen's formal
+close. **And the live attach immediately EXPOSED #367** (reopen shows
+duplicate chips — an app-side rendering bug the live-attach × reopen
+combination could not produce until tonight; routed there, not here).
+
+## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen.**
+
+**The mechanism (from tonight's evidence; code-verified when the lane
+opens):** a refetched turn SPLITS into stored rows — the tool-call row
+and the prose tail (the same split that broke #349's gauge gate this
+afternoon; the split-row shape is now a CLASS, two hits in one day). On
+reopen: #364's stored-args reconstruction builds a chip on the TOOL-CALL
+row (deterministic id keyed session:row:path), while the sidecar record
+from the live mirror attach replays its chip onto the PROSE row its
+streamed anchor reconciled to. #364-B's same-file skip dedupes per ROW —
+each source found a chip-free row, so both landed. One file, one turn,
+two chips.
+
+**Fix direction (design confirmed against code before bars):** the
+sidecar replay's same-file skip becomes TURN-scoped — before replaying a
+chip for file F onto row R, skip if ANY row in R's turn span (back to the
+previous user-authored row) already carries an attachment for F. Scoped
+to the turn, not the conversation: the same path written in two different
+turns is two honest chips. Reconstruction stays primary on refetch
+(#364-B's established precedence); the sidecar defers more broadly.
+
+**Cross-refs:** #364 (reconstruction + the per-row crossing guards),
+#277 (the sidecar), #366 (whose live attach exposed this), #362 (the
+correlator — uninvolved on reopen, its item long acked), #349's follow-up
+(the sibling split-row defect, PR #320).
