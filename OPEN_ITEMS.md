@@ -12006,6 +12006,15 @@ scope: **wholesale, or a permanent dual path?**
 >   smuggling one into this diff.
 
 
+> **📬 2026-08-19 — PR OPENED: https://github.com/AethyrionAI/Talaria-27/pull/322**
+> (`t27-368-3e-cutover` → `main`, 10 commits, `GATE: PASS`). Body =
+> `handoffs/PR-BODY-368.md` (gitignored). **AWAITING OWEN'S REVIEW — not
+> merged.** ⚠️ When it merges, correct THIS line in the same commit: a
+> "NOT MERGED" text that outlives its merge is the four-day-stale shape
+> #322/#328 already produced once, and the PR number here being 322 makes
+> that confusion easier, not harder — PR #322 and tracker #322 are
+> different things (CLAUDE.md's standing disambiguation rule).
+
 > **📌 CLOSE-OUT DEBT, listed now so it cannot be forgotten at merge (#317).**
 > These corrections are OWED and deliberately NOT written yet — the results
 > that falsify them are on `t27-368-3e-cutover` and unmerged, and a tracker
