@@ -23,10 +23,11 @@ interface / talaria plugin / gateway route) and **DELETE**. A restored relay
 is a migration bridge, never a destination — which is why "keep it on the
 relay" is absent from the table as a category, not merely unused.
 
-**What Thursday's ruling is actually for:** the table's four ADAPT rows and
-the two design questions inside them (voice's new home; where the
-command-catalog's non-skill halves come from). The twelve DELETE rows are
-mechanical once #310 lands.
+~~**What Thursday's ruling is actually for:** the table's four ADAPT rows and
+the two design questions inside them.~~ **Both design questions were ruled
+on 2026-08-19 (see the banner). What remains is lane work, not decisions:**
+the twelve DELETE rows are mechanical once #310 lands, paths 7 and 16 are
+plain re-points, and paths 11–12 are #383.
 
 ---
 
@@ -44,12 +45,12 @@ mechanical once #310 lands.
 | 8 | `POST hosts/enrollment-codes` | `LiveHermesHostService.swift:56` | **DELETE** | Enrollment dissolves with 6. |
 | 9 | `POST hosts/current/revoke` | `LiveHermesHostService.swift:71` | **DELETE** | Unpair becomes "forget the key", local. |
 | 10 | `POST device/app-state` | `AppContainer.swift:1969` | **DELETE** | Fire-and-forget beacon nothing app-side reads. |
-| 11 | `GET talk/readiness` | `LiveVoiceSessionService.swift:192` | **ADAPT** | 🔴 The one genuine build in this table. |
-| 12 | `POST talk/session` | `LiveVoiceSessionService.swift:278` | **ADAPT** | 🔴 With 11. |
+| 11 | `GET talk/readiness` | `LiveVoiceSessionService.swift:192` | **ADAPT → plugin (#383)** | 🔴 The one genuine build in this table. Route ruled 2026-08-19. |
+| 12 | `POST talk/session` | `LiveVoiceSessionService.swift:278` | **ADAPT → plugin (#383)** | 🔴 With 11. |
 | 13 | `GET conversations/current` | `LiveHermesClient.swift:104, 234, 423` | **DELETE** | ⚠️ Already dead in production — see below. |
 | 14 | `POST messages` | `LiveHermesClient.swift:128, 165` | **DELETE** | ⚠️ Already dead in production. |
 | 15 | `POST conversations/current/clear` | `LiveHermesClient.swift:260` | **DELETE** | ⚠️ Already dead in production. |
-| 16 | `GET commands` | `AppContainer.swift:1845` | **ADAPT → gateway** | Partial today; one open question. |
+| 16 | `GET commands` | `AppContainer.swift:1845` | **ADAPT → gateway `/v1/skills`** | Skills only — personalities + quick commands are a RULED accepted loss (2026-08-19), not a gap to fix later. |
 
 **Counts: 12 DELETE · 4 ADAPT.** Of the twelve deletes, **three are already
 unreachable in the shipped app** and **one is already scoped for deletion by
@@ -124,10 +125,11 @@ cause.
 - **Paths 13–15** are blocked by nothing but a lane.
 - **Path 7** needs a small decision (does `hostStore` read `/health` or
   `/health/detailed`?) — not a ruling, a lane's judgement.
-- **Path 16** carries the one non-voice open question: `/v1/skills` covers the
-  skills half of the catalog, but **personalities and quick commands have no
-  named gateway source**. Either they get one, or that part of the catalog is
-  an accepted loss. Owen's call, and it is smaller than the voice one.
+- **Path 16** carried the one non-voice open question — `/v1/skills` covers
+  the skills half, but **personalities and quick commands have no named
+  gateway source**. **RULED 2026-08-19: accepted loss.** Nothing blocks this
+  row now; the lane that adapts it must make the omission degrade honestly
+  (#180) rather than render an empty section.
 
 ---
 
