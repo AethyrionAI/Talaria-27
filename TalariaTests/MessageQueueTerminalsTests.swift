@@ -91,6 +91,20 @@ struct MessageQueueTerminalsTests {
             reconcileCallCount += 1
             return reconcileConversation
         }
+
+        /// #368 (3E): these turns drop with a real run id (`R1`), so after
+        /// the cutover their recovery is the run-status read. The fixture
+        /// answers from the SAME `reconcileConversation` slot each test
+        /// already sets — the newest hermes row in it — so every test here
+        /// keeps its existing arrange step and now measures the #306 matrix
+        /// on the path production takes.
+        func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+            reconcileCallCount += 1
+            guard let reply = reconcileConversation?.messages.last(where: { $0.sender == .hermes }) else {
+                return nil
+            }
+            return .answered(content: reply.content, usage: nil)
+        }
     }
 
     @MainActor
@@ -458,6 +472,12 @@ struct MessageQueueTerminalsTests {
         let store = ChatStore(hermesClient: client, persistence: persistence)
         store.reconcileWallClockBudget = .milliseconds(80)
         store.reconcilePollInterval = .milliseconds(10)
+        // #368 (3E): this pending run carries an id (`R2`), so the loop reads
+        // the run-recovery pair. Shortened to the same values — the bar is
+        // "budget expiry SURFACEs", and which knob names the budget is not
+        // what it measures.
+        store.runRecoveryWallClockBudget = .milliseconds(80)
+        store.runRecoveryPollInterval = .milliseconds(10)
 
         let sendTask = await startTurn("dropped turn", store: store, client: client)
         #expect(store.holdComposedTurn("held past the budget"))
