@@ -155,6 +155,10 @@ final class AppContainer {
     private(set) var hermesAPIKey: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
     private var isInitialized = false
+    /// #369: a launch found the pairing intact but the credential slot
+    /// unreadable. Declared here (rather than inferred) so the state has a
+    /// name to surface (#180) and a condition to retry on.
+    private(set) var credentialsUnreadableHold = false
     /// #136: the relay-backed half of launch, running behind the live UI.
     /// Doubles as the single-flight gate and the splash suppressor; exposed
     /// read-only so tests can await background completion deterministically.
@@ -1086,6 +1090,11 @@ final class AppContainer {
             // #137: a migration deferred by a pre-unlock launch lands here,
             // after the pairing re-read it depends on.
             container?.migrateSensorStreamingOptInIfNeeded()
+            // #369: the same pre-unlock case for the ACCESS token. A launch
+            // that held (pairing intact, credential unreadable) resumes its
+            // deferred relay half here — this hook and the activation one
+            // below both fire on a single unlock, and the retry is idempotent.
+            Task { @MainActor in await container?.retryCredentialHoldIfNeeded() }
             if hermesAPIKeyBox.value.isEmpty {
                 Task { @MainActor in
                     let scope = profilesStore.activeProfile?.credentialScopeID
@@ -1315,10 +1324,30 @@ final class AppContainer {
             containerLog.verbose("initialize: SKIP — already initialized")
             return
         }
-        guard await sessionStore.currentAccessToken() != nil else {
-            containerLog.warning("initialize: ABORT — no access token, clearing pairing")
-            await pairingStore.clearLocalPairing()
-            return
+        // #369: an unreadable credential slot is a HOLD, never an unpairing.
+        // This guard used to answer nil with `clearLocalPairing()` — the only
+        // destructive launch-path reset in the app, and the one its own three
+        // siblings (foreground activation, system launch, background refresh)
+        // never had: they log BLOCKED and return.
+        //
+        // The reading cannot license destruction, by construction:
+        // `KeychainSecureStore.retrieveSync` collapses EVERY non-success
+        // OSStatus into nil, so errSecItemNotFound, errSecInteractionNotAllowed
+        // (a pre-first-unlock background launch — location relaunch, BGTask,
+        // APNs) and errSecMissingEntitlement arrive here identical. #46/#15 are
+        // the same lesson already paid for once: a self-heal firing on an
+        // unreadable credential set orphans a healthy pairing.
+        //
+        // The local critical path below still runs — it is credential-free by
+        // design (#136: degraded is the DEFAULT launch posture), and holding it
+        // back is what would strand `shouldShowLaunchSplash`
+        // (`isPaired && !isInitialized`) for the whole process lifetime, since
+        // `initialize()` has exactly one caller. Only the relay-backed half is
+        // deferred, to `retryCredentialHoldIfNeeded()`.
+        let credentialReadable = await sessionStore.currentAccessToken() != nil
+        credentialsUnreadableHold = !credentialReadable
+        if !credentialReadable {
+            containerLog.warning("initialize: HOLD — access token unreadable; pairing PRESERVED, relay half deferred (#369)")
         }
 
         // #136: the critical path is LOCAL-ONLY (see LaunchInitStep) — the
@@ -1340,6 +1369,30 @@ final class AppContainer {
         isInitialized = true
         // Degraded is the DEFAULT launch posture — the relay-backed half
         // runs behind the live UI and upgrades state as each step lands.
+        // #369: unless the credential could not be read at all, in which case
+        // it waits for a reading rather than running against a nil token.
+        if credentialReadable {
+            startBackgroundBootstrap()
+        }
+    }
+
+    /// #369: the retry half of the credential hold. A hold that is never
+    /// retried is only a quieter stall, so the post-unlock hooks
+    /// (`protectedDataDidBecomeAvailable` / `didBecomeActive`, wired in
+    /// `makeDefault`) call this. Idempotent and cheap: a no-op unless a launch
+    /// actually held, so both hooks firing on one unlock cannot double-run the
+    /// relay half.
+    func retryCredentialHoldIfNeeded() async {
+        guard credentialsUnreadableHold else { return }
+        // An install that was unpaired while held has nothing to resume; the
+        // pairing lifecycle owns its own reset.
+        guard pairingStore.isPaired else {
+            credentialsUnreadableHold = false
+            return
+        }
+        guard await sessionStore.currentAccessToken() != nil else { return }
+        credentialsUnreadableHold = false
+        containerLog.notice("credential hold: token readable — running the deferred relay half (#369)")
         startBackgroundBootstrap()
     }
 
@@ -1699,6 +1752,9 @@ final class AppContainer {
     /// `makeDefault`.
     func handlePairingActivated() async {
         isInitialized = false
+        // #369: a hold belongs to the launch it was taken on; the fresh
+        // initialize() below decides the new pairing's state for itself.
+        credentialsUnreadableHold = false
         // #136: supersede any in-flight background bootstrap — the fresh
         // initialize() below must run its own, on the new pairing's state.
         cancelBackgroundBootstrap()
@@ -2010,6 +2066,9 @@ final class AppContainer {
     /// `makeDefault`.
     func handlePairingRemoved() async {
         isInitialized = false
+        // #369: nothing to resume once the pairing is gone (see
+        // `retryCredentialHoldIfNeeded`, which makes the same call).
+        credentialsUnreadableHold = false
         // #136: a half-flight background bootstrap must not land relay
         // state into the freshly reset stores below.
         cancelBackgroundBootstrap()

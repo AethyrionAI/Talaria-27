@@ -207,6 +207,19 @@ struct AboutSettingsContent: View {
     // 202-forever while chat works" failure is a glance here, not a forensic
     // session. "—" when there's no session user yet.
     private var identityStatus: RowStatus {
+        // #369/#180: a launch that could not READ the credential holds instead
+        // of unpairing — so this row says so, rather than rendering the
+        // resulting absence of a session user as a bland "—".
+        //
+        // #25: the text names the OBSERVATION and not a cause. "Waiting for
+        // unlock" would have been the natural phrasing and it is exactly the
+        // claim this app cannot make: the Keychain read collapses "locked",
+        // "no item" and "no entitlement" into one nil, so which of them
+        // happened is unknown here. Warning-coloured rather than danger — the
+        // pairing is intact and a first unlock usually resolves it.
+        if container.credentialsUnreadableHold {
+            return RowStatus(text: "CREDENTIAL UNREADABLE", color: Design.Brand.forge, blinks: false)
+        }
         if container.pairingStore.identityMismatchDetected {
             return RowStatus(text: "STALE — RE-PAIR", color: Design.Colors.danger, blinks: true)
         }
