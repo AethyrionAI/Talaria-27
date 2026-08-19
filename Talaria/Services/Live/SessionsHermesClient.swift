@@ -238,10 +238,10 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// all three turn paths (sync, stream, priming).
     var modelSelection: ModelSelection?
 
-    /// #283 (Phase 3 slice 3A): Developer-screen switch for the runs-plane
-    /// transport (`/v1/runs` + status-poll recovery), armed by AppContainer
-    /// from the persisted setting. Default `false` — the sessions path stays
-    /// the default transport until 3A-F passes. Read once per turn by both
+    /// #283 (3A) → **#368 (3E): DEFAULT `true` since the cutover.** The
+    /// runs-plane transport (`/v1/runs` + status-poll recovery), armed by
+    /// AppContainer from the persisted setting; the surviving switch is a
+    /// one-week escape hatch, and its deletion is #382. Read once per turn by both
     /// `performSyncTurn` and `sendStreaming` (Task 5 wired this dispatch, in
     /// this same branch), so a mid-turn toggle can never split one turn
     /// across two transports.
@@ -1140,6 +1140,26 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// the same UUID. App-side only; the server contract is untouched.
     nonisolated static func stableMessageID(sessionId: String, serverRowID: Int) -> UUID {
         let digest = SHA256.hash(data: Data("talaria-msg:\(sessionId):\(serverRowID)".utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        return UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+                           bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11],
+                           bytes[12], bytes[13], bytes[14], bytes[15]))
+    }
+
+    /// #368 (3E): deterministic identity for a reply adopted from a RUN
+    /// STATUS read — the #237 pattern with its own domain, keyed by the run
+    /// id (globally unique, and the only stable handle a status read gives
+    /// us; the recovered answer has no server ROW id to key on, which is
+    /// exactly why the sessions reconcile had to guess positionally).
+    ///
+    /// Determinism is what makes the adoption idempotent: two recovery passes
+    /// racing the same terminal status produce the SAME id, so the second
+    /// merges instead of duplicating — #237's shape, prevented rather than
+    /// cleaned up after.
+    nonisolated static func stableRecoveredRunMessageID(runID: String) -> UUID {
+        let digest = SHA256.hash(data: Data("talaria-run:\(runID)".utf8))
         var bytes = Array(digest.prefix(16))
         bytes[6] = (bytes[6] & 0x0F) | 0x50
         bytes[8] = (bytes[8] & 0x3F) | 0x80

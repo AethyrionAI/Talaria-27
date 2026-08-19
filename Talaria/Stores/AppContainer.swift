@@ -137,7 +137,8 @@ final class AppContainer {
     /// gated action on a `/v1/runs` run, answered over the network). Wired in
     /// makeDefault (`sendAnswer` → the router's routing-lock forward;
     /// `chatStore.hostApprovals` → this). Reachable only behind the
-    /// `useRunsTransport` Developer switch (O6: default stays OFF).
+    /// `useRunsTransport` Developer switch — **default ON since #368's
+    /// cutover** (O6's "default stays OFF" was 3A-era and is superseded).
     let hostApprovalStore = HostApprovalStore()
     /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
     /// profile's gateway key, drains the plugin's durable outbox into the

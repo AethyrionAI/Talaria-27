@@ -4353,6 +4353,38 @@ argument for making the relay more robust.
 > 16-path table with adapt/delete dispositions; Thursday's ruling reviews
 > the table rather than deciding the direction.
 
+
+> **✅ 2026-08-19 — ALL THREE OF THE BRIEF'S QUESTIONS RULED (Owen), a day
+> ahead of the scheduled Thursday review. The 16-path table
+> (`planning/reports/2026-08-19-309-relay-path-dispositions.md`) is
+> ACCEPTED as written: 12 DELETE / 4 ADAPT, no row flipped.**
+>
+> 1. **Voice's new home — (a) THE PLUGIN ROUTE.** The app asks the host to
+>    mint a realtime session over the talaria platform link; the provider key
+>    stays host-side, which is the one property the relay was actually
+>    buying. **(b) — a phone-held provider key — is REJECTED**, and that
+>    rejection is the substantive half of this ruling: it would have moved a
+>    provider credential onto the device, a security posture change nobody
+>    had asked for. **Filed the same minute as #383** per #268 — it is a
+>    design and a build, not a re-point, and it is the only row in the table
+>    that is.
+> 2. **Path 16 (`GET commands`) — ACCEPT THE LOSS** for personalities and
+>    quick commands. `/v1/skills` covers the skills half; the other two get
+>    no new host surface. Consequence, stated so a later session does not
+>    read the gap as a defect: **after the adapt, the command catalog is
+>    skills-plus-local, and the two missing halves are a RULED omission, not
+>    a regression.** Whatever surfaces them must degrade honestly (#180)
+>    rather than render an empty section.
+> 3. **Sequencing — #310 opens AFTER #368**, not now. One transport change at
+>    a time. Recorded at #310 with the trigger.
+>
+> **What this leaves #309 as:** the inventory and the dispositions are
+> settled, so this item is no longer the open question it was filed as. It
+> stays OPEN as the register the Phase 4 lanes work from — paths 7 and 16
+> (both plain re-points) ride those lanes; paths 1–4/6/8/9 wait on #310; path
+> 5 rides #375's remaining scope; paths 13–15 need only a lane; paths 11–12
+> are #383.
+
 ## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
 
 `Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
@@ -4364,6 +4396,21 @@ honest #180 degradation for relay-less profiles (#15/#94 recovery ladders scoped
 to relay-bearing profiles only), migration-safe decode of existing persisted
 profiles (the §1.5 persisted-state discipline — existing users' stored profiles
 must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
+
+
+> **✅ 2026-08-19 — SEQUENCING RULED (Owen): this opens AFTER #368**, in
+> answer to #309's brief question 3. Rationale as recommended: one transport
+> change at a time. **⏰ TRIGGER: #368's merge.**
+>
+> **Why it matters more than the filing implied.** #310 was filed as a
+> zero-setup blocker — a new user should not have to type a relay URL. This
+> morning's #365 diagnosis added a present-tense cost: the relay auth chain
+> (#309 paths 1–4) runs from `AppSessionStore.bootstrap()`, which
+> `handleActiveProfileChanged` AWAITS, so every profile switch today blocks
+> the whole UI behind doomed round trips to relays retired on both hosts.
+> **#310 is what makes deleting that chain expressible**, and #365's own fix
+> only suppresses the symptom. Read this item as unblocking a live cost, not
+> only a future onboarding story.
 
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
 
@@ -11610,6 +11657,92 @@ the #247 probe window or the OJAMD session-list fetch.
 presentation change, for elimination), #136 (the splash's
 local-state-ready gate).
 
+
+> **✅ 2026-08-19 AM — DIAGNOSED FROM CODE AT HEAD `f48add84`. Mechanism
+> pinned; it is neither new on 2808 nor #350's doing, and it is not the #247
+> verdict path. It is #136's own carve-out, which names this exact case in a
+> comment.**
+
+**The interstitial is `LaunchSplashView`** (`AppRootView.swift:22-23`), the
+cold-launch splash — presented over `MainTabView`, which is why it reads as
+full-screen rather than as a connection state.
+
+**The chain, four lines, all cited:**
+
+1. `AppRootView.shouldShowSplash` (`:51`) ORs in
+   `container.shouldShowLaunchSplash`.
+2. `AppContainer.shouldShowLaunchSplash` (`AppContainer.swift:220`) returns
+   `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`.
+3. `handleActiveProfileChanged` (`:2146`) calls `cancelBackgroundBootstrap()`
+   as its second statement, which sets `backgroundBootstrapTask = nil`
+   (`:1378`).
+4. The same handler then `await sessionStore.bootstrap()` (`:2236`), and
+   `bootstrap()` sets `isBootstrapping = true` for its whole duration
+   (`AppSessionStore.swift:103`, cleared by `defer` at `:108`).
+
+So during a profile switch both conjuncts are true and the splash is shown,
+for exactly as long as `bootstrap()` takes.
+
+**This is DELIBERATE, and #136 says so in the code being read:** the comment
+directly above the return names *"profile-switch re-home"* as one of the
+bootstraps that **keep today's splash**, in contrast with the launch
+background task, which must not hold it. So no regression happened — the
+behaviour has been there since #136, and Owen noticed it now because the
+duration grew.
+
+**Why ~10 s — and this is the part that makes #365 more than cosmetic.**
+`bootstrap()` runs against the **RELAY**, not the gateway:
+`bootstrapService` is `LiveSessionBootstrapService`, built on
+`RelayAPIClient`, and it calls `POST device/register`
+(`LiveSessionBootstrapService.swift:110`) and `GET session` (`:132`). **Both
+hosts' relays are now retired** — OJAMD's since 2026-08-10 (#346), the Mac's
+since 2026-08-18 (#375) — so those calls cannot succeed. Worse, the `catch`
+runs a recovery ladder before giving up: `attemptRefreshAndReload`
+(`:131`), then `recoverSessionByReRegistering` (`:138`) — each another
+doomed round trip. Three-plus sequential failures against a dead endpoint is
+a ~10 s shape.
+
+**Direction-agnostic, and newly so:** Owen saw it switching TO OJAMD, whose
+relay had been down since 08-10. Since last night the Mac's is down too, so
+the stall should now reproduce in **both** directions. That is a cheap
+falsifiable prediction for the next device sitting — if a switch to the Mac
+is fast, this diagnosis is wrong.
+
+**Cross-filed:** this is the concrete cost of #309's paths 1–4 still being
+on the blocking UI path — recorded in this morning's disposition brief,
+`planning/reports/2026-08-19-309-relay-path-dispositions.md` §3.
+
+**⚠️ THE SIM REPRO THE WEEK PLAN ASKED FOR WAS NOT RUN, AND THE REASON IS
+ITSELF THE FINDING.** The stall only occurs on a path guarded by
+`pairingStore.isPaired && await sessionStore.currentAccessToken() != nil`
+(`AppContainer.swift:2235`) — i.e. only a PAIRED profile reaches
+`bootstrap()` at all. Pairing is minted by the relay
+(`POST phone-pairing/redeem`, #309 path 6), and **both relays are retired**,
+so a fresh simulator cannot be brought into the state that reproduces this.
+The repro survives only where a pairing already exists on disk — Owen's
+phone. So the device check (365-C) is not a nicer version of the sim repro;
+it is the only version. Recorded rather than quietly skipped.
+
+**Bars, pre-registered here before any fix code:**
+
+- **365-A (symptom, unit).** A profile switch presents no launch splash:
+  `shouldShowLaunchSplash` is false while a switch-driven bootstrap is in
+  flight, and STILL TRUE for the two cases #136 deliberately kept (a paired
+  cold launch before `isInitialized`, and an unpaired forced
+  re-registration). The second half is the bar that stops the fix from
+  being "delete the gate".
+- **365-B (no new silence).** With the splash suppressed, the switch still
+  reports itself — #247's verdict toast is the surface, and it must be
+  reachable during the window the splash used to cover.
+- **365-C (device, Owen).** A switch in BOTH directions lands without an
+  interstitial, and the #247 toast still arrives.
+
+**⚠️ Route not taken, and why it is recorded rather than done:** the real
+cause is that a profile switch calls a relay bootstrap at all. Fixing THAT
+is #309 path 1–4 + #310, not this item — and #365 must not quietly become
+the relay-decommission lane. The bars above treat the symptom on purpose,
+which is the honest scope for a one-line gate change.
+
 ## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen.**
 
 **The mechanism (from tonight's evidence; code-verified when the lane
@@ -11667,6 +11800,293 @@ PR #320's CTX fixes in one build.
   honesty design belongs to the same surface.
 - Post-cutover, #322's cancel-read stops being a permanent no-op (its close
   recorded that its value was tied to this rollout).
+
+
+> **2026-08-19 AM — LANE OPENED. BARS PRE-REGISTERED BELOW BEFORE ANY CODE**
+> (#215's convention, #216-era vehicle: they live in this entry, not a
+> dispatch doc). Nothing in this block was written after a measurement.
+
+### What 3E actually changes — the code, named before it moves
+
+Read from HEAD `f48add84`, not from the plan's summary of it. Four seams:
+
+1. **The transport fork.** `SessionsHermesClient.useRunsTransportProvider`
+   (`SessionsHermesClient.swift:248`) is read once per turn by BOTH turn
+   paths — `performSyncTurn` (`:311`) and `sendStreaming` (`:374`) — and
+   picks `streamTurnViaRuns`/`syncTurnViaRuns` over `streamTurn`/
+   `postSyncChat`. It is armed from `UserSettings.useRunsTransport`
+   (default `false`, `UserSettings.swift:452`) via
+   `AppContainer.swift:744`, surfaced as the Developer switch
+   (`DeveloperSettingsScreen.swift:511`).
+2. **The recovery machinery.** A dropped stream yields `.interrupted`;
+   `ChatStore.armPendingRunRecovery` (`:1478`) mints a `PendingRun` and
+   starts `startReconcileLoopIfNeeded` (`:1541`) → `attemptReconcile`
+   (`:3577`) → `hermesClient.reconcileFromServer()`, which re-reads
+   `GET /api/sessions/{id}/messages` and adopts **positionally**: "the last
+   hermes row newer than `pending.sentAt`, non-empty". Budget 120 s wall
+   clock (`reconcileWallClockBudget`), 2 s interval. The runs plane already
+   owns a strictly better instrument for the same job —
+   `pollRunToTerminal` / `readRunStatus` / `deliverPolledTerminal`
+   (`+RunsTransport.swift:1023/1087/1129`) against `GET /v1/runs/{id}`,
+   1 h TTL, carrying the run's OWN output and usage.
+3. **Stop (#328 route 1).** `hardStopActiveRun()` (`+RunsTransport.swift:1354`)
+   opens `guard let context = activeRunContext else { return false }` — and
+   on the sessions plane there is never a context. The cutover is what makes
+   that guard stop firing on the default path; **#328 route 1 is delivered
+   by this slice, not built separately.**
+4. **What the sessions plane keeps.** Session create/priming (hop setup, not
+   turn transport), `openSession`, `listSessions`, `/messages`, `fork`, and
+   `POST /api/sessions/{id}/model` (#241's pin). Those are untouched — the
+   slice's phrase "sessions plane keeps only history/fork/model-pin" is
+   about the TURN, and a run still writes its turn into the SessionDB row
+   (3A-0's N4 write-half), so history survives the move by construction.
+
+### The one SCOPE decision — ❓ QUESTION FOR OWEN (Thu review, or sooner)
+
+The plan's §5 **Q3 was never answered** (archived #283: "Q2 answered; the
+other eight stand as recommended/pending"). Q3 is exactly this slice's
+scope: **wholesale, or a permanent dual path?**
+
+- **Recommendation: WHOLESALE — delete the switch and both sessions-plane
+  turn transports.** The plan's own recommendation, and the slice-table
+  definition already says it ("sessions plane keeps only history/fork/
+  model-pin"). A retained-but-unused branch is the #218 shape — two paths,
+  one tested — and #218 cost two days on exactly that.
+- **The honest counter-argument, stated rather than buried:** on 2026-08-16
+  the switch was the recovery — Owen flipped it OFF and chat came back
+  (archived #283's stopped-clock note). #356 later EXONERATED the transport
+  (the cause was a stopped/mid-update OJAMD reached through the M-5 birth
+  hop), so the escape hatch's one save was a misattribution — but it was
+  still a save, and after deletion there is no equivalent lever.
+- **How the build is structured so this stays Owen's call and costs nothing
+  to reverse:** three commits, deletion LAST. Commits 1–2 (recovery
+  collapse + default flip) are correct under either answer; commit 3 is the
+  deletion. If Owen wants the hatch kept, commit 3 is dropped at review and
+  the PR still ships the slice's substance.
+- **Declined, with reason:** gating the flip on a live `/v1/capabilities`
+  probe. It buys a graceful answer for a host that cannot serve `/v1/runs`
+  — but both hosts are 0.20.3/0.20.4, no such host exists in this
+  deployment, and the probe is a launch-path network dependency bought
+  against a hypothetical. Bar **3E-I** covers the same risk by requiring the
+  failure to be VISIBLE and named instead of graceful.
+
+### Guardrails checked before the bars (each is a real check, not a nod)
+
+- **S27 (plan §4.4) — NOT TRIGGERED.** The cutover does not register the app
+  as a delivery target, so `splits_long_messages` and the 4000-char cap stay
+  out of scope. Named here because §4.4 says in so many words that 3E is the
+  slice that could cross that line quietly.
+- **#310 is NOT a blocker.** `BackendProfile.relayBaseURL` being
+  non-optional is a pairing/profile shape, not a turn transport; the cutover
+  neither fixes nor worsens it.
+- **#371 stays FILED, not built here.** Its restored-✓ honesty design "rides
+  the runs plane" — the surface this slice settles — but a restored chip's
+  provenance is its own question and folding it in would smuggle an
+  unmeasured change into a cutover.
+- **#322 becomes live automatically** (its close recorded that its value was
+  tied to this rollout); no code owed, a dated note at its archived entry
+  when 3E-G passes.
+
+### BARS — pre-registered 2026-08-19 before any code
+
+- **3E-A (cutover, unit).** With no Developer intervention, a remote streamed
+  turn AND a remote sync turn both take the `/v1/runs` path — proven from
+  (i) a fresh `UserSettings()` and (ii) a decoded PRE-CUTOVER settings blob
+  that persisted `useRunsTransport: false`. **(ii) is the load-bearing half:
+  the key is always encoded (`UserSettings.swift:600`), so every existing
+  install carries an explicit `false` and a default flip alone moves
+  nobody.** Falsifier: either input reaching `streamTurn` or `postSyncChat`.
+- **3E-B (recovery collapse, unit).** A turn whose `/events` stream dies
+  after the run is committed resolves from `GET /v1/runs/{id}`: the adopted
+  reply is the run's own `output`, carrying the run's own `usage`, keyed by
+  the run id. TWO negative controls, both of which the positional reconcile
+  fails today: **(i)** a sessions message list whose newest hermes row is an
+  UNRELATED later turn is NOT adopted; **(ii)** the #293(b) skew shape — a
+  host clock BEHIND the client's `sentAt` — still resolves, because the
+  timestamp predicate no longer gates adoption.
+- **3E-C (durability, unit).** A run that reaches terminal at T+150 s is
+  still adopted. The old wall-clock budget was 120 s against a 1 h status
+  TTL. Falsifier: the loop giving up at 120 s.
+- **3E-D (exactly once, unit).** #237's duplicate shape stays pinned absent:
+  a late `.interrupted` for a run ALREADY resolved by status polling tears
+  down quietly and never re-arms, and a status-poll adoption racing a late
+  stream `.completed` leaves exactly one assistant row.
+- **3E-E (deletion, structural — scored only if Owen rules WHOLESALE).**
+  No call site in `Talaria/` submits a turn on the sessions plane: `grep`
+  proves zero references to `chat/stream` and zero to
+  `POST /api/sessions/{id}/chat`, and `useRunsTransport` is absent from the
+  tree. `/api/sessions*` survives ONLY as create/open/list/messages/fork/
+  model. Falsifier: any surviving turn-submitting sessions call site.
+- **3E-F (#328 route 1, unit).** On a default-configured remote turn, Stop
+  issues `POST /v1/runs/{id}/stop` — i.e. `hardStopActiveRun()` returns
+  `true` having really had a run, rather than guard-returning `false`. This
+  is #328 route 1's app half; the host-log half is 3E-H.
+- **3E-G (gate).** `scripts/mac/lane-gate.sh` PASS — units **and** Release —
+  with the unit count MOVED from the **2351** baseline (a count that did not
+  move means `test-without-building` re-ran a stale `.xctest`; CLAUDE.md's
+  named trap). TCC calendar+reminders granted on the pool sim immediately
+  before the run.
+- **3E-H (device, Owen — PM slot).** One real remote conversation on the
+  DEFAULT path, end to end: a tool-using turn renders a chip with REAL
+  content (#362's mirror, on whichever host is active), a stream killed by
+  backgrounding recovers its answer, a Stop mid-tool is confirmed **from the
+  host's own log** (not the app's UI — #328's whole lesson), and a
+  leave-and-return shows the thread intact.
+- **3E-I (honesty, negative — the cutover's own risk).** A host that cannot
+  serve `/v1/runs` (submit answers 404) fails **visibly and by name**: no
+  silent fallback to a plane that no longer exists, no fabricated answer, no
+  spinner that never ends. #180's family bar, and the one bar whose failure
+  would make the wholesale scope wrong.
+- **3E-J (no behaviour smuggled, structural).** The diff changes transport
+  and recovery only. Specifically unchanged and asserted so: the artifact
+  correlator's `session_id`+`path` key (#362), stored-args reconstruction
+  (#364), the #306 hold-slot matrix rows, and the #285 frozen-endpoint rule.
+  Falsifier: any edit to those mechanisms riding this PR.
+
+**Sequencing:** commit 1 = recovery collapse (3E-B/C/D), commit 2 = the flip
++ migration (3E-A/F/I), commit 3 = deletion (3E-E). Gate once at the end
+(3E-G). Device leg 3E-H is Owen's, evening.
+
+
+> **✅ 2026-08-19 ~08:40 — SCOPE RULED (Owen): *flip now, delete next week.***
+> The plan's §5 **Q3 is answered** at last, and not as the plan recommended:
+> the cutover ships as the default flip plus the recovery collapse, and the
+> sessions-plane turn transport + the Developer switch are **deleted in a
+> separate lane after a week of living on the default** — filed the same
+> minute as **#382** with a dated trigger, per #268.
+>
+> **What this does to the bars:** **3E-E (deletion, structural) is NOT
+> SCORED BY THIS LANE** — it moves verbatim to #382, which is where the
+> deletion happens. It was pre-registered as conditional on exactly this
+> ruling ("scored only if Owen rules WHOLESALE"), so this is the
+> pre-registration working, not a bar being redefined after the fact. Every
+> other bar stands unchanged.
+>
+> **What it costs, stated rather than buried:** for one week the tree
+> carries two turn transports with only one of them exercised by default —
+> the #218 shape, knowingly, on a clock. That is the trade Owen bought
+> evidence with, and #382 is the thing that stops it becoming permanent.
+
+> **2026-08-19 AM — BUILD PROGRESS (commits on `t27-368-3e-cutover`).**
+>
+> **Commit 1 `8e35c873` — the recovery collapse. Bars 3E-B / 3E-C / 3E-D
+> MET** (11 tests, `TalariaTests/RunStatusRecoveryTests.swift`).
+> - `DroppedRunResolution` + `resolveDroppedRun(runID:sessionID:)` on
+>   `HermesClientProtocol`, implemented on the runs client from
+>   `readRunStatus` — **one request per call; the loop stays in `ChatStore`**
+>   (#292's rule: two budgets for one recovery is how that regression comes
+>   back).
+> - `SessionsHermesClient.resolution(from:)` is a PURE mapper, so #235 F1's
+>   no-empty-bubble rule and 296-C1's `error` union are both scorable from a
+>   literal status body with no URL session.
+> - `ChatStore.attemptReconcile` forks on `pending.runId` and now reports
+>   THREE outcomes — the old `Bool` could not say "unresolved AND
+>   unpollable", so a 404'd run used to grind its whole budget.
+> - The run-id loop gets its own **600 s / 5 s** budget. Longer is safe here
+>   for the precise reason #145 Part C says 120 s was not safe there: the
+>   per-attempt cost is now bounded by construction (one status GET at the
+>   interactive timeout), where `reconcileFromServer()`'s was not.
+> - **MUTATION-CHECKED, not merely green.** Four mutations were applied and
+>   the suite re-run: revert the fork · revert the budget selection · mint a
+>   fresh `UUID()` for the adopted reply · read `.gone` as "keep polling".
+>   **All seven behavioural tests went RED; the four pure-mapper tests
+>   correctly stayed green.** (The tests' own comments name the mutation
+>   that kills each one — a test that cannot be made to fail is not
+>   evidence.)
+>
+> **Two honest notes from the build:**
+> - Three assertions in the first pass were WRONG ABOUT TIMING, not about
+>   behaviour: the `.interrupted` arm arms the reconcile loop before any
+>   manual pass runs, so `hasActiveReconcileLoop` is legitimately true for
+>   one interval after a resolution. The assertions were corrected; **no
+>   production code was changed to make a test pass.**
+> - That lingering-loop window is PRE-EXISTING and shared with the legacy
+>   path (a manual pass resolving while the loop sleeps). It was left alone
+>   deliberately — closing it is a behaviour change, and bar **3E-J** forbids
+>   smuggling one into this diff.
+
+
+> **📬 2026-08-19 — PR OPENED: https://github.com/AethyrionAI/Talaria-27/pull/322**
+> (`t27-368-3e-cutover` → `main`, 10 commits, `GATE: PASS`). Body =
+> `handoffs/PR-BODY-368.md` (gitignored). **AWAITING OWEN'S REVIEW — not
+> merged.** ⚠️ When it merges, correct THIS line in the same commit: a
+> "NOT MERGED" text that outlives its merge is the four-day-stale shape
+> #322/#328 already produced once, and the PR number here being 322 makes
+> that confusion easier, not harder — PR #322 and tracker #322 are
+> different things (CLAUDE.md's standing disambiguation rule).
+
+> **📌 CLOSE-OUT DEBT, listed now so it cannot be forgotten at merge (#317).**
+> These corrections are OWED and deliberately NOT written yet — the results
+> that falsify them are on `t27-368-3e-cutover` and unmerged, and a tracker
+> that claims a merged state before the merge is the exact four-day-stale
+> shape #328/#322 already produced once. Land them **in the merge commit**:
+>
+> - **#328** — route 1's question DISSOLVES rather than being answered. Its
+>   entry says route 1 is "still gated on 328-A's route probe, which nobody
+>   has run"; after the cutover no ordinary turn is on the sessions plane, so
+>   every default Stop reaches the host and there is nothing left for that
+>   probe to unblock. The entry needs a dated note saying so — and saying
+>   that the residual only fully closes at **#382**, since until the switch
+>   is gone a user can still turn the swallowed-Stop plane back on.
+> - **#322** — its close recorded that the cancel-read's value "was tied to
+>   this rollout". It is live now; a dated pointer block goes beneath the
+>   ARCHIVED entry, append-only, per #317 ruling (a).
+> - **#371** — its design "rides #368". #368 did not build it; the entry
+>   should say the surface it rides is now the default, so the design
+>   question is answerable rather than blocked.
+> - **#293(b)** — its measurement-only clock-skew logging is now unreachable
+>   from the run-id path. The finding is not refuted; its exposure shrank to
+>   the legacy arm, which #382 deletes. Note, do not close.
+> - **CLAUDE.md** — grepped 2026-08-19: it carries **no** claim about the
+>   transport default or the Developer switch, so nothing there is falsified
+>   by the flip. Recorded because "checked and found nothing" is a different
+>   fact from "not checked".
+
+
+> **✅ 2026-08-19 ~08:55 — `GATE: PASS`. THE LANE'S CODE IS COMPLETE; what
+> remains is Owen's review, the merge, and the device leg.**
+> `scripts/mac/lane-gate.sh` on `CC-lane-1` (TCC granted immediately before,
+> per the standing hang trap): Debug suite **2372 Swift Testing / 185 suites
+> + 14 XCUITest**, and the **Release build** — the check a Debug-only stack
+> cannot make (#218). **The count MOVED from the 2351 baseline (+21)**, so
+> this is not `test-without-building` re-running a stale `.xctest`.
+> Two skips, both the known-permanent `CondenserFidelityTests` pair (needs
+> Apple Intelligence hardware); no new skip was introduced.
+>
+> **SCORECARD**
+>
+> | bar | verdict | evidence |
+> |---|---|---|
+> | 3E-A cutover default + migration | **MET** | `RunsTransportSwitchTests` (6) — incl. the pre-cutover blob whose explicit `false` is migrated, and the post-cutover opt-out that STICKS |
+> | 3E-B recovery collapse + 2 controls | **MET** | `RunStatusRecoveryTests` — unrelated-newer-row control and the #293(b) skew control both pass |
+> | 3E-C durability past 120 s | **MET** | the run-id loop reads its own budget; scaled, not slept |
+> | 3E-D exactly once | **MET** | deterministic id from the run id; the late-duplicate arm re-measured on the default path |
+> | 3E-E deletion | **NOT SCORED — moved to #382** | Owen's ruling; pre-registered as conditional |
+> | 3E-F #328 route 1 | **MET (app half)** | default turn is a runs turn (3E-A) × `hardStopActiveRunPostsStopWithAuth` / `cancelStreamingDefaultPostsStop`. ⚠️ **Honest limit: the one line that arms the provider from settings (`AppContainer.swift:744`) is CODE-READ, not test-covered.** 3E-H is what closes it end to end. |
+> | 3E-G gate | **MET** | above |
+> | 3E-H device | **OWED — Owen, PM slot** | see below |
+> | 3E-I honesty on a runs-less host | **MET** | `RunsPlaneTransportTests.aHostThatCannotServeRunsFailsVisiblyRatherThanSilently` — one `.failed` with words, never `.interrupted` or `.unreachable` |
+> | 3E-J nothing smuggled | **MET** | the artifact correlator, stored-args reconstruction, the #306 matrix and the #285 frozen-endpoint rule are untouched; the one lingering-loop imperfection found mid-build was deliberately LEFT ALONE for this reason |
+>
+> **What the full suite caught that the targeted suites could not:** four
+> existing tests modelled the OLD recovery and went red on the flip
+> (`lateDuplicateInterruptNeverResolvesTwice` and three #306 matrix tests).
+> Their fixtures now implement `resolveDroppedRun` rather than being pushed
+> back onto the legacy branch — otherwise #237 and the hold-slot matrix
+> would be exercising a path #382 deletes. **This is the argument for the
+> gate over a targeted run, happening: three green suites said nothing about
+> them.**
+>
+> **3E-H, the device leg — the exact walk (evening, ~5 min):**
+> 1. A tool-using turn ("write test-3e.md with a short haiku") → WRITE_FILE
+>    pill → chip with **real content** (#362's mirror on the active host).
+> 2. Background the app mid-turn, return → the answer **recovers**. This is
+>    the bar with the most new machinery behind it.
+> 3. Stop mid-tool → confirm from **the host's own log**, not the app's UI
+>    (#328's whole lesson: the UI has lied about this before).
+> 4. Leave the thread and return → transcript intact, chip persists.
+> 5. Glance at Settings → Developer: the Runs Transport row reads ON without
+>    anyone having touched it. That is the migration, visible.
 
 ## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. NOT STARTED; bars pre-register here before code.**
 
@@ -11837,3 +12257,118 @@ PR #320's CTX fixes in one build.
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which
 > reshapes the composer surface this rides on; re-examine then.
+
+## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.**
+
+**Why it exists.** #368's cutover flips the default to the runs plane but
+deliberately does NOT remove the old path. Owen's 2026-08-19 ruling was
+*flip now, delete next week* — the middle option between the plan's
+recommended wholesale delete and keeping a permanent dual path. This item is
+the thing that stops "next week" becoming "never".
+
+**⚠️ The cost this item is holding, said plainly.** Between #368 landing and
+this item closing, the tree carries TWO turn transports and only one of them
+runs by default. That is the **#218 shape** — two paths, one tested — which
+cost two days the last time it went unnoticed. It is being accepted
+knowingly, for one week, to buy evidence; it is not a state to settle into.
+
+**Scope, inherited verbatim from #368's bar 3E-E (pre-registered
+2026-08-19 BEFORE any code, and explicitly conditional on this ruling — so
+it is a bar moving house, not a bar written after the fact):**
+
+> **3E-E (deletion, structural).** No call site in `Talaria/` submits a turn
+> on the sessions plane: `grep` proves zero references to `chat/stream` and
+> zero to `POST /api/sessions/{id}/chat`, and `useRunsTransport` is absent
+> from the tree. `/api/sessions*` survives ONLY as create/open/list/
+> messages/fork/model. Falsifier: any surviving turn-submitting sessions
+> call site.
+
+**What comes out** (named from HEAD `f48add84` so the lane can check rather
+than rediscover): `SessionsHermesClient.streamTurn` and `postSyncChat`, the
+`useRunsTransportProvider` seam and both per-turn reads (`:311`, `:374`),
+`UserSettings.useRunsTransport` **and its `runsCutoverApplied` migration
+flag** (which exists only to serve the switch), the Developer row
+(`DeveloperSettingsScreen.swift:207`), and — once no run-id-less `PendingRun`
+can exist — `ChatStore.attemptSessionReconcile` with `reconcileFromServer()`
+behind it.
+
+**One thing that must NOT come out with it, and it is easy to miss:** the
+background-expiration arm in `cancelStreaming(hardStopHost: false)` still
+arms recovery with `runId: nil` (`ChatStore.swift`, the `armPendingRunRecovery`
+call whose comment reads *"`runId` has no channel here at all"*). **That
+comment is now stale** — `cancelledRunID` is captured at the top of the same
+function (#322's read-before-clear) and is exactly the id that arm needs. So
+the lane's first move is to feed it in; only THEN is the run-id-less pending
+run genuinely unreachable and the legacy reconcile safe to delete. Deleting
+in the other order strands the expiration path with no recovery at all.
+
+**The evidence the week is for.** What would make this item pause rather
+than proceed: a real host-side runs failure the escape hatch demonstrably
+rescued. Note that the ONE historical instance (2026-08-16, the toggle
+flipped off and chat returned) was **later exonerated** — #356 pinned the
+cause to a stopped/mid-update OJAMD reached through the M-5 birth hop, not
+to the transport. So the bar for pausing is a NEW instance, not a re-telling
+of that one.
+
+**Cross-refs:** #368 (parent; the cutover), #218 (the shape being accepted
+for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
+#368's flip, and permanent once this lands), #322 (its cancel-read stops
+being a no-op at #368, not here).
+
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). NOT STARTED; bars pre-register here before any code.**
+
+**What moves.** #309 paths 11 and 12 — the app's entire realtime voice
+bootstrap:
+
+- `GET talk/readiness` (`LiveVoiceSessionService.swift:192`) — may a realtime
+  session start?
+- `POST talk/session` (`:278`) — mint one.
+
+Both speak to the **relay**, which is retired on both hosts (#346 OJAMD
+2026-08-10, #375 Mac 2026-08-18). **So realtime voice is, as of last night,
+bootstrapped against nothing.** That is the present-tense state this item
+exists to fix — not a future tidy-up.
+
+**The ruled route: (a) the PLUGIN.** The app asks the host to mint the
+session over the talaria platform link; the provider key stays host-side.
+
+**Route (b) was REJECTED, and the reason is the load-bearing part of the
+ruling:** minting the realtime session directly from the phone would put a
+PROVIDER CREDENTIAL ON THE DEVICE. That is a security posture change nobody
+asked for, and it is cheaper to reject now than to unwind after it ships.
+Do not re-propose (b) as a shortcut when the plugin work turns out to be
+bigger than expected — raise it with Owen as a decision instead.
+
+**What makes it buildable at all:** the realtime key is now present on
+**both** hosts (#254-D/#303, recorded runnable in the 2026-08-18 week plan).
+Before that, (a) had nowhere to read a key from on OJAMD.
+
+**⚠️ The platform link does not currently carry voice.** #309's own
+inventory says so in as many words: *"a `POST /api/platforms/talaria/events`
+plugin does not currently carry voice."* So this is a plugin-side build plus
+an app-side client swap, not a URL change — which is exactly why it is
+numbered separately from the twelve DELETE rows and the two plain re-points.
+
+**Live-install gate:** the plugin half needs a deploy and a gateway bounce on
+each host, so it rides Owen's **per-experiment go** under the standing rule
+(#251/3C/3D precedent: per-slice, named in this entry when granted). Nothing
+deploys before that.
+
+**⛔ And the no-hardening rule bites here in its post-retirement form**
+(Owen, 2026-08-18): if this build stalls, the fix is NOT "bring the relay
+back up and leave voice on it." A restored relay is a migration bridge, not
+a home. The restore recipes in #375's evidence block are two commands each
+and exist for exactly that bounded purpose.
+
+**Bars — pre-register in this entry BEFORE any code** (#215 convention).
+None are written yet, deliberately: the plugin-side shape is undesigned, and
+writing bars against a guess is how a lane gets bars it can pass without
+proving anything. First move is a design pass, not a build.
+
+**Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
+venture), #375 (the retirement that made this urgent), #254-D/#303 (the
+realtime key on both hosts), #138 (realtime self-barge-in — a live voice
+defect this must not regress), #303 (the engine-pin race — its cold-launch
+arm reads a realtime *permission*, so it has an interest in whatever
+replaces `talk/readiness`).
+

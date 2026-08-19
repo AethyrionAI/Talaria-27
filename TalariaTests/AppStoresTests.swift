@@ -1096,6 +1096,17 @@ struct AppStoresTests {
             currentConversation = convo
             return convo
         }
+
+        /// #368 (3E): this run HAS an id — that is the whole point of the
+        /// #237 bar — so after the cutover its recovery is the run-status
+        /// read, not the session re-read. The fixture answers on the same
+        /// `replyAvailable` gate so the test keeps measuring what it always
+        /// measured (a resolved run never re-arms and never resolves twice),
+        /// now on the path production actually takes.
+        func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+            guard replyAvailable else { return nil }
+            return .answered(content: "Resolved once", usage: nil)
+        }
     }
 
     @Test @MainActor
@@ -1108,6 +1119,10 @@ struct AppStoresTests {
         let chatStore = ChatStore(hermesClient: hermesClient, persistence: persistence)
         chatStore.reconcileWallClockBudget = .milliseconds(120)
         chatStore.reconcilePollInterval = .milliseconds(30)
+        // #368: the pending run carries an id, so the loop reads the
+        // run-recovery pair rather than the legacy one above.
+        chatStore.runRecoveryWallClockBudget = .milliseconds(120)
+        chatStore.runRecoveryPollInterval = .milliseconds(30)
         var resolvedCount = 0
         chatStore.onRunResolved = { _ in resolvedCount += 1 }
 

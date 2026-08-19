@@ -554,6 +554,18 @@ final class ChatBackendRouter: HermesClientProtocol {
         await hermes.finalRunUsage(runID: runID)
     }
 
+    /// #368 (3E): the dropped-run recovery read. **Not gated on
+    /// `runningBrain`, for exactly the reason `finalRunUsage` above is not:**
+    /// the recovery loop runs AFTER `cancelStreaming` has called
+    /// `abandonActiveRun()`, which releases the lock, so gating would return
+    /// nil on every pass and the collapse would be a silent no-op. Gated on
+    /// `isHermesConfigured()` instead, matching `reconcileFromServer()` — the
+    /// only other recovery-shaped forward here.
+    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+        guard isHermesConfigured() else { return nil }
+        return await hermes.resolveDroppedRun(runID: runID, sessionID: sessionID)
+    }
+
     /// #304: the approval answer, forwarded by routing lock exactly like
     /// `hardStopActiveRun` above. A live card only exists while the runs
     /// turn (or its recovery poll) is alive — `ChatStore` tears it down on

@@ -98,6 +98,14 @@ final class ResilientHermesClient: HermesClientProtocol {
         await primary.finalRunUsage(runID: runID)
     }
 
+    /// #368 (3E): the dropped-run recovery read, forwarded `primary`-only for
+    /// the same reason `finalRunUsage` is — a `/v1/runs/{id}` id can only
+    /// have come from the primary's plane, and the fallback has no runs
+    /// endpoint to answer with.
+    func resolveDroppedRun(runID: String, sessionID: String) async -> DroppedRunResolution? {
+        await primary.resolveDroppedRun(runID: runID, sessionID: sessionID)
+    }
+
     /// #304: same rule as `hardStopActiveRun` above — `sendStreaming` only
     /// ever rides `primary`, so an approval question can only have come from
     /// it, and forwarding the answer to `fallback` would be a POST that

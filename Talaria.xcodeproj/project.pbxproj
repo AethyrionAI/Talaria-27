@@ -100,6 +100,7 @@
 		247776F4580B529B30F75D06 /* Icon-SolarForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 14534B1F938AC24C273D0F31 /* Icon-SolarForge@2x.png */; };
 		24B16B107A6D7001E50E5E23 /* NativeVoicePipelineService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64C042CCDAA333F54214D067 /* NativeVoicePipelineService.swift */; };
 		24C71BA853C3ED51C9657835 /* AppLockController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A470FB52569D59F1AC2FCAD0 /* AppLockController.swift */; };
+		24D7D4F43BF9C788FE202561 /* RunStatusRecoveryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A07782C2A01CB45E86AAB176 /* RunStatusRecoveryTests.swift */; };
 		24E3899C968EBD0C0379E0FD /* InstrumentArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5857D406A7CF5BBBDAEAA8A /* InstrumentArtifact.swift */; };
 		250E96802E30BF18EB2E220E /* ThrowawayLiveActivityHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = 868A61E73986789BE64640CA /* ThrowawayLiveActivityHarness.swift */; };
 		255A768A4F87122ED684C977 /* Icon-RetroSciFi@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 2D05226618AAF6BA5457D37C /* Icon-RetroSciFi@2x.png */; };
@@ -989,6 +990,7 @@
 		9F2351D78A8E43CA90F5A982 /* ModelTransitionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelTransitionOverlay.swift; sourceTree = "<group>"; };
 		9F6DE4A282467FF9B4ECD50F /* Icon-LunarDiner@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-LunarDiner@3x.png"; sourceTree = "<group>"; };
 		9FF00556E91BFAF97209DC8C /* VoiceState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceState.swift; sourceTree = "<group>"; };
+		A07782C2A01CB45E86AAB176 /* RunStatusRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunStatusRecoveryTests.swift; sourceTree = "<group>"; };
 		A0EB2A3321F50892438510AB /* TalariaPlatformInboxService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformInboxService.swift; sourceTree = "<group>"; };
 		A11CBDFA2D8E88B99FE043B4 /* ReactorOrb.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReactorOrb.swift; sourceTree = "<group>"; };
 		A153FB314B12F8BFAA4A1800 /* InstrumentRegistryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentRegistryTests.swift; sourceTree = "<group>"; };
@@ -1429,6 +1431,7 @@
 				697527752DB54ADC34DCA006 /* RunsApprovalTests.swift */,
 				83CCF9F3F1E13F2FB42A79B9 /* RunsFrameParserTests.swift */,
 				CBD6742286DDFB93C517731F /* RunsPlaneTransportTests.swift */,
+				A07782C2A01CB45E86AAB176 /* RunStatusRecoveryTests.swift */,
 				92B8758ADF346AF83A9836FB /* RunsTransportSwitchTests.swift */,
 				D7B6A5F0468D6E4D5E4012C1 /* RunsTurnBodyEncodingTests.swift */,
 				AAA0D3900268D098B2590A75 /* SelectedIconHandoffTests.swift */,
@@ -2869,6 +2872,7 @@
 				9FEB4A121415BC5E95AA2C20 /* RevokeRowStateTests.swift in Sources */,
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
 				60E1156EC7FD9723A78E84BB /* RouterIntentTests.swift in Sources */,
+				24D7D4F43BF9C788FE202561 /* RunStatusRecoveryTests.swift in Sources */,
 				2A97126970DFA798DA3677EB /* RunsApprovalTests.swift in Sources */,
 				AAC0981772760D7B81F36441 /* RunsFrameParserTests.swift in Sources */,
 				E0F6DADCB44598B42115F307 /* RunsPlaneTransportTests.swift in Sources */,
