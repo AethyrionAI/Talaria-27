@@ -276,7 +276,7 @@ if (( RUN_SUITE )); then
         echo "        so it can never run on a simulator). EVERY OTHER skip is a"
         echo "        lane's deliberate choice and should name a tracker item in"
         echo "        its own skip reason — if one does not, that is a finding."
-        echo "            grep -n CondenserFidelityTests OPEN_ITEMS.md"
+        echo "            grep -n CondenserFidelityTests OPEN_ITEMS-ARCHIVE.md"
     else
         ok "no skipped tests"
     fi

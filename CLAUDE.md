@@ -145,7 +145,11 @@ a falsified mechanism while the tracker was right.)
   carried it *alongside* the bat-launched process. So "two hosts, two stories" was wrong;
   it was two shapes on one host. **All of it is now MOOT ON OJAMD (2026-08-15):**
   `mcp_servers.hermes_mobile` is `enabled: false` and there are **zero** `hermes-mobile`
-  processes on the box (#346). The Mac still runs its own copy.
+  processes on the box (#346) — with one same-day caveat #346's 15:28 block recorded:
+  the Hermes DESKTOP app's own backend held a legacy child until its next relaunch
+  (self-healing; verify per process, never once). **The Mac still runs its own copy —
+  config-registered, two live stdio children verified 2026-08-18 — retiring it is
+  tracker #375.**
   **The trap that outlives the correction: `config.yaml` takes effect PER PROCESS, and
   this box has THREE readers of it** — the gateway, the Hermes **Desktop app's own
   backend** (`hermes serve --host 127.0.0.1 --port 0`, a child of `Hermes.exe`), and the
@@ -162,6 +166,10 @@ a falsified mechanism while the tracker was right.)
   (git at head, `venv/bin/hermes` missing) — finish it with the venv's own
   `pip install -e ~/.hermes/hermes-agent`, don't reinstall. **Do NOT run
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
+  **Diagnose a down chat plane from `gateway_state.json`** (`platforms.api_server.state`
+  + `error_code`; lives in HERMES_HOME on OJAMD, `~/.hermes/` on the Mac) — it names
+  the SECOND cause (`api_server_key_invalid`) and works with the port dead, which the
+  port probe alone cannot (#264's ruled ops upgrade, landed 2026-08-18).
 - **⛔ DO NOT SET "API server model name" (Hermes desktop → Messaging → API server →
   Advanced) — it is a ROUTING SENTINEL, not a display label, and changing it on a host
   with existing sessions triggers #241 on every one of them.** Found 2026-08-09 from
@@ -558,7 +566,9 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     time someone followed one. Advice names a **search string**; the self-test
     executes each pointer against `OPEN_ITEMS.md` and fails if it finds nothing.
     Consequence: a few tracker headers are now load-bearing text (#219's "runner
-    dies mid-bundle", #313's "CondenserFidelityTests") and say so in place.
+    dies mid-bundle" in the live board; #313's "CondenserFidelityTests" moved to
+    `OPEN_ITEMS-ARCHIVE.md` at the 2026-08-18 sweep and the gate's grep hint was
+    repointed there in the same commit) and say so in place.
   - **⚠️ ALWAYS pass `TALARIA_SIM_NAME` when lanes run in parallel — the
     default is a contention trap.** The gate defaults to the shared
     `iPhone 17 Pro Max`, but recent lanes have each been quietly using a
@@ -726,6 +736,14 @@ never enters.
 
 `runActionBattery`'s `routed-production` cell is the routed arm. Every other
 wrapper is still unrouted.
+
+**Scoring rules for phone-tool bars on a deferred-registry host (#347, promoted
+2026-08-18):** score from `agent.log` (`tool_search → tool_describe → <tool>`
+chains), NEVER from the model's reply — the model can contradict the log in prose
+while the call ran fine. A forced-tool bar must phrase the ask as "use
+`tool_search` to find X, then call it," or the deferral itself fails the trial.
+And do not read the plugin's `last_seen` as liveness — it lags in a ~45 s
+sawtooth; judge liveness by POST cadence instead.
 
 **🔴 A SECOND RULE OF THE SAME KIND (#343, 2026-08-15): EVERY BATTERY RATE MEASURED
 BETWEEN 2026-08-02 AND #343'S FIX IS GOVERNOR-STRANGLED.** #225's `ToolCallGovernor`
