@@ -198,9 +198,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#359** 🐛 compose fusion — one occurrence, mechanism unknown; WATCH on recurrence (2026-08-18)
 - **#360** 🔧 dictation range-finalization — merged (PR #311); owed: device dictation pass (1-s finish grace)
 - **#363** 🔧 outbox hygiene — 0.4.0+ deployed both hosts; WATCH ~2026-08-25 (first natural nonzero sweep)
-- **#365** 🔍 profile-switch ~10 s connecting interstitial — observation only, not diagnosed
+- **#365** 🔍 profile-switch ~10 s connecting interstitial — DIAGNOSED 2026-08-19 (splash + relay bootstrap); bars pre-registered, fix unrouted
 - **#367** 🐛 duplicate file chips on reopen — fixed + merged (PR #321); owed: the reopen check (shared with #349)
-- **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — RULED GO 2026-08-18; build Wed/Thu; bars pre-register in the entry
+- **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — MERGED 2026-08-19 (`33108d05`); runs is the DEFAULT plane; 3E-H's last two device steps owed Friday
 - **#369** 🐛 token guard destroys the pairing on a bare keychain miss — RULED file+fix 2026-08-18; lane this week
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
@@ -212,6 +212,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#378** 🧭 156c — Memory surface; scope decision first (local files vs Honcho)
 - **#379** 🧭 156e — Projects surface; post-launch candidate
 - **#381** 🎨 steer unreachable while composer is busyNoCommit with the hold slot taken — affordance is Owen's call
+- **#382** 🧹 DELETE the sessions-plane turn transport + the runs switch — #368's deferred half; ⏰ TRIGGER 2026-08-26
+- **#383** 🗣️ re-home the realtime VOICE bootstrap onto the plugin — route (a) ruled 2026-08-19; **realtime voice is bootstrapped against a retired relay TODAY**
 
 > **2026-08-18 night — archive sweep 4:** the six-slice board audit closed
 > **73 items** in one sitting (ballot: `planning/2026-08-18-close-ballot.md`)
@@ -897,6 +899,15 @@ Sending an image ALONE delivers “[attachment]” as text to the model (image n
 any text makes the image visible to the model. The card dedup check itself is therefore
 inconclusive — the attachment-only turn never carried the attachment. Re-run the card DoD
 after #142 lands.
+
+> **⏱️ 2026-08-19 — THAT BLOCKER CLEARED FOUR WEEKS AGO AND NOBODY NOTICED.**
+> #142 closed **2026-07-23** (archived: the app was EXONERATED by wire capture —
+> the defect is host-side handling of a text-less parts array). So the card-DoD
+> re-run this note defers has been runnable since then, and the Saturday device
+> list carries only "#61 standalone title", not this. Found by the 2026-08-19
+> board sweep, which was looking for exactly this shape: a gate that dissolved
+> while the text still says wait. **Not scheduled here — it goes on the next
+> device pass with #61's other owed checks.**
 
 > **MERGED 2026-07-17 (`588d885`, direct merge, loop-validated 755/62).** Recovery note for the
 > record: the fix branch `claude/t27-61-fallback-card-dedup` (07d8d9a) was deleted in error during
@@ -6982,9 +6993,9 @@ mode, and this entry exists to fix it.
 | **2A** transport spine | #251: *"🔧 SLICE 2A LANE OPENED 2026-08-05 late (Owen routed: A-first…)"* | **✅ BUILT + MERGED** (PR #272, `3f3bdee`, 12 tasks, 6 fix rounds); bars 2A-A/C/D/E/F/G **MET**; **2A-B falsified as written** (32s vs ≤5s — *"the bar was MIS-SPECIFIED BY ME"*), its owed instrumentation absorbed by **#263**. | TRACKED — #251 |
 | **2B** conversational installer | routed 2026-08-05 (Owen: *"I like this. Empowers the user too"*) | **SPLIT 2026-08-09: 269-A (verification half) unblocked, buildable; 269-B (install half) BLOCKED on #308 (private repo — a user's Hermes cannot clone it) + the undecided restart story (no reload; the agent runs in-process)** | **WAS UNFILED → now #269** |
 | **2C** desktop face v0 | recon banked 2026-08-05, *"FOLDED INTO PHASE 2 as the desktop face's v0"* | NOT STARTED | **WAS UNFILED → now #270** |
-| **2D** OJAMD rollout | *"OJAMD install deliberately deferred to Phase 2"* | NOT STARTED | **WAS UNFILED → now #271** |
-| **3** | *"Runs-transport migration — remote turns move `chat/stream` → `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and recovery gets SIMPLER (runs pollable by id…)."* | **NEXT UP — awaiting Owen's sit-down.** Well-lit: approvals e2e-green on `/v1/runs` (2026-08-05); **steering PROVEN twice** (tui `session.steer`; runs plane `BANANA`→`PLUM` via `_active_run_agents`); the steer constraint recorded (consumed at the next tool-result boundary, **silently dropped mid-prose with a false-positive `queued` ACK**). | TRACKED — #251 (which also says *"bars pre-register here"*). **Detail plan: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.** Research: `planning/superpowers/research/251-phase3-gap/` A–H. Adjacent: `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` (#224). |
-| **4** | *"Relay decommission — stop/disable the OJAMD services, archive with a README pointer."* | NOT STARTED; **gated on #271 (2D)** — the relay cannot go until the plugin carries the production host. | TRACKED — **#223** is its tracker home; the arc line in #251 is the plan-of-record wording. |
+| **2D** OJAMD rollout | *"OJAMD install deliberately deferred to Phase 2"* | ~~NOT STARTED~~ **✅ DONE — bars MET, merged `430b9b7a`; the plugin carries OJAMD (2026-08-15)** | **WAS UNFILED → now #271** |
+| **3** | *"Runs-transport migration — remote turns move `chat/stream` → `/v1/runs` + `/events`: in-chat approvals land (e2e proven above), and recovery gets SIMPLER (runs pollable by id…)."* | ~~**NEXT UP — awaiting Owen's sit-down.**~~ **✅ SHIPPED — 3A/3C/3D merged, and 3E (#368) merged 2026-08-19 as `33108d05`: the runs plane is the DEFAULT. Deletion half is #382 (⏰ 2026-08-26).** Well-lit: approvals e2e-green on `/v1/runs` (2026-08-05); **steering PROVEN twice** (tui `session.steer`; runs plane `BANANA`→`PLUM` via `_active_run_agents`); the steer constraint recorded (consumed at the next tool-result boundary, **silently dropped mid-prose with a false-positive `queued` ACK**). | TRACKED — #251 (which also says *"bars pre-register here"*). **Detail plan: `design/PHASE3-RUNS-MIGRATION-PLAN-2026-08-07.md`.** Research: `planning/superpowers/research/251-phase3-gap/` A–H. Adjacent: `design/APPROVAL_MODES_PROPOSAL-2026-08-07.md` (#224). |
+| **4** | *"Relay decommission — stop/disable the OJAMD services, archive with a README pointer."* | ~~NOT STARTED; **gated on #271 (2D)** — the relay cannot go until the plugin carries the production host.~~ **THE GATE DISSOLVED: #271's bars are MET and the stop/disable half is DONE on BOTH hosts (#346 OJAMD 2026-08-10, #375 Mac 2026-08-18). What survives of this row is the paperwork — *archive with a README pointer* — plus #383, the one live capability the retirement broke. Corrected 2026-08-19; the row read NOT STARTED for nine days after the work began.** | TRACKED — **#223** is its tracker home; the arc line in #251 is the plan-of-record wording. |
 
 **On Owen's "phase 0, 1, and 2" — AMBIGUOUS, recorded rather than resolved.**
 Plan C's arc **has no Phase 0**. Two readings fit and I cannot pick between
@@ -10920,7 +10931,7 @@ same verdict at 1/20 exposure against 338-A's zero-false-positive bar).
 #344 stands as a DOCUMENTED LIMIT, watch-only: reopen only if the rate
 climbs or the shape appears attached to a completion claim. No build.**
 
-## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch — **BUILT 2026-08-18 on Owen's go: bars 350-A..C + the banner rule MET (unit), 350-E MET (GATE: PASS, one contiguous run on an erased pool sim — 2337 units / 14 XCUITest / Release clean); 350-D's visual half owed as Owen's 30-second device fixture re-run post-merge (recorded honestly below). PR open; merge is Owen's review.**
+## 350. 🐛 "LINKED · ONLINE" is an ASSERTION, not a measurement — the drawer and the settings strip claim a live host against a closed port, across a cold launch — **BUILT 2026-08-18 on Owen's go: bars 350-A..C + the banner rule MET (unit), 350-E MET (GATE: PASS, one contiguous run on an erased pool sim — 2337 units / 14 XCUITest / Release clean); 350-D's visual half owed as Owen's 30-second device fixture re-run post-merge (recorded honestly below). ~~PR open; merge is Owen's review.~~ **MERGED 2026-08-18 as `3d2e2992` (PR #318); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19 by the new `oi-invariants.py` header check written because of exactly this.** OWED: 350-D's visual half, on Friday's device minutes.**
 
 **MEASURED 2026-08-16 on `whoGoesThere` (build in hand, via iPhone Mirroring + computer use), incidentally, while standing up Group 4's standalone block. Not sought.**
 
@@ -11082,7 +11093,7 @@ mapping tests via behavior-preserving stubs before the logic landed
 > never LINKED · ONLINE; red banner only after a measured fail). A weekday-
 > evening minute, not a Saturday bar.
 
-## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; PR open, merge is Owen's review.**
+## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; ~~PR open, merge is Owen's review.~~ **MERGED 2026-08-18 as `0e545b57` (PR #319) plus `a3da88e2` (PR #320, the two device-found follow-ups); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19. OWED: the 60-second `Ojamd-fix.md` reopen check, on Friday's device minutes (closes #367 too).**
 
 **The measurement, from two consecutive turns in one thread (screenshots):**
 
@@ -11662,7 +11673,7 @@ papercut resolves itself when the repo goes PUBLIC at the #269-B
 publication moment. Until then the gh-credentialed one-liner is the
 update path, by design.**
 
-## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). NOT STARTED — observation only; no diagnosis attempted yet.**
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.**
 
 **What was observed (build 2808, whoGoesThere):** Server settings →
 select OJAMD → back → a full-screen Talaria connecting/orb screen for
@@ -11773,7 +11784,7 @@ is #309 path 1–4 + #310, not this item — and #365 must not quietly become
 the relay-decommission lane. The bars above treat the symptom on purpose,
 which is the honest scope for a one-line gate change.
 
-## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen.**
+## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.**
 
 **The mechanism (from tonight's evidence; code-verified when the lane
 opens):** a refetched turn SPLITS into stored rows — the tool-call row

@@ -32,6 +32,7 @@ Exit: 0 all passed · 1 a check FAILED · 2 a check could not run
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -43,8 +44,23 @@ ARCHIVE = ROOT / "OPEN_ITEMS-ARCHIVE.md"
 
 HEADER = re.compile(r"^## (\d+[A-Z]?)\.", re.M)
 # Branch names as they appear in entry prose: `t27-321-322-stop-completes`
-BRANCH = re.compile(r"`(claude/[a-zA-Z0-9._/-]+|t27-[a-zA-Z0-9._-]+|probe/[a-zA-Z0-9._/-]+)`")
-STALE_MERGE = re.compile(r"NOT MERGED|awaiting review", re.I)
+#
+# 2026-08-19: the bare `<item>-<slug>` form (`350-link-honesty`,
+# `3d-artifact-mirror-app`) was INVISIBLE here — this pattern knew only the
+# older `t27-` convention, while every lane since 2026-08-17 has used the bare
+# one. Together with the STALE_MERGE gap below, the check could not see a
+# single one of this week's lanes. The `[a-z]` after the dash is what keeps
+# dates out: `2026-08-19`'s next segment starts with a digit.
+BRANCH = re.compile(
+    r"`(claude/[a-zA-Z0-9._/-]+|t27-[a-zA-Z0-9._-]+|probe/[a-zA-Z0-9._/-]+"
+    r"|\d+[A-Za-z]?-[a-z][a-zA-Z0-9._-]*)`"
+)
+# 2026-08-19: "PR open" / "merge is Owen's review" IS this tracker's standard
+# way of saying not-merged — it is what #349, #350 and #367 each said for four
+# days while sitting in main — and neither phrase contains "NOT MERGED" or
+# "awaiting review". A discriminator that cannot match the text it polices is
+# the archived #300 shape, arriving here instead of in the gate.
+STALE_MERGE = re.compile(r"NOT MERGED|awaiting review|PR open|merge is Owen's review", re.I)
 # This tracker RETRACTS a claim by striking it through and writing the
 # correction beside it — `~~NOT MERGED — awaiting review.~~ **✅ MERGED as …**`
 # is the house idiom (#328, archived #322, #368 all use it). A struck span is
@@ -137,9 +153,60 @@ def check_open_prs_against_entries() -> tuple[bool, str, list[str]]:
     return True, f"{len(rows)} open PR(s) — verify each against its entry's LATEST dated block", rows
 
 
+def _open_prs() -> tuple[list[dict], str | None]:
+    """Open PRs as dicts, or (…, reason) when gh cannot answer."""
+    try:
+        p = subprocess.run(["gh", "pr", "list", "--state", "open",
+                            "--json", "number,title,headRefName"],
+                           capture_output=True, text=True, timeout=30, cwd=ROOT)
+    except (OSError, subprocess.TimeoutExpired):
+        return [], "gh unavailable or timed out"
+    if p.returncode != 0:
+        return [], f"gh failed: {p.stderr.strip()[:80]}"
+    try:
+        return json.loads(p.stdout or "[]"), None
+    except json.JSONDecodeError:
+        return [], "gh returned unparseable JSON"
+
+
+def check_open_pr_claims() -> tuple[bool, str, list[str]]:
+    """2026-08-19. #349 and #350 said "PR open; merge is Owen's review" in their
+    HEADERS for four days after their branches merged, and every check here
+    passed the whole time — `check_claimed_merge_state` needs the entry to name
+    a BRANCH in backticks, and the house style records a merge by commit SHA
+    instead, so there was nothing for it to resolve.
+
+    This check needs no branch and no SHA: a header that claims an open PR is
+    checked against the open PRs GitHub actually has. Scoped to the header LINE
+    on purpose — an entry body legitimately discusses PRs that opened and
+    closed months ago, and matching those is how a checker earns its ignored
+    status."""
+    if not LIVE.exists():
+        return False, "NO DATA — OPEN_ITEMS.md not found", []
+    prs, why = _open_prs()
+    if why:
+        return False, f"NO DATA — {why}", []
+    haystack = " ".join(f"{pr.get('title', '')} {pr.get('headRefName', '')}" for pr in prs)
+    bad: list[str] = []
+    for line in LIVE.read_text().split("\n"):
+        m = HEADER.match(line)
+        if not m:
+            continue
+        num = m.group(1)
+        if not STALE_MERGE.search(STRUCK.sub("", line)):
+            continue
+        if re.search(rf"#{num}\b", haystack) or re.search(rf"(^|\s|/){num}-", haystack):
+            continue
+        bad.append(f"#{num} header claims an open PR; no open PR on GitHub names it")
+    if bad:
+        return False, f"{len(bad)} header(s) claim a PR that is not open", bad
+    return True, "every header claiming an open PR has one", []
+
+
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
     ("claimed merge state vs git", check_claimed_merge_state),
+    ("headers claiming an open PR", check_open_pr_claims),
     ("open PRs vs entries (report only)", check_open_prs_against_entries),
 ]
 
