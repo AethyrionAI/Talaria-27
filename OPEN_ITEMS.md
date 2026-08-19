@@ -11668,6 +11668,152 @@ PR #320's CTX fixes in one build.
 - Post-cutover, #322's cancel-read stops being a permanent no-op (its close
   recorded that its value was tied to this rollout).
 
+
+> **2026-08-19 AM — LANE OPENED. BARS PRE-REGISTERED BELOW BEFORE ANY CODE**
+> (#215's convention, #216-era vehicle: they live in this entry, not a
+> dispatch doc). Nothing in this block was written after a measurement.
+
+### What 3E actually changes — the code, named before it moves
+
+Read from HEAD `f48add84`, not from the plan's summary of it. Four seams:
+
+1. **The transport fork.** `SessionsHermesClient.useRunsTransportProvider`
+   (`SessionsHermesClient.swift:248`) is read once per turn by BOTH turn
+   paths — `performSyncTurn` (`:311`) and `sendStreaming` (`:374`) — and
+   picks `streamTurnViaRuns`/`syncTurnViaRuns` over `streamTurn`/
+   `postSyncChat`. It is armed from `UserSettings.useRunsTransport`
+   (default `false`, `UserSettings.swift:452`) via
+   `AppContainer.swift:744`, surfaced as the Developer switch
+   (`DeveloperSettingsScreen.swift:511`).
+2. **The recovery machinery.** A dropped stream yields `.interrupted`;
+   `ChatStore.armPendingRunRecovery` (`:1478`) mints a `PendingRun` and
+   starts `startReconcileLoopIfNeeded` (`:1541`) → `attemptReconcile`
+   (`:3577`) → `hermesClient.reconcileFromServer()`, which re-reads
+   `GET /api/sessions/{id}/messages` and adopts **positionally**: "the last
+   hermes row newer than `pending.sentAt`, non-empty". Budget 120 s wall
+   clock (`reconcileWallClockBudget`), 2 s interval. The runs plane already
+   owns a strictly better instrument for the same job —
+   `pollRunToTerminal` / `readRunStatus` / `deliverPolledTerminal`
+   (`+RunsTransport.swift:1023/1087/1129`) against `GET /v1/runs/{id}`,
+   1 h TTL, carrying the run's OWN output and usage.
+3. **Stop (#328 route 1).** `hardStopActiveRun()` (`+RunsTransport.swift:1354`)
+   opens `guard let context = activeRunContext else { return false }` — and
+   on the sessions plane there is never a context. The cutover is what makes
+   that guard stop firing on the default path; **#328 route 1 is delivered
+   by this slice, not built separately.**
+4. **What the sessions plane keeps.** Session create/priming (hop setup, not
+   turn transport), `openSession`, `listSessions`, `/messages`, `fork`, and
+   `POST /api/sessions/{id}/model` (#241's pin). Those are untouched — the
+   slice's phrase "sessions plane keeps only history/fork/model-pin" is
+   about the TURN, and a run still writes its turn into the SessionDB row
+   (3A-0's N4 write-half), so history survives the move by construction.
+
+### The one SCOPE decision — ❓ QUESTION FOR OWEN (Thu review, or sooner)
+
+The plan's §5 **Q3 was never answered** (archived #283: "Q2 answered; the
+other eight stand as recommended/pending"). Q3 is exactly this slice's
+scope: **wholesale, or a permanent dual path?**
+
+- **Recommendation: WHOLESALE — delete the switch and both sessions-plane
+  turn transports.** The plan's own recommendation, and the slice-table
+  definition already says it ("sessions plane keeps only history/fork/
+  model-pin"). A retained-but-unused branch is the #218 shape — two paths,
+  one tested — and #218 cost two days on exactly that.
+- **The honest counter-argument, stated rather than buried:** on 2026-08-16
+  the switch was the recovery — Owen flipped it OFF and chat came back
+  (archived #283's stopped-clock note). #356 later EXONERATED the transport
+  (the cause was a stopped/mid-update OJAMD reached through the M-5 birth
+  hop), so the escape hatch's one save was a misattribution — but it was
+  still a save, and after deletion there is no equivalent lever.
+- **How the build is structured so this stays Owen's call and costs nothing
+  to reverse:** three commits, deletion LAST. Commits 1–2 (recovery
+  collapse + default flip) are correct under either answer; commit 3 is the
+  deletion. If Owen wants the hatch kept, commit 3 is dropped at review and
+  the PR still ships the slice's substance.
+- **Declined, with reason:** gating the flip on a live `/v1/capabilities`
+  probe. It buys a graceful answer for a host that cannot serve `/v1/runs`
+  — but both hosts are 0.20.3/0.20.4, no such host exists in this
+  deployment, and the probe is a launch-path network dependency bought
+  against a hypothetical. Bar **3E-I** covers the same risk by requiring the
+  failure to be VISIBLE and named instead of graceful.
+
+### Guardrails checked before the bars (each is a real check, not a nod)
+
+- **S27 (plan §4.4) — NOT TRIGGERED.** The cutover does not register the app
+  as a delivery target, so `splits_long_messages` and the 4000-char cap stay
+  out of scope. Named here because §4.4 says in so many words that 3E is the
+  slice that could cross that line quietly.
+- **#310 is NOT a blocker.** `BackendProfile.relayBaseURL` being
+  non-optional is a pairing/profile shape, not a turn transport; the cutover
+  neither fixes nor worsens it.
+- **#371 stays FILED, not built here.** Its restored-✓ honesty design "rides
+  the runs plane" — the surface this slice settles — but a restored chip's
+  provenance is its own question and folding it in would smuggle an
+  unmeasured change into a cutover.
+- **#322 becomes live automatically** (its close recorded that its value was
+  tied to this rollout); no code owed, a dated note at its archived entry
+  when 3E-G passes.
+
+### BARS — pre-registered 2026-08-19 before any code
+
+- **3E-A (cutover, unit).** With no Developer intervention, a remote streamed
+  turn AND a remote sync turn both take the `/v1/runs` path — proven from
+  (i) a fresh `UserSettings()` and (ii) a decoded PRE-CUTOVER settings blob
+  that persisted `useRunsTransport: false`. **(ii) is the load-bearing half:
+  the key is always encoded (`UserSettings.swift:600`), so every existing
+  install carries an explicit `false` and a default flip alone moves
+  nobody.** Falsifier: either input reaching `streamTurn` or `postSyncChat`.
+- **3E-B (recovery collapse, unit).** A turn whose `/events` stream dies
+  after the run is committed resolves from `GET /v1/runs/{id}`: the adopted
+  reply is the run's own `output`, carrying the run's own `usage`, keyed by
+  the run id. TWO negative controls, both of which the positional reconcile
+  fails today: **(i)** a sessions message list whose newest hermes row is an
+  UNRELATED later turn is NOT adopted; **(ii)** the #293(b) skew shape — a
+  host clock BEHIND the client's `sentAt` — still resolves, because the
+  timestamp predicate no longer gates adoption.
+- **3E-C (durability, unit).** A run that reaches terminal at T+150 s is
+  still adopted. The old wall-clock budget was 120 s against a 1 h status
+  TTL. Falsifier: the loop giving up at 120 s.
+- **3E-D (exactly once, unit).** #237's duplicate shape stays pinned absent:
+  a late `.interrupted` for a run ALREADY resolved by status polling tears
+  down quietly and never re-arms, and a status-poll adoption racing a late
+  stream `.completed` leaves exactly one assistant row.
+- **3E-E (deletion, structural — scored only if Owen rules WHOLESALE).**
+  No call site in `Talaria/` submits a turn on the sessions plane: `grep`
+  proves zero references to `chat/stream` and zero to
+  `POST /api/sessions/{id}/chat`, and `useRunsTransport` is absent from the
+  tree. `/api/sessions*` survives ONLY as create/open/list/messages/fork/
+  model. Falsifier: any surviving turn-submitting sessions call site.
+- **3E-F (#328 route 1, unit).** On a default-configured remote turn, Stop
+  issues `POST /v1/runs/{id}/stop` — i.e. `hardStopActiveRun()` returns
+  `true` having really had a run, rather than guard-returning `false`. This
+  is #328 route 1's app half; the host-log half is 3E-H.
+- **3E-G (gate).** `scripts/mac/lane-gate.sh` PASS — units **and** Release —
+  with the unit count MOVED from the **2351** baseline (a count that did not
+  move means `test-without-building` re-ran a stale `.xctest`; CLAUDE.md's
+  named trap). TCC calendar+reminders granted on the pool sim immediately
+  before the run.
+- **3E-H (device, Owen — PM slot).** One real remote conversation on the
+  DEFAULT path, end to end: a tool-using turn renders a chip with REAL
+  content (#362's mirror, on whichever host is active), a stream killed by
+  backgrounding recovers its answer, a Stop mid-tool is confirmed **from the
+  host's own log** (not the app's UI — #328's whole lesson), and a
+  leave-and-return shows the thread intact.
+- **3E-I (honesty, negative — the cutover's own risk).** A host that cannot
+  serve `/v1/runs` (submit answers 404) fails **visibly and by name**: no
+  silent fallback to a plane that no longer exists, no fabricated answer, no
+  spinner that never ends. #180's family bar, and the one bar whose failure
+  would make the wholesale scope wrong.
+- **3E-J (no behaviour smuggled, structural).** The diff changes transport
+  and recovery only. Specifically unchanged and asserted so: the artifact
+  correlator's `session_id`+`path` key (#362), stored-args reconstruction
+  (#364), the #306 hold-slot matrix rows, and the #285 frozen-endpoint rule.
+  Falsifier: any edit to those mechanisms riding this PR.
+
+**Sequencing:** commit 1 = recovery collapse (3E-B/C/D), commit 2 = the flip
++ migration (3E-A/F/I), commit 3 = deletion (3E-E). Gate once at the end
+(3E-G). Device leg 3E-H is Owen's, evening.
+
 ## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. NOT STARTED; bars pre-register here before code.**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
