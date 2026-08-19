@@ -256,7 +256,14 @@ a falsified mechanism while the tracker was right.)
   get rid of those extra things after all."* **Every hardening buys reliability in a
   component with a planned end-of-life (#223) and pays for it in permanent update
   friction** — the friction compounds and the benefit expires. The direction is
-  DELETION, not robustness.
+  DELETION, not robustness. **And its post-retirement corollary (Owen,
+  2026-08-18, ruling the Mac relay/shim retirement): when a capability gap
+  appears because a legacy process is gone, the fix is ADAPTING that capability
+  to the runs interface / talaria plugin — never restarting the old process.**
+  *"We can always bring the relay back up if we need it. The smarter thing to do
+  would be to adapt to the new runs interface and tools we have available with
+  the plugin instead of falling back to old processes."* A restored relay is a
+  temporary migration bridge, not a home.
   - **Fix app-side instead, and this is not a consolation prize** — #133/#143's
     duplicate-push root cause was fixed entirely in the app (durable installation
     identity) with **zero relay change**, and the relay turned out never to have been

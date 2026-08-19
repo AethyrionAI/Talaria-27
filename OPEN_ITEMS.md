@@ -4340,6 +4340,19 @@ argument for making the relay more robust.
 > `Talaria/` (deleted by #352; grep-verified); `device/app-state` survives
 > (`AppContainer.swift`).
 
+> **2026-08-18 ~23:05 — DIRECTION RULED (Owen, verbatim, given while
+> approving the Mac dev-relay retirement):** *"We can always bring the relay
+> back up if we need it. The smarter thing to do would be to adapt to the new
+> runs interface and tools we have available with the plugin instead of
+> falling back to old processes."* **This answers the entry's central
+> question by direction: relay-hosted VOICE does not survive — it RE-HOMES
+> onto the runs/plugin tier like everything else.** The default disposition
+> for every path is now ADAPT (runs interface / talaria plugin) or DELETE —
+> never a preserved relay destination; a temporarily-restored relay is a
+> bridge during a migration, not a home. Wednesday's brief is therefore the
+> 16-path table with adapt/delete dispositions; Thursday's ruling reviews
+> the table rather than deciding the direction.
+
 ## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
 
 `Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
