@@ -11715,6 +11715,53 @@ PR #320's CTX fixes in one build.
   doorbell ruling, so the go is treated as PENDING until confirmed in his own
   words.** The app-side dead-code deletion needs no go and can ride any lane.
 
+> **✅ EXECUTED 2026-08-18 ~22:32–22:36 — Owen's explicit go in his own words
+> ("We can take care of that now, just use subagent opus 5 to do it"); Opus 5
+> subagent, backup-first, nothing denied.** Evidence, condensed from the
+> agent's report:
+> - **Config:** exactly one line — `mcp_servers.hermes_mobile.enabled:
+>   true → false` (`config.yaml:715`); PyYAML re-parse clean; backup
+>   `~/.hermes/retired-supervision-20260818/config.yaml.pre-375`
+>   (sha1-verified byte-identical).
+> - **Gateway bounce** via `launchctl kickstart -k gui/501/ai.hermes.gateway`
+>   (launchd-native, honors ExitTimeOut): listener 64661 → **75604**, bound
+>   FIRST TRY (no Errno-48 race this time), `/health` 200. All three
+>   platforms reconnected.
+> - **Verified:** `/v1/toolsets` = 29 toolsets, **no `hermes_mobile`**, the
+>   substring `mobile` absent from the payload; `talaria` toolset enabled +
+>   configured (`talaria_phone_query`); plugin list reads
+>   `enabled git 0.5.0 talaria`. **Positive control:** both config readers
+>   respawned their OTHER three MCP children (`xc_build`/`xc_launch`/
+>   `hindsight`) — the absence is the edit, not a discovery failure.
+> - **Desktop app** (the second reader) quit + relaunched: backend came back
+>   with no legacy child. **The service** (`hermes-mobile-service.py`, up
+>   since Aug 11 with BOTH its logs 0 bytes since Jul 14 — silent supervision
+>   for a month) was LaunchAgent `ai.hermes.mobile.connector`
+>   (KeepAlive+RunAtLoad): `launchctl bootout`, plist moved into the
+>   retired-supervision dir, no respawn at 35 s or 101 s.
+> - **After:** zero `hermes-mobile` processes on the box. `~/.hermes-mobile/`
+>   and the repo `connector/` untouched on disk (deletion stays its own
+>   Owen-gated step). Repo clean at `099f8c70`.
+>
+> **REMAINING on this item:** the app-side dead-code deletion PR
+> (`ProvisioningService.swift`, `ProfileRelaySession.downloadAgentFile`) —
+> gated lane, no live-install go needed.
+>
+> **TWO MORE LEGACY PIECES FOUND IN THE SWEEP, deliberately untouched
+> (outside tonight's scope, recorded per #268):** the Mac still runs
+> LaunchAgent-supervised **`org.aethyrion.talaria-relay`** (uvicorn `:8000`,
+> up since Aug 11) and **`com.aethyrion.talaria.modelsshim`** (`shim.py`
+> `:8765`, ditto — CLAUDE.md's "the Mac never stopped its own" line, still
+> true). Routing: the **SHIM is provably dead** (`ModelsShimClient` gone from
+> the tree, model path gateway-only since #223 L5) — same bootout treatment,
+> needs its own go; the **RELAY WAITS FOR #309's ruling** (relay-hosted VOICE
+> is exactly the open question — do not retire the Mac relay before Thursday
+> answers it).
+>
+> **Also flagged for CLAUDE.md (corrected in the same commit):** the Mac's
+> fresh-bounced gateway serves **Hermes 0.20.4**; OJAMD measured **0.20.3**
+> on 08-18 (#349 wire probe). Version notes rot in days — probe live.
+
 ## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.**
 
 > **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check

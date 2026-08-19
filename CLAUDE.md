@@ -430,7 +430,10 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   > `165c889e5b4277b56dadd42949a4112c1e6175a6`, `v0.20.1 (2026.8.13)`, pinned by
   > reflog-vs-start-time (head 14:14:22, listener 15:09:08 ⇒ no drift). **Any
   > note reasoning from "OJAMD is 0.20.0" describes a host that no longer
-  > exists.**
+  > exists.** *(And the 0.20.1 note aged the same way within days: OJAMD
+  > measured **0.20.3** on 2026-08-18 (#349's wire probe) and the Mac's
+  > fresh-bounced gateway serves **0.20.4** the same night (#375). Version
+  > claims in this file rot in DAYS — probe live, never quote this file.)*
   >
   > **`/v1/capabilities` is the cheap way to answer "is that route real?"** —
   > read live on 0.20.1, it self-describes the endpoint map and confirmed
