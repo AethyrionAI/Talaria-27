@@ -150,7 +150,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
 - **#310** 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no …
-- **#311** 📝 #21's HOME — agent-generated file delivery is currently HOMELESS
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
@@ -207,7 +206,6 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · the rollback arm
 - **#373** 🧹 instrument/test hygiene bundle (#333 minors · #341 gap · #224 idiom · #342 checks · #335 conductor hazard)
-- **#374** 📝 the #47 billing-cap decision — Owen routes (pre-flip or post-launch?)
 - **#375** 🧹 retire the MAC's legacy hermes-mobile surface — #346's second half; live config go PENDING confirmation
 - **#376** 🎨 stale About-page drain readout — exact screen/value naming owed from Owen
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e)
@@ -4184,6 +4182,17 @@ the same blind spot that hid #272 for 12 days), #272 (unbounded locked interval)
 > response stands: both-cold ⇒ closes NOT A DEFECT with the ordering
 > documented.
 
+> **2026-08-18 ~22:30 — DESIGN RULED (Owen, pre-build ballot): ONE REAL GATE,
+> STARTS-ONLY POLICY.** A single `AppLockState` every subsystem consults —
+> voice start (302-C's defer-until-unlock), new inference turns, approval-
+> gated actions — one mechanism, one bar per consumer, so the #323 class (a
+> subsystem nobody wired) becomes structurally impossible. Covered-state
+> policy: NEW user-initiated work defers until unlock; an IN-FLIGHT turn
+> finishes and commits normally; host-driven `talaria_phone_query` keeps
+> answering (the agent is the owner's; the cover hides everything from the
+> holder either way). Thursday PM's lane builds exactly this; bars
+> pre-register before code. Twin ruling recorded at #323.
+
 ## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.**
 
 **What it unblocks, precisely.** #269-B (the conversational installer's install
@@ -4336,19 +4345,6 @@ to relay-bearing profiles only), migration-safe decode of existing persisted
 profiles (the §1.5 persisted-state discipline — existing users' stored profiles
 must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
 
-## 311. 📝 #21's HOME — agent-generated file delivery is currently HOMELESS — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-6). #223's old "file-fetch migration" sequencing step is superseded; nothing owns the question.**
-
-There is no file API on `:8642` (re-verified — the `/api/files` family is
-dashboard-only), #21 Tier 1 (client-side reconstruction from `tool.started`
-`args.content`) remains the shipped story for text, and the Phase-3 plan calls
-the rest an open question: webhook responses are fine for small files, ugly for
-large; agent A's media pipeline is "the likely answer." The runs stream carries
-NO tool `args` (re-verified at Mac head `3dcbe9001`), so the runs plane is
-currently WORSE than the sessions plane for #21 — 3A's honest-absence bar
-stands, and no approval card or preview may become a place someone reconstructs
-a written file. Decide the destination (plugin mirror / media pipeline /
-accepted limitation) when the host sitting scopes Phase 3's later slices.
-
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
 
 **Scope as inherited from the 1c/1b split:** a search affordance over the
@@ -4483,6 +4479,16 @@ half rather than deleting it sooner).
 > and `PhoneQueryResponder` reads sensors at query time; same root cause —
 > the cover never changes `scenePhase`). The general mechanism question
 > ((a)-(d) above) stays open and is this entry's remaining work.
+
+> **2026-08-18 ~22:30 — DESIGN RULED (Owen), jointly with #302: ONE REAL
+> GATE, STARTS-ONLY.** Single `AppLockState`, all subsystems consult it; new
+> starts defer until unlock, in-flight work finishes, `talaria_phone_query`
+> keeps answering while covered (threat model: the phone's holder, who sees
+> nothing either way). This answers the entry's questions (a)–(d): one
+> mechanism; in-flight completes; the locked-interval transcript is KEPT
+> (unchanged, now by ruling rather than by accident); the phone-query
+> exposure is accepted as in-scope-for-the-owner. Build is Thursday PM's
+> lane with #302.
 
 ## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.**
 
@@ -11664,8 +11670,6 @@ PR #320's CTX fixes in one build.
 - #335's noted conductor hazard: `loadRuns().first` resolves by second
   granularity (declared unreachable under separate `run-instrument.sh`
   launches; make it impossible instead of unlikely).
-
-## 374. 📝 The #47 billing-cap residual — an un-filed decision carried in #268's map since the roadmap-recovery pass — **FILED 2026-08-18 night per #268 ("a phase name is not a filing" applied late rather than never). DECISION, no lane: does the monetization scaffold (#127) need a billing-cap answer before the flip, or is it post-launch? Owen routes.**
 
 ## 375. 🧹 Retire the MAC's legacy hermes-mobile surface — #346's second half, live-verified tonight — **FILED 2026-08-18 night from the board-audit's process check: `config.yaml` still registers `mcp_servers.hermes_mobile` (two `hermes-mobile-mcp` stdio children spawned this same evening — gateway + desktop backend readers), `~/.hermes-mobile/bin/hermes-mobile-service.py` running since 08-11, and dead app-side code pointed at the retired tier (`ProvisioningService.swift`; `ProfileRelaySession.downloadAgentFile`). The tool-shadowing defect #346 MEASURED on OJAMD is live on the Mac.**
 

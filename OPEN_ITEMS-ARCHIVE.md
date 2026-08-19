@@ -33894,3 +33894,40 @@ full battery.
 > pre-flight discharged 2026-08-12, and 3a-C passed tonight. #297's A/B rig
 > stays in-tree as this entry documents. Moved verbatim to
 > `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 311. 📝 #21's HOME — agent-generated file delivery is currently HOMELESS — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-6). #223's old "file-fetch migration" sequencing step is superseded; nothing owns the question.**
+
+There is no file API on `:8642` (re-verified — the `/api/files` family is
+dashboard-only), #21 Tier 1 (client-side reconstruction from `tool.started`
+`args.content`) remains the shipped story for text, and the Phase-3 plan calls
+the rest an open question: webhook responses are fine for small files, ugly for
+large; agent A's media pipeline is "the likely answer." The runs stream carries
+NO tool `args` (re-verified at Mac head `3dcbe9001`), so the runs plane is
+currently WORSE than the sessions plane for #21 — 3A's honest-absence bar
+stands, and no approval card or preview may become a place someone reconstructs
+a written file. Decide the destination (plugin mirror / media pipeline /
+accepted limitation) when the host sitting scopes Phase 3's later slices.
+
+> **2026-08-18 ~22:30 — RULED (Owen): the mirror + stored-args reconstruction
+> ARE the home.** Live delivery = the plugin artifact mirror (3D, #362, both
+> hosts at 0.5.0); reopen/refetch = #364's stored-args reconstruction —
+> text files are delivered today, and binaries ride the mirror when needed.
+> The UUID-prefixed-filename cosmetic (noted here at #21's close) rides the
+> mirror's backlog. #21's delivery question finally has an owner and an
+> answer; nothing further is owed by this entry.
+
+> **✅ CLOSED 2026-08-18 night — Owen's formal close on the ruling above.
+> Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+
+## 374. 📝 The #47 billing-cap residual — an un-filed decision carried in #268's map since the roadmap-recovery pass — **FILED 2026-08-18 night per #268 ("a phase name is not a filing" applied late rather than never). DECISION, no lane: does the monetization scaffold (#127) need a billing-cap answer before the flip, or is it post-launch? Owen routes.**
+
+> **2026-08-18 ~22:30 — RULED (Owen, verbatim): "I don't even think the
+> spending cap matters. Thats all controlled on your own."** Spend is
+> governed host-side by the user's own provider configuration; a client-side
+> billing cap is NOT a requirement — not pre-flip, not post-launch. The #47
+> residual #268 carried for two weeks is retired by ruling, the day it was
+> finally filed.
+
+> **✅ CLOSED 2026-08-18 night — Owen's formal close on the ruling above.
+> Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
