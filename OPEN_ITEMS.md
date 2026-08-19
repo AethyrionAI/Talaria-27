@@ -24630,3 +24630,19 @@ turns is two honest chips. Reconstruction stays primary on refetch
 #277 (the sidecar), #366 (whose live attach exposed this), #362 (the
 correlator — uninvolved on reopen, its item long acked), #349's follow-up
 (the sibling split-row defect, PR #320).
+
+**2026-08-18 ~19:45 — BUILT (branch `367-turn-split-dedup`); mechanism
+CODE-CONFIRMED at the predicted line:** `replaying`'s same-file skip
+checked only the anchor row's attachments — the prose row the record
+claims is chip-free because reconstruction decorated the tool-call
+sibling. Fix: the skip scans the TURN SPAN (the contiguous
+non-user-authored run around the anchor; `MessageSender.isUserAuthored`
+bounds it), so one write renders one chip per turn while the same path
+written in another turn still replays. RED observed first on the exact
+device shape (`sidecarReplaySkipsAChipASiblingRowOfTheTurnCarries` —
+two chips under the old guard); the cross-turn scope guard
+(`sidecarReplayStillReplaysTheSameFileAcrossTurns`) passed before AND
+after, pinning the boundary. Suite: StoredArgsReconstructionTests
+14 → 16; AgentFileChipPersistence + ArtifactMirrorCorrelator green
+untouched. Gate + PR next; the OTA after Owen's merge carries this plus
+PR #320's CTX fixes in one build.

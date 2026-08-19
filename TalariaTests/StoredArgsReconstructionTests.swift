@@ -197,6 +197,58 @@ struct StoredArgsReconstructionTests {
         #expect(replayed[0].attachments.count == 2)
     }
 
+    // MARK: - #367: the turn-split crossing (Owen's OJAMD reopen, 2026-08-18)
+
+    @Test func sidecarReplaySkipsAChipASiblingRowOfTheTurnCarries() throws {
+        // A refetched turn SPLITS into rows: reconstruction decorates the
+        // tool-call row, while the live-attach sidecar record anchors to the
+        // prose tail. Per-row same-file dedupe let both land — one write,
+        // two chips (the split-row class's second hit in one day). The skip
+        // is turn-scoped now.
+        let user = Message(sender: .user, content: "write a haiku file")
+        let toolRow = try #require(map(try storedRow(toolCallJSON: Self.writeCallJSON)))
+        #expect(toolRow.attachments.count == 1)
+        let proseRow = Message(sender: .hermes, content: "Done — a.md has the haiku.")
+
+        let liveChip = MessageAttachment(
+            kind: "file", fileName: "a.md", mimeType: "text/markdown",
+            localStoragePath: "/old/staged/a.md"
+        )
+        let record = AgentAttachmentSidecar.Row(
+            messageID: proseRow.id,
+            contentKey: AgentAttachmentSidecar.fingerprint(sender: proseRow.sender, content: proseRow.content),
+            attachments: [liveChip]
+        )
+        let replayed = AgentAttachmentSidecar.replaying([record], onto: [user, toolRow, proseRow])
+
+        #expect(replayed[2].attachments.isEmpty)
+        let turnChips = replayed.flatMap(\.attachments).filter { $0.fileName == "a.md" }
+        #expect(turnChips.count == 1)
+    }
+
+    @Test func sidecarReplayStillReplaysTheSameFileAcrossTurns() throws {
+        // Scope guard: the SAME path written in an EARLIER turn is a
+        // different artifact — a user-authored row bounds the scan, and the
+        // record still replays.
+        let firstTurnRow = try #require(map(try storedRow(toolCallJSON: Self.writeCallJSON)))
+        let secondAsk = Message(sender: .user, content: "write it again")
+        let proseRow = Message(sender: .hermes, content: "Rewrote a.md.")
+
+        let liveChip = MessageAttachment(
+            kind: "file", fileName: "a.md", mimeType: "text/markdown",
+            localStoragePath: "/old/staged/a.md"
+        )
+        let record = AgentAttachmentSidecar.Row(
+            messageID: proseRow.id,
+            contentKey: AgentAttachmentSidecar.fingerprint(sender: proseRow.sender, content: proseRow.content),
+            attachments: [liveChip]
+        )
+        let replayed = AgentAttachmentSidecar.replaying(
+            [record], onto: [firstTurnRow, secondAsk, proseRow])
+
+        #expect(replayed[2].attachments.count == 1)
+    }
+
     // MARK: - 364-C: the mirror stands down when reconstruction beat it
 
     @Test @MainActor func mirrorItemDropsWhenReconstructionAlreadyFilled() throws {
