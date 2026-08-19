@@ -12377,6 +12377,12 @@ scope: **wholesale, or a permanent dual path?**
 > Recorded here rather than fixed or filed as a defect; it belongs with
 > #309's execution, when the `isPaired` gate is revisited anyway.
 
+> **📬 2026-08-19 — PR OPENED: https://github.com/AethyrionAI/Talaria-27/pull/323
+> — NOT MERGED; merge is Owen's review.** Body = `handoffs/PR-BODY-369.md`
+> (gitignored). ⚠️ **PR #323 and TRACKER #323 are different things** — tracker
+> #323 is the App Lock lane, and both will appear in this week's notes
+> (CLAUDE.md's standing disambiguation rule).
+
 
 ## 370. 🧹 The calendar REAP silently UNDER-DELETES — 42 created vs 25 reaped in #343's campaign (−17), possibly on Owen's REAL calendar — **FILED 2026-08-18 night per #268, from #343's own "NEEDS ITS OWN ITEM" (2026-08-15) — verified unfiled until tonight. NOT STARTED; the first bar is a measurement.**
 
