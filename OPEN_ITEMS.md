@@ -12109,6 +12109,39 @@ scope: **wholesale, or a permanent dual path?**
 > gate over a targeted run, happening: three green suites said nothing about
 > them.**
 >
+> **📱 2026-08-19 — 3E-H DEVICE RESULTS, build 2848 (Owen). FOUR OF FIVE
+> STEPS PASS; step 3 (Stop, host-log confirmed) NOT YET RUN.**
+>
+> - **Step 1 — tool-using turn: PASS.** WRITE_FILE chip with real content on
+>   the runs plane.
+> - **Step 2 — background mid-turn, return: PASS.** The answer recovered.
+>   **This is the bar with the most new machinery behind it** — the
+>   `.interrupted` hand-off, `resolveDroppedRun`, the 600 s/5 s budget and
+>   the run-id-derived identity all had to be right for it, and it is the
+>   first time any of them ran outside the suite.
+> - **BEYOND THE BAR, and volunteered rather than asked for: FORCE QUIT and
+>   returned → the answer is STILL THERE.** A `PendingRun` does not survive
+>   process death, so this is not the recovery loop — it is the adoption
+>   having been PERSISTED. Two mechanisms could produce it (the conversation
+>   cache written by `settlePendingRun(adopted: true)`, or a refetch on
+>   reopen) and **this observation does not distinguish them**, so neither
+>   is claimed. Recorded because it is real evidence about durability that
+>   the pre-registered walk did not think to ask for.
+> - **Step 5 — the migration, visible: PASS.** Settings → Developer reads
+>   **Runs Transport ON** with nobody having touched it, on a phone carrying
+>   a PRE-CUTOVER settings blob. **This is the half of 3E-F the scorecard
+>   flagged as code-read-only** (`AppContainer`'s one provider-arming line):
+>   it is now device-confirmed end to end, so **3E-F's stated limit is
+>   discharged.**
+> - **Step 3 — STOP mid-tool, confirmed from THE HOST'S OWN LOG: OWED.**
+>   The one bar left, and deliberately the one that cannot be scored from
+>   the app's UI — #328 exists because the UI lied about exactly this.
+> - **Step 4 — leave the thread and return → chip persists: AMBIGUOUS in
+>   the report.** "Backgrounded and returned" is not the same walk as
+>   leaving the THREAD and coming back to it, and the force-quit result may
+>   or may not have covered it. Not scored either way; re-ask rather than
+>   assume.
+
 > **📱 2026-08-19 09:02 — OTA STAGED: `main @ 1a983144`, Release, BUILD
 > 2848.** Install from phone Safari at
 > `https://owens-mac-mini.tail5663a6.ts.net` (dev-signed upgrade-install in
