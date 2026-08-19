@@ -11889,6 +11889,92 @@ scope: **wholesale, or a permanent dual path?**
 + migration (3E-A/F/I), commit 3 = deletion (3E-E). Gate once at the end
 (3E-G). Device leg 3E-H is Owen's, evening.
 
+
+> **✅ 2026-08-19 ~08:40 — SCOPE RULED (Owen): *flip now, delete next week.***
+> The plan's §5 **Q3 is answered** at last, and not as the plan recommended:
+> the cutover ships as the default flip plus the recovery collapse, and the
+> sessions-plane turn transport + the Developer switch are **deleted in a
+> separate lane after a week of living on the default** — filed the same
+> minute as **#382** with a dated trigger, per #268.
+>
+> **What this does to the bars:** **3E-E (deletion, structural) is NOT
+> SCORED BY THIS LANE** — it moves verbatim to #382, which is where the
+> deletion happens. It was pre-registered as conditional on exactly this
+> ruling ("scored only if Owen rules WHOLESALE"), so this is the
+> pre-registration working, not a bar being redefined after the fact. Every
+> other bar stands unchanged.
+>
+> **What it costs, stated rather than buried:** for one week the tree
+> carries two turn transports with only one of them exercised by default —
+> the #218 shape, knowingly, on a clock. That is the trade Owen bought
+> evidence with, and #382 is the thing that stops it becoming permanent.
+
+> **2026-08-19 AM — BUILD PROGRESS (commits on `t27-368-3e-cutover`).**
+>
+> **Commit 1 `8e35c873` — the recovery collapse. Bars 3E-B / 3E-C / 3E-D
+> MET** (11 tests, `TalariaTests/RunStatusRecoveryTests.swift`).
+> - `DroppedRunResolution` + `resolveDroppedRun(runID:sessionID:)` on
+>   `HermesClientProtocol`, implemented on the runs client from
+>   `readRunStatus` — **one request per call; the loop stays in `ChatStore`**
+>   (#292's rule: two budgets for one recovery is how that regression comes
+>   back).
+> - `SessionsHermesClient.resolution(from:)` is a PURE mapper, so #235 F1's
+>   no-empty-bubble rule and 296-C1's `error` union are both scorable from a
+>   literal status body with no URL session.
+> - `ChatStore.attemptReconcile` forks on `pending.runId` and now reports
+>   THREE outcomes — the old `Bool` could not say "unresolved AND
+>   unpollable", so a 404'd run used to grind its whole budget.
+> - The run-id loop gets its own **600 s / 5 s** budget. Longer is safe here
+>   for the precise reason #145 Part C says 120 s was not safe there: the
+>   per-attempt cost is now bounded by construction (one status GET at the
+>   interactive timeout), where `reconcileFromServer()`'s was not.
+> - **MUTATION-CHECKED, not merely green.** Four mutations were applied and
+>   the suite re-run: revert the fork · revert the budget selection · mint a
+>   fresh `UUID()` for the adopted reply · read `.gone` as "keep polling".
+>   **All seven behavioural tests went RED; the four pure-mapper tests
+>   correctly stayed green.** (The tests' own comments name the mutation
+>   that kills each one — a test that cannot be made to fail is not
+>   evidence.)
+>
+> **Two honest notes from the build:**
+> - Three assertions in the first pass were WRONG ABOUT TIMING, not about
+>   behaviour: the `.interrupted` arm arms the reconcile loop before any
+>   manual pass runs, so `hasActiveReconcileLoop` is legitimately true for
+>   one interval after a resolution. The assertions were corrected; **no
+>   production code was changed to make a test pass.**
+> - That lingering-loop window is PRE-EXISTING and shared with the legacy
+>   path (a manual pass resolving while the loop sleeps). It was left alone
+>   deliberately — closing it is a behaviour change, and bar **3E-J** forbids
+>   smuggling one into this diff.
+
+
+> **📌 CLOSE-OUT DEBT, listed now so it cannot be forgotten at merge (#317).**
+> These corrections are OWED and deliberately NOT written yet — the results
+> that falsify them are on `t27-368-3e-cutover` and unmerged, and a tracker
+> that claims a merged state before the merge is the exact four-day-stale
+> shape #328/#322 already produced once. Land them **in the merge commit**:
+>
+> - **#328** — route 1's question DISSOLVES rather than being answered. Its
+>   entry says route 1 is "still gated on 328-A's route probe, which nobody
+>   has run"; after the cutover no ordinary turn is on the sessions plane, so
+>   every default Stop reaches the host and there is nothing left for that
+>   probe to unblock. The entry needs a dated note saying so — and saying
+>   that the residual only fully closes at **#382**, since until the switch
+>   is gone a user can still turn the swallowed-Stop plane back on.
+> - **#322** — its close recorded that the cancel-read's value "was tied to
+>   this rollout". It is live now; a dated pointer block goes beneath the
+>   ARCHIVED entry, append-only, per #317 ruling (a).
+> - **#371** — its design "rides #368". #368 did not build it; the entry
+>   should say the surface it rides is now the default, so the design
+>   question is answerable rather than blocked.
+> - **#293(b)** — its measurement-only clock-skew logging is now unreachable
+>   from the run-id path. The finding is not refuted; its exposure shrank to
+>   the legacy arm, which #382 deletes. Note, do not close.
+> - **CLAUDE.md** — grepped 2026-08-19: it carries **no** claim about the
+>   transport default or the Developer switch, so nothing there is falsified
+>   by the flip. Recorded because "checked and found nothing" is a different
+>   fact from "not checked".
+
 ## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. NOT STARTED; bars pre-register here before code.**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
@@ -12058,3 +12144,61 @@ scope: **wholesale, or a permanent dual path?**
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which
 > reshapes the composer surface this rides on; re-examine then.
+
+## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.**
+
+**Why it exists.** #368's cutover flips the default to the runs plane but
+deliberately does NOT remove the old path. Owen's 2026-08-19 ruling was
+*flip now, delete next week* — the middle option between the plan's
+recommended wholesale delete and keeping a permanent dual path. This item is
+the thing that stops "next week" becoming "never".
+
+**⚠️ The cost this item is holding, said plainly.** Between #368 landing and
+this item closing, the tree carries TWO turn transports and only one of them
+runs by default. That is the **#218 shape** — two paths, one tested — which
+cost two days the last time it went unnoticed. It is being accepted
+knowingly, for one week, to buy evidence; it is not a state to settle into.
+
+**Scope, inherited verbatim from #368's bar 3E-E (pre-registered
+2026-08-19 BEFORE any code, and explicitly conditional on this ruling — so
+it is a bar moving house, not a bar written after the fact):**
+
+> **3E-E (deletion, structural).** No call site in `Talaria/` submits a turn
+> on the sessions plane: `grep` proves zero references to `chat/stream` and
+> zero to `POST /api/sessions/{id}/chat`, and `useRunsTransport` is absent
+> from the tree. `/api/sessions*` survives ONLY as create/open/list/
+> messages/fork/model. Falsifier: any surviving turn-submitting sessions
+> call site.
+
+**What comes out** (named from HEAD `f48add84` so the lane can check rather
+than rediscover): `SessionsHermesClient.streamTurn` and `postSyncChat`, the
+`useRunsTransportProvider` seam and both per-turn reads (`:311`, `:374`),
+`UserSettings.useRunsTransport` **and its `runsCutoverApplied` migration
+flag** (which exists only to serve the switch), the Developer row
+(`DeveloperSettingsScreen.swift:207`), and — once no run-id-less `PendingRun`
+can exist — `ChatStore.attemptSessionReconcile` with `reconcileFromServer()`
+behind it.
+
+**One thing that must NOT come out with it, and it is easy to miss:** the
+background-expiration arm in `cancelStreaming(hardStopHost: false)` still
+arms recovery with `runId: nil` (`ChatStore.swift`, the `armPendingRunRecovery`
+call whose comment reads *"`runId` has no channel here at all"*). **That
+comment is now stale** — `cancelledRunID` is captured at the top of the same
+function (#322's read-before-clear) and is exactly the id that arm needs. So
+the lane's first move is to feed it in; only THEN is the run-id-less pending
+run genuinely unreachable and the legacy reconcile safe to delete. Deleting
+in the other order strands the expiration path with no recovery at all.
+
+**The evidence the week is for.** What would make this item pause rather
+than proceed: a real host-side runs failure the escape hatch demonstrably
+rescued. Note that the ONE historical instance (2026-08-16, the toggle
+flipped off and chat returned) was **later exonerated** — #356 pinned the
+cause to a stopped/mid-update OJAMD reached through the M-5 birth hop, not
+to the transport. So the bar for pausing is a NEW instance, not a re-telling
+of that one.
+
+**Cross-refs:** #368 (parent; the cutover), #218 (the shape being accepted
+for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
+#368's flip, and permanent once this lands), #322 (its cancel-read stops
+being a no-op at #368, not here).
+
