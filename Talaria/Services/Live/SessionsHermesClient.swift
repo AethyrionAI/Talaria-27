@@ -520,7 +520,6 @@ final class SessionsHermesClient: HermesClientProtocol {
             // `write_file` never called) — the PATH is the only client-visible
             // signal, so it's harvested from every tool payload and, at
             // finish, from the assistant's own prose.
-            var announcedAgentPaths: [String] = []
             // #241 path 3: the `runtime` block from `run.completed`, held for
             // the post-loop pin (`dispatchEvent` is synchronous).
             var servingRuntime: TurnRuntime?
@@ -571,12 +570,6 @@ final class SessionsHermesClient: HermesClientProtocol {
                             // lets the store's finish merge collapse them.
                             continuation.yield(.artifactProduced(file))
                         }
-                        // #21 Tier 2: any tool call can reveal an agent-files
-                        // path (`terminal` commands, search results) — harvest
-                        // them all; dedupe happens at finish.
-                        announcedAgentPaths.append(
-                            contentsOf: Self.announcedAgentFilePaths(fromToolPayload: currentData)
-                        )
                     }
                 case "tool.progress":
                     // #4.15: reasoning rides `tool.progress` with
@@ -646,15 +639,6 @@ final class SessionsHermesClient: HermesClientProtocol {
                               !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
                         message.reasoning = assembledReasoning
                     }
-                    // #21 Tier 2: paths announced in tool calls or the answer
-                    // itself become fetchable bubbles (deduped against the
-                    // Tier 1 reconstructions), stamped with the hop's birth
-                    // profile so the fetch hits the right relay (Lane M).
-                    producedFiles.append(contentsOf: Self.fetchableAgentFileAttachments(
-                        announcedPaths: announcedAgentPaths + Self.agentFilesRelativePaths(in: message.content),
-                        existing: producedFiles,
-                        profileID: hop.profileID
-                    ))
                     if !producedFiles.isEmpty { message.attachments = producedFiles }
                     continuation.yield(.finished(message, usage, nil))
                     finalMessageDelivered = true
@@ -732,14 +716,6 @@ final class SessionsHermesClient: HermesClientProtocol {
                    !Self.reasoningMirrorsAnswer(assembledReasoning, content: fallbackMessage.content) {
                     fallbackMessage.reasoning = assembledReasoning
                 }
-                // #21 Tier 2: same fetchable-path sweep as the run.completed
-                // case — a stream the server didn't terminate cleanly must
-                // not drop announced files.
-                producedFiles.append(contentsOf: Self.fetchableAgentFileAttachments(
-                    announcedPaths: announcedAgentPaths + Self.agentFilesRelativePaths(in: fallbackMessage.content),
-                    existing: producedFiles,
-                    profileID: hop.profileID
-                ))
                 if !producedFiles.isEmpty { fallbackMessage.attachments = producedFiles }
                 continuation.yield(.finished(fallbackMessage, nil, nil))
             }
@@ -1875,119 +1851,13 @@ final class SessionsHermesClient: HermesClientProtocol {
         guard let args = envelope.args,
               let path = args.path, !path.isEmpty
         else { return nil }
-        if let content = args.content {
-            return MessageAttachment.agentFile(remotePath: path, content: content)
-        }
-        guard let relative = agentFilesRelativePaths(in: path).first else { return nil }
-        return MessageAttachment.fetchableAgentFile(
-            name: (relative as NSString).lastPathComponent,
-            remotePath: relative,
-            profileID: profileID
-        )
-    }
-
-    // MARK: - Agent-file announcement scan (#21 Tier 2)
-
-    /// The whitelisted agent-files directory's terminal component on BOTH
-    /// hosts (OJAMD `O:\Hermes\MobileDL`, Mac `~/Hermes/agent-work/MobileDL`)
-    /// — the anchor that lets the client derive the route-form relative path
-    /// without knowing the host's absolute AGENT_FILES_DIR.
-    nonisolated private static let agentFilesDirName = "MobileDL"
-
-    /// Matches `MobileDL` followed by one or more path segments, either
-    /// separator style (`\\` doubles in raw JSON, hence the `+`).
-    nonisolated(unsafe) private static let agentFilesPathPattern =
-        /(?i)MobileDL((?:[\/\\]+[A-Za-z0-9._\-]+)+)/
-    /// A plausible file (not directory) tail: an extension of 1–8
-    /// alphanumerics on a non-empty stem.
-    nonisolated(unsafe) private static let fileExtensionPattern = /[^\/.]\.[A-Za-z0-9]{1,8}$/
-
-    /// Extracts the agent-files-relative (route-form) paths mentioned in a
-    /// string — host prose ("Saved to O:\Hermes\MobileDL\report.pdf"), tool
-    /// args (`terminal` commands), search results. Windows or POSIX
-    /// separators normalize to `/`; only tokens with a file-like extension
-    /// qualify, so bare directory mentions ("your MobileDL folder") never
-    /// produce a bubble. Order preserved, duplicates dropped.
-    nonisolated static func agentFilesRelativePaths(in text: String) -> [String] {
-        guard text.range(of: agentFilesDirName, options: .caseInsensitive) != nil else { return [] }
-        var results: [String] = []
-        var seen = Set<String>()
-        for match in text.matches(of: agentFilesPathPattern) {
-            var relative = String(match.1)
-                .replacingOccurrences(of: "\\", with: "/")
-            while relative.contains("//") {
-                relative = relative.replacingOccurrences(of: "//", with: "/")
-            }
-            while relative.hasPrefix("/") { relative.removeFirst() }
-            // Prose punctuation can ride the capture ("…report.pdf.").
-            while relative.hasSuffix(".") { relative.removeLast() }
-            guard !relative.isEmpty,
-                  relative.firstMatch(of: fileExtensionPattern) != nil else { continue }
-            let key = relative.lowercased()
-            if seen.insert(key).inserted { results.append(relative) }
-        }
-        return results
-    }
-
-    /// Harvests agent-files paths from a `tool.started` payload by walking
-    /// every string value in the JSON (args of ANY tool — the probe's binary
-    /// rode a `terminal` command — plus `preview` and friends). Keys are
-    /// walked in sorted order so the result is deterministic.
-    nonisolated static func announcedAgentFilePaths(fromToolPayload raw: String) -> [String] {
-        guard raw.range(of: agentFilesDirName, options: .caseInsensitive) != nil,
-              let data = raw.data(using: .utf8),
-              let payload = try? JSONSerialization.jsonObject(with: data)
-        else { return [] }
-        var strings: [String] = []
-        collectStrings(payload, into: &strings)
-        var results: [String] = []
-        var seen = Set<String>()
-        for string in strings {
-            for path in agentFilesRelativePaths(in: string) where seen.insert(path.lowercased()).inserted {
-                results.append(path)
-            }
-        }
-        return results
-    }
-
-    nonisolated private static func collectStrings(_ value: Any, into strings: inout [String]) {
-        switch value {
-        case let string as String:
-            strings.append(string)
-        case let array as [Any]:
-            for element in array { collectStrings(element, into: &strings) }
-        case let dictionary as [String: Any]:
-            for key in dictionary.keys.sorted() {
-                collectStrings(dictionary[key] as Any, into: &strings)
-            }
-        default:
-            break
-        }
-    }
-
-    /// Builds the turn's fetchable attachments from every announced path,
-    /// deduped against paths already covered and against files the Tier 1
-    /// path already reconstructed (a staged copy with real bytes beats a
-    /// fetchable pointer to the same file).
-    nonisolated static func fetchableAgentFileAttachments(
-        announcedPaths: [String],
-        existing: [MessageAttachment],
-        profileID: UUID?
-    ) -> [MessageAttachment] {
-        var seenPaths = Set(existing.compactMap { $0.remotePath?.lowercased() })
-        // Names normalize to their path tail: pre-fix Tier 1 attachments from
-        // Windows paths carry the whole backslashed path as their fileName.
-        var seenNames = Set(existing.map {
-            MessageAttachment.lastPathComponentAcrossHosts($0.fileName).lowercased()
-        })
-        var results: [MessageAttachment] = []
-        for path in announcedPaths {
-            guard seenPaths.insert(path.lowercased()).inserted else { continue }
-            let name = (path as NSString).lastPathComponent
-            guard !name.isEmpty, seenNames.insert(name.lowercased()).inserted else { continue }
-            results.append(.fetchableAgentFile(name: name, remotePath: path, profileID: profileID))
-        }
-        return results
+        // #375: content present → Tier 1 stages the bytes. Content ABSENT
+        // used to mint a Tier 2 "TAP TO DOWNLOAD" chip fetched over the relay;
+        // the relay is retired on both hosts and the download was ruled
+        // unneeded (Owen, 2026-08-19), so nothing is minted rather than a chip
+        // the app cannot honour.
+        guard let content = args.content else { return nil }
+        return MessageAttachment.agentFile(remotePath: path, content: content)
     }
 
     // runs-path-visible (#283): one failure-text policy across both planes.

@@ -4,15 +4,6 @@ import os
 
 private let chatLog = Logger(subsystem: "org.aethyrion.talaria", category: "ChatStore")
 
-/// #21 Tier 2: transient per-attachment download state for fetchable agent
-/// files. Absence from the map means idle (tap to download); staged-ness
-/// itself is derived from the attachment's `localStoragePath`, never tracked
-/// here.
-enum AgentFileDownloadState: Equatable {
-    case downloading
-    case failed(String)
-}
-
 @MainActor
 @Observable
 final class ChatStore {
@@ -455,16 +446,6 @@ final class ChatStore {
     var beginContinuedSend: (@MainActor (String) -> ContinuedProcessingHandle?)?
     private var isGeneratingConversationCard = false
 
-    /// #21 Tier 2: downloads a fetchable agent file — (birth profile id,
-    /// route-form remote path) → a local temp URL. Wired by AppContainer to
-    /// the per-profile relay factory (Lane M: the file lives on the
-    /// announcing session's birth-profile relay, never a global base URL).
-    /// Nil in tests and unwired constructions — the tap then fails honestly.
-    var agentFileDownloader: (@MainActor (UUID?, String) async throws -> URL)?
-
-    /// #21 Tier 2: in-flight/failed download state per attachment id, driving
-    /// the fetchable bubble's spinner and honest-failure row.
-    private(set) var agentFileDownloads: [UUID: AgentFileDownloadState] = [:]
 
     /// A run whose stream dropped (e.g. backgrounded on lock) but which is still
     /// running server-side. Reconciled via the Sessions messages endpoint when it
@@ -2277,73 +2258,6 @@ final class ChatStore {
             && (message.reasoning?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
     }
 
-    // MARK: - Fetchable agent files (#21 Tier 2)
-
-    /// Tap→download→stage for a fetchable agent-file bubble: pulls the bytes
-    /// from the announcing session's birth-profile relay, stages them into
-    /// the Attachments dir, and flips the attachment to its staged form —
-    /// from then on the bubble behaves exactly like a Tier 1 bubble
-    /// (preview sheet + ShareLink). Failures land in `agentFileDownloads`
-    /// with an honest message; tapping again retries.
-    func fetchAgentFile(_ attachment: MessageAttachment, in message: Message) async {
-        guard attachment.localStoragePath == nil,
-              let remotePath = attachment.remotePath,
-              agentFileDownloads[attachment.id] != .downloading
-        else { return }
-        guard let downloader = agentFileDownloader else {
-            agentFileDownloads[attachment.id] = .failed("Downloads aren't available in this session.")
-            return
-        }
-        agentFileDownloads[attachment.id] = .downloading
-        do {
-            let temporaryURL = try await downloader(attachment.remoteProfileID, remotePath)
-            guard let stagedPath = MessageAttachment.stageFetchedAgentFile(
-                from: temporaryURL,
-                preferredFileName: attachment.fileName
-            ) else {
-                agentFileDownloads[attachment.id] = .failed("Couldn't save the downloaded file.")
-                return
-            }
-            if var conv = conversation,
-               let messageIdx = conv.messages.firstIndex(where: { $0.id == message.id }),
-               let attachmentIdx = conv.messages[messageIdx].attachments.firstIndex(where: { $0.id == attachment.id }) {
-                conv.messages[messageIdx].attachments[attachmentIdx] =
-                    conv.messages[messageIdx].attachments[attachmentIdx].staged(atLocalPath: stagedPath)
-                conversation = conv
-                persistence.saveConversationCache(conv)
-                onConversationChanged?()
-            } else {
-                // The transcript moved on mid-download (cleared, switched
-                // session) — nothing to attach the bytes to.
-                try? FileManager.default.removeItem(atPath: stagedPath)
-            }
-            agentFileDownloads[attachment.id] = nil
-        } catch {
-            agentFileDownloads[attachment.id] = .failed(Self.agentFileFailureMessage(for: error))
-            chatLog.notice("agent file fetch failed (#21): \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    /// Honest, user-facing failure text for a fetch: auth, not-found, and
-    /// offline each get a specific line (the acceptance triad); everything
-    /// else surfaces its own description.
-    nonisolated static func agentFileFailureMessage(for error: Error) -> String {
-        if let downloadError = error as? RelayAPIClient.FileDownloadError {
-            switch downloadError {
-            case .unauthorized:
-                return "The relay refused this device's authorization. Re-pair with the host and try again."
-            case .notFound:
-                return "The file isn't available from the relay — it may have been moved or removed on the host."
-            case .failed(let message):
-                return message
-            }
-        }
-        if SessionsHermesClient.isUnreachableError(error) {
-            return "The relay is unreachable. Check the connection and tap to retry."
-        }
-        let described = error.localizedDescription
-        return described.isEmpty ? "The download failed. Tap to retry." : described
-    }
 
     // MARK: - Voice transcript hand-off (#1)
 

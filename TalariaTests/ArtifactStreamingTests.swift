@@ -382,16 +382,17 @@ struct ArtifactStreamingTests {
     }
 
     @Test @MainActor
-    func finishAddingAFetchableKeepsExactlyOneChipPerFile() async throws {
-        // The real #21 shape: `write_file` streamed a Tier 1 reconstruction and
-        // `run.completed` appended a Tier 2 fetchable announced in prose. Two
-        // files ⇒ two chips, and the streamed one is not duplicated.
+    func finishAddingASecondFileKeepsExactlyOneChipPerFile() async throws {
+        // Two files ⇒ two chips, and the one that streamed mid-turn is not
+        // duplicated when the finish repeats it. (#375: the second file used
+        // to be a Tier 2 fetchable announced in prose; those are gone, so the
+        // same merge is exercised with a second staged file — the property
+        // under test was never about which tier the newcomer was.)
         let tier1 = try makeStagedAttachment(named: "summary.md", content: "# Sum")
-        defer { removeStaged([tier1]) }
-        let tier2 = MessageAttachment.fetchableAgentFile(
-            name: "probe.pdf", remotePath: "probe.pdf", profileID: nil
-        )
-        let (store, client) = makeStore(streamed: [tier1], final: [tier1, tier2], label: "tier1-plus-tier2")
+        let second = try makeStagedAttachment(named: "probe.md", content: "probe")
+        defer { removeStaged([tier1, second]) }
+        let tier2 = second
+        let (store, client) = makeStore(streamed: [tier1], final: [tier1, tier2], label: "tier1-plus-second")
 
         await store.sendMessage("Write it")
 

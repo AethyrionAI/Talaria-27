@@ -1627,16 +1627,6 @@ extension SessionsHermesClient {
            !Self.reasoningMirrorsAnswer(assembledReasoning, content: message.content) {
             message.reasoning = assembledReasoning
         }
-        // #21 Tier 2, PROSE half only. The runs `tool.started` carries no
-        // `args`, so nothing may be harvested from a tool payload here — a
-        // chip minted from a `preview` would be a claim we cannot honor. The
-        // assistant's own answer is a different source and still counts.
-        let fetchables = Self.fetchableAgentFileAttachments(
-            announcedPaths: Self.agentFilesRelativePaths(in: message.content),
-            existing: [],
-            profileID: profileID
-        )
-        if !fetchables.isEmpty { message.attachments = fetchables }
         return message
     }
 

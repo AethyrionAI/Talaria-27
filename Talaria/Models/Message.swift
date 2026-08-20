@@ -359,24 +359,6 @@ extension MessageAttachment {
 // MARK: - Agent-generated files (#21 Tier 2)
 
 extension MessageAttachment {
-    /// A file the agent produced on the host whose bytes never rode the SSE
-    /// stream (binaries — verified by the 2026-07-16 probe: host-side
-    /// `terminal` writes never invoke `write_file`, and binary content appears
-    /// nowhere in tool args). Carries only the AGENT_FILES_DIR-relative path;
-    /// the bytes arrive later via the relay's `/v1/device/files` route, at
-    /// which point `staged(atLocalPath:)` flips this into a Tier 1 attachment.
-    static func fetchableAgentFile(name: String, remotePath: String, profileID: UUID?) -> MessageAttachment {
-        let fileName = name.isEmpty ? "agent_output" : name
-        return MessageAttachment(
-            kind: "file",
-            fileName: fileName,
-            mimeType: inferredMimeType(forFileName: fileName),
-            thumbnailBase64: nil,
-            localStoragePath: nil,
-            remotePath: remotePath,
-            remoteProfileID: profileID
-        )
-    }
 
     /// A copy of this attachment with downloaded bytes staged locally — same
     /// identity, so the transcript row updates in place and the bubble becomes
@@ -404,20 +386,4 @@ extension MessageAttachment {
         )
     }
 
-    /// Stages a downloaded temp file into the Attachments directory (#21
-    /// Tier 2). Moved, not copied — the download is already on disk and a
-    /// binary must never double up in memory or storage. Returns the staged
-    /// path, or nil when the move fails (the temp file is left for the system
-    /// to reap).
-    static func stageFetchedAgentFile(from temporaryURL: URL, preferredFileName: String) -> String? {
-        guard let destination = agentFileStagingDestination(preferredFileName: preferredFileName) else {
-            return nil
-        }
-        do {
-            try FileManager.default.moveItem(at: temporaryURL, to: destination)
-            return destination.path
-        } catch {
-            return nil
-        }
-    }
 }
