@@ -298,7 +298,6 @@
 		82F228AAC1E00F0F85AB4707 /* Icon-KaraokeSupernova@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 3FDA18B4B440179EED51B685 /* Icon-KaraokeSupernova@3x.png */; };
 		833F59688DD58FD56BEF8802 /* HermesLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C4631361E43482328C012F /* HermesLiveActivity.swift */; };
 		835FE1F3B6871E5A4015A5CC /* CarPlayVoiceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */; };
-		840B88B41CCC59999D67655D /* ProvisioningServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */; };
 		844C28B6544240045C725683 /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1EAB9C98E5FE27B257BF2EA /* ShareSheet.swift */; };
 		85765F4F456277D1E0F815F4 /* DeviceActionToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8F094AAF1D10D4CEB5D7431 /* DeviceActionToolsTests.swift */; };
 		858337452B25F5B1F1806AEE /* LiveCameraOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A98E68D1390AD8BF008416C4 /* LiveCameraOverlay.swift */; };
@@ -338,7 +337,6 @@
 		9164C7B8E9424D7D43161BFD /* Icon-Terminal@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = A88AB9163181C0B8A64A98F2 /* Icon-Terminal@3x.png */; };
 		91B415D4CE3BCCF1BBD2A55D /* ToolConfirmationCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D30DA3722A23BA781E30256 /* ToolConfirmationCenter.swift */; };
 		91FB746383088EF3ADBD1AF2 /* InsightsSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F134522DB89B52AC22C82718 /* InsightsSummary.swift */; };
-		9239230B72740C50057B26AA /* ProvisioningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6305D45975AE75D55E670E65 /* ProvisioningService.swift */; };
 		925B611D3BE1A1DCA0208FDB /* LiveHealthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04C12A5058B9C64D4E33D9F /* LiveHealthService.swift */; };
 		928FFA715668688EBBD3A0C8 /* MessageSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79308EBEEA349C5CE94D6D7C /* MessageSender.swift */; };
 		92EC3F760BA81FCB91C977D9 /* ChatHealthPollPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CB476345D92D264E08FFC0 /* ChatHealthPollPolicy.swift */; };
@@ -820,7 +818,6 @@
 		567192C3B22E4F72ABEE534B /* AskHermesUnreachableHonestyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskHermesUnreachableHonestyTests.swift; sourceTree = "<group>"; };
 		57107F3D3770FAA8F93F1E70 /* SpaceGrotesk-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpaceGrotesk-Medium.ttf"; sourceTree = "<group>"; };
 		57CF6F188E6A3E52F6D1204B /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
-		58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvisioningServiceTests.swift; sourceTree = "<group>"; };
 		586F039C2293C3A125FE7EA5 /* InstrumentConductorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentConductorTests.swift; sourceTree = "<group>"; };
 		58A8D3AC5A4CD172DB9B3B98 /* InboxItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemRow.swift; sourceTree = "<group>"; };
 		58B4BF576EF1055C45F7E0B3 /* SessionsHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsHermesClient.swift; sourceTree = "<group>"; };
@@ -845,7 +842,6 @@
 		61B9370067BF51189E67CA57 /* HermesStatusWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesStatusWidget.swift; sourceTree = "<group>"; };
 		61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSectionView.swift; sourceTree = "<group>"; };
 		620742C177DDD76042D01179 /* PairingRedeemResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingRedeemResult.swift; sourceTree = "<group>"; };
-		6305D45975AE75D55E670E65 /* ProvisioningService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProvisioningService.swift; sourceTree = "<group>"; };
 		6347F95595858FADDEDE54DF /* ChatInputBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatInputBar.swift; sourceTree = "<group>"; };
 		6352B23C71AAB6357D5E649F /* TalkStoreBackgroundRevokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalkStoreBackgroundRevokeTests.swift; sourceTree = "<group>"; };
 		637B1A2DE6232361D4E695DD /* ServerSettingsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSettingsScreen.swift; sourceTree = "<group>"; };
@@ -1420,7 +1416,6 @@
 				A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */,
 				239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */,
 				0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */,
-				58403047D33DC8853F341109 /* ProvisioningServiceTests.swift */,
 				BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				D989D02F2565BA376F01FFC5 /* RefusalWordsInstrumentTests.swift */,
@@ -1516,7 +1511,6 @@
 				2573EFA3B69C8859EC660995 /* KeychainSecureStore.swift */,
 				ED2F3827A98FF7496E455C60 /* MonetizationGate.swift */,
 				72FAE396354E7BE313E3BA59 /* ProfileRelaySession.swift */,
-				6305D45975AE75D55E670E65 /* ProvisioningService.swift */,
 				059AC4BF9B2C0C3522E078C3 /* RelayAPIClient.swift */,
 				872B0ADD4223BACB94F26C79 /* ResilientHermesClient.swift */,
 				C7C0A879EC41CB30E663F615 /* ResilientSessionBootstrapService.swift */,
@@ -2649,7 +2643,6 @@
 				5079B69268BC322E428F67E6 /* PhoneQueryResponder.swift in Sources */,
 				602E8B613EC5D0DC26659EFF /* PrivacySettingsScreen.swift in Sources */,
 				30BB7CBB8A5164E5AF46FED7 /* ProfileRelaySession.swift in Sources */,
-				9239230B72740C50057B26AA /* ProvisioningService.swift in Sources */,
 				45267CB3896C33D7A4D3E804 /* ReactorOrb.swift in Sources */,
 				14953DFDF06380FFAEA59D8D /* RealtimeVoiceIndicator.swift in Sources */,
 				ADD98A47506EE94460779B36 /* RelayAPIClient.swift in Sources */,
@@ -2864,7 +2857,6 @@
 				7FAA9188B56A1915D645DAAC /* PreflightInstrumentTests.swift in Sources */,
 				265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */,
 				812F1205E4E375A65F1AADD3 /* ProfileSwitchAtomicityTests.swift in Sources */,
-				840B88B41CCC59999D67655D /* ProvisioningServiceTests.swift in Sources */,
 				3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				3EEAC38DC0A4F59BD4B6447A /* RefusalWordsInstrumentTests.swift in Sources */,

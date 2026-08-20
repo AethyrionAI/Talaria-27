@@ -570,24 +570,31 @@ struct RunsPlaneTransportTests {
         #expect(!updates.contains { if case .artifactProduced = $0 { return true } else { return false } })
 
         let finished = try #require(finishedPayload(updates))
-        // The #21 Tier 2 PROSE sweep survives — it reads the assistant's own
-        // answer, not tool args, so it is legitimate here and still runs.
-        #expect(finished.message.attachments.count == 1)
-        #expect(finished.message.attachments.first?.remotePath == "report.txt")
-        // A fetchable pointer, not staged bytes — nothing was reconstructed.
-        #expect(finished.message.attachments.allSatisfy { $0.localStoragePath == nil })
+        // #375: the #21 Tier 2 PROSE sweep is GONE. It used to mint a
+        // fetchable pointer from "MobileDL/report.txt" in the answer text —
+        // a chip whose only retrieval route was the retired relay. Zero
+        // attachments now: on this plane a file becomes a chip when the
+        // MIRROR delivers its bytes, never because prose named a path.
+        #expect(finished.message.attachments.isEmpty)
     }
 
     // MARK: - 3D-E: the mirror is the only Tier-1 source on this plane
 
     /// #362: a runs turn that wrote a file, then its mirror item arriving
     /// over the plugin channel. The stream itself still yields ZERO
-    /// `.artifactProduced` (3A-D stands untouched); the prose-swept Tier-2
-    /// pointer (whitelist-RELATIVE path) is upgraded IN PLACE by the mirror
-    /// item (host-ABSOLUTE path — only the leaf name links them), so the
-    /// message ends with exactly one chip, Tier-1, same attachment id.
+    /// `.artifactProduced` (3A-D stands untouched), and the message ends with
+    /// exactly ONE Tier-1 chip carrying the real bytes.
+    ///
+    /// **#375 rewrote what this proves.** It used to pin the correlator's
+    /// pass 1 — a prose-swept Tier-2 pointer upgraded IN PLACE. Those
+    /// pointers are gone, so the same one-chip guarantee now has to come from
+    /// pass 2, which matches the mirror item against the turn's WRITE
+    /// ACTIVITY instead. That is the load-bearing question the deletion
+    /// raised: with no pointer to upgrade, does a mirrored file still get a
+    /// chip on the DEFAULT plane? This test is the answer, and it is why the
+    /// full gate ran before the deletion was believed.
     @Test @MainActor
-    func mirrorItemUpgradesTheRunsPlanePointerWithoutASecondChip() async throws {
+    func mirrorItemChipsTheRunsPlaneWriteWithoutAPointer() async throws {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
             #"{"event":"tool.started","run_id":"run-r1","timestamp":1.0,"tool":"write_file","preview":"O:\\Hermes\\MobileDL\\a.txt"}"#,
@@ -603,8 +610,8 @@ struct RunsPlaneTransportTests {
         #expect(!updates.contains { if case .artifactProduced = $0 { return true } else { return false } })
 
         var finished = try #require(finishedPayload(updates)).message
-        let pointer = try #require(finished.attachments.first)
-        #expect(pointer.localStoragePath == nil)
+        // No pointer any more — the prose sweep that minted it is deleted.
+        #expect(finished.attachments.isEmpty)
         finished.toolActivities = [
             ToolActivity(label: "write_file", startedAt: .now, isActive: false,
                          detail: #"O:\Hermes\MobileDL\a.txt"#)
@@ -621,8 +628,11 @@ struct RunsPlaneTransportTests {
 
         let upgraded = try #require(transcript.messages.first)
         #expect(upgraded.attachments.count == 1)
-        #expect(upgraded.attachments.first?.id == pointer.id)
         #expect(upgraded.attachments.first?.localStoragePath != nil)
+        // Anchored to the write activity that produced it (pass 2's own
+        // contract) — the chip lands where the write happened, not appended
+        // blindly at the end.
+        #expect(upgraded.attachments.first?.anchorOffset == finished.toolActivities.first?.anchorOffset)
     }
 
     @MainActor

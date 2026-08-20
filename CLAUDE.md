@@ -51,9 +51,18 @@ endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404 — re-
 2026-08-02 on a CURRENT 0.19.1 process; Hermes DOES ship an `/api/files` family but it lives
 in the **dashboard app**, `web_server.py` :9119, dashboard auth — a separate app from the
 `:8642` api_server the phone speaks; don't mistake dashboard routes for chat-plane routes,
-see #21/#223). Durable host-side
+see #21/#223). ~~Durable host-side
 serving for binaries / other tools (#21 Tier 2) must live in **our relay sidecar**
-(`O:\Hermes\Talaria\relay`) — **never a patch to Hermes core**: `curl install.sh | bash`
+(`O:\Hermes\Talaria\relay`)~~ — **SUPERSEDED 2026-08-19 (#375): TIER 2 IS DELETED,
+app-side and as a concept.** Owen ruled the agent-file download unneeded ("I called
+that as unneeded"), and the relay it fetched over is retired on both hosts, so the
+app no longer mints a chip it cannot honour. **What replaced it is not a download at
+all: the talaria plugin's ARTIFACT MIRROR (#362) pushes a written file's content to
+the phone, which is why Tier 1 chips now appear on the runs plane where the stream
+carries no `args`.** A file whose bytes ride neither the tool args nor the mirror —
+a binary — simply lives on the host now; that is the accepted state, not a gap
+awaiting a fix (re-homing the fetch onto the plugin was scoped and NOT elected).
+The never-patch-Hermes-core rule survives on its own merits: `curl install.sh | bash`
 replaces `~/.hermes/hermes-agent` and wipes core edits, while `config.yaml`/`.env`/skills/
 sessions persist.
 

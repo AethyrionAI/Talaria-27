@@ -20427,6 +20427,18 @@ the `tailscale serve` HTTPS work. Add Shelley as the second tester when ready.
 
 ## 21. 🔧 Present/download agent-generated files — Tier 1 ✅; Tier 2 relay route ✅; Tier 2 app-side fetch MERGED (PR #99, 2026-07-16) — dual-host device pass owed
 
+
+> **📌 2026-08-19 (append-only pointer, #317 ruling (a) — nothing above is
+> edited).** **TIER 2 IS DELETED** (#375, on Owen's ruling: the download was
+> unneeded, and the relay it fetched over is retired on both hosts). Gone
+> app-side: the fetchable chip, both mint paths, the downloader, and
+> `RelayAPIClient.downloadFile`. **Consequences for this entry's own text:**
+> the "dual-host device pass owed" in its header is MOOT — the pass can never
+> run because the feature no longer exists, and its fixture `probe-t21.pdf`
+> stays in the Mac's MobileDL as a fossil. The 2026-07-13 audit note and the
+> device-pass block below describe a capability that is gone. **Tier 1 is
+> unaffected and is now fed on the runs plane by #362's artifact mirror.**
+
 > # ❌ THE SUPERSEDE WATCH BELOW IS RETRACTED. See the CORRECTED block after it.
 > **Two sessions reached that retraction independently the same day** — the #223
 > investigation (live on **OJAMD's current 0.19.1**, the authoritative one below) and this
