@@ -9322,7 +9322,11 @@ gate's full XCUITest run.
 > wait cannot help and a bigger dwell makes it worse.
 >
 > **SLICE 1 — THE DIAGNOSTIC, landing on `main` ahead of the investigation**
-> (branch `236-queued-chip-flake-diagnostic`). Test-only, no product change:
+> (branch `236-queued-chip-flake-diagnostic`; **PR
+> https://github.com/AethyrionAI/Talaria-27/pull/326 — PR open; merge is
+> Owen's review**; `GATE: PASS`, 2346 / 14 / Release clean — the Swift Testing
+> count is unchanged by design, since this modifies an existing XCUITest and
+> adds none). ⚠️ **PR #326 is not tracker #326.** Test-only, no product change:
 > the assertion reads the SETTLED composer text (#195's guard, which this
 > test never got and its sibling has) and, on failure, dumps the visible
 > transcript. **Landing it first is the point** — every future firing then
