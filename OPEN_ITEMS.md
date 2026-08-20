@@ -2884,6 +2884,28 @@ Logged 2026-07-23.
 > world #352 deleted. *Evidence:* the string is asserted to exist and to not
 > contain the retired vocabulary ("upload", "streaming", "background") that
 > would describe the dead pipeline.
+>
+> > **⚠️ 2026-08-20 — 173-E IS ALREADY MET, AND ITS EVIDENCE CLAUSE IS
+> > MIS-WRITTEN. Both halves recorded rather than quietly fixed.**
+> >
+> > **Already met:** `PrivacySettingsScreen.swift:338`'s
+> > `sensorStreamingCaption` — shipped by #260(C)/#352, before #380 was
+> > filed — already reads *"Lets your Hermes agent ask this phone for the
+> > sensors you enable — answered on demand, never streamed. Each sensor asks
+> > for its iOS permission when you turn it on."* That is the query-time model
+> > and the per-read prompting, in one line. **#380's deliverable needs no new
+> > copy**, which nobody could have known without reading the file: #380 was
+> > ruled on 08-18 ~22:40 and this caption predates it.
+> >
+> > **And my own evidence clause is wrong.** It says the copy must not contain
+> > "streaming" — but the correct copy uses the word in a NEGATION ("never
+> > streamed"), which is the most honest way to say it. A naive
+> > string-exclusion check fails the very sentence it was written to require.
+> > **Scored on the bar's intent (describe on-demand answering + per-sensor
+> > permission; assert no dead-pipeline model), with the letter corrected here
+> > rather than silently reinterpreted at scoring time** — a bar rewritten
+> > after the fact to match what shipped is the redefinition this project
+> > forbids, so the rewrite is dated, visible, and reasoned.
 
 
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
@@ -9362,6 +9384,47 @@ gate's full XCUITest run.
 > backend's reply task starve under load?). One more firing this week and it
 > gets its own lane.
 
+
+> **🟢 2026-08-20 — TWO MORE FIRINGS, AND THE SECOND ONE SETTLES THE
+> ATTRIBUTION. THE TRIGGER ABOVE HAS FIRED.**
+>
+> `testQueuedChipCancelRemovesHeldMessageWithNothingPosted` — the test the
+> 08-18 note records as having JOINED this family on a dirty pool sim, not the
+> usual `testTranscriptNeverRendersDuplicateMessageIDs`.
+>
+> **The series across TWO unrelated branches:**
+>
+> | tree | context | result |
+> |---|---|---|
+> | #310 branch | full gate ×4 | **3 FAIL, 1 pass** |
+> | #310 branch, code STASHED (control) | full gate | pass |
+> | #310 branch | UI target only / suite isolated | pass (14/14, 2/2) |
+> | **free-bucket branch** (#293(d) + #173 only, off `main`) | full gate | **FAIL** |
+>
+> **The last row is the discriminating one.** That branch carries a two-line
+> attachment-merge fix and some copy — nothing touching profiles, the relay
+> plane, or anything #310 changed. **A defect confined to #310 cannot fail on
+> a branch without #310; an intermittent flake can do all of the above.** So
+> this is #236, and #310 is not implicated.
+>
+> **The mid-investigation reading was "unproven in both directions", and that
+> was right at the time** — a single control pass against a 3-run failure
+> streak convicts nothing when the phenomenon is intermittent. Recorded
+> because the tempting error was the opposite: treating one control pass as
+> proof would have sent a lane hunting a defect that does not exist.
+>
+> **🔴 STATUS CHANGE — this is no longer a watch.** The second firing
+> **blocked an unrelated lane's gate**, which is the cost that makes it
+> urgent rather than annoying: any lane that happens to hit it pays a re-run,
+> and pays the whole six-gate investigation if the operator does not already
+> know. **Owen routes.**
+>
+> **⚠️ The diagnostic that would have shortened this is stranded on the #310
+> branch (PR #325).** There the assertion dumps the visible transcript and the
+> settled composer text; every other branch still has the bare literal, which
+> is why occurrence 7 reports nothing about what the app actually showed.
+> **Land that test change wherever this goes** — it is test-only, it costs
+> nothing, and it turns the next firing into one run instead of six.
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass) — THE SENSOR

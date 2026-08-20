@@ -25,12 +25,17 @@ struct ChatStorePersistenceTests {
         /// #203 (1A): when non-empty, these are emitted in order instead of
         /// the single `.finished` — so a test can drive real stream EVENTS.
         var script: [StreamingUpdate] = []
+        /// #173-C: attachment counts as they reached the transport, in send
+        /// order. Counts rather than the values, because the bar is "the
+        /// attachments still go", not what they contain.
+        private(set) var sentAttachmentCounts: [Int] = []
 
         func connect() async {}
         func disconnect() async {}
 
         func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
-            Message(sender: .hermes, content: "ok", status: .delivered)
+            sentAttachmentCounts.append(attachments.count)
+            return Message(sender: .hermes, content: "ok", status: .delivered)
         }
 
         func sendStreaming(
@@ -38,6 +43,7 @@ struct ChatStorePersistenceTests {
             attachments: [PendingAttachment],
             clientMessageID: UUID
         ) -> AsyncStream<StreamingUpdate> {
+            sentAttachmentCounts.append(attachments.count)
             onSendStreaming?()
             let script = self.script
             if !script.isEmpty {
@@ -1525,6 +1531,42 @@ struct ChatStorePersistenceTests {
         #expect(merged.remotePath == "O:/Hermes/notes.md")
         #expect(merged.remoteProfileID == local.remoteProfileID)
         #expect(merged.anchorOffset == 7)
+    }
+
+    // MARK: - #173-C: the never-claim floor must NEVER block a send
+
+    /// **173-C.** An image turn still reaches the transport WITH its
+    /// attachments, caption and all.
+    ///
+    /// #173's entry states "a caption, never a hard block" outright, and this
+    /// is the one property the other bars would miss: a floor implemented as a
+    /// guard on `canSend` satisfies 173-A, 173-B and 173-D perfectly while
+    /// silently breaking the feature it exists to annotate — which is the
+    /// original #173 bug (a user who cannot tell their photo was dropped)
+    /// re-created by its own fix.
+    ///
+    /// The count is asserted EQUAL to what was staged, never merely non-zero:
+    /// dropping one of two images passes a non-zero check.
+    @Test @MainActor
+    func imageTurnStillSendsEveryAttachmentWhileTheVisionCaptionShows() async throws {
+        let client = ImmediateReplyClient()
+        let store = ChatStore(hermesClient: client, persistence: makePersistence())
+
+        let staged = [
+            PendingAttachment(kind: .image, fileName: "a.jpg", mimeType: "image/jpeg",
+                              data: Data([0x01]), localStoragePath: nil, thumbnailData: nil),
+            PendingAttachment(kind: .image, fileName: "b.jpg", mimeType: "image/jpeg",
+                              data: Data([0x02]), localStoragePath: nil, thumbnailData: nil),
+        ]
+        // Precondition: this staging is exactly what raises the caption, so
+        // the test is measuring the captioned case and not a quiet one.
+        #expect(AttachmentCapabilityCopy.carriesImage(staged, isImage: { $0.kind == .image }))
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) != nil)
+
+        _ = await store.sendMessage("look at these", attachments: staged)
+
+        #expect(client.sentAttachmentCounts.count == 1)
+        #expect(client.sentAttachmentCounts.first == staged.count)
     }
 
     // MARK: - #293(d): the same-index insurance clause must not re-hand a claim
