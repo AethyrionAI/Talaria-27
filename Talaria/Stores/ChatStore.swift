@@ -4330,7 +4330,32 @@ final class ChatStore {
                 ?? unclaimed.firstIndex(where: {
                     $0.fileName == remote.fileName && $0.mimeType == remote.mimeType
                 })
-            let match = claimed.map { unclaimed.remove(at: $0) } ?? localAttachments[safe: index]
+            // #293(d): the same-index insurance clause must DEQUEUE like every
+            // other arm, or it re-hands a local already claimed above and one
+            // bubble's `localStoragePath` lands on another — #185's harm
+            // reappearing through the clause #185's fix deliberately kept.
+            //
+            // ⚠️ NOT `unclaimed[safe: index]`, which is the obvious one-liner
+            // and is WRONG: `unclaimed` shrinks as entries are claimed, so its
+            // indices stop corresponding to remote positions. Once remote[0]
+            // claims local[0] by id, `unclaimed[safe: 1]` is nil and remote[1]
+            // silently loses the local[1] it should have matched — trading
+            // this defect for a quieter one. The index must stay an index into
+            // the ORIGINAL array; what changes is that the candidate has to
+            // still be in the pool, and is removed from it when used.
+            //
+            // When the same-index candidate IS already claimed, the result is
+            // no local data rather than someone else's: losing a thumbnail
+            // beats attaching the wrong file to a message.
+            let match: MessageAttachment?
+            if let claimed {
+                match = unclaimed.remove(at: claimed)
+            } else if let candidate = localAttachments[safe: index],
+                      let pooled = unclaimed.firstIndex(where: { $0.id == candidate.id }) {
+                match = unclaimed.remove(at: pooled)
+            } else {
+                match = nil
+            }
             guard let match else { return remote }
             return MessageAttachment(
                 id: remote.id,

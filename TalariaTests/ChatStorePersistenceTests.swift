@@ -1527,6 +1527,79 @@ struct ChatStorePersistenceTests {
         #expect(merged.anchorOffset == 7)
     }
 
+    // MARK: - #293(d): the same-index insurance clause must not re-hand a claim
+
+    /// **#293(d)** — `mergeAttachments`' same-index fallback read the ORIGINAL
+    /// `localAttachments`, so an entry already dequeued by an id or
+    /// (fileName, mimeType) match could be handed AGAIN, positionally, to a
+    /// second remote row — copying one bubble's `localStoragePath` onto
+    /// another. **That is #185's harm reappearing through the insurance
+    /// clause #185's fix deliberately kept.**
+    ///
+    /// The auditor rated it ~85% real / ~15% reachable and it was never
+    /// verified beyond a code read; this test is the verification. Shape that
+    /// reaches it: remote[0] claims local[1] BY NAME, then remote[1] finds no
+    /// match and falls to same-index — index 1 — which is the entry already
+    /// claimed.
+    @Test @MainActor
+    func mergeAttachmentsNeverHandsTheSameLocalToTwoRemotes() throws {
+        let localA = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/alpha.pdf"
+        )
+        let localB = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/beta.pdf"
+        )
+        // remote[0] matches localB by (fileName, mimeType) — re-minted id, the
+        // relay/mock echo shape the entry names as the trigger.
+        let remote0 = MessageAttachment(id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf")
+        // remote[1] matches NOTHING, so it reaches the same-index clause at
+        // index 1 — localB, already claimed above.
+        let remote1 = MessageAttachment(id: UUID(), kind: "file", fileName: "gamma.pdf", mimeType: "application/pdf")
+
+        let merged = ChatStore.mergeAttachments([localA, localB], onto: [remote0, remote1])
+
+        #expect(merged.count == 2)
+        #expect(merged[0].localStoragePath == "/staged/beta.pdf")
+        // THE BAR: the second row must NOT inherit beta's path. Before the
+        // fix it did, and the user saw one bubble's file under another.
+        #expect(merged[1].localStoragePath != "/staged/beta.pdf")
+        // No local path at all is the correct outcome here, not alpha's:
+        // the insurance clause is SAME-INDEX, not "any leftover", and
+        // widening it to hand over alpha would be a different behaviour
+        // change than the one #293(d) describes. Losing a thumbnail beats
+        // attaching the wrong file to a bubble.
+        #expect(merged[1].localStoragePath == nil)
+        // Every path handed out is distinct — the invariant behind the bar.
+        let handed = merged.compactMap(\.localStoragePath)
+        #expect(Set(handed).count == handed.count)
+    }
+
+    /// The POSITIVE CONTROL. Without it, "never hand the same local twice"
+    /// is satisfied by handing out nothing at all — the same-index clause
+    /// must still work when its target is genuinely unclaimed.
+    @Test @MainActor
+    func mergeAttachmentsStillUsesTheSameIndexFallbackWhenItIsUnclaimed() throws {
+        let localA = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/alpha.pdf"
+        )
+        let localB = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/beta.pdf"
+        )
+        // remote[0] claims localA by id; remote[1] matches nothing and falls
+        // to same-index → localB, which is still unclaimed and MUST be used.
+        let remote0 = MessageAttachment(id: localA.id, kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf")
+        let remote1 = MessageAttachment(id: UUID(), kind: "file", fileName: "renamed.pdf", mimeType: "application/pdf")
+
+        let merged = ChatStore.mergeAttachments([localA, localB], onto: [remote0, remote1])
+
+        #expect(merged[0].localStoragePath == "/staged/alpha.pdf")
+        #expect(merged[1].localStoragePath == "/staged/beta.pdf")
+    }
+
     // MARK: - #203 (1A) the stall hint's WIRING
 
     /// The predicate is pinned in `DeviceToolBeltTests`; this pins the half

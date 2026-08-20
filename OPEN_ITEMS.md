@@ -10322,6 +10322,64 @@ broken `pattern:` argument. `fault` is not `default`, so **the noise-reduction
 filter was also hiding the highest-severity line in the log.** Read `all` at least
 once per device session.
 
+> **🔴 2026-08-20 — THE ENTRY POINTS AT THE WRONG PLACE, AND THE SCOPE IS
+> TWELVE SITES ACROSS THREE SERVICES. Diagnosed from the tree, not the log;
+> NO code changed yet — this needs Owen's routing, because it is not the
+> free-bucket one-liner the week plan booked.**
+>
+> **The resumption handling is CLEAN.** This entry says *"find the synchronous
+> site in the resumption handling and route it through `AudioSessionOffMain`."*
+> Both resumption paths were read at HEAD and both are already off-main:
+> `LiveVoiceSessionService.handleAudioInterruptionEnded` →
+> `configureAudioSession()`, which is `AudioSessionOffMain.run { … }` (`:746`);
+> and `NativeVoicePipelineService.handleInterruptionEnded` → `restartCapture()`
+> → the capture chain's own `start(muted:)`, which lives on **`private actor
+> NativeVoiceCaptureController`** (`:912`) and is therefore off the main actor
+> already. The notification observers themselves only log and dispatch.
+>
+> **Where the bypasses actually are** — every one `@MainActor`, none using the
+> helper:
+>
+> | service | sites | what they do |
+> |---|---|---|
+> | `SpeechOutputService` | `:248 :249 :264` | assistant TTS playback session |
+> | `VoiceMemoPlayer` | `:52 :53 :58 :74` | memo playback |
+> | `VoiceMemoRecorder` | `:63 :64 :69 :78 :129` | memo recording |
+>
+> `LiveSpeechService` is **also clean** — its calls sit on `actor
+> DictationController`, not on the `@MainActor` class that owns it. Two
+> classification traps worth writing down, because a naive grep gets both
+> wrong: **a `@MainActor` class can contain a nested `actor`** (LiveSpeech,
+> NativeVoicePipeline), and **a call inside `AudioSessionOffMain.run { … }` is
+> off-main even though the enclosing class is `@MainActor`** (four
+> `LiveVoiceSessionService` sites read as bypasses until the closure is
+> noticed). Classify by the ENCLOSING EXECUTION CONTEXT, not the file's type.
+>
+> **⚠️ AND THE FIX IS NOT MECHANICAL, which is why this stops here.**
+> `AudioSessionOffMain` is `async`, and the enclosing functions mostly are NOT
+> — `configurePlaybackAudioSession()`, `releaseAudioSessionIfIdle()`,
+> `togglePlayback(path:)`, `stop()`, `stopRecording()`, `discard()`,
+> `finishRecorder()` are all synchronous. That splits the work:
+>
+> - **DEACTIVATIONS (~6 sites) are safe to move** — nothing downstream awaits
+>   them, so `Task { try? await AudioSessionOffMain.setActive(false, …) }` is
+>   the shape already used at `LiveVoiceSessionService:353` and
+>   `NativeVoicePipelineService:399`.
+> - **ACTIVATIONS are NOT.** The session must be active BEFORE
+>   `recorder.record()` / playback starts, so a fire-and-forget `Task` would
+>   RACE the thing it is meant to prepare. Those need their callers to become
+>   `async`, which ripples into SwiftUI views and delegate callbacks.
+>
+> **Recommendation: do not ship a partial audio change without device time.**
+> These paths are already the fragile ones (#82's wedge, #128's double-install
+> crash, #138's barge-in), the sim cannot exercise real route changes, and
+> Saturday already carries #220/#198A voice re-checks that would cover a
+> change like this. Options for Owen: **(a)** deactivation half now, activation
+> half filed as its own item; **(b)** whole thing as one lane, built before
+> Saturday so the device day verifies it; **(c)** leave it — the fault is a
+> hang-RISK warning, and no hang has been reported.
+
+
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
