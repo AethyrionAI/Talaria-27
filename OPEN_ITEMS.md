@@ -4396,6 +4396,20 @@ argument for making the relay more robust.
 > 5 rides #375's remaining scope; paths 13–15 need only a lane; paths 11–12
 > are #383.
 
+> **⚠️ 2026-08-19 evening — THE TABLE WAS MISSING A PATH, found by executing
+> it.** `GET /v1/device/files` — #21 Tier 2's agent-file download, called from
+> `ProfileRelaySession.downloadAgentFile` — appears NOWHERE in the 16-path
+> table, as neither DELETE nor ADAPT. It was live app code speaking to the
+> relay, so it belonged there. **This matters beyond one row: #375's entry
+> called that code "dead" precisely because no disposition existed for it, and
+> the brief was accepted as written on the strength of "every path re-grepped
+> at HEAD".** One path escaped the grep.
+>
+> **Now dispositioned and DONE: DELETE**, on Owen's ruling the same evening
+> (the download was unneeded; the chips it fed are gone with it). Recorded
+> here rather than only in #375 so the table's own count is honest: **17
+> paths, not 16.**
+
 ## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
 
 `Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
@@ -12314,6 +12328,63 @@ scope: **wholesale, or a permanent dual path?**
 > direction, a real build with a host-side half, wanting its own number the
 > way voice got #383; **(c)** leave it and let the bubbles keep lying.
 > Recommended: **(a) now, (b) filed.** **AWAITING OWEN'S PICK.**
+
+> **✅ 2026-08-19 evening — THE DOWNLOAD HALF IS DELETED TOO, on Owen's
+> ruling. Option (a): "we never implemented the download thing… I called that
+> as unneeded."** `GATE: PASS` — Swift Testing **2343** / XCUITest 14 / Release clean. The count is fully accounted for: 2372 − 7 (the provisioning suite) − 22 (the Tier-2 tests) = 2343 exactly, which is what says the deletion landed rather than a stale `.xctest` re-running. Both halves of this
+> item's remaining scope are now done, and the entry's "dead code" description
+> is corrected above rather than quietly inherited.
+>
+> **The ruling in his words, and the record beside it.** Owen's memory was
+> that the download was never built. The tree says otherwise — PR #99,
+> 2026-07-16, plus a relay route built, deployed and smoke-tested. **Both are
+> true in the way that matters:** #21's header still read *"dual-host device
+> pass owed"*, that pass was never run, and its fixture (`probe-t21.pdf`) is
+> still sitting untouched in the Mac's MobileDL. The feature shipped into a
+> state where he would never have seen a "TAP TO DOWNLOAD" chip in normal use.
+> A capability nobody ever exercised and its owner does not want is a deletion,
+> not a migration.
+>
+> **DELETED, in one commit so nothing is left half-wired:** both mint paths
+> (`parseWrittenFile`'s content-less fallthrough, and the MobileDL
+> announcement scan with its three call sites across BOTH transports),
+> `MessageAttachment.fetchableAgentFile`, the fetchable chip and its
+> `TAP TO DOWNLOAD` subtitle, `ChatStore`'s downloader/fetch/state trio,
+> `AppContainer`'s downloader closure, `ProfileRelaySession.downloadAgentFile`,
+> and `RelayAPIClient.downloadFile` + `FileDownloadError`.
+>
+> **Tier 1 is untouched** — a write whose args carry the text still stages
+> locally, previews and shares. That is the path Owen actually uses and this
+> diff does not go near it.
+>
+> **An attachment with NO local bytes now renders NOTHING.** Minting is gone;
+> the rows it already wrote into persisted conversations are not. A chip that
+> can neither preview nor fetch is a promise rather than a file, so the guard
+> covers the legacy rows a deletion cannot reach — and their Codable contract
+> stays under test, because they still have to decode.
+>
+> **🔴 THE FULL GATE CAUGHT WHAT THE SCOPING MISSED, and it was one step from
+> a silent regression.** Two `RunsPlaneTransportTests` went red. The first was
+> the old behaviour written down. **The second was the finding: the prose-swept
+> pointer was not only a download promise — it was the anchor the artifact
+> mirror UPGRADES.** On the runs plane `tool.started` carries no `args`, so the
+> mirror is the only Tier-1 source, and the correlator's **pass 1** upgraded
+> that pointer in place. Deleting the pointer removes that anchor **on the
+> plane #368 made the default this morning.**
+>
+> So the question the deletion actually raised — *with no pointer, does a
+> mirrored file still get a chip?* — was put to the code rather than reasoned
+> about: **it does, via pass 2**, which matches the mirror item against the
+> turn's WRITE ACTIVITY. The test now pins that and the anchor offset it lands
+> on; the runs-plane suite passed **38/38**. Had pass 2 not existed, option (a)
+> would have silently removed the chips that DO work, and the targeted suites
+> that ran green before the gate would not have said a word.
+>
+> **Close-out (#317): three places whose text this falsifies are corrected in
+> the same commit** — #21's archived entry (append-only pointer block per #317
+> ruling (a): its Tier 2 half is gone and its owed dual-host device pass is
+> moot), #309's table (which never listed `device/files` at all), and
+> CLAUDE.md's agent-files paragraph.
 
 > **📬 2026-08-19 — PR OPENED for the provisioning half:
 > https://github.com/AethyrionAI/Talaria-27/pull/324 — NOT MERGED; merge is

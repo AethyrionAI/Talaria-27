@@ -31,6 +31,17 @@ plain re-points, and paths 11–12 are #383.
 
 ---
 
+> **⚠️ CORRECTION 2026-08-19 evening — this table is missing a path.**
+> `GET /v1/device/files` (#21 Tier 2's agent-file download, called from
+> `ProfileRelaySession.downloadAgentFile`) is not listed below in any
+> disposition. It was live app code calling the relay and it belonged here.
+> Found by executing the table, not by re-reading it. **Now DELETE, and
+> executed the same evening** (Owen ruled the download unneeded). Read the
+> count as **17 paths**, and read "every path re-grepped at HEAD" as the claim
+> that it is — one that missed one.
+
+---
+
 ## The table
 
 | # | path | call site (HEAD) | disposition | notes |
