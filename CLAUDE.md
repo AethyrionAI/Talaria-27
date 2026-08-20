@@ -628,22 +628,39 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     so **"the machine is working" and "I can start a process" are different
     facts** — if a gate run dies at app launch, check host load before
     suspecting the diff (#300's lane, 2026-08-10).
-  - **🔴 GRANT CALENDAR + REMINDERS TCC BEFORE EVERY GATE RUN — a fresh sim
-    HANGS the suite instead of failing it.**
-    ```bash
-    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
-    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
-    ```
+  - **🔴 A SIM WITH NO TCC RECORD HANGS THE SUITE INSTEAD OF FAILING IT — and
+    since 2026-08-19 THE GATE GRANTS IT ITSELF, so do not hand-grant before a
+    `lane-gate.sh` run.** ~~Grant calendar + reminders before every gate run.~~
+    The script boots the simulator it resolved and grants both services for the
+    bundle id it reads out of `project.yml`, printing a positive marker; it
+    FAILS the run rather than warning if it cannot.
     `BatteryReapEventKitProbeTests` calls `requestFullAccessToEvents()`. With a
     *denied* record it fails visibly, which is what its docstring promises — but
     on a **brand-new simulator there is no record at all**, so the call blocks
     forever: the suite stalls mid-run with no failure, no marker and no verdict.
-    Measured 2026-08-10 — ~20 minutes parked on one test, and the only tell was
-    a log that had stopped growing. That is the gate's founding sin ("absence of
-    a failure marker is not success") arriving as a hang rather than a pass.
-    **And the grant does not survive a rebuild/reinstall** (nor, per #254, a sim
-    reboot) — a run that passed does not mean the next one is set up. Re-grant
-    immediately before each run; it is idempotent and costs nothing.
+    Measured 2026-08-10 — ~20 minutes parked on one test — and again
+    **2026-08-19, for 47 minutes**, which is what moved it into the script: the
+    operator granted TCC to `CC-lane-1`'s UDID while passing
+    `TALARIA_SIM_NAME=CC-lane-2`. The instruction was followed in form and the
+    wrong device got the grants. **A step that pairs a NAME with a UDID by hand
+    is a step that can be done wrong silently**, so it no longer belongs to a
+    human. That is the gate's founding sin ("absence of a failure marker is not
+    success") arriving as a hang rather than a pass, twice.
+    **The grant still does not survive a rebuild/reinstall** (nor, per #254, a
+    sim reboot) — which is exactly why it now runs inside every gate invocation
+    rather than in someone's memory.
+    **Two probed facts behind the implementation, both load-bearing:**
+    `simctl privacy` errors on a **Shutdown** device (exit 149), so the script
+    boots first; and it accepts an **unknown bundle id and exits 0**, writing a
+    record nothing owns — so the id is read from `project.yml` rather than
+    hardcoded, because a grant whose failure mode is a green marker is worse
+    than no grant at all.
+    **Hand-granting is still correct for a bare `xcodebuild` run** (one that
+    does not go through `lane-gate.sh`) — there, the pairing is yours again:
+    ```bash
+    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
+    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
+    ```
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded

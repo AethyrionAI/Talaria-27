@@ -190,6 +190,56 @@ else
     echo; echo "GATE: FAIL (cannot run)"; exit 1
 fi
 
+# TCC, granted HERE and for the UDID resolved above.
+#
+# BatteryReapEventKitProbeTests calls requestFullAccessToEvents(). With a
+# DENIED record it fails visibly, which is what its docstring promises. On a
+# simulator with NO RECORD AT ALL the call blocks forever: the suite stalls
+# mid-run with no failure, no marker and no verdict, and the only tell is a log
+# that has stopped growing. That is this gate's founding sin — "absence of a
+# failure marker is not success" — arriving as a hang instead of a pass.
+#
+# It was documented as an operator step ("grant before every run") and that was
+# not enough, twice. On 2026-08-19 a run was started with TALARIA_SIM_NAME set
+# to one pool member while the grants had been issued against another's UDID:
+# the instruction was followed in form, the wrong device got the grants, and
+# 47 minutes went into a suite that had been parked since minute two. An
+# operator pairing a NAME with a UDID by hand is a step that can be done wrong
+# silently — so the script, which already resolved the UDID, now does it.
+#
+# Boot first: `simctl privacy` errors on a Shutdown device ("Unable to lookup
+# in current state"). And this FAILS THE GATE rather than warning, because a
+# gate that cannot arrange the conditions for its own suite must say so at
+# second three, not hang at minute two.
+#
+# The bundle id is READ FROM project.yml, not hardcoded here, and that is not
+# tidiness. Probed 2026-08-19: `simctl privacy grant` accepts an unknown bundle
+# id and exits 0 — it writes the record and never checks that anything owns it.
+# So a renamed or mistyped id would grant "successfully" against nothing and
+# the suite would hang exactly as before, with a PASS line above it saying the
+# opposite. A grant whose failure mode is a green marker is worse than no grant.
+TCC_BUNDLE_ID="$(sed -n 's/^ *PRODUCT_BUNDLE_IDENTIFIER: *\([A-Za-z0-9._-]*\) *$/\1/p' \
+    "$REPO_ROOT/project.yml" | head -1)"
+if [[ -z "$TCC_BUNDLE_ID" ]]; then
+    bad "could not read PRODUCT_BUNDLE_IDENTIFIER from project.yml — TCC would be granted to nothing"
+    echo; echo "GATE: FAIL (cannot run)"; exit 1
+fi
+if ! xcrun simctl bootstatus "$SIM_UDID" -b >/dev/null 2>&1; then
+    bad "could not boot simulator $SIM_UDID — TCC cannot be granted and the suite would hang"
+    echo; echo "GATE: FAIL (cannot run)"; exit 1
+fi
+TCC_FAILED=""
+for service in calendar reminders; do
+    xcrun simctl privacy "$SIM_UDID" grant "$service" "$TCC_BUNDLE_ID" >/dev/null 2>&1 \
+        || TCC_FAILED="$TCC_FAILED $service"
+done
+if [[ -z "$TCC_FAILED" ]]; then
+    ok "TCC granted on $SIM_NAME (calendar, reminders) — the EventKit probe cannot hang"
+else
+    bad "TCC grant FAILED for:$TCC_FAILED — the EventKit probe would hang, not fail"
+    echo; echo "GATE: FAIL (cannot run)"; exit 1
+fi
+
 # The failure-advice classifier's own self-test. About a second, and it is the
 # only thing standing between a reworded tracker header and advice that points
 # nowhere — the advice cites items by SEARCH STRING now, and a search string
