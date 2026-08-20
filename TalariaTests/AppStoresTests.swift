@@ -4786,6 +4786,7 @@ struct AppStoresTests {
     @MainActor
     private struct LaunchHarness {
         let container: AppContainer
+        let secureStore: MockSecureStore
         let bootstrapGate: BlackHoleGate
         let hostGate: BlackHoleGate
         let inboxGate: BlackHoleGate
@@ -4805,14 +4806,21 @@ struct AppStoresTests {
     private func makeLaunchHarness(
         suiteName: String,
         sessionUserMatchesPairedUser: Bool,
-        chatClient: (any HermesClientProtocol)? = nil
+        chatClient: (any HermesClientProtocol)? = nil,
+        seedAccessToken: Bool = true
     ) async -> LaunchHarness {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
 
         let secureStore = MockSecureStore()
-        await secureStore.store(key: "session.accessToken", value: "launch-access-token")
+        // #369: `seedAccessToken: false` is the defect's own shape — a pairing
+        // record present with an EMPTY access-token slot, which is what a
+        // pre-first-unlock Keychain read (or any other non-success OSStatus)
+        // is indistinguishable from upstream of `retrieve`.
+        if seedAccessToken {
+            await secureStore.store(key: "session.accessToken", value: "launch-access-token")
+        }
         await secureStore.store(key: "session.refreshToken", value: "launch-refresh-token")
 
         let pairedUserID = UUID()
@@ -4887,6 +4895,7 @@ struct AppStoresTests {
         )
         return LaunchHarness(
             container: container,
+            secureStore: secureStore,
             bootstrapGate: bootstrapGate,
             hostGate: hostGate,
             inboxGate: inboxGate,
@@ -5029,6 +5038,101 @@ struct AppStoresTests {
             .sessionBootstrap, .validateRestoredIdentity, .hostRefresh, .inboxLoad,
             .commandCatalogRefresh, .gatewayModelSeed,
         ])
+    }
+
+    // MARK: - #369: an unreadable credential is a HOLD, never an unpairing
+
+    /// **369-A.** The launch path used to answer a nil access token by calling
+    /// `clearLocalPairing()` — a destructive answer to a reading that cannot
+    /// distinguish "no item" from "Keychain locked" (`KeychainSecureStore`
+    /// collapses every non-`errSecSuccess` OSStatus into nil). Its own three
+    /// siblings — foreground activation, system launch, background refresh —
+    /// all log BLOCKED and return; only this one destroyed.
+    ///
+    /// Mutation that must turn this RED: restore `await
+    /// pairingStore.clearLocalPairing()` in `initialize()`'s token guard.
+    @Test @MainActor
+    func anUnreadableAccessTokenAtLaunchNeverDestroysThePairing() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "369-hold-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true,
+            seedAccessToken: false
+        )
+        let container = harness.container
+        #expect(container.pairingStore.isPaired, "fixture precondition: the install starts paired")
+
+        await container.initialize()
+
+        #expect(container.pairingStore.isPaired,
+                "an unreadable credential slot must never unpair a healthy install")
+        #expect(container.pairingStore.pairedRelayConfiguration != nil,
+                "the pairing RECORD itself must survive, not just the isPaired flag")
+    }
+
+    /// **369-B.** The obvious fix — stop clearing, return early — ships a worse
+    /// bug: `shouldShowLaunchSplash` is `isPaired && !isInitialized`, and
+    /// `initialize()` has exactly one caller, so a paired install would sit on
+    /// the full-screen splash for the process's whole life. The local critical
+    /// path is credential-free by design (#136), so it runs; only the
+    /// relay-backed half is deferred, and the hold is NAMED rather than silent.
+    @Test @MainActor
+    func anUnreadableAccessTokenHoldsTheRelayHalfWithoutStrandingTheSplash() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "369-splash-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true,
+            seedAccessToken: false
+        )
+        let container = harness.container
+
+        await container.initialize()
+
+        #expect(container.shouldShowLaunchSplash == false,
+                "the launch splash must drop — a held credential is not a reason to hide the app forever")
+        #expect(container.credentialsUnreadableHold,
+                "the hold must be named in state so it can be surfaced (#180) and retried")
+
+        // Bounded window rather than a bare read: `startBackgroundBootstrap`
+        // spawns a Task, so "it never started" is only honest if it survives
+        // the spawn. The counters increment BEFORE the black-hole gate, so a
+        // started bootstrap is visible here even with the gate closed.
+        let relayHalfRan = await pollUntil(timeout: .milliseconds(300)) {
+            harness.bootstrapService.registerCallCount > 0 || harness.bootstrapService.loadCallCount > 0
+        }
+        #expect(relayHalfRan == false,
+                "the relay-backed half must not run on a credential the app could not read")
+    }
+
+    /// **369-C.** A hold that is never retried is just a quieter stall. Once
+    /// the credential reads — the post-first-unlock case the existing
+    /// `protectedDataDidBecomeAvailable` / `didBecomeActive` hooks exist for —
+    /// the hold clears and the relay half runs, exactly once.
+    @Test @MainActor
+    func theCredentialHoldIsRetriedOnceTheTokenBecomesReadable() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "369-retry-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true,
+            seedAccessToken: false
+        )
+        let container = harness.container
+        await container.initialize()
+        #expect(container.credentialsUnreadableHold, "fixture precondition: the launch held")
+
+        // First unlock: the slot becomes readable.
+        await harness.secureStore.store(key: "session.accessToken", value: "post-unlock-access-token")
+        await container.retryCredentialHoldIfNeeded()
+
+        #expect(container.credentialsUnreadableHold == false,
+                "a readable credential must clear the hold")
+        let relayHalfRan = await pollUntil {
+            harness.bootstrapService.registerCallCount > 0 || harness.bootstrapService.loadCallCount > 0
+        }
+        #expect(relayHalfRan, "the deferred relay-backed half must actually run on retry")
+
+        // Single-flight: a second retry (both hooks fire on one unlock) must
+        // not start a second bootstrap.
+        await container.retryCredentialHoldIfNeeded()
+        let totalStarts = harness.bootstrapService.registerCallCount + harness.bootstrapService.loadCallCount
+        #expect(totalStarts == 1, "a second retry must not double-run the relay half")
     }
 
     @Test @MainActor
