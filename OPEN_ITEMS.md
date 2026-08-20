@@ -4437,6 +4437,87 @@ must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
 > only suppresses the symptom. Read this item as unblocking a live cost, not
 > only a future onboarding story.
 
+> **✅ 2026-08-20 AM — LANE OPENED, and the one scope question RULED (Owen):
+> the MIGRATION CLEARS existing profiles' relay URLs.** Asked because both
+> hosts' relays are retired, so OJAMD and Mac Mini each carry a URL pointing
+> at something dead — which is precisely what costs the #365 stall. The two
+> rejected options are recorded so a later lane does not reach for one as a
+> shortcut: *"you clear them by hand"* ships optionality that buys nothing
+> observable and leaves no bar that can fail; *"probe and clear only the dead
+> ones"* makes a **network-dependent migration**, where one transient failure
+> silently drops a URL the user wanted.
+>
+> **What clearing costs, stated rather than glossed:** the migration
+> overwrites both halves of the #41 dual store, so the old URL string is not
+> recoverable from persistence after it runs. It is logged at
+> `.notice`/`privacy: .public` before the write, and both hosts' relays are
+> retired anyway — but a `git revert` of this lane restores the TYPE, not the
+> strings. Say so at the PR rather than implying a rollback that does not
+> exist.
+
+> **📏 BARS 310-A…F PRE-REGISTERED 2026-08-20 AM, BEFORE ANY CODE OF THIS
+> LANE** — written into this entry per CLAUDE.md's *"Where the BARS live"*,
+> in a commit that lands before the first line of implementation. **A missed
+> bar is a falsification, not a redefinition.**
+>
+> **310-A — the type is optional, and blobs the SHIPPING build wrote still
+> decode.** Three literal-JSON fixtures through `BackendProfile.init(from:)`:
+> (i) `"relayBaseURL": "http://host:8000/v1"` → that exact string; (ii)
+> `"relayBaseURL": ""` → `nil`; (iii) key absent → `nil`.
+> *Evidence:* decode over **literal JSON strings, never a round-trip through
+> the new encoder** — a round-trip cannot produce the shape only the old
+> encoder wrote, so it would pass while the real blob broke. This is the
+> §1.5 persisted-state discipline; a miss here is a user-data regression.
+>
+> **310-B — the retirement migration runs EXACTLY ONCE, and a re-entered URL
+> survives it.** Phase 1: persistence holds profiles with non-nil relay URLs
+> and no migration marker → after `BackendProfilesStore` construction every
+> profile's `relayBaseURL` is `nil` and the marker is persisted. Phase 2: set
+> one profile's `relayBaseURL` to a NEW value, construct a FRESH store over
+> the same persistence → **the value survives**.
+> *Evidence:* a two-phase test on the in-memory persistence fake.
+> **This bar exists to kill one specific wrong implementation** — folding the
+> clear into `Self.normalized(_:)`, which is the obvious home and runs on
+> every load, so it would silently re-clear a URL the user had just typed.
+> Phase 2 is the whole bar; phase 1 alone passes under the bug.
+>
+> **310-C — a relay-less profile issues ZERO relay requests on activation.**
+> With the active profile's `relayBaseURL == nil` and the install paired,
+> `handleActiveProfileChanged(to:)` completes with **0** invocations of
+> `sessionStore.bootstrap()`, `hostStore.refresh()`, `inboxStore.loadInbox`,
+> `talkStore.refreshReadiness()` and the relay command-catalog fetch
+> (`AppContainer.swift:2237-2249` is the block; `:1845` is the catalog).
+> *Evidence:* counting spies asserted `== 0`. **RED FIRST against current
+> `main`**, where the count is ≥1 — if it does not go RED, the bar is
+> measuring the wrong thing and must be rewritten before the fix lands.
+>
+> **310-D — and therefore the switch never raises the launch splash.** Across
+> the whole of `handleActiveProfileChanged` for a relay-less profile,
+> `container.shouldShowLaunchSplash` is never `true`.
+> *Evidence:* **sampled across the handler's lifetime, not read once after it
+> returns** — a post-hoc read passes trivially, since the splash drops when
+> the bootstrap ends either way. `shouldShowLaunchSplash` is
+> `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`
+> (`AppContainer.swift:219-226`) and a profile-switch bootstrap has no
+> background task, which is exactly why it holds the splash today. **This is
+> #365's symptom reached through its cause**, not #365's own suppression fix.
+>
+> **310-E — relay-dependent surfaces degrade HONESTLY (#180), never
+> silently.** For a relay-less profile the three relay-fed stores
+> (`hostStore`, `inboxStore`, `talkStore`) report a state DISTINGUISHABLE
+> from "fetched successfully and found nothing", and no surface renders an
+> empty relay-fed section as though it were data; unknown values read `"—"`
+> per the real-data-only rule.
+> *Evidence:* assertions on store state, plus the view-model read for each
+> surface. **A hidden section and an empty section are different verdicts —
+> the bar is scored on which one shipped**, not on "it didn't crash".
+>
+> **310-F — a relay-BEARING profile is untouched.** Every existing relay-path
+> test passes unchanged with a non-nil URL, and `GATE: PASS` with the Swift
+> Testing count moved **only** by the tests this lane adds — **state the
+> arithmetic** (#375's shape: a count that moves by exactly the delta is what
+> distinguishes a real run from a stale `.xctest`).
+
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
 
 **Scope as inherited from the 1c/1b split:** a search affordance over the
@@ -12810,4 +12891,24 @@ realtime key on both hosts), #138 (realtime self-barge-in — a live voice
 defect this must not regress), #303 (the engine-pin race — its cold-launch
 arm reads a realtime *permission*, so it has an interest in whatever
 replaces `talk/readiness`).
+
+> **⏩ 2026-08-20 AM — PULLED FORWARD TO THIS WEEK (Owen), and the reason is a
+> scheduling collision rather than a re-prioritisation.** Saturday's device
+> day carries item 8, *"#220 / #198A engine-pinned voice re-checks (two real
+> calls, engine line quoted)"*. Those bars pin an ENGINE — and with both
+> relays retired the realtime engine cannot bootstrap at all, so any realtime
+> arm of them is **unrunnable as scheduled**. Owen was given three options
+> (flag it and rule later · re-scope Saturday to native/local only · build
+> #383 now) and elected to build.
+>
+> **What that means for the week:** this stops being "the #309 row that needs
+> a design" and becomes build work competing with #310 and the free bucket
+> for the same no-device mornings. It is a plugin-side build plus an app-side
+> client swap, and the plugin half still rides Owen's per-experiment
+> live-install go — **which has NOT been granted yet.** The design pass can
+> run today without it; nothing deploys until he grants it in his own words.
+>
+> **The bars are still deliberately unwritten** (see above). Pulling the item
+> forward changes its schedule, not the rule that a design pass precedes
+> them.
 
