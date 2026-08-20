@@ -12589,6 +12589,32 @@ scope: **wholesale, or a permanent dual path?**
 > moot), #309's table (which never listed `device/files` at all), and
 > CLAUDE.md's agent-files paragraph.
 
+> **📱 2026-08-19 20:16 — DEVICE-CONFIRMED ON BUILD 2865 (merged main
+> `6d3512b1`), Owen's smoke test. Both PRs merged; the OTA installed clean.**
+> Prompt: *"Write a file called smoke-test.md and include a haiku about video
+> games"* on the Mac host (GPT-5.6-LUNA). Result: a `WRITE_FILE` pill and a
+> chip reading **`smoke-test.md · MD · 90 bytes`** with its preview
+> affordance — a Tier 1 chip with real bytes, an hour after the deletion.
+>
+> **Why this is the evidence that mattered, and not just a green screen.**
+> The runs plane is the DEFAULT since #368 landed this morning, and on that
+> plane `tool.started` carries no `args` — so a chip with real bytes cannot
+> have been reconstructed from the stream. It came from the artifact mirror,
+> which is the one path the deletion made load-bearing when it removed the
+> pointer the correlator used to upgrade. **The gate raised that question at
+> 19:30 and the phone answered it at 20:16.**
+>
+> **Two honest limits on the reading:** the screenshot cannot distinguish
+> correlator pass 2 from any other mirror route, so "the mirror produced it"
+> is the claim, not "pass 2 produced it"; and the file landed at
+> `/Users/owenjones/smoke-test.md`, OUTSIDE MobileDL, which the deleted Tier 2
+> would have refused anyway — so this run exercises the surviving path, not
+> the deleted one. Nothing can exercise the deleted one now, by design.
+>
+> Incidental, worth recording because it is #349's fix in production: the
+> usage row on that tool turn reads `IN 46.6K · OUT 125 · ~$0.0095` with **no
+> CTX percentage** — absent on a tool turn, exactly as the fix specifies.
+
 > **📬 2026-08-19 — PR OPENED for the provisioning half:
 > https://github.com/AethyrionAI/Talaria-27/pull/324 — NOT MERGED; merge is
 > Owen's review.** ⚠️ **PR #324 is not tracker #324** (the beta5 SDK audit).
