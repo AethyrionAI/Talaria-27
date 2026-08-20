@@ -6238,6 +6238,53 @@ not because it is burning.**
 
 **Handoff:** `dispatch/MAC-T27-319-talaria-mac-401.md`.
 
+
+> **✅ 2026-08-20 — THE MAC-SIDE CHECK IS DONE. All three open questions
+> answered, and the cause is one hardcoded line that is bigger than this item
+> — filed as #384.**
+>
+> **Q1 — which build? THE iOS SIMULATOR.** No Mac-native Talaria exists:
+> `/Applications` and `~/Applications` carry no Talaria bundle, and `mdfind`
+> finds none, which eliminates the Catalyst and Designed-for-iPad candidates
+> the entry listed. A simulator process shares the HOST kernel, so its
+> `CFNetwork` user agent reports the Mac's `Darwin/25.5.0` — which is exactly
+> why this read as "a Mac-native build" and not as the sim. The one live
+> Talaria bundle on this Mac is in `CoreSimulator/Devices/…`.
+>
+> **Q2 — EMPTY, not wrong.** The sim install has **never paired**:
+> `hermes.pairedRelayConfiguration` is absent from its prefs entirely, and no
+> gateway key was ever entered. So the Bearer is empty, not stale. The two
+> causes the entry said a 401 cannot distinguish are distinguished here by
+> the absence of that key, not by the status code.
+>
+> **Q3 — why `/v1/models` specifically?** It is the launch-time catalog
+> fetch, and on a never-paired install it is essentially the ONLY OJAMD call
+> that build makes. The chat 200s in OJAMD's log come from other clients, as
+> this entry already established. The `~14 s` pairing is the client's own
+> retry.
+>
+> **Reproduced end-to-end from this Mac, not inferred:** `ojamd` resolves by
+> MagicDNS to `100.110.102.59` (CGNAT, so inside #166b's ATS exception),
+> `GET /health` → **200**, and `GET /v1/models` with a deliberately wrong
+> Bearer → **401**. That is the logged signature exactly.
+>
+> **THE CAUSE:** `UserSettings.defaultHermesAPIBaseURL = "http://ojamd:8642"`
+> (`UserSettings.swift:333`) — hardcoded and **not** DEBUG-gated. Every fresh
+> install seeds a profile pointing at OJAMD, so every sim launch fetches the
+> catalog against a host it has no credential for. 85 × 401 across 08-11 →
+> 08-15 is simply the gate-run count for that window.
+>
+> **Impact confirmed LOW for this item, and the entry's own assessment
+> stands** — it is test-infrastructure noise against a host that rejects it
+> cleanly. **But the line that causes it is not low-impact**, because it also
+> ships in Release: see **#384**.
+>
+> **One small product observation, recorded not built:** the app fetches the
+> model catalog for a profile it holds no credential for. Declining to make a
+> call it cannot authenticate is the same capability-gating shape #310 just
+> established for the relay plane. Not filed as its own item — it would be a
+> line inside #384's fix.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
@@ -12888,6 +12935,60 @@ scope: **wholesale, or a permanent dual path?**
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
 > later if ever wanted. Buildable when routed; not scheduled this week.
 
+## 384. 🚨 EVERY fresh install seeds a profile pointing at OJAMD — `defaultHermesAPIBaseURL` is Owen's personal production host, hardcoded and NOT debug-gated — **FILED 2026-08-20 per #268, found while answering #348's Mac-side question. The line is the CAUSE of #348's 85 × 401. NOT STARTED; bars pre-register here before any code.**
+
+`UserSettings.swift:333`:
+
+```swift
+static let defaultHermesAPIBaseURL = "http://ojamd:8642"
+static let defaultModelsShimBaseURL = "http://ojamd:8765"
+```
+
+Neither is `#if DEBUG`. Both flow into `BackendProfilesStore`'s M-2 migration
+seeds, so **the first launch of any install — including a Release build on a
+stranger's phone — mints a profile named for and pointed at Owen's Windows
+box.**
+
+**Why this is filed as its own item rather than inside #348.** #348's impact
+is genuinely low: sim noise against a host that rejects it cleanly. This is
+the same line seen from the shipping side, and there it is a launch blocker:
+
+1. **It contradicts the zero-setup story outright.** #251/#269's goal is
+   "install Hermes, paste one key", and #310 (this week) made a gateway-only
+   profile expressible for the first time. A new user instead gets a profile
+   named **OJAMD** aimed at a host they cannot resolve — the opposite of the
+   product's own onboarding narrative.
+2. **`ojamd` does not resolve off this tailnet**, so a new user's first launch
+   fetches a catalog that cannot answer. Failure mode is a hang or an error on
+   a screen that should be inviting.
+3. **It is a personal hostname in a shipping binary.** Not a secret — no key
+   ships — but it names the owner's private infrastructure in every copy.
+4. **The shim URL is worse than wrong, it is RETIRED** (#223 Lane 5; the shim
+   is stopped and disabled on both hosts). The default points at a service
+   that no longer exists anywhere.
+
+> **⚠️ THIS WAS KNOWN AND ITS CHARACTER HAS INVERTED — the archived entry is
+> now falsified.** An archived item flagged this before TestFlight: *"The
+> in-code default is the **stale** `http://ojamd:8642` (the old Windows box,
+> **which did not respond**)"*, with *"Decision needed before TestFlight"*.
+> That decision was never made, and **the premise it rested on is now false**:
+> OJAMD is the live production host. A default that was stale-and-silent is
+> now live-and-personal, which is a different problem with a different
+> urgency. Per #261's archive carve-out an append-only pointer goes beneath
+> that entry rather than editing it.
+
+**Scope when routed (not chosen here):** the honest end state is almost
+certainly **no default host at all** — an unconfigured install has no profile,
+or a profile with an empty gateway URL, which #310 has just made expressible.
+Options include shipping empty, `#if DEBUG`-gating the current values so dev
+builds keep their convenience, or an onboarding-supplied value. **Owen
+routes**, and the choice interacts with #269's installer story.
+
+**Cross-refs:** #348 (the 401s this causes), #310 (made the empty-profile end
+state expressible), #251/#269 (the zero-setup goal this contradicts), #223
+Lane 5 (why the shim default is retired, not merely wrong), #166b (ATS — the
+CGNAT exception is why this reaches OJAMD at all from the tailnet).
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
@@ -13002,6 +13103,47 @@ a home. The restore recipes in #375's evidence block are two commands each
 and exist for exactly that bounded purpose.
 
 **Bars — pre-register in this entry BEFORE any code** (#215 convention).
+
+> **✅ 2026-08-20 — DESIGN PASS DONE:
+> `planning/2026-08-20-383-voice-plugin-design.md`. Still no bars, and no
+> deploy — the plugin half's live-install go has NOT been requested.**
+>
+> **The finding that makes this smaller than it looked: it is VERBS, not
+> routes.** `TalariaPlatformLink` speaks ONE endpoint with the verb in the
+> body (`:31`), and host-side `envelope.py:113-119` dispatches from a plain
+> dict of five. The plugin half is **four new entries in that dict** — no new
+> route, no new auth surface, no gateway change, and nothing `hermes update`
+> can overwrite (the plugin lives outside `hermes-agent`).
+>
+> **Feasibility CONFIRMED rather than assumed:** `OPENAI_API_KEY` is present
+> in `~/.hermes/.env`, and the plugin runs in the gateway process — so a
+> handler can mint the ephemeral `clientSecret` with a key that never leaves
+> the host. That is precisely the property route (b) was rejected to protect.
+>
+> **What gets SIMPLER, and it is the strongest argument for (a) beyond
+> security:** voice today authenticates with **relay access tokens** — a
+> second credential family with the #15/#94 refresh ladder behind it. On the
+> plugin it uses the **device token** the app already holds and already
+> re-pairs on 401. **Voice stops being a second auth plane.**
+>
+> **🔴 THE ONE GENUINELY NEW RISK, where bars should be hardest:** the link is
+> epoch-superseded (#285) — `stop()` abandons in-flight work at its next
+> checkpoint. A voice bootstrap abandoned mid-flight leaves a **minted
+> host-side session with no client**: #288's orphan-row shape, but holding a
+> PROVIDER session that costs money until it expires. Voice verbs must either
+> be exempt from supersession or carry a compensating end.
+>
+> **Two questions for Owen in the doc's §8**, both recommendations rather
+> than open choices: (1) compensate rather than exempt, because a leaked
+> provider session costs money and the cleanup's failure mode is bounded by
+> the session's own expiry; (2) **`talk_turn_append` may not deserve porting
+> at all** — #1's `postVoiceTranscriptsToHermes` already posts voice
+> transcripts as normal Sessions-API text turns, so this may be a second path
+> to the same end. Investigate before porting; if it duplicates #1, accept
+> the loss the way #309 path 16 did.
+>
+> Sequencing is plugin-half → app-half → delete the relay rows, each
+> independently revertable, with step 1 deploying nothing user-visible.
 None are written yet, deliberately: the plugin-side shape is undesigned, and
 writing bars against a guess is how a lane gets bars it can pass without
 proving anything. First move is a design pass, not a build.
