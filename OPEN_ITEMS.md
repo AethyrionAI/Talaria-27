@@ -2823,6 +2823,69 @@ Logged 2026-07-23.
 > carries **#380's one-line Settings copy** (describing the query-time
 > sensor model) — same honest-copy shape, same surface family.
 
+> **✅ 2026-08-20 — TWO SCOPE FINDINGS PUT TO OWEN BEFORE ANY BAR, AND BOTH
+> RULED.** #173's own text says a bar written before the approach is chosen
+> pre-empts the choice; these two were read out of the code, not the entry,
+> and each changes what the floor says.
+>
+> **Finding 1 — the caption is PERMANENT, not occasional.** No vision signal
+> reaches the app at all: `git grep supports_vision` over `Talaria/` is empty,
+> the model catalog carries no capabilities map, and route (b) — the only
+> thing that would supply one — is parked as a watch with no trigger. So
+> *"cannot confirm the active model supports images"* is **always true on the
+> Hermes path**, and the floor fires on 100% of attachment turns until (b)
+> ships. **RULED (Owen): ship it always-on anyway.** It is literally true, and
+> #180's rule is that an honest unknown beats false confidence; the noise cost
+> is accepted.
+>
+> **Finding 2 — the ON-DEVICE path is not "unknown", it is KNOWN-BLIND.**
+> `LocalChatBackend+Battery.swift:2165-2174` records it: image capability
+> exists only through `readImageText` / `BarcodeReaderTool`, the beta SDK's
+> `Transcript.ImageAttachment` / `ImageReference` are shipped but **unused by
+> us**, and a toolless route on a photo turn is a BLIND turn —
+> device-confirmed 2026-08-02 (*"I can't see the image itself, but the text in
+> it…"*). **RULED (Owen): different, STRONGER wording on-device.** Saying "not
+> known to support images" where we are certain would be the same #180 sin
+> inverted — encoding a known-false as an unknown.
+
+> **📏 BARS 173-A…E PRE-REGISTERED 2026-08-20, BEFORE ANY CODE OF THIS LANE**,
+> per CLAUDE.md's *"Where the BARS live"*. **A missed bar is a falsification,
+> not a redefinition.**
+>
+> **173-A — an attachment turn on the HERMES path carries the unknown-capability
+> wording.** Sending ≥1 image attachment while routed to a Hermes host
+> produces user-visible copy stating the host is **not known** to support
+> images. *Evidence:* a unit assertion on the surface that renders it.
+> **It is a CAPTION, never a block** — the send must still complete and the
+> attachment must still go on the wire, which 173-C pins separately.
+>
+> **173-B — an attachment turn on the ON-DEVICE path says something
+> STRONGER, and the two strings are DIFFERENT.** The on-device copy states
+> the model cannot see images (definite), not that support is unknown.
+> *Evidence:* both strings asserted, plus `#expect(hermesCopy != localCopy)` —
+> **the inequality is the bar**. A single shared string satisfies 173-A and
+> 173-B's prose while failing the ruling, and that is exactly the shortcut a
+> later lane would take.
+>
+> **173-C — the floor NEVER blocks a send.** With the caption showing, an
+> attachment turn still reaches the transport with its attachments intact.
+> *Evidence:* a send-path test counting attachments on the outgoing request —
+> **must be unchanged from the pre-floor count**, not merely non-zero.
+> This bar exists because "never a hard block" is the one thing the entry
+> states outright, and a caption implemented as a guard would pass A and B.
+>
+> **173-D — a text-only turn carries NO caption.** No image attached, no
+> wording, on either path. *Evidence:* the negative control. Without it,
+> A and B are satisfied by showing the caption unconditionally.
+>
+> **173-E — #380's rider: ONE line of Settings copy describes the query-time
+> sensor model.** Present in the Settings surface, and it must describe
+> per-read prompting rather than any launch-time or streaming model — the
+> world #352 deleted. *Evidence:* the string is asserted to exist and to not
+> contain the retired vocabulary ("upload", "streaming", "background") that
+> would describe the dead pipeline.
+
+
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
 > **2026-08-10:** Owen reports the Control Center controls now WORK (#58's note). This item's cold-first-tap discriminator is the ONLY thing left open here — one 30-second check next sitting (force-quit, tap the same control twice; if only the first is swallowed, the shape is established; if neither, close with #58).
@@ -10370,7 +10433,25 @@ once per device session.
 >   RACE the thing it is meant to prepare. Those need their callers to become
 >   `async`, which ripples into SwiftUI views and delegate callbacks.
 >
-> **Recommendation: do not ship a partial audio change without device time.**
+> **✅ ROUTED 2026-08-20 (Owen): SUNDAY 08-23, AS A FABLE LANE.** His words:
+> *"that seems like an intense refactor."* Which it is — twelve sites, and the
+> activation half cannot move without making synchronous callers `async`, so
+> it ripples into SwiftUI views and delegate callbacks. That is escalation-tier
+> work, not free-bucket work, and booking it as one lane avoids shipping the
+> safe half alone and leaving the entry half-corrected.
+>
+> **Why Sunday specifically works for this item:** Saturday is the device day
+> and already carries #220/#198A's engine-pinned voice re-checks. A Sunday
+> build lands with the device evidence fresh, and the paths this touches (TTS
+> output, memo record/playback) are exactly the ones a sim cannot verify. The
+> lane should read the two classification traps below BEFORE grepping —
+> both produce false bypasses.
+>
+> **REMOVED from Thursday's free bucket** in the same decision; the week plan
+> is corrected to match.
+
+> **Recommendation carried into that lane: do not ship a partial audio change
+> without device time.**
 > These paths are already the fragile ones (#82's wedge, #128's double-install
 > crash, #138's barge-in), the sim cannot exercise real route changes, and
 > Saturday already carries #220/#198A voice re-checks that would cover a
