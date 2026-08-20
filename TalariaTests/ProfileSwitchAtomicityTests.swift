@@ -274,8 +274,15 @@ struct ProfileSwitchAtomicityTests {
     ) throws -> (store: BackendProfilesStore, profileB: BackendProfile, profileC: BackendProfile, defaults: UserDefaults) {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        // #310: these tests are about SWITCH ATOMICITY between relay-bearing
+        // profiles, so the relay-retirement migration is stamped as already
+        // run and the M-2 seed keeps its relay URL. Without this, profile A
+        // comes out relay-less and the switch handler's relay block is
+        // skipped — which would silently change what these tests observe.
+        persistence.saveRelayRetirementMigrationStamp()
         let store = BackendProfilesStore(
-            persistence: UserDefaultsAppPersistenceStore(defaults: defaults),
+            persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: Self.gatewayA,
                 relayBaseURL: "http://a.local:8000/v1",
@@ -319,8 +326,15 @@ struct ProfileSwitchAtomicityTests {
         let suiteName = "profile-atomicity-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
+        let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        // #310: these tests are about SWITCH ATOMICITY between relay-bearing
+        // profiles, so the relay-retirement migration is stamped as already
+        // run and the M-2 seed keeps its relay URL. Without this, profile A
+        // comes out relay-less and the switch handler's relay block is
+        // skipped — which would silently change what these tests observe.
+        persistence.saveRelayRetirementMigrationStamp()
         let store = BackendProfilesStore(
-            persistence: UserDefaultsAppPersistenceStore(defaults: defaults),
+            persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: Self.gatewayA,
                 relayBaseURL: "http://a.local:8000/v1",
@@ -837,6 +851,10 @@ struct ProfileSwitchAtomicityTests {
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         defaults.removePersistentDomain(forName: suiteName)
         let persistence = UserDefaultsAppPersistenceStore(defaults: defaults)
+        // #310: as above — the chain harness switches between relay-BEARING
+        // profiles, so the retirement is pre-stamped and the seed keeps its
+        // relay URL.
+        persistence.saveRelayRetirementMigrationStamp()
 
         let profiles = BackendProfilesStore(
             persistence: persistence,
@@ -874,7 +892,10 @@ struct ProfileSwitchAtomicityTests {
         for (profile, label) in [(profileA, "A"), (profileB, "B"), (profileC, "C")] {
             persistence.savePairedRelayConfiguration(
                 PairedRelayConfiguration(
-                    baseURLString: profile.relayBaseURL,
+                    // #310: these three fixtures are all relay-BEARING by
+                    // construction, so the fallback is unreachable — it is
+                    // here only because the type is now optional.
+                    baseURLString: profile.relayBaseURL ?? "",
                     hostDisplayName: "host-\(label)",
                     pairedAt: .now,
                     relayUserID: UUID()

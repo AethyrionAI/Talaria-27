@@ -10,6 +10,12 @@ final class InboxStore {
     private let inboxService: any InboxServiceProtocol
     private let persistence: any AppPersistenceStoreProtocol
     private let sessionStore: AppSessionStore
+    /// #310: does the ACTIVE profile have a relay plane at all? Gated in the
+    /// store for the same reason `HermesHostStore`'s is — `InboxScreen` and
+    /// `BriefingDetailScreen` each call `loadInbox(force: true)` from their
+    /// own `.task`, so a gate at the profile-switch site alone would be
+    /// bypassed by simply opening the tab. Defaults to "yes".
+    private let relayAvailabilityProvider: @MainActor () -> Bool
     private var localState: InboxLocalState {
         didSet { persistence.saveInboxState(localState) }
     }
@@ -17,11 +23,13 @@ final class InboxStore {
     init(
         inboxService: any InboxServiceProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        sessionStore: AppSessionStore
+        sessionStore: AppSessionStore,
+        relayAvailabilityProvider: @escaping @MainActor () -> Bool = { true }
     ) {
         self.inboxService = inboxService
         self.persistence = persistence
         self.sessionStore = sessionStore
+        self.relayAvailabilityProvider = relayAvailabilityProvider
         self.localState = persistence.loadInboxState()
 
         // #352: drop any persisted #113 connector-outage alert — its producer
@@ -44,8 +52,30 @@ final class InboxStore {
         items.filter { !$0.isRead }.count
     }
 
+    /// #310: the honest empty state for a gateway-only profile.
+    static let relayUnavailableMessage =
+        "This profile has no relay URL, so there's no inbox to load from it."
+
     func loadInbox(force: Bool = false) async {
         if isLoading || (!force && !items.isEmpty) { return }
+        guard relayAvailabilityProvider() else {
+            // #113's locally-raised alerts are REAL data about this device
+            // and must survive — only the relay-fetched half is unavailable.
+            // Dropping them here would be the #45 inversion in reverse:
+            // discarding real data because a remote source is absent.
+            //
+            // Assigned only when it actually CHANGES, for the same reason
+            // `HermesHostStore.refresh()`'s hook now fires only on a
+            // transition: `items` is `@Observable`, and `applyLocalState`
+            // builds a fresh array every call, so an unconditional assignment
+            // invalidates every observing view on each visit even when
+            // nothing differs. Lower-stakes than the host hook (this is not
+            // polled on a cadence), but the same mistake.
+            let resolved = applyLocalState(to: localState.localItems)
+            if items != resolved { items = resolved }
+            lastErrorMessage = Self.relayUnavailableMessage
+            return
+        }
 
         isLoading = true
         lastErrorMessage = nil

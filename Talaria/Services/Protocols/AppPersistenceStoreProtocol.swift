@@ -65,6 +65,16 @@ protocol AppPersistenceStoreProtocol {
     func loadSensorStreamingMigrationStamp() -> Bool
     func saveSensorStreamingMigrationStamp()
 
+    /// #310: whether the relay-retirement migration has already cleared this
+    /// install's persisted relay URLs. Keychain-mirrored in the real store
+    /// for the same reason the stamp above is — and here the stakes are a
+    /// user edit, not a default: an unstamped re-run wipes a relay URL the
+    /// user typed back in. **A double that models an already-migrated
+    /// install must override both**; the default below reads as
+    /// never-migrated, which makes the migration fire on every construction.
+    func loadRelayRetirementMigrationStamp() -> Bool
+    func saveRelayRetirementMigrationStamp()
+
     /// DEBUG ONLY (#137, 2026-07-24). The stamp is deliberately MONOTONIC in
     /// shipping builds: clearing it on unpair would let a re-pair re-run the
     /// migration against an un-stamped, paired device and switch streaming and
@@ -87,6 +97,10 @@ extension AppPersistenceStoreProtocol {
     /// prior install's stamp overrides them too.
     func loadSensorStreamingMigrationStamp() -> Bool { false }
     func saveSensorStreamingMigrationStamp() {}
+    /// #310: same contract, same warning — a double that never migrates
+    /// anything reads as never-stamped.
+    func loadRelayRetirementMigrationStamp() -> Bool { false }
+    func saveRelayRetirementMigrationStamp() {}
     #if DEBUG
     func clearSensorStreamingMigrationStamp() {}
     #endif

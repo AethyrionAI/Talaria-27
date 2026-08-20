@@ -96,6 +96,15 @@ final class MessageIdentityUITests: XCTestCase {
         // Start a turn.
         composer.tap()
         composer.typeText("first")
+        // #195's guard, which this test never got and its sibling did: read
+        // what actually SETTLED in the field rather than assuming the typed
+        // string arrived intact. `typeText` can race the keyboard and mangle
+        // input ("first" landing as "firstst" is recorded in `sendMessage`
+        // below), and the synthetic backend echoes whatever it received —
+        // so an exact-match wait on "Acknowledged first" fails while the app
+        // is behaving perfectly. This test's charter is the queued-chip
+        // cancel arm, not keyboard fidelity.
+        let settledFirst = (composer.value as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "first"
         let send = app.buttons["Send message"]
         XCTAssertTrue(send.waitForExistence(timeout: 5))
         send.tap()
@@ -126,9 +135,24 @@ final class MessageIdentityUITests: XCTestCase {
 
         // …and nothing was posted: the running turn answers, the cancelled
         // text never does — no reply for it, no user bubble of it.
-        let firstReply = app.staticTexts["Acknowledged first"]
-        XCTAssertTrue(firstReply.waitForExistence(timeout: 40),
-                      "the original turn should still complete normally")
+        let firstReply = app.staticTexts["Acknowledged \(settledFirst)"]
+        if !firstReply.waitForExistence(timeout: 40) {
+            // Report WHAT WAS THERE instead of only that something wasn't.
+            // The 2026-08-20 investigation of this assertion cost four gate
+            // runs precisely because the failure said nothing about the
+            // transcript — #236's entry had to reconstruct it from an
+            // .xcresult AX snapshot that a plain log does not carry.
+            let transcript = app.staticTexts.allElementsBoundByIndex
+                .prefix(30)
+                .map(\.label)
+                .filter { !$0.isEmpty }
+            XCTFail("""
+                the original turn should still complete normally — waited 40s for \
+                "Acknowledged \(settledFirst)" (composer settled as "\(settledFirst)").
+                Visible static texts: \(transcript)
+                """)
+            return
+        }
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 2))
         XCTAssertFalse(app.staticTexts["Acknowledged q2"].exists,
                        "306-J: a cancelled held message must never post")

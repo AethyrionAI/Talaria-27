@@ -636,7 +636,10 @@ struct ProfileEditorDraft: Equatable {
     init(profile: BackendProfile) {
         name = profile.name
         gatewayBaseURL = profile.gatewayBaseURL
-        relayBaseURL = profile.relayBaseURL
+        // #310: the DRAFT stays a plain String — an empty text field is the
+        // editor's way of saying "no relay", and the conversion back to nil
+        // happens in `apply(to:)`.
+        relayBaseURL = profile.relayBaseURL ?? ""
         note = profile.note ?? ""
     }
 
@@ -663,11 +666,16 @@ struct ProfileEditorDraft: Equatable {
     /// Applies the draft onto an existing profile (identity + credential
     /// scope preserved) or mints a new one.
     func apply(to existing: BackendProfile?) -> BackendProfile {
-        var profile = existing ?? BackendProfile(name: "", gatewayBaseURL: "", relayBaseURL: "")
+        var profile = existing ?? BackendProfile(name: "", gatewayBaseURL: "")
         profile.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.gatewayBaseURL = gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         let relay = relayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        profile.relayBaseURL = RelayConfiguration.normalizeBaseURL(relay) ?? relay
+        // #310: an emptied field PERSISTS AS nil, not as "". `hasRelay`
+        // treats them alike, so this is not what makes the gate work — it is
+        // what keeps the stored blob honest, so a later reader (or a support
+        // question about a profile) sees "no relay" rather than a key holding
+        // an empty string.
+        profile.relayBaseURL = relay.isEmpty ? nil : (RelayConfiguration.normalizeBaseURL(relay) ?? relay)
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.note = trimmedNote.isEmpty ? nil : trimmedNote
         return profile
