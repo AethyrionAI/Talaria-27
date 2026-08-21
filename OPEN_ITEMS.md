@@ -1140,6 +1140,100 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
 > block, so the #44/#48 strip trap is handled and that half needs no further
 > thought.
 >
+> **🎯 BARS 72-A…D — pre-registered 2026-08-20, BEFORE the flag flip.**
+>
+> The entitlement is now proven present in the signed binary (see the commit
+> above), which is the precondition this entry set for touching
+> `pccGrantConfirmed` at all. The flip is the last step and it gets bars,
+> because the failure mode is an **uncatchable SIGTRAP** and a crash cannot be
+> caught by the thing it kills.
+>
+> - **72-A — the gate is a BUILD FACT, and the SIMULATOR is excluded
+>   explicitly.** `pccGrantConfirmed` must be `false` on simulator and `true`
+>   on device. **This is not belt-and-braces, it is the load-bearing bar.**
+>   Simulator builds strip entitlements (`CODE_SIGNING_ALLOWED=NO`, the same
+>   mechanism that strips HealthKit and silently kills keychain writes), and
+>   **the entire gate suite runs on the simulator** — so a hardcoded `true`
+>   would construct an unentitled model there and take the suite down with an
+>   uncatchable trap, no failure marker, no verdict. That is the gate's
+>   founding sin (absence of a failure marker is not success) arriving as a
+>   crash. The bar converts it into a RED TEST.
+> - **72-B — every PCC surface stays dark on simulator, and the test PASSING
+>   is itself the evidence.** `isPrivateCloudAvailable`, `isPrivateCloudUsable`
+>   and `privateCloudStatus()` return `false`/`false`/`nil` under the gate.
+>   **The proof is structural rather than assertional: if any of those reached
+>   a construction, the process would trap and the test could not report
+>   anything at all.** A green result therefore proves non-construction in a
+>   way an `#expect` cannot.
+> - **72-C — a device build without the entitlement CANNOT be produced.**
+>   Not a unit bar — a property of the build system, and it was demonstrated
+>   involuntarily on 2026-08-20: with no account, signing failed at
+>   `GatherProvisioningInputs` rather than producing an unentitled binary.
+>   Recorded because it is what justifies `true` on device without a runtime
+>   entitlement read (`SecTask.h` is absent from the public iOS SDK — verified
+>   against beta5 — so the only runtime check would be private API, an App
+>   Review risk taken to guard a condition the build already guarantees).
+> - **72-D — DEVICE: does an ENTITLED build still trap?** The 2026-07-13
+>   SIGTRAP was measured on a much earlier beta with no entitlement. The
+>   entitlement was always the leading explanation, but *"the trap is gone"*
+>   is an assumption until a device says so. **This is the first question of
+>   the device pass and it must be asked on a build Owen can afford to lose.**
+>   Pass = the app launches, the picker offers Private Cloud β, and reading
+>   `availability`/`quotaUsage` does not kill the process.
+>
+> **Pre-registered response.** 72-A/B green ⇒ the flip is safe to ship and the
+> simulator can never construct. 72-D is the one that can still surprise, and
+> a crash there is a FINDING, not a failure of this lane — it would mean the
+> trap has a second cause nobody has named, and `pccGrantConfirmed` goes back
+> to `false` the same hour.
+>
+> **✅ RESULT 2026-08-20 — 72-A/B MET, mutation-proven. AND THE MUTATION
+> OVERTURNED THIS ENTRY'S CENTRAL ASSUMPTION.**
+>
+> `pccGrantConfirmed` is now a build fact: `false` on simulator, `true` on
+> device. Three bars in `TalariaTests/PrivateCloudGateTests.swift`, green;
+> removing the simulator exclusion turns **all three** red.
+>
+> **🔴 THE SIGTRAP DID NOT REPRODUCE.** This entry has said since 2026-07-13
+> that constructing `PrivateCloudComputeLanguageModel` without the entitlement
+> traps uncatchably, and every design decision here — the flag's existence,
+> the "flip it LAST" ordering, the warning to test on a build Owen can afford
+> to lose — descends from it. Measured directly on 2026-08-20 by removing the
+> exclusion and running the bars on a **verified unentitled binary**
+> (`codesign -d --entitlements` on the installed sim app returns an EMPTY
+> dict): the sim **constructed the model and read `quotaUsage` without
+> trapping.** The tests failed with ordinary assertion failures and the
+> process survived. **On beta5's simulator, the crash is gone.**
+>
+> **🔴 AND WHAT THE SAME RUN FOUND INSTEAD IS WORSE.** With no entitlement:
+> `.isAvailable` returned **`true`**, `quotaUsage` returned a usable status,
+> and `availableModels()` offered **`private-cloud-beta`**. The SDK does not
+> merely lack a way to SAY "not entitled" — it affirmatively reports
+> **available**.
+>
+> **This falsifies step 3 of this entry's own unblock plan**, written the same
+> day: *"replace the flag with a real availability signal."* Had that been
+> done, the picker would offer Private Cloud β on a binary with no right to
+> the service, and turns would route to it. The two-fact gate was adopted from
+> a CODE READ of `UnavailableReason`'s two cases; this run upgrades that
+> reasoning to a MEASUREMENT, and the measurement is stronger than the
+> reasoning was — "cannot express not-entitled" is a gap, "says available when
+> not entitled" is a wrong answer.
+>
+> **What this does NOT establish, stated so nobody borrows it:** the sim is
+> not the device. A device build is entitled by construction (signing fails
+> otherwise), so the unentitled-device case is unreachable and untested here —
+> and whether an ENTITLED device build constructs cleanly is still **72-D**,
+> still unanswered, and still the first question of the device pass. What the
+> sim result DOES buy is that the risk of the next device build is materially
+> lower than this entry has been assuming since July.
+>
+> **Correction discipline:** the doc comment on `pccGrantConfirmed` used to
+> give the crash as the reason for the simulator exclusion. It now gives the
+> measured reason, and says in so many words not to repeat "it crashes" as
+> though it were current. A rationale that outlives its evidence is how #180's
+> shape gets into code comments.
+>
 > **Why this matters beyond one more tier.** The launch posture (#251/#269) is
 > that the on-device brain is the permanent free floor and Hermes is the
 > optional upgrade — so the user who matters most is the one with no host at

@@ -353,6 +353,7 @@
 		99B785B1AEA945756573C0E3 /* AttachmentCapabilityCopy.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3B0E16D411F74036E0FB9DE /* AttachmentCapabilityCopy.swift */; };
 		9A11D07F54BD6937C3109961 /* MockSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5589A3109A1F1544E674F6 /* MockSyncCoordinator.swift */; };
 		9A9158E7F28613FD647CB469 /* InstallationIdentityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31368FFAF120A3F1A9FA2510 /* InstallationIdentityTests.swift */; };
+		9B4CAE7A630BBEB9F1DB5230 /* PrivateCloudGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11026517417AA718E065B0C6 /* PrivateCloudGateTests.swift */; };
 		9B5AE2A8D1A093106533F2C2 /* HermesClientProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 158695134A208F419A6A9E49 /* HermesClientProtocol.swift */; };
 		9B6730A87263CACA6CBE568F /* MarkdownBlockQuoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69438F0D38B60455035902BC /* MarkdownBlockQuoteTests.swift */; };
 		9BCE98D87695BBFA82A6BB29 /* HostFedListPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */; };
@@ -667,6 +668,7 @@
 		0FAF22435856B1441762344F /* InsightsScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsScreen.swift; sourceTree = "<group>"; };
 		0FE343EDAB6F66DD9764DC7A /* WeatherTomorrowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherTomorrowTests.swift; sourceTree = "<group>"; };
 		103907FEC8F3C3BF7577104D /* InstrumentRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstrumentRegistry.swift; sourceTree = "<group>"; };
+		11026517417AA718E065B0C6 /* PrivateCloudGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivateCloudGateTests.swift; sourceTree = "<group>"; };
 		11259DD0B188A3E7B7C1FFFB /* ActionClaimDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionClaimDetectorTests.swift; sourceTree = "<group>"; };
 		112DEA8A0B96068758BC3EC4 /* SettingsChannels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChannels.swift; sourceTree = "<group>"; };
 		11BCD7A66ACF8F173A741574 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
@@ -1424,6 +1426,7 @@
 				CEEFD2EBDFDDF14AEF7CE5B1 /* Phase0ActionCautionTests.swift */,
 				C24F92920F1F5B9D7941E6D6 /* PhoneQueryResponderTests.swift */,
 				A956D51200B309F6ADFD61F3 /* PreflightInstrumentTests.swift */,
+				11026517417AA718E065B0C6 /* PrivateCloudGateTests.swift */,
 				239665852938D1C25488A8E2 /* PrivateCloudRoutingTests.swift */,
 				0B4944F1499EF1EEF4FC8E93 /* ProfileSwitchAtomicityTests.swift */,
 				BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */,
@@ -2871,6 +2874,7 @@
 				4FA7FCCEC0D4C5751BF88585 /* Phase0ActionCautionTests.swift in Sources */,
 				25FA14BE9CCB64B9F56E8BA4 /* PhoneQueryResponderTests.swift in Sources */,
 				7FAA9188B56A1915D645DAAC /* PreflightInstrumentTests.swift in Sources */,
+				9B4CAE7A630BBEB9F1DB5230 /* PrivateCloudGateTests.swift in Sources */,
 				265A4787A9870DA7441BC100 /* PrivateCloudRoutingTests.swift in Sources */,
 				812F1205E4E375A65F1AADD3 /* ProfileSwitchAtomicityTests.swift in Sources */,
 				3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */,
