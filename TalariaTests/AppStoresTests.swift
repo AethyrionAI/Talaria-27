@@ -4512,6 +4512,30 @@ struct AppStoresTests {
         }
     }
 
+    /// #389: a health service that PARKS inside `reloadCapabilities()`.
+    ///
+    /// This is the seam that turns #389's race into a deterministic fact.
+    /// `PermissionsStore.reloadCapabilities()` awaits
+    /// `healthService.refreshAuthorizationStatus()`, and that call sits
+    /// BETWEEN the hoisted widget write (`AppContainer.swift:1633`) and
+    /// `await hostStore.refresh()`. Holding it open means the activation is
+    /// provably parked after the write and before the fetch — no timing luck
+    /// involved.
+    private final class GatedHealthService: HealthServiceProtocol {
+        let gate: BlackHoleGate
+        private(set) var refreshCallCount = 0
+        var authorizationStatus: PermissionStatus = .notDetermined
+
+        init(gate: BlackHoleGate) { self.gate = gate }
+
+        func requestAuthorization() async -> PermissionStatus { authorizationStatus }
+
+        func refreshAuthorizationStatus() async {
+            refreshCallCount += 1
+            try? await gate.wait()
+        }
+    }
+
     @MainActor
     private final class BlackHoleSessionBootstrapService: SessionBootstrapServiceProtocol {
         let gate: BlackHoleGate
@@ -4853,7 +4877,11 @@ struct AppStoresTests {
         /// counting provider invocations counts attempts — including the
         /// command-catalog fetch, which is otherwise unreachable from this
         /// harness (its guard is `probeAPIClient ?? apiClient`, both nil).
-        relayAPIClient: RelayAPIClient? = nil
+        relayAPIClient: RelayAPIClient? = nil,
+        /// #389: injected so a test can PARK the activation chain inside
+        /// `reloadCapabilities()` — between the hoisted widget write and the
+        /// host fetch. Defaulted, so every existing caller is unchanged.
+        healthService: (any HealthServiceProtocol)? = nil
     ) async -> LaunchHarness {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
@@ -4934,7 +4962,7 @@ struct AppStoresTests {
             ),
             permissionsStore: PermissionsStore(
                 locationService: MockLocationService(),
-                healthService: MockHealthService(),
+                healthService: healthService ?? MockHealthService(),
                     mediaService: MockMediaService()
             ),
             settingsStore: SettingsStore(persistence: persistence),
@@ -5581,10 +5609,84 @@ struct AppStoresTests {
 
         // Proves the chain really was blocked — otherwise this test would pass
         // for the wrong reason on a build where the fetch returned instantly.
-        #expect(harness.hostService.fetchCallCount > 0,
+        //
+        // #389: this POLLS rather than asserting at an instant, and the
+        // difference is the whole of that entry. The widget write is
+        // deliberately hoisted AHEAD of the network chain
+        // (`AppContainer.swift:1633`), and TWO awaits — `reconcilePendingRuns()`
+        // and `reloadCapabilities()` — sit between it and `hostStore.refresh()`.
+        // So observing the write says nothing yet about the fetch: this poller
+        // and the activation share the MainActor, and the poller can win.
+        //
+        // **Raising `pollUntil`'s timeout would NOT have been a fix** (389-A):
+        // it changes how often the race is lost, not whether it exists. And
+        // the guard keeps its meaning (389-B) — on a build where
+        // `hostStore.refresh()` returns without ever being reached, this still
+        // fails, it just fails for the real reason instead of for a schedule.
+        let reachedTheFetch = await pollUntil { harness.hostService.fetchCallCount > 0 }
+        #expect(reachedTheFetch,
                 "the activation never reached the host fetch, so nothing was actually blocked")
 
         harness.openAllGates()
+        await activation.value
+    }
+
+    /// **#389 — the race, made a deterministic FACT rather than a flake.**
+    ///
+    /// The test above used to assert `fetchCallCount > 0` at the instant the
+    /// widget write became observable. That passed most of the time and failed
+    /// on 2026-08-21 when an unrelated lane perturbed suite timing — which is
+    /// the signature of a race, not of a defect in the lane that exposed it.
+    ///
+    /// This pins the ordering directly instead of racing it. With the health
+    /// service HELD OPEN, the activation is provably parked inside
+    /// `reloadCapabilities()` — after the hoisted UI writes, before
+    /// `hostStore.refresh()`. So at that moment the widget snapshot is
+    /// **written** and the fetch has **not happened**, every run, on any
+    /// machine.
+    ///
+    /// It is therefore two things at once: the reproduction 389-C demanded
+    /// before any fix, and a permanent positive pin on #145 Part B's actual
+    /// property — *the visible state is refreshed before the network chain is
+    /// touched.* The old test could only ever assert that indirectly.
+    @Test @MainActor
+    func theWidgetWriteLandsBeforeTheHostFetchIsEvenReached() async throws {
+        let healthGate = BlackHoleGate()
+        let harness = await makeLaunchHarness(
+            suiteName: "389-ordering-\(UUID().uuidString)",
+            sessionUserMatchesPairedUser: true,
+            healthService: GatedHealthService(gate: healthGate)
+        )
+        let container = harness.container
+
+        let marker = "t27-389-ordering-\(UUID().uuidString)"
+        container.chatStore.conversation = Conversation(
+            title: "Hermes",
+            messages: [Message(sender: .hermes, content: marker, status: .delivered)]
+        )
+
+        let activation = Task { @MainActor in await container.handleAppDidBecomeActive() }
+
+        let wroteWhileParked = await pollUntil {
+            (SharedWidgetDataStore.read().lastMessagePreview ?? "").contains(marker)
+        }
+        #expect(wroteWhileParked, "the hoisted widget write did not land")
+
+        // 🔴 The assertion the old test could not make safely. The chain is
+        // HELD inside reloadCapabilities(), so this is not "the fetch hasn't
+        // happened yet, probably" — it is "the fetch cannot have happened."
+        #expect(harness.hostService.fetchCallCount == 0,
+                "the host fetch ran before/while capabilities were still loading — the #145 Part B hoist has moved")
+
+        // Releasing the park lets the chain continue, and the fetch is then
+        // reachable — which is what makes the count above an ORDERING fact
+        // rather than a broken-chain artifact.
+        healthGate.open()
+        let reachedTheFetch = await pollUntil { harness.hostService.fetchCallCount > 0 }
+        #expect(reachedTheFetch, "after the park was released the chain never reached the fetch")
+
+        harness.openAllGates()
+        activation.cancel()
         await activation.value
     }
 

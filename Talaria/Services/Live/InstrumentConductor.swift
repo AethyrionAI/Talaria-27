@@ -121,10 +121,25 @@ final class InstrumentConductor {
             UIApplication.shared.isIdleTimerDisabled = false
         }
 
-        let priorNewestID = loadRuns().first?.id
+        // #373 (#335's noted hazard): a SET DIFFERENCE, not `first`.
+        //
+        // The store sorts newest-first by `startedAt`, but the persisted form
+        // is ISO8601 at SECOND granularity — so two runs inside one second
+        // decode to equal keys and the sort gives no order between them. #335
+        // declared this unreachable here (separate `run-instrument.sh`
+        // launches are never a second apart) and asked for it to be made
+        // impossible rather than merely unlikely. It is now impossible: the
+        // ids present before the run are remembered, and the record claimed is
+        // one that was NOT there — whatever the clock did.
+        //
+        // The failure it forecloses is not a crash. It is the conductor
+        // embedding SOMEBODY ELSE'S run record in this run's artifact and
+        // sealing it `.completed` — a wrong measurement wearing a positive
+        // marker, which is the one shape this whole file exists to prevent.
+        let priorIDs = Set(loadRuns().map(\.id))
         await spec.run(backend, trials, resolvedCells)
-        if let newest = loadRuns().first, newest.id != priorNewestID {
-            envelope.runRecord = newest
+        if let fresh = loadRuns().first(where: { !priorIDs.contains($0.id) }) {
+            envelope.runRecord = fresh
             return finish(.completed)
         }
         return finish(.failed, reason: "instrument produced no run record — battery mutex refusal or recorder bypass")

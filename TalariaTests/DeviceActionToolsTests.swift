@@ -6,6 +6,37 @@ import Testing
 /// edited-field resolution, and the ToolConfirmationCenter gate mechanics.
 /// EventKit/AlarmKit writes need permissions + a device and are verified
 /// there, behind the same gate these tests pin down.
+/// #373 (#224's residual): ONE bounded wait for a staged confirmation card.
+///
+/// The five call sites in this file each hand-rolled
+/// `while center.pending == nil && attempts < 2000 { await Task.yield() }`.
+/// That is a BUSY SPIN: 2000 unthrottled yields, measured **3.4 s past its own
+/// budget on a loaded box**, five times per run — and today's gate work made
+/// the cost of loaded boxes concrete. Worse, its failure mode is silent: the
+/// loop simply falls through with `pending == nil`, and the assertion that
+/// follows blames the tool for a card that was merely late.
+///
+/// A real sleep yields the CPU to the very work being waited on instead of
+/// competing with it, so this both takes less wall-clock and stops spending a
+/// core to do it. The timeout is generous because it is a backstop, not a
+/// budget: nothing here should ever approach it, and if something does, the
+/// message says the card never arrived rather than leaving a nil to be
+/// misread downstream.
+@MainActor
+extension ToolConfirmationCenter {
+    func awaitPendingCard(timeout: Duration = .seconds(5),
+                          sourceLocation: SourceLocation = #_sourceLocation) async {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while pending == nil && clock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(pending != nil,
+                "no confirmation card was staged within \(timeout) — the tool never reached requestConfirmation",
+                sourceLocation: sourceLocation)
+    }
+}
+
 @MainActor
 struct DeviceActionToolsTests {
 
@@ -171,8 +202,7 @@ struct DeviceActionToolsTests {
                 caution: "EARLY MORNING — 4:00 AM",
                 fields: [.init(key: "title", label: "Title", value: "Call Shelley")])
         }
-        var attempts = 0
-        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        await center.awaitPendingCard()
         #expect(center.pending?.caution == "EARLY MORNING — 4:00 AM")
         center.decline()
         _ = await task.value
@@ -192,8 +222,7 @@ struct DeviceActionToolsTests {
                 relay: relay, confirmations: center,
                 now: DeviceActionParsing.parseDateTime("2026-08-05T01:00")!)
         }
-        var attempts = 0
-        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        await center.awaitPendingCard()
         #expect(center.pending?.caution != nil)
         center.decline()
         let result = await task.value
@@ -313,8 +342,7 @@ struct DeviceActionToolsTests {
                 rawTitle: "Call Shelley", rawDue: "2026-08-04T08:00", rawList: "",
                 relay: relay, confirmations: center, now: now)
         }
-        var attempts = 0
-        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        await center.awaitPendingCard()
         #expect(center.pending?.caution == "IN THE PAST — \(DeviceActionParsing.displayDate(due))")
         center.decline()
         _ = await task.value
@@ -332,8 +360,7 @@ struct DeviceActionToolsTests {
                 rawTitle: "Call Shelley", rawDue: "2026-08-06T08:00", rawList: "",
                 relay: relay, confirmations: center, now: now)
         }
-        var attempts = 0
-        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        await center.awaitPendingCard()
         #expect(center.pending?.caution == "NEXT MORNING — \(DeviceActionParsing.timeOnly(due))")
         center.decline()
         _ = await task.value
@@ -364,8 +391,7 @@ struct DeviceActionToolsTests {
                 rawTitle: "Call Shelley", rawDue: "2026-08-06T16:00", rawList: "",
                 relay: relay, confirmations: center, now: now)
         }
-        var attempts = 0
-        while center.pending == nil && attempts < 2000 { await Task.yield(); attempts += 1 }
+        await center.awaitPendingCard()
         #expect(center.pending?.caution == nil)
         #expect(relay.claimPastDueAsk())        // untouched
         #expect(relay.claimEveningClockAsk())   // untouched

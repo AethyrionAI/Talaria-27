@@ -627,8 +627,24 @@ struct DeveloperSettingsScreen: View {
     // deleted factories' twelve hand-copied flag lines apiece are gone rather
     // than moved. `batteryRunning` stays a UI-only double-fire guard; the real
     // mutex is backend-owned (`beginBatteryRun`).
+    /// #373 (#341's gap): `cells` is now selectable from the BUTTON, not only
+    /// from the launch environment.
+    ///
+    /// Every button used to pass `cells: nil`, so an attended run could only
+    /// ever be the instrument's full default set. That is fine until the
+    /// unattended path is unavailable — `run-instrument.sh` drives the device
+    /// through `xcrun devicectl`, which needs the phone on the LAN, so away
+    /// from home the Developer screen IS the harness and a single-arm A/B was
+    /// simply not reachable by hand.
+    ///
+    /// `nil` still means "the instrument's own cells", so every existing
+    /// caller is unchanged and the conductor's #341 resolution — which REFUSES
+    /// a cell request for an instrument that declares no `defaultCells`
+    /// rather than ignoring one — governs this path exactly as it governs the
+    /// launch env.
     @ViewBuilder
-    private func instrumentButton(_ name: String, trials: Int, label: String) -> some View {
+    private func instrumentButton(_ name: String, trials: Int, label: String,
+                                  cells: [String]? = nil) -> some View {
         Button {
             guard !batteryRunning,
                   let backend = container.localChatBackend,
@@ -637,7 +653,7 @@ struct DeveloperSettingsScreen: View {
             Task {
                 let conductor = InstrumentConductor(
                     confirmationCenter: container.toolConfirmationCenter, backend: backend)
-                await conductor.run(spec: spec, trials: trials, cells: nil, unattended: false)
+                await conductor.run(spec: spec, trials: trials, cells: cells, unattended: false)
                 batteryRunning = false
             }
         } label: {
@@ -1030,6 +1046,17 @@ struct DeveloperSettingsScreen: View {
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("pcc-surface", trials: 3,
                                      label: "PCC surface sweep (#388) (n=3)")
+                }
+                // #340-H5, tappable. The A/B is normally driven by
+                // `run-instrument.sh --cells armed,armed-bareclock`, but that
+                // path needs `xcrun devicectl` and therefore the LAN — so away
+                // from home this button is the only way to run it. Auto-DECLINE
+                // (the due-date instrument's own mode): the argument is logged
+                // before the confirmation gate, so nothing is created.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("due-date", trials: 20,
+                                     label: "Due-date A/B (#340-H5) n=20",
+                                     cells: ["armed", "armed-bareclock"])
                 }
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
