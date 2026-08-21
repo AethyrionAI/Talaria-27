@@ -14453,6 +14453,67 @@ scope: **wholesale, or a permanent dual path?**
   is identity-with-control post-adoption; the pre-text is pinned as
   `armedBlurbSentencePre337F2b`. One measurement lane on the #333 runner.
 
+> **📋 BARS 372-C1..C5 PRE-REGISTERED 2026-08-21 AM, BEFORE ANY CODE, for
+> (c) — the ROLLBACK ARM.** Building (c) only; (a) the unexercised decline
+> path and (b) 337-H's `toolCallingMode = .required` stay unstarted and
+> unscoped by this.
+>
+> **The problem, stated exactly.** `blurb-reworded` substitutes
+> `armedBlurbCardSentence` → `armedBlurbCardSentenceReworded337F2`. Since the
+> 2026-08-15 promotion, production ships the REWORDED sentence — so the
+> original is not in the instructions, the substitution matches nothing, and
+> the arm is **identity with control**. It is not broken; it has simply run out
+> of anything to measure. `cardClauseInstructions` already returns `removed:`
+> so this shows up in the artifact rather than reading as a null (that is why
+> that flag exists), but an arm that can only report "I did nothing" is not
+> worth a device slot.
+>
+> **So the promotion is currently unmeasurable in either direction**, which is
+> #200L's shape one instrument over: *measuring a promoted clause requires an
+> arm that substitutes the other way.*
+>
+> - **372-C1 (the rollback SUBSTITUTES, and it is RECORDED doing so).** A new
+>   arm replaces `armedBlurbShippingSentence` → `armedBlurbSentencePre337F2b`
+>   in the instructions, and `cardClauseInstructions` returns `removed: true`
+>   for it. **A manipulation that silently no-ops is the exact failure this
+>   arm exists because of** — 340-G5 had to add a manipulation row for the same
+>   reason, and #337-F's own `removed:` was built for it. Pinned as a unit
+>   test, not inferred from a run.
+> - **372-C2 (it is the ONLY delta).** Descriptions untouched: the rollback
+>   arm passes the belt through with `swapped == 0`, like `control`,
+>   `blurb-stripped` and `blurb-reworded`. `cardClauseBelt`'s switch is
+>   enumerated rather than negated precisely so a new arm must state its
+>   intent; this arm states "no description change."
+> - **372-C3 (the pre-promotion text is reached BY ITS ALIAS).**
+>   `armedBlurbSentencePre337F2b`, never a fresh literal. Two copies of the
+>   pinned rollback text is how the shipping sentence came to live in two
+>   places before 2026-08-15, and the fix then was to stop having two copies.
+>   A test asserts the arm's output contains the alias's exact bytes.
+> - **372-C4 (position LAST, and for the recorded reason).** The newest arm
+>   takes the worst slot: this instrument calls `beginTurn()` per trial so it
+>   is free of #343's governor confound, and the only order effect left is
+>   thermal — which in #337-F's run moved AGAINST the result. **The worst slot
+>   makes a POSITIVE finding conservative, and leaves a null uninterpretable**
+>   rather than convenient. A null here needs a reversed-order re-run, not a
+>   conclusion.
+> - **372-C5 (the arm-name pin moves WITH the arm).** `theABHasFiveNamedArms…`
+>   becomes six, in the same commit, with the new name in the list. That pin is
+>   what makes adding an arm without naming it a failure rather than a silent
+>   widening of the export vocabulary — the same shape as
+>   `ActionBatteryCell.allCases.count`, which caught #340's new case on
+>   2026-08-21.
+>
+> **What this lane does NOT claim.** Building the arm measures nothing. The
+> promotion stays unmeasured until the arm RUNS on device, and the run is not
+> scheduled here. **372-C1..C5 are structural bars about the instrument**, and
+> passing them says the arm is honest, not that the clause is good.
+>
+> **Pre-registered reading of the eventual run, so it cannot be chosen
+> afterwards:** the rollback arm scoring WORSE than control on imitations
+> replicates the promotion's justification; scoring the SAME is a genuine null
+> that puts the 2026-08-15 promotion back in question rather than confirming
+> it. Both are publishable and neither is a disappointment.
+
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. NOT STARTED; none urgent.**
 
 - #333's four post-merge minors: a typo'd instrument name burns the harness
