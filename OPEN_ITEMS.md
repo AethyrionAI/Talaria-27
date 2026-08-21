@@ -4711,7 +4711,14 @@ must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
 >   `relayFedStoresRefuseToFetchAndSayWhyWhenTheProfileHasNoRelay` and its
 >   positive control. See finding 3 — the first version passed against a
 >   build with the gate deliberately removed.
-> - **310-F ✅ MET.** `GATE: PASS` — Swift Testing **2358** / XCUITest 14 /
+> - **310-F ✅ MET, and RE-GATED ON MERGED `main` 2026-08-20 after PR #326 and
+>   PR #327 landed** — `GATE: PASS`, Swift Testing **2368** / XCUITest 14 /
+>   Release clean. Merged `main` is at 2356 and this lane adds 12, so
+>   2356 + 12 = 2368: the COMBINATION is clean, not merely each branch.
+>   That re-gate is #180-L/252R-A's rule being followed rather than quoted —
+>   two lanes can each pass a full gate, merge with no textual conflict, and
+>   leave `main` unable to compile. The original branch-only run follows.
+> - **310-F (original branch run).** `GATE: PASS` — Swift Testing **2358** / XCUITest 14 /
 >   Release clean. **The arithmetic, stated as the bar requires:** the control
 >   gate (this lane's code stashed) ran **2346**, and this lane adds exactly
 >   **12** tests — 5 in `BackendProfilesTests`, 7 in `AppStoresTests`. 2346 +
