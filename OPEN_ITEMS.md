@@ -2848,6 +2848,11 @@ Logged 2026-07-23.
 > known to support images" where we are certain would be the same #180 sin
 > inverted — encoding a known-false as an unknown.
 
+> **✅ 2026-08-20 — THE FLOOR IS BUILT. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — PR open; merge is Owen's
+> review.** `GATE: PASS` (2356 / 14 / Release clean; control 2346 + exactly
+> the 10 tests this lane adds). Bars A–E scored: **A, B, C, D met; E met by
+> code that already shipped**, with its evidence clause corrected in place.
+
 > **📏 BARS 173-A…E PRE-REGISTERED 2026-08-20, BEFORE ANY CODE OF THIS LANE**,
 > per CLAUDE.md's *"Where the BARS live"*. **A missed bar is a falsification,
 > not a redefinition.**
@@ -6361,6 +6366,16 @@ carries no attachments so the loop returns early; it needs a source that
 echoes attachments with re-minted ids AND a name mismatch (the relay/mock
 shape). **If it is judged not distinct from #185, drop it there rather than
 carrying a duplicate.**
+
+> **✅ 2026-08-20 — (d) FIXED and RED-verified. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — PR open; merge is
+> Owen's review.** The defect is real and reachable: two rows came back
+> carrying the same `localStoragePath`. **The fix is NOT this entry's
+> suggested one-liner** — consulting `unclaimed[safe: index]` would trade the
+> defect for a quieter one, because `unclaimed` shrinks as entries are claimed
+> and its indices stop matching remote positions. The index stays into the
+> ORIGINAL array; what changed is that the candidate must still be in the pool
+> and is dequeued when used. Line was `:4333` at HEAD, not `:4198`.
+> ⚠️ **PR #327 is not tracker #327.**
 
 > **2026-08-18 note:** (d) verified still live at HEAD (`ChatStore.swift:4198`
 > reads `localAttachments[safe: index]`, not `unclaimed`) — the two-line fix
