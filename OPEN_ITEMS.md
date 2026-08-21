@@ -118,7 +118,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
 - **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **FILED NOT FIXED 2026-08-21**; bars 389-A..C pre-registered, and 389-A rules out the obvious wrong fix (a longer timeout)
-- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. 388-A/B still owed on the phone — ONE launch**
+- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. 388-A/B still owed on the phone — ONE launch. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
@@ -1059,6 +1059,56 @@ reopen tier-wise), **#324** (the beta5 SDK audit this extends), **#207/#228**
 > it inside this PR was considered and rejected — it would bury a real,
 > separately-caused defect inside an unrelated lane, and the analysis above is
 > exactly what a filing needs. **Filed as #389.**
+
+> **🔴 2026-08-21 07:12 — 388-A's `.toolCalling` QUESTION IS HALF-ANSWERED FROM
+> PRODUCTION, BEFORE THE PROBE RAN. Owen's device, screenshot on file.**
+>
+> This entry said, in the bar itself: *"the session is built `tools: offered`
+> on the assumption it can, and all three device turns so far routed
+> **toolless**, so we have **zero evidence either way**."* That sentence is now
+> out of date.
+>
+> **What the turn shows.** Tier chip `PRIVATE CLOUD B`, model chip `PCC B`, an
+> image attached, prompt *"What is this picture"* — and a completed
+> **`✓ READIMAGETEXT`** tool-activity row, followed by an answer derived from
+> it. `IN 4.4K · OUT 61`.
+>
+> **So PCC EXECUTES TOOLS.** A belt was offered, a tool was selected, it ran,
+> and its result came back into the turn. Whatever tonight's `capabilities`
+> band reports for `.toolCalling` on the PCC row now has a behavioural fact to
+> agree or disagree with — and **a `.toolCalling == false` reading would be the
+> flag being wrong, not the tier**, which is precisely the kind of
+> contradiction this item exists to surface. (#72's lane already found the SDK
+> reporting `.isAvailable == true` on a binary with no entitlement; a
+> capability flag that contradicts observed behaviour would be the same family.)
+>
+> **⚠️ AND IT DOES NOT TOUCH `.vision`. The distinction is the whole point and
+> is easy to get backwards.** `readImageText` is OUR tool
+> (`DeviceMediaTools.swift:76`, `ImageTextTool`) wrapping **Vision framework
+> OCR on the device**. The model never received the image; it received
+> extracted text. Two independent tells in the same screenshot:
+>
+> - the reply quotes **"3ETA"** and **"MARIAN"** — OCR misreads of the poster's
+>   own words. A model that had actually seen the image would not surface those
+>   as quoted strings.
+> - `IN 4.4K` is consistent with belt + OCR text, not an image payload.
+>
+> **Privacy consequence worth stating explicitly, because #386's published
+> policy now describes three tiers:** on this turn the picture did not leave
+> the phone. Vision read it locally and only the resulting text crossed to
+> Apple's servers. That is a good property and it is NOT something the policy
+> currently claims — it falls out of the tool's design rather than from any
+> guarantee we make, so it is recorded here as an observation, not promoted
+> into copy. (#385's ruling applies: name what is true, do not vouch for what
+> we have not verified.)
+>
+> **What tonight still owes:** `.vision` on both tiers is unmeasured, and the
+> simulator's on-device row already reported `vision ✅ / reasoning ❌`, which
+> is a SIM reading and cannot be folded in (388-C). If PCC reports `.vision`
+> true, the question of whether an image should go to the model directly —
+> rather than through local OCR — becomes a real product decision with a
+> privacy dimension, and it gets its own entry rather than being settled inside
+> this probe (#388's scope discipline).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
