@@ -68,6 +68,25 @@ targets:
         # Apple approves the capability for team DNL25ZFSD2 / org.aethyrion.talaria27.
         # Kept HERE (not only in the .entitlements file) for the #44/#48 strip trap.
         # com.apple.developer.carplay-voice-based-conversation: true
+        # #72: Private Cloud Compute — Apple GRANTED this managed capability
+        # on 2026-08-20 (Developer Relations mail: "Access to models on
+        # Private Cloud Compute has been assigned to your account"), and Owen
+        # enabled it on the App ID the same day. This is the entitlement whose
+        # ABSENCE made `PrivateCloudComputeLanguageModel` SIGTRAP on construct
+        # (measured 2026-07-13) — which is why `pccGrantConfirmed` exists and
+        # why the flag is flipped LAST, after this key is proven present in
+        # the signed binary via `codesign -d --entitlements`.
+        #
+        # Declared HERE and not only in the .entitlements file: XcodeGen
+        # GENERATES that file from this block, so an edit made only there is
+        # erased by the next `xcodegen generate` (#44/#48 strip trap — the
+        # CarPlay line above carries the same warning for the same reason).
+        # ⛔ COMMENTED OUT 2026-08-20, deliberately and temporarily — leaving it
+        # ACTIVE breaks every signed device build, which is the exact trap the
+        # CarPlay line above documents, and tonight's #302/#323 device
+        # verification depends on the OTA path working. Uncomment on Friday
+        # once the profile carries it (see #72 for the account problem below).
+        # com.apple.developer.private-cloud-compute: true
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     sources:

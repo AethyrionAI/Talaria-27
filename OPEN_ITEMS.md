@@ -1088,6 +1088,58 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
 > measurement has to happen on a build that can survive being wrong (i.e. not
 > one Owen is using). Until then the trap is the operating assumption.
 >
+> **🔧 2026-08-20 — STEP 2 ATTEMPTED AND BACKED OUT. The blocker is NOT the
+> entitlement; it is that the CLI cannot authenticate to the portal.**
+>
+> Owen enabled the capability on the App ID and said so. I added
+> `com.apple.developer.private-cloud-compute: true` to `project.yml`'s
+> `properties:` block; XcodeGen regenerated `Talaria.entitlements` with the key
+> present, confirming the declaration path works. A signed build then failed
+> with **two** errors, and the first makes the second uninterpretable:
+>
+> ```
+> error: No Accounts: Add a new account in Accounts settings.
+> error: Entitlement com.apple.developer.private-cloud-compute not found and
+>        could not be included in profile. This likely is not a valid
+>        entitlement and should be removed from your entitlements file.
+> ```
+>
+> **Do NOT read the second line as "the key is wrong."** With no account
+> session, `xcodebuild -allowProvisioningUpdates` cannot query the portal at
+> all, so "not found" is equally consistent with "could not look it up." The
+> profile on disk is still the **Aug 10** one (`da78d336…`), which of course
+> predates the grant — decoded, it carries only healthkit, weatherkit and
+> team-identifier. **Nothing here is evidence about the key's spelling.**
+>
+> **⛔ THE KEY IS COMMENTED OUT AGAIN, on purpose.** An entitlement the profile
+> cannot carry **breaks every signed device build** — the CarPlay line
+> directly above it in `project.yml` documents exactly this failure — and
+> tonight's #302/#323 device verification depends on the OTA path working.
+> Backing it out costs nothing: the line and this finding are both preserved.
+>
+> **What actually unblocks it, and it is Owen's:** the profile refresh needs an
+> authenticated Apple account, which lives in **Xcode.app**, not in the CLI
+> keychain the agent drives. So Friday's sequence is: uncomment the line →
+> **Owen opens the project in Xcode and builds once for a device** → Xcode
+> regenerates the profile with the managed capability → then, and only then,
+> the gate work. The alternative is an App Store Connect API key for the CLI,
+> which is a bigger decision (a credential with real scope) and is **NOT**
+> being taken unilaterally.
+>
+> **The verification to run the moment a build signs**, because a portal page
+> saying yes is not the same as an entitlement in a binary:
+> ```
+> codesign -d --entitlements - --xml <path to Talaria.app> | plutil -p -
+> ```
+> The key must appear THERE. Until it does, `pccGrantConfirmed` stays `false`
+> and nothing constructs `PrivateCloudComputeLanguageModel` — which is the
+> whole reason that flag exists.
+>
+> **One thing this DID establish:** the declaration path is correct. XcodeGen
+> writes the key into the generated `.entitlements` from the `properties:`
+> block, so the #44/#48 strip trap is handled and that half needs no further
+> thought.
+>
 > **Why this matters beyond one more tier.** The launch posture (#251/#269) is
 > that the on-device brain is the permanent free floor and Hermes is the
 > optional upgrade — so the user who matters most is the one with no host at
