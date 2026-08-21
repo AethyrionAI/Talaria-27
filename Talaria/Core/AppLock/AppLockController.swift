@@ -24,6 +24,12 @@ final class AppLockController {
     @ObservationIgnored var onCoverChanged: ((AppLockCover) -> Void)?
 
     private var machine: AppLockStateMachine
+    /// #302/#323: the one consultable lock state. This controller is its
+    /// ONLY writer — every non-UI subsystem reads it and nothing else
+    /// publishes to it, which is what makes "one mechanism" true rather than
+    /// aspirational. Optional because tests and previews build a controller
+    /// with no graph around it.
+    @ObservationIgnored private let gate: AppLockGate?
     private let configuration: () -> AppLockConfiguration
     private let authenticator: any AppLockAuthenticating
     private let now: () -> Date
@@ -91,11 +97,13 @@ final class AppLockController {
     init(
         configuration: @escaping () -> AppLockConfiguration,
         authenticator: any AppLockAuthenticating = BiometricAppLockAuthenticator(),
-        now: @escaping () -> Date = Date.init
+        now: @escaping () -> Date = Date.init,
+        gate: AppLockGate? = nil
     ) {
         self.configuration = configuration
         self.authenticator = authenticator
         self.now = now
+        self.gate = gate
         let resolvedCapability = authenticator.capability()
         capability = resolvedCapability
         machine = AppLockStateMachine(
@@ -208,6 +216,12 @@ final class AppLockController {
             episodeAttempt = 0
         }
         cover = newCover
+        // #302/#323: publish BEFORE the window presenter is told. The cover
+        // and the gate must never disagree, and if the presenter's callback
+        // ever grows a synchronous read of the gate (it renders the LOCKED
+        // badge from this same state), the ordering decides whether it sees
+        // the old answer.
+        gate?.setLocked(newCover == .locked)
         onCoverChanged?(newCover)
     }
 

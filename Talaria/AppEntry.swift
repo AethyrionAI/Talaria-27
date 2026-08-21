@@ -98,7 +98,12 @@ struct TalariaApp: App {
     // #124: biometric app lock. SettingsStore loads synchronously in its
     // init, so the cold-launch lock decision lands before the first frame.
     @State private var appLock = AppLockController(
-        configuration: { AppContainer.sharedDefault().settingsStore.settings.appLockConfiguration }
+        configuration: { AppContainer.sharedDefault().settingsStore.settings.appLockConfiguration },
+        // #302/#323: the controller is the gate's ONLY writer. Wired here
+        // rather than inside the container because this is where the cover's
+        // owner is constructed, and a second writer is precisely the "N
+        // mechanisms" shape the 2026-08-18 ruling forbids.
+        gate: AppContainer.sharedDefault().appLockGate
     )
     @State private var appLockPresenter = AppLockWindowPresenter()
 
