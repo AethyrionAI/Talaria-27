@@ -118,7 +118,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
-- **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
+- **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
@@ -627,6 +627,43 @@ its resolution comment. **Do not diff the draft in as though it were newer.**
 > pointer, and the policy is where a citation belongs. Raised here so the
 > decision is visible rather than assumed — reopen it if Owen wants the
 > assistant quoting too.
+
+> **✅ PUBLISHED 2026-08-20 — PR #331 merged.** Owen read the wording and
+> approved it (*"I read privacy, it looks good"*). A PR rather than a direct
+> commit, deliberately: a privacy policy benefits from an auditable trail of
+> when the text changed and who approved it. Live file now says **"The three
+> ways Talaria works"** and carries the PCC section, the dated Apple quotations,
+> and the Voice correction.
+>
+> **The Voice correction was not on the original six-point list** — it came from
+> reading the section rather than from the diff. Voice routes its turn through
+> the ACTIVE BRAIN (`NativeVoicePipelineService` takes `backendProvider:
+> chatBackendRouter`), so with Private Cloud β selected a user's transcribed
+> speech goes to Apple's servers exactly as a typed message would. The policy
+> described on-device speech recognition and then said nothing about where the
+> resulting turn was ANSWERED. **A checklist built from grep would have missed
+> it.**
+>
+> **✅ Question (d) — `PrivacyInfo.xcprivacy` — CHECKED, and the answer is NO
+> CHANGE, with the reasoning shown rather than asserted.** The manifest
+> declares `NSPrivacyTracking false`, an **empty** `NSPrivacyCollectedDataTypes`,
+> and one `NSPrivacyAccessedAPITypes` entry (UserDefaults, reasons CA92.1 /
+> 1C8F.1). PCC touches none of it on the manifest's own definitions: the
+> collected-data list is about what THIS APP collects and links to a user — we
+> collect nothing and run no servers — and the required-reason API list is a
+> closed set (file timestamp, boot time, disk space, active keyboard,
+> UserDefaults) that PCC is not a member of.
+> - **Stated limit:** that is reasoning from the manifest's categories, not a
+>   quotation of Apple guidance about PCC and privacy manifests specifically.
+>   Confident, not authoritative.
+> - **⚠️ And the manifest is NOT the same artifact as the App Store privacy
+>   "nutrition label"**, which is filled in App Store Connect at submission and
+>   does not exist yet. If any PCC-shaped question needs answering, it is there
+>   — not here. Recorded so the two do not get conflated at submission time.
+>
+> **What remains open on this entry:** nothing blocking. The ongoing obligation
+> — watching Apple's pages, because we now hold a dated snapshot of them — moved
+> to **#387**, where it belongs, since it never completes.
 
 **⛔ Publication gate.** The standing rule is that outward-facing text gets
 Owen's read of the *exact* wording plus an explicit go — a "we should update
