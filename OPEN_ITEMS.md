@@ -117,8 +117,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#391** 🔴 **THE MODELS SCREEN CLAIMS "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED** — quota tracking is INERT on this seed (`QuotaTracker` logs *"delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read), yet `privateCloudQuotaRow` renders a definite capacity claim. **Directly violates the project's own "real data only — show `—` where a value isn't knowable" rule**; #180's family, #328's shape. MEASURED 2026-08-21 (#388-B); bars 391-A..D pre-registered, and 391-A warns a discriminator must be verified on a WIRED seed first
+- **#390** 🔬 **`.vision` IS TRUE ON BOTH TIERS** — so #173's caption decision was made about a model that HAS vision, and routing images through on-device OCR (`readImageText`) is now a CHOICE, not a limitation. It has a real privacy upside nobody chose deliberately — **the picture never leaves the phone even on PCC** — and the alternative sends the image to Apple's servers. SPAWNED BY #388-A 2026-08-21; **needs Owen's routing before any code — it changes what leaves the device, the one axis #386's published policy describes**
 - **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **✅ FIXED 2026-08-21 PM — 389-A/B/C all met.** The assertion POLLS (the timeout was NOT raised, which 389-A ruled out in advance), and a new test makes the ordering DETERMINISTIC by parking the chain inside `reloadCapabilities()` via an injected gated health service. Mutation: removing #145 Part B's hoist turns that new test RED, so it is a permanent POSITIVE pin on Part B's property rather than only a repro
-- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. 388-A/B still owed on the phone — ONE launch. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
+- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. ✅ **388-A/B/C/D ALL ANSWERED ON DEVICE 2026-08-21.** 🔴 **The contrast is exactly ONE capability: PCC has `.reasoning`, on-device does not** (everything else matches; contextSize 8192 vs 32768). `.vision` is TRUE on BOTH — which reopens #173's caption decision as a tier question WITH a privacy dimension, spawned as its own entry. 🔴 **Quota is INERT, not healthy:** `quotaUsage` returns `belowLimit` with no resetDate while `com.apple.FoundationModels:QuotaTracker` logs *"Usage limit status tracker delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read — so any shipped quota surface is presenting a placeholder as a status (own entry). 388-C vindicated same-day: device variant is `AFM 3 Core Advanced`, the sim said `AFM 3 Core`. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
@@ -194,7 +196,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#334** 🐛 words-only turns over a LONG offer-tail context route ARMED — bars unwritten, mechanism deliberately unguessed
 - **#336** 🐛 claim-with-no-call + reap surplus — 336-A/C/E unbuilt; warm-up mechanism thrice corroborated, not elected
 - **#339** 🧪 instrument suite as regression gate — routing decision (cadence / subset / what a stochastic regression even is)
-- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 340-H5/H6 (device A/B) and 340-E still owed
+- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — 10-minute Mac-side check owed
 - **#349** 🐛 CTX gauge — fixed + merged (PRs #319/#320); owed: the 60-s reopen check on the next OTA (shared with #367)
@@ -737,6 +739,100 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
+## 391. 🔴 THE MODELS SCREEN TELLS THE USER "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED — quota tracking is INERT on this seed and the row states a status anyway — **MEASURED ON DEVICE 2026-08-21 (#388-B). SPAWNED BY #388 per its scope rule; NOT STARTED, bars pre-registered below.**
+
+**The measurement** (`planning/reports/2026-08-21-388-pcc-surface.json`, plus
+Owen's `log collect`):
+
+```
+17:03:39.499  [org.aethyrion.talaria:LocalChatBackend] surface: [quota] statuses=belowLimit|belowLimit|belowLimit … resetDate=—
+17:03:39.732  E  [com.apple.FoundationModels:QuotaTracker] Usage limit status tracker delegate is nil, skipping fetch.
+```
+
+`quotaUsage` returned `belowLimit` three times with **no reset date and no
+limit-increase suggestion**, while the system logged — **7 times, at ERROR
+severity** — that it skipped the fetch because the tracker's delegate is nil.
+**The tri-state never leaves `belowLimit` because nothing is fetching to move
+it.** It is a default, not a reading.
+
+**What the user sees.** `ModelsSettingsScreen.privateCloudQuotaRow` renders
+**`PRIVATE CLOUD β · BELOW DAILY LIMIT`** in that state — a definite,
+reassuring claim about remaining capacity, derived from a value the OS did not
+compute.
+
+**🔴 This violates the project's own stated convention**, which is why it is
+filed 🔴 rather than as a nicety: *"Real data only in UI — show `—` where a
+value isn't knowable; no mocked toggles."* The row is #180's family exactly —
+a surface reporting a state it did not observe. It is the same shape as #328's
+Stop (a control reporting success for work it did not do) and #340's *"I've set
+a reminder … at 11"* (a claim about an artifact that cannot fire).
+
+**⚠️ Two things this entry does NOT claim.** First, that a METER is buildable —
+it is not, and #388 established why: `QuotaUsage` exposes `status` +
+`limitIncreaseSuggestion?` + `resetDate?` and **no number at all**. Second,
+that the row is useless in principle — on a seed where the tracker IS wired,
+this row is exactly right. **The defect is stating a status when the app cannot
+tell whether one was measured.**
+
+### 🎯 BARS 391-A..D — pre-registered before any code
+
+- **391-A (the app must be able to tell "unmeasured" from "below limit").**
+  Today it cannot: both arrive as `.belowLimit(approaching: false)`. The
+  discriminator has to come from something the SDK actually varies — the
+  candidate named by the measurement is **`resetDate == nil` AND
+  `limitIncreaseSuggestion == nil` on a tier that reports `.available`** — and
+  it must be **verified against a wired seed before being trusted**, because a
+  heuristic that fires on a healthy device is worse than the current row.
+- **391-B (an unknown state renders as UNKNOWN, never as good news).** `—` or
+  omission, per the convention. **Silence is acceptable; optimism is not.** The
+  failure this forecloses is a user planning around capacity the app never
+  confirmed.
+- **391-C (the `limitReached` path is untouched).** That arm carries real
+  information when it fires and no evidence says it is broken; this lane must
+  not trade a false-positive fix for a false-negative one.
+- **391-D (no polling, no meter, no alert).** #30's ruling that quota is
+  PERSISTENT STATUS rather than an alert stands, and #388 proved no number
+  exists to display. This is a copy-and-nil-handling change, not a feature.
+
+**Cross-references:** **#388-B** (the measurement and the log correlation),
+**#30** (the row's original design), **#180** (honest degradation — the family),
+**#328** (a control reporting success it did not achieve), **#72** (the tier).
+
+## 390. 🔬 `.vision` IS TRUE ON BOTH TIERS — so #173's caption decision was made about a model that HAS vision, and the OCR path is now a CHOICE with a privacy dimension — **SPAWNED BY #388-A 2026-08-21 per its scope rule. NOT STARTED; this is the filing, not a lane.**
+
+**What #388-A measured on device:** `LanguageModelCapabilities.contains(.vision)`
+is **true for `SystemLanguageModel.default` AND for
+`PrivateCloudComputeLanguageModel`**. The only capability that differs between
+the tiers is `.reasoning`.
+
+**Why that matters.** Talaria reads images through `readImageText`
+(`DeviceMediaTools.swift`), our own tool wrapping **Vision-framework OCR on the
+device**: the model receives extracted text and never the image. Owen's
+2026-08-21 07:12 PCC turn is the worked example — the reply quoted OCR misreads
+(*"3ETA"*, *"MARIAN"*), which is the tell.
+
+**So the current design has a property nobody chose deliberately: the picture
+never leaves the phone**, even on the PCC tier. That is a good property. It is
+also, now, a CHOICE rather than a limitation — and the alternative (handing the
+model an `ImageAttachment` directly) would produce better answers on exactly
+the prompts OCR mangles, at the cost of sending the image itself to Apple's
+servers on the PCC tier.
+
+**The open questions, deliberately not answered here:** whether direct vision
+is worth the privacy trade at all; whether it should be tier-conditional (#385's
+pattern — on-device yes, PCC no); what the user is told either way; and whether
+#173's dropped caption should be revisited now that its premise (the model
+cannot see) is falsified for both tiers.
+
+**⚠️ This is a filing, and a lane needs Owen's ruling before any code** — it
+changes what leaves the device, which is the one axis #386's published policy
+now describes to the public. **Bars pre-register here when he routes it.**
+
+**Cross-references:** **#388-A** (the capability read), **#173** (the caption
+decision whose premise this falsifies), **#385** (the tier-aware pattern any
+gate should follow), **#386** (the published policy that describes the tiers),
+**#387** (the watch obligation on Apple's own pages).
+
 ## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. NOT STARTED; bars pre-registered below.**
 
 **The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
@@ -1109,6 +1205,91 @@ reopen tier-wise), **#324** (the beta5 SDK audit this extends), **#207/#228**
 > rather than through local OCR — becomes a real product decision with a
 > privacy dimension, and it gets its own entry rather than being settled inside
 > this probe (#388's scope discipline).
+
+> **✅ 2026-08-21 22:03 UTC (17:03 local) — THE PROBE RAN ON DEVICE. 388-A, B
+> and D are ANSWERED.** One launch, `--instrument pcc-surface --trials 3`,
+> build `fa5a1976`, `whoGoesThere` (iPhone 17 Pro Max, iOS 27.0 build
+> **24A5418b**), `status: completed`. Artifact preserved at
+> `planning/reports/2026-08-21-388-pcc-surface.json`.
+>
+> ### 🔴 388-A — the contrast is EXACTLY ONE CAPABILITY
+>
+> | | on-device | private-cloud |
+> |---|---|---|
+> | `.vision` | ✅ | ✅ |
+> | `.toolCalling` | ✅ | ✅ |
+> | `.guidedGeneration` | ✅ | ✅ |
+> | **`.reasoning`** | **❌** | **✅** |
+> | `contextSize` | **8192** | **32768** |
+> | variant | `AFM 3 Core Advanced` | — |
+> | `availability` | — | `available` |
+>
+> **PCC is not merely a larger window — it carries a capability the on-device
+> model does not have.** The bar said the contrast is the finding and that a
+> difference is a feature gate; this is that difference, and it is a real one
+> to design against. The 8192 reading also confirms #210's measured on-device
+> ceiling independently, and 32768 confirms the 32K that #72 used to prove the
+> tier was genuinely active.
+>
+> **`.toolCalling` is true, and it AGREES with production.** Owen's 07:12
+> screenshot had a PCC turn complete `readImageText`; the flag now corroborates
+> the behaviour. The bar was written against "zero evidence either way" and
+> both halves now point the same way — no contradiction to chase.
+>
+> **🔴 `.vision` is TRUE on BOTH tiers, and that reopens a shipped decision.**
+> #173's surviving on-device caption was chosen for a model that, it turns out,
+> HAS vision. Whether an image should reach the model directly rather than
+> through `readImageText`'s on-device Vision OCR is now a real product question
+> **with a privacy dimension** — today's OCR path means the picture never
+> leaves the phone (recorded above), and a direct-vision path on PCC would
+> change that. **Per this item's scope discipline that gets its own entry with
+> its own bars; it is NOT settled inside a probe.**
+>
+> **388-C earned its keep the same day it was written.** The device reports
+> variant `AFM 3 Core **Advanced**`; the simulator reported plain `AFM 3 Core`,
+> and `contextSize` 0 against the device's 8192. **Different model, different
+> numbers.** Folding this morning's sim reading in would have published a wrong
+> capability table.
+>
+> ### 🔴 388-B — ANSWERED, and the answer is INERT
+>
+> App-side reading, 3 reads: `belowLimit` ×3, `distinct: 1`,
+> `isApproachingLimit: 0`, `isLimitReached: 0`, **`hasResetDate: 0`**,
+> **`hasLimitIncreaseSuggestion: 0`**.
+>
+> **The correlation the instrument refused to make itself is now made, from
+> Owen's `log collect`:**
+> ```
+> 17:03:39.499  [org.aethyrion.talaria:LocalChatBackend] surface: [quota] statuses=belowLimit|belowLimit|belowLimit … resetDate=—
+> 17:03:39.732  E  [com.apple.FoundationModels:QuotaTracker] Usage limit status tracker delegate is nil, skipping fetch.
+> ```
+> **233 ms apart**, and the system line fires **7 times** across the window, at
+> **error** severity — Apple's own framework classifies it as an error.
+>
+> **So `quotaUsage` returns a DEFAULT, not a reading.** The tri-state never
+> leaves `belowLimit` because nothing is fetching to move it. This is exactly
+> the shape the bar named — *"a tri-state that never leaves `.belowLimit` while
+> that line fires is INERT, not healthy"* — and Owen's own read on 2026-08-20
+> (*"Apple hasn't enabled that feature yet"*) is confirmed.
+>
+> **Consequence for shipped UI: any quota surface is presenting a placeholder
+> as a status.** That is #180's family — a control reporting a state it did not
+> observe — and it needs its own entry rather than a fix inside a probe. What
+> #388 settles is that the row cannot currently be trusted, and that no meter
+> was ever buildable anyway (the API exposes no number).
+>
+> ### 388-D — the device half
+>
+> All three load on device: `ImagePlayground` ✅, `VisualIntelligence` ✅,
+> `MediaIntelligence` ✅. (VisualIntelligence did NOT load on the simulator —
+> a sim-root path artifact, and another 388-C label doing its job.) Combined
+> with the SDK reads recorded above, 388-D is complete.
+>
+> ### What this item still owes
+>
+> Nothing. **388-A/B/C/D are all answered.** The two things it SPAWNED —
+> tier-aware vision, and the inert quota row — are new entries by this item's
+> own scope rule, not residue.
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
@@ -7994,6 +8175,101 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > `omitted + wrong-value` must FALL. Promotion of the guide text follows that
 > result and nothing else. **340-E** (should the guard judge tool ARGUMENTS)
 > remains open and unscoped.
+
+> **🛑 340-H5 RAN 2026-08-21 22:06–22:09 UTC (17:06 local) — THE BAR AS WRITTEN
+> IS MISSED, AND THE BAR AS WRITTEN WAS BADLY FORMED. Both are recorded; the
+> miss is not redefined away.** One launch, `--instrument due-date --cells
+> armed,armed-bareclock --trials 20`, build `fa5a1976`, device `whoGoesThere`,
+> auto-DECLINE, `endedCleanly: true`, 40 trials.
+>
+> | bar | `armed` | `armed-bareclock` | p | verdict |
+> |---|---|---|---|---|
+> | **H5: `correct` must RISE** | 0/20 | 3/20 | 0.231 | rose, NOT significant |
+> | **H5: UNION `omitted+wrong-value` must FALL** | 15/20 (75%) | **17/20 (85%)** | 0.695 | 🛑 **ROSE — MISSED** |
+> | (context) no-call | 5/20 | 0/20 | **0.047** | treatment called MORE |
+>
+> **PRE-REGISTERED CONSEQUENCE, HONOURED: the guide text is NOT promoted.** It
+> stays the `armed-bareclock` cell. Holding it behind a cell rather than
+> shipping it (Owen, 2026-08-21) is what made this outcome cost nothing.
+>
+> ### 🔴 The bar I wrote inherited the very ambiguity this lane fixed elsewhere
+>
+> **A `no-call` trial is neither `omitted` nor `wrong-value`, so it LOWERS the
+> union.** The control produced 5 no-calls; that mechanically depressed its
+> union to 75%. The treatment called on every trial and was therefore
+> *penalised by the bar for being more reliable*.
+>
+> Same data, other denominator — union over CALLS MADE: control **15/15
+> (100%)** vs treatment **17/20 (85%)**, p = 0.244. It FELL. The two
+> denominators return opposite verdicts on one dataset.
+>
+> **That is 340-F1's "≥16/20 of WHAT" ambiguity, one level up — committed on
+> 2026-08-21 AM in the same lane whose scorer rewrite existed to end it.**
+> Building the four-bucket denominator and then writing a bar that steps into
+> the hole is worse than not having noticed: the fix and the mistake are in one
+> commit. **The miss stands** (#215: a missed bar is a falsification, never a
+> redefinition) — but the bar is retired as unfit and replaced below.
+>
+> ### ✅ What DID work, verified on device
+>
+> **Route (a) fired for the first time in production.** Three trials sent a
+> bare clock; all three read `raw='16:30'` at **17:08 local** — already past —
+> and the app resolved every one to **`Aug 22, 2026 at 4:30 PM`**. Tomorrow.
+> Correct. That is precisely the branch 340-G proved the model drops.
+>
+> **`already-past` is 0 of 37 calls across BOTH arms.** In 340-G *every*
+> populated value was stale (four byte-identical `2026-08-15T16:30` at 18:21).
+> **Route (a) eliminated the stale-value failure class**, which is the harm
+> #249's guard exists to bounce and the reason #200S's schema rollback was
+> rejected twice.
+>
+> ### 🔴 What is still broken, stated plainly
+>
+> **The model supplied a bare clock 3 times in 20. Omission is still 85%.**
+> #340's founding defect — *the tool runs, the time is dropped, and the user is
+> told it was set* — is **NOT solved**. The app-side half is correct and almost
+> never gets the chance to run. Any future lane should read this entry as: the
+> arithmetic is done, the ARGUMENT is still missing.
+>
+> ### Power, computed after the fact and recorded so it is not re-learned
+>
+> n=20/arm is **~2× underpowered** for the effect actually observed. If the
+> treatment's true rate is 15% against a 0% control, Fisher needs **n≈40/arm**
+> to clear p<0.05 (6/40 vs 0/40 → p = 0.026); n=20 gives p = 0.231 even when
+> the effect is real. **Tonight could not have produced a significant result at
+> this effect size.** Any re-run is n≥40/arm or it is not worth the device
+> minutes.
+>
+> ### 📋 BARS 340-H5′-A..D — REFORMULATED 2026-08-21, replacing the retired H5
+>
+> - **340-H5′-A (PRIMARY — `correct` over TRIALS must rise, significantly).**
+>   One number, one denominator, no union. **It is immune to bucket-shuffling
+>   by construction:** converting `omitted`→`wrong-value` does not raise it,
+>   converting `no-call`→`omitted` does not raise it, and an arm cannot game it
+>   by declining to call. That is what the union bar was reaching for and
+>   missed. `correct` = the user asked for a time and got a reminder carrying a
+>   usable one; every other bucket is a different way of failing that.
+> - **340-H5′-B (GUARD — `wrong-value` over TRIALS must not rise).** This
+>   preserves 340-G3's actual intent without the no-call dilution. **A wrong
+>   date is a worse failure than no date**, and the asymmetry is the reason
+>   this guard exists rather than a symmetric one: a dateless reminder is
+>   visibly absent from Reminders → Scheduled, which is how #340 was found at
+>   all, whereas a wrongly-dated reminder fires at the wrong moment and is
+>   trusted while doing it.
+> - **340-H5′-C (REPORT all four buckets under BOTH denominators).** Trials and
+>   calls-made, side by side, every time. Tonight the two disagreed and that
+>   disagreement was the finding — a report that had picked one would have
+>   hidden it.
+> - **340-H5′-D (n ≥ 40 per arm, and the prompt's clock regime recorded).**
+>   Per the power note above. And the battery's fixed *"at 4:30pm"* is a moving
+>   target against the wall clock (340-G's flaw), so the run's local time goes
+>   in the artifact: tonight was the ALREADY-PAST regime, not comparable to
+>   340-F's future regime on that bucket.
+>
+> **Scorer nit found by this run:** the `#200V` warm-up trial is reported as
+> though it were an arm ("cell warmup — 1 TRIALS"). It is discarded by the
+> battery and must be excluded from, or explicitly labelled in, the per-cell
+> view. Filed to #373's residuals.
 
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
@@ -15090,6 +15366,10 @@ scope: **wholesale, or a permanent dual path?**
 > - `runColdCalfixBattery` unregistered (#333).
 > - #342's two remaining read-only invariant checks for `oi-invariants.py`.
 > - The structural fix for the button-name tripwire, per above.
+> - **Found by #340-H5's run, 2026-08-21:** `score-due-omission.py` reports the
+>   #200V WARM-UP trial as though it were an arm (`cell warmup — 1 TRIALS`).
+>   The battery discards it; the per-cell view must exclude it or label it,
+>   or a reader counts a discarded trial as a measurement.
 
 - #333's four post-merge minors: a typo'd instrument name burns the harness
   timeout; `runColdCalfixBattery` unregistered; `--trials`/`--timeout` accept

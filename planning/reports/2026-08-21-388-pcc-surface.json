@@ -1,0 +1,165 @@
+{
+  "appBuild" : "1",
+  "appVersion" : "1.0.0",
+  "buildSha" : "fa5a1976",
+  "cells" : [
+
+  ],
+  "deviceModel" : "iPhone",
+  "endedAt" : "2026-08-21T22:03:39Z",
+  "instrument" : "pcc-surface",
+  "osVersion" : "Version 27.0 (Build 24A5418b)",
+  "runRecord" : {
+    "appBuild" : "1",
+    "appVersion" : "1.0.0",
+    "cells" : [
+      "capabilities",
+      "quota",
+      "frameworks"
+    ],
+    "endedCleanly" : true,
+    "id" : "509435DF-F7DE-4266-93DF-58A7C9890B52",
+    "kind" : "pcc-surface",
+    "osVersion" : "Version 27.0 (Build 24A5418b)",
+    "probes" : [
+      {
+        "band" : "capabilities",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "capabilityCount" : 3,
+          "contextSize" : 8192,
+          "errors" : 0,
+          "guidedGeneration" : 1,
+          "reasoning" : 0,
+          "scored" : 4,
+          "toolCalling" : 1,
+          "vision" : 1
+        },
+        "notes" : {
+          "environment" : "device",
+          "present" : "vision+toolCalling+guidedGeneration",
+          "variantName" : "AFM 3 Core Advanced"
+        },
+        "probe" : "LanguageModelCapabilities.contains for on-device",
+        "trials" : 4,
+        "variant" : "on-device"
+      },
+      {
+        "band" : "capabilities",
+        "correct" : 4,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "capabilityCount" : 4,
+          "contextSize" : 32768,
+          "errors" : 0,
+          "guidedGeneration" : 1,
+          "isAvailable" : 1,
+          "reasoning" : 1,
+          "scored" : 4,
+          "toolCalling" : 1,
+          "vision" : 1
+        },
+        "notes" : {
+          "availability" : "available",
+          "environment" : "device",
+          "present" : "vision+toolCalling+reasoning+guidedGeneration"
+        },
+        "probe" : "LanguageModelCapabilities.contains for private-cloud",
+        "trials" : 4,
+        "variant" : "private-cloud"
+      },
+      {
+        "band" : "quota",
+        "correct" : 3,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "belowLimit" : 3,
+          "distinct" : 1,
+          "errors" : 0,
+          "hasLimitIncreaseSuggestion" : 0,
+          "hasResetDate" : 0,
+          "isApproachingLimit" : 0,
+          "isLimitReached" : 0,
+          "scored" : 3,
+          "unknownStatus" : 0
+        },
+        "notes" : {
+          "correlateWith" : "Usage limit status tracker delegate is nil",
+          "environment" : "device",
+          "statuses" : "belowLimit|belowLimit|belowLimit"
+        },
+        "probe" : "PrivateCloudComputeLanguageModel.quotaUsage",
+        "trials" : 3,
+        "variant" : "private-cloud"
+      },
+      {
+        "band" : "frameworks",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "errors" : 0,
+          "loaded" : 1,
+          "scored" : 1
+        },
+        "notes" : {
+          "environment" : "device",
+          "path" : "\/System\/Library\/Frameworks\/ImagePlayground.framework\/ImagePlayground"
+        },
+        "probe" : "dlopen ImagePlayground",
+        "trials" : 1,
+        "variant" : "ImagePlayground"
+      },
+      {
+        "band" : "frameworks",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "errors" : 0,
+          "loaded" : 1,
+          "scored" : 1
+        },
+        "notes" : {
+          "environment" : "device",
+          "path" : "\/System\/Library\/Frameworks\/VisualIntelligence.framework\/VisualIntelligence"
+        },
+        "probe" : "dlopen VisualIntelligence",
+        "trials" : 1,
+        "variant" : "VisualIntelligence"
+      },
+      {
+        "band" : "frameworks",
+        "correct" : 1,
+        "errors" : 0,
+        "expected" : true,
+        "metrics" : {
+          "errors" : 0,
+          "loaded" : 1,
+          "scored" : 1
+        },
+        "notes" : {
+          "environment" : "device",
+          "path" : "\/System\/Library\/Frameworks\/MediaIntelligence.framework\/MediaIntelligence"
+        },
+        "probe" : "dlopen MediaIntelligence",
+        "trials" : 1,
+        "variant" : "MediaIntelligence"
+      }
+    ],
+    "startedAt" : "2026-08-21T22:03:39Z",
+    "trials" : [
+
+    ],
+    "trialsPerCell" : 3
+  },
+  "schemaVersion" : 1,
+  "startedAt" : "2026-08-21T22:03:39Z",
+  "status" : "completed",
+  "trialsRequested" : 3,
+  "unattended" : true
+}
