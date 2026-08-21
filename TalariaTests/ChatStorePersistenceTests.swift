@@ -1560,8 +1560,15 @@ struct ChatStorePersistenceTests {
         ]
         // Precondition: this staging is exactly what raises the caption, so
         // the test is measuring the captioned case and not a quiet one.
+        //
+        // Pinned against `.onDevice` since 2026-08-20: the Hermes-path caption
+        // was WITHDRAWN by re-ruling (it could not discriminate, so it fired
+        // forever), and this precondition caught that change by failing —
+        // which is what a precondition is for. Repointed rather than deleted,
+        // because without it 173-C could pass while measuring an uncaptioned
+        // turn and prove nothing about the bar it exists for.
         #expect(AttachmentCapabilityCopy.carriesImage(staged, isImage: { $0.kind == .image }))
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) != nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true) != nil)
 
         _ = await store.sendMessage("look at these", attachments: staged)
 
