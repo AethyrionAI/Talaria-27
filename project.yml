@@ -81,12 +81,15 @@ targets:
         # GENERATES that file from this block, so an edit made only there is
         # erased by the next `xcodegen generate` (#44/#48 strip trap — the
         # CarPlay line above carries the same warning for the same reason).
-        # ⛔ COMMENTED OUT 2026-08-20, deliberately and temporarily — leaving it
-        # ACTIVE breaks every signed device build, which is the exact trap the
-        # CarPlay line above documents, and tonight's #302/#323 device
-        # verification depends on the OTA path working. Uncomment on Friday
-        # once the profile carries it (see #72 for the account problem below).
-        # com.apple.developer.private-cloud-compute: true
+        # ⚠️ ACTIVE since 2026-08-20. Until a provisioning profile that CARRIES
+        # this key exists on disk, every signed device build fails at
+        # GatherProvisioningInputs — that is the CarPlay trap above, and it is
+        # expected, not a regression. Minting that profile needs an
+        # authenticated Apple account, which lives in Xcode.app and not in the
+        # CLI keychain, so the mint is a human step; `ota-stage.sh` then works
+        # again with no account (it only needs to USE the profile, never to
+        # create one).
+        com.apple.developer.private-cloud-compute: true
         com.apple.security.application-groups:
           - group.org.aethyrion.talaria
     sources:

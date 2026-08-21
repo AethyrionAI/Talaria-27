@@ -227,19 +227,69 @@ final class LocalChatBackend: HermesClientProtocol {
 
     // MARK: - Private Cloud Compute tier (#30)
 
-    /// Master gate: PCC needs an Apple-granted entitlement that is NOT live yet
-    /// (#72, awaiting approval). On this beta seed, constructing or using
-    /// `PrivateCloudComputeLanguageModel` without the grant traps (SIGTRAP) —
-    /// an uncatchable crash on send. Until the grant lands we never touch the
-    /// type at all. Flip to `true` (or wire to a real signal) once granted;
-    /// that alone re-enables the picker, routing, status, and session paths.
+    /// Master gate: whether this BINARY may construct
+    /// `PrivateCloudComputeLanguageModel` at all.
     ///
-    /// #154: this flag is now the SOLE gate on every PCC site. Each of them
-    /// used to read `#available(iOS 27.0, *), Self.pccGrantConfirmed` — but
-    /// the shipping floor is 27.0, so the version clause was always true and
-    /// only made the sites LOOK like they had an iOS-26 fallback. They never
-    /// did: the live path today is the one this flag being `false` selects.
-    static let pccGrantConfirmed = false
+    /// **Apple GRANTED the entitlement on 2026-08-20** (#72), and
+    /// `com.apple.developer.private-cloud-compute` now reads back from the
+    /// signed product — verified with `codesign -d --entitlements`, not
+    /// assumed from a portal page. So the July condition this flag was
+    /// created for is discharged... **on device.**
+    ///
+    /// **⛔ THE SIMULATOR IS EXCLUDED, AND THE MEASURED REASON IS NOT THE ONE
+    /// YOU WOULD GUESS.** Simulator builds strip entitlements
+    /// (`CODE_SIGNING_ALLOWED=NO` — the same mechanism that strips HealthKit
+    /// and silently kills keychain writes), so a sim binary is an UNENTITLED
+    /// binary; `codesign -d --entitlements` on the installed sim app returns
+    /// an EMPTY dict.
+    ///
+    /// The expected hazard was the 2026-07-13 SIGTRAP. **It did not
+    /// reproduce.** Measured 2026-08-20 by removing this exclusion and
+    /// running the bars: the unentitled sim constructed
+    /// `PrivateCloudComputeLanguageModel()` and read `quotaUsage` **without
+    /// trapping at all**. So do not repeat "it crashes" as though it were
+    /// current — on beta5's simulator it does not.
+    ///
+    /// **What the same run DID find is worse, and it is why this flag
+    /// survives.** With no entitlement, `.isAvailable` returned **`true`**,
+    /// `quotaUsage` returned a usable status, and `availableModels()` offered
+    /// `private-cloud-beta`. The SDK does not merely lack the vocabulary to
+    /// say "not entitled" (`Availability.UnavailableReason` has exactly
+    /// `.deviceNotEligible` and `.systemNotReady`) — **it affirmatively
+    /// reports AVAILABLE.** Gating on availability alone, which is what #72's
+    /// own plan first said to do, would put a beta tier in the picker and
+    /// route real turns to a service the binary has no right to use.
+    /// Bar 72-A/B turn that into RED TESTS: the mutation failed all three.
+    ///
+    /// **Why a compile-time fact and not a runtime entitlement read.**
+    /// `SecTask.h` is absent from the public iOS SDK (checked against beta5),
+    /// so `SecTaskCopyValueForEntitlement` would be private API — an App
+    /// Review risk taken to guard a condition the BUILD SYSTEM already
+    /// guarantees. A device build lacking the entitlement cannot be produced:
+    /// signing fails at `GatherProvisioningInputs`, which is exactly how it
+    /// failed on 2026-08-20 before an Apple account was signed in. That
+    /// failure is the guard (bar 72-C).
+    ///
+    /// **This is only the FIRST of two facts.** Every site below still asks
+    /// `isAvailable` / `quotaUsage` afterwards: this flag answers "may this
+    /// binary touch the type", the SDK answers "is the service usable on this
+    /// device right now". Neither substitutes for the other —
+    /// `Availability.UnavailableReason` has exactly two cases
+    /// (`.deviceNotEligible`, `.systemNotReady`) and **cannot express "not
+    /// entitled"**, so availability alone would never have caught the crash.
+    ///
+    /// #154: this flag is the SOLE build-side gate on every PCC site. Each of
+    /// them used to read `#available(iOS 27.0, *), Self.pccGrantConfirmed` —
+    /// but the shipping floor is 27.0, so the version clause was always true
+    /// and only made the sites LOOK like they had an iOS-26 fallback.
+    static let pccGrantConfirmed: Bool = {
+        #if targetEnvironment(simulator)
+        // No entitlement in a sim binary ⇒ never construct. See above.
+        false
+        #else
+        true
+        #endif
+    }()
 
     /// Whether PCC exists for this install at all: grant confirmed, iOS 27+,
     /// entitlement granted, device/region eligible. Denied/pending Apple
@@ -1384,9 +1434,14 @@ final class LocalChatBackend: HermesClientProtocol {
         // #196 (PROMOTED): a routed-toolless turn speaks the licensed bare
         // branch — the toolless-lic2 payload, the text that measured 60/60
         // content and clean on device.
+        // #385: `activeTier` rides every production path. All three branches,
+        // because the toolless branch is the one a routed turn actually takes
+        // (#196) — gating only the armed branch would have left the common
+        // case telling the same lie.
         if turnRoutedToolless {
             return Self.productionToollessInstructions(
                 deviceContext: Self.deviceContextLine(),
+                tier: activeTier,
                 hasImageTools: hasImage
             )
         }
@@ -1394,12 +1449,14 @@ final class LocalChatBackend: HermesClientProtocol {
         return Self.instructionsText(
             for: Self.activeSessionShape,
             deviceContext: Self.deviceContextLine(),
+            tier: activeTier,
             hasTools: !tools.isEmpty,
             hasImageTools: hasImage
         )
         #else
         return Self.instructionsText(
             deviceContext: Self.deviceContextLine(),
+            tier: activeTier,
             hasTools: !tools.isEmpty,
             hasImageTools: hasImage
         )
@@ -2048,6 +2105,15 @@ final class LocalChatBackend: HermesClientProtocol {
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
+        // #385: WHERE the compute happens. Defaulted to `.onDevice` because
+        // every harness and battery measures that tier — but production
+        // passes `activeTier`, so a PCC session is never handed the
+        // on-device identity. This axis was the ONE thing this function was
+        // not parameterised on (tools, images and three toolless clauses all
+        // were), and a device pass caught the model telling a user its
+        // conversation never leaves the phone while it ran on Apple's
+        // servers. Bar 385-A.
+        tier: LocalModelTier = .onDevice,
         hasTools: Bool = false,
         hasImageTools: Bool = false,
         // #284: the armed blurb's capability list, generated from the
@@ -2248,11 +2314,37 @@ final class LocalChatBackend: HermesClientProtocol {
             """
         }
         return """
-        You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device.
+        \(Self.identitySentence(for: tier))
         Today is \(day).
         \(deviceContext)
         \(capabilities)
         """
+    }
+
+    /// #385 — the identity line, per tier. **Kept adjacent on purpose:** bar
+    /// 385-C requires these two to be DIFFERENT strings, and the shortcut a
+    /// later "simplify the duplication" lane reaches for is one tier-neutral
+    /// sentence that satisfies both bars' prose while failing the ruling.
+    /// Seeing them together is what makes that shortcut look wrong.
+    nonisolated static func identitySentence(for tier: LocalModelTier) -> String {
+        switch tier {
+        case .onDevice:
+            // TRUE on this tier, and deliberately unchanged (bar 385-B).
+            // Owen explicitly rejected stripping the location clause from
+            // both tiers: the fix is to stop GENERALISING a true sentence,
+            // not to go quiet about it.
+            return "You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
+        case .privateCloud:
+            // Ruled 2026-08-20. Names the tier; does NOT vouch for it.
+            //
+            // The rejected alternative stated Apple's guarantees outright
+            // ("not stored, not accessible to Apple") — more useful, and a
+            // SECOND-ORDER version of the defect being fixed: the app
+            // asserting, in the assistant's voice, a privacy property it
+            // cannot itself verify. Naming the tier is ours to assert.
+            // Vouching for it is not.
+            return "You are Hermes, the user's personal assistant, running on Apple's Private Cloud Compute rather than on the device itself. If the user asks where their data goes, say plainly that this tier sends the request to Apple's servers for processing, and point them to Apple's Private Cloud Compute documentation rather than characterising the guarantees yourself."
+        }
     }
 
     static func deviceContextLine() -> String {  // harness-visible

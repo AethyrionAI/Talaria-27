@@ -117,7 +117,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED 2026-08-20: Apple GRANTED the Private Cloud Compute entitlement. The one item that was genuinely waiting on Apple is no longer waiting. NOT STARTED; the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
+- **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
+- **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
+- **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#112** ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
@@ -143,7 +145,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … **→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
-- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. DEVICE VERIFICATION STILL OWED. Twin filing #323 carries the non-voice half**
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
@@ -325,6 +327,262 @@ Logged 2026-06-27.
 
 
 ---
+
+## 385. 🐛 On the PCC tier the assistant TELLS THE USER ITS CONVERSATION NEVER LEAVES THE DEVICE — and that is false — **FOUND ON DEVICE 2026-08-20, the first hour PCC ever ran (#72's 72-D pass). MEASURED, not inferred: the model said it in a screenshot and the shipping instruction string says it verbatim. NOT STARTED; bars pre-register here before any code. ⛔ This gates SHIPPING the PCC tier, not #72's plumbing.**
+
+**What Owen saw.** He selected Private Cloud β, asked *"Private cloud compute.
+The new backend you're on,"* and the assistant answered:
+
+> *"I'm running directly on your iPhone using Apple's on-device foundation
+> model, so there's no backend involved."*
+
+**The model was not confabulating. It was repeating our own instructions.**
+`LocalChatBackend.instructionsText` (`LocalChatBackend.swift:2301`) opens every
+session with:
+
+> *"You are Hermes, the user's personal assistant, running entirely on their
+> iPhone with Apple's on-device foundation model. **The conversation is private
+> and never leaves the device.**"*
+
+**`instructionsText` takes no tier parameter.** `hasTools`, `hasImageTools`,
+`includeToollessLic2Clause`, `includeToollessHonestyClauseV2`,
+`includeToollessCapabilityIndex` — every axis is parameterised except the one
+that changes where the compute happens. So the PCC tier inherits the on-device
+identity whole.
+
+**Both clauses are false on PCC**, and the second one is the serious one:
+1. It is NOT running entirely on the iPhone — it is running on Apple's Private
+   Cloud Compute.
+2. The conversation DOES leave the device.
+
+**Confirmed that PCC really was active, so this is not a mis-labelled
+on-device turn.** Same log: `local tier → private-cloud-beta`,
+`sendStreaming routed to private-cloud-beta`, `run finished on
+private-cloud-beta [stream-ended]` — and decisively
+`session budget: … of window **32768**`, which
+`LocalChatBackend+Preflight.swift:577` names in so many words as *"PCC's 32K
+when that tier is active"* against #210's 8,192 on-device ceiling. The turn
+went to PCC and the assistant denied it.
+
+**Why this is worse than an ordinary copy bug.** This is **#180's shape aimed
+at the one claim PCC users care about.** A user asking "where does my data go"
+is asking a privacy question, and the app answers it confidently and wrongly.
+Talaria's whole posture (#251/#269) is that the local brain is the private
+floor; the PCC tier is a *different* privacy story — a good one, but not the
+same one — and telling the user it is identical misrepresents data handling.
+That is the kind of statement that should never appear in shipping copy, an
+App Store privacy answer, or a model's mouth.
+
+**#323's own structural note applies here almost word for word:** *"claims
+beyond what the mechanism can do (in copy, in the privacy policy, or in App
+Store material) would overstate what the mechanism can do."* This one is
+already in the model's mouth.
+
+**Scope — what this item is NOT.** It is not a defect in #72's gate,
+entitlement or routing: all three are working, which is exactly how this was
+found. It is not a claim that PCC is insecure — Apple's PCC is a strong
+privacy story and the honest description is a *good* one. The defect is that
+we do not tell it.
+
+**Open for the fix lane (design, and some of it Owen's):**
+(a) does `instructionsText` take a tier, or does the PCC session get its own
+identity preamble; (b) what the honest PCC sentence actually says — "runs on
+Apple's Private Cloud Compute; Apple cannot read it and it is not stored" is
+accurate but is *copy*, and copy that describes a privacy guarantee is Owen's
+call, not a lane's; (c) whether the on-device tier's sentence should also
+soften now that a sibling tier exists; (d) whether the escalation banner and
+the Models screen need the same treatment — they say *"Larger context, same
+privacy"*, which is a defensible summary but is the same claim in shorter form.
+
+> **⚖️ RULED 2026-08-20 (Owen, same evening as the finding).**
+>
+> **(1) The PCC identity line NAMES THE TIER BUT DOES NOT VOUCH FOR IT.**
+> Chosen text: *"You are Hermes, the user's personal assistant, running on
+> Apple's Private Cloud Compute rather than on the device itself. If the user
+> asks where their data goes, say plainly that this tier sends the request to
+> Apple's servers for processing, and point them to Apple's Private Cloud
+> Compute documentation rather than characterising the guarantees yourself."*
+>
+> **The reasoning is the interesting part.** The rejected alternative stated
+> Apple's guarantees outright ("not stored, not accessible to Apple"), which
+> is more useful to a user who asks — and is **a second-order version of the
+> defect being fixed**: the app asserting, in the assistant's voice, a
+> privacy property it cannot itself verify. We got here by saying something
+> true-of-one-tier as though it were true everywhere; replacing it with
+> something true-of-Apple-as-far-as-we-know would repeat the shape at one
+> remove. Naming the tier is ours to assert. Vouching for it is not.
+>
+> **(2) The escalation banner is REWRITTEN to name PCC**, dropping *"same
+> privacy"*. It is the same claim in shorter form, in our own voice, shown at
+> exactly the moment the user is asked to opt in — the worst possible place
+> for it.
+>
+> **Explicitly NOT chosen: stripping the location clause from both tiers.**
+> The on-device sentence is TRUE on the on-device tier and it is useful; the
+> fix is to stop generalising it, not to go quiet. That distinction is what
+> bar 385-B exists to hold.
+
+### 🎯 BARS 385-A…D — pre-registered before any code
+
+- **385-A — a PCC session is never told it runs on-device.** The instruction
+  text built for `.privateCloud` must contain neither *"entirely on their
+  iPhone"* nor *"never leaves the device"*, and must name Private Cloud
+  Compute. Mutation: revert the tier-awareness ⇒ red.
+- **385-B — the ON-DEVICE instructions are BYTE-IDENTICAL to what shipped.**
+  The negative control, and the bar that encodes Owen's explicit rejection of
+  the strip-it-from-both option. **Without it, 385-A is satisfied by deleting
+  the sentence everywhere** — which would trade a false claim for a silence,
+  and lose a statement that is true and load-bearing on the free tier.
+- **385-C — the two tiers' identity lines are DIFFERENT STRINGS.** #173-B's
+  inequality shape, and it is here for the same reason: one shared
+  tier-neutral sentence satisfies A and B's prose while failing the ruling,
+  and it is exactly what a later "simplify the duplication" lane reaches for
+  first.
+- **385-D — the escalation banner names PCC and does not claim equal
+  privacy.** Pinned as a string test, because #173-E proved that copy nothing
+  asserts can be silently un-shipped by a later edit — and this copy is the
+  one shown at the opt-in moment.
+
+**Pre-registered response.** A–D green ⇒ the false claim is gone from both the
+model's mouth and the opt-in prompt, and the PCC tier is shippable on this
+axis. **385-B red is the most informative failure here** — it would mean the
+lane fixed the lie by deleting the truth.
+
+### ✅ RESULT 2026-08-20 — 385-A…D ALL MET, and the two mutations isolate cleanly.
+
+Fixed the same evening it was found, on Owen's ruling.
+`LocalChatBackend.identitySentence(for:)` now carries both tiers;
+`instructionsText` and `productionToollessInstructions` take a `tier`
+parameter defaulted to `.onDevice`, and `effectiveInstructionsText` passes
+`activeTier` on **all three** production branches. Six tests in
+`TalariaTests/PrivateCloudIdentityTests.swift`.
+
+**The compile error caught a trap worth recording.**
+`effectiveInstructionsText` has a separate **DEBUG** branch calling a
+different `instructionsText(for:shape:)` overload. Threading the tier through
+only the release path would have left every debug build — **which is exactly
+what the PCC session that exposed this was** — telling the lie the release
+build no longer tells. Six inner call sites in
+`LocalChatBackend+Harnesses.swift` needed it too. A fix verified only in
+Release would have looked complete and been half-done.
+
+**Two mutations, and they isolate different halves:**
+
+| mutation | result |
+|---|---|
+| **1 — undo the tier-awareness** (both tiers get the on-device sentence) | 385-A's three tests RED (8 assertions), 385-C RED, **385-B and 385-D green** |
+| **2 — soften the ON-DEVICE sentence, leave PCC correct** | **exactly ONE test red: 385-B.** All three 385-A tests, 385-C and 385-D green |
+
+**Mutation 2 is the one that justifies 385-B's existence.** It models a lane
+that "fixes" #385 by deleting the location claim everywhere — the option Owen
+explicitly rejected — and that lane passes **every other bar in the file**.
+Only the byte-identical golden string catches it. **A bar set that only tests
+that the bad thing is gone would have scored that build green**; this one also
+tests that the true thing survived, which is what the ruling was actually
+about.
+
+**What shipped, exactly:**
+- **on-device** (unchanged, to the byte): *"…running entirely on their iPhone
+  with Apple's on-device foundation model. The conversation is private and
+  never leaves the device."*
+- **PCC**: *"…running on Apple's Private Cloud Compute rather than on the
+  device itself. If the user asks where their data goes, say plainly that this
+  tier sends the request to Apple's servers for processing, and point them to
+  Apple's Private Cloud Compute documentation rather than characterising the
+  guarantees yourself."*
+- **banner**: *"Continue on Private Cloud β? Larger context, and it runs on
+  Apple's Private Cloud Compute — labeled beta."* (was *"…same privacy…"*)
+
+**Scope note — this does NOT close the PCC-honesty question.** The published
+privacy policy still carries the same claim and is filed as **#386**, which is
+outward-facing and gated on Owen's read of the exact words. #385 covers what
+the assistant says and what the opt-in prompt says; those are the two surfaces
+a lane may change on a ruling.
+
+**Not verified on device.** These are string-level bars on a pure function.
+The device evidence that started this — the model's own answer — should be
+re-asked on the next PCC sitting: select Private Cloud β and ask *"where does
+this run?"* A green string test proves the instruction changed; it does not
+prove the model now answers well.
+
+**Cross-references:** **#72** (the tier, which works — this was found by its
+first device pass), **#180** (confident-wrong-answer discipline, the shape
+this is), **#173** (the never-claim floor for attachments — same family: do
+not assert a capability or property we cannot stand behind), **#323**
+(structural note on not overstating a privacy mechanism), **#4.8/#210**
+(context-window plumbing, which is what proved the tier was genuinely active).
+
+## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.**
+
+**Why this is separate from #385 rather than part of it.** #385 fixes what the
+*assistant* says and what the *opt-in banner* says — both in-app, both ours to
+change on a ruling. This is a **published document on the Pages site**
+(`docs/privacy.html`, the web root per the repo's own layout), which a user or
+App Review relies on. Different artifact, different blast radius, different
+approval requirement.
+
+**What the live policy currently claims** (read 2026-08-20, verbatim from the
+shipping file):
+- *"The only parties that ever handle your data are Apple's on-device
+  frameworks and the services you yourself configure."* (`:37-38`)
+- *"the assistant runs entirely on your iPhone using Apple's on-device
+  foundation model"*
+- *"Voice conversations and dictation. Default processing is on-device."*
+
+**On the PCC tier the first two are the same claim #385 just removed from the
+model's mouth** — and this is the version a regulator, a reviewer, or a
+cautious user would actually read.
+
+**✅ ONE THING THE POLICY GOT RIGHT IN ADVANCE, and it is the cheapest part of
+the fix.** `:102-104` already lists Apple as a party covering *"on-device
+models, Speech, WeatherKit, HealthKit, and **(if it ships)** Private Cloud
+Compute"*. Whoever wrote that anticipated this exactly. **The condition is now
+met — PCC shipped in the build on 2026-08-20 — so the hedge is what is stale,
+not the structure.** Dropping three words is most of that bullet's work.
+
+**What needs deciding (Owen's, not a lane's):**
+(a) the "only parties" sentence — PCC *is* Apple, so it is arguably already
+covered, but "on-device frameworks" is doing load-bearing work in that
+sentence and PCC is not on-device; (b) whether the policy describes PCC's
+guarantees or points at Apple's documentation — **#385's ruling says point,
+don't vouch, and the same logic applies with more force in a legal document**;
+(c) whether the on-device sentences get a "by default" qualifier or a separate
+PCC section; (d) whether `PrivacyInfo.xcprivacy` (all three targets) needs any
+change at all — PCC is an Apple framework and probably requires nothing new,
+but *probably* is not an answer and this should be checked rather than assumed.
+
+> **⚖️ RULED 2026-08-20 (Owen, minutes after filing):** *"definitely check the
+> live one and make sure we build on it, instead of just rewrite it."*
+> **`docs/privacy.html` is the BASE. The fix is an amendment, not a
+> replacement.** A rewrite would silently drop commitments the live document
+> already makes — and a privacy policy is a document people may have relied on,
+> so removing a promise is a substantive act even when it looks like tidying.
+
+**✅ The draft question is CHECKED, and it answers itself** *(correcting this
+entry's own "UNCHECKED" line, written an hour earlier)*.
+`planning/privacy-policy-DRAFT-2026-08-10.html` carries an HTML comment in its
+own header: *"THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
+UNCOMMITTED). Edit there, not here."* It also records the four resolutions
+that closed it out — data-practice claims confirmed and verified against the
+tree, developer of record (James Jones, Owen's call over "Aethyrion"), and the
+contact address.
+
+**So the live file is authoritative and has been maintained since** — last
+touched by `f48add84` ("correct stale sensor-pipeline, relay, and shim
+references"), i.e. it already survived one accuracy sweep. Structure is
+identical across both (same twelve headings); the draft's extra 27 lines are
+its resolution comment. **Do not diff the draft in as though it were newer.**
+
+**⛔ Publication gate.** The standing rule is that outward-facing text gets
+Owen's read of the *exact* wording plus an explicit go — a "we should update
+the policy" instruction does not cover the moment of publishing. A lane may
+draft; it may not push.
+
+**Cross-references:** **#385** (the in-app half, fixed the same evening — this
+is its published sibling), **#72** (the tier that made both stale), **#323**
+(the structural note that started this: claims beyond what the mechanism
+delivers must not appear "in copy, in the privacy policy, or in App Store
+material" — that sentence named this file eleven days before it mattered).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
@@ -1139,6 +1397,127 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
 > writes the key into the generated `.entitlements` from the `properties:`
 > block, so the #44/#48 strip trap is handled and that half needs no further
 > thought.
+>
+> **🎯 BARS 72-A…D — pre-registered 2026-08-20, BEFORE the flag flip.**
+>
+> The entitlement is now proven present in the signed binary (see the commit
+> above), which is the precondition this entry set for touching
+> `pccGrantConfirmed` at all. The flip is the last step and it gets bars,
+> because the failure mode is an **uncatchable SIGTRAP** and a crash cannot be
+> caught by the thing it kills.
+>
+> - **72-A — the gate is a BUILD FACT, and the SIMULATOR is excluded
+>   explicitly.** `pccGrantConfirmed` must be `false` on simulator and `true`
+>   on device. **This is not belt-and-braces, it is the load-bearing bar.**
+>   Simulator builds strip entitlements (`CODE_SIGNING_ALLOWED=NO`, the same
+>   mechanism that strips HealthKit and silently kills keychain writes), and
+>   **the entire gate suite runs on the simulator** — so a hardcoded `true`
+>   would construct an unentitled model there and take the suite down with an
+>   uncatchable trap, no failure marker, no verdict. That is the gate's
+>   founding sin (absence of a failure marker is not success) arriving as a
+>   crash. The bar converts it into a RED TEST.
+> - **72-B — every PCC surface stays dark on simulator, and the test PASSING
+>   is itself the evidence.** `isPrivateCloudAvailable`, `isPrivateCloudUsable`
+>   and `privateCloudStatus()` return `false`/`false`/`nil` under the gate.
+>   **The proof is structural rather than assertional: if any of those reached
+>   a construction, the process would trap and the test could not report
+>   anything at all.** A green result therefore proves non-construction in a
+>   way an `#expect` cannot.
+> - **72-C — a device build without the entitlement CANNOT be produced.**
+>   Not a unit bar — a property of the build system, and it was demonstrated
+>   involuntarily on 2026-08-20: with no account, signing failed at
+>   `GatherProvisioningInputs` rather than producing an unentitled binary.
+>   Recorded because it is what justifies `true` on device without a runtime
+>   entitlement read (`SecTask.h` is absent from the public iOS SDK — verified
+>   against beta5 — so the only runtime check would be private API, an App
+>   Review risk taken to guard a condition the build already guarantees).
+> - **72-D — DEVICE: does an ENTITLED build still trap?** The 2026-07-13
+>   SIGTRAP was measured on a much earlier beta with no entitlement. The
+>   entitlement was always the leading explanation, but *"the trap is gone"*
+>   is an assumption until a device says so. **This is the first question of
+>   the device pass and it must be asked on a build Owen can afford to lose.**
+>   Pass = the app launches, the picker offers Private Cloud β, and reading
+>   `availability`/`quotaUsage` does not kill the process.
+>
+> **✅ 72-D ANSWERED ON DEVICE 2026-08-20 — PCC WORKS. The trap is gone on an
+> ENTITLED device build too.** `whoGoesThere`, branch build, Owen driving:
+> the app launched, the picker offered **Private Cloud β**, and **three turns
+> completed on it** — `local tier → private-cloud-beta`, `sendStreaming routed
+> to private-cloud-beta`, `run finished on private-cloud-beta [stream-ended]`,
+> ×3. No crash, at construction or on send. **The first PCC inference this
+> project has ever run.**
+>
+> **Proof it was REALLY PCC and not a mislabelled on-device turn:**
+> `session budget: … of window **32768**`.
+> `LocalChatBackend+Preflight.swift:577` names that number in so many words as
+> *"PCC's 32K when that tier is active"*, against #210's **8,192** on-device
+> ceiling. The window is the discriminator; the routing label alone would not
+> have been.
+>
+> **So the 2026-07-13 SIGTRAP is discharged on both arms** — unentitled
+> (simulator, measured earlier the same day) and entitled (device, here).
+> Nothing in this entry should describe it as current.
+>
+> **🔴 AND THE SAME PASS FOUND A SHIPPING BLOCKER THAT IS NOT #72's:** on the
+> PCC tier the assistant tells the user *"I'm running directly on your iPhone…
+> so there's no backend involved"* — because
+> `LocalChatBackend.instructionsText` is parameterised on tools and images but
+> **not on tier**, and hardcodes *"the conversation is private and never leaves
+> the device."* Filed as **#385**. #72's plumbing is fine; the tier is not
+> shippable until #385 is fixed.
+
+> **Pre-registered response.** 72-A/B green ⇒ the flip is safe to ship and the
+> simulator can never construct. 72-D is the one that can still surprise, and
+> a crash there is a FINDING, not a failure of this lane — it would mean the
+> trap has a second cause nobody has named, and `pccGrantConfirmed` goes back
+> to `false` the same hour.
+>
+> **✅ RESULT 2026-08-20 — 72-A/B MET, mutation-proven. AND THE MUTATION
+> OVERTURNED THIS ENTRY'S CENTRAL ASSUMPTION.**
+>
+> `pccGrantConfirmed` is now a build fact: `false` on simulator, `true` on
+> device. Three bars in `TalariaTests/PrivateCloudGateTests.swift`, green;
+> removing the simulator exclusion turns **all three** red.
+>
+> **🔴 THE SIGTRAP DID NOT REPRODUCE.** This entry has said since 2026-07-13
+> that constructing `PrivateCloudComputeLanguageModel` without the entitlement
+> traps uncatchably, and every design decision here — the flag's existence,
+> the "flip it LAST" ordering, the warning to test on a build Owen can afford
+> to lose — descends from it. Measured directly on 2026-08-20 by removing the
+> exclusion and running the bars on a **verified unentitled binary**
+> (`codesign -d --entitlements` on the installed sim app returns an EMPTY
+> dict): the sim **constructed the model and read `quotaUsage` without
+> trapping.** The tests failed with ordinary assertion failures and the
+> process survived. **On beta5's simulator, the crash is gone.**
+>
+> **🔴 AND WHAT THE SAME RUN FOUND INSTEAD IS WORSE.** With no entitlement:
+> `.isAvailable` returned **`true`**, `quotaUsage` returned a usable status,
+> and `availableModels()` offered **`private-cloud-beta`**. The SDK does not
+> merely lack a way to SAY "not entitled" — it affirmatively reports
+> **available**.
+>
+> **This falsifies step 3 of this entry's own unblock plan**, written the same
+> day: *"replace the flag with a real availability signal."* Had that been
+> done, the picker would offer Private Cloud β on a binary with no right to
+> the service, and turns would route to it. The two-fact gate was adopted from
+> a CODE READ of `UnavailableReason`'s two cases; this run upgrades that
+> reasoning to a MEASUREMENT, and the measurement is stronger than the
+> reasoning was — "cannot express not-entitled" is a gap, "says available when
+> not entitled" is a wrong answer.
+>
+> **What this does NOT establish, stated so nobody borrows it:** the sim is
+> not the device. A device build is entitled by construction (signing fails
+> otherwise), so the unentitled-device case is unreachable and untested here —
+> and whether an ENTITLED device build constructs cleanly is still **72-D**,
+> still unanswered, and still the first question of the device pass. What the
+> sim result DOES buy is that the risk of the next device build is materially
+> lower than this entry has been assuming since July.
+>
+> **Correction discipline:** the doc comment on `pccGrantConfirmed` used to
+> give the crash as the reason for the simulator exclusion. It now gives the
+> measured reason, and says in so many words not to repeat "it crashes" as
+> though it were current. A rationale that outlives its evidence is how #180's
+> shape gets into code comments.
 >
 > **Why this matters beyond one more tier.** The launch posture (#251/#269) is
 > that the on-device brain is the permanent free floor and Hermes is the
@@ -4686,8 +5065,33 @@ prevents the tap. Recorded so the next reader does not re-derive it as a gap.
 > before the cancel and staying hot 34.9 s while `cover=locked locked=true`.
 > This run has nothing behind the cover.
 >
+> **✅ THE OTHER HALF IS NOW CONFIRMED TOO — 2026-08-20, same evening.** Owen,
+> on the re-run: *"a voice start resumes on unlock after 30+ seconds."* So the
+> behaviour is **(a) a real DEFERRAL, not (b) a permanent refusal** — the
+> distinction the first report could not settle, and the one that separates
+> 302-C's ruled contract from a new defect wearing its symptoms. **302-E is
+> device-confirmed on both arms: cold while locked, and it starts on unlock.**
+> The 30+ s figure is the parked interval — the session survived being held
+> that long and still resumed, which is the arm that matters, since #272's
+> fixed Cancel-then-UNLOCK state is what holds a locked interval open
+> indefinitely.
+>
+> *(One reading not excluded by the sentence alone: that the resume itself took
+> 30+ s AFTER the unlock, which would be a latency defect rather than a
+> deferral one. The natural reading is the parked interval, and it matches the
+> test asked for — recorded so a later reader knows which was meant and that
+> the alternative was considered rather than missed.)*
+>
+> **What this closes.** #302's fix is now verified end to end on device: the
+> microphone is cold behind the cover (the July defect, inverted) AND the
+> session defers rather than dies. Nothing about the fix is unmeasured. What
+> remains for this item is #124's seven App-Lock checks, which are a broader
+> regression sweep rather than a question about this fix.
+
 > **⚠️ HALF THE CONTRACT IS STILL UNVERIFIED, and the two halves are
-> indistinguishable from the report so far.** 302-C's ruled contract is
+> indistinguishable from the report so far.** *(SUPERSEDED by the block above
+> — kept because it is the record of what was and was not known at the time.
+> Read it in the past tense.)* 302-C's ruled contract is
 > **DEFER**-until-unlock, not refuse. "The mic stayed dead" is produced
 > equally by:
 > - **(a) a correct deferral** — parked, then started when the cover came
@@ -4709,6 +5113,24 @@ prevents the tap. Recorded so the next reader does not re-derive it as a gap.
 > `capture chain HOT` line falls between `cover=locked` and the unlock. The
 > felt observation is strong evidence; the corpus is the proof, and #302 has
 > been a millisecond-ordering question from the day it was filed.
+
+> **📱 DEVICE 2026-08-20 — 323-A's MECHANISM FIRED ON A REAL PHONE.** Caught
+> incidentally in #72's PCC pass, which is the best kind of confirmation
+> (nobody was looking for it). The launch log carries, twice:
+> ```
+> compose outbox drain deferred — App Lock is covering the app (#323-A)
+> scenePhase background -> active | pre: cover=locked locked=true …
+> autoAuth FIRED (no tap) after attempt=0 this episode
+> requestUnlock EXIT attempt=1 result=SUCCESS (episode ends, counter reset)
+> ```
+> **The drain deferred behind the cover and the episode resolved normally** —
+> the untapped path that #323's §V1 finding was actually about, gated on
+> device rather than only in a fixture. It also exercises the data-loss fix
+> from this lane's finding 1: the deferral happened at the DRAIN, ahead of the
+> outbox removal, which is where it had to be.
+>
+> Still not covered by this observation: the voice DEFERRAL half (#302's open
+> question — does a parked voice start actually resume on unlock).
 
 **STILL OWED — device verification.** These bars are unit-level. The device
 question 302-A/302-B answered in the negative must be re-asked on the fix:
