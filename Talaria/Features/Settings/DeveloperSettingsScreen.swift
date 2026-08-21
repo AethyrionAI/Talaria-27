@@ -1021,6 +1021,16 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("condensation-fit", trials: 3,
                                      label: "Condensation fit (#210) (n=3)")
                 }
+                // #388: the beta5 surface sweep — capabilities on BOTH tiers,
+                // the quota tri-state, and whether ImagePlayground /
+                // VisualIntelligence / MediaIntelligence load here. Property
+                // reads and `dlopen`; nothing generated, nothing written.
+                // ⚠️ On a simulator the PCC rows record NOT MEASURED by
+                // design (388-C) — run it on the phone or it answers nothing.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("pcc-surface", trials: 3,
+                                     label: "PCC surface sweep (#388) (n=3)")
+                }
                 // #101 bar 101-A1: does production's router ARM a turn whose
                 // answer lives in a past conversation? 10 pinned rows x 2 =
                 // n=20 classifications; no tools, nothing created.

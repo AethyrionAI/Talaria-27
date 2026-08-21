@@ -828,6 +828,33 @@ enum InstrumentRegistry {
                            guard let backend else { return }
                            await backend.runCardClauseAB(trials: trials)
                        }),
+        // #388 beta5 surface sweep: bars 388-A (capabilities, BOTH tiers),
+        // 388-B (quota, plus the log needle it must be correlated against)
+        // and 388-D's device-answerable half (does each of three
+        // never-examined frameworks LOAD here). READ-ONLY in the strongest
+        // sense in this file: no generation at all, no tokenizer round trip,
+        // no tools registered, nothing created and nothing to reap — it reads
+        // properties and calls `dlopen`.
+        //
+        // `trials` is a REPEAT count and only the quota band uses it:
+        // capabilities and framework loads are static reads, so repeating
+        // them would pad the artifact without adding a fact.
+        //
+        // ⚠️ **On the simulator this instrument DELIBERATELY MEASURES
+        // NOTHING for PCC** — `pccGrantConfirmed` is false there, so both PCC
+        // rows record `errors` and omit their per-capability metrics rather
+        // than reporting zeros (bar 388-C). A green sim run is evidence the
+        // instrument seals its run, never evidence about the tier.
+        //
+        // Surface: read-only — property reads and `dlopen`; nothing is
+        // generated and nothing is written.
+        // Button: `instrumentButton("pcc-surface", …)`.
+        InstrumentSpec(name: "pcc-surface", confirmationMode: .none,
+                       writesEventKit: false, writesAlarms: false,
+                       run: { backend, trials, _ in
+                           guard let backend else { return }
+                           await backend.runPCCSurfaceProbe(trials: trials)
+                       }),
     ]
 
     static func spec(named name: String) -> InstrumentSpec? {

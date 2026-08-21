@@ -117,7 +117,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. NOT BUILT; bars 388-A…D pre-registered**
+- **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **FILED NOT FIXED 2026-08-21**; bars 389-A..C pre-registered, and 389-A rules out the obvious wrong fix (a longer timeout)
+- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. 388-A/B still owed on the phone — ONE launch**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
@@ -193,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#334** 🐛 words-only turns over a LONG offer-tail context route ARMED — bars unwritten, mechanism deliberately unguessed
 - **#336** 🐛 claim-with-no-call + reap surplus — 336-A/C/E unbuilt; warm-up mechanism thrice corroborated, not elected
 - **#339** 🧪 instrument suite as regression gate — routing decision (cadence / subset / what a stochastic regression even is)
-- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; route decision pending Owen's refresher
+- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** (`performCreate` resolves the clock time itself; the #200S schema rollback stays rejected). *This line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board.* Lane + four-bucket scorer NOT STARTED
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — 10-minute Mac-side check owed
 - **#349** 🐛 CTX gauge — fixed + merged (PRs #319/#320); owed: the 60-s reopen check on the next OTA (shared with #367)
@@ -736,6 +737,77 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
+## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. NOT STARTED; bars pre-registered below.**
+
+**The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
+order:
+
+1. `pollUntil { SharedWidgetDataStore.read().lastMessagePreview contains marker }`
+2. `#expect(harness.hostService.fetchCallCount > 0, "the activation never reached the host fetch, so nothing was actually blocked")`
+
+Step 2 is a **guard against passing for the wrong reason**, and it is the
+right thing to want. But it is asserted at an instant, and nothing in the
+production code guarantees that instant has arrived.
+
+**The proof is in production's own deliberate ordering.** `#145 Part B` hoists
+the UI writes to the FRONT of the chain — `AppContainer.swift:1633`,
+`reconcileLiveActivities()` then `updateWidgetData()`, with a comment
+explaining that sitting behind ~8 network awaits is what made the app look
+broken. Between that write and `await hostStore.refresh()` (`:1651`) sit
+**two suspension points**:
+
+```
+1647  await chatStore.reconcilePendingRuns()
+1649  await permissionsStore.reloadCapabilities()
+1651  await hostStore.refresh()      ← the fetch step 2 asserts on
+```
+
+The activation runs as a `Task { @MainActor }`; `pollUntil` sleeps 10 ms
+between checks on the SAME actor. So the poller can resume, observe the
+widget write, and assert — while the activation is still parked at 1647 or
+1649 with `fetchCallCount == 0`. **The test requires the activation to win a
+race the code never promised it would win**, and the faster the widget write
+lands relative to those two awaits, the likelier the test is to lose.
+
+**Status: LATENT, not firing.** `main` is green (measured 2026-08-21, control
+run: `GATE: PASS`, 2392 / 14). It fired once, under #388's first draft, whose
+`dlopen` of three system frameworks into the test host perturbed suite timing;
+that perturbation is fixed at #388 and this test went quiet again. **The race
+did not go away — the thing that exposed it did.**
+
+**⚠️ Why this is filed rather than fixed in passing.** Two reasons, and the
+second is the load-bearing one. First, it is not #388's defect and burying an
+unrelated fix inside that lane would make both harder to read later. Second
+and worse: during #388's diagnosis this exact analysis was **correct AND was
+the wrong answer** — a true structural race plus a real perturbation reads
+precisely like an exonerating explanation, and only a control run on clean
+`main` separated them. A fix applied on the strength of the argument alone
+would have shipped the perturbation too.
+
+### 🎯 BARS 389-A..C — pre-registered before any code
+
+- **389-A (the fix is a WAIT, not a longer timeout).** Step 2 becomes a poll
+  with its own deadline. **Raising `pollUntil`'s timeout is NOT a fix** — it
+  changes how often the race is lost, not whether it exists, and it is the
+  change most likely to be reached for.
+- **389-B (the guard's MEANING survives).** The assertion exists to prove the
+  chain was genuinely blocked, so a fix that simply deletes it, or that waits
+  with no failure when the fetch never comes, has removed the pin rather than
+  repaired it. The test must still FAIL on a build where `hostStore.refresh()`
+  returns instantly.
+- **389-C (demonstrated RED before green).** Reproduce the failure
+  deterministically first — e.g. by making the fixture's `reconcilePendingRuns`
+  / `reloadCapabilities` suspend — and record the red. **A timing fix whose
+  bug was never reproduced on demand is a guess**, and this entry exists
+  because a plausible guess was already made once here.
+
+**Cross-references:** **#388** (the lane that exposed it, and the `dlopen`
+perturbation that did the exposing), **#145** (Part B, the property this test
+pins — the hoist is CORRECT and must not be touched to make the test easier),
+**#219** (XCUITest runner dies mid-bundle — appeared in the same red run and
+is a DIFFERENT, unexplained signal), **#215** (measuring a configuration the
+system never enters; this is its test-side cousin).
+
 ## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.**
 
 **The premise is earned, not cautious.** Hours before this was filed, #72's
@@ -831,6 +903,162 @@ re-probing), **#173** (the never-claim floor, which a `.vision` result would
 reopen tier-wise), **#324** (the beta5 SDK audit this extends), **#207/#228**
 (routing and the 1,501-token belt cost, the economics a 32K window changes),
 **#385** (the tier-aware pattern any capability gate should follow).
+
+> **✅ 2026-08-21 AM — THE INSTRUMENT IS BUILT (`pcc-surface`, #333 registry),
+> AND 388-D IS ANSWERED AT THE DESK RATHER THAN DEFERRED TO THE EVENING.**
+> Booked as "wire the four reads so the evening is ONE launch-armed pass";
+> what shipped is that plus one finding that changes what the evening is for.
+>
+> ### The instrument
+>
+> `pcc-surface`, `confirmationMode: .none`, writes nothing, `defaultCells:
+> nil`. Three bands — `capabilities` (388-A, one row per tier), `quota`
+> (388-B), `frameworks` (388-D's device-answerable half). Reachable from the
+> Developer screen and from `run-instrument.sh` through the one conductor
+> path, so the evening is a single launch. `trials` is a REPEAT count and only
+> the quota band uses it: capabilities and framework loads are static reads,
+> and repeating them would pad the artifact without adding a fact.
+>
+> **The design decision worth recording is what the instrument does where it
+> CANNOT read.** On a simulator `pccGrantConfirmed` is false, so both PCC rows
+> record `errors` equal to what they tried to read and **omit their
+> per-capability metrics entirely**. A `vision: 0` written there would be
+> byte-identical to a device row where PCC genuinely lacks vision — which is
+> the finding 388-A exists to produce. Bar 388-C is enforced structurally
+> rather than remembered: every row carries `environment: simulator|device`.
+>
+> **Mutation-proven, three ways** (the discipline that overturned three
+> founding assumptions on 08-20 — running the mutation instead of trusting the
+> reasoning):
+>
+> | mutation | result |
+> |---|---|
+> | unreadable PCC row writes **zeros** instead of NOT MEASURED | exactly ONE test red, 5 issues (the error tally + all four zero flags) |
+> | unreadable PCC row is **skipped** — band ends with one row and looks complete | TWO tests red; `everyRowCarriesAnErrorTally…` stayed GREEN, which is why the "both rows exist" bar is separate |
+> | the `environment` label is dropped everywhere (a "tidy the notes" edit) | THREE tests red, 9 issues — every row in every band |
+>
+> The second mutation is the one worth keeping in mind: **a bar set that only
+> inspects the rows present cannot see a row that is absent.** That is #385's
+> mutation-2 lesson (a bar set must also test the true thing survived) arriving
+> from the other direction.
+>
+> ### 🔴 388-D — ANSWERED, and the image-generation half is a product fact
+>
+> All three read from the beta5 iOS SDK `.swiftinterface` on 2026-08-21.
+> **Labelled as SDK reads, not device probes** — the `frameworks` band takes
+> the device half.
+>
+> - **`ImagePlayground`** — present since **iOS 18.1/18.4**, not new in 27, no
+>   entitlement. 🔴 **`ImageCreator`, the only HEADLESS generation API, is
+>   `@available(anyAppleOS, deprecated: 27.0, message: "Use
+>   ImagePlaygroundViewController or imagePlaygroundSheet.")`.** What survives
+>   un-deprecated is a **user-driven system sheet** returning a file URL.
+>   **So the answer to Owen's *"there's supposed to be image generation too"*
+>   is: yes, it exists, it needs nothing from Apple — and on the OS Talaria
+>   targets it is not something the assistant can CALL.** The supported shape
+>   is "the user taps and Apple's UI generates", which is a compose
+>   affordance, never a tool in the belt. Any lane that assumed a
+>   `generateImage` tool was one entitlement away should stop assuming it.
+> - **`VisualIntelligence`** — 52 lines, and it is **not an image-understanding
+>   API at all**: `SemanticContentDescriptor` plus an AppIntents
+>   `displayRepresentation`. It is the extension point by which an app
+>   **supplies its own results into the system's visual-lookup UI**. Talaria
+>   would REGISTER with it, not call it. No use case until there is a corpus
+>   worth surfacing to a camera search.
+> - **`MediaIntelligence`** — new in iOS 27. `FaceGroupAnalyzer` over a
+>   caller-supplied asset library: face grouping for a photo-library app. **No
+>   Talaria use case**, and saying so is the honest verdict rather than a
+>   parked question.
+>
+> ### The sim readings — recorded SEPARATELY and LABELLED, per 388-C
+>
+> Taken on `CC-lane-1` (iOS 27.0, 24A5408d) during the instrument's own test
+> run. **These are simulator readings. They are not the 388-A result** — they
+> are what the instrument produces, shown to prove it produces something.
+>
+> - **on-device model:** `vision` ✅, `toolCalling` ✅, `guidedGeneration` ✅,
+>   **`reasoning` ❌** — 3 of 4. `contextSize = 0` (the known sim artifact,
+>   #324), variant `AFM 3 Core`.
+> - **private-cloud:** NOT MEASURED, both bands, with the cause named.
+> - **frameworks:** ImagePlayground ✅, MediaIntelligence ✅,
+>   VisualIntelligence ❌ on the sim (its `dlerror` shows sim-root path
+>   resolution, so this row in particular means little off-device).
+>
+> **The on-device `vision: true` is the one to re-take on hardware first.** If
+> it holds there, #173's surviving on-device caption is a decision about a
+> capability the model HAS, not a workaround for one it lacks.
+>
+> ### One SDK finding the compiler forced out
+>
+> **`PrivateCloudComputeLanguageModel.QuotaUsage.Status` is NON-FROZEN** — the
+> switch would not compile without `@unknown default`. Given this item's own
+> premise (a conclusion about this surface has a half-life of about one beta),
+> a third case appearing is a FINDING, so it is recorded under its own
+> `unknownStatus` counter and excluded from `belowLimit` rather than absorbed
+> by an `else`.
+>
+> ### What the evening still has to do
+>
+> 388-A and 388-B on the phone, one launch. Unchanged, and now cheaper: 388-D
+> no longer needs evening minutes, and the instrument's shape is proven.
+> **388-B's verdict still cannot come from the app** — "quota is inert" needs
+> the system log line as well as the tri-state, so the row carries the grep
+> (`Usage limit status tracker delegate is nil`) and the conclusion belongs to
+> whoever holds both halves.
+
+> **🔴 2026-08-21 — THE INSTRUMENT'S FIRST VERSION PERTURBED THE SUITE IT WAS
+> TESTED IN, and the gate caught it. Recorded because the mistake is a general
+> one and this project has no entry for it yet.**
+>
+> The framework band called `dlopen` unconditionally. So the seven run-level
+> tests pulled **three system frameworks into the shared test-host process** —
+> permanently, for every test scheduled after them, with `ImagePlayground`
+> alone dragging in PencilKit and a SwiftUI stack.
+>
+> **What it looked like.** `GATE: FAIL` on two tests neither of which this lane
+> touches: `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes`
+> (#145 Part B's regression pin, `AppStoresTests.swift:5584`) and
+> `testPairedRelaunchSkipsPairingEntry` — **plus XCUITest running 2 of 14**,
+> which is #219's runner-dies-mid-bundle signature. Every tempting reading was
+> available: flake, host load, a bad sim.
+>
+> **What settled it was a CONTROL, not an argument.** The same gate on a
+> stashed, clean `main`, minutes later, on the same simulator: **`GATE: PASS`,
+> 2392 / 14.** That is what turned "probably the environment" into "my diff",
+> and it is the step that would have been skipped by anyone confident in their
+> own reasoning — the session had already built a *correct* structural argument
+> for why the widget test is racy by construction (`updateWidgetData()` is
+> deliberately hoisted ahead of the network chain at `AppContainer.swift:1633`,
+> and **two awaits** — `reconcilePendingRuns()` and `reloadCapabilities()` —
+> sit between it and `await hostStore.refresh()`, so a MainActor poller can
+> observe the write while the activation is still parked). **That argument is
+> true and it was not the answer.** A real latent race plus a real
+> perturbation is a combination that reads exactly like an exonerating
+> explanation.
+>
+> **The fix is a seam, and it is strictly better than what it replaced.**
+> `FrameworkLoader` is injected: production gets `dlopenFrameworkLoader`, the
+> suite gets a closure and never loads anything. Corroboration that the load
+> was real work: the same 12 tests went from **3.78 s to 1.24 s**. And the
+> fake reaches a branch the real loader never could — every framework in the
+> list is present on this Mac and on the phone, so **NOT-LOADED was
+> unobservable** — which is the branch the band's whole design rests on
+> (absence is an ANSWER, `errors` stays 0). One new test,
+> `aFrameworkThatDidNotLoadIsAMeasurementNotAnError`; 12 → **13**.
+>
+> **THE TRANSFERABLE RULE: a probe that changes the process it is measured in
+> is not a probe.** #215 says an unrouted cell measures a configuration the app
+> never enters; this is its sibling one level down — an instrument whose own
+> side effects reach the measurement apparatus. `dlopen`, framework loads,
+> global registrations and anything that outlives a single test are the shapes
+> to watch, and the seam is the standing answer: real thing by default, fake in
+> the suite.
+>
+> **STILL OPEN, deliberately not fixed here:** the widget test's race is
+> **latent on `main`** and this lane's original diff merely exposed it. Fixing
+> it inside this PR was considered and rejected — it would bury a real,
+> separately-caused defect inside an unrelated lane, and the analysis above is
+> exactly what a filing needs. **Filed as #389.**
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
@@ -7521,6 +7749,88 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > (correct / omitted / wrong-value / no-call) so the A/B can see conversion,
 > per 340-G's warning. 340-E (should the guard judge tool ARGUMENTS) remains
 > open in this entry.
+
+> **📋 BARS 340-H1..H6 PRE-REGISTERED 2026-08-21 AM, BEFORE ANY CODE, for
+> ROUTE (a) — the app-side resolution Owen ruled on 2026-08-18.** F and G are
+> spent on the two falsified prose candidates; this is the third and it is not
+> a third prose tweak.
+>
+> **THE SPLIT THAT MAKES THIS LANE DIFFERENT FROM F AND G, and it is why the
+> two halves get different KINDS of bar.** 340-F and 340-G were attempts to
+> make the MODEL do date arithmetic, so their correctness was statistical and
+> only an A/B could speak. Route (a) has two halves:
+>
+> - **The app-side half is deterministic arithmetic** — "which day does a bare
+>   clock time mean" — and its correctness is UNIT-testable against a pinned
+>   `now`. It needs no device and no A/B to be shown right.
+> - **The guide half is model-facing** — will the model actually send a bare
+>   time once asked for one — and that is the ONLY part an A/B can settle.
+>
+> So H1–H4 are AM bars and bind the code; H5 is the device bar and binds the
+> run. **Shipping H1–H4 ahead of H5 is deliberate**, and the reason is stated
+> so it cannot be mistaken for skipping a step: the app-side resolution cannot
+> be falsified by a rate.
+>
+> **⚠️ THE MECHANISM 340-G ACTUALLY EXPOSED, restated because it is what this
+> route is built on.** Under `armed-dateguide` the model started sending
+> values (omission 19/19 → 11/15) and **every value it sent was today at the
+> asked clock time, already elapsed** — four byte-identical `2026-08-15T16:30`
+> at 18:21 local. It took the guide's first clause and dropped *"or tomorrow's
+> if that time has already passed today."* **The model can produce the TIME
+> and cannot produce the DAY.** Route (a) stops asking it to.
+>
+> **And the app already knows the rule it is failing to delegate.** #256's own
+> past-due bounce text says, in production, verbatim: *"The user most likely
+> means the next time that clock time comes around."* We have been telling the
+> model the correct resolution rule in prose and asking it to apply it. H1 is
+> that same sentence, in code.
+>
+> - **340-H1 (the resolution is deterministic, BOTH branches, against a pinned
+>   `now`).** A bare clock time resolves to **today** at that time when it is
+>   still future, and to **tomorrow** when it has passed — measured against an
+>   injected `now`, never the wall clock. **340-G's instrument flaw is the
+>   reason this is spelled out**: `actionBatteryDefaultPrompts`' fixed
+>   *"at 4:30pm"* scores CORRECT before 16:30 local and ALREADY-PAST after, so
+>   340-F and 340-G are not comparable on that bucket. **No bar in this lane
+>   may depend on the wall clock.**
+> - **340-H2 (an explicit DATE is never rolled).** A full `yyyy-MM-ddTHH:mm`
+>   keeps its date whatever the clock says, and the three existing guards
+>   (#249 past-due, #233 wee-hour, #249 next-morning) keep their current
+>   behaviour on full dates unchanged. **The app owns the DAY only where the
+>   model supplied none.** A lane that silently rolled an explicit past date
+>   forward would be trading this defect for a worse one — the user asked for
+>   a date and got a different one — and #249's guard exists to ask about
+>   exactly that case rather than guess.
+> - **340-H3 (nil still means nil).** An empty or unreadable `due` still
+>   produces a **dateless** reminder, never a guessed one.
+>   `parseDateTime`'s contract — *"callers treat nil as no date, never guess
+>   one"* — is unchanged. Route (a) resolves a time the model **sent**; it
+>   does not license inventing one it did not. **This is the bar that keeps
+>   the fix from becoming the #180 family**: a reminder the app dated by
+>   itself, reported as the user's time, is the founding defect wearing our
+>   own logic instead of the model's.
+> - **340-H4 (the four-bucket scorer exists and is proven on synthetic rows
+>   BEFORE any device run).** `correct` / `omitted` / `wrong-value` /
+>   `no-call`, with **`wrong-value` split from `omitted`** — demonstrated on
+>   hand-built rows, because a scorer first exercised on real data cannot be
+>   distinguished from the data. 340-G3's non-decomposable union is what this
+>   must be able to express: the scorer's job is to make the trade VISIBLE,
+>   not to report the flattering half.
+> - **340-H5 (the A/B, device, direction registered in advance).** `armed`
+>   control vs `armed-bareclock`. **`correct` must RISE and the union
+>   `omitted + wrong-value` must FALL.** Per 340-G3's precedent, stated before
+>   the run: **a drop in `omitted` bought by a rise in `wrong-value` is a
+>   MISSED bar, not a partial win.** The prompt must be day-bearing or the
+>   clock pinned (H1's rule).
+> - **340-H6 (the guide change is RECORDED as a manipulation, not inferred).**
+>   340-G5's bar, carried forward: the artifact must carry a row proving which
+>   guide text was in play, because 340-F had only behavioural evidence that
+>   its arm applied at all.
+>
+> **What this lane does NOT touch:** 340-E (should the guard judge tool
+> ARGUMENTS) stays open and unscoped; #200S's schema rollback stays rejected
+> — twice shown to convert omissions into wrong values, which is the trade
+> H5's union bar exists to refuse.
 
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
