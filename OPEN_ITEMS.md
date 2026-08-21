@@ -1045,8 +1045,48 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
 > **⚠️ Do NOT trust recall for the API surface.** WWDC26 postdates the model's
 > cutoff; the standing rule is to grep the SDK's `.swiftinterface` and never
 > reconstruct a signature from memory. The 2026-07-07 doc-verified list in
-> this entry is the starting point, not the authority — re-verify against
-> beta5's SDK before writing against it.
+> this entry is the starting point, not the authority.
+>
+> **✅ RE-VERIFIED against beta5's SDK, 2026-08-20** — and it **CORRECTS STEP 3
+> ABOVE, written an hour earlier in this same entry.** Read from
+> `iPhoneOS.sdk/…/FoundationModels.swiftmodule/arm64e-apple-ios.swiftinterface`:
+>
+> - `final public class PrivateCloudComputeLanguageModel: Sendable`, conforms
+>   to `LanguageModel` and to `Observable`; `convenience public init()` —
+>   **non-throwing**, which is consistent with an unentitled construct
+>   TRAPPING rather than erroring.
+> - `.isAvailable: Bool`, `.availability: Availability`, `.quotaUsage: QuotaUsage`
+>   — all three still present, as the 07-07 list had them.
+> - `Availability = .available | .unavailable(UnavailableReason)`, and
+>   **`UnavailableReason` has exactly TWO cases: `.deviceNotEligible` and
+>   `.systemNotReady`.**
+> - Typed errors exist and are richer than recorded: `Error = .networkFailure |
+>   .quotaLimitReached | .serviceUnavailable`, with
+>   `limitIncreaseSuggestion` + `resetDate` hanging off the quota case.
+>
+> **🔴 THE CORRECTION: `availability` CANNOT express "not entitled", so it is
+> NOT a sufficient gate on its own.** Step 3 above says to replace
+> `pccGrantConfirmed` with "a real availability signal" — that was written
+> before this read and it is **half right at best**. The enum has no vocabulary
+> for the missing-entitlement condition, which is precisely the condition that
+> SIGTRAPs. `.deviceNotEligible` describes the *device*, not the *app*; an
+> unentitled build could plausibly read `.available` and then trap on
+> construction.
+>
+> **So the gate has to be TWO facts, not one:** a build-configuration truth we
+> control (the entitlement is in `project.yml` and therefore in the signed
+> binary) **AND** the runtime `availability` (device eligibility, system
+> readiness). Availability handles the conditions Apple can describe; the
+> build flag handles the one it cannot. Dropping the flag in favour of
+> `availability` alone would look like a simplification and would re-open an
+> uncatchable crash.
+>
+> **Not established, and worth one cheap probe before any of this:** whether
+> the beta5 SDK still traps at all on an unentitled construct. The SIGTRAP was
+> measured 2026-07-13 on a much earlier beta. It may have become a throw or an
+> `.unavailable` — but **it must be MEASURED, not assumed**, and the
+> measurement has to happen on a build that can survive being wrong (i.e. not
+> one Owen is using). Until then the trap is the operating assumption.
 >
 > **Why this matters beyond one more tier.** The launch posture (#251/#269) is
 > that the on-device brain is the permanent free floor and Hermes is the
