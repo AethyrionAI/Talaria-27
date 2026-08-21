@@ -4795,7 +4795,7 @@ must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
 >    something was absent.
 >
 > **📬 2026-08-20 — PR https://github.com/AethyrionAI/Talaria-27/pull/325
-> — PR open; merge is Owen's review.** Body = `handoffs/PR-BODY-310.md`
+> ✅ MERGED 2026-08-20 as `7d72bf12`.** Body = `handoffs/PR-BODY-310.md`
 > (gitignored). ⚠️ **PR #325 is not tracker #325** (the forge-token contrast
 > item) — CLAUDE.md's standing disambiguation rule; both will appear in this
 > week's notes.
