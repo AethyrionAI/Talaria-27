@@ -26,7 +26,15 @@ DEVICE="" INSTRUMENT="" TRIALS=10 CELLS="" TIMEOUT=1800 OUT_ROOT="$HOME/.talaria
 while [[ $# -gt 0 ]]; do case "$1" in
   --device) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; DEVICE="$2"; shift 2;;
   --instrument) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; INSTRUMENT="$2"; shift 2;;
-  --trials) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; TRIALS="$2"; shift 2;;
+  # #373 (#333's minor): these were accepted UNVALIDATED. `--trials 2O` (letter
+  # O) reached the app as a non-numeric TALARIA_TRIALS, and `--timeout 30m`
+  # reached bash's `(( SECONDS < TIMEOUT ))` where a non-numeric operand
+  # evaluates to 0 — so the poll loop exits IMMEDIATELY and the run is reported
+  # as a timeout it never had. Both are typos that cost a whole device run to
+  # discover, which is the shape this bundle exists to stop.
+  --trials) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }
+            [[ "$2" =~ ^[0-9]+$ && "$2" -gt 0 ]] || { echo "--trials must be a positive integer, got: $2" >&2; exit 3; }
+            TRIALS="$2"; shift 2;;
   # #341: an EMPTY --cells is rejected here, not app-side. The app cannot tell
   # "not passed" from "passed empty" — this script exports TALARIA_CELLS
   # unconditionally — so the resolver must treat empty as unset, which means
@@ -37,11 +45,38 @@ while [[ $# -gt 0 ]]; do case "$1" in
   --cells) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }
            [[ -n "${2//[[:space:]]/}" ]] || { echo "--cells was given an empty value; omit --cells to run the instrument's own cells" >&2; exit 3; }
            CELLS="$2"; shift 2;;
-  --timeout) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; TIMEOUT="$2"; shift 2;;
+  --timeout) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }
+             [[ "$2" =~ ^[0-9]+$ && "$2" -gt 0 ]] || { echo "--timeout must be a positive integer (SECONDS), got: $2" >&2; exit 3; }
+             TIMEOUT="$2"; shift 2;;
   --out) [[ $# -ge 2 ]] || { echo "missing value for $1" >&2; exit 3; }; OUT_ROOT="$2"; shift 2;;
   *) echo "unknown arg: $1" >&2; exit 3;;
 esac; done
 [[ -n "$DEVICE" && -n "$INSTRUMENT" ]] || { echo "need --device and --instrument" >&2; exit 3; }
+
+# #373 (#333's minor): a MISTYPED INSTRUMENT NAME used to cost the full
+# --timeout. The app resolves the name through `InstrumentRegistry.spec(named:)`
+# and a miss is an inert launch — no run, no artifact — so this script polled a
+# file that would never appear and reported TIMEOUT after 30 minutes for a
+# four-character typo. Checked HERE against the registry's own source, before a
+# device is even touched: a name this grep cannot find cannot be run.
+#
+# Deliberately a warning-with-exit rather than a silent pass-through: the
+# registry file is the single source of instrument names (bar 333-B), so a name
+# absent from it is absent from the app.
+REGISTRY="$(cd "$(dirname "$0")/../.." && pwd)/Talaria/Services/Live/InstrumentRegistry.swift"
+if [[ -r "$REGISTRY" ]]; then
+  grep -q "InstrumentSpec(name: \"$INSTRUMENT\"" "$REGISTRY" || {
+    echo "PRECONDITION: no instrument named '$INSTRUMENT' in InstrumentRegistry.swift." >&2
+    echo "  A typo here is an INERT LAUNCH — the app resolves nothing, writes no" >&2
+    echo "  artifact, and this script would poll until --timeout for a file that" >&2
+    echo "  can never appear. Known names:" >&2
+    grep -o 'InstrumentSpec(name: "[^"]*"' "$REGISTRY" | sed 's/.*name: "/    /;s/"$//' | sort | tr '\n' ' ' >&2
+    echo "" >&2
+    exit 3
+  }
+else
+  echo "NOTE: registry not readable at $REGISTRY — instrument name NOT pre-checked." >&2
+fi
 
 # Resolve to a PHYSICAL device udid (the Reality column — a sim match here
 # once produced a phantom-hardware recommendation). Anchor on $NF (the last
@@ -52,7 +87,21 @@ esac; done
 # NOTE: $0 ~ d treats the caller-supplied --device value as an awk regex, not
 # a literal string — fine for a human-driven harness invocation, just don't
 # feed it untrusted input.
-UDID=$(perl -e 'alarm shift; exec @ARGV' 60 xcrun devicectl list devices 2>/dev/null | awk -v d="$DEVICE" \
+# #373 (#333's minor): the alarm(2) wrapper kills a HUNG `list devices` with
+# SIGALRM, which bash reports as exit 142. Piping straight into awk threw that
+# status away, so a TIMED-OUT enumeration was indistinguishable from a
+# genuinely absent device — and the operator was told to check the cable for a
+# problem that was `devicectl` hanging. Captured first, status inspected, then
+# parsed.
+DEVICES_RAW=$(perl -e 'alarm shift; exec @ARGV' 60 xcrun devicectl list devices 2>/dev/null)
+DEVICES_STATUS=$?
+if (( DEVICES_STATUS == 142 )); then
+  echo "PRECONDITION: \`xcrun devicectl list devices\` HUNG and was killed at 60s (exit 142)." >&2
+  echo "  This is NOT 'no device connected' — the enumeration never finished." >&2
+  echo "  Usually CoreDevice wedged; re-run, or unplug/replug the device." >&2
+  exit 3
+fi
+UDID=$(printf '%s\n' "$DEVICES_RAW" | awk -v d="$DEVICE" \
   '$0 ~ d && $NF == "physical" {for(i=1;i<=NF;i++) if ($i ~ /^[0-9A-F-]{36}$/) print $i}' | head -1)
 [[ -n "$UDID" ]] || { echo "PRECONDITION: no connected physical device matching '$DEVICE'" >&2; exit 3; }
 

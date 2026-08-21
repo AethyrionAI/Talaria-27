@@ -117,7 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **FILED NOT FIXED 2026-08-21**; bars 389-A..C pre-registered, and 389-A rules out the obvious wrong fix (a longer timeout)
+- **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **✅ FIXED 2026-08-21 PM — 389-A/B/C all met.** The assertion POLLS (the timeout was NOT raised, which 389-A ruled out in advance), and a new test makes the ordering DETERMINISTIC by parking the chain inside `reloadCapabilities()` via an injected gated health service. Mutation: removing #145 Part B's hoist turns that new test RED, so it is a permanent POSITIVE pin on Part B's property rather than only a repro
 - **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. 388-A/B still owed on the phone — ONE launch. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
@@ -210,7 +210,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · the rollback arm
-- **#373** 🧹 instrument/test hygiene bundle (#333 minors · #341 gap · #224 idiom · #342 checks · #335 conductor hazard)
+- **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** Still open: `runColdCalfixBattery`, #342's two invariant checks, and the structural fix for that tripwire
 - **#375** 🧹 retire the MAC's legacy hermes-mobile surface — #346's second half; live config go PENDING confirmation
 - **#376** 🎨 stale About-page drain readout — exact screen/value naming owed from Owen
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e)
@@ -14987,7 +14987,109 @@ scope: **wholesale, or a permanent dual path?**
 > that puts the 2026-08-15 promotion back in question rather than confirming
 > it. Both are publishable and neither is a disappointment.
 
-## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. NOT STARTED; none urgent.**
+> **✅ 2026-08-21 PM — 389-A/B/C ALL MET, and the fix is not the one the entry
+> was most at risk of getting.**
+>
+> **389-C first, as the bar demanded.** The race is now a deterministic FACT
+> rather than a flake: `PermissionsStore.reloadCapabilities()` awaits
+> `healthService.refreshAuthorizationStatus()`, and that call sits between the
+> hoisted widget write and `hostStore.refresh()`. A `GatedHealthService`
+> injected into the launch harness holds it open, so the activation is
+> **provably** parked in that gap — the widget snapshot is written and the
+> fetch cannot have happened. No timing luck involved.
+>
+> **389-A: the assertion POLLS; the timeout was NOT raised.** A longer timeout
+> changes how often the race is lost, not whether it exists, and it is the
+> change a reader reaches for first — which is why the bar named it in advance.
+>
+> **389-B: the guard keeps its meaning.** It still fails on a build where the
+> chain never reaches the fetch; it just fails for that reason instead of for a
+> schedule.
+>
+> **The mutation, and it is what makes the new test more than a repro.**
+> Removing #145 Part B's hoist — putting `reconcileLiveActivities()` /
+> `updateWidgetData()` back BEHIND the network chain, i.e. re-introducing the
+> regression that made the app look broken for minutes after an outage —
+> turns the new test RED at `wroteWhileParked`. So it is a permanent POSITIVE
+> pin on Part B's actual property (*visible state refreshes before the network
+> is touched*), which the old test could only ever assert sideways. That is
+> why it is a new test rather than an edit to the old one.
+>
+> **Provenance:** filed this morning while gating #388, whose first draft
+> `dlopen`'d three frameworks into the test host and perturbed suite timing
+> enough to expose this. The perturbation was fixed there; the race was
+> latent on `main` before it and would have outlived it.
+
+## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.**
+
+> **✅ 2026-08-21 PM — five items, chosen because they share one shape: a cheap
+> mistake that only bills you after an expensive run.** That shape cost real
+> time this morning, which is why these went first.
+>
+> **`run-instrument.sh` — three guards, each verified by firing it, each with a
+> positive control proving a valid invocation still passes:**
+> - **`--trials` / `--timeout` now validated.** The timeout one was the worse:
+>   a non-numeric operand in bash's `(( SECONDS < TIMEOUT ))` evaluates to
+>   **0**, so the poll loop exits IMMEDIATELY and the run reports a timeout it
+>   never had. `--timeout 30m` looks entirely reasonable to type.
+> - **🔴 A TYPO'D INSTRUMENT NAME no longer costs the full timeout.** The app
+>   resolves the name through `spec(named:)` and a miss is an INERT LAUNCH —
+>   no run, no artifact — so the script polled for a file that could never
+>   appear and reported TIMEOUT after 30 minutes for a four-character typo.
+>   Now checked against the registry source before a device is touched, and it
+>   prints the known names.
+> - **`devicectl list devices` exit 142 is no longer read as "no device".** The
+>   `alarm(2)` wrapper kills a hung enumeration with SIGALRM; piping straight
+>   into `awk` discarded that status, so a HUNG CoreDevice was indistinguishable
+>   from an ABSENT phone and sent the operator to check the cable.
+>
+> **#224's poll-then-decline idiom (five sites) → one bounded helper.** The
+> hand-rolled `while pending == nil && attempts < 2000 { await Task.yield() }`
+> is a busy spin that competes with the very work it waits for. The speed is
+> the lesser half: the old loops **failed silently**, falling through with
+> `pending == nil` so the next assertion blamed the tool for a card that was
+> merely late. The helper asserts the card arrived. 34 tests, 0.081 s.
+>
+> **#335's conductor hazard is now impossible rather than unlikely.**
+> `loadRuns().first` → set difference. The failure it forecloses is not a
+> crash: it is the conductor embedding SOMEBODY ELSE'S run record in this run's
+> artifact and sealing it `.completed` — a wrong measurement wearing a positive
+> marker, which is the one shape that file exists to prevent.
+>
+> **#341's gap closed — and used.** `instrumentButton` takes `cells:` now
+> (`nil` still means the instrument's own, so every caller is unchanged, and
+> the conductor's #341 resolver still REFUSES a cell request for an instrument
+> declaring none). Applied immediately: a tappable **#340-H5 A/B**
+> (`armed,armed-bareclock`). This matters operationally — `run-instrument.sh`
+> drives the device through `xcrun devicectl`, which needs the LAN, so away
+> from home the Developer screen IS the harness and a single-arm A/B was not
+> reachable by hand at all.
+>
+> ### 🔴 A finding that was not on the list: the completeness tripwire was blind three times over
+>
+> `InstrumentRegistryTests.everyConvertedButtonNameResolves` exists to catch a
+> button whose registry entry is missing — *"the button just silently does
+> nothing when tapped."* Diffing the view's actual `instrumentButton("…")`
+> names against the pinned list found **three uncovered**: `due-date`,
+> `card-clause`, `refusal-words` — tapped from the Developer screen since
+> #340, #337-F and #337-D. Three separate lanes added a button and left the
+> list alone, and nothing complained.
+>
+> **Because a hand-maintained list cannot detect its own omissions.** It checks
+> the names it was told about; a button it was never told about is exactly the
+> case it was built for and the one case it is blind to. Closed on all three;
+> coverage re-verified complete.
+>
+> **NOT fixed structurally, deliberately.** Self-maintaining means reading the
+> VIEW's source at test time — deriving from `InstrumentRegistry.all` would
+> only make the test agree with itself, which is why these are literals. That
+> is a real change with its own failure modes and is left as a residual rather
+> than smuggled into a hygiene lane.
+>
+> ### Still open in this bundle
+> - `runColdCalfixBattery` unregistered (#333).
+> - #342's two remaining read-only invariant checks for `oi-invariants.py`.
+> - The structural fix for the button-name tripwire, per above.
 
 - #333's four post-merge minors: a typo'd instrument name burns the harness
   timeout; `runColdCalfixBattery` unregistered; `--trials`/`--timeout` accept

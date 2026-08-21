@@ -76,6 +76,23 @@ struct InstrumentRegistryTests {
             "tokencount-preflight", "fm-asymmetries", "condensation-fit",
             // #388: the beta5 surface sweep.
             "pcc-surface",
+            // 🔴 #373: THESE THREE WERE MISSING, and their absence is the
+            // finding rather than the fix. `due-date`, `card-clause` and
+            // `refusal-words` have been tapped from the Developer screen since
+            // #340, #337-F and #337-D respectively — three separate lanes each
+            // added a button and left this list alone, and nothing complained,
+            // because **a hand-maintained list cannot detect its own
+            // omissions.** The tripwire above only checks the names it was
+            // told about; a button it was never told about is exactly the case
+            // it was built to catch and the one case it is blind to.
+            //
+            // Fixed by listing them. NOT fixed structurally: making this
+            // self-maintaining means reading the VIEW's source at test time
+            // (deriving from `InstrumentRegistry.all` would only make the test
+            // agree with itself — the reason these are literals at all). That
+            // is a real change and it is recorded as a #373 residual rather
+            // than smuggled in here.
+            "due-date", "card-clause", "refusal-words",
         ]
         for name in namesTheViewPasses {
             #expect(InstrumentRegistry.spec(named: name) != nil,
