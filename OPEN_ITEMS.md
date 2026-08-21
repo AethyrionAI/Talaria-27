@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`planning/POST-LAUNCH-MAINTENANCE.md`), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
@@ -637,6 +638,45 @@ is its published sibling), **#72** (the tier that made both stale), **#323**
 (the structural note that started this: claims beyond what the mechanism
 delivers must not appear "in copy, in the privacy policy, or in App Store
 material" — that sentence named this file eleven days before it mattered).
+
+## 387. 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list, and the watcher that starts it — **NAMED BY OWEN 2026-08-20 ("start a running list… I think this should be the first entry for after launch ongoing maintenance"), filed the same hour per #268. The list lives at `planning/POST-LAUNCH-MAINTENANCE.md`. NOT BUILT — mechanism is chosen at launch, not now.**
+
+**Why a list and not a tracker item per task.** `OPEN_ITEMS.md` numbers work
+that COMPLETES. This is the other kind: obligations that begin at launch and
+never finish, because the thing being watched belongs to someone else and can
+change without telling us. Filing each recurring duty as an open item would
+either leave permanently-open entries on the board or close them dishonestly
+the first time they were serviced. **This entry OWNS the list; the list holds
+the entries.**
+
+**Entry 1 — watch Apple's PCC pages for wording changes.** Direct consequence
+of #386's ruling: `docs/privacy.html` **quotes Apple**, dated *"as published at
+apple.com/privacy on 2026-08-20"*. Quoting is the honest choice — it attributes
+the claim to Apple instead of laundering it into our voice — but **it makes us
+the holder of a snapshot of a page we do not control.** If Apple weakens or
+withdraws a guarantee, our policy keeps reporting a promise Apple no longer
+makes, in a document users rely on.
+
+**The design note that matters more than the cadence:** the useful output is a
+**diff of the relevant section**, not "the page changed." A page-level hash
+fires on every unrelated marketing tweak, gets muted inside a month, and is
+then worse than no watcher at all — because someone will believe it is
+watching. The list records that, plus what each KIND of change means (cosmetic
+⇒ nothing; weakened ⇒ act now; strengthened ⇒ adopt, unhurried; 404 ⇒ a broken
+citation in a legal document).
+
+**Mechanism undecided, deliberately.** Hermes cron (`/api/cron/fire` is on the
+`:8642` table) or a Cowork scheduled task. **Choosing now would be choosing
+against a launch posture that does not exist yet** — and a Hermes cron job is a
+live-install change that rides Owen's per-experiment go regardless.
+
+**Authority boundary, stated once so the eventual lane inherits it:** a watcher
+may REPORT. It may not edit the policy and it may not publish. Outward-facing
+text needs Owen's read of the exact wording plus an explicit go — the same gate
+#386 carries.
+
+**Cross-references:** **#386** (the policy amendment this exists to protect),
+**#385** (the in-app half), **#72** (the tier that made both necessary).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
