@@ -41,14 +41,34 @@ from datetime import datetime
 # "too many arguments" and looks like a syntax error rather than a shadow.
 LOG_BINARY = "/usr/bin/log"
 
-PREDICATE = 'eventMessage CONTAINS "createReminder due"'
+# BOTH shapes, because #340-H4's denominator is TRIALS and a trial that made no
+# call emits no `createReminder` line at all. Scoring over calls is how 340-F1
+# came to say ">=16/20" without saying of what, and had to be reported both
+# ways after the fact.
+PREDICATE = ('eventMessage CONTAINS "createReminder due" '
+             'OR eventMessage CONTAINS "battery: BEGIN shape="')
 
 # Anchored on the instrument's exact emitted shape. `raw` is captured
 # non-greedily so a due string containing a quote cannot swallow the rest of
 # the line; `parsed` runs to end-of-line because `displayDate` emits spaces.
+# ⚠️ `parsed` runs GREEDILY to end-of-line, so ANY field appended after it is
+# silently swallowed into this group. #340 route (a) added `bareClock=` for
+# exactly that reason placed it BEFORE `parsed`, and this pattern was updated in
+# the same commit — a trailing field would have made every `parsed` read
+# `nil bareClock=no`, which is not "nil", which would have zeroed the
+# `unreadable` bucket without a single test noticing.
 LINE_RE = re.compile(
     r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[.\d]*\s'
-    r'.*createReminder due raw="(?P<raw>.*?)" parsed=(?P<parsed>.+?)\s*$'
+    r'.*createReminder due raw="(?P<raw>.*?)"'
+    r'(?: bareClock=(?P<bareclock>\S+))?'
+    r' parsed=(?P<parsed>.+?)\s*$'
+)
+
+# One TRIAL. The battery emits this before every turn, unconditionally, and it
+# carries the cell — which is what lets one archive score both arms of an A/B.
+TRIAL_RE = re.compile(
+    r'(?P<ts>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})[.\d]*\s'
+    r'.*battery: BEGIN shape=(?P<cell>\S+) p=(?P<prompt>\S+) t=(?P<trial>\d+)'
 )
 
 
@@ -57,6 +77,9 @@ class Call:
     timestamp: str
     raw: str
     parsed: str
+    # None on a pre-#340 archive: the field did not exist, and "absent" must
+    # not read as "no". Three live values: resolved / unresolvable / no.
+    bareclock: "str | None" = None
 
     @property
     def omitted(self) -> bool:
@@ -114,13 +137,60 @@ def _naive(text: str) -> "datetime | None":
     return None
 
 
+@dataclass(frozen=True)
+class Trial:
+    timestamp: str
+    cell: str
+    prompt: str
+    trial: str
+
+
 def extract(text: str) -> list[Call]:
     calls = []
     for line in text.splitlines():
         m = LINE_RE.search(line)
         if m:
-            calls.append(Call(m.group("ts"), m.group("raw"), m.group("parsed").strip()))
+            calls.append(Call(m.group("ts"), m.group("raw"),
+                              m.group("parsed").strip(), m.group("bareclock")))
     return calls
+
+
+def extract_trials(text: str) -> list[Trial]:
+    trials = []
+    for line in text.splitlines():
+        m = TRIAL_RE.search(line)
+        if m:
+            trials.append(Trial(m.group("ts"), m.group("cell"),
+                                m.group("prompt"), m.group("trial")))
+    return trials
+
+
+def attribute(calls: list[Call], trials: list[Trial]) -> "dict[str, list]":
+    """Attach each call to the trial it happened inside — the most recent
+    `BEGIN` at or before its timestamp.
+
+    Returns {cell: [(Trial, Call|None), ...]}, so a trial that made NO call is
+    represented rather than absent. That absence IS the `no-call` bucket, and
+    it is the bucket the call-denominated version of this script could not see.
+
+    A call before any BEGIN belongs to no trial and is dropped from the
+    per-cell view — reported separately rather than silently attributed to
+    whatever ran first.
+    """
+    ordered = sorted(trials, key=lambda t: t.timestamp)
+    by_cell: "dict[str, list]" = {}
+    for index, trial in enumerate(ordered):
+        end = ordered[index + 1].timestamp if index + 1 < len(ordered) else None
+        matched = None
+        for call in calls:
+            if call.timestamp < trial.timestamp:
+                continue
+            if end is not None and call.timestamp >= end:
+                continue
+            matched = call
+            break
+        by_cell.setdefault(trial.cell, []).append((trial, matched))
+    return by_cell
 
 
 def read_archive(path: str) -> str:
@@ -132,6 +202,80 @@ def read_archive(path: str) -> str:
     if proc.returncode != 0:
         sys.exit(f"NO DATA — `log show` failed on {path}:\n{proc.stderr.strip()}")
     return proc.stdout
+
+
+def bucket(call: "Call | None") -> str:
+    """#340-H4's four buckets, over TRIALS.
+
+    `no-call` is the one the previous version could not express: it scored over
+    calls, so a trial where the model never invoked the tool simply vanished
+    from the denominator. 340-G4 flagged exactly that risk from the other side
+    — the treatment arm made 14 calls to the control's 19 — and a scorer blind
+    to it reports an arm that stopped calling as an arm that stopped omitting.
+
+    `wrong-value` pools UNREADABLE with ALREADY-PAST deliberately: both are a
+    populated field the user cannot use, and 340-H5's bar is on the union
+    `omitted + wrong-value`. The two stay separately COUNTED below so the pool
+    is a reporting choice and never a lost distinction.
+    """
+    if call is None:
+        return "no-call"
+    if call.omitted:
+        return "omitted"
+    if call.unreadable or call.past_at_call:
+        return "wrong-value"
+    return "populated-future"
+
+
+def report_by_cell(by_cell: "dict[str, list]") -> int:
+    """The per-arm view 340-H5 is scored on.
+
+    **`populated-future` is NOT called `correct`, and that is not pedantry.**
+    A scorer cannot know what the user meant, so it cannot certify a value as
+    the right one; what it can decide mechanically is that the field was filled
+    with an instant that has not already elapsed. Naming that "correct" is how
+    the first version of this script scored an 8:46 AM answer to a 2:58 PM ask
+    as fine.
+    """
+    if not by_cell:
+        print("NO DATA — zero `battery: BEGIN shape=` lines matched.")
+        print("This is NOT a clean run. Check, in order:")
+        print("  1. Was Developer -> verbose logging ON for the whole run?")
+        print("  2. Does the archive window actually cover the battery?")
+        print("  3. Did the battery start at all?")
+        return 2
+
+    order = ["populated-future", "omitted", "wrong-value", "no-call"]
+    exit_code = 0
+    for cell in sorted(by_cell):
+        rows = by_cell[cell]
+        n = len(rows)
+        counts = {name: 0 for name in order}
+        for _, call in rows:
+            counts[bucket(call)] += 1
+        unreadable = sum(1 for _, c in rows if c is not None and c.unreadable)
+        past = sum(1 for _, c in rows if c is not None and c.past_at_call)
+        resolved = sum(1 for _, c in rows
+                       if c is not None and c.bareclock == "resolved")
+
+        print(f"\ncell {cell} — {n} TRIALS (denominator is trials, not calls)")
+        for name in order:
+            print(f"  {name:<18}: {counts[name]}/{n}  ({100 * counts[name] / n:.1f}%)")
+        union = counts["omitted"] + counts["wrong-value"]
+        print(f"  UNION omitted+wrong-value: {union}/{n}  ({100 * union / n:.1f}%)"
+              "   <- 340-H5's non-decomposable bar")
+        print(f"    of which unreadable={unreadable}, already-past={past}")
+        print(f"  app-resolved a bare clock: {resolved}/{n}"
+              "   <- #340 route (a) actually firing")
+        if counts["no-call"] == n:
+            print("  ⚠️  EVERY trial made no call — this arm measured nothing about due dates.")
+            exit_code = 2
+    print("\nScope reminder (#215): rates over the trials in THIS archive, under")
+    print("whatever prompt shapes produced them. Licenses nothing about shapes")
+    print("that were not run. Cross-run comparison of the already-past bucket is")
+    print("NOT admissible — the battery's fixed prompt is a moving target against")
+    print("the wall clock (340-G's own instrument flaw).")
+    return exit_code
 
 
 def report(calls: list[Call]) -> int:
@@ -200,8 +344,15 @@ def self_test() -> int:
         'createReminder due raw="" parsed=nil\n'
         '2026-08-15 14:25:52.344 Df Talaria 27[25670:434cc2] [org.aethyrion.talaria27:app] '
         'createReminder due raw="2026-08-15T09:00" parsed=Aug 15, 2026 at 9:00 AM\n'
+        # ⚠️ CHANGED BY #340 ROUTE (a), 2026-08-21. This fixture used to be
+        # `raw="18:00" parsed=nil` and asserted that a bare clock time is
+        # UNREADABLE. That is now FALSE by construction: `performCreate`
+        # resolves a bare clock itself, so 18:00 parses. A synthetic fixture
+        # that encodes the old behaviour would keep passing while describing a
+        # product that no longer exists — the close-out rule (#317) applied to
+        # a test's fixture rather than to prose.
         '2026-08-15 14:42:08.032 Df Talaria 27[25670:437909] [org.aethyrion.talaria27:app] '
-        'createReminder due raw="18:00" parsed=nil\n'
+        'createReminder due raw="sometime later" bareClock=no parsed=nil\n'
         '==========\n'
     )
     calls = extract(sample)
@@ -213,8 +364,9 @@ def self_test() -> int:
     # 09:00, i.e. already elapsed. Format correct, VALUE wrong. The first
     # version of this script scored it as a clean populated call.
     assert calls[1].past_at_call, "an already-elapsed due must not read as populated"
-    assert calls[2].unreadable and not calls[2].omitted, "18:00 is unreadable, not omitted"
+    assert calls[2].unreadable and not calls[2].omitted, "prose is unreadable, not omitted"
     assert not calls[2].past_at_call, "an unparseable raw cannot be judged past"
+    assert calls[2].bareclock == "no"
     assert not calls[0].past_at_call, "an omitted due is not a past due"
     # A FUTURE due is the only shape that may read as cleanly populated.
     future = extract(
@@ -229,7 +381,66 @@ def self_test() -> int:
     print("--- exercising the no-data guard; the block below is EXPECTED ---")
     assert report([]) == 2, "empty input must exit 2, never report 0%"
     print("--- end expected block ---")
-    print("SELF-TEST PASSED — 4 fixtures, all four classes, and the no-data guard.")
+
+    # ---- #340-H4: the FOUR BUCKETS, on hand-built rows. ----
+    #
+    # Hand-built on purpose. A scorer first exercised on a real archive cannot
+    # be told apart from that archive — if the run happened to contain no
+    # `no-call` trial, the bucket that exists to catch 340-G4's shape would
+    # never have executed and would still read as working.
+    #
+    # Two cells, four trials each, one trial per bucket, so every branch of
+    # `bucket()` runs and the ATTRIBUTION is proved too: each call must land in
+    # the trial whose window contains it, and the fourth trial of each cell has
+    # no call at all.
+    ab = (
+        'Timestamp               Ty Process[PID:TID]\n'
+        # --- control arm ---
+        '2026-08-21 09:00:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=1\n'
+        '2026-08-21 09:00:01.100 Df Talaria 27[1:1] [x] createReminder due raw="" bareClock=no parsed=nil\n'
+        '2026-08-21 09:00:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=2\n'
+        '2026-08-21 09:00:03.100 Df Talaria 27[1:1] [x] createReminder due raw="2026-08-21T08:00" bareClock=no parsed=Aug 21, 2026 at 8:00 AM\n'
+        '2026-08-21 09:00:04.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=3\n'
+        '2026-08-21 09:00:05.100 Df Talaria 27[1:1] [x] createReminder due raw="2026-08-22T16:30" bareClock=no parsed=Aug 22, 2026 at 4:30 PM\n'
+        '2026-08-21 09:00:06.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed p=remind t=4\n'
+        # --- treatment arm; note the app-resolved bare clock ---
+        '2026-08-21 09:10:00.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-bareclock p=remind t=1\n'
+        '2026-08-21 09:10:01.100 Df Talaria 27[1:1] [x] createReminder due raw="16:30" bareClock=resolved parsed=Aug 21, 2026 at 4:30 PM\n'
+        '2026-08-21 09:10:02.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-bareclock p=remind t=2\n'
+        '2026-08-21 09:10:03.100 Df Talaria 27[1:1] [x] createReminder due raw="nonsense" bareClock=no parsed=nil\n'
+        '2026-08-21 09:10:04.100 Df Talaria 27[1:1] [x] battery: BEGIN shape=armed-bareclock p=remind t=3\n'
+        '==========\n'
+    )
+    by_cell = attribute(extract(ab), extract_trials(ab))
+    assert set(by_cell) == {"armed", "armed-bareclock"}, by_cell.keys()
+
+    control = [bucket(c) for _, c in by_cell["armed"]]
+    assert control == ["omitted", "wrong-value", "populated-future", "no-call"], control
+
+    treatment = [bucket(c) for _, c in by_cell["armed-bareclock"]]
+    assert treatment == ["populated-future", "wrong-value", "no-call"], treatment
+
+    # A trial that made NO call must be PRESENT with None, never dropped — the
+    # whole reason the denominator moved from calls to trials.
+    assert by_cell["armed"][3][1] is None
+    assert len(by_cell["armed"]) == 4 and len(by_cell["armed-bareclock"]) == 3
+
+    # Attribution is by WINDOW, not by proximity: t=2's call must be t=2's.
+    assert by_cell["armed"][1][1].raw == "2026-08-21T08:00"
+    assert by_cell["armed-bareclock"][0][1].bareclock == "resolved"
+
+    # The union bar's two halves stay separable even though the bucket pools
+    # them — 340-H5 reports the union, but a lane must still be able to see
+    # WHICH kind of wrong value it bought.
+    assert by_cell["armed"][1][1].past_at_call and not by_cell["armed"][1][1].unreadable
+    assert by_cell["armed-bareclock"][1][1].unreadable
+
+    print("--- exercising the by-cell no-data guard; the block below is EXPECTED ---")
+    assert report_by_cell({}) == 2, "no trials must exit 2, never report clean buckets"
+    print("--- end expected block ---")
+
+    print("SELF-TEST PASSED — 4 call fixtures, all four classes, the no-data")
+    print("guard, and #340-H4's four buckets attributed across a two-arm A/B.")
     return 0
 
 
@@ -248,7 +459,20 @@ def main() -> int:
         ap.error("a path is required unless --self-test")
 
     text = open(args.path).read() if args.from_text else read_archive(args.path)
-    return report(extract(text))
+    calls = extract(text)
+    trials = extract_trials(text)
+    if trials:
+        # Trials present => an instrumented battery run => score #340-H4's four
+        # buckets per arm. The call-denominated report still runs underneath,
+        # because the two answer different questions and the older one is what
+        # every earlier #340 measurement is written in.
+        code = report_by_cell(attribute(calls, trials))
+        print("\n--- per-CALL view (the pre-340-H4 report, for comparability) ---")
+        return max(code, report(calls))
+    print("NOTE: no `battery: BEGIN` lines — scoring over CALLS only.")
+    print("      `no-call` is UNMEASURABLE without them (340-H4), so an arm")
+    print("      that stopped calling will not be visible in what follows.")
+    return report(calls)
 
 
 if __name__ == "__main__":
