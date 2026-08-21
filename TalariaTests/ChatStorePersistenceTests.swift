@@ -25,12 +25,17 @@ struct ChatStorePersistenceTests {
         /// #203 (1A): when non-empty, these are emitted in order instead of
         /// the single `.finished` — so a test can drive real stream EVENTS.
         var script: [StreamingUpdate] = []
+        /// #173-C: attachment counts as they reached the transport, in send
+        /// order. Counts rather than the values, because the bar is "the
+        /// attachments still go", not what they contain.
+        private(set) var sentAttachmentCounts: [Int] = []
 
         func connect() async {}
         func disconnect() async {}
 
         func send(message: String, attachments: [PendingAttachment], clientMessageID: UUID) async -> Message {
-            Message(sender: .hermes, content: "ok", status: .delivered)
+            sentAttachmentCounts.append(attachments.count)
+            return Message(sender: .hermes, content: "ok", status: .delivered)
         }
 
         func sendStreaming(
@@ -38,6 +43,7 @@ struct ChatStorePersistenceTests {
             attachments: [PendingAttachment],
             clientMessageID: UUID
         ) -> AsyncStream<StreamingUpdate> {
+            sentAttachmentCounts.append(attachments.count)
             onSendStreaming?()
             let script = self.script
             if !script.isEmpty {
@@ -1525,6 +1531,115 @@ struct ChatStorePersistenceTests {
         #expect(merged.remotePath == "O:/Hermes/notes.md")
         #expect(merged.remoteProfileID == local.remoteProfileID)
         #expect(merged.anchorOffset == 7)
+    }
+
+    // MARK: - #173-C: the never-claim floor must NEVER block a send
+
+    /// **173-C.** An image turn still reaches the transport WITH its
+    /// attachments, caption and all.
+    ///
+    /// #173's entry states "a caption, never a hard block" outright, and this
+    /// is the one property the other bars would miss: a floor implemented as a
+    /// guard on `canSend` satisfies 173-A, 173-B and 173-D perfectly while
+    /// silently breaking the feature it exists to annotate — which is the
+    /// original #173 bug (a user who cannot tell their photo was dropped)
+    /// re-created by its own fix.
+    ///
+    /// The count is asserted EQUAL to what was staged, never merely non-zero:
+    /// dropping one of two images passes a non-zero check.
+    @Test @MainActor
+    func imageTurnStillSendsEveryAttachmentWhileTheVisionCaptionShows() async throws {
+        let client = ImmediateReplyClient()
+        let store = ChatStore(hermesClient: client, persistence: makePersistence())
+
+        let staged = [
+            PendingAttachment(kind: .image, fileName: "a.jpg", mimeType: "image/jpeg",
+                              data: Data([0x01]), localStoragePath: nil, thumbnailData: nil),
+            PendingAttachment(kind: .image, fileName: "b.jpg", mimeType: "image/jpeg",
+                              data: Data([0x02]), localStoragePath: nil, thumbnailData: nil),
+        ]
+        // Precondition: this staging is exactly what raises the caption, so
+        // the test is measuring the captioned case and not a quiet one.
+        #expect(AttachmentCapabilityCopy.carriesImage(staged, isImage: { $0.kind == .image }))
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) != nil)
+
+        _ = await store.sendMessage("look at these", attachments: staged)
+
+        #expect(client.sentAttachmentCounts.count == 1)
+        #expect(client.sentAttachmentCounts.first == staged.count)
+    }
+
+    // MARK: - #293(d): the same-index insurance clause must not re-hand a claim
+
+    /// **#293(d)** — `mergeAttachments`' same-index fallback read the ORIGINAL
+    /// `localAttachments`, so an entry already dequeued by an id or
+    /// (fileName, mimeType) match could be handed AGAIN, positionally, to a
+    /// second remote row — copying one bubble's `localStoragePath` onto
+    /// another. **That is #185's harm reappearing through the insurance
+    /// clause #185's fix deliberately kept.**
+    ///
+    /// The auditor rated it ~85% real / ~15% reachable and it was never
+    /// verified beyond a code read; this test is the verification. Shape that
+    /// reaches it: remote[0] claims local[1] BY NAME, then remote[1] finds no
+    /// match and falls to same-index — index 1 — which is the entry already
+    /// claimed.
+    @Test @MainActor
+    func mergeAttachmentsNeverHandsTheSameLocalToTwoRemotes() throws {
+        let localA = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/alpha.pdf"
+        )
+        let localB = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/beta.pdf"
+        )
+        // remote[0] matches localB by (fileName, mimeType) — re-minted id, the
+        // relay/mock echo shape the entry names as the trigger.
+        let remote0 = MessageAttachment(id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf")
+        // remote[1] matches NOTHING, so it reaches the same-index clause at
+        // index 1 — localB, already claimed above.
+        let remote1 = MessageAttachment(id: UUID(), kind: "file", fileName: "gamma.pdf", mimeType: "application/pdf")
+
+        let merged = ChatStore.mergeAttachments([localA, localB], onto: [remote0, remote1])
+
+        #expect(merged.count == 2)
+        #expect(merged[0].localStoragePath == "/staged/beta.pdf")
+        // THE BAR: the second row must NOT inherit beta's path. Before the
+        // fix it did, and the user saw one bubble's file under another.
+        #expect(merged[1].localStoragePath != "/staged/beta.pdf")
+        // No local path at all is the correct outcome here, not alpha's:
+        // the insurance clause is SAME-INDEX, not "any leftover", and
+        // widening it to hand over alpha would be a different behaviour
+        // change than the one #293(d) describes. Losing a thumbnail beats
+        // attaching the wrong file to a bubble.
+        #expect(merged[1].localStoragePath == nil)
+        // Every path handed out is distinct — the invariant behind the bar.
+        let handed = merged.compactMap(\.localStoragePath)
+        #expect(Set(handed).count == handed.count)
+    }
+
+    /// The POSITIVE CONTROL. Without it, "never hand the same local twice"
+    /// is satisfied by handing out nothing at all — the same-index clause
+    /// must still work when its target is genuinely unclaimed.
+    @Test @MainActor
+    func mergeAttachmentsStillUsesTheSameIndexFallbackWhenItIsUnclaimed() throws {
+        let localA = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/alpha.pdf"
+        )
+        let localB = MessageAttachment(
+            id: UUID(), kind: "file", fileName: "beta.pdf", mimeType: "application/pdf",
+            localStoragePath: "/staged/beta.pdf"
+        )
+        // remote[0] claims localA by id; remote[1] matches nothing and falls
+        // to same-index → localB, which is still unclaimed and MUST be used.
+        let remote0 = MessageAttachment(id: localA.id, kind: "file", fileName: "alpha.pdf", mimeType: "application/pdf")
+        let remote1 = MessageAttachment(id: UUID(), kind: "file", fileName: "renamed.pdf", mimeType: "application/pdf")
+
+        let merged = ChatStore.mergeAttachments([localA, localB], onto: [remote0, remote1])
+
+        #expect(merged[0].localStoragePath == "/staged/alpha.pdf")
+        #expect(merged[1].localStoragePath == "/staged/beta.pdf")
     }
 
     // MARK: - #203 (1A) the stall hint's WIRING

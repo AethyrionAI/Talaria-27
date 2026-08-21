@@ -335,12 +335,22 @@ struct PrivacySettingsScreen: View {
         }
     }
 
+    /// #173-E / #380: exposed as a `static` so the copy can be pinned by a
+    /// test. It is load-bearing for a CLOSED decision — #380 ruled that the
+    /// per-read OS prompts plus these toggles suffice, and that its whole
+    /// deliverable was one line of Settings copy describing the query-time
+    /// model. This is that line; it happens to predate the ruling. Nothing
+    /// else pinned it, so a later copy edit could have silently un-shipped a
+    /// closed item.
+    static let sensorStreamingCaptionText =
+        "Lets your Hermes agent ask this phone for the sensors you enable — answered on demand, never streamed. Each sensor asks for its iOS permission when you turn it on. Turning this off declines sensor queries."
+
     private var sensorStreamingCaption: String {
         // #260(C)/#352: one caption for every state — the toggle's meaning
         // doesn't depend on any link (RELAY pairing was the wrong plane for
         // query-time, and asserting the plugin link from a stored token is
         // the #350 trap). Answered on demand, never streamed, nothing queues.
-        "Lets your Hermes agent ask this phone for the sensors you enable — answered on demand, never streamed. Each sensor asks for its iOS permission when you turn it on. Turning this off declines sensor queries."
+        Self.sensorStreamingCaptionText
     }
 
     private var sensorStreamingBinding: Binding<Bool> {

@@ -2823,6 +2823,96 @@ Logged 2026-07-23.
 > carries **#380's one-line Settings copy** (describing the query-time
 > sensor model) — same honest-copy shape, same surface family.
 
+> **✅ 2026-08-20 — TWO SCOPE FINDINGS PUT TO OWEN BEFORE ANY BAR, AND BOTH
+> RULED.** #173's own text says a bar written before the approach is chosen
+> pre-empts the choice; these two were read out of the code, not the entry,
+> and each changes what the floor says.
+>
+> **Finding 1 — the caption is PERMANENT, not occasional.** No vision signal
+> reaches the app at all: `git grep supports_vision` over `Talaria/` is empty,
+> the model catalog carries no capabilities map, and route (b) — the only
+> thing that would supply one — is parked as a watch with no trigger. So
+> *"cannot confirm the active model supports images"* is **always true on the
+> Hermes path**, and the floor fires on 100% of attachment turns until (b)
+> ships. **RULED (Owen): ship it always-on anyway.** It is literally true, and
+> #180's rule is that an honest unknown beats false confidence; the noise cost
+> is accepted.
+>
+> **Finding 2 — the ON-DEVICE path is not "unknown", it is KNOWN-BLIND.**
+> `LocalChatBackend+Battery.swift:2165-2174` records it: image capability
+> exists only through `readImageText` / `BarcodeReaderTool`, the beta SDK's
+> `Transcript.ImageAttachment` / `ImageReference` are shipped but **unused by
+> us**, and a toolless route on a photo turn is a BLIND turn —
+> device-confirmed 2026-08-02 (*"I can't see the image itself, but the text in
+> it…"*). **RULED (Owen): different, STRONGER wording on-device.** Saying "not
+> known to support images" where we are certain would be the same #180 sin
+> inverted — encoding a known-false as an unknown.
+
+> **✅ 2026-08-20 — THE FLOOR IS BUILT. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — PR open; merge is Owen's
+> review.** `GATE: PASS` (2356 / 14 / Release clean; control 2346 + exactly
+> the 10 tests this lane adds). Bars A–E scored: **A, B, C, D met; E met by
+> code that already shipped**, with its evidence clause corrected in place.
+
+> **📏 BARS 173-A…E PRE-REGISTERED 2026-08-20, BEFORE ANY CODE OF THIS LANE**,
+> per CLAUDE.md's *"Where the BARS live"*. **A missed bar is a falsification,
+> not a redefinition.**
+>
+> **173-A — an attachment turn on the HERMES path carries the unknown-capability
+> wording.** Sending ≥1 image attachment while routed to a Hermes host
+> produces user-visible copy stating the host is **not known** to support
+> images. *Evidence:* a unit assertion on the surface that renders it.
+> **It is a CAPTION, never a block** — the send must still complete and the
+> attachment must still go on the wire, which 173-C pins separately.
+>
+> **173-B — an attachment turn on the ON-DEVICE path says something
+> STRONGER, and the two strings are DIFFERENT.** The on-device copy states
+> the model cannot see images (definite), not that support is unknown.
+> *Evidence:* both strings asserted, plus `#expect(hermesCopy != localCopy)` —
+> **the inequality is the bar**. A single shared string satisfies 173-A and
+> 173-B's prose while failing the ruling, and that is exactly the shortcut a
+> later lane would take.
+>
+> **173-C — the floor NEVER blocks a send.** With the caption showing, an
+> attachment turn still reaches the transport with its attachments intact.
+> *Evidence:* a send-path test counting attachments on the outgoing request —
+> **must be unchanged from the pre-floor count**, not merely non-zero.
+> This bar exists because "never a hard block" is the one thing the entry
+> states outright, and a caption implemented as a guard would pass A and B.
+>
+> **173-D — a text-only turn carries NO caption.** No image attached, no
+> wording, on either path. *Evidence:* the negative control. Without it,
+> A and B are satisfied by showing the caption unconditionally.
+>
+> **173-E — #380's rider: ONE line of Settings copy describes the query-time
+> sensor model.** Present in the Settings surface, and it must describe
+> per-read prompting rather than any launch-time or streaming model — the
+> world #352 deleted. *Evidence:* the string is asserted to exist and to not
+> contain the retired vocabulary ("upload", "streaming", "background") that
+> would describe the dead pipeline.
+>
+> > **⚠️ 2026-08-20 — 173-E IS ALREADY MET, AND ITS EVIDENCE CLAUSE IS
+> > MIS-WRITTEN. Both halves recorded rather than quietly fixed.**
+> >
+> > **Already met:** `PrivacySettingsScreen.swift:338`'s
+> > `sensorStreamingCaption` — shipped by #260(C)/#352, before #380 was
+> > filed — already reads *"Lets your Hermes agent ask this phone for the
+> > sensors you enable — answered on demand, never streamed. Each sensor asks
+> > for its iOS permission when you turn it on."* That is the query-time model
+> > and the per-read prompting, in one line. **#380's deliverable needs no new
+> > copy**, which nobody could have known without reading the file: #380 was
+> > ruled on 08-18 ~22:40 and this caption predates it.
+> >
+> > **And my own evidence clause is wrong.** It says the copy must not contain
+> > "streaming" — but the correct copy uses the word in a NEGATION ("never
+> > streamed"), which is the most honest way to say it. A naive
+> > string-exclusion check fails the very sentence it was written to require.
+> > **Scored on the bar's intent (describe on-demand answering + per-sensor
+> > permission; assert no dead-pipeline model), with the letter corrected here
+> > rather than silently reinterpreted at scoring time** — a bar rewritten
+> > after the fact to match what shipped is the redefinition this project
+> > forbids, so the rewrite is dated, visible, and reasoned.
+
+
 ## 179. 🐛 First Control Center tap is swallowed — action reports success before the widget extension exists — likely SUBSUMED by #58 (2026-07-25)
 
 > **2026-08-10:** Owen reports the Control Center controls now WORK (#58's note). This item's cold-first-tap discriminator is the ONLY thing left open here — one 30-second check next sitting (force-quit, tap the same control twice; if only the first is swallowed, the shape is established; if neither, close with #58).
@@ -6457,6 +6547,53 @@ not because it is burning.**
 
 **Handoff:** `dispatch/MAC-T27-319-talaria-mac-401.md`.
 
+
+> **✅ 2026-08-20 — THE MAC-SIDE CHECK IS DONE. All three open questions
+> answered, and the cause is one hardcoded line that is bigger than this item
+> — filed as #384.**
+>
+> **Q1 — which build? THE iOS SIMULATOR.** No Mac-native Talaria exists:
+> `/Applications` and `~/Applications` carry no Talaria bundle, and `mdfind`
+> finds none, which eliminates the Catalyst and Designed-for-iPad candidates
+> the entry listed. A simulator process shares the HOST kernel, so its
+> `CFNetwork` user agent reports the Mac's `Darwin/25.5.0` — which is exactly
+> why this read as "a Mac-native build" and not as the sim. The one live
+> Talaria bundle on this Mac is in `CoreSimulator/Devices/…`.
+>
+> **Q2 — EMPTY, not wrong.** The sim install has **never paired**:
+> `hermes.pairedRelayConfiguration` is absent from its prefs entirely, and no
+> gateway key was ever entered. So the Bearer is empty, not stale. The two
+> causes the entry said a 401 cannot distinguish are distinguished here by
+> the absence of that key, not by the status code.
+>
+> **Q3 — why `/v1/models` specifically?** It is the launch-time catalog
+> fetch, and on a never-paired install it is essentially the ONLY OJAMD call
+> that build makes. The chat 200s in OJAMD's log come from other clients, as
+> this entry already established. The `~14 s` pairing is the client's own
+> retry.
+>
+> **Reproduced end-to-end from this Mac, not inferred:** `ojamd` resolves by
+> MagicDNS to `100.110.102.59` (CGNAT, so inside #166b's ATS exception),
+> `GET /health` → **200**, and `GET /v1/models` with a deliberately wrong
+> Bearer → **401**. That is the logged signature exactly.
+>
+> **THE CAUSE:** `UserSettings.defaultHermesAPIBaseURL = "http://ojamd:8642"`
+> (`UserSettings.swift:333`) — hardcoded and **not** DEBUG-gated. Every fresh
+> install seeds a profile pointing at OJAMD, so every sim launch fetches the
+> catalog against a host it has no credential for. 85 × 401 across 08-11 →
+> 08-15 is simply the gate-run count for that window.
+>
+> **Impact confirmed LOW for this item, and the entry's own assessment
+> stands** — it is test-infrastructure noise against a host that rejects it
+> cleanly. **But the line that causes it is not low-impact**, because it also
+> ships in Release: see **#384**.
+>
+> **One small product observation, recorded not built:** the app fetches the
+> model catalog for a profile it holds no credential for. Declining to make a
+> call it cannot authenticate is the same capability-gating shape #310 just
+> established for the relay plane. Not filed as its own item — it would be a
+> line inside #384's fix.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
@@ -6533,6 +6670,16 @@ carries no attachments so the loop returns early; it needs a source that
 echoes attachments with re-minted ids AND a name mismatch (the relay/mock
 shape). **If it is judged not distinct from #185, drop it there rather than
 carrying a duplicate.**
+
+> **✅ 2026-08-20 — (d) FIXED and RED-verified. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — PR open; merge is
+> Owen's review.** The defect is real and reachable: two rows came back
+> carrying the same `localStoragePath`. **The fix is NOT this entry's
+> suggested one-liner** — consulting `unclaimed[safe: index]` would trade the
+> defect for a quieter one, because `unclaimed` shrinks as entries are claimed
+> and its indices stop matching remote positions. The index stays into the
+> ORIGINAL array; what changed is that the candidate must still be in the pool
+> and is dequeued when used. Line was `:4333` at HEAD, not `:4198`.
+> ⚠️ **PR #327 is not tracker #327.**
 
 > **2026-08-18 note:** (d) verified still live at HEAD (`ChatStore.swift:4198`
 > reads `localAttachments[safe: index]`, not `unclaimed`) — the two-line fix
@@ -9660,6 +9807,133 @@ gate's full XCUITest run.
 > backend's reply task starve under load?). One more firing this week and it
 > gets its own lane.
 
+
+> **🟢 2026-08-20 — TWO MORE FIRINGS, AND THE SECOND ONE SETTLES THE
+> ATTRIBUTION. THE TRIGGER ABOVE HAS FIRED.**
+>
+> `testQueuedChipCancelRemovesHeldMessageWithNothingPosted` — the test the
+> 08-18 note records as having JOINED this family on a dirty pool sim, not the
+> usual `testTranscriptNeverRendersDuplicateMessageIDs`.
+>
+> **The series across TWO unrelated branches:**
+>
+> | tree | context | result |
+> |---|---|---|
+> | #310 branch | full gate ×4 | **3 FAIL, 1 pass** |
+> | #310 branch, code STASHED (control) | full gate | pass |
+> | #310 branch | UI target only / suite isolated | pass (14/14, 2/2) |
+> | **free-bucket branch** (#293(d) + #173 only, off `main`) | full gate | **FAIL** |
+>
+> **The last row is the discriminating one.** That branch carries a two-line
+> attachment-merge fix and some copy — nothing touching profiles, the relay
+> plane, or anything #310 changed. **A defect confined to #310 cannot fail on
+> a branch without #310; an intermittent flake can do all of the above.** So
+> this is #236, and #310 is not implicated.
+>
+> **The mid-investigation reading was "unproven in both directions", and that
+> was right at the time** — a single control pass against a 3-run failure
+> streak convicts nothing when the phenomenon is intermittent. Recorded
+> because the tempting error was the opposite: treating one control pass as
+> proof would have sent a lane hunting a defect that does not exist.
+>
+> **🔴 STATUS CHANGE — this is no longer a watch.** The second firing
+> **blocked an unrelated lane's gate**, which is the cost that makes it
+> urgent rather than annoying: any lane that happens to hit it pays a re-run,
+> and pays the whole six-gate investigation if the operator does not already
+> know. **Owen routes.**
+>
+> **✅ The diagnostic that would have shortened this HAS NOW LANDED ON `main`**
+> (PR #326, merged 2026-08-20) — this paragraph previously said it was
+> stranded on an unmerged branch, which was true when written and is the
+> reason occurrence 7 reports nothing about what the app actually showed.
+> **From this merge forward, every branch's failure dumps the visible
+> transcript and the settled composer text**, so occurrence 8 will say
+> whether the reply was absent or merely late — the fork seven occurrences
+> could not resolve.
+
+> **✅ 2026-08-20 — GIVEN A LANE (Owen: "give #236 a lane and land that
+> diagnostic on main"). The trigger fired at occurrence 7; this is the
+> routing, filed the day it was made per #268.**
+>
+> **Why it earns a lane now and did not before:** through six occurrences the
+> cost was a re-run. At occurrence 7 it **blocked an unrelated lane's gate**
+> and cost a six-run investigation to attribute — because the failure looked
+> exactly like a real regression in whatever branch happened to hit it. That
+> is the shape that makes an intermittent test worse than a broken one: it
+> spends someone else's day, and the someone is different each time.
+>
+> **⛔ WHAT THIS LANE MUST NOT DO: raise the timeout again.** The 20→40 s bump
+> (occurrence 1's fix) absorbed a 40 ms overshoot and has since failed to
+> absorb SIX firings. A budget that has been wrong six times is not a budget
+> that is slightly too small. **The standing hypothesis, unanswered since
+> occurrence 1, is that the synthetic backend's reply task STARVES under
+> load** — `runUITestIdentityTurn` streams words on 60 ms sleeps, appends the
+> reply, then dwells `UITEST_STREAM_DWELL_SECONDS` (20 s in this test) before
+> `.finished`. If the dwell or the poll-tick merge is what starves, a longer
+> wait cannot help and a bigger dwell makes it worse.
+>
+> **SLICE 1 — THE DIAGNOSTIC, landing on `main` ahead of the investigation**
+> (branch `236-queued-chip-flake-diagnostic`; **PR
+> https://github.com/AethyrionAI/Talaria-27/pull/326 — PR open; merge is
+> Owen's review**; `GATE: PASS`, 2346 / 14 / Release clean — the Swift Testing
+> count is unchanged by design, since this modifies an existing XCUITest and
+> adds none). ⚠️ **PR #326 is not tracker #326.** Test-only, no product change:
+> the assertion reads the SETTLED composer text (#195's guard, which this
+> test never got and its sibling has) and, on failure, dumps the visible
+> transcript. **Landing it first is the point** — every future firing then
+> reports what the app actually showed, instead of only that something was
+> absent. Occurrence 7 produced no such evidence because the diagnostic was
+> stranded on an unmerged branch.
+>
+> **📏 BARS — pre-registered before the investigation slice, deliberately
+> narrow, because this lane's failure mode is "fixed it by making it not
+> look broken".**
+>
+> **236-A — the diagnostic reports the transcript on failure.** Forcing the
+> assertion to fail (mutate the awaited string) produces a message naming the
+> settled composer text AND the visible static texts. *Evidence:* the
+> mutation run's own output. **A diagnostic nobody has seen fire is a
+> diagnostic that does not work** — occurrence 7 is what that costs.
+>
+> **✅ 236-A MET 2026-08-20, by MUTATION rather than by assertion.** The
+> awaited string was changed to one that cannot exist, forcing the diagnostic
+> to fire, and it produced:
+>
+> ```
+> waited 40s (MUTATION) for "Acknowledged first" (composer settled as "first").
+> Visible static texts: ["Talaria Ready, brain On-Device", "Message Hermes…",
+> "TALARIA", "READY", "Chat brain: On-Device", "2 MESSAGES",
+> "You: first. delivered", "first", "2:20 PM", "Acknowledged first",
+> "2:20 PM", "ON-DEVICE"]
+> ```
+>
+> **Both facts this lane has never had are in that one line.** The composer
+> settled as `"first"` — so the keystroke race (#195's shape) is ruled out for
+> that run — and `"Acknowledged first"` IS among the rendered texts. On a real
+> firing the same dump answers the fork nobody could resolve across seven
+> occurrences: **was the reply absent, or merely late?** Every previous
+> failure could only say that something was not there by the deadline.
+>
+> Mutation reverted immediately; the committed test awaits the real string.
+
+> **236-B — the settled-text guard changes nothing when the keyboard behaves.**
+> With input arriving intact the test waits on the identical string it
+> waited on before. *Evidence:* already observed — the 08-20 passing run
+> waited on `"Acknowledged first"`, proving the guard inert in the healthy
+> case. It is a safety net, not a behaviour change, and must stay one.
+>
+> **236-C — the CAUSE is named before anything is tuned.** The investigation
+> slice does not close until a run captures `.xcresult` and states, from
+> evidence, whether the reply task starved, the merge missed, or the render
+> lagged. **A timeout change without this is a falsification of the lane**,
+> not a fix — see the do-not above.
+>
+> **236-D — the fix, whatever it is, is proven against the failing
+> CONDITION.** Not against an isolated re-run: this test passes isolated
+> every single time (2/2 in 96 s on 08-20) and passes the UI target alone
+> (14/14). Only full-gate context reproduces it, so only full-gate context
+> can score it. **An isolated green is the exact evidence that misled the
+> 08-20 investigation into calling it a #310 defect.**
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass) — THE SENSOR
@@ -10682,6 +10956,82 @@ through `AudioSessionOffMain`.
 broken `pattern:` argument. `fault` is not `default`, so **the noise-reduction
 filter was also hiding the highest-severity line in the log.** Read `all` at least
 once per device session.
+
+> **🔴 2026-08-20 — THE ENTRY POINTS AT THE WRONG PLACE, AND THE SCOPE IS
+> TWELVE SITES ACROSS THREE SERVICES. Diagnosed from the tree, not the log;
+> NO code changed yet — this needs Owen's routing, because it is not the
+> free-bucket one-liner the week plan booked.**
+>
+> **The resumption handling is CLEAN.** This entry says *"find the synchronous
+> site in the resumption handling and route it through `AudioSessionOffMain`."*
+> Both resumption paths were read at HEAD and both are already off-main:
+> `LiveVoiceSessionService.handleAudioInterruptionEnded` →
+> `configureAudioSession()`, which is `AudioSessionOffMain.run { … }` (`:746`);
+> and `NativeVoicePipelineService.handleInterruptionEnded` → `restartCapture()`
+> → the capture chain's own `start(muted:)`, which lives on **`private actor
+> NativeVoiceCaptureController`** (`:912`) and is therefore off the main actor
+> already. The notification observers themselves only log and dispatch.
+>
+> **Where the bypasses actually are** — every one `@MainActor`, none using the
+> helper:
+>
+> | service | sites | what they do |
+> |---|---|---|
+> | `SpeechOutputService` | `:248 :249 :264` | assistant TTS playback session |
+> | `VoiceMemoPlayer` | `:52 :53 :58 :74` | memo playback |
+> | `VoiceMemoRecorder` | `:63 :64 :69 :78 :129` | memo recording |
+>
+> `LiveSpeechService` is **also clean** — its calls sit on `actor
+> DictationController`, not on the `@MainActor` class that owns it. Two
+> classification traps worth writing down, because a naive grep gets both
+> wrong: **a `@MainActor` class can contain a nested `actor`** (LiveSpeech,
+> NativeVoicePipeline), and **a call inside `AudioSessionOffMain.run { … }` is
+> off-main even though the enclosing class is `@MainActor`** (four
+> `LiveVoiceSessionService` sites read as bypasses until the closure is
+> noticed). Classify by the ENCLOSING EXECUTION CONTEXT, not the file's type.
+>
+> **⚠️ AND THE FIX IS NOT MECHANICAL, which is why this stops here.**
+> `AudioSessionOffMain` is `async`, and the enclosing functions mostly are NOT
+> — `configurePlaybackAudioSession()`, `releaseAudioSessionIfIdle()`,
+> `togglePlayback(path:)`, `stop()`, `stopRecording()`, `discard()`,
+> `finishRecorder()` are all synchronous. That splits the work:
+>
+> - **DEACTIVATIONS (~6 sites) are safe to move** — nothing downstream awaits
+>   them, so `Task { try? await AudioSessionOffMain.setActive(false, …) }` is
+>   the shape already used at `LiveVoiceSessionService:353` and
+>   `NativeVoicePipelineService:399`.
+> - **ACTIVATIONS are NOT.** The session must be active BEFORE
+>   `recorder.record()` / playback starts, so a fire-and-forget `Task` would
+>   RACE the thing it is meant to prepare. Those need their callers to become
+>   `async`, which ripples into SwiftUI views and delegate callbacks.
+>
+> **✅ ROUTED 2026-08-20 (Owen): SUNDAY 08-23, AS A FABLE LANE.** His words:
+> *"that seems like an intense refactor."* Which it is — twelve sites, and the
+> activation half cannot move without making synchronous callers `async`, so
+> it ripples into SwiftUI views and delegate callbacks. That is escalation-tier
+> work, not free-bucket work, and booking it as one lane avoids shipping the
+> safe half alone and leaving the entry half-corrected.
+>
+> **Why Sunday specifically works for this item:** Saturday is the device day
+> and already carries #220/#198A's engine-pinned voice re-checks. A Sunday
+> build lands with the device evidence fresh, and the paths this touches (TTS
+> output, memo record/playback) are exactly the ones a sim cannot verify. The
+> lane should read the two classification traps below BEFORE grepping —
+> both produce false bypasses.
+>
+> **REMOVED from Thursday's free bucket** in the same decision; the week plan
+> is corrected to match.
+
+> **Recommendation carried into that lane: do not ship a partial audio change
+> without device time.**
+> These paths are already the fragile ones (#82's wedge, #128's double-install
+> crash, #138's barge-in), the sim cannot exercise real route changes, and
+> Saturday already carries #220/#198A voice re-checks that would cover a
+> change like this. Options for Owen: **(a)** deactivation half now, activation
+> half filed as its own item; **(b)** whole thing as one lane, built before
+> Saturday so the device day verifies it; **(c)** leave it — the fault is a
+> hang-RISK warning, and no hang has been reported.
+
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
@@ -13114,6 +13464,60 @@ scope: **wholesale, or a permanent dual path?**
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
 > later if ever wanted. Buildable when routed; not scheduled this week.
 
+## 384. 🚨 EVERY fresh install seeds a profile pointing at OJAMD — `defaultHermesAPIBaseURL` is Owen's personal production host, hardcoded and NOT debug-gated — **FILED 2026-08-20 per #268, found while answering #348's Mac-side question. The line is the CAUSE of #348's 85 × 401. NOT STARTED; bars pre-register here before any code.**
+
+`UserSettings.swift:333`:
+
+```swift
+static let defaultHermesAPIBaseURL = "http://ojamd:8642"
+static let defaultModelsShimBaseURL = "http://ojamd:8765"
+```
+
+Neither is `#if DEBUG`. Both flow into `BackendProfilesStore`'s M-2 migration
+seeds, so **the first launch of any install — including a Release build on a
+stranger's phone — mints a profile named for and pointed at Owen's Windows
+box.**
+
+**Why this is filed as its own item rather than inside #348.** #348's impact
+is genuinely low: sim noise against a host that rejects it cleanly. This is
+the same line seen from the shipping side, and there it is a launch blocker:
+
+1. **It contradicts the zero-setup story outright.** #251/#269's goal is
+   "install Hermes, paste one key", and #310 (this week) made a gateway-only
+   profile expressible for the first time. A new user instead gets a profile
+   named **OJAMD** aimed at a host they cannot resolve — the opposite of the
+   product's own onboarding narrative.
+2. **`ojamd` does not resolve off this tailnet**, so a new user's first launch
+   fetches a catalog that cannot answer. Failure mode is a hang or an error on
+   a screen that should be inviting.
+3. **It is a personal hostname in a shipping binary.** Not a secret — no key
+   ships — but it names the owner's private infrastructure in every copy.
+4. **The shim URL is worse than wrong, it is RETIRED** (#223 Lane 5; the shim
+   is stopped and disabled on both hosts). The default points at a service
+   that no longer exists anywhere.
+
+> **⚠️ THIS WAS KNOWN AND ITS CHARACTER HAS INVERTED — the archived entry is
+> now falsified.** An archived item flagged this before TestFlight: *"The
+> in-code default is the **stale** `http://ojamd:8642` (the old Windows box,
+> **which did not respond**)"*, with *"Decision needed before TestFlight"*.
+> That decision was never made, and **the premise it rested on is now false**:
+> OJAMD is the live production host. A default that was stale-and-silent is
+> now live-and-personal, which is a different problem with a different
+> urgency. Per #261's archive carve-out an append-only pointer goes beneath
+> that entry rather than editing it.
+
+**Scope when routed (not chosen here):** the honest end state is almost
+certainly **no default host at all** — an unconfigured install has no profile,
+or a profile with an empty gateway URL, which #310 has just made expressible.
+Options include shipping empty, `#if DEBUG`-gating the current values so dev
+builds keep their convenience, or an onboarding-supplied value. **Owen
+routes**, and the choice interacts with #269's installer story.
+
+**Cross-refs:** #348 (the 401s this causes), #310 (made the empty-profile end
+state expressible), #251/#269 (the zero-setup goal this contradicts), #223
+Lane 5 (why the shim default is retired, not merely wrong), #166b (ATS — the
+CGNAT exception is why this reaches OJAMD at all from the tailnet).
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
@@ -13231,6 +13635,47 @@ a home. The restore recipes in #375's evidence block are two commands each
 and exist for exactly that bounded purpose.
 
 **Bars — pre-register in this entry BEFORE any code** (#215 convention).
+
+> **✅ 2026-08-20 — DESIGN PASS DONE:
+> `planning/2026-08-20-383-voice-plugin-design.md`. Still no bars, and no
+> deploy — the plugin half's live-install go has NOT been requested.**
+>
+> **The finding that makes this smaller than it looked: it is VERBS, not
+> routes.** `TalariaPlatformLink` speaks ONE endpoint with the verb in the
+> body (`:31`), and host-side `envelope.py:113-119` dispatches from a plain
+> dict of five. The plugin half is **four new entries in that dict** — no new
+> route, no new auth surface, no gateway change, and nothing `hermes update`
+> can overwrite (the plugin lives outside `hermes-agent`).
+>
+> **Feasibility CONFIRMED rather than assumed:** `OPENAI_API_KEY` is present
+> in `~/.hermes/.env`, and the plugin runs in the gateway process — so a
+> handler can mint the ephemeral `clientSecret` with a key that never leaves
+> the host. That is precisely the property route (b) was rejected to protect.
+>
+> **What gets SIMPLER, and it is the strongest argument for (a) beyond
+> security:** voice today authenticates with **relay access tokens** — a
+> second credential family with the #15/#94 refresh ladder behind it. On the
+> plugin it uses the **device token** the app already holds and already
+> re-pairs on 401. **Voice stops being a second auth plane.**
+>
+> **🔴 THE ONE GENUINELY NEW RISK, where bars should be hardest:** the link is
+> epoch-superseded (#285) — `stop()` abandons in-flight work at its next
+> checkpoint. A voice bootstrap abandoned mid-flight leaves a **minted
+> host-side session with no client**: #288's orphan-row shape, but holding a
+> PROVIDER session that costs money until it expires. Voice verbs must either
+> be exempt from supersession or carry a compensating end.
+>
+> **Two questions for Owen in the doc's §8**, both recommendations rather
+> than open choices: (1) compensate rather than exempt, because a leaked
+> provider session costs money and the cleanup's failure mode is bounded by
+> the session's own expiry; (2) **`talk_turn_append` may not deserve porting
+> at all** — #1's `postVoiceTranscriptsToHermes` already posts voice
+> transcripts as normal Sessions-API text turns, so this may be a second path
+> to the same end. Investigate before porting; if it duplicates #1, accept
+> the loss the way #309 path 16 did.
+>
+> Sequencing is plugin-half → app-half → delete the relay rows, each
+> independently revertable, with step 1 deploying nothing user-visible.
 None are written yet, deliberately: the plugin-side shape is undesigned, and
 writing bars against a guess is how a lane gets bars it can pass without
 proving anything. First move is a design pass, not a build.
