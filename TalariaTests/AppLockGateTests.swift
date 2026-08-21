@@ -231,6 +231,11 @@ struct AppLockGateTests {
         // The half that matters. Asserting only the post-unlock start would
         // pass on a build with no gate at all.
         #expect(voice.startCallCount == 0, "the capture chain must be COLD while the cover is locked — this is bar 302-B's device finding, inverted")
+        // The DURABLE half. `statusMessage` alone flaked under full-suite
+        // scheduling — a snapshot delivered by the event task overwrote it —
+        // and that flake was a real defect, not test noise: the honest status
+        // was a one-shot write in a field every snapshot clobbers.
+        #expect(store.isWaitingForUnlock)
         #expect(store.statusMessage == TalkStore.lockedWaitingMessage)
 
         gate.setLocked(false)
@@ -258,6 +263,7 @@ struct AppLockGateTests {
         // forbids, and #310's `markRelayUnavailable()` is the precedent for
         // stating a refusal honestly instead.
         #expect(store.connectionState != .connecting)
+        #expect(store.isWaitingForUnlock)
         #expect(store.statusMessage == TalkStore.lockedWaitingMessage)
 
         gate.setLocked(false)
@@ -268,7 +274,7 @@ struct AppLockGateTests {
         // and then adopts the snapshot after it, so `.connecting` is a
         // transient the test cannot observe without racing the thing it
         // measures.
-        #expect(store.statusMessage != TalkStore.lockedWaitingMessage)
+        #expect(!store.isWaitingForUnlock)
         _ = await start.value
     }
 
@@ -311,7 +317,7 @@ struct AppLockGateTests {
         await store.startSession()
         #expect(voice.startCallCount == 1)
         #expect(gate.parkedWaiterCount == 0)
-        #expect(store.statusMessage != TalkStore.lockedWaitingMessage)
+        #expect(!store.isWaitingForUnlock)
 
         await store.startSessionDirectly()
         #expect(voice.startCallCount == 2)

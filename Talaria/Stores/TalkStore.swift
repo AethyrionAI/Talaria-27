@@ -82,6 +82,20 @@ final class TalkStore {
     /// store with no lock in the graph — a nil gate is an unlocked one.
     private let appLockGate: AppLockGate?
 
+    /// #302 — TRUE while a voice start is parked behind App Lock.
+    ///
+    /// **A flag rather than just a string, because the string is not
+    /// durable.** `statusMessage` is overwritten wholesale by every
+    /// `applySnapshot`, and snapshots keep arriving during a locked interval
+    /// (the engines publish on their own schedule). A one-shot write of
+    /// "Waiting for unlock…" therefore survives only until the next event —
+    /// which is how the honest status silently becomes the engine's stale
+    /// one. Found when bar 302-E failed under FULL-SUITE scheduling while
+    /// passing in isolation: the initial snapshot's event-task delivery
+    /// landed after the park in one ordering and before it in the other.
+    /// An assertion that flakes on scheduling was measuring something real.
+    private(set) var isWaitingForUnlock = false
+
     init(voiceService: any VoiceSessionServiceProtocol, appLockGate: AppLockGate? = nil) {
         self.voiceService = voiceService
         self.appLockGate = appLockGate
@@ -197,6 +211,8 @@ final class TalkStore {
         // cannot see this while locked — but the overlay's dismissal and the
         // Live Activity can, and an unexplained dead voice button is what
         // #310's `markRelayUnavailable()` precedent exists to prevent.
+        isWaitingForUnlock = true
+        defer { isWaitingForUnlock = false }
         statusMessage = Self.lockedWaitingMessage
         await appLockGate.waitUntilUnlocked()
         guard generation == sessionGeneration else {
@@ -346,7 +362,11 @@ final class TalkStore {
         sessionDuration = snapshot.sessionDuration
         isMuted = snapshot.isMuted
         blockedReason = snapshot.blockedReason
-        statusMessage = snapshot.statusMessage
+        // #302: a start parked behind the lock keeps saying so. Every other
+        // field still adopts the snapshot — the engine's view of itself is
+        // not wrong, it simply has nothing to say about why we are not
+        // asking it yet.
+        statusMessage = isWaitingForUnlock ? Self.lockedWaitingMessage : snapshot.statusMessage
         canStartSession = snapshot.canStartSession
         latencyMetrics = snapshot.latencyMetrics
         voiceSessionID = snapshot.voiceSessionID
