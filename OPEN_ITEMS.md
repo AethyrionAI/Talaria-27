@@ -573,6 +573,60 @@ references"), i.e. it already survived one accuracy sweep. Structure is
 identical across both (same twelve headings); the draft's extra 27 lines are
 its resolution comment. **Do not diff the draft in as though it were newer.**
 
+> **⚖️ RULED 2026-08-20 (Owen, providing the sources): QUOTE APPLE, don't
+> paraphrase them.** *"I think we need to quote apple on some of what they have
+> listed as of today at least."*
+>
+> **This REFINES #385's ruling rather than contradicting it, and the
+> distinction is the whole point.** #385 says the assistant must not
+> *characterise* PCC's guarantees — because the app asserting a privacy
+> property in its own voice is a claim we cannot back. **A quotation with
+> attribution is not an assertion in our voice; it is a report of Apple's.**
+> The reader can see whose promise it is, and can follow the link and check.
+> That is strictly more honest than either paraphrasing Apple (which launders
+> their claim into ours) or staying silent (which tells a user nothing about
+> where their data goes).
+>
+> **The two sources Owen supplied, and which one to lead with:**
+> - **`https://www.apple.com/privacy/`** — the better citation for a privacy
+>   policy. It is Apple's own privacy document, and its PCC section is
+>   procedural rather than promotional: the data required is sent to Apple
+>   silicon servers and no other data is sent; the request is processed and is
+>   never stored or accessible to Apple; the response returns to you only. It
+>   also states the promise is verifiable by independent experts.
+> - **`https://www.apple.com/apple-intelligence/`** — the product page, with
+>   the same claims in marketing register ("never stored", "used only for your
+>   requests", "verifiable privacy promise"). Usable, but the privacy page is
+>   the one a reviewer would expect to see cited.
+>
+> **🔴 A HAZARD THIS CREATES, and it is the same shape as everything else this
+> lane has hit: A QUOTE IS A SNAPSHOT THAT CAN GO STALE.** Apple's pages say
+> this **as of 2026-08-20** — Owen's own phrasing, *"as of today at least,"*
+> already anticipates it. If Apple revises that wording, our policy keeps
+> reporting the old text and we have quietly moved from "accurately quoting
+> Apple" to "misquoting Apple in a legal document." **That is a NEW way to be
+> wrong that we do not have today**, and it is worth accepting deliberately
+> rather than by accident.
+>
+> Three mitigations, cheapest first, for the drafting lane to choose between:
+> (1) **date the quotation in the text** ("as published at apple.com/privacy on
+> 2026-08-20") so a stale quote is self-evidently a snapshot rather than a
+> current claim; (2) **lead with the link and quote sparingly** — the fewer
+> words we hold, the less can rot; (3) file a periodic re-check. **(1) and (2)
+> together are the recommendation** — they cost nothing and they make the
+> failure mode legible instead of silent.
+>
+> **Keep the quotation SHORT and clearly attributed** — enough to convey the
+> guarantee, not a wholesale reproduction of Apple's page. Short-and-linked is
+> both better practice and less to keep true.
+>
+> **Not changing #385's in-app text.** The model's instruction still says point
+> at Apple's documentation rather than characterise the guarantees. A chat
+> assistant reciting a vendor's privacy paragraph is a worse answer than a
+> pointer, and the policy is where a citation belongs. Raised here so the
+> decision is visible rather than assumed — reopen it if Owen wants the
+> assistant quoting too.
+
 **⛔ Publication gate.** The standing rule is that outward-facing text gets
 Owen's read of the *exact* wording plus an explicit go — a "we should update
 the policy" instruction does not cover the moment of publishing. A lane may
