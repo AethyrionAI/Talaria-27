@@ -143,7 +143,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … **→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
-- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. FIX OWED, not built (design change, needs his go). Twin filing #323 carries the non-voice half**
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. DEVICE VERIFICATION STILL OWED. Twin filing #323 carries the non-voice half**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
@@ -151,7 +151,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
 - **#310** 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no …
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
-- **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, nothing else consults lock state. **MEASURED on device 2026-08-10; NOT STARTED. ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
+- **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
@@ -4139,7 +4139,7 @@ local substitution — cited here to note this is *not* an instance of it).
 > (Owen), so 303-A/B are runnable; #320's shipped indicator is the free
 > instrument for reading the engine off-screen. Queued with #254-D.
 
-## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. FIX OWED — not built; the fix is a design change and rides Owen's go.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~
+## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -4215,7 +4215,10 @@ reproductions, one run.
 `AppLockWindowPresenter` (`AppLockOverlayView.swift:17-44`) presents an
 opaque `UIWindow` above every presentation layer — its own doc comment says
 so, and that design was correct for what it was solving (#124's sheets/alerts
-hole). **But no non-UI subsystem consults lock state.** A recursive grep of
+hole). **But no non-UI subsystem consults lock state.** *(True as measured on
+2026-08-10 and FIXED on 2026-08-20 — `AppLockGate` is now consulted by
+`TalkStore`, `ChatStore` and `ToolConfirmationCenter`. The sentence stands as
+the finding it was; read it in the past tense.)* A recursive grep of
 the voice path finds the string `AppLock` in `NativeVoicePipelineService`
 **only inside comments** about correlating log lines (`:997`, `:1166`), and
 not at all in `VoiceEngineRouter`. There is no gate to be late — there is no
@@ -4428,6 +4431,87 @@ list item 6). 302-E or 302-F red ⇒ the fix is not built, whatever the other
 bars say. **302-G red is the most informative failure available here** — it
 means the gate defers work with the lock switched off, which is a worse defect
 than the one being fixed.
+
+### ✅ RESULT 2026-08-20 — THE GATE IS BUILT. 302-D…G ALL MET, EACH PROVEN RED BY MUTATION.
+
+**`AppLockGate` (`Talaria/Services/Support/AppLockGate.swift`) is the one
+consultable state.** `AppLockController.refreshCover()` is its ONLY writer;
+`TalkStore`, `ChatStore` and `ToolConfirmationCenter` are its readers. The
+state machine was not rebuilt — `AppLockStateMachine.cover(configuration:)`
+has computed the verdict correctly since #124. **What never existed was a
+reader outside the cover window**, which is the whole of the root cause both
+entries recorded.
+
+**15 tests in `TalariaTests/AppLockGateTests.swift`.**
+
+| bar | verdict | what proved it |
+|---|---|---|
+| **302-D** gate tracks the cover; `.obscured` does NOT lock | ✅ MET | mutation A1 (delete the publish line) ⇒ 2 tests RED |
+| **302-E** both voice doors defer, mic COLD while locked | ✅ MET | mutation A2 (delete both deferrals) ⇒ 2 tests RED, 6 assertions |
+| **302-F** an ABANDONED parked start never opens the mic | ✅ MET | mutation B (delete the generation re-check) ⇒ **exactly one** test RED |
+| **302-G** App Lock OFF is a no-op on voice | ✅ MET | green under every mutation — which is the bar |
+
+**Bar 302-F is the one that earned its place, and the mutation says why.**
+Removing only the post-wait generation re-check left **every other bar
+green** — both deferral bars, both negative controls — and turned exactly one
+assertion red: the microphone opening after the session was abandoned. That
+is `await the gate, then start`, the implementation any reasonable person
+writes first. It satisfies 302-E perfectly and re-creates #139's defect
+through a door #139 never had.
+
+**#302's own instruction — "the fix's bar must close the RACE, not the arm" —
+is honoured structurally, not by a faster clock.** The device failure was
+that nothing deferred the capture chain and Face ID merely won a 470 ms
+footrace. There is now no race to win: `voiceService.startSession()` is not
+reached at all until the gate releases, and the bars assert the call count is
+**0 while locked** rather than merely that it eventually reaches 1. Asserting
+only the second half would pass on a build with no gate — mutation A2
+confirms it, because the post-unlock assertions were the ones that stayed
+green.
+
+#### Four things the filing did not contain, all found by building it
+
+1. **🔴 Parking only in `sendMessage` opens a DATA-LOSS window in the compose
+   outbox.** `drainComposeOutboxIfPossible` does `composeOutbox.remove` +
+   `persistComposeOutbox()` **before** it calls `sendMessage`, and the turn's
+   next durable home is the optimistic row `sendMessage` persists. Park in
+   `sendMessage` alone and a queued turn spends the entire locked interval —
+   which the user makes arbitrarily long simply by leaving the phone locked —
+   removed from the outbox and not yet in the transcript. A force-quit or an
+   iOS reap in that window loses it outright, where before this lane it
+   survived as a `.sending` row. **Fixed by parking at the top of the drain,
+   ahead of the removal.** A gate that trades a privacy defect for a
+   data-loss defect is not a fix.
+2. **`.obscured` must NOT lock the gate, and the distinction is the whole
+   difference between a fix and an availability defect.** The app-switcher
+   snapshot, a pulled notification shade, an incoming call and the Face ID
+   sheet's own inactivity blip all produce `.obscured`. Gating on it would
+   defer the user's work every time they glanced at Control Center. Pinned
+   explicitly rather than left to the reader.
+3. **The tap-driven send paths are UNREACHABLE while covered, which relocates
+   the gate's real job.** The cover is a `UIWindow` at `.alert + 1`, so no tap
+   reaches the composer, retry or regenerate. What actually dispatches behind
+   the cover is the *untapped* work: the compose-outbox drain off
+   `handleAppDidBecomeActive`, and — until this lane — the voice pipeline,
+   which is exactly how #323's §V1 inference turn got there. The gate is
+   defending against unattended paths, not against a phantom user.
+4. **`isStartingSession` composes with #254's background revoke for free — but
+   only because the flag is claimed BEFORE the wait.** A start parked on the
+   lock is still visible to the background observer, so backgrounding a parked
+   start revokes it and the parked caller returns `false` on resume. Had the
+   flag been set after the wait (the natural reading order), a parked start
+   would have been invisible to the one observer #254 built to catch it.
+
+**Also examined and deliberately NOT gated: `HostApprovalStore` (#304).** No
+timer, no expiry auto-answer — every path into `post(_:)` originates in
+`requestChoice`/`confirmPendingChoice`, both tap-driven, and the cover
+prevents the tap. Recorded so the next reader does not re-derive it as a gap.
+
+**STILL OWED — device verification.** These bars are unit-level. The device
+question 302-A/302-B answered in the negative must be re-asked on the fix:
+Control Center → "Talk to Hermes" on a locked app, cancel Face ID, and read
+the same corpus for `capture chain HOT` inside the locked interval. **#124's
+seven App-Lock device checks fold into this pass** (Saturday's list, item 6).
 
 ## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.**
 
@@ -4988,7 +5072,7 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
-## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. NOT STARTED; bars pre-register here before any code.**
+## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. DEVICE VERIFICATION rides #302's.**
 
 **How it was found.** #302's bar 302-B asked one question — is the *microphone*
 live behind App Lock — and the answer was yes (see #302's RESULT block). Mining
@@ -5038,7 +5122,8 @@ twins rather than duplicates.** App Lock is an opaque `UIWindow` over the
 screen (`AppLockOverlayView.swift:17-44`). It never changes `scenePhase`,
 never pauses a store, never gates a service. Every subsystem keyed on
 `.active` — voice, sensors, chat — proceeds exactly as if the user were
-looking at the app. **`cover=locked` and "the app is active" are simultaneously
+looking at the app. *(Measured 2026-08-10; FIXED 2026-08-20 — see this
+entry's RESULT block. Past tense from here.)* **`cover=locked` and "the app is active" are simultaneously
 true, and only the first is visible to the user.**
 
 **Why this is not simply "the app works in the background."** iOS background
@@ -5188,6 +5273,72 @@ mechanism is real and correctly scoped, and this entry's remaining work
 for an availability defect — **not a partial pass; a different bug.** 323-B red
 ⇒ the lane reversed #124 by accident, which is the close-out rule's own
 failure mode arriving inside a lane that was told about it.
+
+### ✅ RESULT 2026-08-20 — 323-A…E ALL MET. The mechanism is #302's; the scope questions (a)–(d) are now BUILT, not merely ruled.
+
+**Same gate, same suite** (`TalariaTests/AppLockGateTests.swift`, 15 tests) —
+#302's RESULT block carries the mechanism's evidence and the four findings
+that came out of building it. This block scores the three consumers that live
+here.
+
+| bar | verdict | what proved it |
+|---|---|---|
+| **323-A** a new inference turn defers, and writes NOTHING meanwhile | ✅ MET | mutation A3 (delete the park) ⇒ RED on all three assertions |
+| **323-B** the App Intent path is exempt, explicitly | ✅ MET (with a stated limit) | green under every mutation — see below |
+| **323-C** `talaria_phone_query` keeps answering | ✅ MET (tripwire) | green under every mutation — see below |
+| **323-D** the lock OUTRANKS the mode | ✅ MET | mutation A4 (consult the mode anyway) ⇒ RED on the spy |
+| **323-E** App Lock OFF is a no-op everywhere | ✅ MET | green under every mutation — which is the bar |
+
+**323-A closes fact 1 of this entry at the right place.** The park is at the
+very top of `sendMessage`, ahead of the duplicate check and ahead of the
+optimistic append — because the reported defect was not merely that a turn ran
+behind the cover, it is that *"the transcript kept it"* and Owen found the
+whole conversation waiting when he unlocked. The bar asserts **no optimistic
+row lands while locked**, and mutation A3 turns that assertion red on its own.
+
+**The four negative controls stayed GREEN under a build with every gate
+deleted, and that is exactly what they are for.** Mutation A removed the cover
+publish, both voice deferrals, the send park and the approval short-circuit —
+7 tests went red, 8 stayed green, and the 8 include 302-G, 323-B, 323-C and
+323-E. A control that cannot tell a gate from no gate is doing its job:
+**their failure mode is an OVER-broad gate, not a missing one**, and they are
+the reason "everything defers forever" cannot score green here.
+
+#### Two honest limits, stated rather than implied
+
+- **323-B is scored in two halves and only one is a test.** The POLICY —
+  `.bypassLock` dispatches while locked — is measured. That `AskHermesIntent`
+  actually passes it is a **CODE READ** (`Talaria/Intents/AskHermesIntent.swift`,
+  the `sendMessage(trimmedQuestion, lockPolicy: .bypassLock)` call): driving a
+  real App Intent needs the App Intents runtime, which this suite does not
+  host. The bar still earns its place — the parameter is default-deny, so a
+  lane that removes it cannot compile the exemption away without deciding
+  again — but it is not end-to-end and is not claimed to be.
+- **323-C is a TRIPWIRE and is green by construction today.**
+  `PhoneQueryResponder` holds no reference to the gate, so it cannot be
+  affected by it; the test asserts the covered answer is byte-identical to the
+  uncovered one. That is the property being pinned, not a behavioural
+  discovery. It goes red the day a lane "tightens" the lock by wiring the gate
+  in here — which would take the owner's own agent offline whenever their
+  phone happened to be locked.
+- **323-D pins that the mode is not CONSULTED.** It does not prove an
+  auto-approve mode would be safe end to end, because no such mode ships:
+  `.manual` is still the only value settings can produce. What it buys is that
+  #224 Phase 1 cannot arm `.autoApprove` and quietly inherit a covered-app
+  hole — the gate is already in front of it, with a test that fails if it is
+  removed.
+
+**The entry's questions (a)–(d), now answered IN CODE rather than only in the
+ruling:** (a) ONE mechanism — a single `AppLockGate`, one writer, three
+readers; (b) in-flight work finishes — nothing cancels a running turn, the
+gate only refuses new STARTS; (c) moot for sensors (#352 deleted that
+pipeline) and the approval equivalent is "stage and wait", never auto-resolve;
+(d) the locked-interval transcript is KEPT — and now there is no
+locked-interval transcript to keep, because the turn never starts.
+
+**Cross-reference:** #302's RESULT carries the compose-outbox data-loss
+finding, which is this entry's half of the lane even though it surfaced on
+#302's side of the work.
 
 ## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.**
 
