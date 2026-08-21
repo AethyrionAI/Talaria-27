@@ -4623,6 +4623,41 @@ timer, no expiry auto-answer — every path into `post(_:)` originates in
 `requestChoice`/`confirmPendingChoice`, both tap-driven, and the cover
 prevents the tap. Recorded so the next reader does not re-derive it as a gap.
 
+> **📱 DEVICE 2026-08-20 (build 2894, branch `302-323-app-lock-gate` @ `8c999498`,
+> Release OTA on `whoGoesThere`) — THE MICROPHONE HALF IS CONFIRMED FIXED.**
+> Owen ran the exact arm that went RED in July: force-quit → Control Center →
+> "Talk to Hermes" → **cancel Face ID** → sit ~30 s → try to speak. His words:
+> *"The mic stayed dead. I tried talking and it didn't talk back this time."*
+>
+> **That is 302-B's finding inverted, on the same hardware, through the same
+> door, under the same setup.** July's corpus had the capture chain HOT 3.87 s
+> before the cancel and staying hot 34.9 s while `cover=locked locked=true`.
+> This run has nothing behind the cover.
+>
+> **⚠️ HALF THE CONTRACT IS STILL UNVERIFIED, and the two halves are
+> indistinguishable from the report so far.** 302-C's ruled contract is
+> **DEFER**-until-unlock, not refuse. "The mic stayed dead" is produced
+> equally by:
+> - **(a) a correct deferral** — parked, then started when the cover came
+>   down; and
+> - **(b) a permanent refusal** — the start was dropped and never resumed,
+>   which would be a NEW defect against the same ruling that named the fix.
+>
+> The unit bars prove (a) against a fake service (302-E: park, unlock, start
+> count goes 0 → 1), but a fake service is not `VoiceEngineRouter` plus two
+> real engines, and the resume crosses a `@MainActor` boundary that the
+> fixture does not model. **Asking Owen to re-run and watch what happens AFTER
+> the unlock — and recording this as OPEN rather than reading his report
+> generously.** A device pass that answers one of two questions has answered
+> one of two questions.
+>
+> **Also owed from the same sitting:** whether `"Waiting for unlock…"` is what
+> shows and whether it STAYS (the durability fix the first gate run forced —
+> see the RESULT block's finding 5), and the log confirmation that no
+> `capture chain HOT` line falls between `cover=locked` and the unlock. The
+> felt observation is strong evidence; the corpus is the proof, and #302 has
+> been a millisecond-ordering question from the day it was filed.
+
 **STILL OWED — device verification.** These bars are unit-level. The device
 question 302-A/302-B answered in the negative must be re-asked on the fix:
 Control Center → "Talk to Hermes" on a locked app, cancel Face ID, and read
