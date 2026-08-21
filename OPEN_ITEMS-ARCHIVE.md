@@ -42,6 +42,20 @@ is why the dual-write's `/model` leg succeeded with a kimi model.
   did not respond) — see `UserSettings.defaultHermesAPIBaseURL`.
 - The shim URL default is already tailnet-correct (`http://100.79.222.100:8765`).
 
+> **⚠️ APPEND-ONLY POINTER, 2026-08-20 (#261 archive carve-out — the original
+> text above is untouched).** The gap flagged here was never closed, and its
+> PREMISE has since inverted: `http://ojamd:8642` is no longer "the old
+> Windows box, which did not respond" — **OJAMD is the live production host**,
+> and it answers. So a default that was stale-and-silent is now
+> live-and-personal, which is a different problem with a different urgency:
+> every fresh install, Release included, seeds a profile named for and aimed
+> at the owner's private box. **Re-filed 2026-08-20 as #384**, found while
+> answering #348's Mac-side question — that item's 85 × 401 are this default
+> firing from the simulator. The "decision needed before TestFlight" recorded
+> above is still owed, and #310 has since made the likely answer (no default
+> host at all) expressible for the first time.
+
+
 **Decision needed before TestFlight:** point the Hermes API base URL at the mini's tailnet
 address — either `http://100.79.222.100:8642` or, preferably, a `tailscale serve` HTTPS
 MagicDNS name (also removes the `NSAllowsArbitraryLoads` ATS exception). Then chat +

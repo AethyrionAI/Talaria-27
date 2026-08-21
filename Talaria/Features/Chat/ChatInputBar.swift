@@ -36,6 +36,11 @@ struct ChatInputBar: View {
 
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
+    /// #173: the floor needs to know where THIS turn is bound, and only the
+    /// router knows — `ChatStore` carries `activeModelName` (a Hermes-side
+    /// label) but not the brain. `ChatScreen` already reads the router the
+    /// same way for its brain chip.
+    @Environment(AppContainer.self) private var container
     @Environment(TabRouter.self) private var router
     @Environment(SettingsStore.self) private var settingsStore
 
@@ -212,6 +217,13 @@ struct ChatInputBar: View {
                     attachmentPreviewStrip
                     if pendingAttachments.contains(where: { !$0.isTransmittable }) {
                         untransmittableHint
+                    }
+                    // #173: the never-claim floor. Shown BEFORE the send, in
+                    // the tray, so the user learns what the model can see
+                    // while they can still decide — not after a confident
+                    // reply has already implied it saw the picture.
+                    if let visionCaption {
+                        visionCapabilityHint(visionCaption)
                     }
                 }
 
@@ -537,6 +549,48 @@ struct ChatInputBar: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.xxs)
+    }
+
+    // MARK: - #173: the never-claim floor
+
+    /// The caption owed for what is currently staged, or nil.
+    ///
+    /// Resolved from the ROUTER's `activeBrain` rather than from whether a
+    /// host is merely configured: what matters is where this turn will
+    /// actually go. `.privateCloud` folds into `.onDevice` because #30 routes
+    /// it through the local backend that owns the PCC session — so its image
+    /// story is the local one, not the host's.
+    private var visionCaption: String? {
+        guard AttachmentCapabilityCopy.carriesImage(
+            pendingAttachments, isImage: { $0.kind == .image }
+        ) else { return nil }
+        // A nil router means nothing has resolved a brain yet. Default to
+        // the HERMES wording, which is the honest one for an unknown: it
+        // claims nothing, where the on-device string asserts a definite
+        // blindness we would not have established.
+        let destination: AttachmentCapabilityCopy.Destination =
+            container.chatBackendRouter?.activeBrain == .onDevice ? .onDevice : .hermesHost
+        return AttachmentCapabilityCopy.caption(for: destination, carriesImageAttachment: true)
+    }
+
+    /// Deliberately the same visual weight as `untransmittableHint` — this is
+    /// information about what will happen to the attachment, not an error.
+    /// **It never gates `canSend`**; bar 173-C pins that the send proceeds
+    /// with its attachments intact.
+    private func visionCapabilityHint(_ text: String) -> some View {
+        HStack(spacing: Design.Spacing.xxs) {
+            Image(systemName: "eye.slash")
+                .font(.system(size: Design.Size.iconTiny))
+                .foregroundStyle(Design.Colors.mutedForeground)
+            Text(text)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.mutedForeground)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.top, Design.Spacing.xxs)
+        .accessibilityIdentifier("chat.visionCapabilityHint")
     }
 
     // MARK: - Text Extraction (#8)
