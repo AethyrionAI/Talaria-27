@@ -117,7 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`planning/POST-LAUNCH-MAINTENANCE.md`), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
+- **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
@@ -639,7 +639,7 @@ is its published sibling), **#72** (the tier that made both stale), **#323**
 delivers must not appear "in copy, in the privacy policy, or in App Store
 material" — that sentence named this file eleven days before it mattered).
 
-## 387. 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list, and the watcher that starts it — **NAMED BY OWEN 2026-08-20 ("start a running list… I think this should be the first entry for after launch ongoing maintenance"), filed the same hour per #268. The list lives at `planning/POST-LAUNCH-MAINTENANCE.md`. NOT BUILT — mechanism is chosen at launch, not now.**
+## 387. 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list, and the watcher that starts it — **NAMED BY OWEN 2026-08-20 ("start a running list… I think this should be the first entry for after launch ongoing maintenance"), filed the same hour per #268. The list lives at `private/POST-LAUNCH-MAINTENANCE.md` — **gitignored**, see the routing note below. NOT BUILT — mechanism is chosen at launch, not now.**
 
 **Why a list and not a tracker item per task.** `OPEN_ITEMS.md` numbers work
 that COMPLETES. This is the other kind: obligations that begin at launch and
@@ -674,6 +674,26 @@ live-install change that rides Owen's per-experiment go regardless.
 may REPORT. It may not edit the policy and it may not publish. Outward-facing
 text needs Owen's read of the exact wording plus an explicit go — the same gate
 #386 carries.
+
+> **📁 ROUTING NOTE 2026-08-20 — `private/` created, and `planning/` deliberately
+> NOT untracked.** Owen's first instinct was to gitignore `planning/` outright;
+> the count changed the decision. **148 references to `planning/` live in
+> TRACKED docs** — 116 in `OPEN_ITEMS-ARCHIVE.md`, 27 here, 4 in `CLAUDE.md`,
+> 1 in `README.md` — overwhelmingly `planning/reports/…` cited as the EVIDENCE
+> for tracker findings. Untracking would have turned every one into a dead link
+> from a clone, which is a quiet, permanent loss of the thing that makes those
+> findings checkable. His call: *"Losing all the links would be bad form."*
+>
+> **So the split is by PURPOSE, not by tidiness:**
+> - `handoffs/` — ephemeral session continuity, superseded every session.
+> - `planning/` — **stays tracked**, because the tracker leans on it as evidence.
+> - `private/` — **new, gitignored**: durable work-product we do not want
+>   public. This list is its first occupant.
+>
+> **What this costs, stated once:** a gitignored list is easier to lose than a
+> tracked one. The mitigation is that **this entry carries entry 1 in full** —
+> if the file goes missing, the obligation and its reasoning survive here.
+> Anything added to that list that matters should get the same treatment.
 
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
