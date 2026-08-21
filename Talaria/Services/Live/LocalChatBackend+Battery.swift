@@ -462,6 +462,32 @@ extension LocalChatBackend {
         /// / unreadable. Never "did a due appear": the model's answer when pushed
         /// to fill the field was 8:46 AM for a 2:58 PM ask.
         case armedDateguide = "armed-dateguide"
+        /// #340 route (a): `ReminderCreateToolBareclock` — the guide half of
+        /// the APP-SIDE fix Owen ruled on 2026-08-18, held here rather than
+        /// promoted.
+        ///
+        /// The app-side resolution (`DeviceActionParsing.parseBareClock` +
+        /// `resolveBareClock`) shipped to production in the same commit: it is
+        /// deterministic and unit-tested, and it repairs the card-edit path
+        /// with no dependence on model behaviour. **The guide string did not
+        /// ship**, because `armedDateguide` above bought its omission win at
+        /// a flagged cost in tool calls (19/20 → 14/20, p = 0.092, 340-G4) and
+        /// this entry has already spent two candidates on prose that read well
+        /// and measured badly.
+        ///
+        /// This arm asks the model for strictly LESS than `dateguide` did:
+        /// just the clock time, with the day named as the app's job. The
+        /// sentence the model measurably dropped — *"or tomorrow's if that
+        /// time has already passed today"* — is gone from the guide because it
+        /// is now code.
+        ///
+        /// **Score with the FOUR buckets of 340-H4** — correct / omitted /
+        /// wrong-value / no-call — over TRIALS, not over calls. 340-H5's bar
+        /// is non-decomposable: `correct` must rise AND the union
+        /// `omitted + wrong-value` must fall. A drop in omission bought by a
+        /// rise in wrong values is a MISSED bar, which is precisely how 340-G
+        /// ended.
+        case armedBareclock = "armed-bareclock"
         /// #200L: the first cell that measures a PROMOTED clause by
         /// removing it — production with `includeCardNarrationClause`
         /// explicitly false, i.e. the pinned rollback text verbatim.
@@ -700,6 +726,18 @@ extension LocalChatBackend {
             return tools.map { tool in
                 if let reminder = tool as? ReminderCreateTool {
                     return ReminderCreateToolDateguide(relay: reminder.relay, confirmations: reminder.confirmations)
+                }
+                return tool
+            }
+        case .armedBareclock:
+            // #340 route (a): one swap, one delta — production description,
+            // production `String?` schema, and a `due` @Guide that asks for a
+            // bare clock time and says the app resolves the day. The
+            // resolution itself is production code, so this cell measures the
+            // GUIDE and nothing else.
+            return tools.map { tool in
+                if let reminder = tool as? ReminderCreateTool {
+                    return ReminderCreateToolBareclock(relay: reminder.relay, confirmations: reminder.confirmations)
                 }
                 return tool
             }
@@ -1553,6 +1591,15 @@ extension LocalChatBackend {
     /// date. That is 340-D's caveat, and it is why the clause's actual purpose
     /// has never been measured.
     nonisolated static let dueDateBatteryCells: [ActionBatteryCell] = [.armed, .armedDateguide]
+
+    /// #340-H5's cell list — production control against route (a)'s guide, in
+    /// ONE run. Cross-run comparison is not admissible here (#200O put three
+    /// cells on exactly 6/10 across three texts), and 340-G added a second
+    /// reason specific to this entry: the battery's fixed *"at 4:30pm"* prompt
+    /// scores CORRECT before 16:30 local and ALREADY-PAST after, so two runs
+    /// in different windows are not comparable on the bucket that matters.
+    /// The control travels with the treatment. Pinned.
+    nonisolated static let bareClockBatteryCells: [ActionBatteryCell] = [.armed, .armedBareclock]
 
     /// #340: the FALSIFIED instructions-layer pair, kept runnable. 340-F ran
     /// this and the clause produced zero due dates; the default moved to the

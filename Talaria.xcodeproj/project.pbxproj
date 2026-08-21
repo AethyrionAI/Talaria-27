@@ -133,6 +133,7 @@
 		2DB6B36BD3CA82BF6C01EC44 /* IconPreview-KaraokeSupernova.png in Resources */ = {isa = PBXBuildFile; fileRef = 40908EA81D14E50EFB18430C /* IconPreview-KaraokeSupernova.png */; };
 		2DC06B74C1A60E5C3B49A753 /* GatewayModelCatalogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E2D7B9075DF8CC3420C70D7 /* GatewayModelCatalogTests.swift */; };
 		2DC866BFB555CC01C8430B03 /* HermesControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D7400AD50E67CCB189E8028 /* HermesControls.swift */; };
+		2DCB31A1A786B6B208410A92 /* BareClockResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C492BA315CBF858B2E270CD8 /* BareClockResolutionTests.swift */; };
 		2E22E42495A7225E401E220A /* Icon-WitchsBrew@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 8703770797F16E0192FB5EE2 /* Icon-WitchsBrew@3x.png */; };
 		2F6057CE3E050CA5FE899316 /* SessionsSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92672F43E2FCAF98C5F13FDD /* SessionsSettingsScreen.swift */; };
 		2FB5CEAA1C428E04D3A3625F /* InboxItemStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CAC7066A927294099D41BE /* InboxItemStatus.swift */; };
@@ -1087,6 +1088,7 @@
 		C2EFCDE2A014DE769EC551D3 /* EntitlementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntitlementService.swift; sourceTree = "<group>"; };
 		C32A11AF1CE6C397C5269445 /* Icon-KaijuAttack@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-KaijuAttack@2x.png"; sourceTree = "<group>"; };
 		C345675B83359EEE54F700A8 /* SessionsDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionsDrawer.swift; sourceTree = "<group>"; };
+		C492BA315CBF858B2E270CD8 /* BareClockResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BareClockResolutionTests.swift; sourceTree = "<group>"; };
 		C4D347133A2D2AA45285B7CD /* CarPlayVoiceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayVoiceManager.swift; sourceTree = "<group>"; };
 		C4D7BE5A81A293D59F003C2D /* CronJobDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CronJobDecodingTests.swift; sourceTree = "<group>"; };
 		C4FDA4808AB56DE98DA248FB /* ThinkingIndicatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThinkingIndicatorView.swift; sourceTree = "<group>"; };
@@ -1360,6 +1362,7 @@
 				036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */,
 				C6091A184A425BA9DD460418 /* BackendProfileRoutingTests.swift */,
 				F4E4E4E79B398DB1BEC0E4A8 /* BackendProfilesTests.swift */,
+				C492BA315CBF858B2E270CD8 /* BareClockResolutionTests.swift */,
 				B37699B2D4090F1A7924AA99 /* BatteryReapEventKitProbeTests.swift */,
 				D73AD47FED8C4DA62D2303D3 /* BatteryRunStoreTests.swift */,
 				3F55FA4A1689E35683E70D4A /* BatteryTestContainerTests.swift */,
@@ -2811,6 +2814,7 @@
 				4C6B5D44AC6F0ECD63D2A229 /* AttachmentInliningTests.swift in Sources */,
 				6008464302CE8502ACE28E8E /* BackendProfileRoutingTests.swift in Sources */,
 				BF3A59E064993200D79CC8E0 /* BackendProfilesTests.swift in Sources */,
+				2DCB31A1A786B6B208410A92 /* BareClockResolutionTests.swift in Sources */,
 				54B2F585874181F300A86D0C /* BatteryReapEventKitProbeTests.swift in Sources */,
 				B202DACD63BA046FC3F6EBE4 /* BatteryRunStoreTests.swift in Sources */,
 				498F494D8E44FE972E89C30C /* BatteryTestContainerTests.swift in Sources */,

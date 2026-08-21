@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#334** 🐛 words-only turns over a LONG offer-tail context route ARMED — bars unwritten, mechanism deliberately unguessed
 - **#336** 🐛 claim-with-no-call + reap surplus — 336-A/C/E unbuilt; warm-up mechanism thrice corroborated, not elected
 - **#339** 🧪 instrument suite as regression gate — routing decision (cadence / subset / what a stochastic regression even is)
-- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** (`performCreate` resolves the clock time itself; the #200S schema rollback stays rejected). *This line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board.* Lane + four-bucket scorer NOT STARTED
+- **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 340-H5/H6 (device A/B) and 340-E still owed
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — 10-minute Mac-side check owed
 - **#349** 🐛 CTX gauge — fixed + merged (PRs #319/#320); owed: the 60-s reopen check on the next OTA (shared with #367)
@@ -7882,6 +7882,119 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > — twice shown to convert omissions into wrong values, which is the trade
 > H5's union bar exists to refuse.
 
+> **✅ 2026-08-21 AM — ROUTE (a) BUILT. 340-H1..H4 MET; H5/H6 are the device
+> half and are NOT claimed here.** Owen's ruling of 2026-08-18 said the lane
+> runs "Friday 08-21 AM — the fix PLUS the four-bucket scorer." Both landed.
+>
+> ### What SHIPPED to production
+>
+> `DeviceActionParsing.parseBareClock` + `resolveBareClock`, wired into
+> **two** paths:
+>
+> 1. **`performCreate`** — a bare clock time is resolved BEFORE the three
+>    guards see it. An explicit date falls through to them untouched (340-H2).
+> 2. **`resolveEditedDate`, the CARD-EDIT path — and this half was not in the
+>    ruling, because nobody had noticed it.** The Due field is user-editable,
+>    and typing the most natural thing into a field labelled Due — a plain
+>    `18:00` — was answered with *"Couldn't read \"18:00\" as a date."*
+>    **That is a live user-facing defect with no model in it at all**, and it
+>    is fixed today rather than pending an A/B.
+>
+> The #249 instrument line gained `bareClock=resolved|unresolvable|no`, so the
+> new path is visible in the log rather than inferred from outcomes.
+>
+> ### What did NOT ship, and why — Owen's call, 2026-08-21
+>
+> **The guide change rides in a CELL (`armed-bareclock` /
+> `ReminderCreateToolBareclock`), not in production.** Asked directly, Owen
+> ruled: *"Keep the guide change behind the cell."*
+>
+> The reasoning that produced the question: the only comparable prior change,
+> 340-G's `armed-dateguide`, cut omission 19/19 → 11/15 (p = 0.029) **and cut
+> tool calls 19/20 → 14/20** (p = 0.092, flagged at 340-G4). A guide that buys
+> due dates by costing calls is not obviously an improvement, and this entry
+> has already spent two candidates on prose that read well and measured badly.
+> The app-side half needs no such caution — it is deterministic and
+> unit-tested — so the two halves ship on different schedules.
+>
+> **Consequence, stated plainly: the TOOL path's fix is inert until the model
+> starts sending bare times**, which is 340-H5's question. The card-edit fix
+> is not inert. Neither fact is hidden behind the other.
+>
+> **What the cell asks for is strictly LESS than `dateguide` asked.** The
+> sentence the model measurably dropped — *"or tomorrow's if that time has
+> already passed today"* — is gone from the guide, because it is now
+> `resolveBareClock`. There is no date arithmetic left in the model's half to
+> get wrong.
+>
+> ### 🔴 The mutation that justifies the wiring suite
+>
+> The obvious test file tests `parseBareClock` / `resolveBareClock` directly.
+> **Every one of those eleven tests stays GREEN if you delete the line in
+> `performCreate` that uses them** — production goes straight back to staging
+> an empty DUE and the bars applaud. That is this project's recorded shape for
+> a test written after a defect: pinned to text the fix did not touch.
+>
+> So `BareClockWiringTests` drives `performCreate` end-to-end with `now`
+> pinned and asserts on **the card's DUE field** — where #340's founding
+> observation was actually made. Measured:
+>
+> | mutation | result |
+> |---|---|
+> | delete the `performCreate` wiring, leave the parsing intact | **2 wiring tests RED (3 issues); all 11 parsing tests GREEN** |
+>
+> The green eleven are the finding. Without the wiring suite this lane would
+> have shipped a fix that a later edit could silently undo.
+>
+> ### The scorer — 340-H4 MET
+>
+> `score-due-omission.py` now scores **four buckets over TRIALS**
+> (`correct`/`populated-future` · `omitted` · `wrong-value` · `no-call`),
+> using `battery: BEGIN shape=… t=…` as the denominator and attributing each
+> call to the trial whose window contains it.
+>
+> **`no-call` is the bucket the old version structurally could not see.** It
+> scored over CALLS, so a trial where the model never invoked the tool simply
+> vanished from the denominator — and 340-G4 already flagged that risk from
+> the other side (14 calls vs 19). **A call-denominated scorer reports an arm
+> that stopped calling as an arm that stopped omitting.** That is also the
+> honest repair of 340-F1's *"≥16/20 of what"* ambiguity: the denominator is
+> now named in the output.
+>
+> `wrong-value` pools UNREADABLE with ALREADY-PAST because 340-H5's bar is on
+> the union — but both stay separately counted, so the pool is a reporting
+> choice and never a lost distinction. **`populated-future` is deliberately
+> not called `correct`**: a scorer cannot know what the user meant, and naming
+> it "correct" is exactly how this script's first version scored an 8:46 AM
+> answer to a 2:58 PM ask as fine.
+>
+> Three scorer mutations, all caught by its own `--self-test`: folding
+> `no-call` into `omitted`; dropping trials that made no call; and ignoring
+> the attribution window.
+>
+> ### 🔴 Two close-out corrections the fix FORCED (#317), both silent failures
+>
+> 1. **The scorer's `parsed` capture is greedy to end-of-line.** Appending
+>    `bareClock=` after it would have made every `parsed` read
+>    `nil bareClock=no` — which is not `"nil"` — **zeroing the `unreadable`
+>    bucket with no test noticing.** The field is placed BEFORE `parsed` and
+>    the regex updated in the same commit.
+> 2. **The scorer's self-test asserted `raw="18:00"` is UNREADABLE.** Route (a)
+>    makes that false by construction. A synthetic fixture encoding the old
+>    behaviour would keep passing while describing a product that no longer
+>    exists — #317's rule reaching a test fixture rather than prose. Replaced
+>    with genuinely unparseable input.
+>
+> ### Still owed
+>
+> **340-H5 and 340-H6 — the device A/B**, run as
+> `--instrument due-date --cells armed,armed-bareclock` (no new instrument;
+> #341's cell selection already resolves the name). Bars unchanged and
+> non-decomposable: `correct` must RISE **and** the union
+> `omitted + wrong-value` must FALL. Promotion of the guide text follows that
+> result and nothing else. **340-E** (should the guard judge tool ARGUMENTS)
+> remains open and unscoped.
+
 ## 339. 🧪 THE INSTRUMENT SUITE AS A REGRESSION GATE — run the batteries as a routine pass, not only as one-off investigations — **FILED 2026-08-12 on Owen's routing tonight: *"We may want to run through them as regression testing."* NO LANE YET; this is the filing, per #268 (a named idea gets a number the day it is made).**
 
 **What makes it newly possible:** #333's runner turned every instrument into one
@@ -14812,6 +14925,67 @@ scope: **wholesale, or a permanent dual path?**
 - (c) The promotion is unmeasurable without a rollback arm — `blurb-reworded`
   is identity-with-control post-adoption; the pre-text is pinned as
   `armedBlurbSentencePre337F2b`. One measurement lane on the #333 runner.
+
+> **📋 BARS 372-C1..C5 PRE-REGISTERED 2026-08-21 AM, BEFORE ANY CODE, for
+> (c) — the ROLLBACK ARM.** Building (c) only; (a) the unexercised decline
+> path and (b) 337-H's `toolCallingMode = .required` stay unstarted and
+> unscoped by this.
+>
+> **The problem, stated exactly.** `blurb-reworded` substitutes
+> `armedBlurbCardSentence` → `armedBlurbCardSentenceReworded337F2`. Since the
+> 2026-08-15 promotion, production ships the REWORDED sentence — so the
+> original is not in the instructions, the substitution matches nothing, and
+> the arm is **identity with control**. It is not broken; it has simply run out
+> of anything to measure. `cardClauseInstructions` already returns `removed:`
+> so this shows up in the artifact rather than reading as a null (that is why
+> that flag exists), but an arm that can only report "I did nothing" is not
+> worth a device slot.
+>
+> **So the promotion is currently unmeasurable in either direction**, which is
+> #200L's shape one instrument over: *measuring a promoted clause requires an
+> arm that substitutes the other way.*
+>
+> - **372-C1 (the rollback SUBSTITUTES, and it is RECORDED doing so).** A new
+>   arm replaces `armedBlurbShippingSentence` → `armedBlurbSentencePre337F2b`
+>   in the instructions, and `cardClauseInstructions` returns `removed: true`
+>   for it. **A manipulation that silently no-ops is the exact failure this
+>   arm exists because of** — 340-G5 had to add a manipulation row for the same
+>   reason, and #337-F's own `removed:` was built for it. Pinned as a unit
+>   test, not inferred from a run.
+> - **372-C2 (it is the ONLY delta).** Descriptions untouched: the rollback
+>   arm passes the belt through with `swapped == 0`, like `control`,
+>   `blurb-stripped` and `blurb-reworded`. `cardClauseBelt`'s switch is
+>   enumerated rather than negated precisely so a new arm must state its
+>   intent; this arm states "no description change."
+> - **372-C3 (the pre-promotion text is reached BY ITS ALIAS).**
+>   `armedBlurbSentencePre337F2b`, never a fresh literal. Two copies of the
+>   pinned rollback text is how the shipping sentence came to live in two
+>   places before 2026-08-15, and the fix then was to stop having two copies.
+>   A test asserts the arm's output contains the alias's exact bytes.
+> - **372-C4 (position LAST, and for the recorded reason).** The newest arm
+>   takes the worst slot: this instrument calls `beginTurn()` per trial so it
+>   is free of #343's governor confound, and the only order effect left is
+>   thermal — which in #337-F's run moved AGAINST the result. **The worst slot
+>   makes a POSITIVE finding conservative, and leaves a null uninterpretable**
+>   rather than convenient. A null here needs a reversed-order re-run, not a
+>   conclusion.
+> - **372-C5 (the arm-name pin moves WITH the arm).** `theABHasFiveNamedArms…`
+>   becomes six, in the same commit, with the new name in the list. That pin is
+>   what makes adding an arm without naming it a failure rather than a silent
+>   widening of the export vocabulary — the same shape as
+>   `ActionBatteryCell.allCases.count`, which caught #340's new case on
+>   2026-08-21.
+>
+> **What this lane does NOT claim.** Building the arm measures nothing. The
+> promotion stays unmeasured until the arm RUNS on device, and the run is not
+> scheduled here. **372-C1..C5 are structural bars about the instrument**, and
+> passing them says the arm is honest, not that the clause is good.
+>
+> **Pre-registered reading of the eventual run, so it cannot be chosen
+> afterwards:** the rollback arm scoring WORSE than control on imitations
+> replicates the promotion's justification; scoring the SAME is a genuine null
+> that puts the 2026-08-15 promotion back in question rather than confirming
+> it. Both are publishable and neither is a disappointment.
 
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. NOT STARTED; none urgent.**
 

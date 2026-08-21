@@ -178,6 +178,103 @@ enum DeviceActionParsing {
         return hour >= 7 && hour <= 11
     }
 
+    // MARK: - #340 route (a): the app owns the DAY, the model owns the TIME
+
+    /// A **bare clock time** — hours, optionally minutes, optionally an am/pm
+    /// marker, and **no date component at all**. Returns hour+minute only.
+    ///
+    /// **`nil` for anything carrying a date, and that is bar 340-H2 rather
+    /// than an implementation shortcut.** A date the model supplied is the
+    /// model's to own: the app resolves the DAY only where none was given.
+    /// Silently rolling an explicit past date forward would trade this
+    /// entry's defect for a worse one — the user asked for a date and got a
+    /// different one — which is exactly the case #249's past-due guard exists
+    /// to ASK about rather than guess.
+    ///
+    /// **Why this is the right half to automate, measured rather than
+    /// assumed.** 340-G: guided to fill the field, the model sent four
+    /// byte-identical `2026-08-15T16:30` at 18:21 local — today at the asked
+    /// clock time, already elapsed. It took its guide's first clause and
+    /// dropped *"or tomorrow's if that time has already passed today."*
+    /// **The model can produce the time and cannot produce the day.**
+    ///
+    /// Deliberately strict. `"1630"` and `"0930"` are rejected rather than
+    /// guessed at — a four-digit run is as easily a typo as a time, and this
+    /// function's output goes straight into a reminder the user was told
+    /// about.
+    nonisolated static func parseBareClock(_ raw: String) -> DateComponents? {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: ".", with: "")   // "a.m." -> "am"
+        guard !text.isEmpty else { return nil }
+        // Any date separator disqualifies the string outright (340-H2). ISO
+        // forms are `parseDateTime`'s and must stay there.
+        guard !text.contains("-"), !text.contains("/") else { return nil }
+
+        var marker: String?
+        if text.hasSuffix("am") { marker = "am"; text = String(text.dropLast(2)) }
+        else if text.hasSuffix("pm") { marker = "pm"; text = String(text.dropLast(2)) }
+        text = text.trimmingCharacters(in: .whitespaces)
+
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 1 || parts.count == 2 else { return nil }
+        let hourText = parts[0]
+        guard !hourText.isEmpty, hourText.count <= 2,
+              hourText.allSatisfy(\.isNumber), var hour = Int(hourText) else { return nil }
+
+        var minute = 0
+        if parts.count == 2 {
+            let minuteText = parts[1]
+            // Exactly two digits: "9:5" is not 9:05, it is malformed, and
+            // reading it either way would be a guess.
+            guard minuteText.count == 2, minuteText.allSatisfy(\.isNumber),
+                  let parsed = Int(minuteText) else { return nil }
+            minute = parsed
+        }
+        guard (0...59).contains(minute) else { return nil }
+
+        switch marker {
+        case "am":
+            guard (1...12).contains(hour) else { return nil }
+            if hour == 12 { hour = 0 }              // 12am is midnight
+        case "pm":
+            guard (1...12).contains(hour) else { return nil }
+            if hour != 12 { hour += 12 }            // 12pm is noon
+        default:
+            // No marker: a 24-hour clock. "11" therefore means 11:00, and the
+            // next 11:00 may be tomorrow — see `resolveBareClock`. Reading a
+            // bare "11" as "tonight" would be a guess about intent, and #233's
+            // wee-hour guard already covers the one range where guessing is
+            // dangerous.
+            guard (0...23).contains(hour) else { return nil }
+        }
+        return DateComponents(hour: hour, minute: minute)
+    }
+
+    /// The **next occurrence** of a bare clock time: today when that time is
+    /// still ahead, tomorrow when it has passed.
+    ///
+    /// **This is #256's own bounce text, in code.** Production already tells
+    /// the model, verbatim, *"The user most likely means the next time that
+    /// clock time comes around"* — we have been stating the correct rule in
+    /// prose and asking the model to apply it. It does not. This applies it.
+    ///
+    /// **The grace is `isPastDue`'s, shared rather than restated.** Two
+    /// thresholds would let the app resolve a time its own past-due guard then
+    /// bounces — a loop wearing the shape of a fix.
+    ///
+    /// `nil` only when the calendar cannot form the date at all (a DST gap can
+    /// do this), and a nil here means NO DUE — never a guessed one.
+    nonisolated static func resolveBareClock(_ clock: DateComponents, now: Date) -> Date? {
+        let calendar = Calendar.current
+        guard let hour = clock.hour, let minute = clock.minute,
+              let today = calendar.date(bySettingHour: hour, minute: minute,
+                                        second: 0, of: now)
+        else { return nil }
+        guard isPastDue(today, now: now) else { return today }
+        return calendar.date(byAdding: .day, value: 1, to: today)
+    }
+
     /// Time-only display form for the card's caution row.
     nonisolated static func timeOnly(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -287,7 +384,18 @@ struct ReminderCreateTool: Tool {
         let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { return "No reminder title was given — nothing staged." }
 
-        let parsedDue = DeviceActionParsing.parseDateTime(rawDue)
+        // #340 route (a), ruled by Owen 2026-08-18. The model can produce the
+        // TIME and cannot produce the DAY (340-G: every value it sent was
+        // today at the asked hour, already elapsed), so a bare clock time is
+        // resolved HERE rather than delegated back to the model in prose.
+        // An explicit date is left exactly as sent — 340-H2 — and falls
+        // through to the three guards below unchanged.
+        let explicitDue = DeviceActionParsing.parseDateTime(rawDue)
+        let bareClock = explicitDue == nil ? DeviceActionParsing.parseBareClock(rawDue) : nil
+        let resolvedBareClock = bareClock.flatMap {
+            DeviceActionParsing.resolveBareClock($0, now: now)
+        }
+        let parsedDue = explicitDue ?? resolvedBareClock
         // #249 instrument: raw model-supplied due vs the parsed local time.
         // A zone-bearing raw string takes the ISO branch and gets CONVERTED
         // to local — a DST-wrong offset (-06:00 in summer Chicago) lands the
@@ -295,7 +403,7 @@ struct ReminderCreateTool: Tool {
         // from the model resolving the hour wrong. This line is the
         // discriminator.
         if TalariaLog.isVerbose {
-            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
+            TalariaLog.logger.notice("createReminder due raw=\"\(rawDue, privacy: .public)\" bareClock=\(resolvedBareClock != nil ? "resolved" : (bareClock != nil ? "unresolvable" : "no"), privacy: .public) parsed=\(parsedDue.map { DeviceActionParsing.displayDate($0) } ?? "nil", privacy: .public)")
         }
         // #249 guard 1: a due already in the past is never what the user
         // meant — two of the three observed cards were hours stale at
@@ -362,9 +470,13 @@ struct ReminderCreateTool: Tool {
         let finalTitle = (values["title"] ?? title).trimmingCharacters(in: .whitespacesAndNewlines)
         guard !finalTitle.isEmpty else { return "The edited title was empty — no reminder was created." }
         let dueRaw = (values["due"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let finalDue = Self.resolveEditedDate(edited: dueRaw, original: parsedDue)
+        // `now` is threaded rather than defaulted: a card edit resolved against
+        // a different clock than the one this call was staged with would be a
+        // second source of truth for "today", and #340's whole subject is
+        // which day a bare time means.
+        let finalDue = Self.resolveEditedDate(edited: dueRaw, original: parsedDue, now: now)
         if !dueRaw.isEmpty, dueRaw.lowercased() != "none", finalDue == nil {
-            return "Couldn't read \"\(dueRaw)\" as a date — no reminder was created. Try the form 2026-07-08T09:00."
+            return "Couldn't read \"\(dueRaw)\" as a date — no reminder was created. Try 2026-07-08T09:00, or just a clock time like 18:00."
         }
         let listName = (values["list"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -457,10 +569,24 @@ struct ReminderCreateTool: Tool {
 
     /// "None"/empty keeps no date; an unchanged display string keeps the
     /// original parse; anything else must re-parse.
-    nonisolated static func resolveEditedDate(edited: String, original: Date?) -> Date? {
+    /// #340: the CARD-EDIT path, and it carries a defect of its own that has
+    /// nothing to do with the model.
+    ///
+    /// The Due field is user-editable, and a user typing a plain `"18:00"`
+    /// got *"Couldn't read \"18:00\" as a date"* — a rejection of the most
+    /// natural thing to type into a field labelled Due. Route (a)'s resolution
+    /// serves this path too, and unlike the tool path it needs no model
+    /// behaviour to change, so it is a fix that lands today.
+    ///
+    /// Order matters: `parseDateTime` first, so an explicit date the user
+    /// typed keeps its day (340-H2 applies to people as well as models).
+    nonisolated static func resolveEditedDate(edited: String, original: Date?,
+                                              now: Date = Date()) -> Date? {
         if edited.isEmpty || edited.lowercased() == "none" { return nil }
         if let original, edited == DeviceActionParsing.displayDate(original) { return original }
-        return DeviceActionParsing.parseDateTime(edited)
+        if let explicit = DeviceActionParsing.parseDateTime(edited) { return explicit }
+        guard let clock = DeviceActionParsing.parseBareClock(edited) else { return nil }
+        return DeviceActionParsing.resolveBareClock(clock, now: now)
     }
 }
 
@@ -609,6 +735,60 @@ struct ReminderCreateToolDateguide: Tool {
         // due, and "in 20 minutes" produced a value 6.5 hours in the past); and
         // demote "empty" from a co-equal option to the narrow case it covers.
         @Guide(description: "Due date and time like \"2026-07-08T09:00\" (local time). If the user gives a time without saying which day, use TODAY's date — or tomorrow's if that time has already passed today. Leave empty ONLY when the user asked for no due date at all.")
+        var due: String?
+        @Guide(description: "Reminders list name, or empty for the default list.")
+        var list: String?
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let title = arguments.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if case .refused(let refusal) = try await relay.started(name, detail: title) { return refusal }
+        defer { Task { await relay.completed(name) } }
+        return await ReminderCreateTool.performCreate(
+            rawTitle: title, rawDue: arguments.due ?? "", rawList: arguments.list ?? "",
+            relay: relay, confirmations: confirmations
+        )
+    }
+}
+
+/// #340 route (a)'s MODEL-FACING half, and it is a CELL rather than a
+/// promotion — deliberately.
+///
+/// The app-side resolution shipped to production: it is deterministic, it is
+/// unit-tested, and it fixes the card-edit path with no dependence on model
+/// behaviour. **This guide text did not**, because the only comparable prior
+/// change moved a number the wrong way as well as the right one: 340-G's
+/// `armed-dateguide` cut omission 19/19 → 11/15 (p = 0.029) **and cut tool
+/// calls 19/20 → 14/20** (p = 0.092, flagged at 340-G4). A guide that buys
+/// due dates by costing calls is not obviously an improvement, and #340 has
+/// already spent two candidates on prose that read well and measured badly.
+/// So it rides here until 340-H5 says otherwise.
+///
+/// **What it asks for is strictly LESS than `dateguide` asked for.** That
+/// arm's second clause — *"or tomorrow's if that time has already passed
+/// today"* — is exactly the sentence the model demonstrably dropped, and it is
+/// now `DeviceActionParsing.resolveBareClock`'s job. This text asks only for
+/// the clock time the user said, and says the app works out the day, so
+/// there is no date arithmetic left in the model's half to get wrong.
+///
+/// Production description, production schema, production create flow: the
+/// ONLY delta is the `due` guide string, which is what makes the cell a
+/// measurement of that string rather than of a bundle.
+///
+/// (No `#if DEBUG` of its own — this file's treatment section is already
+/// inside one, and nesting a second left the outer block unclosed.)
+struct ReminderCreateToolBareclock: Tool {
+    let name = "createReminder"
+    var description: String = ReminderCreateTool.productionDescription
+    var includesSchemaInInstructions: Bool = true
+    let relay: ToolEventRelay
+    let confirmations: ToolConfirmationCenter
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "What to be reminded about, e.g. \"Call Shelley\".")
+        var title: String
+        @Guide(description: "Due time. Give just the clock time the user said, like \"16:30\" or \"9am\" — the app works out which day it means. Use a full \"2026-07-08T09:00\" only when the user named a specific date. Leave empty ONLY when the user asked for no due date at all.")
         var due: String?
         @Guide(description: "Reminders list name, or empty for the default list.")
         var list: String?
