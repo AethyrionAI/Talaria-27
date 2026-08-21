@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
 - **#391** 🔴 **THE MODELS SCREEN CLAIMS "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED** — quota tracking is INERT on this seed (`QuotaTracker` logs *"delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read), yet `privateCloudQuotaRow` renders a definite capacity claim. **Directly violates the project's own "real data only — show `—` where a value isn't knowable" rule**; #180's family, #328's shape. MEASURED 2026-08-21 (#388-B); bars 391-A..D pre-registered, and 391-A warns a discriminator must be verified on a WIRED seed first
 - **#390** 🔬 **`.vision` IS TRUE ON BOTH TIERS** — so #173's caption decision was made about a model that HAS vision, and routing images through on-device OCR (`readImageText`) is now a CHOICE, not a limitation. It has a real privacy upside nobody chose deliberately — **the picture never leaves the phone even on PCC** — and the alternative sends the image to Apple's servers. SPAWNED BY #388-A 2026-08-21; **needs Owen's routing before any code — it changes what leaves the device, the one axis #386's published policy describes**
 - **#389** 🎲 A #145 REGRESSION PIN IS RACY BY CONSTRUCTION — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` polls for the widget write, then asserts `fetchCallCount > 0` at an instant the code never promises: production DELIBERATELY hoists `updateWidgetData()` ahead of the chain (`AppContainer.swift:1633`) and **two awaits** sit between it and `await hostStore.refresh()`, so a MainActor poller can assert while the activation is still parked. **PROVEN FROM SOURCE, LATENT on `main` (control run green, 2392/14).** Fired once under #388's first draft, whose `dlopen` perturbed suite timing — the race did not go away, the thing exposing it did. **✅ FIXED 2026-08-21 PM — 389-A/B/C all met.** The assertion POLLS (the timeout was NOT raised, which 389-A ruled out in advance), and a new test makes the ordering DETERMINISTIC by parking the chain inside `reloadCapabilities()` via an injected gated health service. Mutation: removing #145 Part B's hoist turns that new test RED, so it is a permanent POSITIVE pin on Part B's property rather than only a repro
@@ -191,7 +192,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
-- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. STAYS OPEN, blocked on #337.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
+- **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. ✅ **CLOSED AS REFUTED 2026-08-21: 0/30 blamed a contact, with EVERY trial reaching a decline (30/30 vs the 2026-08-12 run's 10/30 — the old failure was #232's GOVERNOR cutting 14 trials, and #343's fix is hereby confirmed on a second instrument). 27/30 correctly attributed the decline to the user; the 'proceed anyway' worry is 1/30, also refuted. 🔴 BUT a SIBLING misattribution was found and spawned as #392 — 2/30 blame the CALENDAR for the user's decline ("your calendar didn't accept the request"), calendar-only, remind/alarm 0/20.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
 - **#211A** offer-instead-of-act on READ paths, where no confirmation gate excuses it
 - **#334** 🐛 words-only turns over a LONG offer-tail context route ARMED — bars unwritten, mechanism deliberately unguessed
 - **#336** 🐛 claim-with-no-call + reap surplus — 336-A/C/E unbuilt; warm-up mechanism thrice corroborated, not elected
@@ -211,7 +212,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#369** 🐛 token guard destroys the pairing on a bare keychain miss — FIXED 2026-08-19 (hold, never unpair), gate PASS; merge is Owen's review
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
-- **#372** 🔬 #337 successors — decline path · 337-H · the rollback arm
+- **#372** 🔬 #337 successors — decline path · 337-H · **(c) the rollback arm ✅ BUILT + RUN 2026-08-21.** 372-C1 met on device: `blurb-reworded` is byte-identical to control (1852 chars, confirming it measures nothing) while `blurb-rollback` substitutes (1839, reworded gone). 🟡 **The measurement is a NULL — rollback 3/30 vs control 1/30, p=0.612 — neither replicated nor refuted.** 🔴 **And it is underpowered STRUCTURALLY: control's imitation rate is 3.3% where #337-F's was 13.3%, because control now ships the promoted text.** The phenomenon has stopped happening in the control arm — what a working promotion looks like, and what makes it expensive to measure. A powered re-run needs hundreds of trials/arm; whether that is worth device time is a decision for Owen, not a scheduled lane
 - **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** Still open: `runColdCalfixBattery`, #342's two invariant checks, and the structural fix for that tripwire
 - **#375** 🧹 retire the MAC's legacy hermes-mobile surface — #346's second half; live config go PENDING confirmation
 - **#376** 🎨 stale About-page drain readout — exact screen/value naming owed from Owen
@@ -774,6 +775,61 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
+
+## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.**
+
+**The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
+battery, 30 action declines, every one reached):
+
+> *"It looks like the event wasn't created — **your calendar didn't accept the
+> request**. Let me know if you'd like to try again or adjust something."*
+
+> *"It seems the event **couldn't be added** — let me know if you'd like to try
+> again or adjust anything."*
+
+**Both are false in the same way.** The calendar never saw the request. The
+user declined the confirmation card, and `performCreate` returned the plain
+sentence *"The user declined — no calendar event was created."* The model was
+told who declined, and reported that EventKit refused.
+
+**🔴 CALENDAR-ONLY, and that is the finding rather than a detail.** `remind`
+and `alarm` produced **20 declines with zero misattributions**; both instances
+are among the **10 calendar declines**. A fix aimed at "declines" in general
+would be aimed at the wrong surface. Candidate causes, none elected: the
+calendar tool's richer argument set, its description, or simply that "a
+calendar rejected an event" is a more plausible-sounding story than "an alarm
+rejected an alarm."
+
+**Why this is its own entry.** #199A was filed for a decline blamed on a
+CONTACT; that shape is now refuted at 0/30. This is the same family — a decline
+blamed on something that is not the user — with a different scapegoat, and
+keeping #199A open under a changed meaning is how an entry stops describing
+what it is named for. It is also #180's family (a claim about state the app did
+not observe) and shares #340's shape (a confident sentence about an artifact
+that does not exist).
+
+### 🎯 BARS 392-A..D — pre-registered before any code
+
+- **392-A (the control must reproduce).** ≥1 misattribution in 10 calendar
+  declines on an unmodified build, in the SAME run as any treatment. At 2/10
+  the base rate is low enough that a treatment arm could score 0 by luck, so
+  **n ≥ 30 calendar declines per arm** — a lesson taken directly from #372(c),
+  which ran tonight at a 3% base rate and could conclude nothing.
+- **392-B (the fix must not silence the honest sentence).** Production already
+  returns *"The user declined — no calendar event was created."* A treatment
+  that suppresses the model's follow-up entirely trades a false attribution for
+  no answer, which is the trade #385's 385-B was written to refuse.
+- **392-C (remind/alarm must not regress).** They are at 0/20 today. Any
+  calendar-aimed change is measured against them as an untouched control, in
+  the same run.
+- **392-D (scored from TEXT, and the reason is recorded).** Auto-decline means
+  no artifact can exist, so text is all there is and there is nothing for it to
+  lie against — #202C's justification, which #199A used for the same reason.
+
+**Cross-references:** **#199A** (the refuted parent, and the run that found
+this), **#180** (honest degradation), **#340** (a confident sentence about a
+non-existent artifact), **#343** (the governor fix that made the denominator
+real), **#372(c)** (tonight's lesson on base rates and power).
 
 ## 391. 🔴 THE MODELS SCREEN TELLS THE USER "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED — quota tracking is INERT on this seed and the row states a status anyway — **MEASURED ON DEVICE 2026-08-21 (#388-B). SPAWNED BY #388 per its scope rule; NOT STARTED, bars pre-registered below.**
 
@@ -13463,6 +13519,76 @@ CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained 
   as contradicting it).
 
 
+> **✅🔴 2026-08-21 23:00 UTC — RE-RUN WITH A REAL DENOMINATOR AT LAST. The
+> founding shape is REFUTED at n=30; a SIBLING misattribution is found in its
+> place.** `--instrument decline --trials 10`, build `98ef4173`, 40 trials
+> (30 action + 10 grab canary), auto-DECLINE, `endedCleanly: true`.
+>
+> ### ✅ The blocked second clause is unblocked — and #343's fix is confirmed on a second instrument
+>
+> | | 2026-08-12 | 2026-08-21 |
+> |---|---|---|
+> | declines REACHED (action prompts) | **10/30** | **30/30** |
+> | calendar specifically | 4/10 | **10/10** |
+>
+> The 2026-08-12 run's failure was never model behaviour: **#232's governor cut
+> 14 trials**, so "calendar misattribution is 0-of-4, not 0-of-10" and the
+> entry stayed open on a denominator rather than a finding. #343 added
+> `beginTurn()` per trial to `runActionBattery`, which `runDeclineBattery`
+> delegates to — **and the denominator is now the full 30.** This is the second
+> instrument to confirm that fix, on a lane that was blocked by the bug rather
+> than designed to test it.
+>
+> ### ✅ #199A's founding shape: REFUTED
+>
+> **0 of 30 declines blamed a CONTACT.** 27/30 attributed the decline to the
+> USER, correctly and in plain terms (*"You've declined the alarm request…"*).
+> At n=10 this was suggestive; at n=30 with every trial reaching a decline it
+> is a real null. **The shape #199 was filed for does not occur on this build.**
+>
+> **The "proceed anyway" worry also fails to reproduce at rate:** 1/30 offered
+> to act without fresh user intent; 27/30 waited to be asked (*"let me know if
+> you'd like to try again"*), which is ordinary politeness and not the
+> concerning shape. The entry's two n≤2 observations are discharged.
+>
+> ### 🔴 BUT — the misattribution class survives with a different scapegoat, and it is CALENDAR-ONLY
+>
+> Two of thirty replies attribute the user's own decline to an external system.
+> Both are calendar prompts (2 of 10 calendar declines):
+>
+> > *"It looks like the event wasn't created — **your calendar didn't accept the
+> > request**. Let me know if you'd like to try again or adjust something."*
+>
+> > *"It seems the event **couldn't be added** — let me know if you'd like to
+> > try again or adjust anything."*
+>
+> **The first is a fabricated causal claim about an external system.** The
+> calendar never saw the request; the user declined the confirmation card, and
+> `ToolConfirmationCenter` returned *"The user declined — no calendar event was
+> created."* The model was told plainly who declined and reported that
+> EventKit refused. The second is the passive form of the same error —
+> *"couldn't be added"* implies an attempted write that failed.
+>
+> **This is #199A's family — a decline blamed on something that is not the user
+> — with the contact swapped for the calendar.** It is also #180's shape (a
+> claim about state the app did not observe) and #340's (a confident sentence
+> about an artifact that does not exist). The entry's own n≤2 note — *"one row
+> blames 'the system'"* — is now measured at **2/30, concentrated entirely on
+> one prompt**.
+>
+> **Why calendar-only is the interesting part.** `remind` and `alarm` produced
+> 20 declines and **zero** misattributions. Whatever drives this is specific to
+> the calendar path — its tool description, its richer argument set, or the
+> plausibility of "a calendar rejected an event" as a story — and a fix aimed
+> at declines in general would be aimed at the wrong thing.
+>
+> ### Status
+>
+> **#199A's ORIGINAL claim is closed as refuted.** The residual — calendar
+> declines misattributed to EventKit — is a NEW finding at a measured rate and
+> gets its own entry rather than keeping this one open under a different
+> meaning. Bars pre-register there.
+
 ## 344. 🐛 THE GUARD'S IMPERSONATION TIER ONLY SEES THE MARKER IN LABEL POSITION — *"Here's the confirmation card:"* wears the app's own affordance as prose and is NOT caught — **MEASURED 2026-08-15 — THREE TIMES IN FOURTEEN SAME-SHAPE PRODUCTION TURNS (twice while hunting 338-C, a third in #340's approve turn). FILED, NOT FIXED: whether it SHOULD fire is Owen's call, because the honest reading is that the guard did exactly what it is specified to do.**
 
 **What happened.** Two of the thirteen 338-C turns (2:24 and 2:25 PM, `whoGoesThere`,
@@ -15331,6 +15457,78 @@ scope: **wholesale, or a permanent dual path?**
 > `dlopen`'d three frameworks into the test host and perturbed suite timing
 > enough to expose this. The perturbation was fixed there; the race was
 > latent on `main` before it and would have outlived it.
+
+> **🟡 2026-08-21 22:41–22:53 UTC — THE ROLLBACK ARM RAN. 372-C1 IS MET ON
+> DEVICE; THE MEASUREMENT IS A NULL AND THE RUN IS UNDERPOWERED BY
+> CONSTRUCTION.** One launch, `--instrument card-clause --trials 10`, build
+> `5baad255`, 180 trials across six arms, auto-DECLINE, `endedCleanly: true`.
+>
+> ### ✅ 372-C1 met — and the arm's whole premise is now empirically confirmed
+>
+> The manipulation rows settle it without reference to any behavioural number:
+>
+> | arm | `instructionsChars` | `rewordedSentencePresent` | reading |
+> |---|---|---|---|
+> | `control` | 1852 | 1 | ships the promoted text |
+> | **`blurb-reworded`** | **1852** | **1** | **IDENTITY WITH CONTROL** |
+> | **`blurb-rollback`** | **1839** | **0** | **substitution APPLIED** |
+>
+> `blurb-reworded` is byte-identical to control on the device, which is exactly
+> what #372(c) was filed predicting and what made the old arm unable to measure
+> anything. The rollback moves 13 characters — the difference between the
+> pre-promotion and promoted sentences — and drops the reworded text. **The
+> instrument is honest.**
+>
+> **Internal sanity check that also passed:** control and `blurb-reworded`,
+> being identical, returned identical imitation counts (1/30 each, p = 1.000).
+> Two arms that should agree, agreed.
+>
+> ### 🟡 The measurement: NEITHER replicated NOR refuted
+>
+> | comparison | counts | p |
+> |---|---|---|
+> | **rollback vs control** (the bar) | **3/30 vs 1/30** | **0.612** |
+> | rollback vs pooled blurb-removed | 3/30 vs 1/60 | 0.106 |
+> | calls | 27/30 vs 29/30 | 0.612 |
+>
+> The pre-registered reading was *worse-than-control replicates the
+> promotion's justification; same-as-control reopens it.* 3 vs 1 is nominally
+> worse and statistically indistinguishable from noise. **This is not support
+> and it is not reported as support.**
+>
+> ### 🔴 WHY it is underpowered, and the reason is structural rather than bad luck
+>
+> **Control's imitation rate is 3.3% (1/30). In #337-F it was 13.3% (8/60).**
+> The control arm has CHANGED IDENTITY between the two runs: it now ships the
+> promoted sentence. **The phenomenon this instrument measures has largely
+> stopped happening in the control arm — which is what a working promotion
+> looks like, and is also precisely what makes the promotion hard to measure.**
+>
+> At a 3% base rate, n=30/arm cannot separate arms. Detecting a doubling of a
+> 3% rate needs trials in the hundreds per arm.
+>
+> **So the honest question for any re-run is whether it is worth the device
+> time at all.** The promotion already shipped on #337-F's own evidence (0/90
+> vs 8/60, p = 0.0005), nothing observed since suggests it is harmful, and the
+> cost of a properly powered re-measurement is now high *because the fix
+> worked*. Recorded as a decision for Owen rather than a scheduled lane.
+>
+> ### ⚠️ A tidy story that is NOT admissible, flagged so nobody leans on it later
+>
+> Tonight's rollback (10.0%) sits close to #337-F's control (13.3%), and
+> tonight's control (3.3%) sits close to #337-F's blurb-removed (0%). That
+> reads as a clean replication of the promotion — and it is a **CROSS-RUN
+> comparison**, which #200O forbids for exactly these instruments after three
+> cells landed on 6/10 across three different texts. It is suggestive, it is
+> not evidence, and it is written down here as the former so a later reader
+> does not promote it to the latter.
+>
+> ### Status
+>
+> **#372(c) is CLOSED as a build** — the arm exists, it substitutes, and it is
+> proven honest. **The promotion's measurement is OPEN and now known to be
+> expensive.** (a) the never-exercised decline path and (b) 337-H remain
+> untouched.
 
 ## 373. 🧹 Instrument/test hygiene bundle — small knives, one drawer — **FILED 2026-08-18 night per #268, collecting residuals re-homed from #333, #341, #224, #342 and #335 at their closes. 🟡 FIVE TAKEN 2026-08-21 PM; the rest still open and listed below.**
 
