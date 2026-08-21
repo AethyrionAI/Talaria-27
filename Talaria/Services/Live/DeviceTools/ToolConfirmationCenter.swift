@@ -63,6 +63,23 @@ final class ToolConfirmationCenter {
     /// paths; this is the single production call site it edits.
     @ObservationIgnored var modeProvider: @MainActor () -> ApprovalMode = { .manual }
 
+    /// #323-D: whether App Lock is currently COVERING the app. When it is,
+    /// the lock outranks the mode and this gate stages the card without ever
+    /// asking `modeProvider` what it would rather do.
+    ///
+    /// **Why short-circuit BEFORE the provider instead of after it.** Today
+    /// `.manual` is the only mode the settings layer can produce, so a gate
+    /// placed after the consult would be unobservable — it would pass for the
+    /// wrong reason and keep passing after someone deleted it. Reading the
+    /// lock first makes the property testable NOW, against a mode (#224
+    /// Phase 1's `.autoApprove`) that does not yet ship: bar 323-D spies on
+    /// the provider and goes red the moment this line is removed.
+    ///
+    /// That is the 2026-08-18 ruling's *"a subsystem nobody wired becomes
+    /// structurally impossible"* applied before the subsystem exists — which
+    /// is the only time it is cheap.
+    @ObservationIgnored var lockStateProvider: @MainActor () -> Bool = { false }
+
     #if DEBUG
     /// #196 battery: headless sessions can never answer a card, and the
     /// continuation is deliberately non-cancellable — so the rate battery
@@ -166,9 +183,18 @@ final class ToolConfirmationCenter {
         // and says so in the log. That is the default-CLOSED direction this
         // gate was designed around — an unhandled mode costs a prompt, never
         // an unapproved write.
-        let disposition = modeProvider().disposition(hasCaution: caution != nil)
-        if disposition != .card {
-            Self.logger.error("approval mode produced \(disposition.rawValue, privacy: .public) — this build ships no handling for it; staging the card")
+        if lockStateProvider() {
+            // #323-D. Nothing auto-resolves behind the cover — not an
+            // approve, not a refuse. The card stages and the tool suspends
+            // exactly as it does under `.manual`, so the user answers it when
+            // they unlock and see it. That is the ruling's in-flight policy
+            // (work finishes, the user still decides), not a refusal.
+            Self.logger.notice("approval staged while App Lock covers the app — mode NOT consulted (#323-D)")
+        } else {
+            let disposition = modeProvider().disposition(hasCaution: caution != nil)
+            if disposition != .card {
+                Self.logger.error("approval mode produced \(disposition.rawValue, privacy: .public) — this build ships no handling for it; staging the card")
+            }
         }
         guard continuation == nil else {
             Self.logger.warning("confirmation requested while another is pending — auto-declining the new one")

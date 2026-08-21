@@ -158,7 +158,19 @@ struct AskHermesIntent: AppIntent {
         // dropped stream, so the reply is waiting in the app either way.
         let completion = CompletionFlag()
         Task { @MainActor in
-            await chatStore.sendMessage(trimmedQuestion)
+            // #323-B: the App Intent path BYPASSES App Lock, deliberately and
+            // by #124's recorded decision — the intent path has no UI, so a
+            // locked phone can still ask Hermes headlessly, exactly like a
+            // lock-screen Siri query. Named at the call site rather than
+            // arranged by omission, because this is the one place in the app
+            // where NOT deferring is correct, and a reader has to be able to
+            // see that it was chosen.
+            //
+            // Concretely at risk without it: this runs under a Siri budget
+            // with the poll loop below. A parked send burns the budget,
+            // answers Siri "still working", and lands the reply only on
+            // unlock.
+            await chatStore.sendMessage(trimmedQuestion, lockPolicy: .bypassLock)
             completion.isDone = true
         }
 

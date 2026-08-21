@@ -590,14 +590,20 @@ final class ChatStore {
     /// buzz at launch would have no visible cause.
     var onSendFailed: (@MainActor () -> Void)?
 
+    /// #323: the App Lock gate. Optional so tests and previews can build a
+    /// store with no lock in the graph — a nil gate is an unlocked one.
+    private let appLockGate: AppLockGate?
+
     init(
         hermesClient: any HermesClientProtocol,
         persistence: any AppPersistenceStoreProtocol,
-        journal: ConversationJournalStore? = nil
+        journal: ConversationJournalStore? = nil,
+        appLockGate: AppLockGate? = nil
     ) {
         self.hermesClient = hermesClient
         self.persistence = persistence
         self.journal = journal
+        self.appLockGate = appLockGate
         self.composeOutbox = persistence.loadComposeOutboxState()
         self.agentAttachments = persistence.loadAgentAttachmentSidecar()
     }
@@ -742,7 +748,27 @@ final class ChatStore {
     /// outbox drain needs the distinction: a swallowed turn produced no
     /// stream, so neither success nor a re-queue happened (#90).
     @discardableResult
-    func sendMessage(_ content: String, attachments: [PendingAttachment] = []) async -> Bool {
+    func sendMessage(
+        _ content: String,
+        attachments: [PendingAttachment] = [],
+        lockPolicy: AppLockSendPolicy = .deferWhileLocked
+    ) async -> Bool {
+        // #323-A: park BEFORE any state is touched — before the reset below,
+        // before the duplicate check, before the optimistic row. #323's
+        // finding was not merely that a turn RAN behind the cover; it is that
+        // "the transcript kept it" and Owen found the whole conversation
+        // waiting when he unlocked. A gate that blocks the network but still
+        // writes the user's turn into the thread has not fixed what was
+        // reported.
+        //
+        // The path that actually reaches here while locked is the UNTAPPED
+        // one — the compose-outbox drain off `handleAppDidBecomeActive`, and
+        // (until #302's half) the voice pipeline. Taps cannot: the cover is
+        // an opaque `UIWindow` at `.alert + 1`.
+        if lockPolicy == .deferWhileLocked, let appLockGate, appLockGate.isLocked {
+            chatLog.notice("send deferred — App Lock is covering the app; waiting for unlock (#323-A)")
+            await appLockGate.waitUntilUnlocked()
+        }
         // Reset FIRST, before any guard: the drain reads this after every
         // send, and a stale true from the previous send would corrupt its
         // stop/continue decision.
@@ -2818,6 +2844,29 @@ final class ChatStore {
     /// row. Stops as soon as a send re-queues — still unreachable; the next
     /// reachability signal retries.
     func drainComposeOutboxIfPossible() async {
+        // #323-A: park HERE, ahead of the guard and ahead of any removal —
+        // NOT only inside `sendMessage`.
+        //
+        // **The reason is a data-loss window, found by reading this loop
+        // while building the gate.** The drain does `composeOutbox.remove` +
+        // `persistComposeOutbox()` BEFORE it calls `sendMessage`, and the
+        // turn's next durable home is the optimistic row `sendMessage`
+        // persists. Park in `sendMessage` alone and the turn spends the whole
+        // locked interval — which the user can make arbitrarily long simply
+        // by leaving the phone locked — removed from the outbox and not yet
+        // in the transcript. A force-quit or an iOS reap in that window loses
+        // it outright, where before this lane it would have survived as a
+        // `.sending` row.
+        //
+        // Waiting first costs nothing (an unlocked gate returns immediately,
+        // bar 323-E) and leaves the outbox untouched while parked. It also
+        // re-reads `isTranscriptBusy` AFTER the wait rather than before it,
+        // which is the more correct question anyway: a lot can change during
+        // a lock.
+        if let appLockGate, appLockGate.isLocked {
+            chatLog.notice("compose outbox drain deferred — App Lock is covering the app (#323-A)")
+            await appLockGate.waitUntilUnlocked()
+        }
         // #307: `!isStreaming` here let the outbox drain INTO A LIVE RUN
         // during the reconcile window (`streamingMessageID` nil, `pendingRun`
         // live — exactly the #278 state), and `attemptReconcile` then adopted

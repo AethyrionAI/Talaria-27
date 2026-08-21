@@ -78,8 +78,13 @@ final class TalkStore {
     /// already left, and is discarded instead of being flipped live.
     private var sessionGeneration = 0
 
-    init(voiceService: any VoiceSessionServiceProtocol) {
+    /// #302: the App Lock gate. Optional so tests and previews can build a
+    /// store with no lock in the graph — a nil gate is an unlocked one.
+    private let appLockGate: AppLockGate?
+
+    init(voiceService: any VoiceSessionServiceProtocol, appLockGate: AppLockGate? = nil) {
         self.voiceService = voiceService
+        self.appLockGate = appLockGate
         applySnapshot(voiceService.snapshot)
         subscribeToEvents()
     }
@@ -120,16 +125,22 @@ final class TalkStore {
 
     /// Start without a prior readiness check — goes straight to session create.
     func startSessionDirectly() async {
+        // #302: the generation and the intent flag are claimed BEFORE the
+        // lock wait, not after. Both have to be live while parked — the
+        // generation so an abandon can revoke the parked start, and
+        // `isStartingSession` so #254's background revoke still sees it.
+        let generation = beginSessionGeneration()
+        isStartingSession = true
+        defer { isStartingSession = false }
+        guard await deferUntilUnlocked(generation: generation) else { return }
+        // Deliberately AFTER the wait: a parked start must not claim to be
+        // "Connecting..." for the whole locked interval. Saying so would be
+        // the silent-wrong-answer shape #180 forbids, and the honest state is
+        // published by `deferUntilUnlocked` instead.
         canStartSession = true
         connectionState = .connecting
         voiceState = .thinking
         statusMessage = "Connecting..."
-        let generation = beginSessionGeneration()
-        // #254: publish the intent BEFORE the first await — the whole point is
-        // to be visible during the window the awaited call occupies. `defer`
-        // clears it on every exit, including the abandoned-start return below.
-        isStartingSession = true
-        defer { isStartingSession = false }
         await voiceService.startSession()
         guard generation == sessionGeneration else {
             await discardAbandonedStart()
@@ -147,6 +158,10 @@ final class TalkStore {
         // must be visible to the background observer, not just the overlay's.
         isStartingSession = true
         defer { isStartingSession = false }
+        // #302: and both doors defer identically. Bar 302-E scores them
+        // SEPARATELY because a fix that guards one door and not the other is
+        // the #323 class arriving inside its own fix.
+        guard await deferUntilUnlocked(generation: generation) else { return }
         await voiceService.startSession()
         guard generation == sessionGeneration else {
             await discardAbandonedStart()
@@ -157,6 +172,44 @@ final class TalkStore {
             liveActivity.startVoiceSession()
         }
     }
+
+    /// #302 — DEFER-UNTIL-UNLOCK, the contract Owen ruled on 2026-08-10 and
+    /// the design he ruled on 2026-08-18.
+    ///
+    /// Returns `true` when the caller may proceed, `false` when the start was
+    /// abandoned while parked.
+    ///
+    /// **The `false` return is the whole reason this is a function and not an
+    /// inline `await`.** #139's defect — a local microphone opened for a
+    /// session the user already left — has a new door here: park a start on
+    /// the lock, let the user dismiss it or the app background-revoke it, and
+    /// a naive resume opens the mic for nobody. The generation is re-read
+    /// AFTER the wait for exactly that reason, and bar 302-F is that case.
+    ///
+    /// **What this fixes, measured not theorised:** on device (build 2484)
+    /// the capture chain went hot 3.87 s before the user cancelled Face ID
+    /// and stayed hot 34.9 s behind the cover, and the arm that "passed" did
+    /// so because Face ID won a 470 ms footrace. There was no gate to be
+    /// late — there was no gate. This is it.
+    private func deferUntilUnlocked(generation: Int) async -> Bool {
+        guard let appLockGate, appLockGate.isLocked else { return true }
+        // Say it, rather than sitting silent behind the cover. The user
+        // cannot see this while locked — but the overlay's dismissal and the
+        // Live Activity can, and an unexplained dead voice button is what
+        // #310's `markRelayUnavailable()` precedent exists to prevent.
+        statusMessage = Self.lockedWaitingMessage
+        await appLockGate.waitUntilUnlocked()
+        guard generation == sessionGeneration else {
+            // Nothing to tear down: we never called into the service, so
+            // there is no snapshot to discard — unlike `discardAbandonedStart`,
+            // which exists for a start that DID reach the engine.
+            return false
+        }
+        return true
+    }
+
+    /// Public so the overlay and bar 302-E can name the same string.
+    static let lockedWaitingMessage = "Waiting for unlock…"
 
     /// #139: the dismissal path.
     ///

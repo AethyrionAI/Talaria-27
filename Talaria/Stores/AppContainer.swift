@@ -128,6 +128,12 @@ final class AppContainer {
     /// a card in the chat transcript and suspends the tool until the user
     /// decides. Defaults closed (app death = nothing created).
     let toolConfirmationCenter = ToolConfirmationCenter()
+    /// #302/#323: the ONE App Lock state every non-UI subsystem consults.
+    /// Written only by `AppLockController` (wired in `AppEntry`), read by
+    /// `TalkStore`, `ChatStore` and `ToolConfirmationCenter`. An init
+    /// parameter rather than an inline property because the stores that read
+    /// it are constructed BEFORE the container that owns it.
+    let appLockGate: AppLockGate
     /// #304: the HOST-approval card's store — a SIBLING of the device gate
     /// above, deliberately not a reuse of it (different actor: the host's own
     /// gated action on a `/v1/runs` run, answered over the network). Wired in
@@ -192,6 +198,7 @@ final class AppContainer {
         permissionsStore: PermissionsStore,
         settingsStore: SettingsStore,
         talkStore: TalkStore,
+        appLockGate: AppLockGate = AppLockGate(),
         apiClient: RelayAPIClient? = nil,
         probeAPIClient: RelayAPIClient? = nil,
         secureStore: (any SecureStoreProtocol)? = nil,
@@ -206,6 +213,7 @@ final class AppContainer {
         self.permissionsStore = permissionsStore
         self.settingsStore = settingsStore
         self.talkStore = talkStore
+        self.appLockGate = appLockGate
         self.apiClient = apiClient
         self.probeAPIClient = probeAPIClient
         self.secureStore = secureStore
@@ -657,6 +665,11 @@ final class AppContainer {
             settingsStore.settings.readAloudRate
         }
         let voiceService: any VoiceSessionServiceProtocol
+        // #302/#323: minted before the stores, because voice and chat both
+        // read it at construction. `AppLockController` (AppEntry) is its only
+        // writer; everything below is a reader.
+        let appLockGate = AppLockGate()
+
         if usesMockPairingService {
             voiceService = MockVoiceSessionService()
         } else {
@@ -687,7 +700,12 @@ final class AppContainer {
             sessionStore: sessionStore,
             pairingStore: runtimePairingStore,
             hostStore: hostStore,
-            chatStore: ChatStore(hermesClient: chatBackendRouter, persistence: persistence, journal: journalStore),
+            chatStore: ChatStore(
+                hermesClient: chatBackendRouter,
+                persistence: persistence,
+                journal: journalStore,
+                appLockGate: appLockGate
+            ),
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
@@ -701,7 +719,8 @@ final class AppContainer {
                 motionService: liveMotionService
             ),
             settingsStore: settingsStore,
-            talkStore: TalkStore(voiceService: voiceService),
+            talkStore: TalkStore(voiceService: voiceService, appLockGate: appLockGate),
+            appLockGate: appLockGate,
             apiClient: apiClient,
             probeAPIClient: bootstrapProbeClient,
             secureStore: secureStore,
@@ -881,6 +900,10 @@ final class AppContainer {
         // makes the key real rather than vestigial, and it is the one
         // production line Phase 1 edits.
         container.toolConfirmationCenter.modeProvider = { settingsStore.settings.approvalMode }
+        // #323-D: the lock OUTRANKS the mode. Wired as a closure beside
+        // `modeProvider` for the same reason — a captured Bool would freeze
+        // the answer at wiring time, and the whole point is that it changes.
+        container.toolConfirmationCenter.lockStateProvider = { appLockGate.isLocked }
         deviceTools += DeviceToolBelt.makeActionTools(
             relay: toolRelay,
             confirmations: container.toolConfirmationCenter,
