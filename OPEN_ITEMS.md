@@ -144,7 +144,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
 - **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … **→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
-- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. DEVICE VERIFICATION STILL OWED. Twin filing #323 carries the non-voice half**
+- **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#305** 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
@@ -4881,8 +4881,33 @@ prevents the tap. Recorded so the next reader does not re-derive it as a gap.
 > before the cancel and staying hot 34.9 s while `cover=locked locked=true`.
 > This run has nothing behind the cover.
 >
+> **✅ THE OTHER HALF IS NOW CONFIRMED TOO — 2026-08-20, same evening.** Owen,
+> on the re-run: *"a voice start resumes on unlock after 30+ seconds."* So the
+> behaviour is **(a) a real DEFERRAL, not (b) a permanent refusal** — the
+> distinction the first report could not settle, and the one that separates
+> 302-C's ruled contract from a new defect wearing its symptoms. **302-E is
+> device-confirmed on both arms: cold while locked, and it starts on unlock.**
+> The 30+ s figure is the parked interval — the session survived being held
+> that long and still resumed, which is the arm that matters, since #272's
+> fixed Cancel-then-UNLOCK state is what holds a locked interval open
+> indefinitely.
+>
+> *(One reading not excluded by the sentence alone: that the resume itself took
+> 30+ s AFTER the unlock, which would be a latency defect rather than a
+> deferral one. The natural reading is the parked interval, and it matches the
+> test asked for — recorded so a later reader knows which was meant and that
+> the alternative was considered rather than missed.)*
+>
+> **What this closes.** #302's fix is now verified end to end on device: the
+> microphone is cold behind the cover (the July defect, inverted) AND the
+> session defers rather than dies. Nothing about the fix is unmeasured. What
+> remains for this item is #124's seven App-Lock checks, which are a broader
+> regression sweep rather than a question about this fix.
+
 > **⚠️ HALF THE CONTRACT IS STILL UNVERIFIED, and the two halves are
-> indistinguishable from the report so far.** 302-C's ruled contract is
+> indistinguishable from the report so far.** *(SUPERSEDED by the block above
+> — kept because it is the record of what was and was not known at the time.
+> Read it in the past tense.)* 302-C's ruled contract is
 > **DEFER**-until-unlock, not refuse. "The mic stayed dead" is produced
 > equally by:
 > - **(a) a correct deferral** — parked, then started when the cover came
