@@ -17,6 +17,22 @@ struct BackendProfilesTests {
         return UserDefaultsAppPersistenceStore(defaults: defaults)
     }
 
+    /// #310: persistence for tests whose subject is the RELAY PLANE (pairing,
+    /// tokens, the #94/#3 clean slate) rather than the retirement itself.
+    ///
+    /// Stamping the relay-retirement migration as already run means the M-2
+    /// seed keeps its relay URL, so `pair()` has a relay to redeem against.
+    /// Without this the three pairing tests below fail at
+    /// "Enter a valid relay URL ending with /v1 before pairing" — a true
+    /// statement about a relay-less profile, and nothing at all to do with
+    /// what those tests exist to pin.
+    @MainActor
+    private func makeRelayBearingPersistence(_ label: String) -> UserDefaultsAppPersistenceStore {
+        let persistence = makePersistence(label)
+        persistence.saveRelayRetirementMigrationStamp()
+        return persistence
+    }
+
     private static let ojamdSeeds = BackendProfilesStore.MigrationSeeds(
         gatewayBaseURL: "http://ojamd:8642",
         relayBaseURL: "http://100.110.102.59:8000/v1",
@@ -128,7 +144,18 @@ struct BackendProfilesTests {
         let migrated = try #require(first.activeProfile)
         #expect(migrated.name == "OJAMD")
         #expect(migrated.gatewayBaseURL == "http://ojamd:8642")
-        #expect(migrated.relayBaseURL == "http://100.110.102.59:8000/v1")
+        // #310 (2026-08-20): this line used to assert the relay SEED survived
+        // the mint. It no longer does, and the change is a ruling rather than
+        // a regression — the relay-retirement migration runs on whatever
+        // state the M-2 branch produced, so a fresh mint and an existing
+        // install converge on the same relay-less end state instead of the
+        // mint keeping a seed the retirement would clear a moment later.
+        //
+        // That this is the RETIREMENT's doing and not the mint dropping its
+        // seed is what `mintKeepsItsRelaySeedWhenTheRetirementAlreadyRan`
+        // below controls for. Without that control, a bug where M-2 stopped
+        // reading `migrationSeeds.relayBaseURL` at all would pass here.
+        #expect(migrated.relayBaseURL == nil)
         #expect(migrated.shimBaseURL == "http://ojamd:8765")
         #expect(migrated.usesLegacyCredentialKeys)
         // The migrated profile IS the active profile.
@@ -139,6 +166,182 @@ struct BackendProfilesTests {
         let second = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         #expect(second.profiles.count == 1)
         #expect(second.activeProfile?.id == migrated.id)
+    }
+
+    // MARK: - #310: the relay-retirement migration
+    //
+    // Bars 310-A and 310-B, pre-registered in OPEN_ITEMS #310 before this
+    // code. Owen ruled on 2026-08-20 that existing profiles' relay URLs are
+    // CLEARED: both hosts' relays are retired (#346 OJAMD, #375 Mac), so every
+    // persisted profile points at something dead, and that dead URL is what
+    // buys #365's ~10 s profile-switch stall.
+
+    /// The control that keeps `migrationMintsOneLegacyKeyedProfile…` honest.
+    ///
+    /// With the retirement stamp ALREADY set, the M-2 mint's relay seed
+    /// survives — which is what proves the nil in that test is the retirement
+    /// clearing a seed rather than the mint never reading one. Delete this
+    /// test and a regression where `MigrationSeeds.relayBaseURL` stops being
+    /// used at all becomes invisible.
+    @Test @MainActor
+    func mintKeepsItsRelaySeedWhenTheRetirementAlreadyRan() throws {
+        let persistence = makePersistence("mint-seed-after-retirement")
+        persistence.saveRelayRetirementMigrationStamp()
+
+        let store = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+        let minted = try #require(store.activeProfile)
+        #expect(minted.relayBaseURL == "http://100.110.102.59:8000/v1")
+        #expect(minted.hasRelay)
+    }
+
+    /// **310-B, phase 1** — an install that already has profiles loses every
+    /// relay URL exactly once, and the stamp records that it happened.
+    @Test @MainActor
+    func relayRetirementClearsExistingProfilesOnce() throws {
+        let persistence = makePersistence("relay-retirement-clears")
+        // Two profiles, both relay-bearing — the shape of Owen's own install.
+        let ojamd = BackendProfile(
+            name: "OJAMD",
+            gatewayBaseURL: "http://100.110.102.59:8642",
+            relayBaseURL: "http://100.110.102.59:8000/v1",
+            usesLegacyCredentialKeys: true
+        )
+        let mac = BackendProfile(
+            name: "Mac Mini",
+            gatewayBaseURL: "http://100.79.222.100:8642",
+            relayBaseURL: "http://100.79.222.100:8000/v1"
+        )
+        persistence.saveBackendProfilesState(
+            BackendProfilesState(profiles: [ojamd, mac], activeProfileID: ojamd.id)
+        )
+        #expect(!persistence.loadRelayRetirementMigrationStamp())
+
+        let store = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+
+        #expect(store.profiles.count == 2)
+        #expect(store.profiles.allSatisfy { $0.relayBaseURL == nil })
+        #expect(store.profiles.allSatisfy { !$0.hasRelay })
+        #expect(persistence.loadRelayRetirementMigrationStamp())
+        // Identity and credential scope are untouched — this migration edits
+        // ONE field. A cleared relay must never restyle the Keychain scope,
+        // or every existing pairing detaches from its credentials.
+        #expect(store.activeProfileID == ojamd.id)
+        #expect(store.profile(id: ojamd.id)?.usesLegacyCredentialKeys == true)
+        #expect(store.profile(id: mac.id)?.usesLegacyCredentialKeys == false)
+        // Persisted, not merely in memory: a state that only cleared in RAM
+        // would re-stall on the very next launch while this test stayed green.
+        let reloaded = try #require(persistence.loadBackendProfilesState())
+        #expect(reloaded.profiles.allSatisfy { $0.relayBaseURL == nil })
+    }
+
+    /// **310-B, phase 2 — THE BAR.**
+    ///
+    /// A relay URL the user types back in must SURVIVE the next launch. This
+    /// is the half that fails under the obvious wrong implementation: folding
+    /// the clear into `normalized(_:)`, which runs on every load and on every
+    /// `upsert`, would wipe the re-entered URL immediately while phase 1
+    /// above stayed green.
+    @Test @MainActor
+    func aReEnteredRelayURLSurvivesTheNextLaunch() throws {
+        let persistence = makePersistence("relay-retirement-reentry")
+        let profile = BackendProfile(
+            name: "OJAMD",
+            gatewayBaseURL: "http://100.110.102.59:8642",
+            relayBaseURL: "http://100.110.102.59:8000/v1"
+        )
+        persistence.saveBackendProfilesState(
+            BackendProfilesState(profiles: [profile], activeProfileID: profile.id)
+        )
+
+        // Launch 1: the retirement fires.
+        let first = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+        #expect(first.activeProfile?.relayBaseURL == nil)
+
+        // The user re-enters a relay URL (the Server settings write path).
+        first.updateActiveProfile { $0.relayBaseURL = "http://relay.re-entered.test:8000/v1" }
+        #expect(first.activeProfile?.relayBaseURL == "http://relay.re-entered.test:8000/v1")
+
+        // Launch 2: a fresh store over the same persistence. The retirement
+        // is stamped, so it must not fire again.
+        let second = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
+        #expect(second.activeProfile?.relayBaseURL == "http://relay.re-entered.test:8000/v1")
+        #expect(second.activeProfile?.hasRelay == true)
+
+        // And an upsert — the OTHER path through `normalized(_:)` — must not
+        // clear it either. Named separately because `updateActiveProfile`
+        // does NOT go through `normalized`, so the assertion above alone
+        // leaves the upsert path uncovered.
+        var edited = try #require(second.activeProfile)
+        edited.note = "still has a relay"
+        second.upsert(edited)
+        #expect(second.activeProfile?.relayBaseURL == "http://relay.re-entered.test:8000/v1")
+    }
+
+    /// **310-A** — persisted blobs written by the SHIPPING build still decode.
+    ///
+    /// Deliberately over LITERAL JSON, never a round-trip through the new
+    /// encoder: a round-trip cannot produce the shape only the old encoder
+    /// wrote (`relayBaseURL` always present, sometimes `""`), so it would go
+    /// green while a real user's blob decoded wrong. This is the §1.5
+    /// persisted-state discipline — a miss here is a user-data regression,
+    /// not a failing assertion.
+    @Test @MainActor
+    func legacyProfileBlobsDecodeUnderTheOptionalRelayType() throws {
+        let decoder = JSONDecoder()
+        let id = UUID().uuidString
+
+        func blob(_ relayFragment: String) -> Data {
+            Data("""
+            {"id": "\(id)", "name": "OJAMD", "gatewayBaseURL": "http://ojamd:8642"\
+            \(relayFragment), "usesLegacyCredentialKeys": true}
+            """.utf8)
+        }
+
+        // (i) A real URL survives verbatim.
+        let withURL = try decoder.decode(
+            BackendProfile.self,
+            from: blob(", \"relayBaseURL\": \"http://100.110.102.59:8000/v1\"")
+        )
+        #expect(withURL.relayBaseURL == "http://100.110.102.59:8000/v1")
+        #expect(withURL.hasRelay)
+
+        // (ii) The empty string the pre-#310 encoder wrote for "no relay"
+        // decodes to nil — NOT to "", which would be handed to URL(string:)
+        // and produce the relative-URL requests this item exists to stop.
+        let empty = try decoder.decode(BackendProfile.self, from: blob(", \"relayBaseURL\": \"\""))
+        #expect(empty.relayBaseURL == nil)
+        #expect(!empty.hasRelay)
+
+        // (iii) An absent key — what the new encoder writes for nil, and what
+        // a blob from a future field-adding build could also look like.
+        let absent = try decoder.decode(BackendProfile.self, from: blob(""))
+        #expect(absent.relayBaseURL == nil)
+        #expect(!absent.hasRelay)
+
+        // Everything else round-trips regardless of which shape the relay took.
+        for profile in [withURL, empty, absent] {
+            #expect(profile.name == "OJAMD")
+            #expect(profile.gatewayBaseURL == "http://ojamd:8642")
+            #expect(profile.usesLegacyCredentialKeys)
+        }
+    }
+
+    /// A nil relay encodes as an ABSENT key, and the pair round-trips. Pinned
+    /// because the synthesized encoder's `encodeIfPresent` behaviour for
+    /// Optionals is the thing case (iii) above depends on — if a future edit
+    /// hand-writes `encode(to:)` and emits `""` for nil, (iii) would still
+    /// pass while every newly-written blob carried the old ambiguity back.
+    @Test @MainActor
+    func aRelaylessProfileEncodesWithNoRelayKey() throws {
+        let profile = BackendProfile(name: "Gateway only", gatewayBaseURL: "http://host:8642")
+        let data = try JSONEncoder().encode(profile)
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        )
+        #expect(json["relayBaseURL"] == nil)
+        let decoded = try JSONDecoder().decode(BackendProfile.self, from: data)
+        #expect(decoded.relayBaseURL == nil)
+        #expect(decoded.id == profile.id)
     }
 
     @Test @MainActor
@@ -226,7 +429,7 @@ struct BackendProfilesTests {
 
     @Test @MainActor
     func pairingSecondProfileLeavesFirstProfilesPairingAndTokensUntouched() async throws {
-        let persistence = makePersistence("clean-slate")
+        let persistence = makeRelayBearingPersistence("clean-slate")
         let secureStore = MockSecureStore()
         let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         let sessionStore = makeSessionStore(
@@ -282,7 +485,7 @@ struct BackendProfilesTests {
     func rePairingSameProfileStillClearsItsOwnOldIdentity() async throws {
         // #3's protection within one profile: re-pairing the active profile
         // replaces its record and tokens (clean slate), scoped to that slot.
-        let persistence = makePersistence("re-pair")
+        let persistence = makeRelayBearingPersistence("re-pair")
         let secureStore = MockSecureStore()
         let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         let sessionStore = makeSessionStore(
@@ -314,7 +517,7 @@ struct BackendProfilesTests {
     func failedRedeemLeavesExistingPairingIntact() async throws {
         // #94: redeem-first ordering — the clean slate only runs AFTER a
         // successful redeem, so a failed pair never destroys the live pairing.
-        let persistence = makePersistence("failed-redeem")
+        let persistence = makeRelayBearingPersistence("failed-redeem")
         let secureStore = MockSecureStore()
         let profilesStore = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         let sessionStore = makeSessionStore(

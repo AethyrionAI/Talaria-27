@@ -244,12 +244,21 @@ struct BackendProfileRoutingTests {
     func dormantRefreshPolicyFiresOncePerWindowAndSkipsFreshActiveUnpaired() {
         let now = Date()
         let day: TimeInterval = 24 * 60 * 60
-        let active = BackendProfile(name: "Active", gatewayBaseURL: "", relayBaseURL: "", lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
-        let stale = BackendProfile(name: "Stale", gatewayBaseURL: "", relayBaseURL: "", lastTokenRefreshAt: now.addingTimeInterval(-8 * day))
-        let fresh = BackendProfile(name: "Fresh", gatewayBaseURL: "", relayBaseURL: "", lastTokenRefreshAt: now.addingTimeInterval(-day))
-        let never = BackendProfile(name: "Never", gatewayBaseURL: "", relayBaseURL: "")
-        let unpaired = BackendProfile(name: "Unpaired", gatewayBaseURL: "", relayBaseURL: "", lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
-        let profiles = [active, stale, fresh, never, unpaired]
+        // #310: these fixtures used to pass `relayBaseURL: ""`, which now
+        // means "no relay" and would filter every one of them out. They carry
+        // real URLs because dormant TOKEN refresh is a relay-plane concern by
+        // definition — a profile with no relay has no tokens to keep fresh.
+        let relay = "http://relay.test:8000/v1"
+        let active = BackendProfile(name: "Active", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
+        let stale = BackendProfile(name: "Stale", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-8 * day))
+        let fresh = BackendProfile(name: "Fresh", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-day))
+        let never = BackendProfile(name: "Never", gatewayBaseURL: "", relayBaseURL: relay)
+        let unpaired = BackendProfile(name: "Unpaired", gatewayBaseURL: "", relayBaseURL: relay, lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
+        // #310: relay-less, PAIRED, and long overdue — every reason to be due
+        // except the one that now decides it. Its pairing record outlives the
+        // cleared URL, which is exactly why `isPaired` cannot be the gate.
+        let relayless = BackendProfile(name: "Relayless", gatewayBaseURL: "http://gateway-only:8642", lastTokenRefreshAt: now.addingTimeInterval(-30 * day))
+        let profiles = [active, stale, fresh, never, unpaired, relayless]
 
         func due(_ attempts: [UUID: Date]) -> [String] {
             DormantTokenRefreshPolicy.profilesDue(
@@ -262,7 +271,8 @@ struct BackendProfileRoutingTests {
         }
 
         // Active is never touched (its store owns refresh); fresh waits;
-        // unpaired has nothing to refresh; stale + never-refreshed are due.
+        // unpaired has nothing to refresh; the relay-less profile has no
+        // relay plane at all (#310); stale + never-refreshed are due.
         #expect(due([:]) == ["Stale", "Never"])
 
         // A just-made attempt suppresses re-fires (no thrash on foreground)…

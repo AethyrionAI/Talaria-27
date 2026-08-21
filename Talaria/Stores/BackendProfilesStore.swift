@@ -66,12 +66,11 @@ final class BackendProfilesStore {
         migrationSeeds: MigrationSeeds
     ) {
         self.persistence = persistence
+        let loaded: BackendProfilesState
+        var mustPersist: Bool
         if let stored = persistence.loadBackendProfilesState(), !stored.profiles.isEmpty {
-            let normalized = Self.normalized(stored)
-            self.state = normalized
-            if normalized != stored {
-                persistence.saveBackendProfilesState(normalized)
-            }
+            loaded = Self.normalized(stored)
+            mustPersist = loaded != stored
         } else {
             // One-shot migration (M-2): current config → one profile, active
             // and sensor destination. Idempotent by construction — it only
@@ -80,17 +79,76 @@ final class BackendProfilesStore {
             let migrated = BackendProfile(
                 name: migrationSeeds.name,
                 gatewayBaseURL: migrationSeeds.gatewayBaseURL,
-                relayBaseURL: migrationSeeds.relayBaseURL ?? "",
+                relayBaseURL: migrationSeeds.relayBaseURL,
                 shimBaseURL: migrationSeeds.shimBaseURL,
                 usesLegacyCredentialKeys: true
             )
-            let fresh = BackendProfilesState(
+            loaded = BackendProfilesState(
                 profiles: [migrated],
                 activeProfileID: migrated.id
             )
-            self.state = fresh
-            persistence.saveBackendProfilesState(fresh)
+            mustPersist = true
             profilesLog.notice("migration: minted profile '\(migrationSeeds.name, privacy: .public)' from pre-profile configuration (legacy credential keys)")
+        }
+
+        // #310 — the RELAY-RETIREMENT migration, applied AFTER whichever
+        // branch above produced the state, so both converge on the same end
+        // state instead of the M-2 mint keeping a seed the retirement would
+        // have cleared a moment later.
+        //
+        // Owen's ruling, 2026-08-20: existing profiles' relay URLs are
+        // CLEARED. Both hosts' relays are retired (#346 OJAMD 2026-08-10,
+        // #375 Mac 2026-08-18), so every persisted profile points at
+        // something dead — which is what costs the #365 profile-switch stall.
+        //
+        // ⚠️ THIS IS DELIBERATELY NOT IN `normalized(_:)`, and that is the
+        // whole design. `normalized` runs on EVERY load and on every upsert;
+        // a clear living there would silently wipe a relay URL the user had
+        // just typed back in, on the very next save. The stamp is what makes
+        // this one-shot, and bar 310-B's phase 2 is what proves it.
+        let migratedState: BackendProfilesState
+        if persistence.loadRelayRetirementMigrationStamp() {
+            migratedState = loaded
+        } else {
+            migratedState = Self.clearingRelayURLs(loaded)
+            // ⚠️ THE STAMP IS WRITTEN BEFORE THE STATE, DELIBERATELY — the
+            // opposite ordering looks safer and is worse.
+            //
+            // Both orderings have a torn-write window on this best-effort
+            // dual store, and they fail in opposite directions:
+            //   • stamp LAST — if the stamp write is the one that fails, the
+            //     next launch re-runs the migration and CLEARS A URL THE USER
+            //     MAY HAVE RE-ENTERED in between. That is bar 310-B phase 2's
+            //     failure, reached through a crash instead of through a
+            //     normalization pass.
+            //   • stamp FIRST (this) — if the state write fails, the URLs
+            //     simply stay and the #365 stall persists. The migration
+            //     failed to HELP; it did not DESTROY.
+            //
+            // A migration that can fail to help is strictly preferable to one
+            // that can eat user input, so the stamp goes first. Do not
+            // "correct" this to write-then-stamp.
+            persistence.saveRelayRetirementMigrationStamp()
+            if migratedState != loaded {
+                mustPersist = true
+                // Logged PUBLIC and BEFORE the write lands, because the write
+                // overwrites both halves of the #41 dual store: after this
+                // line the old string exists nowhere in persistence, and a
+                // revert of #310 restores the TYPE, not the value. This log
+                // is the only recovery route, so it must not be redacted.
+                for profile in loaded.profiles where profile.hasRelay {
+                    profilesLog.notice("""
+                        relay retirement (#310): cleared relay URL for profile \
+                        '\(profile.name, privacy: .public)' — was \
+                        '\(profile.relayBaseURL ?? "", privacy: .public)'
+                        """)
+                }
+            }
+        }
+
+        self.state = migratedState
+        if mustPersist {
+            persistence.saveBackendProfilesState(migratedState)
         }
     }
 
@@ -198,6 +256,23 @@ final class BackendProfilesStore {
     }
 
     // MARK: - Normalization
+
+    /// #310: the relay-retirement transform — every profile loses its relay
+    /// URL. Pure, so the one-shot decision (the stamp) and the transform stay
+    /// separable and testable apart from each other.
+    ///
+    /// It is `private static` and called from exactly ONE place, the
+    /// initializer's stamped branch. If a future lane finds itself wanting to
+    /// call this from `normalized(_:)` or from `upsert(_:)`, that is the
+    /// defect 310-B was written to catch — the answer is a new one-shot stamp,
+    /// never a repeating clear.
+    private static func clearingRelayURLs(_ state: BackendProfilesState) -> BackendProfilesState {
+        var cleared = state
+        for index in cleared.profiles.indices {
+            cleared.profiles[index].relayBaseURL = nil
+        }
+        return cleared
+    }
 
     /// Self-heal for dangling ids: the active id must always resolve to an
     /// existing profile (fall back to the first).

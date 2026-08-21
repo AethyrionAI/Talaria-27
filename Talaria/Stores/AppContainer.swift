@@ -404,10 +404,16 @@ final class AppContainer {
             pairingService = LivePairingService()
         }
 
+        // #310: `""` still means "no relay" here, because `RelayAPIClient`
+        // takes a non-optional provider and every one of its callers is a
+        // relay-plane caller that the gate upstream should already have
+        // stopped. The empty string is the LAST line of defence, not the
+        // gate — see `handleActiveProfileChanged`.
         let relayBaseURLProvider: @MainActor () -> String = {
-            activePairingStore?.pairedRelayConfiguration?.baseURLString
-                ?? profilesStore.activeProfile?.relayBaseURL
-                ?? ""
+            if let paired = activePairingStore?.pairedRelayConfiguration?.baseURLString {
+                return paired
+            }
+            return profilesStore.activeProfile.flatMap(\.resolvedRelayBaseURL) ?? ""
         }
         let apiClient = RelayAPIClient(baseURLProvider: relayBaseURLProvider)
         // #136: launch/bootstrap probes ride a dedicated short-timeout
@@ -452,7 +458,7 @@ final class AppContainer {
             sessionStore: sessionStore,
             persistence: persistence,
             environmentProvider: { settingsStore.settings.environment },
-            relayBaseURLProvider: { profilesStore.activeProfile?.relayBaseURL },
+            relayBaseURLProvider: { profilesStore.activeProfile.flatMap(\.resolvedRelayBaseURL) },
             profileResolver: { id in profilesStore.resolvedProfile(id: id) }
         )
         activePairingStore = runtimePairingStore
@@ -505,9 +511,17 @@ final class AppContainer {
             ? MockInboxService()
             : TalariaPlatformInboxService(persistence: persistence)
 
+        // #310: the ONE capability predicate the relay-fed stores share. It
+        // resolves per call rather than being captured, so a profile switch
+        // or a Server-settings edit changes the answer with no rewiring.
+        let relayAvailabilityProvider: @MainActor () -> Bool = {
+            profilesStore.activeProfile?.hasRelay == true
+        }
+
         let hostStore = HermesHostStore(
             hostService: hostService,
-            accessTokenProvider: { await sessionStore.currentAccessToken() }
+            accessTokenProvider: { await sessionStore.currentAccessToken() },
+            relayAvailabilityProvider: relayAvailabilityProvider
         )
 
         let hermesAPIKeyBox = MutableHermesAPIKeyBox()
@@ -677,7 +691,8 @@ final class AppContainer {
             inboxStore: InboxStore(
                 inboxService: inboxService,
                 persistence: persistence,
-                sessionStore: sessionStore
+                sessionStore: sessionStore,
+                relayAvailabilityProvider: relayAvailabilityProvider
             ),
             permissionsStore: PermissionsStore(
                 locationService: liveLocationService,
@@ -1125,9 +1140,10 @@ final class AppContainer {
             guard UIApplication.shared.isProtectedDataAvailable else { return }
             guard container?.pairingStore.isPaired == false else { return }
             await sessionStore?.clearSession()
-            guard let relayBaseURL = container?.profilesStore?.activeProfile?.relayBaseURL,
-                  !relayBaseURL.isEmpty else { return }
-            _ = relayBaseURL
+            // #310: one spelling of the gate. This site already tested
+            // "non-nil and non-empty" by hand — `hasRelay` IS that test, now
+            // that the type can say it.
+            guard container?.profilesStore?.activeProfile?.hasRelay == true else { return }
             await sessionStore?.bootstrap(forceRegistration: true)
             await container?.inboxStore.loadInbox(force: true)
         }
@@ -1144,7 +1160,9 @@ final class AppContainer {
             profilesStore.updateActiveProfile { profile in
                 // Normalized when valid; the raw text while mid-edit, so a
                 // partially typed URL never snaps the bound field to "".
-                profile.relayBaseURL = configuration.activeBaseURLString ?? configuration.customRelayBaseURL
+                // #310: an empty result stores nil — see ProfileEditorDraft.
+                let mirrored = configuration.activeBaseURLString ?? configuration.customRelayBaseURL
+                profile.relayBaseURL = mirrored.isEmpty ? nil : mirrored
             }
             await refreshUnpairedRelayContext()
         }
@@ -1954,6 +1972,14 @@ final class AppContainer {
     }
 
     func reportAppStateIfNeeded(_ state: String) async {
+        // #310: #309 path 10 — a relay beacon, so it needs the relay gate
+        // like everything else on that plane. `isPaired` cannot stand in for
+        // it: the pairing RECORD outlives the profile's relay URL (it
+        // persists its own `baseURLString`), so a profile the retirement
+        // cleared still reads as paired and this would keep POSTing at the
+        // retired host on every foreground/background transition. It is
+        // fire-and-forget, so nobody would ever have seen it fail.
+        guard profilesStore?.activeProfile?.hasRelay == true else { return }
         guard pairingStore.isPaired, let apiClient, let accessToken = await sessionStore.currentAccessToken() else {
             return
         }
@@ -2233,7 +2259,16 @@ final class AppContainer {
         lastCommandCatalogRefreshAt = nil
         chatStore.resetCommandCatalog()
 
-        if pairingStore.isPaired, await sessionStore.currentAccessToken() != nil {
+        // #310: THE RELAY-PLANE GATE. A gateway-only profile has no relay to
+        // answer any of this, so the whole block is skipped rather than run
+        // and allowed to fail — which is the difference between a switch that
+        // lands immediately and #365's ~10 s full-screen stall. The block
+        // HOLDS THE SPLASH while it runs (`shouldShowLaunchSplash` is
+        // `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`,
+        // and a profile-switch bootstrap has no background task), so "it
+        // would just fail fast anyway" was never true: bootstrap's own #15
+        // recovery ladder adds two more doomed round trips behind it.
+        if profile.hasRelay, pairingStore.isPaired, await sessionStore.currentAccessToken() != nil {
             await sessionStore.bootstrap()
             // #285 checkpoint: the bootstrap can be seconds against a dead
             // host — a superseded activation stops writing here.
@@ -2244,11 +2279,28 @@ final class AppContainer {
             lastKnownHostOnline = hostStore.isHostOnline
             await inboxStore.loadInbox(force: true)
         }
-        await refreshCommandCatalog(force: true)
+        // #310: both of these are relay-plane too, and both sit OUTSIDE the
+        // block above — which is why the gate is repeated rather than the
+        // block simply widened. `refreshCommandCatalog` is #309 path 16
+        // (`GET commands`) and `refreshReadiness` is paths 11–12
+        // (`talk/readiness`, `talk/session`), the realtime voice bootstrap
+        // #383 re-homes onto the plugin. Until #383 lands, a gateway-only
+        // profile has no realtime voice at all — that is the honest state,
+        // and `TalkStore` must SAY so rather than sit silently un-refreshed
+        // (bar 310-E).
+        if profile.hasRelay {
+            await refreshCommandCatalog(force: true)
+        } else {
+            chatStore.resetCommandCatalog()
+        }
         if chatStore.activeModelName == nil {
             await seedActiveModelFromGateway()
         }
-        await talkStore.refreshReadiness()
+        if profile.hasRelay {
+            await talkStore.refreshReadiness()
+        } else {
+            talkStore.markRelayUnavailable()
+        }
         await chatStore.refreshDirectHealth()
         // #285 checkpoint: a superseded activation must never restart the
         // link — the winning activation's own handler does that, against ITS

@@ -89,6 +89,30 @@ final class TalkStore {
         applySnapshot(voiceService.snapshot)
     }
 
+    /// #310: the active profile has no relay, so the realtime voice bootstrap
+    /// (`talk/readiness` + `talk/session`) cannot be asked at all.
+    ///
+    /// **Why this exists instead of simply not calling `refreshReadiness()`.**
+    /// Skipping the refresh leaves the PREVIOUS profile's readiness on
+    /// screen — a green "Ready" belonging to a host we just switched away
+    /// from. That is the silent-wrong-answer shape #180 exists to forbid, and
+    /// it is strictly worse than an honest unavailable: the user would tap
+    /// start and get a failure with no explanation.
+    ///
+    /// `readiness` is reset to all-nil rather than to `configured: false`
+    /// because we do NOT know whether the host has realtime configured — we
+    /// know we cannot reach the thing that would tell us. Unknown and false
+    /// are different answers (#180's tri-state rule), and encoding one as the
+    /// other is how a "not asked" becomes a "not available" in a later
+    /// reading.
+    func markRelayUnavailable() {
+        connectionState = .blocked
+        canStartSession = false
+        blockedReason = "Realtime voice needs a relay, and this profile doesn't have one."
+        statusMessage = blockedReason
+        readiness = TalkReadinessInfo()
+    }
+
     /// Re-sync Live Activity state when returning from background.
     func handleAppDidBecomeActive() {
         liveActivity.handleAppDidBecomeActive()

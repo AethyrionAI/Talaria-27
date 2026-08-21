@@ -352,6 +352,33 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(manualEntry.waitForExistence(timeout: 5))
         manualEntry.tap()
 
+        // #310: TYPE THE RELAY URL. Until 2026-08-20 this helper never
+        // touched the field, because the profile arrived pre-seeded and the
+        // button enabled on the setup code alone. #310's relay-retirement
+        // migration clears every profile's relay URL, so the field is now
+        // empty and `isRelayConfigurationValid` correctly refuses to enable
+        // the button — which is what put three tests RED on the #310 gate.
+        //
+        // **This is not a workaround for the migration; it removes a
+        // fragility the test already had.** The seed came from
+        // `UserSettings.swift:52`, which fills `customRelayBaseURL` with the
+        // development base URL *only* when `allowsEnvironmentOverrides` is
+        // true — i.e. in DEBUG/test builds. A RELEASE install has ALWAYS
+        // started empty and always required the user to type this. So the
+        // pre-#310 test drove a path no shipping user has ever taken, and
+        // would not have survived being pointed at a Release build. Typing
+        // it exercises the real flow.
+        //
+        // Ordered AFTER the manual-entry tap on purpose: that button sits
+        // low on the screen, and bringing the keyboard up first can put it
+        // under the keyboard plane. The code field is tapped explicitly
+        // below, so stealing focus here costs nothing.
+        let relayField = app.textFields["Relay URL"]
+        XCTAssertTrue(relayField.waitForExistence(timeout: 5),
+                      "the pairing screen must offer a Relay URL field (#310: the profile no longer arrives with one)")
+        relayField.tap()
+        relayField.typeText("http://127.0.0.1:8000/v1")
+
         let setupCodeField = app.textFields["Setup code"]
         XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
         setupCodeField.tap()

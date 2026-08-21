@@ -50,7 +50,11 @@ final class ProfileRelaySessionFactory {
         if let paired = persistence.loadPairedRelayConfiguration(profileScope: scope) {
             return paired.baseURLString
         }
-        let configured = profile.relayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        // #310: `resolvedRelayBaseURL` already folds nil and "" together; the
+        // trim stays because a whitespace-only field is a third way to mean
+        // "none" and the type cannot see it.
+        let configured = (profile.resolvedRelayBaseURL ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         return configured.isEmpty ? nil : configured
     }
 
@@ -141,6 +145,19 @@ enum DormantTokenRefreshPolicy {
         now: Date = .now
     ) -> [BackendProfile] {
         profiles.filter { profile in
+            // #310: a profile with no relay has no relay TOKENS to refresh.
+            // `isPaired` alone is not enough here, because a pairing record
+            // OUTLIVES the profile's relay URL — the record persists its own
+            // `baseURLString`, so a profile the retirement migration cleared
+            // still reads as paired and would keep firing dormant refreshes
+            // at the retired host on every foreground. That is #365's cost
+            // arriving on a timer instead of on a switch.
+            //
+            // This is the entry's "#15/#94 recovery ladders scoped to
+            // relay-bearing profiles only", and the ordering matters: put
+            // `hasRelay` FIRST so the cheap field read short-circuits before
+            // `isPaired` touches persistence.
+            guard profile.hasRelay else { return false }
             guard profile.id != activeProfileID, isPaired(profile) else { return false }
             if let attempted = lastAttempts[profile.id],
                now.timeIntervalSince(attempted) < attemptFloor {

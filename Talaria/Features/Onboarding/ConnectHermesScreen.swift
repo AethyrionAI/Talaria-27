@@ -283,7 +283,15 @@ struct ConnectHermesScreen: View {
     /// endpoint (Lane M), falling back to the legacy settings field only in
     /// profile-less constructions.
     private var currentRelayURL: String {
-        targetProfile?.relayBaseURL ?? settingsStore.settings.relayConfiguration.customRelayBaseURL
+        // #310: behaviour preserved deliberately. A target profile that
+        // exists but carries NO relay resolves to "" (→ "Enter your relay
+        // URL."), NOT to the legacy settings field — falling through would
+        // silently pair a gateway-only profile against whatever relay the
+        // pre-profile record happened to remember.
+        if let targetProfile {
+            return targetProfile.relayBaseURL ?? ""
+        }
+        return settingsStore.settings.relayConfiguration.customRelayBaseURL
     }
 
     private var relayValidationMessage: String? {

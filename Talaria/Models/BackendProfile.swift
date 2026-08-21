@@ -16,7 +16,19 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// Hermes Sessions API base URL, e.g. "http://ojamd:8642".
     var gatewayBaseURL: String
     /// Relay base URL including `/v1`, e.g. "http://ojamd:8000/v1".
-    var relayBaseURL: String
+    ///
+    /// **Optional since #310, and the optionality is the point:** a profile
+    /// with no relay is a GATEWAY-ONLY profile — the "install Hermes, paste
+    /// one key" end state #251/#269 are built toward. While this was
+    /// `String`, that state could not be expressed at all, so every profile
+    /// carried a relay URL whether or not a relay existed to answer it. With
+    /// both hosts' relays retired (#346 OJAMD, #375 Mac) that meant every
+    /// profile switch blocked the UI behind doomed round trips (#365).
+    ///
+    /// `nil` and `""` mean the same thing and the decoder collapses them —
+    /// see `init(from:)`. Read this through `hasRelay` rather than testing
+    /// for nil at the call site, so the relay-plane gate has ONE spelling.
+    var relayBaseURL: String?
     /// Talaria models-shim base URL, e.g. "http://ojamd:8765". Optional — a
     /// profile without a shim simply exposes no model picker.
     var shimBaseURL: String?
@@ -46,7 +58,7 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         id: UUID = UUID(),
         name: String,
         gatewayBaseURL: String,
-        relayBaseURL: String,
+        relayBaseURL: String? = nil,
         shimBaseURL: String? = nil,
         note: String? = nil,
         usesLegacyCredentialKeys: Bool = false,
@@ -86,7 +98,16 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Backend"
         gatewayBaseURL = try container.decodeIfPresent(String.self, forKey: .gatewayBaseURL) ?? ""
-        relayBaseURL = try container.decodeIfPresent(String.self, forKey: .relayBaseURL) ?? ""
+        // #310: an ABSENT key and an EMPTY string both decode to nil. Every
+        // blob written before this build stores a String, and the ones the
+        // pre-#310 encoder wrote for a "no relay" profile stored `""` — so
+        // collapsing the two here is what makes an old blob mean the same
+        // thing under the new type. Do not "simplify" this to
+        // `decodeIfPresent` alone: that would decode `""` as a relay URL and
+        // hand it to `URL(string:)`, which is the shape that produced the
+        // -1002 requests this item exists to stop.
+        let decodedRelay = try container.decodeIfPresent(String.self, forKey: .relayBaseURL)
+        relayBaseURL = (decodedRelay?.isEmpty == true) ? nil : decodedRelay
         shimBaseURL = try container.decodeIfPresent(String.self, forKey: .shimBaseURL)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         usesLegacyCredentialKeys = try container.decodeIfPresent(Bool.self, forKey: .usesLegacyCredentialKeys) ?? false
@@ -99,6 +120,24 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// the legacy (pre-profile) keys — see `BackendProfileScopedKeys`.
     var credentialScopeID: UUID? {
         usesLegacyCredentialKeys ? nil : id
+    }
+
+    /// #310: does this profile have a relay plane at all?
+    ///
+    /// The ONE spelling of the relay-plane gate. Call sites ask this instead
+    /// of testing `relayBaseURL != nil`, because the two answers differ on
+    /// `""` — and a persisted blob can still carry `""` through paths that
+    /// do not go via `init(from:)` (an in-memory profile the Server screen
+    /// just emptied, for one). A gate with two spellings is a gate with a
+    /// hole.
+    var hasRelay: Bool {
+        relayBaseURL?.isEmpty == false
+    }
+
+    /// The relay base URL, normalized to nil when it is present but empty —
+    /// what a relay-plane caller actually wants.
+    var resolvedRelayBaseURL: String? {
+        hasRelay ? relayBaseURL : nil
     }
 }
 

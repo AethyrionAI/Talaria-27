@@ -4500,6 +4500,41 @@ argument for making the relay more robust.
 > here rather than only in #375 so the table's own count is honest: **17
 > paths, not 16.**
 
+> **🔴 2026-08-20 — AND TWO MORE, same failure mode, found the same way:
+> by executing the table rather than re-reading it.** The voice subsystem
+> uses **four** relay paths, not the two this table lists as 11–12:
+> `POST talk/session/{id}/end` (`LiveVoiceSessionService.swift:708`) and
+> `POST talk/session/{id}/turns` (`:729`) appear nowhere in it. Both are
+> **ADAPT → plugin (#383)**, inseparable from 11–12 — a minted session that
+> cannot be ended leaks host-side, and a turn that cannot be persisted
+> silently drops transcript. Full detail and the wire contract are recorded
+> at **#383**.
+>
+> **And a THIRD, found by re-deriving instead of patching:**
+> `GET jobs/{jobId}/events` (`LiveHermesClient.swift:378`, via
+> `apiClient.streamEvents` on the **RelayAPIClient** — confirmed at `:82`,
+> not a gateway call). This table lists three of `LiveHermesClient`'s paths
+> as 13–15 and misses its fourth. Disposition **DELETE**, with 13–15 and for
+> the same reason: `LiveHermesClient` is never constructed anywhere in
+> `Talaria/`.
+>
+> **Read the count as TWENTY paths, and read the METHOD as the real
+> correction.** The count has now moved four times (18 → 16 → 17 → 20). Every
+> single path this inventory has ever missed is an **INTERPOLATED** one —
+> `"talk/session/\(id)/end"`, `"talk/session/\(id)/turns"`,
+> `"jobs/\(jobId)/events"` — because the register was assembled by grepping
+> for literal path text, which structurally cannot see them. That is not
+> carelessness repeated three times; it is one blind spot firing three times.
+>
+> **Re-derive, do not patch.** The call shape is the thing to grep:
+> ```
+> git grep -nE 'path: "' -- 'Talaria/*.swift'
+> ```
+> That returns every relay AND gateway call site in one list; split them by
+> which client the file holds (`RelayAPIClient` = relay plane). Any Phase 4
+> lane claiming a path is covered must re-derive from this rather than
+> inherit a row count from here — including this one.
+
 ## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it).**
 
 `Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
@@ -4526,6 +4561,282 @@ must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
 > **#310 is what makes deleting that chain expressible**, and #365's own fix
 > only suppresses the symptom. Read this item as unblocking a live cost, not
 > only a future onboarding story.
+
+> **✅ 2026-08-20 AM — LANE OPENED, and the one scope question RULED (Owen):
+> the MIGRATION CLEARS existing profiles' relay URLs.** Asked because both
+> hosts' relays are retired, so OJAMD and Mac Mini each carry a URL pointing
+> at something dead — which is precisely what costs the #365 stall. The two
+> rejected options are recorded so a later lane does not reach for one as a
+> shortcut: *"you clear them by hand"* ships optionality that buys nothing
+> observable and leaves no bar that can fail; *"probe and clear only the dead
+> ones"* makes a **network-dependent migration**, where one transient failure
+> silently drops a URL the user wanted.
+>
+> **What clearing costs, stated rather than glossed:** the migration
+> overwrites both halves of the #41 dual store, so the old URL string is not
+> recoverable from persistence after it runs. It is logged at
+> `.notice`/`privacy: .public` before the write, and both hosts' relays are
+> retired anyway — but a `git revert` of this lane restores the TYPE, not the
+> strings. Say so at the PR rather than implying a rollback that does not
+> exist.
+
+> **📏 BARS 310-A…F PRE-REGISTERED 2026-08-20 AM, BEFORE ANY CODE OF THIS
+> LANE** — written into this entry per CLAUDE.md's *"Where the BARS live"*,
+> in a commit that lands before the first line of implementation. **A missed
+> bar is a falsification, not a redefinition.**
+>
+> **310-A — the type is optional, and blobs the SHIPPING build wrote still
+> decode.** Three literal-JSON fixtures through `BackendProfile.init(from:)`:
+> (i) `"relayBaseURL": "http://host:8000/v1"` → that exact string; (ii)
+> `"relayBaseURL": ""` → `nil`; (iii) key absent → `nil`.
+> *Evidence:* decode over **literal JSON strings, never a round-trip through
+> the new encoder** — a round-trip cannot produce the shape only the old
+> encoder wrote, so it would pass while the real blob broke. This is the
+> §1.5 persisted-state discipline; a miss here is a user-data regression.
+>
+> **310-B — the retirement migration runs EXACTLY ONCE, and a re-entered URL
+> survives it.** Phase 1: persistence holds profiles with non-nil relay URLs
+> and no migration marker → after `BackendProfilesStore` construction every
+> profile's `relayBaseURL` is `nil` and the marker is persisted. Phase 2: set
+> one profile's `relayBaseURL` to a NEW value, construct a FRESH store over
+> the same persistence → **the value survives**.
+> *Evidence:* a two-phase test on the in-memory persistence fake.
+> **This bar exists to kill one specific wrong implementation** — folding the
+> clear into `Self.normalized(_:)`, which is the obvious home and runs on
+> every load, so it would silently re-clear a URL the user had just typed.
+> Phase 2 is the whole bar; phase 1 alone passes under the bug.
+>
+> **310-C — a relay-less profile issues ZERO relay requests on activation.**
+> With the active profile's `relayBaseURL == nil` and the install paired,
+> `handleActiveProfileChanged(to:)` completes with **0** invocations of
+> `sessionStore.bootstrap()`, `hostStore.refresh()`, `inboxStore.loadInbox`,
+> `talkStore.refreshReadiness()` and the relay command-catalog fetch
+> (`AppContainer.swift:2237-2249` is the block; `:1845` is the catalog).
+> *Evidence:* counting spies asserted `== 0`. **RED FIRST against current
+> `main`**, where the count is ≥1 — if it does not go RED, the bar is
+> measuring the wrong thing and must be rewritten before the fix lands.
+>
+> **310-D — and therefore the switch never raises the launch splash.** Across
+> the whole of `handleActiveProfileChanged` for a relay-less profile,
+> `container.shouldShowLaunchSplash` is never `true`.
+> *Evidence:* **sampled across the handler's lifetime, not read once after it
+> returns** — a post-hoc read passes trivially, since the splash drops when
+> the bootstrap ends either way. `shouldShowLaunchSplash` is
+> `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`
+> (`AppContainer.swift:219-226`) and a profile-switch bootstrap has no
+> background task, which is exactly why it holds the splash today. **This is
+> #365's symptom reached through its cause**, not #365's own suppression fix.
+>
+> **310-E — relay-dependent surfaces degrade HONESTLY (#180), never
+> silently.** For a relay-less profile the three relay-fed stores
+> (`hostStore`, `inboxStore`, `talkStore`) report a state DISTINGUISHABLE
+> from "fetched successfully and found nothing", and no surface renders an
+> empty relay-fed section as though it were data; unknown values read `"—"`
+> per the real-data-only rule.
+> *Evidence:* assertions on store state, plus the view-model read for each
+> surface. **A hidden section and an empty section are different verdicts —
+> the bar is scored on which one shipped**, not on "it didn't crash".
+>
+> **310-F — a relay-BEARING profile is untouched.** Every existing relay-path
+> test passes unchanged with a non-nil URL, and `GATE: PASS` with the Swift
+> Testing count moved **only** by the tests this lane adds — **state the
+> arithmetic** (#375's shape: a count that moves by exactly the delta is what
+> distinguishes a real run from a stale `.xctest`).
+
+> **✅ 2026-08-20 — BUILT. Branch `310-relay-url-optional`.** Bars scored
+> below; two of the six are reported with qualifications rather than as clean
+> passes, and both qualifications were found by trying to make the bar fail.
+>
+> **What shipped.**
+> - `BackendProfile.relayBaseURL` is `String?`. `hasRelay` and
+>   `resolvedRelayBaseURL` are the ONE spelling of the relay-plane gate —
+>   call sites ask those rather than testing for nil, because the two answers
+>   differ on `""` and a gate with two spellings is a gate with a hole.
+> - The decoder folds an ABSENT key and an EMPTY string to nil. Both shapes
+>   exist in the wild: the pre-#310 encoder always wrote the key, and wrote
+>   `""` for "no relay".
+> - **The relay-retirement migration**, one-shot and stamped
+>   (`loadRelayRetirementMigrationStamp`), Keychain-mirrored on the #137
+>   precedent. Applied AFTER whichever branch produced the state, so a fresh
+>   M-2 mint and an existing install converge on the same end state.
+> - **The gate**, at `handleActiveProfileChanged`'s relay block AND at the two
+>   relay calls that sit outside it — `refreshCommandCatalog` (#309 path 16)
+>   and `talk/readiness` (paths 11–12).
+> - **Capability detection inside `HermesHostStore` and `InboxStore`**, not
+>   only at the switch — see finding 2.
+> - `TalkStore.markRelayUnavailable()`, which STATES the unavailability
+>   instead of leaving the previous profile's verdict on screen.
+>
+> **THE SCORECARD.**
+>
+> - **310-A ✅ MET.** `legacyProfileBlobsDecodeUnderTheOptionalRelayType` —
+>   all three shapes over literal JSON, plus
+>   `aRelaylessProfileEncodesWithNoRelayKey` pinning that nil encodes as an
+>   ABSENT key. That second test exists because case (iii) of the bar depends
+>   on the synthesized encoder's `encodeIfPresent` behaviour: a future
+>   hand-written `encode(to:)` emitting `""` for nil would leave (iii) green
+>   while every newly-written blob carried the old ambiguity back.
+> - **310-B ✅ MET, both phases.** `relayRetirementClearsExistingProfilesOnce`
+>   (two relay-bearing profiles → both cleared, stamp set, identity and
+>   credential scope untouched, verified from RELOADED persistence rather
+>   than memory) and `aReEnteredRelayURLSurvivesTheNextLaunch` (phase 2, plus
+>   the `upsert` path, which `updateActiveProfile` does not exercise).
+>   A third test, `mintKeepsItsRelaySeedWhenTheRetirementAlreadyRan`, is the
+>   control that keeps the M-2 assertion honest: with the stamp pre-set the
+>   seed SURVIVES, which is what proves the nil in the M-2 test is the
+>   retirement clearing a seed and not the mint having stopped reading one.
+> - **310-C ✅ MET, and RED-verified.** `relaylessProfileActivationIssuesNo
+>   RelayRequests` — six counters at zero (bootstrap register + load, host
+>   fetch, inbox fetch, talk readiness, and RelayAPIClient request attempts).
+>   **The mutation run put all six RED**, so the bar measures the gate rather
+>   than the absence of the code. `relayBearingProfileActivationStillUses
+>   TheRelayPlane` is the positive control — without it, deleting the calls
+>   outright would pass 310-C.
+> - **310-D ⚠️ MET ON ITS MECHANISM, with a limitation named rather than
+>   glossed.** The bar as pre-registered says `shouldShowLaunchSplash` is
+>   never true. **That composite predicate is not measurable in this
+>   harness**, and the first version of the test failed on exactly that:
+>   the predicate is `(isPaired && !isInitialized) || (isBootstrapping && no
+>   background task)` (`AppContainer.swift:219-226`), and the launch harness
+>   builds a PAIRED container that never runs `initialize()`, so the first
+>   clause is true for the whole test regardless of what a switch does.
+>   What is measured is the switch's own clause, `sessionStore.isBootstrapping`
+>   — which is #365's actual mechanism, and which within this handler implies
+>   the predicate (`cancelBackgroundBootstrap()` runs on line 1). **The
+>   mutation run put it RED on `sawSplash`**, so the instrument works.
+>   Calling this a clean 310-D would be a redefinition; it is recorded as
+>   met-on-mechanism instead.
+> - **310-E ✅ MET — after the bar FAILED TO FAIL and had to be repaired.**
+>   `relaylessProfileMarksRealtimeVoiceUnavailableRatherThanStale` plus
+>   `relayFedStoresRefuseToFetchAndSayWhyWhenTheProfileHasNoRelay` and its
+>   positive control. See finding 3 — the first version passed against a
+>   build with the gate deliberately removed.
+> - **310-F ✅ MET, and RE-GATED ON MERGED `main` 2026-08-20 after PR #326 and
+>   PR #327 landed** — `GATE: PASS`, Swift Testing **2368** / XCUITest 14 /
+>   Release clean. Merged `main` is at 2356 and this lane adds 12, so
+>   2356 + 12 = 2368: the COMBINATION is clean, not merely each branch.
+>   That re-gate is #180-L/252R-A's rule being followed rather than quoted —
+>   two lanes can each pass a full gate, merge with no textual conflict, and
+>   leave `main` unable to compile. The original branch-only run follows.
+> - **310-F (original branch run).** `GATE: PASS` — Swift Testing **2358** / XCUITest 14 /
+>   Release clean. **The arithmetic, stated as the bar requires:** the control
+>   gate (this lane's code stashed) ran **2346**, and this lane adds exactly
+>   **12** tests — 5 in `BackendProfilesTests`, 7 in `AppStoresTests`. 2346 +
+>   12 = 2358. The count moved by the delta and nothing else, which is what
+>   distinguishes a real run from a stale `.xctest`.
+>
+> **⚠️ WHAT THAT GREEN COST, AND WHAT IT DOES NOT SETTLE — read before
+> treating 310-F as clean.** It took **six gate runs**. Three of them failed
+> on ONE XCUITest (`testQueuedChipCancelRemovesHeldMessageWithNothingPosted`),
+> which then passed on the fourth. Full data, and the three wrong conclusions
+> drawn along the way, are recorded at **#236**; the short version:
+>
+> - A control gate with this lane's code **stashed** passed — which I first
+>   reported as proof the failure was #310's. **That was overstated.** The
+>   test is intermittent on this branch (3 fail, 1 pass), and one control
+>   observation cannot separate causation from a three-run unlucky streak.
+> - Two candidate fixes were made and **both were falsified by the passing
+>   run's own log** — the #195 settled-text guard was inert (the run waited
+>   on the identical literal), and the launch-path change cannot be it either
+>   (the passing run's launch was SLOWER).
+> - So: **#310's involvement in that failure is unproven in both
+>   directions.** The gate is green and the arithmetic is exact, but nobody
+>   should read 310-F as evidence that the flake was understood.
+>
+> **Three real changes came out of the hunt and stay on their own merits**,
+> none of them "make the test pass" edits:
+> 1. `HermesHostStore.refresh()` fires `onHostChanged` **only on a
+>    transition** (finding 4 below) — with its own regression test.
+> 2. `loadRelayRetirementMigrationStamp()` reads **UserDefaults first**,
+>    Keychain only as the reinstall fallback — this runs inside
+>    `BackendProfilesStore.init`, on #136's launch critical path, and the
+>    first version put a synchronous Keychain hit in front of every launch
+>    forever.
+> 3. The failing assertion now **dumps the visible transcript and the settled
+>    composer text**. Six runs were spent partly because it reported only that
+>    something was absent.
+>
+> **📬 2026-08-20 — PR https://github.com/AethyrionAI/Talaria-27/pull/325
+> — PR open; merge is Owen's review.** Body = `handoffs/PR-BODY-310.md`
+> (gitignored). ⚠️ **PR #325 is not tracker #325** (the forge-token contrast
+> item) — CLAUDE.md's standing disambiguation rule; both will appear in this
+> week's notes.
+
+> **FOUR FINDINGS, all outside the filing's scope and all found by building
+> it rather than by reading it.**
+>
+> **1. THE PAIRING RECORD OUTLIVES THE PROFILE'S RELAY URL, so `isPaired`
+> cannot stand in for the gate.** `PairedRelayConfiguration` persists its OWN
+> `baseURLString` under a separate key, so after the retirement clears a
+> profile the install still reads as paired — and two paths keyed on
+> `isPaired` alone would have kept firing at the retired hosts forever:
+> **dormant token refresh** (M-9, on every foreground) and **`device/app-state`**
+> (#309 path 10). The second is fire-and-forget under `try?`, so **nobody
+> would ever have seen it fail** — it would simply have gone on posting to a
+> dead relay for the life of the app. Both now gate on `hasRelay`, ordered so
+> the cheap field read short-circuits before `isPaired` touches persistence.
+>
+> *Consequence worth stating plainly:* because `hasRelay` reads the PROFILE
+> and not the pairing record, clearing the profile's URL disables the relay
+> plane even where a pairing record survives. That is what the ruling
+> chose — reading the pairing record instead would leave Owen's two profiles
+> "relay-bearing" and the #365 stall untouched, which is the whole point of
+> the lane.
+>
+> **2. GATING AT THE SWITCH ALONE IS BYPASSED BY OPENING A TAB.**
+> `InboxScreen`, `BriefingDetailScreen` and `ConnectHermesHostScreen` each run
+> their own `.task { await loadInbox(force: true) / refresh() }`. A gate that
+> lived only in `handleActiveProfileChanged` would be walked straight past the
+> first time the user opened Inbox or Pairing & Devices. The capability check
+> now lives in `HermesHostStore` and `InboxStore` themselves, behind a
+> `relayAvailabilityProvider` that defaults to "yes" so every existing
+> construction is unchanged. **Capability detection belongs to the capability,
+> not to one of its callers.**
+>
+> **4. `onHostChanged` MEANS "THE HOST RECORD CHANGED", AND THE FIRST GUARD
+> ANNOUNCED IT ON EVERY POLL.** `HermesHostStore.refresh()`'s success path
+> fires the hook every call; its `catch` path deliberately never does — and a
+> relay-less profile is the FAILURE case, not the success case. The first
+> version of the #310 guard fired it unconditionally.
+>
+> That matters because the hook (`AppContainer.swift:1258`) does real
+> main-actor work — `updateWidgetData()` writes the App Group container and a
+> command-catalog Task is spawned — and `ChatScreen.monitorConnectionStatus()`
+> polls `refresh()` on a cadence for as long as chat is on screen. So a
+> gateway-only profile turned an idle chat screen into periodic App Group
+> I/O. **Found while hunting the gate failure; it did NOT turn out to be that
+> failure's cause** (run 3 kept failing with it fixed), so it is recorded as
+> what it is: a real defect found by accident, with its own regression test
+> (`relaylessRefreshAnnouncesAHostChangeOnlyOnATransition`) pinning the
+> transition contract across ten poll ticks. `InboxStore` had the same shape —
+> an unconditional `items` assignment on an `@Observable` — fixed alongside.
+
+> **3. 310-E's FIRST VERSION PASSED AGAINST A BUILD WITH THE GATE REMOVED.**
+> The mutation run is what caught it. `RecordingVoiceSessionService`'s
+> `refreshReadiness()` produced `.blocked` + `canStartSession: false` +
+> an all-nil `TalkReadinessInfo` — **byte-identical to what
+> `markRelayUnavailable()` produces**. So "refreshed against a live relay" and
+> "refused to ask" were the same observable state, and every assertion held in
+> both arms. The fixture now takes a `readinessLandsReady` knob and carries
+> its readiness on the snapshot; with those, the same mutation goes RED.
+> **A fixture whose success state coincides with the failure state cannot
+> discriminate, and a bar that cannot discriminate is not evidence** — this is
+> the #218/#300 family arriving inside a test double.
+>
+> **WHAT THIS UNBLOCKS.** #309's twelve DELETE rows — paths 1–4, 6, 8, 9 were
+> explicitly waiting on this item, and paths 13–15 were waiting only on a
+> lane. **#310 does NOT delete any of them**; it makes the end state
+> expressible and makes the app behave correctly in it. The deletions are
+> #309's follow-on lanes and are deliberately not smuggled in here.
+>
+> **THE COST, stated rather than glossed** (carried from the ruling block
+> above): the migration overwrites both halves of the #41 dual store, so
+> after it runs the old URL string is not recoverable from persistence. It is
+> logged at `.notice`/`privacy: .public` immediately BEFORE the write, and
+> that log is the only recovery route. **A `git revert` of this lane restores
+> the TYPE, not the strings.** Both hosts' relays are retired, so the value
+> of what is lost is nil in practice — but the PR must say this rather than
+> imply a rollback that does not exist.
 
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence — it was a phase name inside #252's design arc until today. NOT STARTED — no design pass, no lane, no bars.**
 
@@ -9438,6 +9749,63 @@ gate's full XCUITest run.
 > erase the pool sim (same UDID survives; re-grant TCC) before gating a
 > lane that seeded state.
 
+> **🔴 OCCURRENCE 6 — 2026-08-20, #310's gate. FOUR RUNS, AND THE
+> ATTRIBUTION IS UNRESOLVED. Read the data before the conclusion; my own
+> first two conclusions were both wrong.**
+>
+> Failing test: **`testQueuedChipCancelRemovesHeldMessageWithNothingPosted`**
+> (`MessageIdentityUITests.swift`, "the original turn should still complete
+> normally") — the test the 2026-08-18 note records as having JOINED the
+> failure set on a dirty pool sim, not the usual
+> `testTranscriptNeverRendersDuplicateMessageIDs`.
+>
+> **The runs, in order:**
+>
+> | # | tree | sim | context | result |
+> |---|---|---|---|---|
+> | 1 | #310 branch | dirty pool | full gate | **FAIL** |
+> | 2 | #310 branch | erased | full gate | **FAIL** |
+> | 3 | #310 branch | erased, + `onHostChanged` fix | full gate | **FAIL** |
+> | 4 | #310 branch | erased, + 2 more changes | full gate | **PASS** |
+> | C | **code STASHED** (control) | erased | full gate | **PASS** |
+> | — | #310 branch | erased | **UI target only** | PASS (14/14) |
+> | — | #310 branch | erased | **suite isolated** | PASS (2/2, 96 s) |
+>
+> **What each conclusion along the way got wrong, because the pattern of
+> error is the useful part:**
+>
+> 1. *"It's #236, occurrence 6"* — asserted from the isolation pass alone,
+>    before any control. Premature: an isolation pass is #236's signature but
+>    is equally consistent with a real bundle-context-only defect.
+> 2. *"The control proves it's #310's"* — **overstated, and this is the
+>    important one.** One control run passing against a 3-run failure streak
+>    is not proof of causation **when the phenomenon is intermittent**, and
+>    run 4 then showed it IS intermittent on the branch (3 fail, 1 pass).
+>    A single control observation cannot separate "my branch causes it" from
+>    "my branch got unlucky three times."
+> 3. *"The settled-text (#195) guard fixed it"* — **falsified by the passing
+>    run's own log**: run 4 waited on `"Acknowledged first"`, the identical
+>    literal, so the composer settled correctly and the guard was INERT.
+>    It cannot be what changed the outcome.
+> 4. *"The launch-path Keychain read was slowing launch into a keystroke
+>    race"* — also falsified: run 4's launch was **slower** than run 3's
+>    (composer found at t=11.21 s vs t=8.44 s) and passed anyway.
+>
+> **So the honest state: the cause is UNKNOWN, and #310's involvement is
+> UNPROVEN in both directions.** The two changes made between runs 3 and 4
+> are both defensible on their own merits (see #310) but neither explains the
+> outcome, and the run-4 pass may simply be the intermittency.
+>
+> **What a lane should do with this, which has not changed:** stop chasing
+> render latency. The 20→40 s bump absorbed a 40 ms overshoot and has now
+> failed to absorb six firings. The standing question — **does the synthetic
+> backend's reply task starve under load?** — is still unanswered after six
+> occurrences because nobody has captured the `.xcresult`. **The one concrete
+> improvement made today:** the assertion now dumps the visible transcript
+> and the settled composer text on failure, so occurrence 7 will report what
+> it SAW rather than only that something was missing. That is what made this
+> investigation cost four gate runs.
+
 > **2026-08-18 consolidation (pulled from #349's entry at its close, as that
 > block itself requested):** occurrence 5 happened on an ERASED sim (~14:40,
 > #349's gate), so sim-state does not explain this class alone. Day's tally:
@@ -9513,8 +9881,8 @@ gate's full XCUITest run.
 >
 > **SLICE 1 — THE DIAGNOSTIC, landing on `main` ahead of the investigation**
 > (branch `236-queued-chip-flake-diagnostic`; **PR
-> https://github.com/AethyrionAI/Talaria-27/pull/326 — PR open; merge is
-> Owen's review**; `GATE: PASS`, 2346 / 14 / Release clean — the Swift Testing
+> https://github.com/AethyrionAI/Talaria-27/pull/326 ✅ MERGED 2026-08-20 as
+> `4b02006f`**; `GATE: PASS`, 2346 / 14 / Release clean — the Swift Testing
 > count is unchanged by design, since this modifies an existing XCUITest and
 > adds none). ⚠️ **PR #326 is not tracker #326.** Test-only, no product change:
 > the assertion reads the SETTLED composer text (#195's guard, which this
@@ -12148,6 +12516,37 @@ is #309 path 1–4 + #310, not this item — and #365 must not quietly become
 the relay-decommission lane. The bars above treat the symptom on purpose,
 which is the honest scope for a one-line gate change.
 
+> **✅ 2026-08-20 — THE ROUTE NOT TAKEN WAS TAKEN, by the other item.**
+> #310's lane gates the relay block in `handleActiveProfileChanged` on
+> `profile.hasRelay`, and its migration clears both hosts' retired relay
+> URLs — so for Owen's two profiles the doomed bootstrap this item measured
+> **does not run at all**, rather than running faster or running behind a
+> suppressed splash. The paragraph above predicted exactly this ("fixing
+> THAT is #309 path 1–4 + #310") and is now discharged rather than
+> falsified.
+>
+> **What that leaves #365 as, stated so a later session does not re-open a
+> closed question:** its three bars were written for a SYMPTOM fix (suppress
+> the interstitial) that is no longer the cheapest correct thing to do. 365-A
+> and 365-B still describe real invariants — the splash must survive for the
+> two cases #136 deliberately kept, and the switch must still report itself
+> through #247's toast — but nothing in this item needs building for Owen's
+> own install any more. **365-C (the device check) is the live remnant**, and
+> it is now a check on #310's build rather than on a #365 fix: a switch in
+> both directions, no interstitial, #247 toast still arrives.
+>
+> ⚠️ **The symptom fix is NOT dead in general.** A profile that legitimately
+> HAS a relay still takes the old path, splash and all — #310 changed which
+> profiles reach it, not what happens when they do. If a relay-bearing
+> profile ever stalls this way again, 365-A/B are still the bars.
+>
+> Measurement caveat carried from #310's own scorecard: the bar there could
+> not read `shouldShowLaunchSplash` directly (a second, unrelated clause —
+> `isPaired && !isInitialized` — is true throughout the launch harness), so
+> what is proven in unit tests is that the switch never BOOTSTRAPS. The
+> splash claim follows from the mechanism, and 365-C is what would observe
+> it on the device.
+
 ## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.**
 
 **The mechanism (from tonight's evidence; code-verified when the lane
@@ -12546,7 +12945,7 @@ scope: **wholesale, or a permanent dual path?**
 > 5. Glance at Settings → Developer: the Runs Transport row reads ON without
 >    anyone having touched it. That is the migration, visible.
 
-## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. BUILT 2026-08-19 evening on `369-launch-token-guard`: bars 369-A..F pre-registered before code and ALL MET, RED-first and mutation-checked, `GATE: PASS` (2375 Swift Testing / 14 XCUITest / Release clean). PR open; merge is Owen's review.**
+## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. BUILT 2026-08-19 evening on `369-launch-token-guard`: bars 369-A..F pre-registered before code and ALL MET, RED-first and mutation-checked, `GATE: PASS` (2375 Swift Testing / 14 XCUITest / Release clean). ✅ MERGED 2026-08-19 as `d48fa7ae` (PR #323).**
 
 - The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
   token keychain slot → `initialize: ABORT — no access token, clearing pairing`
@@ -12752,8 +13151,41 @@ scope: **wholesale, or a permanent dual path?**
 > Recorded here rather than fixed or filed as a defect; it belongs with
 > #309's execution, when the `isPaired` gate is revisited anyway.
 
-> **📬 2026-08-19 — PR OPENED: https://github.com/AethyrionAI/Talaria-27/pull/323
-> — NOT MERGED; merge is Owen's review.** Body = `handoffs/PR-BODY-369.md`
+> **📬 2026-08-19 — PR https://github.com/AethyrionAI/Talaria-27/pull/323
+> ✅ MERGED 2026-08-19 as `d48fa7ae`.** The pending-review marker that stood
+> here was cleared 2026-08-20, flagged by `scripts/oi-invariants.py` — the
+> checker built during #375's board sweep, going RED on real debt the first
+> morning it existed, on a marker a human reading the entry would have
+> skimmed past (the #328 shape, where the same words stood four days).
+>
+> **⚠️ Clearing it re-tripped the check THREE times, and each cause is
+> worth more than the fix was.**
+>
+> **(1) A strikethrough that spans two lines is not a strikethrough.** The
+> first correction used the house retraction idiom (`~~…~~` plus the
+> correction beside it), which `oi-invariants.py` explicitly strips — so it
+> should have passed. It did not, because `STRUCK` is deliberately
+> **single-line** (no `DOTALL`) and the span had been wrapped across two
+> lines. The script's own comment predicts this: an unbalanced span "can only
+> produce a FALSE ALARM, never a missed one." **Keep a `~~…~~` retraction on
+> ONE line.**
+>
+> **(2) The phrase lives in more places than the one the checker prints.**
+> `STALE_MERGE` matches FOUR alternatives — this tracker's several standard
+> ways of saying a PR has not landed, which is the #349/#350/#367 lesson the
+> checker was built from. Both entries carried one in their **headers** and
+> one in a ✉ line that reads as ordinary prose. **Grep the whole entry for
+> every alternative in the pattern**; the failure output names one offender,
+> never all of them.
+>
+> **(3) 🔴 AND THE CORRECTION NOTE ITSELF TRIPPED IT, by quoting the
+> pattern it was explaining.** Writing *“the entry said ‹phrase›”* puts
+> ‹phrase› back in the file, and a grep cannot tell a claim from a quotation
+> of one. That is #375's recorded lesson — *“a checker keyed on prose can be
+> defeated by prose about the prose”* — arriving a second time, at the hands
+> of someone who had read it that morning. **This block is therefore written
+> with NO literal instance of any matched phrase**, which is the only form
+> that survives its own subject. Body = `handoffs/PR-BODY-369.md`
 > (gitignored). ⚠️ **PR #323 and TRACKER #323 are different things** — tracker
 > #323 is the App Lock lane, and both will appear in this week's notes
 > (CLAUDE.md's standing disambiguation rule).
@@ -12965,9 +13397,12 @@ scope: **wholesale, or a permanent dual path?**
 > usage row on that tool turn reads `IN 46.6K · OUT 125 · ~$0.0095` with **no
 > CTX percentage** — absent on a tool turn, exactly as the fix specifies.
 
-> **📬 2026-08-19 — PR OPENED for the provisioning half:
-> https://github.com/AethyrionAI/Talaria-27/pull/324 — NOT MERGED; merge is
-> Owen's review.** ⚠️ **PR #324 is not tracker #324** (the beta5 SDK audit).
+> **📬 2026-08-19 — PR RAISED for the provisioning half:
+> https://github.com/AethyrionAI/Talaria-27/pull/324 ✅ MERGED 2026-08-19 as
+> `6d3512b1`.** The pending-review marker was cleared 2026-08-20, flagged by
+> `scripts/oi-invariants.py` alongside #369's — see that entry for why the
+> phrase was deleted rather than struck through.
+> ⚠️ **PR #324 is not tracker #324** (the beta5 SDK audit).
 >
 > **TWO MORE LEGACY PIECES FOUND IN THE SWEEP, deliberately untouched
 > (outside tonight's scope, recorded per #268):** the Mac still runs
@@ -13160,12 +13595,15 @@ being a no-op at #368, not here).
 
 ## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). NOT STARTED; bars pre-register here before any code.**
 
-**What moves.** #309 paths 11 and 12 — the app's entire realtime voice
-bootstrap:
+**What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
+2026-08-20 (see the block at the foot of this entry).** The app's entire
+realtime voice bootstrap:
 
 - `GET talk/readiness` (`LiveVoiceSessionService.swift:192`) — may a realtime
   session start?
 - `POST talk/session` (`:278`) — mint one.
+- `POST talk/session/{id}/end` (`:708`) — release it.
+- `POST talk/session/{id}/turns` (`:729`) — persist a turn.
 
 Both speak to the **relay**, which is retired on both hosts (#346 OJAMD
 2026-08-10, #375 Mac 2026-08-18). **So realtime voice is, as of last night,
@@ -13255,4 +13693,59 @@ realtime key on both hosts), #138 (realtime self-barge-in — a live voice
 defect this must not regress), #303 (the engine-pin race — its cold-launch
 arm reads a realtime *permission*, so it has an interest in whatever
 replaces `talk/readiness`).
+
+> **⏩ 2026-08-20 AM — PULLED FORWARD TO THIS WEEK (Owen), and the reason is a
+> scheduling collision rather than a re-prioritisation.** Saturday's device
+> day carries item 8, *"#220 / #198A engine-pinned voice re-checks (two real
+> calls, engine line quoted)"*. Those bars pin an ENGINE — and with both
+> relays retired the realtime engine cannot bootstrap at all, so any realtime
+> arm of them is **unrunnable as scheduled**. Owen was given three options
+> (flag it and rule later · re-scope Saturday to native/local only · build
+> #383 now) and elected to build.
+>
+> **What that means for the week:** this stops being "the #309 row that needs
+> a design" and becomes build work competing with #310 and the free bucket
+> for the same no-device mornings. It is a plugin-side build plus an app-side
+> client swap, and the plugin half still rides Owen's per-experiment
+> live-install go — **which has NOT been granted yet.** The design pass can
+> run today without it; nothing deploys until he grants it in his own words.
+>
+> **The bars are still deliberately unwritten** (see above). Pulling the item
+> forward changes its schedule, not the rule that a design pass precedes
+> them.
+
+> **🔴 2026-08-20 — THE INVENTORY WAS SHORT BY TWO PATHS, and it is the same
+> failure as `GET /v1/device/files` was last night: found by executing the
+> table, not by re-reading it.** `git grep -nE 'path: "' --
+> 'Talaria/Services/Live/LiveVoiceSessionService.swift'` returns **four**
+> relay paths, and #309's table lists two:
+>
+> | path | site | in #309's table? |
+> |---|---|---|
+> | `GET talk/readiness` | `:192` | ✅ path 11 |
+> | `POST talk/session` | `:278` | ✅ path 12 |
+> | `POST talk/session/{id}/end` | `:708` | ❌ **missing** |
+> | `POST talk/session/{id}/turns` | `:729` | ❌ **missing** |
+>
+> **Read #309's count as NINETEEN paths, not seventeen.** The two new rows
+> are ADAPT → plugin alongside 11–12; they are the same subsystem and cannot
+> be dispositioned separately (a minted session that cannot be ended leaks
+> host-side, and a turn that cannot be persisted silently drops transcript).
+>
+> **Why the miss is structural rather than careless, and what fixes it:**
+> both escaped paths are *interpolated* — `"talk/session/\(id)/end"` — so a
+> grep for a literal path string cannot see them, and #309's inventory was
+> assembled from literals. The durable fix is to grep the CALL SHAPE
+> (`path: "`) rather than the path text. Recorded here so the #309 register
+> inherits the method and not just the two rows.
+>
+> **What the design must actually replace, read from the wire contract
+> (`LiveVoiceSessionService.swift:32-57`):** `POST talk/session` returns
+> `{voiceSession: {id, status, model, voice, startedAt, …}, bootstrap:
+> {clientSecret, expiresAt, session: {id}, model, voice}}`. **`clientSecret`
+> is the whole point** — an EPHEMERAL realtime credential minted host-side.
+> That is the one property the relay was buying and the reason route (b) (a
+> phone-held provider key) was rejected: the plugin must mint the same
+> short-lived secret, not hand over the long-lived key. Any design that
+> cannot produce an ephemeral secret has not solved this item.
 

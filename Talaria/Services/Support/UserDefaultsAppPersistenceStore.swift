@@ -21,6 +21,7 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         // install as never-migrated and re-fired the migration on all of
         // them — the defect, shipped wider.
         static let sensorStreamingMigrated = "talaria.sensorStreamingMigrated"
+        static let relayRetirementMigrated = "talaria.relayRetirementMigrated"
         // #133/#143: the installation id is deliberately NOT profile-scoped
         // and is never cleared by unpair. It identifies this app INSTALL, not
         // a session or a relay — it used to ride inside the profile-scoped
@@ -187,6 +188,41 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
     func saveSensorStreamingMigrationStamp() {
         defaults.set(true, forKey: Keys.sensorStreamingMigrated)
         keychainMirror?.storeSync(key: Keys.sensorStreamingMigrated, value: "1")
+    }
+
+    // #310: the relay-retirement stamp. Keychain-mirrored for the SAME reason
+    // the sensor stamp above is, and the failure it prevents is sharper here:
+    // an unmirrored stamp dies with the app container, so a reinstall over a
+    // surviving pairing would read as "never migrated" and re-clear a relay
+    // URL the user had deliberately typed back in. That is bar 310-B's
+    // phase-2 failure arriving through a second door — persistence loss
+    // rather than a normalization pass — and only the mirror closes it.
+
+    func loadRelayRetirementMigrationStamp() -> Bool {
+        // ⚠️ ORDER REVERSED vs the sensor stamp above, deliberately:
+        // UserDefaults FIRST, Keychain only as the fallback.
+        //
+        // This runs inside `BackendProfilesStore.init`, which is on the
+        // LAUNCH CRITICAL PATH (#136's partition). Reading the Keychain first
+        // — as the sensor stamp does — puts a synchronous Keychain hit in
+        // front of the first frame on EVERY launch, forever, to answer a
+        // question UserDefaults can already answer on all but the first one.
+        //
+        // The semantics are identical: the mirror exists so the stamp
+        // survives a reinstall that wipes UserDefaults, and that case is
+        // exactly the one where `defaults.bool` is false. Checking it second
+        // costs nothing and skips the Keychain entirely on the normal path.
+        if defaults.bool(forKey: Keys.relayRetirementMigrated) { return true }
+        guard keychainMirror?.retrieveSync(key: Keys.relayRetirementMigrated) != nil else { return false }
+        // Reinstall path: the mirror survived, UserDefaults did not. Restore
+        // the cheap copy so subsequent launches never reach the Keychain.
+        defaults.set(true, forKey: Keys.relayRetirementMigrated)
+        return true
+    }
+
+    func saveRelayRetirementMigrationStamp() {
+        defaults.set(true, forKey: Keys.relayRetirementMigrated)
+        keychainMirror?.storeSync(key: Keys.relayRetirementMigrated, value: "1")
     }
 
     /// DEBUG ONLY — see the protocol. Must clear BOTH halves: `load` returns
