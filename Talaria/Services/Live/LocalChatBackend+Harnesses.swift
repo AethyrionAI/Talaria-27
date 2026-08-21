@@ -446,6 +446,11 @@ extension LocalChatBackend {
         for shape: SessionShape,
         deviceContext: String,
         date: Date = .now,
+        // #385: the DEBUG shape overload takes the tier too, or the
+        // production DEBUG path (`effectiveInstructionsText`) would drop it
+        // and a debug build would tell the PCC lie the release build no
+        // longer tells. Defaulted, so every harness call site is untouched.
+        tier: LocalModelTier = .onDevice,
         hasTools: Bool = false,
         hasImageTools: Bool = false
     ) -> String {
@@ -456,7 +461,7 @@ extension LocalChatBackend {
             // their instructions are the production text verbatim — the
             // seams live in `shapedBelt` / `shapedGenerationOptions`.
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
         case .armedNoinstr, .toollessNoinstr:
@@ -467,24 +472,24 @@ extension LocalChatBackend {
             return ""
         case .armedComplic, .armedFix:
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: hasTools, hasImageTools: hasImageTools,
                 includeCompositionLicensingSentence: true
             )
         case .toolless:
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: false, hasImageTools: hasImageTools
             )
         case .toollessLic:
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: false, hasImageTools: hasImageTools,
                 includeToollessLicensingClause: true
             )
         case .toollessLic2:
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: false, hasImageTools: hasImageTools,
                 includeToollessLic2Clause: true
             )
@@ -494,7 +499,7 @@ extension LocalChatBackend {
             // consults the turn's route and returns the `toollessLic2`
             // text instead when the turn needs no tool).
             return instructionsText(
-                deviceContext: deviceContext, date: date,
+                deviceContext: deviceContext, date: date, tier: tier,
                 hasTools: hasTools, hasImageTools: hasImageTools
             )
         }

@@ -1393,6 +1393,12 @@ struct ChatScreen: View {
 
     /// The conversation outgrew the on-device context window and PCC is
     /// actually available — offer the 32K tier once. The user decides.
+    /// #385-D. A `static let` so a test can pin it: #173-E proved that copy
+    /// nothing asserts can be silently un-shipped by a later edit, and this
+    /// is the sentence shown at the opt-in moment.
+    static let privateCloudEscalationCopy =
+        "Continue on Private Cloud β? Larger context, and it runs on Apple's Private Cloud Compute — labeled beta."
+
     private var showsPrivateCloudEscalationOffer: Bool {
         container.localChatBackend?.shouldOfferPrivateCloudEscalation == true
             && container.chatBackendRouter?.activeBrain == .onDevice
@@ -1407,7 +1413,12 @@ struct ChatScreen: View {
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
                 MonoLabel("CONVERSATION GETTING LONG", size: 11, weight: .medium,
                           tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
-                Text("Continue on Private Cloud β? Larger context, same privacy — labeled beta.")
+                // #385-D: was "Larger context, same privacy — labeled beta."
+                // "Same privacy" is the same false claim in shorter form, in
+                // our own voice, shown at exactly the moment the user is
+                // asked to opt in — the worst possible place for it. Ruled
+                // 2026-08-20: name the tier, claim nothing about equivalence.
+                Text(Self.privateCloudEscalationCopy)
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
             }

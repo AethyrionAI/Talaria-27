@@ -393,6 +393,60 @@ soften now that a sibling tier exists; (d) whether the escalation banner and
 the Models screen need the same treatment — they say *"Larger context, same
 privacy"*, which is a defensible summary but is the same claim in shorter form.
 
+> **⚖️ RULED 2026-08-20 (Owen, same evening as the finding).**
+>
+> **(1) The PCC identity line NAMES THE TIER BUT DOES NOT VOUCH FOR IT.**
+> Chosen text: *"You are Hermes, the user's personal assistant, running on
+> Apple's Private Cloud Compute rather than on the device itself. If the user
+> asks where their data goes, say plainly that this tier sends the request to
+> Apple's servers for processing, and point them to Apple's Private Cloud
+> Compute documentation rather than characterising the guarantees yourself."*
+>
+> **The reasoning is the interesting part.** The rejected alternative stated
+> Apple's guarantees outright ("not stored, not accessible to Apple"), which
+> is more useful to a user who asks — and is **a second-order version of the
+> defect being fixed**: the app asserting, in the assistant's voice, a
+> privacy property it cannot itself verify. We got here by saying something
+> true-of-one-tier as though it were true everywhere; replacing it with
+> something true-of-Apple-as-far-as-we-know would repeat the shape at one
+> remove. Naming the tier is ours to assert. Vouching for it is not.
+>
+> **(2) The escalation banner is REWRITTEN to name PCC**, dropping *"same
+> privacy"*. It is the same claim in shorter form, in our own voice, shown at
+> exactly the moment the user is asked to opt in — the worst possible place
+> for it.
+>
+> **Explicitly NOT chosen: stripping the location clause from both tiers.**
+> The on-device sentence is TRUE on the on-device tier and it is useful; the
+> fix is to stop generalising it, not to go quiet. That distinction is what
+> bar 385-B exists to hold.
+
+### 🎯 BARS 385-A…D — pre-registered before any code
+
+- **385-A — a PCC session is never told it runs on-device.** The instruction
+  text built for `.privateCloud` must contain neither *"entirely on their
+  iPhone"* nor *"never leaves the device"*, and must name Private Cloud
+  Compute. Mutation: revert the tier-awareness ⇒ red.
+- **385-B — the ON-DEVICE instructions are BYTE-IDENTICAL to what shipped.**
+  The negative control, and the bar that encodes Owen's explicit rejection of
+  the strip-it-from-both option. **Without it, 385-A is satisfied by deleting
+  the sentence everywhere** — which would trade a false claim for a silence,
+  and lose a statement that is true and load-bearing on the free tier.
+- **385-C — the two tiers' identity lines are DIFFERENT STRINGS.** #173-B's
+  inequality shape, and it is here for the same reason: one shared
+  tier-neutral sentence satisfies A and B's prose while failing the ruling,
+  and it is exactly what a later "simplify the duplication" lane reaches for
+  first.
+- **385-D — the escalation banner names PCC and does not claim equal
+  privacy.** Pinned as a string test, because #173-E proved that copy nothing
+  asserts can be silently un-shipped by a later edit — and this copy is the
+  one shown at the opt-in moment.
+
+**Pre-registered response.** A–D green ⇒ the false claim is gone from both the
+model's mouth and the opt-in prompt, and the PCC tier is shippable on this
+axis. **385-B red is the most informative failure here** — it would mean the
+lane fixed the lie by deleting the truth.
+
 **Cross-references:** **#72** (the tier, which works — this was found by its
 first device pass), **#180** (confident-wrong-answer discipline, the shape
 this is), **#173** (the never-claim floor for attachments — same family: do

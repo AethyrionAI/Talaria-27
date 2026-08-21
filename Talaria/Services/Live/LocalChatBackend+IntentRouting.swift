@@ -238,11 +238,16 @@ extension LocalChatBackend {
     /// Production does not flip it; that is Owen's call after bars
     /// 297-A/B/C clear on device.
     nonisolated static func productionToollessInstructions(
-        deviceContext: String, date: Date = .now, hasImageTools: Bool,
+        deviceContext: String, date: Date = .now,
+        // #385: defaulted so every battery and harness call site is
+        // untouched — they all measure the on-device tier — while production
+        // passes `activeTier` explicitly.
+        tier: LocalModelTier = .onDevice,
+        hasImageTools: Bool,
         includeToollessCapabilityIndex: Bool = false
     ) -> String {
         instructionsText(
-            deviceContext: deviceContext, date: date,
+            deviceContext: deviceContext, date: date, tier: tier,
             hasTools: false, hasImageTools: hasImageTools,
             includeToollessLic2Clause: true,
             includeToollessHonestyClauseV2: true,

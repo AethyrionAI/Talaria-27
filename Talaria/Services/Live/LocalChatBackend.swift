@@ -1434,9 +1434,14 @@ final class LocalChatBackend: HermesClientProtocol {
         // #196 (PROMOTED): a routed-toolless turn speaks the licensed bare
         // branch — the toolless-lic2 payload, the text that measured 60/60
         // content and clean on device.
+        // #385: `activeTier` rides every production path. All three branches,
+        // because the toolless branch is the one a routed turn actually takes
+        // (#196) — gating only the armed branch would have left the common
+        // case telling the same lie.
         if turnRoutedToolless {
             return Self.productionToollessInstructions(
                 deviceContext: Self.deviceContextLine(),
+                tier: activeTier,
                 hasImageTools: hasImage
             )
         }
@@ -1444,12 +1449,14 @@ final class LocalChatBackend: HermesClientProtocol {
         return Self.instructionsText(
             for: Self.activeSessionShape,
             deviceContext: Self.deviceContextLine(),
+            tier: activeTier,
             hasTools: !tools.isEmpty,
             hasImageTools: hasImage
         )
         #else
         return Self.instructionsText(
             deviceContext: Self.deviceContextLine(),
+            tier: activeTier,
             hasTools: !tools.isEmpty,
             hasImageTools: hasImage
         )
@@ -2098,6 +2105,15 @@ final class LocalChatBackend: HermesClientProtocol {
     nonisolated static func instructionsText(
         deviceContext: String,
         date: Date = .now,
+        // #385: WHERE the compute happens. Defaulted to `.onDevice` because
+        // every harness and battery measures that tier — but production
+        // passes `activeTier`, so a PCC session is never handed the
+        // on-device identity. This axis was the ONE thing this function was
+        // not parameterised on (tools, images and three toolless clauses all
+        // were), and a device pass caught the model telling a user its
+        // conversation never leaves the phone while it ran on Apple's
+        // servers. Bar 385-A.
+        tier: LocalModelTier = .onDevice,
         hasTools: Bool = false,
         hasImageTools: Bool = false,
         // #284: the armed blurb's capability list, generated from the
@@ -2298,11 +2314,37 @@ final class LocalChatBackend: HermesClientProtocol {
             """
         }
         return """
-        You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device.
+        \(Self.identitySentence(for: tier))
         Today is \(day).
         \(deviceContext)
         \(capabilities)
         """
+    }
+
+    /// #385 — the identity line, per tier. **Kept adjacent on purpose:** bar
+    /// 385-C requires these two to be DIFFERENT strings, and the shortcut a
+    /// later "simplify the duplication" lane reaches for is one tier-neutral
+    /// sentence that satisfies both bars' prose while failing the ruling.
+    /// Seeing them together is what makes that shortcut look wrong.
+    nonisolated static func identitySentence(for tier: LocalModelTier) -> String {
+        switch tier {
+        case .onDevice:
+            // TRUE on this tier, and deliberately unchanged (bar 385-B).
+            // Owen explicitly rejected stripping the location clause from
+            // both tiers: the fix is to stop GENERALISING a true sentence,
+            // not to go quiet about it.
+            return "You are Hermes, the user's personal assistant, running entirely on their iPhone with Apple's on-device foundation model. The conversation is private and never leaves the device."
+        case .privateCloud:
+            // Ruled 2026-08-20. Names the tier; does NOT vouch for it.
+            //
+            // The rejected alternative stated Apple's guarantees outright
+            // ("not stored, not accessible to Apple") — more useful, and a
+            // SECOND-ORDER version of the defect being fixed: the app
+            // asserting, in the assistant's voice, a privacy property it
+            // cannot itself verify. Naming the tier is ours to assert.
+            // Vouching for it is not.
+            return "You are Hermes, the user's personal assistant, running on Apple's Private Cloud Compute rather than on the device itself. If the user asks where their data goes, say plainly that this tier sends the request to Apple's servers for processing, and point them to Apple's Private Cloud Compute documentation rather than characterising the guarantees yourself."
+        }
     }
 
     static func deviceContextLine() -> String {  // harness-visible
