@@ -123,7 +123,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. 🟡 INSTRUMENT BUILT 2026-08-21 AM (`pcc-surface`, three bands, mutation-proven three ways) and 388-D ANSWERED AT THE DESK — the headless `ImageCreator` is DEPRECATED IN iOS 27, so image generation on this OS is a user-driven sheet and cannot be a tool the assistant calls; VisualIntelligence is an AppIntents extension point we would register with, not call; MediaIntelligence is photo-library face grouping with no Talaria use case. ✅ **388-A/B/C/D ALL ANSWERED ON DEVICE 2026-08-21.** 🔴 **The contrast is exactly ONE capability: PCC has `.reasoning`, on-device does not** (everything else matches; contextSize 8192 vs 32768). `.vision` is TRUE on BOTH — which reopens #173's caption decision as a tier question WITH a privacy dimension, spawned as its own entry. 🔴 **Quota is INERT, not healthy:** `quotaUsage` returns `belowLimit` with no resetDate while `com.apple.FoundationModels:QuotaTracker` logs *"Usage limit status tracker delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read — so any shipped quota surface is presenting a placeholder as a status (own entry). 388-C vindicated same-day: device variant is `AFM 3 Core Advanced`, the sim said `AFM 3 Core`. **🔴 `.toolCalling` HALF-ANSWERED FROM PRODUCTION 2026-08-21 07:12: a PCC turn executed `readImageText` — PCC calls tools, so the bar's "zero evidence either way" is retired and a `.toolCalling == false` reading tonight would be the FLAG being wrong. `.vision` untouched by this: `readImageText` is on-device Vision OCR, the model got text not the image (the reply quotes OCR misreads "3ETA"/"MARIAN"), so the picture never left the phone**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
-- **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
+- **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 MERGED (GATE: PASS, 2392/14/Release). **✅ RE-ASKED ON DEVICE 2026-08-21 17:38 AND VERIFIED — the deferral #330 named is discharged.** Same question, same tier: *"This request goes to Apple's servers for processing. For details, see Apple's Private Cloud Compute documentation."* Both halves of the ruling met, and the second could NOT have been checked by a string test — a reply reciting Apple's guarantees would have passed every bar in `PrivateCloudIdentityTests` and still been the rejected alternative. The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
@@ -516,6 +516,42 @@ this is), **#173** (the never-claim floor for attachments — same family: do
 not assert a capability or property we cannot stand behind), **#323**
 (structural note on not overstating a privacy mechanism), **#4.8/#210**
 (context-window plumbing, which is what proved the tier was genuinely active).
+
+> **✅ 2026-08-21 17:38 — VERIFIED ON DEVICE. The re-ask #330 left owed is
+> answered, and the fix behaves as RULED rather than merely as coded.**
+>
+> Private Cloud β selected, fresh session, prompt *"Where does this run?"* —
+> the same question shape that produced the defect. Verbatim reply:
+>
+> > *"This request goes to Apple's servers for processing. For details, see
+> > Apple's Private Cloud Compute documentation."*
+>
+> **Both halves of Owen's ruling are met, and the second is the one that could
+> not be checked by a string test.** It NAMES the tier (the lie is gone), and
+> it POINTS TO Apple's documentation instead of characterising the guarantees
+> — which is the rejected alternative, the one that would have had the app
+> assert, in the assistant's voice, a privacy property it cannot itself
+> verify. A reply reciting *"not stored, not accessible to Apple"* would have
+> passed every bar in `PrivateCloudIdentityTests` and still been wrong.
+>
+> **What this closes and what it does not.** 385-A..D were string bars on a
+> pure function: they proved the INSTRUCTION changed. This proves the MODEL
+> now answers well, which is a different claim and the one #330 explicitly
+> deferred — *"they prove the instruction changed; they do not prove the model
+> now answers well."* That deferral is discharged.
+>
+> **Contrast, for the record.** Same question, same tier, 2026-08-20:
+> *"I'm running directly on your iPhone using Apple's on-device foundation
+> model, so there's no backend involved."*
+>
+> **Observed but NOT filed:** the reply then volunteered an unprompted
+> inventory of reachable device capabilities (health, location, weather,
+> nearby places, calendar, reminders, alarms). It is accurate and harmless —
+> tools do execute on the PCC tier (#388-A's `.toolCalling`, plus the 07:12
+> `readImageText` turn) — and answering more than was asked is #214's
+> over-serving family at its most benign. Recorded so a later reader does not
+> mistake it for a new finding; not filed, per #215's rule against filing
+> noise.
 
 ## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.**
 
