@@ -117,7 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
-- **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
+- **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED 2026-08-20: Apple GRANTED the Private Cloud Compute entitlement. The one item that was genuinely waiting on Apple is no longer waiting. NOT STARTED; the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
 - **#112** ✨ Midnight Marquee collection — 7 themes / 8 palettes, first adaptive theme, +13 app icons (Lane L)
@@ -998,6 +998,65 @@ collapses to a generated one-liner on AI hardware, last raw line otherwise.
   lazily off the happy path.
 
 ## 72. 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30)
+
+> **🚨 UNBLOCKED 2026-08-20 — APPLE GRANTED THE ENTITLEMENT.** Owen forwarded
+> the Developer Relations mail: *"The entitlement for Access to models on
+> Private Cloud Compute has been assigned to your account, and you can now
+> configure this capability for eligible apps."* **This item has been the ONE
+> thing on the board genuinely waiting on Apple** — the 08-09 ruling recorded
+> it as *"Nothing to do until the approval lands."* It has landed. Filed the
+> day it was known, per #268.
+>
+> **NOT STARTED — no code written on this yet, and the first step is not
+> mine.** Recorded now so the routing decision is made against facts rather
+> than enthusiasm.
+>
+> **⛔ THE ORDER OF OPERATIONS IS LOAD-BEARING, because getting it wrong is an
+> UNCATCHABLE CRASH.** This entry's own 2026-07-13 evidence: selecting PCC and
+> sending **SIGTRAP-crashed, reproducibly**, because constructing/using
+> `PrivateCloudComputeLanguageModel` without the entitlement traps — and the
+> trap is not rescuable from `send()`'s `catch`. `pccGrantConfirmed = false`
+> (`LocalChatBackend.swift:242`) exists solely to make that unreachable. **So
+> the flag is the LAST step, never the first.**
+>
+> 1. **OWEN — the portal step, which nobody else can do.** The mail says the
+>    entitlement is assigned to the ACCOUNT and can now be *configured for
+>    eligible apps*. That is an App ID capability toggle plus a provisioning
+>    profile that carries it. An account-level grant alone does not put the
+>    entitlement in a signed binary.
+> 2. **Claude — `project.yml`.** `com.apple.developer.private-cloud-compute`
+>    is **NOT** in `project.yml` today (verified 2026-08-20). It goes in the
+>    `properties:` block, **not only in the `.entitlements` file** — the
+>    #44/#48 xcodegen strip trap, which the CarPlay key's commented-out entry
+>    right above it exists to document.
+> 3. **Claude — replace the flag with a REAL SIGNAL, not `true`.** This entry
+>    already suggested it (*"flip the gate (or wire it to a real signal)"*) and
+>    the crash makes it the only defensible option: a hardcoded `true` re-opens
+>    the SIGTRAP on any device or OS where PCC is unavailable, on a code path
+>    whose failure mode is a process death. `.isAvailable` / `.availability`
+>    are the SDK's own answer and were doc-verified on 2026-07-07.
+> 4. **Device verification, and it CANNOT be a sim pass.** The simulator
+>    cannot generate on the on-device model at all under beta5 (#324:
+>    `contextSize = 0`, an un-bridged `LanguageModelError -1` wrapping
+>    `ModelManagerError 1026`), so PCC on sim proves nothing either way. This
+>    rides a device sitting. **#111's re-verify note closes in the same pass**,
+>    per the 2026-07-16 stopgap's own instruction.
+>
+> **⚠️ Do NOT trust recall for the API surface.** WWDC26 postdates the model's
+> cutoff; the standing rule is to grep the SDK's `.swiftinterface` and never
+> reconstruct a signature from memory. The 2026-07-07 doc-verified list in
+> this entry is the starting point, not the authority — re-verify against
+> beta5's SDK before writing against it.
+>
+> **Why this matters beyond one more tier.** The launch posture (#251/#269) is
+> that the on-device brain is the permanent free floor and Hermes is the
+> optional upgrade — so the user who matters most is the one with no host at
+> all. **PCC raises that user's ceiling without giving them a server to run**,
+> which is the only lever we have had that does. It is also the reason the
+> picker work already exists: `Brain.privateCloud`, the escalation banner
+> (`ChatScreen.swift:1401`), the quota row (`ModelsSettingsScreen.swift:293`)
+> and `privateCloudStatus()` are all built and inert behind the flag. **This
+> is a gate flip and a device pass, not a feature build.**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **STATUS SETTLED — the two-way-readable record is disambiguated: the SBP
@@ -4469,7 +4528,7 @@ only the second half would pass on a build with no gate — mutation A2
 confirms it, because the post-unlock assertions were the ones that stayed
 green.
 
-#### Four things the filing did not contain, all found by building it
+#### Five things the filing did not contain, all found by building it
 
 1. **🔴 Parking only in `sendMessage` opens a DATA-LOSS window in the compose
    outbox.** `drainComposeOutboxIfPossible` does `composeOutbox.remove` +
@@ -4501,6 +4560,23 @@ green.
    start revokes it and the parked caller returns `false` on resume. Had the
    flag been set after the wait (the natural reading order), a parked start
    would have been invisible to the one observer #254 built to catch it.
+
+5. **🔴 The honest parked status was NOT DURABLE, and only the FULL-SUITE run
+   found it.** `deferUntilUnlocked` set `statusMessage = "Waiting for unlock…"`
+   once — but `applySnapshot` overwrites that field wholesale, and the engines
+   keep publishing snapshots throughout a locked interval. So the honest
+   message survived exactly until the next voice event, after which the user
+   would be shown the engine's stale status instead. **Bar 302-E caught it by
+   FAILING under full-suite scheduling while passing in isolation** (the event
+   task's initial snapshot landed after the park in one ordering and before it
+   in the other). The tempting reading is "flaky test, re-roll it" — and this
+   project has a standing rule against exactly that. **The flake was the
+   defect.** Fixed with a durable `isWaitingForUnlock` flag that
+   `applySnapshot` honours, which also makes the bar order-independent for the
+   right reason: not by weakening the assertion, but by fixing what it was
+   flakily measuring. *(Worth noting against #236, which is a real flake with
+   no such cause found yet: an isolation-passes/suite-fails signature is
+   **evidence of a scheduling dependency**, not evidence of harness noise.)*
 
 **Also examined and deliberately NOT gated: `HostApprovalStore` (#304).** No
 timer, no expiry auto-answer — every path into `post(_:)` originates in
