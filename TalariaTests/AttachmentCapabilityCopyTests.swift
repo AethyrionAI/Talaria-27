@@ -13,20 +13,29 @@ import Testing
 @Suite(.serialized)
 struct AttachmentCapabilityCopyTests {
 
-    // MARK: - 173-A: the Hermes path says UNKNOWN
+    // MARK: - 173-A WITHDRAWN: the Hermes path carries NO caption
 
+    /// **173-A was withdrawn by a re-ruling (Owen, 2026-08-20), and this test
+    /// is its inverse.** The bar required the Hermes path to carry
+    /// unknown-capability wording. It shipped, and the problem was immediately
+    /// visible: with no `supports_vision` reaching the app the caption could
+    /// not DISCRIMINATE, so it fired on every image turn forever — including
+    /// on models that can see perfectly well.
+    ///
+    /// A permanent caption is furniture, not information: users stop reading a
+    /// warning that is always present, so it failed the job #173 gave it while
+    /// taxing every image send.
+    ///
+    /// **This is a re-ruling, not a redefinition.** The bar was met, the
+    /// result was judged wrong on the device, and the ruling changed — which
+    /// is a different thing from rewriting a bar to match what shipped. The
+    /// test is inverted rather than deleted so the absence is PINNED: a future
+    /// lane that re-adds a caption here without a real capability signal
+    /// (#173 route (b), parked) fails this immediately.
     @Test
-    func hermesImageTurnSaysCapabilityIsUnknown() throws {
-        let caption = AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true)
-        let text = try #require(caption)
-        #expect(text == AttachmentCapabilityCopy.hermesUnknownCapability)
-        // The wording is UNKNOWN, never a claim of absence. The upstream
-        // catalog defaults `supports_vision` to false, so an uncatalogued
-        // model would read as no-vision — asserting that as fact reproduces
-        // #173 from the other side.
-        #expect(text.localizedCaseInsensitiveContains("isn't known"))
-        #expect(!text.localizedCaseInsensitiveContains("does not support"))
-        #expect(!text.localizedCaseInsensitiveContains("cannot support"))
+    func hermesImageTurnCarriesNoCaptionUntilCapabilityIsKnowable() {
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false) == nil)
     }
 
     // MARK: - 173-B: on-device says something STRONGER, and DIFFERENT
@@ -42,13 +51,18 @@ struct AttachmentCapabilityCopyTests {
         #expect(!text.localizedCaseInsensitiveContains("known"))
     }
 
-    /// **173-B's ACTUAL BAR.** Everything above passes if both destinations
-    /// return one shared string; only this fails.
+    /// **173-B's inequality bar, now trivially satisfied and kept as a
+    /// TRIPWIRE.** It originally guarded against one shared string standing in
+    /// for two epistemic states. With the Hermes side removed there is only
+    /// one string, so the inequality holds by construction — but the test
+    /// stays, because the shape it forbids is exactly what a future lane
+    /// re-adding a Hermes caption would reach for first: reusing the
+    /// on-device wording, which asserts a definite blindness we cannot
+    /// establish for a remote host.
     @Test
-    func theTwoDestinationsDoNotShareOneCaption() throws {
-        let hermes = try #require(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true))
+    func theOnDeviceCaptionIsNeverReusedForAHost() throws {
         let local = try #require(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true))
-        #expect(hermes != local)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) != local)
     }
 
     // MARK: - 173-D: the negative control
@@ -58,8 +72,8 @@ struct AttachmentCapabilityCopyTests {
     /// voice-memo turn.
     @Test
     func aTurnWithNoImageCarriesNoCaption() {
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false) == nil)
         #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: false) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false) == nil)
     }
 
     // MARK: - 173-E: #380's rider — the query-time sensor copy

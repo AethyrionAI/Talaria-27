@@ -2853,6 +2853,44 @@ Logged 2026-07-23.
 > the 10 tests this lane adds). Bars A–E scored: **A, B, C, D met; E met by
 > code that already shipped**, with its evidence clause corrected in place.
 
+> **🔄 2026-08-20, SAME DAY — 173-A WITHDRAWN BY RE-RULING (Owen), after
+> seeing it on the device. THE CAPTION SHIPPED, WORKED AS SPECIFIED, AND WAS
+> STILL WRONG.**
+>
+> His question and its answer are the whole finding: *"why does it show for
+> every model, even if it supports images? Is it because we can't accurately
+> detect it… so it just stays up? If so, just go ahead and remove it."*
+>
+> **Yes.** No vision signal reaches the app at all, so the caption could not
+> DISCRIMINATE — it fired on every image turn regardless of whether the model
+> could see, including on models that can. **A caption that cannot
+> discriminate is not information, it is furniture:** users stop reading a
+> warning that is always present, so it failed the exact job #173 gave it
+> *and* taxed every image send. The morning's ruling (ship it always-on, an
+> honest unknown beats false confidence) was sound in the abstract and wrong
+> in the hand — which is the kind of thing only the device answers.
+>
+> **⚠️ THIS IS A RE-RULING, NOT A REDEFINITION, and the distinction is
+> load-bearing here.** 173-A was MET: the bar was pre-registered, the code
+> satisfied it, the tests proved it. Owen then judged the RESULT wrong. That
+> is categorically different from rewriting a bar so that what shipped passes
+> — which this project forbids and which #173-E's mis-written clause earlier
+> today is an example of me nearly doing. **A bar can be withdrawn by the
+> person who owns the decision; it cannot be edited by the person who owns
+> the code.**
+>
+> **What survives:** the ON-DEVICE caption, kept deliberately and NOT covered
+> by the reasoning above — there we are certain (image capability exists only
+> via `readImageText`/`BarcodeReaderTool`; the SDK's `ImageAttachment` ships
+> unused; device-confirmed 2026-08-02), the string is specific, and it appears
+> only on that route. 173-C, 173-D and 173-E are untouched.
+>
+> **What would justify re-adding a host-side caption:** route (b) — upstream
+> forwarding `supports_vision` plus the app-side decode `GatewayModelCatalog`
+> lacks. Parked as a watch with no trigger. **Until then the app cannot say
+> anything falsifiable about a remote model's vision**, and 173-A's inverted
+> test now PINS that absence so a later lane cannot quietly reintroduce it.
+
 > **📏 BARS 173-A…E PRE-REGISTERED 2026-08-20, BEFORE ANY CODE OF THIS LANE**,
 > per CLAUDE.md's *"Where the BARS live"*. **A missed bar is a falsification,
 > not a redefinition.**

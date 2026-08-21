@@ -18,18 +18,32 @@ import Foundation
 /// that separately, because a caption implemented as a guard would satisfy
 /// every other bar here while quietly breaking the feature.
 ///
-/// **Why the two strings differ, which is bar 173-B's whole point.** They
-/// describe genuinely different epistemic states, and collapsing them to one
-/// string is the shortcut that looks like a simplification:
+/// **⛔ THE HERMES PATH CARRIES NO CAPTION — a RULING, not an omission
+/// (Owen, 2026-08-20).** It briefly did, and the reason it was removed is the
+/// reason not to re-add it:
 ///
-/// - **Hermes host — UNKNOWN.** No vision signal reaches the app at all: there
-///   is no `supports_vision` anywhere in `Talaria/`, and the model catalog
-///   carries no capabilities map. `/v1/models` returns one synthetic
-///   `hermes-agent` row with the bare OpenAI-compat keys (#173's 2026-08-02
-///   probe). Hermes's own catalog HAS the data —
-///   `ModelCapabilities.supports_vision` — but nothing forwards it to us. So
-///   we do not know, and we say so.
-/// - **On-device — KNOWN-BLIND.** Not unknown: recorded at
+/// No vision signal reaches the app **at all**. There is no `supports_vision`
+/// anywhere in `Talaria/`, the model catalog carries no capabilities map, and
+/// `/v1/models` returns one synthetic `hermes-agent` row with the bare
+/// OpenAI-compat keys (#173's 2026-08-02 probe). Hermes's own catalog HAS the
+/// data — `ModelCapabilities.supports_vision` — but nothing forwards it.
+///
+/// So the caption could not DISCRIMINATE: it fired on every image turn
+/// regardless of whether the model could see, including on models that
+/// perfectly well could. Owen: *"why does it show for every model, even if it
+/// supports images… we can't accurately detect it… so it just stays up."*
+/// **A permanent caption is not information — it is furniture.** Users stop
+/// reading a warning that is always present, so it fails at the one job #173
+/// gave it while taxing every image send.
+///
+/// **What would justify re-adding it:** a real capability signal (#173's
+/// route (b), parked as a watch — upstream forwarding `supports_vision` plus
+/// app-side decode `GatewayModelCatalog` does not have). With that, the copy
+/// can say something FALSIFIABLE about the model in front of the user. Until
+/// then it cannot.
+///
+/// - **On-device — KNOWN-BLIND, and this is why the on-device caption
+///   SURVIVES the removal.** Not unknown: recorded at
 ///   `LocalChatBackend+Battery.swift:2165-2174` and device-confirmed
 ///   2026-08-02 (*"I can't see the image itself, but the text in it…"*). Image
 ///   capability exists ONLY through `readImageText` / `BarcodeReaderTool`; the
@@ -64,19 +78,14 @@ enum AttachmentCapabilityCopy {
         guard carriesImageAttachment else { return nil }
         switch destination {
         case .hermesHost:
-            return hermesUnknownCapability
+            // ⛔ NOTHING. See the type's doc comment — this is a RULING
+            // (Owen, 2026-08-20), not an omission, and re-adding a caption
+            // here needs a new one.
+            return nil
         case .onDevice:
             return onDeviceCannotSeeImages
         }
     }
-
-    /// **UNKNOWN**, deliberately — never "does not support". The catalog
-    /// default upstream is `supports_vision: false`, so an uncatalogued model
-    /// would read as no-vision; claiming that as fact would reproduce this very
-    /// item from the other side, and denying a working feature is its own
-    /// harm. #173's probe block names this trade explicitly.
-    static let hermesUnknownCapability =
-        "This host isn't known to support images — it may reply without seeing them."
 
     /// **DEFINITE.** We know, so we say we know.
     static let onDeviceCannotSeeImages =
