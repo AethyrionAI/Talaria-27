@@ -9481,12 +9481,98 @@ gate's full XCUITest run.
 > and pays the whole six-gate investigation if the operator does not already
 > know. **Owen routes.**
 >
-> **⚠️ The diagnostic that would have shortened this is stranded on the #310
-> branch (PR #325).** There the assertion dumps the visible transcript and the
-> settled composer text; every other branch still has the bare literal, which
-> is why occurrence 7 reports nothing about what the app actually showed.
-> **Land that test change wherever this goes** — it is test-only, it costs
-> nothing, and it turns the next firing into one run instead of six.
+> **✅ The diagnostic that would have shortened this HAS NOW LANDED ON `main`**
+> (PR #326, merged 2026-08-20) — this paragraph previously said it was
+> stranded on an unmerged branch, which was true when written and is the
+> reason occurrence 7 reports nothing about what the app actually showed.
+> **From this merge forward, every branch's failure dumps the visible
+> transcript and the settled composer text**, so occurrence 8 will say
+> whether the reply was absent or merely late — the fork seven occurrences
+> could not resolve.
+
+> **✅ 2026-08-20 — GIVEN A LANE (Owen: "give #236 a lane and land that
+> diagnostic on main"). The trigger fired at occurrence 7; this is the
+> routing, filed the day it was made per #268.**
+>
+> **Why it earns a lane now and did not before:** through six occurrences the
+> cost was a re-run. At occurrence 7 it **blocked an unrelated lane's gate**
+> and cost a six-run investigation to attribute — because the failure looked
+> exactly like a real regression in whatever branch happened to hit it. That
+> is the shape that makes an intermittent test worse than a broken one: it
+> spends someone else's day, and the someone is different each time.
+>
+> **⛔ WHAT THIS LANE MUST NOT DO: raise the timeout again.** The 20→40 s bump
+> (occurrence 1's fix) absorbed a 40 ms overshoot and has since failed to
+> absorb SIX firings. A budget that has been wrong six times is not a budget
+> that is slightly too small. **The standing hypothesis, unanswered since
+> occurrence 1, is that the synthetic backend's reply task STARVES under
+> load** — `runUITestIdentityTurn` streams words on 60 ms sleeps, appends the
+> reply, then dwells `UITEST_STREAM_DWELL_SECONDS` (20 s in this test) before
+> `.finished`. If the dwell or the poll-tick merge is what starves, a longer
+> wait cannot help and a bigger dwell makes it worse.
+>
+> **SLICE 1 — THE DIAGNOSTIC, landing on `main` ahead of the investigation**
+> (branch `236-queued-chip-flake-diagnostic`; **PR
+> https://github.com/AethyrionAI/Talaria-27/pull/326 — PR open; merge is
+> Owen's review**; `GATE: PASS`, 2346 / 14 / Release clean — the Swift Testing
+> count is unchanged by design, since this modifies an existing XCUITest and
+> adds none). ⚠️ **PR #326 is not tracker #326.** Test-only, no product change:
+> the assertion reads the SETTLED composer text (#195's guard, which this
+> test never got and its sibling has) and, on failure, dumps the visible
+> transcript. **Landing it first is the point** — every future firing then
+> reports what the app actually showed, instead of only that something was
+> absent. Occurrence 7 produced no such evidence because the diagnostic was
+> stranded on an unmerged branch.
+>
+> **📏 BARS — pre-registered before the investigation slice, deliberately
+> narrow, because this lane's failure mode is "fixed it by making it not
+> look broken".**
+>
+> **236-A — the diagnostic reports the transcript on failure.** Forcing the
+> assertion to fail (mutate the awaited string) produces a message naming the
+> settled composer text AND the visible static texts. *Evidence:* the
+> mutation run's own output. **A diagnostic nobody has seen fire is a
+> diagnostic that does not work** — occurrence 7 is what that costs.
+>
+> **✅ 236-A MET 2026-08-20, by MUTATION rather than by assertion.** The
+> awaited string was changed to one that cannot exist, forcing the diagnostic
+> to fire, and it produced:
+>
+> ```
+> waited 40s (MUTATION) for "Acknowledged first" (composer settled as "first").
+> Visible static texts: ["Talaria Ready, brain On-Device", "Message Hermes…",
+> "TALARIA", "READY", "Chat brain: On-Device", "2 MESSAGES",
+> "You: first. delivered", "first", "2:20 PM", "Acknowledged first",
+> "2:20 PM", "ON-DEVICE"]
+> ```
+>
+> **Both facts this lane has never had are in that one line.** The composer
+> settled as `"first"` — so the keystroke race (#195's shape) is ruled out for
+> that run — and `"Acknowledged first"` IS among the rendered texts. On a real
+> firing the same dump answers the fork nobody could resolve across seven
+> occurrences: **was the reply absent, or merely late?** Every previous
+> failure could only say that something was not there by the deadline.
+>
+> Mutation reverted immediately; the committed test awaits the real string.
+
+> **236-B — the settled-text guard changes nothing when the keyboard behaves.**
+> With input arriving intact the test waits on the identical string it
+> waited on before. *Evidence:* already observed — the 08-20 passing run
+> waited on `"Acknowledged first"`, proving the guard inert in the healthy
+> case. It is a safety net, not a behaviour change, and must stay one.
+>
+> **236-C — the CAUSE is named before anything is tuned.** The investigation
+> slice does not close until a run captures `.xcresult` and states, from
+> evidence, whether the reply task starved, the merge missed, or the render
+> lagged. **A timeout change without this is a falsification of the lane**,
+> not a fix — see the do-not above.
+>
+> **236-D — the fix, whatever it is, is proven against the failing
+> CONDITION.** Not against an isolated re-run: this test passes isolated
+> every single time (2/2 in 96 s on 08-20) and passes the UI target alone
+> (14/14). Only full-gate context reproduces it, so only full-gate context
+> can score it. **An isolated green is the exact evidence that misled the
+> 08-20 investigation into calling it a #310 defect.**
 ## 223. 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the gateway can carry
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass) — THE SENSOR
