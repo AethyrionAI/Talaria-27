@@ -1088,11 +1088,17 @@ struct DeviceToolBeltTests {
         #expect(LocalChatBackend.ActionBatteryCell.armedScopedv2.rawValue == "armed-scopedv2")
         // #216: the narrow belt, evaluated where its only known cost cannot occur.
         #expect(LocalChatBackend.ActionBatteryCell.routedScoped.rawValue == "routed-scoped")
+        // #340 route (a): the app-side fix's model-facing half, held behind a
+        // cell rather than promoted (Owen, 2026-08-21) — 340-G's guide arm
+        // bought its omission win at a flagged cost in tool calls.
+        #expect(LocalChatBackend.ActionBatteryCell.armedBareclock.rawValue == "armed-bareclock")
         // #215 adds `routed-production`, asserted at the top of this test.
-        // 31 → 32 with #340's `armed-dateguide`. This count is a PIN, not a
-        // formality: it is what makes adding a cell without naming its label a
-        // failure rather than a silent widening of the export vocabulary.
-        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 32)
+        // 31 → 32 with #340's `armed-dateguide`; 32 → 33 with route (a)'s
+        // `armed-bareclock`. This count is a PIN, not a formality: it is what
+        // makes adding a cell without naming its label a failure rather than a
+        // silent widening of the export vocabulary. It did its job on
+        // 2026-08-21 — the gate caught this lane's new case here.
+        #expect(LocalChatBackend.ActionBatteryCell.allCases.count == 33)
     }
 
     /// #216: routing is a property of the CELL, and exactly two cells have it.
