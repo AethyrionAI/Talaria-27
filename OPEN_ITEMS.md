@@ -118,7 +118,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
 - **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
-- **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. Gates SHIPPING the PCC tier. NOT STARTED**
+- **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED 2026-08-20: Apple GRANTED the Private Cloud Compute entitlement. The one item that was genuinely waiting on Apple is no longer waiting. NOT STARTED; the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
 - **#77** 🔧 hermes:// URL scheme registered + ask?q= payload route (GitHub #48)
@@ -447,6 +447,63 @@ privacy"*, which is a defensible summary but is the same claim in shorter form.
 model's mouth and the opt-in prompt, and the PCC tier is shippable on this
 axis. **385-B red is the most informative failure here** — it would mean the
 lane fixed the lie by deleting the truth.
+
+### ✅ RESULT 2026-08-20 — 385-A…D ALL MET, and the two mutations isolate cleanly.
+
+Fixed the same evening it was found, on Owen's ruling.
+`LocalChatBackend.identitySentence(for:)` now carries both tiers;
+`instructionsText` and `productionToollessInstructions` take a `tier`
+parameter defaulted to `.onDevice`, and `effectiveInstructionsText` passes
+`activeTier` on **all three** production branches. Six tests in
+`TalariaTests/PrivateCloudIdentityTests.swift`.
+
+**The compile error caught a trap worth recording.**
+`effectiveInstructionsText` has a separate **DEBUG** branch calling a
+different `instructionsText(for:shape:)` overload. Threading the tier through
+only the release path would have left every debug build — **which is exactly
+what the PCC session that exposed this was** — telling the lie the release
+build no longer tells. Six inner call sites in
+`LocalChatBackend+Harnesses.swift` needed it too. A fix verified only in
+Release would have looked complete and been half-done.
+
+**Two mutations, and they isolate different halves:**
+
+| mutation | result |
+|---|---|
+| **1 — undo the tier-awareness** (both tiers get the on-device sentence) | 385-A's three tests RED (8 assertions), 385-C RED, **385-B and 385-D green** |
+| **2 — soften the ON-DEVICE sentence, leave PCC correct** | **exactly ONE test red: 385-B.** All three 385-A tests, 385-C and 385-D green |
+
+**Mutation 2 is the one that justifies 385-B's existence.** It models a lane
+that "fixes" #385 by deleting the location claim everywhere — the option Owen
+explicitly rejected — and that lane passes **every other bar in the file**.
+Only the byte-identical golden string catches it. **A bar set that only tests
+that the bad thing is gone would have scored that build green**; this one also
+tests that the true thing survived, which is what the ruling was actually
+about.
+
+**What shipped, exactly:**
+- **on-device** (unchanged, to the byte): *"…running entirely on their iPhone
+  with Apple's on-device foundation model. The conversation is private and
+  never leaves the device."*
+- **PCC**: *"…running on Apple's Private Cloud Compute rather than on the
+  device itself. If the user asks where their data goes, say plainly that this
+  tier sends the request to Apple's servers for processing, and point them to
+  Apple's Private Cloud Compute documentation rather than characterising the
+  guarantees yourself."*
+- **banner**: *"Continue on Private Cloud β? Larger context, and it runs on
+  Apple's Private Cloud Compute — labeled beta."* (was *"…same privacy…"*)
+
+**Scope note — this does NOT close the PCC-honesty question.** The published
+privacy policy still carries the same claim and is filed as **#386**, which is
+outward-facing and gated on Owen's read of the exact words. #385 covers what
+the assistant says and what the opt-in prompt says; those are the two surfaces
+a lane may change on a ruling.
+
+**Not verified on device.** These are string-level bars on a pure function.
+The device evidence that started this — the model's own answer — should be
+re-asked on the next PCC sitting: select Private Cloud β and ask *"where does
+this run?"* A green string test proves the instruction changed; it does not
+prove the model now answers well.
 
 **Cross-references:** **#72** (the tier, which works — this was found by its
 first device pass), **#180** (confident-wrong-answer discipline, the shape
