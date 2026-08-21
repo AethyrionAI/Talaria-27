@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#388** 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — `LanguageModelCapabilities` (`.vision`/`.toolCalling`/`.reasoning`/`.guidedGeneration`) exists and **the app has never called it**; `quotaUsage` **cannot report a number** (tri-state only) and may be **inert system-side** (`Usage limit status tracker delegate is nil` in the 08-20 device log); ImagePlayground / VisualIntelligence / MediaIntelligence present in the SDK and never examined. **NAMED BY OWEN 2026-08-20. NOT BUILT; bars 388-A…D pre-registered**
 - **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The published privacy policy vs PCC — ~~still says the assistant *"runs entirely on your iPhone"*~~ **→ ✅ AMENDED AND PUBLISHED 2026-08-20 (PR #331), Owen's wording approval on record. Three ways, not two; Apple QUOTED and dated rather than paraphrased; Voice corrected (a turn routes to the active brain, so speech goes to PCC too). `PrivacyInfo.xcprivacy` checked — no change needed. The ongoing watch obligation moved to #387.**
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
@@ -734,6 +735,102 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
+
+## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.**
+
+**The premise is earned, not cautious.** Hours before this was filed, #72's
+five-week-old SIGTRAP was **measured out of existence** on beta5 — the crash
+every design decision in that item descended from simply does not happen any
+more. Owen's framing: *"That first one we dealt with earlier certainly had
+changed with beta 5."* **A conclusion about the FoundationModels surface has a
+half-life of about one beta**, and this project's standing rule is to grep the
+`.swiftinterface` rather than recall. This item extends that from "grep before
+writing" to "probe before assuming."
+
+### 🔴 Already found while filing this, from the SDK and from Owen's own device log
+
+**(1) `LanguageModelCapabilities` exists, has exactly four members, and WE HAVE
+NEVER CALLED IT.** `PrivateCloudComputeLanguageModel` conforms to
+`LanguageModel`, which exposes `var capabilities: LanguageModelCapabilities`.
+The four: **`.vision`, `.toolCalling`, `.reasoning`, `.guidedGeneration`**,
+queried by `.contains(_:)`. A `git grep` over `Talaria/` finds `.capabilities`
+only in unrelated permissions/settings code. **There is a first-class API for
+"what can this tier do" and the app has never asked.**
+
+**(2) 🔴 `quotaUsage` CANNOT report a number, and the existing code already
+models everything it can say.** `QuotaUsage` is `status` +
+`limitIncreaseSuggestion?` + `resetDate?`, and `Status` is only
+`.belowLimit(BelowLimit)` / `.limitReached(LimitReached)` — where `BelowLimit`
+carries a single `isApproachingLimit: Bool`. **There is no remaining count, no
+limit value, no percentage.** So a usage METER is not buildable; a tri-state
+INDICATOR is, and `LocalChatBackend.privateCloudStatus()` already returns
+exactly that shape. **Owen's hope of "checking usage" is answered by the API,
+not by our implementation** — we are not missing anything here, the surface
+simply does not expose it.
+
+**(3) 🔴 AND QUOTA MAY NOT BE WIRED UP AT ALL SYSTEM-SIDE — evidence already in
+hand.** Owen's 2026-08-20 device log carries, repeatedly:
+`Usage limit status tracker delegate is nil, skipping fetch.` That is a
+FoundationModels system line, and it reads exactly like quota tracking being
+inert on this seed — which matches his own read (*"Apple hasn't enabled that
+feature yet"*). **This was in the corpus before anyone went looking for it.**
+Whether `quotaUsage` returns a meaningful value or a default is now a
+first-class question rather than an assumption.
+
+**(4) Three frameworks present in the iOS 27 SDK that this project has never
+examined:** `ImagePlayground.framework` (Apple's image GENERATION — Owen
+half-remembered this and he is right that it exists),
+`VisualIntelligence.framework`, `MediaIntelligence.framework`. **Presence in
+the SDK is not availability, entitlement, or usefulness** — that is exactly the
+inference #72 punished — but "we have never looked" is not a finding either.
+
+### 🎯 BARS 388-A…D — pre-registered before any code
+
+- **388-A — the CAPABILITY READ, both tiers, on device.** Report
+  `.contains(.vision / .toolCalling / .reasoning / .guidedGeneration)` for
+  `SystemLanguageModel.default` **and** `PrivateCloudComputeLanguageModel()`.
+  **The CONTRAST is the finding, not either row alone** — a difference is a
+  feature gate; identical rows mean the tier buys context and nothing else.
+  - **If PCC has `.vision`:** #173's surviving on-device caption becomes
+    tier-specific, exactly as #385's identity line did, and image support
+    becomes a real PCC feature rather than a decline.
+  - **If PCC lacks `.toolCalling`:** we are currently handing it a belt it
+    cannot use — the session is built `tools: offered` on the assumption it
+    can, and all three device turns so far routed **toolless**, so we have
+    **zero evidence either way.**
+- **388-B — the QUOTA READ, on device, correlated with the log line.** Report
+  `status`, `isApproachingLimit`, `resetDate`, `limitIncreaseSuggestion != nil`
+  — and whether `Usage limit status tracker delegate is nil` appears in the
+  same corpus. **A tri-state that never leaves `.belowLimit` while that line
+  fires is INERT, not healthy**, and the difference decides whether the Models
+  screen's quota row is telling the user anything at all.
+- **388-C — sim vs device is recorded, not assumed.** Every reading above is
+  taken on BOTH, because #324 established the sim cannot generate at all
+  (`contextSize = 0`) and tonight established it reports `.isAvailable == true`
+  with no entitlement. **A sim reading of any of this is suspect by
+  construction** and must be labelled, never quietly folded in.
+- **388-D — the three unexamined frameworks get a HONEST one-line verdict
+  each**, not a plan: does it link, does it need an entitlement, is there any
+  Talaria use case. **"Present in the SDK" is not a finding** — the bar is
+  answered by a probe or by an explicit "not examined", never by inference from
+  a directory listing.
+
+**Pre-registered response.** 388-A is the one that can change the product's
+shape; the rest are reconnaissance. **A null result is a real result here** —
+"PCC has the same capabilities as on-device and quota is inert" is worth
+knowing and closes a family of speculation, which is precisely what this item
+is for.
+
+**⚠️ Scope discipline.** This item PROBES. It does not build features. Anything
+388-A turns up gets its own entry with its own bars — the temptation after a
+promising probe is to keep going, and #215's discipline exists because a
+plausible improvement measured as a no-op once already.
+
+**Cross-references:** **#72** (the tier, and the SIGTRAP that justifies
+re-probing), **#173** (the never-claim floor, which a `.vision` result would
+reopen tier-wise), **#324** (the beta5 SDK audit this extends), **#207/#228**
+(routing and the 1,501-token belt cost, the economics a 32K window changes),
+**#385** (the tier-aware pattern any capability gate should follow).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
