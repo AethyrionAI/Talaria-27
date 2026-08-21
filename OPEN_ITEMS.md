@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. Gates SHIPPING the PCC tier. NOT STARTED**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED 2026-08-20: Apple GRANTED the Private Cloud Compute entitlement. The one item that was genuinely waiting on Apple is no longer waiting. NOT STARTED; the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
 - **#74** 🔧 Wave 5 — CarPlay voice upgrade: auto-start, observation tracking, routing (GitHub #19) — **🛑 BLOCKED BY THE iOS 27.0 SIM RUNTIME ACROSS TWO CONSECUTIVE BETAS. Attempted 2026-08-10 on beta4 (24A5390f) and RE-ATTEMPTED 2026-08-11 on beta5 (24A5408d): CarPlay takes the ✓ but no window and no external surface is ever created, while a 26.5 control in the SAME healthy Simulator.app process at the SAME moment brings its window up and writes an 800×480 surface.** App-side config verified correct (entitlement in the sim binary's `__TEXT,__entitlements`, not the ad-hoc signature); **74-A…E NOT RUN** (apparatus never came up — nothing observed-and-failed); **74-F MET** twice. **Pre-flight before any future re-stage: toggle CarPlay on a 27.x sim and WAIT ≥60 s — the control itself takes ~35 s, and "instantly" was wrong.** #45's grant filing stays sequenced behind the pass (Owen re-affirmed 2026-08-10), now knowingly across two beta cycles
@@ -453,6 +454,78 @@ this is), **#173** (the never-claim floor for attachments — same family: do
 not assert a capability or property we cannot stand behind), **#323**
 (structural note on not overstating a privacy mechanism), **#4.8/#210**
 (context-window plumbing, which is what proved the tier was genuinely active).
+
+## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.**
+
+**Why this is separate from #385 rather than part of it.** #385 fixes what the
+*assistant* says and what the *opt-in banner* says — both in-app, both ours to
+change on a ruling. This is a **published document on the Pages site**
+(`docs/privacy.html`, the web root per the repo's own layout), which a user or
+App Review relies on. Different artifact, different blast radius, different
+approval requirement.
+
+**What the live policy currently claims** (read 2026-08-20, verbatim from the
+shipping file):
+- *"The only parties that ever handle your data are Apple's on-device
+  frameworks and the services you yourself configure."* (`:37-38`)
+- *"the assistant runs entirely on your iPhone using Apple's on-device
+  foundation model"*
+- *"Voice conversations and dictation. Default processing is on-device."*
+
+**On the PCC tier the first two are the same claim #385 just removed from the
+model's mouth** — and this is the version a regulator, a reviewer, or a
+cautious user would actually read.
+
+**✅ ONE THING THE POLICY GOT RIGHT IN ADVANCE, and it is the cheapest part of
+the fix.** `:102-104` already lists Apple as a party covering *"on-device
+models, Speech, WeatherKit, HealthKit, and **(if it ships)** Private Cloud
+Compute"*. Whoever wrote that anticipated this exactly. **The condition is now
+met — PCC shipped in the build on 2026-08-20 — so the hedge is what is stale,
+not the structure.** Dropping three words is most of that bullet's work.
+
+**What needs deciding (Owen's, not a lane's):**
+(a) the "only parties" sentence — PCC *is* Apple, so it is arguably already
+covered, but "on-device frameworks" is doing load-bearing work in that
+sentence and PCC is not on-device; (b) whether the policy describes PCC's
+guarantees or points at Apple's documentation — **#385's ruling says point,
+don't vouch, and the same logic applies with more force in a legal document**;
+(c) whether the on-device sentences get a "by default" qualifier or a separate
+PCC section; (d) whether `PrivacyInfo.xcprivacy` (all three targets) needs any
+change at all — PCC is an Apple framework and probably requires nothing new,
+but *probably* is not an answer and this should be checked rather than assumed.
+
+> **⚖️ RULED 2026-08-20 (Owen, minutes after filing):** *"definitely check the
+> live one and make sure we build on it, instead of just rewrite it."*
+> **`docs/privacy.html` is the BASE. The fix is an amendment, not a
+> replacement.** A rewrite would silently drop commitments the live document
+> already makes — and a privacy policy is a document people may have relied on,
+> so removing a promise is a substantive act even when it looks like tidying.
+
+**✅ The draft question is CHECKED, and it answers itself** *(correcting this
+entry's own "UNCHECKED" line, written an hour earlier)*.
+`planning/privacy-policy-DRAFT-2026-08-10.html` carries an HTML comment in its
+own header: *"THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
+UNCOMMITTED). Edit there, not here."* It also records the four resolutions
+that closed it out — data-practice claims confirmed and verified against the
+tree, developer of record (James Jones, Owen's call over "Aethyrion"), and the
+contact address.
+
+**So the live file is authoritative and has been maintained since** — last
+touched by `f48add84` ("correct stale sensor-pipeline, relay, and shim
+references"), i.e. it already survived one accuracy sweep. Structure is
+identical across both (same twelve headings); the draft's extra 27 lines are
+its resolution comment. **Do not diff the draft in as though it were newer.**
+
+**⛔ Publication gate.** The standing rule is that outward-facing text gets
+Owen's read of the *exact* wording plus an explicit go — a "we should update
+the policy" instruction does not cover the moment of publishing. A lane may
+draft; it may not push.
+
+**Cross-references:** **#385** (the in-app half, fixed the same evening — this
+is its published sibling), **#72** (the tier that made both stale), **#323**
+(the structural note that started this: claims beyond what the mechanism
+delivers must not appear "in copy, in the privacy policy, or in App Store
+material" — that sentence named this file eleven days before it mattered).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 
