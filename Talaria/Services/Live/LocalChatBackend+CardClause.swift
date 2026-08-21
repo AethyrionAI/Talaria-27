@@ -83,6 +83,28 @@ extension LocalChatBackend {
         /// slot makes a positive conservative, and a null here would need a
         /// reversed-order re-run rather than a conclusion.
         case blurbReworded = "blurb-reworded"
+        /// **#372(c) — the ROLLBACK arm, added 2026-08-21. The only thing that
+        /// can still measure the 2026-08-15 promotion.**
+        ///
+        /// `blurbReworded` above substitutes `armedBlurbCardSentence` → the
+        /// reworded text. Production has SHIPPED the reworded text since the
+        /// promotion, so that substitution now matches nothing: the arm is
+        /// **identity with control** and its `reworded=` row correctly reports
+        /// that it did nothing. Not broken — out of anything to measure.
+        ///
+        /// This arm substitutes the OTHER way, putting the pre-promotion
+        /// sentence back (`armedBlurbSentencePre337F2b`, reached by its alias
+        /// per 372-C3 so there is never a second copy of the pinned text).
+        /// #200L's shape, one instrument over.
+        ///
+        /// **Position LAST, and the reason is recorded rather than stylistic:**
+        /// this instrument calls `beginTurn()` per trial so it carries no
+        /// #343 governor confound, leaving thermal as the only order effect —
+        /// and in #337-F's run thermal moved AGAINST the result. The worst slot
+        /// therefore makes a positive finding conservative and leaves a null
+        /// UNINTERPRETABLE rather than convenient. A null here needs a
+        /// reversed-order re-run, not a conclusion.
+        case blurbRollback = "blurb-rollback"
     }
 
     /// The belt each arm registers: identity for the control, and for the
@@ -100,7 +122,10 @@ extension LocalChatBackend {
         // Enumerated rather than negated so a future arm has to state its
         // intent here instead of inheriting one.
         switch arm {
-        case .control, .blurbStripped, .blurbReworded: return (tools, 0)
+        // #372(c): the rollback arm moves ONE instruction string and leaves
+        // the descriptions alone — stated here rather than inherited, which is
+        // what this switch being enumerated is for.
+        case .control, .blurbStripped, .blurbReworded, .blurbRollback: return (tools, 0)
         case .toolsStripped, .toolsAndBlurbStripped: break
         }
         var swapped = 0
@@ -142,12 +167,28 @@ extension LocalChatBackend {
                 with: DeviceActionClauses.armedBlurbCardSentenceReworded337F2)
             return (text, text != instructions)
         }
+        // #372(c): the ROLLBACK — put the pre-promotion sentence back. This is
+        // the only arm that still moves relative to what production ships, and
+        // therefore the only one that can measure the promotion at all.
+        //
+        // Both operands are ALIASES on purpose (372-C3): `armedBlurbShipping‐
+        // Sentence` is whatever ships today and `armedBlurbSentencePre337F2b`
+        // is the pinned pre-promotion text. Writing either as a literal here
+        // would re-create the two-copies problem the promotion had to fix, and
+        // a future promotion would leave this arm rolling back to a sentence
+        // nobody ships.
+        if arm == .blurbRollback {
+            let text = instructions.replacingOccurrences(
+                of: DeviceActionClauses.armedBlurbShippingSentence,
+                with: DeviceActionClauses.armedBlurbSentencePre337F2b)
+            return (text, text != instructions)
+        }
         // #337-F-2: two arms remove the blurb — arm C (with the descriptions)
         // and the isolating arm (without them).
         switch arm {
         case .control, .toolsStripped: return (instructions, false)
         case .toolsAndBlurbStripped, .blurbStripped: break
-        case .blurbReworded: break  // handled above
+        case .blurbReworded, .blurbRollback: break  // both handled above
         }
         // #337-F-2b PROMOTED 2026-08-15: production now ships the REWORDED
         // sentence, so the strip arms must target what ships — otherwise they

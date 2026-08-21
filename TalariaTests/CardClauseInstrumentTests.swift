@@ -293,10 +293,81 @@ struct CardClauseRegistryTests {
         #expect(!spec.writesEventKit && !spec.writesAlarms)
     }
 
-    @Test func theABHasFiveNamedArmsWithTheRewordedOneLast() {
+    /// 372-C5: this pin is what makes adding an arm without naming it a
+    /// failure rather than a silent widening of the export vocabulary — the
+    /// same shape as `ActionBatteryCell.allCases.count`, which caught #340's
+    /// new case on 2026-08-21. Five → six with #372(c)'s rollback.
+    @Test func theABHasSixNamedArmsWithTheRollbackOneLast() {
         #expect(LocalChatBackend.CardClauseArm.allCases.map(\.rawValue)
                 == ["control", "tools-stripped", "tools-blurb-stripped",
-                    "blurb-stripped", "blurb-reworded"])
+                    "blurb-stripped", "blurb-reworded", "blurb-rollback"])
+    }
+
+    // MARK: - #372(c) — the rollback arm's structural bars
+
+    /// 🔴 **372-C1 — the bar this arm exists because of.**
+    ///
+    /// `blurb-reworded` substitutes the PRE-promotion sentence for the
+    /// reworded one. Production has shipped the reworded one since
+    /// 2026-08-15, so that substitution matches nothing and the arm is
+    /// identity with control. This test pins the state directly, so nobody has
+    /// to rediscover it from a flat run: **the old arm no-ops on production
+    /// text, and the new one does not.**
+    @Test func theRewordedArmIsNowAnIdentityAndTheRollbackIsNot() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone running iOS 27.0.",
+            hasTools: true, hasImageTools: false)
+
+        let reworded = LocalChatBackend.cardClauseInstructions(production, arm: .blurbReworded)
+        #expect(reworded.removed == false,
+                "blurb-reworded still changes production text — the promotion may have been reverted")
+        #expect(reworded.text == production)
+
+        let rollback = LocalChatBackend.cardClauseInstructions(production, arm: .blurbRollback)
+        #expect(rollback.removed == true,
+                "the rollback arm did NOT substitute — a manipulation that silently no-ops is exactly what this arm was built to escape")
+        #expect(rollback.text != production)
+    }
+
+    /// 372-C3: reached by its ALIAS, never a fresh literal. Two copies of the
+    /// pinned text is how the shipping sentence came to live in two places
+    /// before 2026-08-15; the fix then was to stop having two copies.
+    @Test func theRollbackRestoresThePinnedPrePromotionSentenceExactly() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone running iOS 27.0.",
+            hasTools: true, hasImageTools: false)
+        let rolled = LocalChatBackend.cardClauseInstructions(production, arm: .blurbRollback).text
+
+        #expect(rolled.contains(DeviceActionClauses.armedBlurbSentencePre337F2b),
+                "the pre-promotion sentence is not present verbatim")
+        #expect(!rolled.contains(DeviceActionClauses.armedBlurbShippingSentence),
+                "the shipping sentence survived the rollback — the arm swapped nothing, or swapped into the wrong place")
+    }
+
+    /// 372-C2: one delta, and it is an INSTRUCTION delta. A rollback arm that
+    /// also moved the tool descriptions would measure a bundle and report it
+    /// as a sentence.
+    /// `@MainActor` on the test, not the suite: `ToolEventRelay` and
+    /// `ToolConfirmationCenter` are MainActor-isolated, and everything else in
+    /// here is pure string work that has no reason to hop.
+    @MainActor
+    @Test func theRollbackArmLeavesToolDescriptionsAlone() {
+        let belt: [any Tool] = [
+            ReminderCreateTool(relay: ToolEventRelay(), confirmations: ToolConfirmationCenter())
+        ]
+        let result = LocalChatBackend.cardClauseBelt(from: belt, arm: .blurbRollback)
+        #expect(result.swapped == 0, "the rollback arm must not touch descriptions (372-C2)")
+    }
+
+    /// The control stays a control. Cheap, and it is the assertion that would
+    /// catch a substitution accidentally applied to every arm.
+    @Test func theControlArmStillChangesNothing() {
+        let production = LocalChatBackend.instructionsText(
+            deviceContext: "Device: iPhone running iOS 27.0.",
+            hasTools: true, hasImageTools: false)
+        let control = LocalChatBackend.cardClauseInstructions(production, arm: .control)
+        #expect(control.removed == false)
+        #expect(control.text == production)
     }
 }
 
