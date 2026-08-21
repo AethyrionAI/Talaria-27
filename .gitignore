@@ -65,3 +65,16 @@ handoffs/
 
 # Local scratch (Hermes session attachments / plans)
 .hermes/
+
+# private/ — OUR working space, never published (added 2026-08-20).
+#
+# For durable work-product we do not want public: post-launch maintenance
+# plans, ops notes, anything commercially or operationally sensitive.
+#
+# How this differs from its two neighbours, so things land in the right place:
+#   handoffs/  — EPHEMERAL session continuity. Superseded every session.
+#   planning/  — TRACKED on purpose: the tracker cites planning/reports/... as
+#                evidence in ~148 places, and untracking it would turn every
+#                one of those into a dead link.
+#   private/   — durable, ours, and deliberately not in the repo.
+private/

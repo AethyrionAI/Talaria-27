@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#387** 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list (`private/POST-LAUNCH-MAINTENANCE.md`, gitignored), for obligations that begin at launch and never complete. **NAMED BY OWEN 2026-08-20. Entry 1: watch Apple's PCC pages, because #386's policy QUOTES them and a quote is a snapshot of a page we do not control. NOT BUILT — mechanism chosen at launch**
 - **#386** 📝 The PUBLISHED privacy policy (`docs/privacy.html`) still says the assistant *"runs entirely on your iPhone"* and that *"the only parties that ever handle your data are Apple's on-device frameworks"* — **PCC shipped 2026-08-20 and the policy has not caught up. NAMED BY OWEN the same hour. ⛔ Outward-facing: exact text needs his read + explicit go. NOT STARTED.** One bullet already hedges *"(if it ships) Private Cloud Compute"* — that condition is now met
 - **#385** 🐛 On the PCC tier the assistant tells the user *"the conversation is private and never leaves the device"* — **FALSE on that tier, and it is OUR instruction string, not a model confabulation** (`LocalChatBackend.swift:2301`; `instructionsText` is parameterised on tools/images but NOT on tier). **FOUND ON DEVICE 2026-08-20 in PCC's first hour. ✅ FIXED THE SAME EVENING — bars 385-A…D MET, two mutations isolating cleanly. PR #330 OPEN (GATE: PASS, 2392/14/Release). The published privacy policy's half is #386.**
 - **#72** 🔧 Wave 4.5 — PCC tier: PrivateCloudComputeLanguageModel behind gates (GitHub #30) — **🚨 UNBLOCKED AND SHIPPED 2026-08-20: Apple GRANTED the entitlement; PCC now RUNS ON DEVICE (72-A…D MET, PR #330 OPEN, GATE: PASS 2392/14/Release). Historical note on the original filing — the first step is Owen's (App ID capability + profile), then project.yml + a real availability signal replacing `pccGrantConfirmed`, then a DEVICE pass (sim cannot verify PCC). ⛔ Flag LAST — an ungranted construct SIGTRAPs uncatchably.**
@@ -573,6 +574,60 @@ references"), i.e. it already survived one accuracy sweep. Structure is
 identical across both (same twelve headings); the draft's extra 27 lines are
 its resolution comment. **Do not diff the draft in as though it were newer.**
 
+> **⚖️ RULED 2026-08-20 (Owen, providing the sources): QUOTE APPLE, don't
+> paraphrase them.** *"I think we need to quote apple on some of what they have
+> listed as of today at least."*
+>
+> **This REFINES #385's ruling rather than contradicting it, and the
+> distinction is the whole point.** #385 says the assistant must not
+> *characterise* PCC's guarantees — because the app asserting a privacy
+> property in its own voice is a claim we cannot back. **A quotation with
+> attribution is not an assertion in our voice; it is a report of Apple's.**
+> The reader can see whose promise it is, and can follow the link and check.
+> That is strictly more honest than either paraphrasing Apple (which launders
+> their claim into ours) or staying silent (which tells a user nothing about
+> where their data goes).
+>
+> **The two sources Owen supplied, and which one to lead with:**
+> - **`https://www.apple.com/privacy/`** — the better citation for a privacy
+>   policy. It is Apple's own privacy document, and its PCC section is
+>   procedural rather than promotional: the data required is sent to Apple
+>   silicon servers and no other data is sent; the request is processed and is
+>   never stored or accessible to Apple; the response returns to you only. It
+>   also states the promise is verifiable by independent experts.
+> - **`https://www.apple.com/apple-intelligence/`** — the product page, with
+>   the same claims in marketing register ("never stored", "used only for your
+>   requests", "verifiable privacy promise"). Usable, but the privacy page is
+>   the one a reviewer would expect to see cited.
+>
+> **🔴 A HAZARD THIS CREATES, and it is the same shape as everything else this
+> lane has hit: A QUOTE IS A SNAPSHOT THAT CAN GO STALE.** Apple's pages say
+> this **as of 2026-08-20** — Owen's own phrasing, *"as of today at least,"*
+> already anticipates it. If Apple revises that wording, our policy keeps
+> reporting the old text and we have quietly moved from "accurately quoting
+> Apple" to "misquoting Apple in a legal document." **That is a NEW way to be
+> wrong that we do not have today**, and it is worth accepting deliberately
+> rather than by accident.
+>
+> Three mitigations, cheapest first, for the drafting lane to choose between:
+> (1) **date the quotation in the text** ("as published at apple.com/privacy on
+> 2026-08-20") so a stale quote is self-evidently a snapshot rather than a
+> current claim; (2) **lead with the link and quote sparingly** — the fewer
+> words we hold, the less can rot; (3) file a periodic re-check. **(1) and (2)
+> together are the recommendation** — they cost nothing and they make the
+> failure mode legible instead of silent.
+>
+> **Keep the quotation SHORT and clearly attributed** — enough to convey the
+> guarantee, not a wholesale reproduction of Apple's page. Short-and-linked is
+> both better practice and less to keep true.
+>
+> **Not changing #385's in-app text.** The model's instruction still says point
+> at Apple's documentation rather than characterise the guarantees. A chat
+> assistant reciting a vendor's privacy paragraph is a worse answer than a
+> pointer, and the policy is where a citation belongs. Raised here so the
+> decision is visible rather than assumed — reopen it if Owen wants the
+> assistant quoting too.
+
 **⛔ Publication gate.** The standing rule is that outward-facing text gets
 Owen's read of the *exact* wording plus an explicit go — a "we should update
 the policy" instruction does not cover the moment of publishing. A lane may
@@ -583,6 +638,65 @@ is its published sibling), **#72** (the tier that made both stale), **#323**
 (the structural note that started this: claims beyond what the mechanism
 delivers must not appear "in copy, in the privacy policy, or in App Store
 material" — that sentence named this file eleven days before it mattered).
+
+## 387. 📝 POST-LAUNCH ONGOING MAINTENANCE — the running list, and the watcher that starts it — **NAMED BY OWEN 2026-08-20 ("start a running list… I think this should be the first entry for after launch ongoing maintenance"), filed the same hour per #268. The list lives at `private/POST-LAUNCH-MAINTENANCE.md` — **gitignored**, see the routing note below. NOT BUILT — mechanism is chosen at launch, not now.**
+
+**Why a list and not a tracker item per task.** `OPEN_ITEMS.md` numbers work
+that COMPLETES. This is the other kind: obligations that begin at launch and
+never finish, because the thing being watched belongs to someone else and can
+change without telling us. Filing each recurring duty as an open item would
+either leave permanently-open entries on the board or close them dishonestly
+the first time they were serviced. **This entry OWNS the list; the list holds
+the entries.**
+
+**Entry 1 — watch Apple's PCC pages for wording changes.** Direct consequence
+of #386's ruling: `docs/privacy.html` **quotes Apple**, dated *"as published at
+apple.com/privacy on 2026-08-20"*. Quoting is the honest choice — it attributes
+the claim to Apple instead of laundering it into our voice — but **it makes us
+the holder of a snapshot of a page we do not control.** If Apple weakens or
+withdraws a guarantee, our policy keeps reporting a promise Apple no longer
+makes, in a document users rely on.
+
+**The design note that matters more than the cadence:** the useful output is a
+**diff of the relevant section**, not "the page changed." A page-level hash
+fires on every unrelated marketing tweak, gets muted inside a month, and is
+then worse than no watcher at all — because someone will believe it is
+watching. The list records that, plus what each KIND of change means (cosmetic
+⇒ nothing; weakened ⇒ act now; strengthened ⇒ adopt, unhurried; 404 ⇒ a broken
+citation in a legal document).
+
+**Mechanism undecided, deliberately.** Hermes cron (`/api/cron/fire` is on the
+`:8642` table) or a Cowork scheduled task. **Choosing now would be choosing
+against a launch posture that does not exist yet** — and a Hermes cron job is a
+live-install change that rides Owen's per-experiment go regardless.
+
+**Authority boundary, stated once so the eventual lane inherits it:** a watcher
+may REPORT. It may not edit the policy and it may not publish. Outward-facing
+text needs Owen's read of the exact wording plus an explicit go — the same gate
+#386 carries.
+
+> **📁 ROUTING NOTE 2026-08-20 — `private/` created, and `planning/` deliberately
+> NOT untracked.** Owen's first instinct was to gitignore `planning/` outright;
+> the count changed the decision. **148 references to `planning/` live in
+> TRACKED docs** — 116 in `OPEN_ITEMS-ARCHIVE.md`, 27 here, 4 in `CLAUDE.md`,
+> 1 in `README.md` — overwhelmingly `planning/reports/…` cited as the EVIDENCE
+> for tracker findings. Untracking would have turned every one into a dead link
+> from a clone, which is a quiet, permanent loss of the thing that makes those
+> findings checkable. His call: *"Losing all the links would be bad form."*
+>
+> **So the split is by PURPOSE, not by tidiness:**
+> - `handoffs/` — ephemeral session continuity, superseded every session.
+> - `planning/` — **stays tracked**, because the tracker leans on it as evidence.
+> - `private/` — **new, gitignored**: durable work-product we do not want
+>   public. This list is its first occupant.
+>
+> **What this costs, stated once:** a gitignored list is easier to lose than a
+> tracked one. The mitigation is that **this entry carries entry 1 in full** —
+> if the file goes missing, the obligation and its reasoning survive here.
+> Anything added to that list that matters should get the same treatment.
+
+**Cross-references:** **#386** (the policy amendment this exists to protect),
+**#385** (the in-app half), **#72** (the tier that made both necessary).
 
 ## 45. 🔧 CarPlay voice mode — scaffold on main, gated on Apple's voice-conversational entitlement
 

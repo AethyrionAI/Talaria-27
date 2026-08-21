@@ -27,26 +27,44 @@
 <body>
 <main>
   <h1>Privacy Policy</h1>
-  <p class="date">Talaria for iOS · Effective: 2026-08-10</p>
+  <p class="date">Talaria for iOS · Effective: 2026-08-20</p>
 
   <div class="tldr">
     <p><strong>The short version:</strong> Talaria has no servers. We — the app's
     developer — do not collect, receive, store, sell, or share any of your data.
     There are no accounts, no analytics, and no tracking. Your conversations are
-    processed either on your iPhone or on a computer <em>you</em> own and
-    operate. The only parties that ever handle your data are Apple's on-device
-    frameworks and the services you yourself configure.</p>
+    processed on your iPhone by default, on Apple's Private Cloud Compute if
+    you choose that option, or on a computer <em>you</em> own and operate. The
+    only parties that ever handle your data are Apple &mdash; its on-device
+    frameworks, and Private Cloud Compute if you enable it &mdash; and the
+    services you yourself configure.</p>
   </div>
 
   <h2>Who we are</h2>
   <p>Talaria is an iOS client for a personal AI assistant. It is developed by
   James Jones. This policy covers the Talaria iOS app and this website.</p>
 
-  <h2>The two ways Talaria works</h2>
+  <h2>The three ways Talaria works</h2>
   <p><strong>On-device (the default).</strong> Out of the box, Talaria's
   assistant runs entirely on your iPhone using Apple's on-device foundation
   models. Your messages, attachments, and the assistant's replies are processed
   and stored on your device. Nothing is sent to us — or to anyone.</p>
+  <p><strong>Apple's Private Cloud Compute (optional, beta).</strong> Some
+  requests need a larger model than fits on the phone. If you select
+  <em>Private Cloud &beta;</em> as the chat brain, those requests are sent to
+  Apple's Private Cloud Compute &mdash; Apple silicon servers &mdash; instead
+  of being processed on your iPhone. <strong>Your request leaves the
+  device.</strong> It does not come to us: we have no servers and no visibility
+  into it.</p>
+  <p>Apple describes the handling of that data as follows, as published at
+  <a href="https://www.apple.com/privacy/">apple.com/privacy</a> on 2026-08-20:
+  the data required to fulfil your request is sent to Apple silicon servers and
+  &ldquo;no other data is sent&rdquo;; the request is processed and is
+  &ldquo;never stored or accessible to Apple&rdquo;; and Apple states that this
+  promise &ldquo;can be verified by independent experts.&rdquo;
+  <strong>Those are Apple's commitments, quoted rather than paraphrased, and
+  they are Apple's to keep.</strong> We are telling you where your data goes;
+  we are not making a promise about what happens to it there.</p>
   <p><strong>Paired with your own server (optional).</strong> You can connect
   Talaria to a <a href="https://github.com/NousResearch/hermes-agent">Hermes
   agent</a> running on your own computer. In that mode, the content you send —
@@ -65,7 +83,10 @@
 
   <h2>Voice</h2>
   <p>Talaria's default voice mode uses Apple's on-device speech recognition and
-  synthesis. When paired with your own server, you can optionally use a
+  synthesis. <strong>What you say is still answered by whichever brain you have
+  selected</strong> &mdash; so if you have chosen Private Cloud &beta;, your
+  transcribed words are sent to Apple's Private Cloud Compute exactly as a typed
+  message would be. When paired with your own server, you can optionally use a
   realtime voice engine: in that mode your audio is streamed through your
   server to the voice provider <em>you</em> configured there (for example,
   OpenAI's realtime API under your own API key). This is off unless you
@@ -100,7 +121,8 @@
   <h2>Third parties, exhaustively</h2>
   <ul>
     <li><strong>Apple</strong> — on-device models, Speech, WeatherKit,
-    HealthKit, and (if it ships) Private Cloud Compute, each under
+    HealthKit, and Private Cloud Compute (optional, off unless you select it),
+    each under
     <a href="https://www.apple.com/privacy/">Apple's privacy commitments</a>.</li>
     <li><strong>Your own server and the providers you configured on it</strong>
     — under your control and their terms, not ours.</li>
