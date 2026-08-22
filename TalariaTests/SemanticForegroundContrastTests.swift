@@ -1,0 +1,424 @@
+import Foundation
+import SwiftUI
+import Testing
+import UIKit
+@testable import Talaria
+
+// MARK: - Shared measurement, so there is exactly one answer per cell
+
+/// WCAG 2.1 contrast math, shared by every palette-contrast suite in this
+/// family (#325's `WarningTokenContrastTests` and #393's sweep below).
+///
+/// **It is shared rather than copied on purpose.** #325's file already warned
+/// that a second implementation "could disagree with it on a boundary case and
+/// leave two 'measured' numbers with no way to tell which is right" — and then
+/// #393 needed a third. One implementation, two callers.
+///
+/// **Alpha is composited, which the two earlier copies did not do.** Both
+/// existing implementations read `getRed(...)` and discard the alpha channel,
+/// so a token defined at `opacity: 0.4` would be measured as though it were
+/// opaque — i.e. reported as *more* legible than it renders. No token this
+/// suite asserts on is translucent today (the ramps and accent families are
+/// all opaque hex), so this changes no existing number; it exists so that the
+/// first translucent foreground anyone adds cannot flatter itself.
+enum ThemeContrastMath {
+
+    /// sRGB components plus alpha.
+    private static func components(_ color: Color) -> (r: Double, g: Double, b: Double, a: Double) {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return (Double(r), Double(g), Double(b), Double(a))
+    }
+
+    /// `foreground` composited over `background` in sRGB. Identity when the
+    /// foreground is opaque.
+    static func composite(_ foreground: Color, over background: Color) -> (r: Double, g: Double, b: Double) {
+        let f = components(foreground)
+        guard f.a < 1.0 else { return (f.r, f.g, f.b) }
+        let b = components(background)
+        return (f.r * f.a + b.r * (1 - f.a),
+                f.g * f.a + b.g * (1 - f.a),
+                f.b * f.a + b.b * (1 - f.a))
+    }
+
+    /// Alpha fraction of a colour, for census reporting.
+    static func alpha(_ color: Color) -> Double { components(color).a }
+
+    private static func channel(_ value: Double) -> Double {
+        value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+    }
+
+    private static func relativeLuminance(_ rgb: (r: Double, g: Double, b: Double)) -> Double {
+        0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
+    }
+
+    /// WCAG 2.1 contrast ratio of `foreground` against `background`,
+    /// compositing the foreground over the background first if it is
+    /// translucent.
+    static func ratio(_ foreground: Color, on background: Color) -> Double {
+        let f = relativeLuminance(composite(foreground, over: background))
+        let b = relativeLuminance(composite(background, over: background))
+        return (max(f, b) + 0.05) / (min(f, b) + 0.05)
+    }
+}
+
+/// Every `(theme, accent)` cell the app can actually enter.
+///
+/// `lockedAccentSlot` themes pin one slot, so enumerating the full cross
+/// product would invent cells the app cannot reach — the #215 armed-cell error
+/// in a palette costume.
+enum ThemeContrastCells {
+    static var reachable: [(theme: ThemeID, accent: AccentSlot)] {
+        ThemeID.allCases.flatMap { theme -> [(ThemeID, AccentSlot)] in
+            if let locked = theme.lockedAccentSlot { return [(theme, locked)] }
+            return AccentSlot.allCases.map { (theme, $0) }
+        }
+    }
+}
+
+// MARK: - #393 bar 393-A: the sweep, widened past the token we already suspected
+
+/// **#393 bar 393-A — the catalog-wide sweep over EVERY semantic foreground.**
+///
+/// **Why this file exists rather than another assertion in #325's.** #325
+/// built a catalog-wide contrast instrument, ran it across all 88 reachable
+/// cells, and pointed it at exactly one token — the one already known to be
+/// broken. Owen then found `accent`/`accentBright` illegible on light themes
+/// by *using the app*. The same run would have found it. **A sweep that only
+/// measures what you already suspect is a confirmation, not a survey**, which
+/// is #388-C's labelling rule and #215's armed-cell rule wearing a third
+/// costume: the instrument has to be able to surprise you.
+///
+/// So the aperture here is *every* foreground token the palette resolves, and
+/// the token list is derived from `ThemePalette`'s own stored properties
+/// rather than from the tokens anyone suspects.
+///
+/// **Deliberately excluded:** `coreHighlight` / `coreShadow` (orb geometry,
+/// never text), and the chrome colours `surface` / `chipSurface` / `divider` /
+/// `chipBorder` / `hairline` / `strongBorder` / `scrim` — those are
+/// backgrounds and separators, measured as *grounds* in the census below
+/// rather than as foregrounds.
+@MainActor
+struct SemanticForegroundContrastTests {
+
+    /// One measurable foreground token, named as the design system names it.
+    private struct Token {
+        let name: String
+        let read: (ThemePalette) -> Color
+        /// Whether this token is used as READ TEXT anywhere in the app, which
+        /// decides its floor: SC 1.4.3 wants 4.5:1 for text, SC 1.4.11 wants
+        /// 3.0:1 for non-text UI.
+        let isText: Bool
+    }
+
+    private static let tokens: [Token] = [
+        // The six-step foreground ramp — all of it is text by construction.
+        Token(name: "foreground", read: \.foreground, isText: true),
+        Token(name: "foregroundBright", read: \.foregroundBright, isText: true),
+        Token(name: "secondaryForeground", read: \.secondaryForeground, isText: true),
+        Token(name: "mutedForeground", read: \.mutedForeground, isText: true),
+        Token(name: "dimForeground", read: \.dimForeground, isText: true),
+        Token(name: "coolForeground", read: \.coolForeground, isText: true),
+        // The accent family. `base` and `bright` are #393's subject: both are
+        // rendered as button titles and labels, not only as fills.
+        Token(name: "accent (base)", read: \.base, isText: true),
+        Token(name: "accentBright", read: \.bright, isText: true),
+        Token(name: "accentDeep", read: \.deep, isText: false),
+        // The warning pair, #325's subject — kept in the sweep so the two
+        // lanes read off one instrument.
+        Token(name: "forge", read: \.forge, isText: false),
+        Token(name: "forgeText", read: \.forgeText, isText: true),
+        // Danger.
+        Token(name: "danger", read: \.danger, isText: true),
+        Token(name: "dangerBright", read: \.dangerBright, isText: true),
+    ]
+
+    private static func floor(for token: Token) -> Double { token.isText ? 4.5 : 3.0 }
+
+    // MARK: The census — always passes, always prints
+
+    /// Not an assertion. The regenerable measurement behind #393's tables, so
+    /// the numbers quoted in the tracker can be reproduced at any commit
+    /// without re-deriving the method. A table in a tracker entry with no way
+    /// to reproduce it is a claim, not a measurement.
+    ///
+    /// Prints a per-token summary first (that is the shape of the problem),
+    /// then every failing cell.
+    @Test func printTheSemanticForegroundCensus() {
+        let cells = ThemeContrastCells.reachable
+        var report: [String] = []
+        report.append("=== #393 semantic-foreground census — \(cells.count) reachable cells × \(Self.tokens.count) tokens ===")
+        report.append(String(format: "%-22@ %-6@ %-9@ %-9@ %@",
+                             "token" as NSString, "floor" as NSString,
+                             "fail/all" as NSString, "light" as NSString, "worst cell"))
+
+        for token in Self.tokens {
+            let limit = Self.floor(for: token)
+            var failures = 0, lightFailures = 0
+            var worst = (ratio: Double.infinity, label: "—")
+            for (theme, accent) in cells {
+                let palette = ThemePalette(theme: theme, accent: accent)
+                let ratio = ThemeContrastMath.ratio(token.read(palette), on: palette.background)
+                if ratio < limit {
+                    failures += 1
+                    if palette.isLight { lightFailures += 1 }
+                }
+                if ratio < worst.ratio {
+                    worst = (ratio, "\(theme.rawValue) × \(accent.rawValue)")
+                }
+            }
+            report.append(String(format: "%-22@ %-6.1f %-9@ %-9@ %@ %.2f:1",
+                                 token.name as NSString, limit,
+                                 "\(failures)/\(cells.count)" as NSString,
+                                 "\(lightFailures) light" as NSString,
+                                 worst.label as NSString, worst.ratio))
+        }
+
+        // Grounds, for the record: text does not only sit on `background`.
+        report.append("--- grounds (not asserted; recorded so a surface-vs-background gap cannot hide) ---")
+        for (theme, accent) in cells where ThemePalette(theme: theme, accent: accent).isLight {
+            let palette = ThemePalette(theme: theme, accent: accent)
+            let surfaceAlpha = ThemeContrastMath.alpha(palette.surface)
+            report.append(String(format: "%-22@ %-8@ surface alpha %.2f",
+                                 theme.rawValue as NSString, accent.rawValue as NSString, surfaceAlpha))
+        }
+
+        print(report.joined(separator: "\n"))
+        #expect(!cells.isEmpty)
+    }
+
+    // MARK: 393-A — the RED demonstration, kept as a ratchet
+
+    /// **The measured failure set as of 2026-08-21, before any fix.**
+    ///
+    /// 170 `token|theme|accent` cells. This is the artifact 393-A required
+    /// recorded, in the one place that cannot go stale: a test reads it.
+    ///
+    /// **Why a baseline rather than a disabled test.** The wide assertion is
+    /// RED today and #393's route is Owen's call, so the honest options were a
+    /// disabled test or a ratchet. A disabled test rots silently — it would
+    /// still be disabled after the fix, and nothing would notice. This one
+    /// stays GREEN at today's numbers, goes RED the moment a new failing cell
+    /// appears (a new theme, a retuned hue, a widened aperture), and prints
+    /// every cell that has since been FIXED so the baseline gets tightened
+    /// rather than carried forever.
+    ///
+    /// **It asserts containment, not equality.** Improvements must never fail
+    /// the suite — that is how a ratchet stops being a ratchet and starts
+    /// being a reason not to fix things.
+    private static let knownFailingCells: Set<String> = [
+        "secondaryForeground|pulpNoir|cyan",  // 3.84:1
+        "secondaryForeground|pulpNoir|amber",  // 3.84:1
+        "secondaryForeground|pulpNoir|violet",  // 3.84:1
+        "secondaryForeground|stickerBombToybox|cyan",  // 4.20:1
+        "secondaryForeground|stickerBombToybox|amber",  // 4.20:1
+        "secondaryForeground|stickerBombToybox|violet",  // 4.20:1
+        "mutedForeground|deepField|cyan",  // 4.12:1
+        "mutedForeground|deepField|amber",  // 4.12:1
+        "mutedForeground|deepField|violet",  // 4.12:1
+        "mutedForeground|pulpNoir|cyan",  // 3.84:1
+        "mutedForeground|pulpNoir|amber",  // 3.84:1
+        "mutedForeground|pulpNoir|violet",  // 3.84:1
+        "mutedForeground|stickerBombToybox|cyan",  // 4.20:1
+        "mutedForeground|stickerBombToybox|amber",  // 4.20:1
+        "mutedForeground|stickerBombToybox|violet",  // 4.20:1
+        "dimForeground|deepField|cyan",  // 3.16:1
+        "dimForeground|deepField|amber",  // 3.16:1
+        "dimForeground|deepField|violet",  // 3.16:1
+        "dimForeground|solarForge|cyan",  // 3.97:1
+        "dimForeground|solarForge|amber",  // 3.97:1
+        "dimForeground|solarForge|violet",  // 3.97:1
+        "dimForeground|terminal|cyan",  // 4.03:1
+        "dimForeground|paperTape|cyan",  // 3.01:1
+        "dimForeground|paperTape|amber",  // 3.01:1
+        "dimForeground|paperTape|violet",  // 3.01:1
+        "dimForeground|winterFrost|cyan",  // 2.92:1
+        "dimForeground|winterFrost|amber",  // 2.92:1
+        "dimForeground|winterFrost|violet",  // 2.92:1
+        "dimForeground|springSprout|cyan",  // 2.86:1
+        "dimForeground|springSprout|amber",  // 2.86:1
+        "dimForeground|springSprout|violet",  // 2.86:1
+        "dimForeground|bubblegumMecha|cyan",  // 4.01:1
+        "dimForeground|bubblegumMecha|amber",  // 4.01:1
+        "dimForeground|bubblegumMecha|violet",  // 4.01:1
+        "dimForeground|retroSciFi|cyan",  // 3.48:1
+        "dimForeground|retroSciFi|amber",  // 3.48:1
+        "dimForeground|retroSciFi|violet",  // 3.48:1
+        "dimForeground|eventHorizon|cyan",  // 4.38:1
+        "dimForeground|eventHorizon|amber",  // 4.38:1
+        "dimForeground|eventHorizon|violet",  // 4.38:1
+        "dimForeground|glitchGarden|cyan",  // 4.24:1
+        "dimForeground|glitchGarden|amber",  // 4.24:1
+        "dimForeground|glitchGarden|violet",  // 4.24:1
+        "dimForeground|witchsBrew|cyan",  // 3.51:1
+        "dimForeground|witchsBrew|amber",  // 3.51:1
+        "dimForeground|witchsBrew|violet",  // 3.51:1
+        "dimForeground|holoSushi|cyan",  // 3.64:1
+        "dimForeground|holoSushi|amber",  // 3.64:1
+        "dimForeground|holoSushi|violet",  // 3.64:1
+        "dimForeground|lunarDiner|cyan",  // 4.11:1
+        "dimForeground|lunarDiner|amber",  // 4.11:1
+        "dimForeground|lunarDiner|violet",  // 4.11:1
+        "dimForeground|graffitiGalaxy|cyan",  // 4.11:1
+        "dimForeground|graffitiGalaxy|amber",  // 4.11:1
+        "dimForeground|graffitiGalaxy|violet",  // 4.11:1
+        "dimForeground|moltenForge|cyan",  // 4.24:1
+        "dimForeground|moltenForge|amber",  // 4.24:1
+        "dimForeground|moltenForge|violet",  // 4.24:1
+        "dimForeground|luchaLibre|cyan",  // 3.42:1
+        "dimForeground|luchaLibre|amber",  // 3.42:1
+        "dimForeground|luchaLibre|violet",  // 3.42:1
+        "dimForeground|kaijuAttack|cyan",  // 3.52:1
+        "dimForeground|kaijuAttack|amber",  // 3.52:1
+        "dimForeground|kaijuAttack|violet",  // 3.52:1
+        "dimForeground|pulpNoir|cyan",  // 2.36:1
+        "dimForeground|pulpNoir|amber",  // 2.36:1
+        "dimForeground|pulpNoir|violet",  // 2.36:1
+        "dimForeground|casinoLucky7s|cyan",  // 2.91:1
+        "dimForeground|casinoLucky7s|amber",  // 2.91:1
+        "dimForeground|casinoLucky7s|violet",  // 2.91:1
+        "dimForeground|cosmicBowling|cyan",  // 3.25:1
+        "dimForeground|cosmicBowling|amber",  // 3.25:1
+        "dimForeground|cosmicBowling|violet",  // 3.25:1
+        "dimForeground|stickerBombToybox|cyan",  // 2.46:1
+        "dimForeground|stickerBombToybox|amber",  // 2.46:1
+        "dimForeground|stickerBombToybox|violet",  // 2.46:1
+        "dimForeground|comicVillain|cyan",  // 3.46:1
+        "dimForeground|comicVillain|amber",  // 3.46:1
+        "dimForeground|comicVillain|violet",  // 3.46:1
+        "dimForeground|comicFunnies|cyan",  // 2.52:1
+        "dimForeground|comicFunnies|amber",  // 2.52:1
+        "dimForeground|comicFunnies|violet",  // 2.52:1
+        "coolForeground|pulpNoir|cyan",  // 3.84:1
+        "coolForeground|pulpNoir|amber",  // 3.84:1
+        "coolForeground|pulpNoir|violet",  // 3.84:1
+        "coolForeground|stickerBombToybox|cyan",  // 4.20:1
+        "coolForeground|stickerBombToybox|amber",  // 4.20:1
+        "coolForeground|stickerBombToybox|violet",  // 4.20:1
+        "accent (base)|paperTape|amber",  // 4.09:1
+        "accent (base)|paperTape|violet",  // 3.85:1
+        "accent (base)|winterFrost|cyan",  // 2.23:1
+        "accent (base)|winterFrost|amber",  // 1.54:1
+        "accent (base)|winterFrost|violet",  // 4.11:1
+        "accent (base)|springSprout|cyan",  // 2.60:1
+        "accent (base)|springSprout|amber",  // 1.80:1
+        "accent (base)|springSprout|violet",  // 1.40:1
+        "accent (base)|autumnHarvest|amber",  // 4.12:1
+        "accent (base)|retroSciFi|cyan",  // 3.27:1
+        "accent (base)|retroSciFi|amber",  // 3.51:1
+        "accent (base)|retroSciFi|violet",  // 1.24:1
+        "accent (base)|graffitiGalaxy|amber",  // 3.50:1
+        "accent (base)|luchaLibre|cyan",  // 4.26:1
+        "accent (base)|pulpNoir|amber",  // 2.18:1
+        "accent (base)|casinoLucky7s|violet",  // 3.76:1
+        "accent (base)|cosmicBowling|violet",  // 3.92:1
+        "accent (base)|stickerBombToybox|cyan",  // 2.12:1
+        "accent (base)|stickerBombToybox|amber",  // 2.09:1
+        "accent (base)|stickerBombToybox|violet",  // 3.91:1
+        "accent (base)|comicFunnies|cyan",  // 2.53:1
+        "accent (base)|comicFunnies|amber",  // 1.35:1
+        "accent (base)|comicFunnies|violet",  // 3.15:1
+        "accentBright|winterFrost|cyan",  // 1.80:1
+        "accentBright|winterFrost|amber",  // 1.35:1
+        "accentBright|winterFrost|violet",  // 2.79:1
+        "accentBright|springSprout|cyan",  // 2.05:1
+        "accentBright|springSprout|amber",  // 1.54:1
+        "accentBright|springSprout|violet",  // 1.28:1
+        "accentBright|retroSciFi|cyan",  // 2.59:1
+        "accentBright|retroSciFi|amber",  // 2.50:1
+        "accentBright|retroSciFi|violet",  // 1.16:1
+        "accentBright|pulpNoir|amber",  // 4.12:1
+        "accentBright|stickerBombToybox|cyan",  // 4.12:1
+        "accentBright|stickerBombToybox|amber",  // 4.06:1
+        "accentBright|comicFunnies|amber",  // 2.76:1
+        "accentDeep|deepField|cyan",  // 2.90:1
+        "accentDeep|deepField|amber",  // 2.61:1
+        "accentDeep|deepField|violet",  // 1.70:1
+        "accentDeep|solarForge|cyan",  // 2.64:1
+        "accentDeep|solarForge|amber",  // 2.93:1
+        "accentDeep|solarForge|violet",  // 1.72:1
+        "accentDeep|paperTape|cyan",  // 2.00:1
+        "accentDeep|paperTape|amber",  // 1.49:1
+        "accentDeep|paperTape|violet",  // 1.74:1
+        "accentDeep|springSprout|violet",  // 2.85:1
+        "accentDeep|autumnHarvest|amber",  // 2.40:1
+        "accentDeep|retroSciFi|violet",  // 2.57:1
+        "accentDeep|eventHorizon|cyan",  // 2.77:1
+        "accentDeep|witchsBrew|amber",  // 2.74:1
+        "accentDeep|graffitiGalaxy|cyan",  // 2.81:1
+        "accentDeep|graffitiGalaxy|amber",  // 2.13:1
+        "accentDeep|karaokeSupernova|cyan",  // 2.98:1
+        "accentDeep|luchaLibre|cyan",  // 2.44:1
+        "accentDeep|pulpNoir|cyan",  // 1.88:1
+        "accentDeep|pulpNoir|amber",  // 1.35:1
+        "accentDeep|pulpNoir|violet",  // 2.02:1
+        "accentDeep|casinoLucky7s|cyan",  // 2.39:1
+        "accentDeep|casinoLucky7s|violet",  // 2.03:1
+        "accentDeep|cosmicBowling|violet",  // 2.30:1
+        "accentDeep|stickerBombToybox|cyan",  // 1.45:1
+        "accentDeep|stickerBombToybox|amber",  // 1.43:1
+        "accentDeep|stickerBombToybox|violet",  // 1.94:1
+        "accentDeep|comicVillain|amber",  // 2.83:1
+        "accentDeep|comicFunnies|cyan",  // 1.66:1
+        "accentDeep|comicFunnies|amber",  // 1.15:1
+        "accentDeep|comicFunnies|violet",  // 1.94:1
+        "danger|winterFrost|cyan",  // 4.48:1
+        "danger|winterFrost|amber",  // 4.48:1
+        "danger|winterFrost|violet",  // 4.48:1
+        "danger|springSprout|cyan",  // 4.00:1
+        "danger|springSprout|amber",  // 4.00:1
+        "danger|springSprout|violet",  // 4.00:1
+        "danger|autumnHarvest|cyan",  // 2.60:1
+        "danger|autumnHarvest|amber",  // 2.60:1
+        "danger|autumnHarvest|violet",  // 2.60:1
+        "danger|casinoLucky7s|cyan",  // 3.93:1
+        "danger|casinoLucky7s|amber",  // 3.93:1
+        "danger|casinoLucky7s|violet",  // 3.93:1
+        "dangerBright|autumnHarvest|cyan",  // 3.95:1
+        "dangerBright|autumnHarvest|amber",  // 3.95:1
+        "dangerBright|autumnHarvest|violet",  // 3.95:1
+    ]
+
+    /// **393-A. The survey, fenced at its measured size.**
+    ///
+    /// Every semantic foreground against its own cell's background, at the
+    /// floor its usage implies. Demonstrated RED across all 13 tokens before
+    /// any palette or call-site change — nine tokens, 170 cells, recorded in
+    /// OPEN_ITEMS #393 and pinned in `knownFailingCells` above.
+    ///
+    /// It reports every failing cell rather than the first, because "N cells
+    /// under the floor" is the shape of the problem and a test that stops at
+    /// one would make a catalogue-wide defect look like a one-line fix.
+    @Test func noSemanticForegroundFallsBelowItsFloorBeyondTheRecordedBaseline() {
+        var current: Set<String> = []
+        var detail: [String: String] = [:]
+        for token in Self.tokens {
+            let limit = Self.floor(for: token)
+            for (theme, accent) in ThemeContrastCells.reachable {
+                let palette = ThemePalette(theme: theme, accent: accent)
+                let ratio = ThemeContrastMath.ratio(token.read(palette), on: palette.background)
+                guard ratio < limit else { continue }
+                let key = "\(token.name)|\(theme.rawValue)|\(accent.rawValue)"
+                current.insert(key)
+                detail[key] = String(format: "%.2f:1 (floor %.1f)", ratio, limit)
+            }
+        }
+
+        // Improvements are reported, never failed — see the doc comment.
+        let fixed = Self.knownFailingCells.subtracting(current)
+        if !fixed.isEmpty {
+            print("""
+                ✅ #393: \(fixed.count) cell(s) in the baseline now PASS. Tighten \
+                `knownFailingCells` by removing them:
+                \(fixed.sorted().map { "  " + $0 }.joined(separator: "\n"))
+                """)
+        }
+
+        let regressions = current.subtracting(Self.knownFailingCells)
+        #expect(regressions.isEmpty, """
+            \(regressions.count) semantic-foreground cell(s) fall below their contrast \
+            floor and are NOT in #393's recorded baseline — this is new:
+            \(regressions.sorted().map { "  \($0) — \(detail[$0] ?? "?")" }.joined(separator: "\n"))
+            """)
+    }
+}
