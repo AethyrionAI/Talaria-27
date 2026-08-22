@@ -29,14 +29,20 @@ struct VoiceBootstrapTransportTests {
             self.createPayload = create
         }
 
-        func talkReadiness() async -> Data? {
+        /// nil payload models an unreachable host; `unsupported` is set
+        /// explicitly by the test that wants a host with an older plugin.
+        var unsupported = false
+
+        func talkReadiness() async -> VoiceVerbOutcome {
             calls.append("talk_readiness")
-            return readinessPayload
+            if unsupported { return .unsupported }
+            return readinessPayload.map { .ok($0) } ?? .unreachable
         }
 
-        func talkSessionCreate() async -> Data? {
+        func talkSessionCreate() async -> VoiceVerbOutcome {
             calls.append("talk_session_create")
-            return createPayload
+            if unsupported { return .unsupported }
+            return createPayload.map { .ok($0) } ?? .unreachable
         }
 
         @discardableResult
@@ -151,5 +157,26 @@ struct VoiceBootstrapTransportTests {
 
         #expect(transport.calls.isEmpty, "a connected session was disturbed by a readiness probe")
         #expect(service.connectionState == .connected)
+    }
+
+    /// **#383 hazard 5, and the state Owen is in tonight.** The plugin half is
+    /// deployed on the Mac only, so OJAMD answers `unknown_event_type` — over
+    /// HTTP **200**, with the error in the BODY. Treated as success those bytes
+    /// fail to decode and the user is shown a JSON error for what is really
+    /// "this host has not been updated".
+    @Test func aHostWhosePluginPredatesVoiceSaysSoInsteadOfLookingUnreachable() async {
+        let transport = StubTransport()
+        transport.unsupported = true
+        let service = LiveVoiceSessionService()
+        service.voiceTransportProvider = { transport }
+
+        await service.refreshReadiness()
+
+        #expect(service.canStartSession == false)
+        #expect(service.connectionState == .failed)
+        #expect(service.statusMessage?.contains("doesn't support voice yet") == true,
+                "got: \(service.statusMessage ?? "nil")")
+        // The distinction is the point: this must NOT read as a network fault.
+        #expect(service.statusMessage?.contains("Could not reach") != true)
     }
 }

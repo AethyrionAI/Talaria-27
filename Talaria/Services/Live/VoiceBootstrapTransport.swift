@@ -15,14 +15,30 @@ import Foundation
 /// the type that owns it (`LiveVoiceSessionService` holds the decode targets
 /// a shipped client froze) rather than splitting it across a transport that
 /// would then have to know about voice.
+/// What a voice verb came back with.
+///
+/// **`unsupported` exists because the envelope answers HTTP 200 with an error
+/// BODY** — `{"error": …, "code": "unknown_event_type"}` — rather than a 4xx.
+/// Without this case that response is "success" whose bytes then fail to
+/// decode, and the user is shown a JSON error for what is really "this host
+/// has not been updated yet". #383 hazard 5 named exactly this: two hosts, one
+/// app, and the older host must degrade honestly instead of confusingly.
+enum VoiceVerbOutcome {
+    case ok(Data)
+    /// The host answered, and does not know this verb — its talaria plugin
+    /// predates #383.
+    case unsupported
+    /// No usable answer: unreachable, unpaired, superseded, or a real error.
+    case unreachable
+}
+
 @MainActor
 protocol VoiceBootstrapTransport: AnyObject {
-    /// May a realtime session start? Bare JSON readiness fields, or nil if the
-    /// host could not be reached at all.
-    func talkReadiness() async -> Data?
+    /// May a realtime session start?
+    func talkReadiness() async -> VoiceVerbOutcome
 
-    /// Mint one. Bare JSON `{voiceSession, bootstrap}`, or nil on failure.
-    func talkSessionCreate() async -> Data?
+    /// Mint one — `{voiceSession, bootstrap}` as bare JSON.
+    func talkSessionCreate() async -> VoiceVerbOutcome
 
     /// Release one.
     ///
@@ -45,8 +61,8 @@ protocol VoiceBootstrapTransport: AnyObject {
 /// differently.
 @MainActor
 final class UnavailableVoiceTransport: VoiceBootstrapTransport {
-    func talkReadiness() async -> Data? { nil }
-    func talkSessionCreate() async -> Data? { nil }
+    func talkReadiness() async -> VoiceVerbOutcome { .unreachable }
+    func talkSessionCreate() async -> VoiceVerbOutcome { .unreachable }
     @discardableResult
     func talkSessionEnd(voiceSessionID: String) async -> Bool { false }
 }
@@ -61,9 +77,19 @@ final class UnavailableVoiceTransport: VoiceBootstrapTransport {
 /// user can act on: the host could not be reached.
 enum VoiceTransportError: LocalizedError {
     case hostUnreachable
+    /// The host is fine; its plugin is older than #383.
+    case hostDoesNotSupportVoice
 
     var errorDescription: String? {
-        "Could not reach the Hermes host to start voice."
+        switch self {
+        case .hostUnreachable:
+            return "Could not reach the Hermes host to start voice."
+        case .hostDoesNotSupportVoice:
+            // Names the fix, because the user CAN act on this one: the other
+            // host, or an updated plugin. A generic "unreachable" would send
+            // them looking for a network fault they do not have.
+            return "This Hermes host doesn't support voice yet — update its talaria plugin, or switch to a host that has it."
+        }
     }
 }
 
