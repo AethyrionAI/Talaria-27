@@ -665,6 +665,10 @@ final class AppContainer {
             settingsStore.settings.readAloudRate
         }
         let voiceService: any VoiceSessionServiceProtocol
+        // #383: held so the plugin transport can be wired after `container`
+        // exists — the link is minted further down and voice is built before
+        // it. Same post-construction shape as the router's predicates.
+        var liveRealtimeVoice: LiveVoiceSessionService?
         // #302/#323: minted before the stores, because voice and chat both
         // read it at construction. `AppLockController` (AppEntry) is its only
         // writer; everything below is a reader.
@@ -681,11 +685,15 @@ final class AppContainer {
                 speechOutput: nativeSpeechOutput
             )
             voiceService = VoiceEngineRouter(
-                realtime: LiveVoiceSessionService(
-                    apiClient: apiClient,
-                    accessTokenProvider: { await sessionStore.currentAccessToken() },
-                    accessTokenRefresher: relayAccessTokenRefresher
-                ),
+                // #383: voice bootstraps over the talaria plugin now. The
+                // relay and the connector behind it are retired, and with
+                // them the second credential family voice used to carry —
+                // this reads the same device token the link already holds.
+                realtime: {
+                    let realtime = LiveVoiceSessionService()
+                    liveRealtimeVoice = realtime
+                    return realtime
+                }(),
                 native: nativeVoice,
                 isRelayPaired: { activePairingStore?.isPaired == true },
                 // #221: voice honours the SAME brain selection chat does. Read
@@ -976,6 +984,10 @@ final class AppContainer {
             }
         )
         container.talariaPlatformLink = talariaPlatformLink
+        // #383: voice's transport. Weak on the container so the service does
+        // not keep it alive, and resolved per call so a re-bound link (profile
+        // switch) is picked up without re-wiring.
+        liveRealtimeVoice?.voiceTransportProvider = { [weak container] in container?.talariaPlatformLink }
 
         // Foreground-only by design (spec §2.1): the plugin's durable outbox
         // is what makes closed-app time safe, so there is nothing to hold a

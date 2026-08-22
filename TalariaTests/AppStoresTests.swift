@@ -3106,83 +3106,24 @@ struct AppStoresTests {
         #expect(talkStore.transcriptItems.first?.text == "Event-driven reply")
     }
 
-    @Test @MainActor
-    func liveVoiceSessionServiceRefreshesExpiredAccessTokenDuringReadiness() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-
-        let accessToken = MutableBox("expired-token")
-        let refreshCallCount = MutableBox(0)
-        let requestCount = MutableBox(0)
-
-        StubURLProtocol.requestHandler = { request in
-            requestCount.value += 1
-            let url = try #require(request.url)
-            #expect(url.absoluteString == "https://relay.example.com/v1/talk/readiness")
-
-            let authHeader = request.value(forHTTPHeaderField: "Authorization")
-            if authHeader == "Bearer expired-token" {
-                let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
-                let data = #"{"error":{"code":"unauthorized","message":"expired or invalid access token","retryable":false}}"#.data(using: .utf8)!
-                return (response, data)
-            }
-
-            #expect(authHeader == "Bearer refreshed-token")
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = #"""
-            {"data":{
-              "ready":true,
-              "hostOnline":true,
-              "configured":true,
-              "blockedReason":null,
-              "preferredModels":["gpt-realtime-1.5"],
-              "selectedModel":"gpt-realtime-1.5",
-              "voice":"verse",
-              "voiceContextUpdatedAt":"2026-04-01T20:40:47.636600Z"
-            }}
-            """#.data(using: .utf8)!
-            return (response, data)
-        }
-
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
-            session: session
-        )
-        let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { accessToken.value },
-            accessTokenRefresher: {
-                refreshCallCount.value += 1
-                accessToken.value = "refreshed-token"
-                return accessToken.value
-            },
-            urlSession: session
-        )
-
-        await voiceService.refreshReadiness()
-
-        #expect(refreshCallCount.value == 1)
-        #expect(requestCount.value == 2)
-        #expect(voiceService.canStartSession)
-        #expect(voiceService.connectionState == .ready)
-        #expect(voiceService.statusMessage == "Hermes talk is ready.")
-        #expect(voiceService.blockedReason == nil)
-    }
+    // #383: `liveVoiceSessionServiceRefreshesExpiredAccessTokenDuringReadiness`
+    // was DELETED here, not repointed, and the distinction matters.
+    //
+    // It pinned the relay's 401 -> refresh -> retry ladder (#15/#94) on the
+    // voice path: one refresh call, two requests, then a ready state. Voice no
+    // longer has relay access tokens to refresh — it bootstraps over the
+    // talaria plugin with the device token the platform link already holds,
+    // and that link re-pairs itself once on 401 and then gives up.
+    //
+    // Rewriting it to pass against the new transport would have produced a
+    // test that exercises nothing: the ladder it was written to catch does not
+    // exist to break. Voice stopped being a second auth plane, and this test
+    // was the second auth plane's regression guard — it retires with it.
 
     @Test @MainActor
     func liveVoiceSessionServiceInterruptsAssistantPlaybackOnSpeechStart() async throws {
         let sentEvents = MutableBox([[String: Any]]())
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
             realtimeEventTransportOverride: { data in
                 guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     return false
@@ -3237,12 +3178,7 @@ struct AppStoresTests {
     @Test @MainActor
     func liveVoiceSessionServiceDoesNotInterruptWhenAssistantIsNotSpeaking() async throws {
         let sentEvents = MutableBox([[String: Any]]())
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
             realtimeEventTransportOverride: { data in
                 guard let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     return false
@@ -3278,12 +3214,7 @@ struct AppStoresTests {
 
     @Test @MainActor
     func liveVoiceSessionServiceRecoversFromInterruptionsWithoutEndingSession() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
         )
 
         voiceService.connectionState = .connected
@@ -3303,12 +3234,7 @@ struct AppStoresTests {
 
     @Test @MainActor
     func liveVoiceSessionServiceRecoversFromRouteChangesDuringActiveSession() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
         )
 
         voiceService.connectionState = .connected
@@ -3323,12 +3249,7 @@ struct AppStoresTests {
 
     @Test @MainActor
     func liveVoiceSessionServiceKeepsUserTranscriptOrderedWhenTranscriptionFinishesLate() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
         )
 
         voiceService.connectionState = .connected
@@ -3369,12 +3290,7 @@ struct AppStoresTests {
 
     @Test @MainActor
     func liveVoiceSessionServiceIgnoresLateRealtimeErrorsAfterIntentionalEnd() async throws {
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
         )
 
         voiceService.connectionState = .connected
@@ -3397,12 +3313,7 @@ struct AppStoresTests {
         // not banner the backend string or flag the connection failed — that
         // false `.failed` was also what wedged the header on CONNECTING
         // mid-conversation (#119b).
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" }
-        )
         let voiceService = LiveVoiceSessionService(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" }
         )
 
         voiceService.connectionState = .connected

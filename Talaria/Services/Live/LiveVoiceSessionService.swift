@@ -16,7 +16,6 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         subsystem: "org.aethyrion.talaria", category: "LiveVoiceSessionService")
     private struct EmptyBody: Encodable {}
 
-    private struct EmptyRelayResponse: Decodable {}
 
     private struct TalkReadinessResponse: Decodable {
         let ready: Bool
@@ -56,12 +55,6 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         let id: String?
     }
 
-    private struct VoiceTurnCreateRequest: Encodable {
-        let clientTurnId: UUID
-        let role: String
-        let source: String
-        let text: String
-    }
 
     private struct VoiceTurnPersistResponse: Decodable {
         let turn: PersistedTurn
@@ -104,9 +97,28 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         )
     }
 
-    private let apiClient: RelayAPIClient
-    private let accessTokenProvider: @MainActor () async -> String?
-    private let accessTokenRefresher: @MainActor () async -> String?
+    /// #383: the voice bootstrap's transport, resolved PER CALL.
+    ///
+    /// Was `RelayAPIClient`; the relay and the connector behind it are retired
+    /// (#346/#375), so voice rides the talaria plugin over the platform link.
+    ///
+    /// A provider rather than a stored instance for two reasons. The link is
+    /// minted after this service (it needs the profile store), so there is
+    /// nothing to hold at construction — and #310's rule applies: resolving
+    /// per call means a profile switch or a Server-settings edit changes the
+    /// answer with no rewiring. Assigned post-construction, exactly like the
+    /// router's capability predicates beside it.
+    var voiceTransportProvider: @MainActor () -> (any VoiceBootstrapTransport)? = { nil }
+
+    private var voiceTransport: any VoiceBootstrapTransport {
+        voiceTransportProvider() ?? UnavailableVoiceTransport()
+    }
+
+    /// Shared with `RelayAPIClient` ON PURPOSE — same ISO date shapes, and a
+    /// second date parser is how two decoders drift until they disagree about
+    /// a boundary case (#256). This is a coder, not a transport; nothing here
+    /// speaks to the relay any more.
+    private static let decoder = RelayCoders.makeDecoder()
     private let urlSession: URLSession
     private let realtimeEventTransportOverride: ((Data) -> Bool)?
     private let eventHub = TalkSessionEventHub()
@@ -154,15 +166,9 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     #endif
 
     init(
-        apiClient: RelayAPIClient,
-        accessTokenProvider: @escaping @MainActor () async -> String?,
-        accessTokenRefresher: @escaping @MainActor () async -> String? = { nil },
         urlSession: URLSession = .shared,
         realtimeEventTransportOverride: ((Data) -> Bool)? = nil
     ) {
-        self.apiClient = apiClient
-        self.accessTokenProvider = accessTokenProvider
-        self.accessTokenRefresher = accessTokenRefresher
         self.urlSession = urlSession
         self.realtimeEventTransportOverride = realtimeEventTransportOverride
         super.init()
@@ -187,10 +193,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
         connectionState = .checking
         do {
-            let response: TalkReadinessResponse = try await performAuthorizedRequest { [self] in
-                let token = await self.accessTokenProvider()
-                return try await self.apiClient.get(path: "talk/readiness", accessToken: token)
+            guard let data = await voiceTransport.talkReadiness() else {
+                throw VoiceTransportError.hostUnreachable
             }
+            let response = try Self.decoder.decode(TalkReadinessResponse.self, from: data)
             blockedReason = response.blockedReason
             canStartSession = response.ready
             readinessInfo = TalkReadinessInfo(
@@ -272,14 +278,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             let prepared = try await prepareWebRTC()
             #endif
 
-            let response: TalkSessionResponse = try await performAuthorizedRequest { [self] in
-                let token = await self.accessTokenProvider()
-                return try await self.apiClient.post(
-                    path: "talk/session",
-                    body: EmptyBody(),
-                    accessToken: token
-                )
+            guard let data = await voiceTransport.talkSessionCreate() else {
+                throw VoiceTransportError.hostUnreachable
             }
+            let response = try Self.decoder.decode(TalkSessionResponse.self, from: data)
             voiceSessionID = response.voiceSession.id
             // #139: the user dismissed while this request was in flight. Do not
             // open a microphone for a session nobody is in — close the prepared
@@ -291,7 +293,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 prepared.channel?.close()
                 prepared.connection.close()
                 #endif
-                try? await endRemoteSession()
+                await endRemoteSession()
                 voiceSessionID = nil
                 stopTimer()
                 return
@@ -303,7 +305,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             // Phase 2: Exchange SDP with the ephemeral key from bootstrap
             try await connectWithPrepared(prepared, bootstrap: response.bootstrap)
             #else
-            try await endRemoteSession()
+            await endRemoteSession()
             blockedReason = "This build does not include the WebRTC client transport yet."
             canStartSession = false
             connectionState = .blocked
@@ -311,7 +313,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             statusMessage = blockedReason
             #endif
         } catch {
-            try? await endRemoteSession()
+            await endRemoteSession()
             voiceSessionID = nil
             startedAt = nil
             blockedReason = error.localizedDescription
@@ -351,7 +353,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         audioTrack = nil
         #endif
         try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
-        try? await endRemoteSession()
+        await endRemoteSession()
         voiceSessionID = nil
         voiceState = .idle
         connectionState = .idle
@@ -442,30 +444,15 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
     }
 
-    private func performAuthorizedRequest<T>(
-        _ operation: @escaping @MainActor () async throws -> T
-    ) async throws -> T {
-        do {
-            return try await operation()
-        } catch RelayAPIClient.ClientError.unauthorized {
-            // accessTokenRefresher() persists the new token to SessionStore.
-            // The retry calls accessTokenProvider() which reads from the same store,
-            // so it will pick up the refreshed token automatically.
-            guard let refreshedToken = await accessTokenRefresher(), !refreshedToken.isEmpty else {
-                throw RelayAPIClient.ClientError.unauthorized("Hermes session expired and couldn't be renewed automatically — re-pair this device with your Hermes relay.")
-            }
-            return try await operation()
-        }
-    }
-
     private func friendlyStatusMessage(for error: Error) -> String {
-        if case RelayAPIClient.ClientError.unauthorized = error {
-            // Reaching here means the recovery ladder (token refresh, then
-            // silent re-registration) already failed — a manual re-pair is
-            // the only remaining fix (#15).
-            return "Your Hermes session expired and couldn't be renewed. Re-pair this device with your Hermes relay."
+        if error is VoiceTransportError {
+            return VoiceTransportError.hostUnreachable.localizedDescription
         }
-        return "Could not reach the relay."
+        // #383: the relay's 401 ladder is gone with the relay. The platform
+        // link re-pairs itself on 401 (one attempt, then it gives up), so an
+        // expired credential never reaches here as an auth error — it arrives
+        // as an unreachable host, which is what the user can actually act on.
+        return "Could not reach the Hermes host."
     }
 
     private func stopTimer() {
@@ -700,44 +687,35 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
     }
 
-    private func endRemoteSession() async throws {
+    /// #383-C's compensation. No longer throws: every caller already treated
+    /// a failed release as unrecoverable (`try?`), and the plugin acks a
+    /// session it has never heard of — so there is nothing left for a thrown
+    /// error to mean.
+    private func endRemoteSession() async {
         guard let voiceSessionID else { return }
-        let _: EmptyRelayResponse = try await performAuthorizedRequest { [self] in
-            let token = await self.accessTokenProvider()
-            return try await self.apiClient.post(
-                path: "talk/session/\(voiceSessionID.uuidString.lowercased())/end",
-                body: EmptyBody(),
-                accessToken: token
-            )
-        }
+        await voiceTransport.talkSessionEnd(voiceSessionID: voiceSessionID.uuidString.lowercased())
     }
 
-    private func persistFinalTurn(
-        clientTurnID: UUID,
-        speaker: TranscriptSpeaker,
-        text: String
-    ) {
-        guard let voiceSessionID else { return }
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            _ = try? await self.performAuthorizedRequest { [self] in
-                let token = await self.accessTokenProvider()
-                return try await self.apiClient.post(
-                    path: "talk/session/\(voiceSessionID.uuidString.lowercased())/turns",
-                    body: VoiceTurnCreateRequest(
-                        clientTurnId: clientTurnID,
-                        role: speaker.rawValue,
-                        source: "realtime",
-                        text: trimmed
-                    ),
-                    accessToken: token
-                ) as VoiceTurnPersistResponse
-            }
-        }
-    }
+    // #383: `persistFinalTurn` is GONE, and this note is the record of why.
+    //
+    // It POSTed every realtime turn to `talk/session/{id}/turns`. Investigated
+    // 2026-08-22 before the plugin half was built:
+    //
+    //   * nothing ever read those turns back — the POST had no GET anywhere in
+    //     the app, and its response type was decoded only to be discarded;
+    //   * #1's `postVoiceTranscriptsToHermes` already posts the transcript to
+    //     the Sessions API as a normal text turn, which is what actually gives
+    //     the agent voice context on the next exchange;
+    //   * and it was gated on NOTHING — not on
+    //     `UserSettings.postVoiceTranscriptsToHermes`, which #1's path IS
+    //     gated on. A user who turned voice-transcript posting OFF still had
+    //     every realtime turn shipped host-side by this method.
+    //
+    // Re-homing it onto the plugin would have rebuilt that toggle bypass
+    // deliberately. Reported to Owen with a recommendation to drop; the plugin
+    // half ships without `talk_turn_append` and answers `unknown_event_type`
+    // for it. **If it is ever wanted back, it comes back GATED on the toggle**
+    // — which is a behaviour change to be decided, not a port to be resumed.
 
     /// Rider: one off-main hop — category, activation, and the speaker
     /// override keep their relative order inside the closure, and callers
@@ -1071,9 +1049,6 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         if latencyMetrics.firstAssistantFinalizedAt == nil {
             latencyMetrics.firstAssistantFinalizedAt = .now
         }
-        if let turnID {
-            persistFinalTurn(clientTurnID: turnID, speaker: .hermes, text: text)
-        }
         voiceState = .listening
         statusMessage = "Listening"
     }
@@ -1149,7 +1124,6 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         if latencyMetrics.firstUserFinalizedAt == nil {
             latencyMetrics.firstUserFinalizedAt = .now
         }
-        persistFinalTurn(clientTurnID: turnID, speaker: .user, text: text)
         voiceState = .thinking
         statusMessage = "Hermes is thinking."
     }
