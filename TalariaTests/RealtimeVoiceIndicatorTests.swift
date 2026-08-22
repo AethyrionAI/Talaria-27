@@ -129,7 +129,7 @@ struct RealtimeVoiceIndicatorTests {
         let router = VoiceEngineRouter(
             realtime: realtime,
             native: native,
-            isRelayPaired: { relayPaired },
+            isVoiceHostPaired: { relayPaired },
             activeBrain: { brain.value }
         )
         return (realtime, native, router, TalkStore(voiceService: router))
@@ -180,7 +180,7 @@ struct RealtimeVoiceIndicatorTests {
     /// reproduced.**
     ///
     /// `VoiceEngineRouter.init` picks the engine from
-    /// `realtimeIsPermitted(activeBrain()) && isRelayPaired()`. On a cold
+    /// `realtimeIsPermitted(activeBrain()) && isVoiceHostPaired()`. On a cold
     /// Control Center launch it reads the brain ~35 ms BEFORE the sticky
     /// default restores `hermes`, and `startSession()` has a downgrade branch
     /// but no upgrade — so the session runs NATIVE while the brain says

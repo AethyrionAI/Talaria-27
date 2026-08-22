@@ -405,6 +405,10 @@ final class AppContainer {
         )
         let pairingService: any PairingServiceProtocol
         var activePairingStore: PairingStore?
+        // #383: the voice host. Captured by reference like `activePairingStore`
+        // above and assigned where the link is minted, further down — voice is
+        // constructed before it exists.
+        var activeTalariaLink: TalariaPlatformLink?
 
         if usesMockPairingService {
             pairingService = MockPairingService()
@@ -695,7 +699,11 @@ final class AppContainer {
                     return realtime
                 }(),
                 native: nativeVoice,
-                isRelayPaired: { activePairingStore?.isPaired == true },
+                // #383: RELAY pairing used to gate this, which is why realtime
+                // voice fell back to the local pipeline the moment the relay
+                // was retired — a gate that could never open again. The voice
+                // host is the talaria plugin link now, and it pairs itself.
+                isVoiceHostPaired: { activeTalariaLink != nil },
                 // #221: voice honours the SAME brain selection chat does. Read
                 // live from the router that owns it — never cached, because the
                 // user can change brain mid-session and the old code's whole
@@ -983,6 +991,7 @@ final class AppContainer {
                 Task { await container.inboxStore.loadInbox(force: true) }
             }
         )
+        activeTalariaLink = talariaPlatformLink
         container.talariaPlatformLink = talariaPlatformLink
         // #383: voice's transport. Weak on the container so the service does
         // not keep it alive, and resolved per call so a re-bound link (profile

@@ -27,7 +27,7 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     private let native: any VoiceSessionServiceProtocol
     /// Relay pairing is the Realtime engine's existence signal — without it
     /// there is no `talk/session` bootstrap to attempt.
-    private let isRelayPaired: @MainActor () -> Bool
+    private let isVoiceHostPaired: @MainActor () -> Bool
     /// #221: the user's brain selection, read live. Voice must honour the same
     /// choice chat does — see `realtimeIsPermitted(for:)`.
     private let activeBrain: @MainActor () -> ChatBackendRouter.Brain
@@ -51,15 +51,15 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     init(
         realtime: any VoiceSessionServiceProtocol,
         native: any VoiceSessionServiceProtocol,
-        isRelayPaired: @escaping @MainActor () -> Bool,
+        isVoiceHostPaired: @escaping @MainActor () -> Bool,
         activeBrain: @escaping @MainActor () -> ChatBackendRouter.Brain
     ) {
         self.realtime = realtime
         self.native = native
-        self.isRelayPaired = isRelayPaired
+        self.isVoiceHostPaired = isVoiceHostPaired
         self.activeBrain = activeBrain
         // #221: the brain gates realtime BEFORE pairing is consulted.
-        let initial: VoiceEngine = (Self.realtimeIsPermitted(for: activeBrain()) && isRelayPaired())
+        let initial: VoiceEngine = (Self.realtimeIsPermitted(for: activeBrain()) && isVoiceHostPaired())
             ? .realtime : .native
         self.activeEngine = initial
         // #198A: log the INITIAL selection, not just changes.
@@ -74,7 +74,7 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         //
         // A device verdict that cannot name its own configuration is not a
         // verdict. Say it once, up front, always.
-        Self.logger.notice("active voice engine → \(initial.rawValue, privacy: .public) (initial; relayPaired=\(isRelayPaired(), privacy: .public))")
+        Self.logger.notice("active voice engine → \(initial.rawValue, privacy: .public) (initial; voiceHostPaired=\(isVoiceHostPaired(), privacy: .public))")
         forward(from: realtime, engine: .realtime)
         forward(from: native, engine: .native)
     }
@@ -230,7 +230,14 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             await native.refreshReadiness()
             return
         }
-        guard isRelayPaired() else {
+        // #383: this used to read RELAY pairing, and that is why realtime
+        // voice silently fell back to the local pipeline after the relay was
+        // retired — the gate could never open again. It now asks whether a
+        // voice HOST is reachable at all; the readiness probe just below is
+        // the real verdict, and it can now distinguish ready / not-configured
+        // / host-too-old / unreachable, which the relay's boolean never could.
+        guard isVoiceHostPaired() else {
+            Self.logger.notice("no voice host — routing native")
             setActive(.native)
             await native.refreshReadiness()
             return
@@ -258,7 +265,7 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
         // engine that was. Two real phone calls were spent before anyone noticed
         // the record could not answer "local or realtime?".
         // `self.` is required: os_log interpolations are autoclosures.
-        Self.logger.notice("voice session starting on engine \(self.activeEngine.rawValue, privacy: .public) (relayPaired=\(self.isRelayPaired(), privacy: .public))")
+        Self.logger.notice("voice session starting on engine \(self.activeEngine.rawValue, privacy: .public) (voiceHostPaired=\(self.isVoiceHostPaired(), privacy: .public))")
         // #139: claim this start's generation before the first await.
         startGeneration &+= 1
         let generation = startGeneration
@@ -272,7 +279,7 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             await native.startSession()
             return
         }
-        if activeEngine == .realtime, isRelayPaired() {
+        if activeEngine == .realtime, isVoiceHostPaired() {
             // #247 B1: belt the start. A REFUSED relay fails fast and the
             // fallback below always ran; a BLACK-HOLED one (tailnet drop)
             // rode the shared 300s-timeout client and pinned ESTABLISHING
