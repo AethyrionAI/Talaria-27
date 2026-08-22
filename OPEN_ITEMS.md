@@ -778,7 +778,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). Mechanism identified from source. NOT STARTED; bars below.**
+## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.**
 
 **The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
 Base URL `http://ojamd:8642`, a host that was up the entire time.
@@ -854,6 +854,101 @@ invalidation is the obvious shape, and the app currently has **no network-path
 observer at all** (verified — zero `NWPathMonitor` references). Whether the fix
 is path-driven or simply refuses connection reuse after an error is a design
 question for the lane.
+
+
+> **⚠️ 2026-08-21 — 394-A ANSWERED, AND IT HALF-REFUTES THIS ENTRY'S OWN
+> MECHANISM. The pooled dead socket is REAL and now proven. It is NOT
+> sufficient: it self-heals on the very next probe, so it cannot be what kept
+> the chat offline.**
+>
+> ### The reproduction (`PooledConnectionWedgeTests`, ~6 s, no device)
+>
+> A real HTTP/1.1 listener on loopback whose live connections can be
+> **poisoned** — after poisoning, an already-established connection accepts
+> bytes, answers nothing and is never closed, while brand-new connections are
+> served normally. That models a vanishing interface; **cancelling the
+> connection would send RST, which `URLSession` handles correctly**, so it
+> would have modelled the wrong outage.
+>
+> **A `URLProtocol` stub could not have done this.** This target has a dozen of
+> them and every one intercepts *above* the connection pool — no socket, no
+> reuse, so a stub can fake the failure's shape and never touch the mechanism.
+>
+> **Result — the disagreement reproduces exactly:**
+>
+> | leg | outcome | connections accepted |
+> |---|---|---|
+> | baseline through the chat-plane session | **200** | 1 |
+> | *(poison the live socket)* | — | 1 |
+> | same session, same host | **fails (timeout)** | **1** |
+> | **fresh session, same host** | **200** | 2 |
+>
+> **The load-bearing number is the connection count, not the failure.** Any
+> wedged request can be made to fail; what this entry claimed is that the
+> failing request **reused the pooled connection**. `connections == 1` on the
+> failing leg proves it did. That is the mechanism, confirmed.
+>
+> ### 🔴 And then the durability leg refuted the rest of it
+>
+> Three consecutive probes on the SAME wedged session after the transition:
+>
+> ```
+> probe 1: still wedged (URLError -1001 timeout), connections=1
+> probe 2: RECOVERED (HTTP 200),                  connections=2
+> probe 3: RECOVERED (HTTP 200),                  connections=2
+> ```
+>
+> **`URLSession` evicts the dead connection after its first timeout and opens a
+> fresh one.** The wedge lasts exactly one request. The chat re-probes on a
+> timer, so the pooled socket **cannot** explain a chat that stayed OFFLINE
+> across repeated probes. **A fix that only invalidates the session on a
+> transition would therefore be fixing something that already fixes itself.**
+>
+> This is precisely what 394-A was written to catch, and it is the second
+> hypothesis this item has burned — the first being ATS/MagicDNS, discarded
+> after a misread of which host an IP belonged to. **Bar earned its keep.**
+>
+> ### 🎯 The leading explanation now, stated as arithmetic rather than as a
+> mechanism — NOT yet measured end to end
+>
+> Recovery may be real but slow enough to read as "never". From the shipping
+> constants, both verified in source today:
+>
+> - `SessionsHermesClient.interactiveRequestTimeout` = **20 s** — a wedged
+>   probe does not fail fast, it fails after twenty seconds;
+> - `ChatHealthPollPolicy.steadyInterval` = **30 s**, entered after
+>   `steadyAfterUnchangedProbes` = 3 identical probes — and a phone in airplane
+>   mode fails fast and repeatedly, so the loop is **already relaxed to 30 s by
+>   the time connectivity returns**;
+> - the wedged probe leaves the status UNCHANGED (offline → offline), so the
+>   cadence does **not** snap back to 10 s.
+>
+> **30 s wait + 20 s wedged probe + 30 s wait ⇒ up to ~80 s before the first
+> probe that can succeed.** Every reported fact fits: Owen's *"after about 30 s
+> it still thought it was offline"* lands inside that window; Test Connection
+> passed because it is `URLSession.shared` with a **5 s** budget and its own
+> pool; switching hosts was instant because that is a status CHANGE, which
+> resets the cadence and re-probes immediately.
+>
+> **⚠️ Stated as a hypothesis, not a finding.** It is consistent with
+> everything observed and with the numbers in the code, and it is exactly the
+> kind of story that has already been wrong twice on this item. **It needs one
+> cheap device observation to settle: airplane mode ON → OFF, then leave the
+> chat screen alone and TIME it, up to three minutes, without touching
+> Settings.** If it recovers around 80 s the defect is the BOUND and 394-C is
+> already the right bar; if it never recovers, something not yet identified is
+> holding it and the pooled socket was a red herring twice over.
+>
+> ### Bars
+>
+> **394-A ✅ met** — reproduced deterministically before any fix, and the
+> reproduction falsified half the thing it was reproducing, which is what a
+> reproduction is for. **394-B/C/D untouched — no fix was written**, and
+> deliberately so: the measured self-healing means the obvious fix (invalidate
+> the session on a path transition) would address a condition that resolves
+> itself in one probe. **394-C is now the load-bearing bar**, and its wording
+> already anticipated this: recovery must be *bounded and asserted in seconds*,
+> not left to "eventually".
 
 **Cross-references:** **#145 Part A** (why the private session exists — do not
 undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
