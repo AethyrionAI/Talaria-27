@@ -4424,6 +4424,77 @@ Logged 2026-07-20 (Session V launch sweep).
 > of a session and essentially never later. A few session starts settle it, and
 > a negative kills the hypothesis cheaply.
 
+> **✅ 2026-08-22 — DISCRIMINATOR (3) ANSWERED FROM SOURCE, and it REFUTES this
+> entry's own original mechanism.** Owed since 2026-07-20, marked
+> *"cloud-doable, no device needed"*, and it took one read.
+>
+> **WebRTC renders the remote track. The app never touches it.**
+> `LiveVoiceSessionService` contains **no** `SpeechOutputService`,
+> `AVAudioPlayer` or `AVAudioEngine` reference of any kind; its
+> `peerConnection(_:didAdd stream:)` delegate is **empty**; and the only track
+> it constructs is the LOCAL mic track (`"hermes-mobile-audio"`, `:933`). The
+> remote stream is played by WebRTC's own audio device module — **which is
+> exactly the echo canceller's far-end reference.**
+>
+> So the hypothesis this entry was built on — *"if the realtime path speaks via
+> the app's own TTS … WebRTC's AEC has no reference for it"* — **is false.**
+> The July note already suspected as much from the audio QUALITY ("unmistakably
+> SERVER audio"); this settles it from the code rather than from an ear. AEC is
+> present and correctly referenced, which is why the fault is now a narrow
+> start-of-session window instead of every reply.
+>
+> ### 🔴 AND THE SAME READ FOUND A SHARPER MECHANISM: WE MAY BE CAUSING IT
+>
+> The app forces the output route to the speaker **three times** around connect:
+>
+> 1. inside `configureAudioSession()` — which **already passes
+>    `.defaultToSpeaker` in the category options** (`:743`);
+> 2. again immediately after `setRemoteDescription` returns, commented *"WebRTC's
+>    RTCPeerConnectionFactory reconfigures the audio session internally"*;
+> 3. **and again 500 ms later**, as an explicit *"safety net"* (`:980`).
+>
+> **A route change forces the echo canceller to re-adapt — and call (3) lands
+> squarely in the window when the first assistant utterance plays.**
+>
+> This fits the observation strictly better than generic convergence does.
+> Generic adaptation predicts occasional later leaks too, after any route
+> settling. **A one-shot perturbation at +500 ms predicts exactly one failure,
+> at the start, and a clean conversation after** — which is what Owen reported,
+> word for word.
+>
+> **And `forceSpeakerIfNeeded` (`:764`) does not check whether the route is
+> ALREADY the speaker.** It only skips when an external output (headphones,
+> Bluetooth, CarPlay) is present. On the ordinary speakerphone path it calls
+> `overrideOutputAudioPort(.speaker)` on a session that is already on the
+> speaker — semantically a no-op, but still a route reconfiguration handed to
+> CoreAudio, twice, during the most timing-sensitive second of the session.
+>
+> ### 🎯 BARS 138-A…D — pre-registered before any code
+>
+> Deliberately not built yet. This is a timing hypothesis, #138's history is a
+> plausible mechanism that turned out false, and #396-A's rule (characterise
+> before tuning) applies with equal force here.
+>
+> - **138-A (reproduce on demand first).** The self-interrupt lands on the
+>   FIRST assistant utterance and essentially never later, across ≥3 session
+>   starts on the speakerphone route. **A negative kills the route-perturbation
+>   hypothesis outright** and sends this back to measurement — that is the
+>   outcome this bar exists to allow.
+> - **138-B (the treatment is a SKIP, not a delay).** `forceSpeakerIfNeeded`
+>   returns early when the current route is already `.builtInSpeaker`. Moving
+>   the 500 ms timer later, or removing it outright, are both worse: the first
+>   only relocates the perturbation, and the second drops a safety net that was
+>   added for a reason nobody has refuted.
+> - **138-C (the safety net's PURPOSE survives).** The override exists because
+>   WebRTC reconfigures the session under us. A build that stops correcting a
+>   genuinely wrong route has traded a rare self-interrupt for quiet audio on
+>   the earpiece — strictly worse. Prove the correction still fires when the
+>   route IS wrong.
+> - **138-D (measured on the speakerphone route, and said so).** Headphones
+>   short-circuit `forceSpeakerIfNeeded` entirely, so a headset trial cannot
+>   test this and must not be scored as one. Owen's observation was
+>   `ROUTE · IPHONE MICROPHONE → SPEAKER`; the bar inherits it.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
