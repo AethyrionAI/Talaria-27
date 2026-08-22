@@ -7202,6 +7202,24 @@ argument for making the relay more robust.
 > silently drops transcript. Full detail and the wire contract are recorded
 > at **#383**.
 >
+> **✅ 2026-08-22 AM — ALL FOUR VOICE PATHS ARE ADAPTED, app-side.** #383
+> landed the re-home; `grep` over the Swift tree finds **no live request
+> string** for `talk/readiness`, `talk/session`, `talk/session/{id}/end` or
+> `talk/session/{id}/turns` — every surviving mention is a doc comment, and
+> the stale ones were corrected in the same commit per #317. (`.../turns` was
+> DROPPED rather than ported, on the investigation recorded at #383: nothing
+> ever read those turns back.)
+>
+> **Two caveats, stated rather than implied.** The plugin half is deployed on
+> the **Mac only** — OJAMD still answers `unknown_event_type`, which the app
+> now degrades honestly on (`VoiceVerbOutcome.unsupported`) rather than
+> showing a decode error. And executing this row is what exposed **#383's
+> fourth defect**: `AppContainer` was still gating the voice READINESS probe
+> on `profile.hasRelay`, so with #310's migration having cleared every
+> profile's relay URL, each profile switch declared realtime voice dead. The
+> register's own method — *execute the table rather than re-read it* — found
+> it, for the third time on this item.
+>
 > **And a THIRD, found by re-deriving instead of patching:**
 > `GET jobs/{jobId}/events` (`LiveHermesClient.swift:378`, via
 > `apiClient.streamEvents` on the **RelayAPIClient** — confirmed at `:82`,
@@ -17578,3 +17596,129 @@ replaces `talk/readiness`).
 > short-lived secret, not hand over the long-lived key. Any design that
 > cannot produce an ephemeral secret has not solved this item.
 
+
+> **🔴 2026-08-22 AM — A FOURTH DEFECT, and it is FINDING #1 AT A SECOND SITE
+> the lane never swept for.** Found by executing this item's own step 3
+> (correcting #309's voice rows) rather than by a device report.
+>
+> `AppContainer.handleActiveProfileChanged` (`:2352`) still gates the voice
+> readiness probe on the RELAY:
+>
+> ```swift
+> if profile.hasRelay {
+>     await talkStore.refreshReadiness()
+> } else {
+>     talkStore.markRelayUnavailable()
+> }
+> ```
+>
+> **#310's migration CLEARED `relayBaseURL` on every profile**, so
+> `hasRelay` is now false everywhere and this else-branch is the only branch
+> that runs. `markRelayUnavailable()` (`TalkStore:127`) sets
+> `connectionState = .blocked`, `canStartSession = false`, and the message
+> **"Realtime voice needs a relay, and this profile doesn't have one."** —
+> a sentence naming a component retired on both hosts, describing a
+> requirement this very item deleted.
+>
+> **Why it survived last night's device pass:** `VoiceSettingsScreen` and
+> `TalkModeScreen` both carry `.task { await talkStore.refreshReadiness() }`,
+> which re-probes and overwrites the blocked state. Owen reached voice
+> through those screens, so the profile-switch path's verdict was replaced
+> before he could see it. **The bug is real and the test that would catch it
+> is not a device test.**
+>
+> **The lesson, and it is the same one twice in twelve hours:** finding #1
+> was *"the routing gate still read relay pairing"*, fixed at
+> `isVoiceHostPaired` — and the lane never asked **where else** the old
+> premise was encoded. One `grep hasRelay` would have found this. **A fix
+> applied at the site that was reported is not a fix applied to the defect.**
+>
+> **The sweep, done now rather than assumed** — five `hasRelay` gates outside
+> `BackendProfile` itself, and only one is wrong:
+>
+> | site | gates | verdict |
+> |---|---|---|
+> | `AppContainer:530` | the relay-fed stores' capability predicate | ✅ correct — genuinely relay plane |
+> | `AppContainer:1199` | relay session re-bootstrap after unpair | ✅ correct |
+> | `AppContainer:2035` | the relay app-state POST | ✅ correct |
+> | `AppContainer:2344` | `refreshCommandCatalog` (#309 path 16) | ✅ correct |
+> | **`AppContainer:2352`** | **the VOICE readiness probe** | 🔴 **WRONG — voice left the relay plane in this item** |
+>
+> ### 🎯 BARS 383-G…J — pre-registered before any code
+>
+> - **383-G.** On a profile with no relay URL, the profile-switch path
+>   REFRESHES readiness instead of declaring realtime unavailable. Written
+>   RED against today's code first — a bar that passes before the fix is not
+>   a bar.
+> - **383-H.** No user-visible string tells anyone realtime voice "needs a
+>   relay". That requirement no longer exists.
+> - **383-I (the bar that stops the fix from becoming "always refresh").**
+>   #310's bar 310-E must not regress: a profile that genuinely cannot
+>   bootstrap voice still SAYS so, rather than showing the PREVIOUS profile's
+>   readiness. The honest-unavailable state has to survive — it just has to
+>   come from asking rather than from assuming.
+> - **383-J.** The sweep above is recorded, so the next reader knows the
+>   bound was measured and not guessed.
+>
+> ### 🔴 Severity is worse than "a stale message" — the button was DISABLED
+>
+> `markRelayUnavailable()` set `canStartSession = false`, and the Voice
+> settings hero gates START VOICE SESSION on exactly that. So after a profile
+> switch the app **refused to start a voice session it was fully capable of
+> running** — `VoiceEngineRouter` routes to the native engine when no voice
+> host is reachable (`unpairedDeviceRoutesStraightToNativeEngine`, pinned),
+> and local voice needs no host at all.
+>
+> The user-visible shape: switch profiles → START VOICE greys out, reason
+> given as *"Realtime voice needs a relay"* → reopening the Voice or Talk
+> screen silently fixes it. **A capability the device already had, refused on
+> the strength of a field #310 emptied.**
+>
+> ### ✅ RESULT 2026-08-22 AM — 383-G/H/I/J MET, mutation-verified RED first
+>
+> Both new tests were run against the **pre-fix production code** (the fix
+> reverted, the tests kept) before being run against the fix:
+>
+> | test | pre-fix | post-fix |
+> |---|---|---|
+> | `aProfileWithNoRelayStillAsksTheVoiceHostRatherThanDeclaringItDead` | ❌ **4 issues** — counter 0, blocked-not-ready, `canStartSession` false, `blockedReason` non-nil | ✅ |
+> | `aSwitchNeverLeavesThePreviousProfilesReadinessOnScreen` | ❌ **2 issues** — counter 0, and the message named the relay | ✅ |
+>
+> **The second row is the one worth reading.** Its other four assertions —
+> blocked, `!canStartSession`, and all three readiness fields nil — **PASSED
+> against the buggy build**, because `markRelayUnavailable()` produced a state
+> byte-identical to a blocked refresh. Only the call counter and the string
+> check discriminate. That was written into the test's own comment *before*
+> the mutation ran, from the fixture's 2026-08-20 doc note recording the same
+> trap. **A bar that cannot fail is not evidence — and here five-sixths of one
+> could not.**
+>
+> **383-H** verified by grep: no user-visible string says "needs a relay"; the
+> only surviving occurrences are the two comments explaining the deletion.
+> `markRelayUnavailable()` itself is deleted — it had no other caller.
+>
+> ### 🔴 AND THE GATE FOUND A THIRD PIN THE TARGETED RUN COULD NOT SEE
+>
+> The first gate run failed on **`relaylessProfileActivationIssuesNoRelayRequests`
+> (310-C)**, asserting `refreshReadinessCallCount == 0` — a THIRD test encoding
+> the dead premise, in the same file, that the two-test `-only-testing` run was
+> structurally blind to.
+>
+> **310-C's claim is untouched and still true:** a relay-less activation issues
+> zero RELAY requests, carried entirely by `counter.count == 0` on the counting
+> relay client. Only the readiness line changed sides — readiness is not a relay
+> request any more — and it is now `== 1` with the reason stated in place.
+>
+> Its positive control (`relayBearingProfileActivationStillUsesTheRelayPlane`)
+> keeps its readiness assertion but **no longer discriminates**, because
+> readiness is asked on both planes now. Said in the test rather than left for
+> a reader to discover, so nobody mistakes it for evidence the relay branch ran.
+>
+> **Then the sweep that should have come first:** all four
+> `refreshReadinessCallCount` assertions in the tree are now accounted for
+> (310-C, its control, and the two new tests). **This is the second time in one
+> lane that fixing the reported site left a sibling standing** — and the gate,
+> not the lane, is what caught it both times. The generalisable form: **when a
+> premise dies, grep for the premise, not for the symptom.** `hasRelay` found
+> the production sites; `refreshReadinessCallCount` found the test ones. Neither
+> search is expensive; neither was run until something failed.

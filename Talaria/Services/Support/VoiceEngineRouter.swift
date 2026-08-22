@@ -2,21 +2,27 @@ import Foundation
 import os
 
 /// One seam, two voice engines (#18) — the Talk-mode sibling of
-/// `ChatBackendRouter`. Owns the relay-bootstrapped OpenAI Realtime engine
+/// `ChatBackendRouter`. Owns the host-bootstrapped OpenAI Realtime engine
 /// (`LiveVoiceSessionService`) and the on-device pipeline
 /// (`NativeVoicePipelineService`), and presents itself to TalkStore as the
 /// single `any VoiceSessionServiceProtocol` it already knows.
 ///
+/// **#383: the bootstrap host is the talaria plugin, not the relay.** The
+/// rules below are unchanged in substance — read "voice host" wherever this
+/// used to say "relay", and note that the existence signal is now the
+/// platform link rather than relay pairing (see `isVoiceHostPaired`, whose
+/// old spelling was this item's finding #1).
+///
 /// Routing rules:
-/// - Never-paired device → local voice unconditionally (the relay bootstrap
-///   can't exist; matches the #31 standalone posture).
-/// - Paired: the Realtime engine wins. `talk/readiness` reporting
-///   `configured:false` (no OpenAI key host-side) or an unreachable relay
+/// - No voice host → local voice unconditionally (there is no bootstrap to
+///   attempt; matches the #31 standalone posture).
+/// - Otherwise the Realtime engine wins. Readiness reporting
+///   `configured:false` (no OpenAI key host-side) or an unreachable host
 ///   (probe failed) routes to local voice.
 /// - A Realtime start that fails for non-permission reasons falls back to
-///   local voice for THAT session — a wedged relay (#24f) must not kill
-///   voice outright. Microphone denial blocks both engines identically, so
-///   it surfaces honestly instead of bouncing.
+///   local voice for THAT session — a wedged host must not kill voice
+///   outright. Microphone denial blocks both engines identically, so it
+///   surfaces honestly instead of bouncing.
 /// - The switch is never silent: the snapshot's `engine` tag drives the
 ///   overlay header, the Voice settings hero, and the transcript hand-off.
 @MainActor
@@ -25,8 +31,14 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
 
     private let realtime: any VoiceSessionServiceProtocol
     private let native: any VoiceSessionServiceProtocol
-    /// Relay pairing is the Realtime engine's existence signal — without it
-    /// there is no `talk/session` bootstrap to attempt.
+    /// A reachable talaria plugin link is the Realtime engine's existence
+    /// signal — without it there is no bootstrap to attempt.
+    ///
+    /// **#383 finding #1 lived on this line.** It read relay pairing, so when
+    /// the relay was retired the gate could never open again and realtime was
+    /// unselectable. Four router tests asserted "it selects realtime" while
+    /// stubbing this predicate to always-true, which is why 2,455 green tests
+    /// missed it.
     private let isVoiceHostPaired: @MainActor () -> Bool
     /// #221: the user's brain selection, read live. Voice must honour the same
     /// choice chat does — see `realtimeIsPermitted(for:)`.

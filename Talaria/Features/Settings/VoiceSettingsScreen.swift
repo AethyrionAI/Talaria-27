@@ -4,9 +4,10 @@ import SwiftUI
 // MARK: - Voice settings screen (Settings → VOICE, sub-screen 05)
 //
 // Status & launch panel for the realtime Talk engine, real-data-only (#35):
-//   • STATUS reflects the live relay talk/readiness probe (host online /
-//     configured / ready + blockedReason) — "—" wherever the probe hasn't
-//     answered.
+//   • STATUS reflects the live readiness probe (host online / configured /
+//     ready + blockedReason) — "—" wherever the probe hasn't answered. #383
+//     re-homed that probe from the relay onto the talaria plugin; the panel
+//     reads the same fields either way.
 //   • Model + voice are server-managed and READ-ONLY on iOS (the service
 //     protocol has no set-voice); shown for information, never as controls.
 //   • Latency shows the last session's real TalkLatencyMetrics.
