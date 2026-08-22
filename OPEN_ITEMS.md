@@ -989,6 +989,52 @@ on #394 before the right one). Characterise each separately.
 > A control that silently does less on one engine than the other is worse than
 > one that says so. That is a scope input, not a scope decision.
 
+> **✅ 2026-08-22 15:23 — 396-B BUILT AND DEPLOYED TO THE MAC** on Owen's
+> per-experiment go (*"config-ify + make `server_vad` reachable"*). Plugin
+> commit `fb2e364`; 24 tests in `tests/test_voice.py`, 194 repo-wide.
+>
+> **No default moved, and that is asserted rather than promised.**
+> `resolve_turn_detection()` under an empty environment returns a dict
+> **byte-identical** to the literal #383 shipped, with a test saying so — if
+> that test ever has to change, 396-D's before/after requirement has been
+> triggered.
+>
+> | fault | before | now |
+> |---|---|---|
+> | 1 room noise | unreachable — type fixed to `semantic_vad`, which has no threshold | `server_vad` selectable, with `threshold` / `prefix_padding_ms` / `silence_duration_ms` |
+> | 2 end-of-turn | literal `eagerness: "medium"` | `TALARIA_VOICE_EAGERNESS` |
+> | 3 self-barge-in | literal `interrupt_response: True` | `TALARIA_VOICE_INTERRUPT_RESPONSE` |
+>
+> Three implementation choices worth keeping: keys are **type-scoped** (a
+> `threshold` sent to `semantic_vad` is a provider error, which on the
+> bootstrap path is a user with no voice session, so tuned-but-unselected
+> values are ignored rather than smuggled); bad values **fall back loudly
+> rather than raising**, for the same reason; and resolution happens **once,
+> outside the model-fallback loop**, so two models can never receive two
+> configurations. `talk_readiness` now reports the effective block as
+> `turnDetection` — 396-D's spirit, since a value nobody can read is one
+> nobody can notice has moved.
+>
+> ### 🟡 DEPLOY STATE — measured and inferred, kept apart
+>
+> Mac gateway bounced 15:33:30, **new listener PID 395, health 200 in ~5 s**,
+> plugin reconnected (`✓ talaria connected`, 15:33:34). No headless episode —
+> the #264 verify-immediately rule applied and passed on the first check.
+>
+> **What that proves and what it does not.** The listener started **ten
+> minutes after** the commit and Python imports at start, so the running
+> process holds the new module — that is the reflog-vs-start-time discipline
+> and it is sound. But it is an **inference, not a wire probe**: device tokens
+> are stored `token_sha256`, so no replayable credential exists here, and
+> minting a throwaway device would be a live-install WRITE that Owen's go does
+> not cover. **The wire proof arrives free in the device phase** — the first
+> `talk_readiness` from the phone either carries `turnDetection` or it does
+> not. Recorded this way deliberately: #383's third defect was a written
+> record claiming "fixed host-side" on exactly this kind of unverified step.
+>
+> **OJAMD does NOT have this yet** — it rides the same trip as #383's plugin
+> deploy, which is the point of doing both in one bounce.
+
 **Cross-references:** **#383** (the re-home that hardcoded these), **#138**
 (realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
 native pipeline), **#1** (voice transcripts).
