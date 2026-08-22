@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#393** 🔴 **THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES** — `accent` **18/21** light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst **1.16:1**, below even the DECORATIVE floor); dark themes 0/69. **Found by Owen USING the app right after #325 shipped — his eye landed on the two exact minima.** Worse than #325 in three ways: these are INTERACTIVE CONTROLS (`GhostButton`'s title), it is most of the light catalogue rather than an edge, and **the Appearance picker labels themes with `accent` — so the screen you would use to escape a theme is illegible in that theme.** 🔴 The lesson is about the INSTRUMENT: #325 built a catalog-wide sweep and pointed it at the one token already known to be broken — a sweep that only measures what you suspect is a confirmation, not a survey. Bars 393-A..E; 393-A extends the sweep to EVERY semantic foreground and demonstrates RED first
 - **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
 - **#391** 🔴 **THE MODELS SCREEN CLAIMS "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED** — quota tracking is INERT on this seed (`QuotaTracker` logs *"delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read), yet `privateCloudQuotaRow` renders a definite capacity claim. **Directly violates the project's own "real data only — show `—` where a value isn't knowable" rule**; #180's family, #328's shape. MEASURED 2026-08-21 (#388-B); bars 391-A..D pre-registered, and 391-A warns a discriminator must be verified on a WIRED seed first
 - **#390** 🔬 **`.vision` IS TRUE ON BOTH TIERS** — so #173's caption decision was made about a model that HAS vision, and routing images through on-device OCR (`readImageText`) is now a CHOICE, not a limitation. It has a real privacy upside nobody chose deliberately — **the picture never leaves the phone even on PCC** — and the alternative sends the image to Apple's servers. SPAWNED BY #388-A 2026-08-21; **needs Owen's routing before any code — it changes what leaves the device, the one axis #386's published policy describes**
@@ -775,6 +776,108 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
+
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.**
+
+**How it was found, which matters.** #325 shipped that evening and Owen ran the
+device pass. Testing warning text on the light themes, he reported: *"Winter
+frost, middle option very hard to see the test connection; same with Retro
+Sci-Fi — yellow. Yellow is dang near unusable."*
+
+**Those are the two worst cells in the catalogue.** Measured afterwards:
+`retroSciFi × violet` accentBright = **1.16:1**; `winterFrost × amber`
+(the middle slot) = **1.35:1**. His eye landed on the exact minima.
+
+### The measurement (same WCAG 2.1 method as #320/#325)
+
+| token | light cells < 4.5:1 | light cells < 3.0:1 | worst cell |
+|---|---|---|---|
+| `accentBright` | **13 / 21** | **10 / 21** | `retroSciFi × violet` `#FFE03F` — **1.16:1** |
+| `accent` (base) | **18 / 21** | **11 / 21** | `retroSciFi × violet` `#FFD600` — **1.24:1** |
+
+**Dark themes: 0 of 69 fail either floor.** Light-themes-only, exactly #325's
+shape — but #325's worst was 2.18:1 and this is **1.16:1**, which is below the
+floor for purely DECORATIVE elements and close to invisible.
+
+### 🔴 Why this is worse than #325, in three ways
+
+1. **These are INTERACTIVE CONTROLS, not status text.** `GhostButton` renders
+   its title in `accentBright` (`HUDComponents.swift:572`), so *"Test
+   Connection"* — a button the user is meant to find and press — is the
+   surface Owen could not read. An unreadable warning is bad; an unreadable
+   control is worse, because the user cannot tell it is there to be pressed.
+2. **The escape hatch is one of the casualties.** The Appearance picker labels
+   themes with `Design.Brand.accent` (`AppearanceSettingsScreen.swift:153`,
+   the channel counter, and `:366` in `accentBright`). On Retro Sci-Fi the
+   theme's own name and slot label render at ~1.2:1 — **so the screen you
+   would use to choose a different theme is itself illegible in the theme you
+   are trying to leave.**
+3. **It is most of the light catalogue, not an edge.** 18 of 21 light `accent`
+   cells fail AA text contrast. #325 was 21 of 88 total cells; this is nearly
+   every light cell of the token.
+
+### ⚠️ What is NOT broken, and the distinction the fix depends on
+
+`accent` used as a FILL or TINT is fine — `Design.Colors.accentTint(0.1)`
+backgrounds, gradient stops, the orb, glow. Those are not text and never had a
+4.5 obligation. **The defect is `accent` / `accentBright` used as FOREGROUND on
+a light background**, which is the same text-vs-decoration split #325 resolved
+with `forgeText`, one token family over.
+
+### 🔴 The lesson, and it is about the instrument rather than the palette
+
+**#325 built a catalog-wide contrast sweep and then pointed it at exactly one
+token.** `WarningTokenContrastTests` measures `forge` and `forgeText` across
+all 88 cells and would have found this in the same run had it enumerated the
+other semantic foregrounds. The method was right; the aperture was one token
+wide, chosen because that was the token already known to be broken.
+
+**A sweep that only measures what you already suspect is a confirmation, not a
+survey.** That is the same shape as #388-C's labelling rule and #215's
+armed-cell rule: the instrument has to be able to surprise you.
+
+### 🎯 BARS 393-A..E — pre-registered before any code
+
+- **393-A (the sweep is EXTENDED first, and demonstrated RED).** Before any
+  palette or call-site change, `WarningTokenContrastTests` grows to enumerate
+  **every semantic foreground token** — `accent`, `accentBright`, `accentDeep`,
+  `foreground`, `foregroundBright`, `mutedForeground`, `dimForeground`,
+  `danger`, `dangerBright`, `forge`, `forgeText` — against each cell's
+  background, and the full failure list is recorded in this entry. **The
+  survey comes before the fix**, per 325-D's precedent, and this time it is not
+  aimed at a token chosen in advance.
+- **393-B (text vs decoration is decided per SITE, not per token).** #325's
+  migration made two classification errors invisible to the gate
+  (`.strokeBorder(` missed; an `Image(`-proximity rule swallowing ten real text
+  sites). **Any accent migration is larger and must not repeat that by regex
+  alone** — the nearest-construct rule is the floor, and every indirect
+  computed colour is traced or deliberately erred toward legibility with the
+  asymmetry stated.
+- **393-C (dark themes stay byte-identical).** 0 of 69 dark cells fail today.
+  `DesignThemeTests`' Deep Field guard must stay green **without edits**, as it
+  did for #325.
+- **393-D (the picker must be legible in every theme it can select).** A
+  specific bar because it is the bootstrapping case: whatever the fix, the
+  Appearance screen renders its own theme names and slot labels above 4.5:1 in
+  all 88 cells. **A user must always be able to read their way out.**
+- **393-E (the accent's IDENTITY survives).** #49/#12's separability rules and
+  `accentSlotsAreDistinctWithinEachUnlockedTheme` stay green. A fix that
+  darkens every accent into mutual indistinguishability trades a contrast
+  defect for an identity one — #325's 325-C, restated for a token whose whole
+  job is to be recognisable.
+
+**Route is OWEN'S CALL and deliberately not recommended here.** The obvious
+candidates mirror #325's: a text-variant token (`accentText`), a per-theme
+retune of the light accents, or accepting decorative-only use with a
+documented exception. #325's experience says the token-split is least
+invasive and that the retune question is where the design judgement lives.
+
+**Cross-references:** **#325** (the same class in `forge`, and the sweep this
+should have extended), **#320** (which chose `foregroundBright` for its badge
+precisely to avoid this problem, and measured `foregroundBright` at ≥4.5
+everywhere), **#49** (the data-driven catalog that makes a fix data rather
+than switch arms), **#12** (Terminal's locked accent slot), **#112** (Midnight
+Marquee ships three of the worst-affected palettes).
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.**
 
