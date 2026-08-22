@@ -1009,11 +1009,20 @@ final class AppContainer {
         // entitlement + availability check actually passes, the router
         // consults quota per new message, and locally-routed turns carry
         // their tier to the backend.
-        chatBackendRouter.isPrivateCloudSelectable = { [weak localChatBackend] in
-            localChatBackend?.isPrivateCloudAvailable ?? false
+        // #395: the user's hard opt-out gates BOTH predicates, not just
+        // selectability. Gating only the picker would leave every automatic
+        // route to the tier intact — the toggle has to mean "this app does
+        // not use PCC", not "the picker hides it".
+        chatBackendRouter.isPrivateCloudSelectable = { [weak localChatBackend, weak settingsStore] in
+            guard settingsStore?.settings.privateCloudEnabled ?? true else { return false }
+            return localChatBackend?.isPrivateCloudAvailable ?? false
         }
-        chatBackendRouter.isPrivateCloudUsable = { [weak localChatBackend] in
-            localChatBackend?.isPrivateCloudUsable ?? false
+        chatBackendRouter.isPrivateCloudUsable = { [weak localChatBackend, weak settingsStore] in
+            guard settingsStore?.settings.privateCloudEnabled ?? true else { return false }
+            return localChatBackend?.isPrivateCloudUsable ?? false
+        }
+        chatBackendRouter.isPrivateCloudDisabledByUser = { [weak settingsStore] in
+            !(settingsStore?.settings.privateCloudEnabled ?? true)
         }
         chatBackendRouter.applyLocalTier = { [weak localChatBackend] brain in
             localChatBackend?.setPreferredTier(privateCloud: brain == .privateCloud)
