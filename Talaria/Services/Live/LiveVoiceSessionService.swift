@@ -832,21 +832,37 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
+        // #138: these three drive the app's ONLY model of "is the assistant
+        // speaking", and the 2026-08-22 archive could not say whether they
+        // arrive at all — every phantom `speech_started` logged
+        // `state=listening`, which is ambiguous between "the assistant really
+        // was idle" and "we never learned it started". Those two readings take
+        // OPPOSITE fixes: the first makes an app-side gate viable, the second
+        // makes it impossible and forces the fix server-side. Logged so the
+        // next archive answers it instead of leaving it to argument.
         case "output_audio_buffer.started":
+            Self.logger.notice("#138 audio.started — assistant playback begins")
             startAssistantAudioPlaybackTracking()
             voiceState = .speaking
             statusMessage = "Hermes is speaking."
         case "output_audio_buffer.stopped":
+            Self.logger.notice("#138 audio.stopped after \(self.currentAssistantAudioPlaybackMilliseconds(), privacy: .public)ms")
             stopAssistantAudioPlaybackTracking()
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
         case "output_audio_buffer.cleared":
+            Self.logger.notice("#138 audio.cleared after \(self.currentAssistantAudioPlaybackMilliseconds(), privacy: .public)ms")
             stopAssistantAudioPlaybackTracking()
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
         case "response.created":
+            // #138: `create_response: true` means EVERY detection — phantom or
+            // real — spawns a response. Two overlapping responses is what
+            // "there's two of y'all responding" sounds like, so the arrival
+            // pattern of this event is the direct evidence for or against that.
+            Self.logger.notice("#138 response.created (state=\(self.voiceState.rawValue, privacy: .public))")
             currentRealtimeResponseID = ((payload["response"] as? [String: Any])?["id"] as? String)
             ignoreCurrentAssistantFinalization = false
             voiceState = .thinking

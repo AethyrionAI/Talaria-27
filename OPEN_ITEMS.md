@@ -778,6 +778,69 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.**
+
+**The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
+
+```swift
+if Self.shouldFallBackToNative(connectionState:blockedReason:timedOut:) {
+    Self.logger.notice("Realtime start \(cause) — falling back to local voice for this session (#247)")
+    setActive(.native)
+    await native.startSession()          // ← the realtime session is never ended
+}
+```
+
+**`start.cancel()` cancels a Swift Task; it does not tear down a peer
+connection.** #247 B1's belt cancels the start at 12 s, which aborts the
+in-flight bootstrap *request* — but if the WebRTC connection has already been
+established, or establishes moments later, `LiveVoiceSessionService` still owns
+a live `peerConnection`, `audioTrack` and data channel. The router then starts
+the native engine beside it.
+
+**The predicted symptom is exactly what #138 looks like** — two voices, each
+answering, each hearing the other — which is why this looked like #138's cause.
+**It is not:** the 2026-08-22 archive shows no `falling back to local voice`
+line in the affected session. **A true bug reached while chasing a different
+one.** Recorded that way deliberately; #388's diagnosis went wrong by the same
+route, and the correction is to file it rather than to let it wear the other
+item's evidence.
+
+**Severity is privacy, not just audio.** A realtime session left running is a
+live microphone streaming to OpenAI for a session the app believes it is not
+in. That is #139's zombie-session shape, and #139 exists because it happened.
+
+> **⚠️ A SECOND, RELATED PATH — flagged, deliberately NOT fixed with the first.**
+> The `#139` abandonment branch (`:314-317`) also returns without ending the
+> realtime session:
+> ```swift
+> if generation != startGeneration { …notice("abandoned mid-connect…"); return }
+> ```
+> **But the naive fix is unsafe here and the reason matters:** `startGeneration`
+> is bumped by a NEW start as well as by a dismissal, so an unconditional
+> `realtime.endSession()` on this path could tear down a session the *next*
+> start owns. The fallback path has no such hazard (`generation ==
+> startGeneration` there, so it provably owns the session). **Fix the safe one;
+> the other needs a generation-scoped end, which is a design question rather
+> than a line.**
+
+### 🎯 BARS 397-A…C — pre-registered before any code
+
+- **397-A (the fallback ends what it abandons).** A router whose realtime start
+  times out calls `endSession()` on the realtime service **before**
+  `startSession()` on the native one. Written RED first against today's code.
+- **397-B (#247's belt survives).** The fallback still happens, and still
+  happens for the same reasons — a build that stops falling back has traded a
+  rare double-session for a dead voice feature, which is strictly worse.
+- **397-C (the #139 path is NOT swept in with it).** The abandonment branch is
+  left alone until a generation-scoped end is designed. A test pins that the
+  fallback fix does not fire on the abandonment path, so the two cannot be
+  conflated by a later reader.
+
+**Cross-references:** **#138** (found here, and refuted as its cause),
+**#247** (B1, the belt this rides), **#139** (zombie session — the related
+path, and the reason severity is privacy), **#310** (the router's other stale
+gate, #383's finding #1).
+
 ## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
@@ -4654,6 +4717,88 @@ Logged 2026-07-20 (Session V launch sweep).
 > shape. Cost: it kills real barge-in. The threshold arm is cheaper and
 > reversible, so it goes first; if no threshold separates residue from user,
 > the gate is the answer and its cost is the price.
+
+> **🔬 2026-08-22 18:00 — THE FIRST INSTRUMENTED ARCHIVE, and it refutes MORE
+> of my own hypotheses than it confirms.** Build 2957,
+> `talaria-138-two-voices.logarchive`, one 40-second session.
+>
+> Owen's report first, because it reframed the fault before the log did:
+> *"there's two responses. It's interrupting itself… with… itself. Two
+> different voices too. One male, one female."*
+>
+> ### What the log SHOWS
+>
+> ```
+> 18:00:07  voice session starting on engine realtime (voiceHostPaired=true)
+> 18:00:09  #138 speech_started while assistant idle — phantom turn, no interruption (state=listening)
+> 18:00:15  (same)   18:00:21  (same)   18:00:27  (same)   18:00:46  (same)
+>           no-op cancel race swallowed: Cancellation failed: no active response found
+> ```
+>
+> **Five phantom detections in forty seconds. ZERO barge-in events.**
+>
+> ### ❌ REFUTED: two engines running at once
+>
+> The two voices made a second engine the obvious reading — one realtime
+> (`ballad`), one on-device TTS — and `VoiceEngineRouter`'s fallback does start
+> the native engine **without ending the realtime session** (`:318-329`, no
+> `realtime.endSession()`), which would produce exactly that. **But there is no
+> `falling back to local voice` line in this session.** The native engine never
+> started. It is one engine.
+>
+> *(The missing `endSession` on that fallback path is a REAL latent defect and
+> is filed on its own merits below — it just is not this. Reaching a true bug
+> while chasing a different one is how #388's diagnosis went wrong too.)*
+>
+> ### ❌ REFUTED: our barge-in path is involved
+>
+> **Zero `#138 BARGE-IN` lines.** `handleServerVADInterruption` never cancelled
+> anything, because its guard requires the app to believe the assistant is
+> speaking and the app never did. So what Owen hears as self-interruption is
+> **not our cancel path** — it is responses overlapping.
+>
+> ### ✅ THE MECHANISM THAT FITS: `create_response: true`
+>
+> Every detection — phantom or real — spawns a response. Five phantom
+> detections spawn up to five extra responses, which play over each other.
+> *"Two of y'all responding"* is **one engine answering itself**, not two
+> engines. The `Cancellation failed: no active response found` line is the same
+> story from the other side: a cancel arriving for a response the server had
+> already finished.
+>
+> ### ⚖️ THE ONE THING THE ARCHIVE CANNOT SETTLE — and it is the fork
+>
+> Every phantom logged `state=listening`, which is **ambiguous**:
+> **(a)** the assistant genuinely was idle, or **(b)** the app never learned it
+> started — `output_audio_buffer.started` may not arrive at all. The app's ONLY
+> model of assistant speech is those events, and they had no logging.
+>
+> **The two readings take opposite fixes.** (a) makes an app-side gate viable.
+> (b) makes an app-side gate **impossible** — you cannot gate on a state you
+> cannot observe — and forces the fix server-side onto the threshold.
+>
+> Now instrumented: `#138 audio.started`, `#138 audio.stopped after Nms`,
+> `#138 audio.cleared after Nms`, and `#138 response.created (state=…)`. The
+> response-created pattern is also the direct evidence for or against
+> overlapping responses.
+>
+> ### 🔴 THE TALLY, recorded because it is the lesson
+>
+> **Four hypotheses on this item in one day; four wrong.**
+>
+> | # | claim | killed by |
+> |---|---|---|
+> | 1 | AEC convergence window | phantom turns after EVERY utterance once the user went quiet |
+> | 2 | "a threshold cannot fix this" | the residue transcribes as garbled non-English — i.e. attenuated, not loud |
+> | 3 | "self-interruption appears resolved" | Owen: *"it interrupted itself both times"* — the transcript cannot show barge-in |
+> | 4 | two engines live at once | no fallback line in the log |
+>
+> **Every one died the moment a real instrument existed, and not one died to
+> argument.** Three of the four were stated confidently to Owen before any
+> instrument could see the thing. The rule this earns: on this item, **no
+> mechanism claim without a log line that would have to change if it were
+> false** — which is the same discipline #215 and #300 arrived at from their
+> own directions.
 
 ---
 
