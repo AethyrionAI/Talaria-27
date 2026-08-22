@@ -223,6 +223,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 voiceState = .disconnected
             }
         } catch {
+            Self.logger.error("voice readiness FAILED: \(String(describing: error), privacy: .public)")
             blockedReason = error.localizedDescription
             canStartSession = false
             // The probe failed — every readiness detail is now unknowable.
@@ -321,6 +322,13 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             statusMessage = blockedReason
             #endif
         } catch {
+            // #383: this path had NO log. A realtime start that failed set a
+            // `blockedReason`, fell back to the local pipeline, and left the
+            // reason on screen for the length of a flash — so the one question
+            // worth asking ("why did it fall back?") was the one thing the
+            // device could not answer. Tonight's recurring shape: the failure
+            // path is the path with no instrument.
+            Self.logger.error("realtime start FAILED — falling back to local voice: \(String(describing: error), privacy: .public)")
             await endRemoteSession()
             voiceSessionID = nil
             startedAt = nil

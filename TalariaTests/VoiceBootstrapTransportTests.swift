@@ -179,4 +179,29 @@ struct VoiceBootstrapTransportTests {
         // The distinction is the point: this must NOT read as a network fault.
         #expect(service.statusMessage?.contains("Could not reach") != true)
     }
+
+    /// **The plugin's date shapes, against the app's real decoder.**
+    ///
+    /// Python's `datetime.isoformat()` emits `+00:00`, not the `Z` the relay
+    /// used — and it emits fractional seconds only when the value has them, so
+    /// ONE create response carries both shapes: `startedAt` with microseconds,
+    /// `expiresAt` without. Every one of these must decode or the whole
+    /// bootstrap fails as a decoding error, which is indistinguishable from an
+    /// unreachable host to the user.
+    @Test func everyDateShapeThePluginEmitsDecodes() throws {
+        struct Box: Decodable { let d: Date }
+        let decoder = RelayCoders.makeDecoder()
+        let shapes = [
+            "2026-08-22T07:11:27.389434+00:00",  // startedAt — micro + offset
+            "2026-08-22T07:21:27+00:00",         // expiresAt — no fraction
+            "2026-08-22T07:21:27.636600Z",       // the relay's old shape
+        ]
+        for shape in shapes {
+            let json = Data("{\"d\":\"\(shape)\"}".utf8)
+            #expect(throws: Never.self, "did not decode: \(shape)") {
+                try decoder.decode(Box.self, from: json)
+            }
+        }
+    }
 }
+
