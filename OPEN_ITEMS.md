@@ -4561,6 +4561,75 @@ Logged 2026-07-20 (Session V launch sweep).
 > self-interrupt is 138-A's re-run on a device — and per the note above, a
 > surviving self-interrupt is the informative outcome, not a failed lane.
 
+> **🟡 2026-08-22 — BUILD 2955 TESTED. SPLIT RESULT, AND IT FALSIFIES TWO OF MY
+> OWN CLAIMS.** Two sessions on the OJAMD profile.
+>
+> **Self-CAPTURE persists.** The phantom turns are still there and still carry
+> the same signature: `再考`, `是。`, `Hogy?` — Chinese, Chinese, Hungarian, none
+> of them spoken. So **the route perturbation was not the cause**, and 138-B is
+> refuted as a fix for this. Per the pre-registered reading, that is
+> information: it points at AEC residue rather than at anything we do to the
+> route.
+>
+> **Self-INTERRUPTION appears resolved** — every assistant utterance in both
+> transcripts is a complete sentence, where the 4/4 runs were cut off
+> mid-greeting. **Held as PROVISIONAL, not scored:** the model's own *"no
+> interruptions on my end"* is worthless as evidence (it cannot know), and two
+> sessions is thin. **Owen's answer to "was Hermes ever cut off mid-sentence?"
+> is what settles it** — that question is owed before 138-B is called a
+> partial win.
+>
+> ### 🔴 FALSIFICATION 1 — "first utterance only" was an ARTIFACT OF THE USER TALKING
+>
+> 138-A recorded the fault as confined to the first assistant utterance, from
+> four sessions in which Owen said only a greeting and then let it run. **In
+> this run he spoke once and stayed quiet, and a phantom turn followed EVERY
+> assistant utterance** — three in one session.
+>
+> So the earlier "never later" was almost certainly **his real speech masking
+> it**: while he was talking, the assistant's turns were followed by genuine
+> user audio, and the echo had no empty window to land in. **The AEC-convergence
+> story built on top of that observation is unsupported** — the fault is not
+> confined to a start-of-session window at all, and never was.
+>
+> This is #215's lesson in a new costume: a rate measured under one usage
+> pattern was read as a property of the system.
+>
+> ### 🔴 FALSIFICATION 2 — I said a THRESHOLD CANNOT FIX THIS. That was wrong.
+>
+> Written into this entry earlier today: *"the leaked signal is the assistant at
+> full speaker volume — loud, speech-shaped, and trivially over any activation
+> threshold."* **The evidence contradicts it, and the evidence was already in
+> hand when I wrote it.**
+>
+> If the residue were the assistant at full volume, ASR would transcribe it
+> **accurately** — we would see Hermes's actual words appearing as user turns.
+> Instead every single instance is a short, garbled, usually non-English token
+> (`嗨`, `Echt?`, `Kanada`, `再考`, `是。`, `Hogy?`). **That is the fingerprint of a
+> heavily ATTENUATED signal** — AEC is working, and what survives is weak enough
+> to defeat the recogniser but not weak enough to fall under the activation
+> threshold.
+>
+> **Which makes `server_vad`'s `threshold` a live candidate after all**, and
+> makes #396-B's reachability work directly load-bearing rather than
+> preparatory. The discriminating question is whether a threshold exists that
+> rejects the residue while still accepting Owen at a normal speaking distance —
+> which is measurable, not arguable.
+>
+> ### 🎯 NEXT — 138-E, the threshold arm (host-side config, no app build)
+>
+> `TALARIA_VOICE_TURN_DETECTION=server_vad` plus a raised
+> `TALARIA_VOICE_VAD_THRESHOLD` in the host's `.env`, gateway bounced. **Needs
+> Owen's live-install go** (config, not code — but it is a live install).
+> **396-D binds:** the BEFORE row is already recorded on both hosts, so the
+> after-values and the session that justified them go in the same block.
+>
+> **The rival candidate, kept alive on purpose:** a half-duplex gate at the
+> realtime ingest — #130's fix, which this entry named in July as the likely
+> shape. Cost: it kills real barge-in. The threshold arm is cheaper and
+> reversible, so it goes first; if no threshold separates residue from user,
+> the gate is the answer and its cost is the price.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
