@@ -117,6 +117,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#58** 🐛 Wave 2 Issue F (GitHub #7) — Control Center / Lock Screen controls — `.main` execution BUILT 2026-07-27 …
 - **#60** 🔧 Wave 3 / 4.15 — `_thinking` channel: PROBED — root cause is gateway-side (emits the answer under …
 - **#61** 🔧 Wave 3 / 4.8 — on-device titles + previews via FoundationModels — dedup fix MERGED 2026-07-17; device …
+- **#394** 🔴 **AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST** — airplane mode off, ojamd up the whole time, chat stuck OFFLINE; **Test Connection on the SAME host PASSED**; switching servers fixed it instantly. **Mechanism from source: two URLSessions.** Test Connection uses `.shared`; the chat client uses its own private session (#145 Part A, deliberately — `.shared` has a 7-day resource timeout) whose **connection POOL holds a socket that died in the transition**. The ~10s re-probe ran the whole time and kept reusing it. 🔴 **The UI was never lying** — the staleness is below the state machine, so anyone reading the symptom would fix the presentation layer and change nothing. Every user hits this (tunnel/lift/airplane) with no discoverable recovery. Bars 394-A..D; 394-B forbids reverting to `.shared`
 - **#393** 🔴 **THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES** — `accent` **18/21** light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst **1.16:1**, below even the DECORATIVE floor); dark themes 0/69. **Found by Owen USING the app right after #325 shipped — his eye landed on the two exact minima.** Worse than #325 in three ways: these are INTERACTIVE CONTROLS (`GhostButton`'s title), it is most of the light catalogue rather than an edge, and **the Appearance picker labels themes with `accent` — so the screen you would use to escape a theme is illegible in that theme.** 🔴 The lesson is about the INSTRUMENT: #325 built a catalog-wide sweep and pointed it at the one token already known to be broken — a sweep that only measures what you suspect is a confirmation, not a survey. Bars 393-A..E; 393-A extends the sweep to EVERY semantic foreground and demonstrates RED first
 - **#392** 🔴 **A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT** — *"your calendar didn't accept the request"* when the user declined the card. The calendar never saw it; `performCreate` returned *"The user declined"* and the model reported EventKit refused. **MEASURED 2/30 on device 2026-08-21, CALENDAR-ONLY (remind/alarm 0/20)** — which is the finding, not a detail: a fix aimed at declines in general would target the wrong surface. #180's family, #340's shape. Spawned from #199A's re-run rather than keeping that entry open under a changed meaning; bars 392-A..D pre-registered, and 392-A demands n>=30/arm after #372(c) proved tonight what a low base rate costs
 - **#391** 🔴 **THE MODELS SCREEN CLAIMS "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED** — quota tracking is INERT on this seed (`QuotaTracker` logs *"delegate is nil, skipping fetch"* 7x at ERROR severity, 233ms after our read), yet `privateCloudQuotaRow` renders a definite capacity claim. **Directly violates the project's own "real data only — show `—` where a value isn't knowable" rule**; #180's family, #328's shape. MEASURED 2026-08-21 (#388-B); bars 391-A..D pre-registered, and 391-A warns a discriminator must be verified on a WIRED seed first
@@ -776,6 +777,89 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
+
+## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). Mechanism identified from source. NOT STARTED; bars below.**
+
+**The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
+Base URL `http://ojamd:8642`, a host that was up the entire time.
+
+1. Back online — the chat still showed **OFFLINE**, and kept showing it.
+2. **Settings → Uplink → Test Connection on that same host: PASSED.**
+3. Back to chat — **still OFFLINE.**
+4. Switched the server to the Mac Mini (`100.79.222.100`) — **instantly online.**
+5. ojamd was, and remains, perfectly reachable.
+
+### The mechanism, from source rather than inferred
+
+**Two different `URLSession`s, against the same host, disagreeing:**
+
+| path | session | result |
+|---|---|---|
+| **Test Connection** | `URLSession.shared` (`UplinkSettingsScreen.swift:422`) | ✅ passed |
+| **the chat's health probe** | the client's PRIVATE session (`SessionsHermesClient.swift:1608`) | ❌ error |
+
+The private session is not an accident — **#145 Part A created it deliberately**
+because `URLSession.shared`'s `timeoutIntervalForResource` is 7 days. That fix
+is correct and must stay.
+
+But a `URLSession` keeps a **connection pool**, and a pooled socket that died
+during the network transition is reused by the next request. So:
+
+- the chat's `refreshDirectHealth()` DOES re-probe (on appear and every ~10 s,
+  `ChatStore.swift:2773`) — **it was running the whole time** and kept reusing
+  the dead connection;
+- `hermesClient.connect()` has **no latch** (`SessionsHermesClient.swift:260`):
+  it sets `.connecting`, issues a fresh `/v1/models`, and reports what it gets.
+  The state machine is honest; the transport under it is not;
+- `URLSession.shared` has a DIFFERENT pool, which is why an independent probe
+  of the identical host succeeded;
+- switching hosts created a NEW pool entry, which is why that fixed it — and is
+  why it LOOKED like stale UI state.
+
+**🔴 The UI was never lying.** It faithfully reported a connection that really
+was failing. This is not #180's family and not #350's — the staleness is one
+layer below the state machine, in the socket pool. **Anyone reading the symptom
+would file this against the presentation layer and fix nothing.**
+
+### 🔴 Severity: this is the airplane-mode / tunnel / lift case
+
+Every user hits it. Come back into signal and the app is durably offline with a
+host that is fine, with **no user-visible way to recover** short of changing
+servers or force-quitting — neither of which anyone would guess. Owen only
+diagnosed it because he had a second host to switch to.
+
+### 🎯 BARS 394-A..D — pre-registered before any code
+
+- **394-A (reproduce it deterministically FIRST).** Airplane mode ON → OFF with
+  the app foregrounded, one host, and the chat must reach a state a fresh probe
+  contradicts. **Recorded before any fix**, per 325-D's precedent. A transport
+  bug fixed without a reproduction is a guess, and this one already survived
+  one wrong hypothesis (ATS/MagicDNS, built on a misread of which host
+  `100.79.222.100` was — it is the Mac Mini, not OJAMD).
+- **394-B (the #145 Part A session survives).** The private session exists
+  because `.shared` has a 7-day resource timeout. **A fix that reverts to
+  `.shared` re-opens #145 and is refused.** The candidate shapes are
+  invalidating the session on a transition, or configuring the pool to not
+  reuse across one — not abandoning the session.
+- **394-C (recovery is AUTOMATIC and bounded).** The user does nothing. After
+  connectivity returns, the chat reports ONLINE within a stated number of
+  seconds, asserted in the test rather than left to "eventually".
+- **394-D (the two paths must AGREE).** A test that probes the same host
+  through both the client session and a fresh one and requires the same
+  verdict. **The disagreement IS the bug**, and pinning it stops a later change
+  re-introducing a second transport with its own pool.
+
+**Candidate mechanism NOT elected:** an `NWPathMonitor`-driven session
+invalidation is the obvious shape, and the app currently has **no network-path
+observer at all** (verified — zero `NWPathMonitor` references). Whether the fix
+is path-driven or simply refuses connection reuse after an error is a design
+question for the lane.
+
+**Cross-references:** **#145 Part A** (why the private session exists — do not
+undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
+this claims OFFLINE against a live one), **#136** (the black-holed-host outage
+whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
+which is how most users would meet this first).
 
 ## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.**
 
