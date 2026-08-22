@@ -857,7 +857,7 @@ published privacy policy — a user-facing opt-out is consistent with it, and
 tier is used), **#390** (the still-unrouted tier-aware vision question, which
 this toggle does not answer), **#180** (the notice-honesty family).
 
-## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.**
+## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. See the late-2026-08-21 block.**
 
 **The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
 Base URL `http://ojamd:8642`, a host that was up the entire time.
@@ -1028,6 +1028,112 @@ question for the lane.
 > itself in one probe. **394-C is now the load-bearing bar**, and its wording
 > already anticipated this: recovery must be *bounded and asserted in seconds*,
 > not left to "eventually".
+
+
+> **🔴 2026-08-21 LATE — MEASURED ON DEVICE, AND IT REFUTES THE POOLED-SOCKET
+> MECHANISM OUTRIGHT. THE HEALTH PROBE DOES NOT RUN. Third hypothesis on this
+> item, and the first one killed by measurement rather than by argument.**
+>
+> ### How the test was supposed to go, and what actually happened
+>
+> The instruction was: airplane ON, wait for OFFLINE, airplane OFF, time the
+> recovery. **The precondition never held.** Owen, verbatim: *"Airplane mode,
+> waiting — been 90s. Still no banner for offline… 2m and counting. 3 —
+> nothing. 4mins — still nothing. I'm gonna stop here right before 5m."* Then:
+> **"If I do nothing, no banner. If I send a message, the banner appears."**
+>
+> So the app never went offline **at all** with the network dead. The question
+> stopped being "why doesn't it recover" and became "why doesn't it notice".
+>
+> ### The measurement (`~/Desktop/talaria-394.logarchive`, 20:45–22:10)
+>
+> Window **21:00:40 → 21:07:10**, app foregrounded and `scenePhase == .active`
+> throughout (no transitions between 21:00:34 and 21:07:14), network dead:
+>
+> | endpoint | connection attempts |
+> |---|---|
+> | `/api/platforms/talaria/events` | **47** |
+> | **`/v1/models`** (the health probe) | **0** |
+>
+> **The app was networking hard the whole time.** The platform link retried
+> forty-seven times. The probe that drives the offline banner attempted
+> nothing.
+>
+> **Across the ENTIRE 85-minute archive there are exactly TWO `/v1/models`
+> connection starts, both at the same instant — 21:11:08.759 — immediately
+> after an app foreground transition.** Roughly 64 of those 85 minutes were
+> foregrounded, and about 54 of them were foregrounded *and online*. At the
+> steady 30 s cadence that is on the order of **130 probes expected, 2
+> observed**, and both of those are the activation probe, not the timer.
+>
+> **And zero `Sessions API /v1/models failed` lines anywhere in the archive** —
+> `connect()` logs that on every failed probe, subsystem confirmed
+> `org.aethyrion.talaria`/`SessionsHermesClient`. So this is not a probe that
+> ran and failed to propagate. **Nothing ran.**
+>
+> ### 🔴 What this refutes
+>
+> - **The pooled dead socket is NOT the cause.** No connection was reused
+>   because none was attempted. The `PooledConnectionWedgeTests` reproduction
+>   remains correct about `URLSession` — a poisoned pooled connection does wedge
+>   one request, and does self-heal on the next — but it is **not this bug**.
+>   Two mechanisms have now been disproved on this item (ATS/MagicDNS, then the
+>   pool) and this is the first time evidence rather than re-reading did it.
+> - **The `.checking`-renders-as-nothing theory is not needed either.** It was a
+>   sound reading of the banner rule and it explained the symptom; it just
+>   isn't what happened, because the status was never recomputed at all.
+>
+> ### ✅ What ONE mechanism now explains, in both directions
+>
+> If the periodic probe does not run, `directConnectionStatus` only changes on
+> activation and on a send:
+>
+> | observation | explanation |
+> |---|---|
+> | network dies, no OFFLINE banner | status never recomputed; keeps its last value (`.connected`) |
+> | send a message → banner appears | `send()` is a different path; it fails and sets `.error` |
+> | network returns, still OFFLINE (the original #394) | `.error` is never cleared, because nothing re-probes |
+> | Test Connection PASSES meanwhile | separate path, `URLSession.shared`, 5 s budget — never touches `directConnectionStatus` |
+> | switching hosts fixes it instantly | a state change that re-enters the resolution path |
+> | it eventually recovered at 21:11 | an app background→foreground cycle, which is the ONLY thing in the archive that ever probed |
+>
+> **The original report and tonight's inverse are the same defect**, and it is
+> not a transport bug at all — it is that **the thing which is supposed to
+> notice is not running.**
+>
+> ### ⚠️ NOT yet established — do not skip this before fixing
+>
+> **WHY the loop is silent is unmeasured**, and this item has now paid three
+> times for reasoning ahead of evidence. Candidates, none elected:
+> `monitorConnectionStatus()`'s `.task` being cancelled or never started (a
+> `.task` dies with its view — Owen navigated to Settings during the original
+> episode); `refreshDirectHealth`'s `guard !isStreaming` early-returning; the
+> tick being awaited somewhere that never returns.
+>
+> **One confound to close first:** a `.task` is cancelled when its view goes
+> away, so if the chat screen was not the visible screen for parts of the
+> archive, some of that silence is correct behaviour. It does **not** explain
+> 21:00:40–21:07:10, when Owen was watching the chat screen for a banner and
+> the probe attempted nothing — but a follow-up should pin screen visibility
+> rather than infer it.
+>
+> **The cheapest next step is instrumentation, not a fix:** one log line per
+> tick in `monitorConnectionStatus()` naming the interval and the
+> `shouldProbe` verdict, plus one in `refreshDirectHealth` naming which branch
+> it took. That turns "the loop is silent" into "the loop stopped HERE", and it
+> costs one build.
+>
+> ### Bars
+>
+> **394-A ✅ MET, twice over and in opposite directions.** The bar demanded a
+> reproduction before any fix precisely because a transport bug fixed without
+> one is a guess. It first produced a clean reproduction that half-refuted its
+> own mechanism, and then a device measurement that refuted the rest. **No fix
+> has been written, which is the bar working.** 394-B is moot (no session
+> change is contemplated). **394-C is now the target**: recovery must be
+> automatic and bounded — and the reason it is not is that nothing is checking.
+> 394-D still stands and is now more interesting, since the two paths disagreed
+> because only one of them was ever consulted.
 
 **Cross-references:** **#145 Part A** (why the private session exists — do not
 undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
