@@ -1021,19 +1021,51 @@ on #394 before the right one). Characterise each separately.
 > plugin reconnected (`✓ talaria connected`, 15:33:34). No headless episode —
 > the #264 verify-immediately rule applied and passed on the first check.
 >
-> **What that proves and what it does not.** The listener started **ten
-> minutes after** the commit and Python imports at start, so the running
-> process holds the new module — that is the reflog-vs-start-time discipline
-> and it is sound. But it is an **inference, not a wire probe**: device tokens
-> are stored `token_sha256`, so no replayable credential exists here, and
-> minting a throwaway device would be a live-install WRITE that Owen's go does
-> not cover. **The wire proof arrives free in the device phase** — the first
-> `talk_readiness` from the phone either carries `turnDetection` or it does
-> not. Recorded this way deliberately: #383's third defect was a written
-> record claiming "fixed host-side" on exactly this kind of unverified step.
+> ~~**What that proves and what it does not.** … it is an **inference, not a
+> wire probe** … **The wire proof arrives free in the device phase**.~~
+> **✅ SUPERSEDED 2026-08-22 PM — BOTH HOSTS ARE NOW WIRE-PROVEN, and the
+> phone was not needed for it.** The OJAMD session found a better instrument
+> than waiting: `EnvelopeService.dispatch` resolves the handler **before** any
+> auth check, so a deliberately BOGUS device token discriminates old code from
+> new — old ⇒ `unknown_event_type`, new ⇒ `device_auth_mismatch` — with a
+> nonsense verb as the control proving the discriminator can still say no.
+> Run against both live listeners:
 >
-> **OJAMD does NOT have this yet** — it rides the same trip as #383's plugin
-> deploy, which is the point of doing both in one bounce.
+> ```
+> talk_readiness         -> device_auth_mismatch     talk_session_end -> device_auth_mismatch
+> definitely_not_a_verb  -> unknown_event_type   ← control
+> ```
+>
+> **What this cost, stated because it is the reusable part:** the inference was
+> sound and I stopped at it, having concluded no credential existed. The
+> credential was never the question — `API_SERVER_KEY` was in hand the whole
+> time, and dispatch's ordering made auth irrelevant to the measurement.
+> **"I cannot measure this" deserved one more minute of reading than it got.**
+
+### 📏 396-D's BEFORE RECORD — both hosts, measured 2026-08-22, identical
+
+`voice.readiness()` is pure and takes an optional `hermes_home`, so it can be
+evaluated out-of-process against the real config with nothing live touched:
+
+```json
+{ "ready": true, "hostOnline": true, "configured": true, "blockedReason": null,
+  "selectedModel": "gpt-realtime-1.5", "voice": "ballad",
+  "turnDetection": { "type": "semantic_vad", "create_response": true,
+                     "interrupt_response": true, "eagerness": "medium" } }
+```
+
+**Byte-identical on the Mac and OJAMD**, and byte-identical to the literal #383
+shipped. Three things settled at once: `turnDetection` really is carried in the
+readiness payload; **no default moved**, measured on the hosts rather than
+trusted from a unit test; and `configured: true` on both means the OpenAI key
+is present on OJAMD, so the phone should not meet the "not configured" refusal.
+
+**This is the row any future tuning is diffed against (396-D).** A lane that
+moves a value without quoting these four fields has not met the bar.
+
+> **Both hosts are at parity: `talaria-plugin` @ `fb2e364`.** OJAMD deployed
+> 2026-08-22 15:54 (pull) / 16:09:32 (listener PID 47276), Discord back at
+> 16:10:06, ~86 s of downtime, Hermes **0.20.5**.
 
 **Cross-references:** **#383** (the re-home that hardcoded these), **#138**
 (realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
@@ -9970,6 +10002,60 @@ not because it is burning.**
 > established for the relay plane. Not filed as its own item — it would be a
 > line inside #384's fix.
 
+> **🔴 2026-08-22 — THE SOURCE IS IDENTIFIED, AND IT REFRAMES THIS ENTRY: IT IS
+> THE TEST SUITE, NOT A USER.** Found by the OJAMD deploy session, which read
+> four fresh rejections in that box's gateway log and flagged them as a
+> Mac-side defect without knowing this item existed.
+>
+> ```
+> 15:08:09  WARNING  API server rejected invalid API key:
+>           remote='100.79.222.100' method='GET' path='/v1/models'
+>           user_agent='Talaria%2027/1 CFNetwork/3896.100.1.2.1 Darwin/25.5.0'
+> 15:08:23  ·  15:29:15  ·  15:29:29   (same shape)
+> ```
+>
+> **Both clusters fall inside gate runs on this Mac**, matched against the
+> lane's own logs: gate 1's test run spanned ~15:02–15:08:45, gate 2's
+> ~15:22–15:30. Two rejections per cluster, ~21 minutes apart — the cadence of
+> two gate invocations, not of a user.
+>
+> **`Darwin/25.5.0` is the discriminator.** That is this Mac's kernel. A
+> simulator app reports the HOST kernel; a real device reports its own. So the
+> caller is the **simulator under test**, and the mechanism is #384's
+> hardcoded `defaultHermesAPIBaseURL = "http://ojamd:8642"`
+> (`UserSettings.swift:333`): a fresh simulator container has no stored
+> profile, decodes the default, and points a build under test at the
+> **production** host.
+>
+> **Why that changes the item.** This is filed as *"a Talaria build has never
+> authenticated to OJAMD"*, which reads as a user-facing auth failure. It is
+> better described as **CI writing 401s into a production log** — and the
+> original "85 × 401 since 2026-08-11" count is very likely mostly gate runs,
+> since that window is dense with them. The fix is still #384's (stop
+> hardcoding a real host as the default), but the JUSTIFICATION strengthens:
+> it is not only untidy, it means every gate run on this machine authenticates
+> against Owen's live box and fails.
+>
+> ### ⚠️ AND AN ANOMALY THAT TOUCHES CLAUDE.md's ATS PARAGRAPH — unresolved
+>
+> `project.yml` carries **exactly one** ATS exception: `NSExceptionDomains`
+> keyed by the CIDR `100.64.0.0/10`. There is **no exception for the hostname
+> `ojamd`**, and CLAUDE.md states plainly that MagicDNS names *"have no
+> exception and are ATS-blocked app-wide"* (#166b).
+>
+> **Yet these requests arrive.** Either
+> **(a)** the undocumented CIDR-as-domain-key form matches the RESOLVED
+> address rather than the URL's host string — which would mean tailnet
+> hostnames are permitted after all, and CLAUDE.md's claim needs narrowing —
+> or **(b)** something other than the app emits that user agent, which the UA
+> itself argues against.
+>
+> **Not resolved here, and deliberately not guessed**: #166b's own history is
+> that a plausible ATS claim propagated into three documents before live probes
+> killed it. The settling experiment is one arm in the app test host —
+> `URLSession` GET to `http://ojamd:8642/health` — where a `-1022` says (b) and
+> a real response says (a). That belongs to whoever takes #384.
+
 ## 293. 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane — **FILED 2026-08-07 night from the repo-wide adversarial audit. Each is STATIC with the auditor's own confidence stated; NONE verified beyond a code read. Verify before fixing.**
 
 > **2026-08-10 (corrected same day):** the re-land lane (d) was briefly routed
@@ -17242,7 +17328,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. OJAMD is unblocked but needs Owen at the keyboard (no launchd there).**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. OWED: the phone's end-to-end realtime turn against OJAMD — the only unproven link left, ~1 minute.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire

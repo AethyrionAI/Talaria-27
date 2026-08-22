@@ -130,7 +130,16 @@ a falsified mechanism while the tracker was right.)
   user Startup folder** (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`),
   which presets `HERMES_HOME`, `PYTHONIOENCODING`, `HERMES_GATEWAY_DETACHED=1`,
   `VIRTUAL_ENV` and `PYTHONPATH`, then runs the venv **`python.exe`** windowless
-  (window style 0) — **not `pythonw.exe`** as this file used to imply. **⛔ NEVER
+  (window style 0) — **not `pythonw.exe`** as this file used to imply.
+  **⚠️ CORRECTED 2026-08-22 (on-box, #383's deploy): it is a TWO-HOP SHIM.**
+  The Startup-folder file only DELEGATES to
+  `<HERMES_HOME>\gateway-service\Hermes_Gateway.vbs`, which is the real
+  launcher. ⛔ Never delete **either** file. **And the real launcher runs
+  `gateway run` WITHOUT `--replace`** — so a relaunch has no ability to evict
+  a survivor from a botched kill. That is what turns "leave the parent alive"
+  from an annoyance into a dead chat plane.
+  **`hermes gateway restart` EXISTS in the CLI and is NOT a substitute** — its
+  own help says "Restart gateway *service*", and this box has no service. **⛔ NEVER
   delete that .vbs: it is the chat plane's autostart, and it is the one thing in
   this whole section that must survive the retirement.** Relaunch by hand with
   `wscript.exe "<that path>"`.
@@ -231,6 +240,32 @@ a falsified mechanism while the tracker was right.)
     has changed that name.**
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **✅ HOW TO WIRE-PROVE A PLUGIN DEPLOY WITHOUT A DEVICE TOKEN (2026-08-22,
+  #383/#396-B — keep this, it generalises to any additive verb).**
+  "The listener started after the pull" is an INFERENCE. This is a
+  measurement, and it needs no valid device credential:
+  `EnvelopeService.dispatch` resolves the handler **before** any auth check,
+  and the platform-events route accepts `API_SERVER_KEY` as a bearer. So a
+  deliberately BOGUS device token discriminates old code from new —
+  **old code ⇒ `unknown_event_type`** (no handler), **new code ⇒
+  `device_auth_mismatch`** (handler found, auth then fails).
+  ```bash
+  curl -s -X POST http://127.0.0.1:8642/api/platforms/talaria/events \
+    -H "Authorization: Bearer $API_SERVER_KEY" -H 'Content-Type: application/json' \
+    -d '{"type":"talk_readiness","device_id":"probe","auth":"probe"}'
+  ```
+  **Always include a nonsense verb as a CONTROL** (`definitely_not_a_verb` ⇒
+  `unknown_event_type`): without it, two positives prove nothing because
+  nothing showed the discriminator can still say no. Verified on both hosts.
+- **Adjacency in a log is NOT attribution (2026-08-22).** A deploy brief
+  listed `INFO talaria-push: watcher up (poll=4s)` as proof the talaria PLUGIN
+  had loaded. That string is nowhere in the plugin — it belongs to
+  `~/.hermes/hooks/talaria-push/handler.py`, a **hook** that merely shares the
+  name prefix and starts in the same second. Four lines were copied out of one
+  log and all four attributed to one component. **A verification step keyed on
+  a marker its component cannot emit is a check that always fails** — the next
+  operator either chases a phantom or learns to skip the step. Confirm which
+  LOGGER emits a line before making it a bar.
 - **🚨 THE `hermes-ojamd` MCP CAN FABRICATE OUTPUT ON THE FAILURE PATH (found
   2026-08-09).** It is a real agent with a real shell, and commands that SUCCEED
   return real output — but a command that FAILS can come back as invented text
@@ -454,8 +489,10 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   > reflog-vs-start-time (head 14:14:22, listener 15:09:08 ⇒ no drift). **Any
   > note reasoning from "OJAMD is 0.20.0" describes a host that no longer
   > exists.** *(And the 0.20.1 note aged the same way within days: OJAMD
-  > measured **0.20.3** on 2026-08-18 (#349's wire probe) and the Mac's
-  > fresh-bounced gateway serves **0.20.4** the same night (#375). Version
+  > measured **0.20.3** on 2026-08-18 (#349's wire probe), the Mac's
+  > fresh-bounced gateway served **0.20.4** the same night (#375), and OJAMD
+  > measured **0.20.5** on 2026-08-22 (on-box `/health`, #383's deploy).
+  > Version
   > claims in this file rot in DAYS — probe live, never quote this file.)*
   >
   > **`/v1/capabilities` is the cheap way to answer "is that route real?"** —
