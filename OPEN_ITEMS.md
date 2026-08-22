@@ -4495,6 +4495,72 @@ Logged 2026-07-20 (Session V launch sweep).
 >   test this and must not be scored as one. Owen's observation was
 >   `ROUTE · IPHONE MICROPHONE → SPEAKER`; the bar inherits it.
 
+> **✅ 2026-08-22 — 138-A MET, 4/4, AND THE PREDICTION HELD EXACTLY.** Owen ran
+> three fresh session starts on the speakerphone route, giving **only a
+> greeting** each time. In every one, Hermes began speaking, then interrupted
+> itself. With the earlier OJAMD session that is **4 of 4 — always the FIRST
+> assistant utterance, never later.**
+>
+> | # | assistant's opener | phantom "user" turn | assistant's recovery |
+> |---|---|---|---|
+> | 1 | *"Hi Owen, good to hear from you. What's on your mind today?"* | **嗨** | *"Hi there, what's on your mind today?"* |
+> | 2 | *"Hello there. How can I help today?"* | **Echt?** | *"I'm here. What's on your mind today?"* |
+> | 3 | *"Hello there. I'm here and ready to help… How's your day going?"* | **OK.** | *"Hi there. I'm here and ready to help…"* |
+> | 0 | *"Hello there. What's on your mind today?"* | **Kanada** | *"Hi there, Owen. What's on your mind today?"* |
+>
+> ### 🔴 The CONTENT of those turns is the strongest evidence, not the timing
+>
+> `嗨` (Chinese "hi"), `Echt?` (German "really?"), `OK.`, `Kanada`. Owen spoke
+> none of them — **he gave a greeting and nothing else.** Short, mostly
+> non-English tokens are the classic signature of **echo residue reaching a
+> speech recogniser**: the ASR receives an attenuated, distorted copy of the
+> assistant's own speech and emits a brief out-of-language fragment. A person
+> saying "hi" does not produce `嗨` on one turn and `Echt?` on the next.
+>
+> **This retires the "candidate artifact" caveat filed earlier today.** The
+> `Kanada` row was flagged as *consistent with* self-capture but not proven,
+> because Owen might simply have spoken. Three more instances, in three
+> languages, on three consecutive session starts, from a user who only said
+> hello, settle it. **The hedge was right to make and right to drop — on
+> evidence, not on it having become inconvenient.**
+>
+> Also note the assistant's recovery each time is a *re-greeting*: it answers
+> the phantom turn as if the user had just arrived. So the user-visible cost is
+> not only a stutter — the first exchange of every session is spent twice.
+>
+> ### ⚖️ What 138-A does and does NOT establish
+>
+> **Established:** self-capture is real, reproducible on demand, confined to
+> the first assistant utterance, and it is the assistant's own audio.
+> **NOT established:** that the +500 ms route override is the cause. 138-A was
+> written so a negative would kill that hypothesis; a positive is consistent
+> with it *and* with plain AEC convergence, which the same 4 sessions cannot
+> separate. The discriminating test is the fix itself — **138-B removes the
+> route perturbation while leaving convergence untouched, so if the
+> self-interrupt survives, convergence was the mechanism and the next lane is a
+> start-of-session turn-detection gate, not a routing fix.** Recorded now so
+> that outcome reads as information rather than as failure.
+
+> **✅ 2026-08-22 — 138-B/C BUILT, mutation-verified.**
+> `LiveVoiceSessionService.shouldOverrideOutputToSpeaker(currentOutputPortTypes:)`
+> — pure, per the `NativeVoicePipelineService` convention — now declines for
+> two reasons rather than one: an external output is connected (pre-existing),
+> **or the route is already `.builtInSpeaker` (new)**. Both call sites use it,
+> which is what silences the 500 ms safety net on the ordinary path.
+>
+> **138-C is the bar that shaped the fix.** `.builtInReceiver` still returns
+> true, so a route WebRTC genuinely moved is still corrected — the override
+> keeps its purpose instead of being deleted. Five tests in
+> `TalariaTests/SpeakerRouteOverrideTests.swift`; removing the one new line
+> turns `alreadyOnTheBuiltInSpeakerDoesNotOverrideAgain` RED and leaves the
+> other four green, so each arm is pinned separately rather than by one
+> assertion doing all the work.
+>
+> **What a unit test cannot say, stated rather than implied:** these pin the
+> DECISION, not the acoustics. Whether the skip actually removes the
+> self-interrupt is 138-A's re-run on a device — and per the note above, a
+> surviving self-interrupt is the informative outcome, not a failed lane.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)

@@ -746,28 +746,57 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             try audioSession.setActive(true)
 
             // Force output to the speaker for maximum volume — but only when no
-            // headphones or Bluetooth audio device is connected. Headsets handle
-            // their own volume and don't need the override.
-            let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
-                [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
-                    .contains(output.portType)
-            }
-            if !hasExternalOutput {
+            // headphones or Bluetooth audio device is connected, and only when
+            // the route is not already there (#138-B).
+            if LiveVoiceSessionService.shouldOverrideOutputToSpeaker(
+                currentOutputPortTypes: audioSession.currentRoute.outputs.map(\.portType)
+            ) {
                 try audioSession.overrideOutputAudioPort(.speaker)
             }
         }
     }
 
+    /// **#138-B — should the output route be forced to the speaker?**
+    ///
+    /// Pure, so the decision is unit-testable without an audio session (the
+    /// `NativeVoicePipelineService` convention). Two reasons to decline, and
+    /// the second is this lane's:
+    ///
+    /// 1. **An external output is connected.** Headsets handle their own
+    ///    volume and routing; overriding them is user-hostile. Pre-existing.
+    /// 2. **The route is ALREADY the built-in speaker (#138-B).** Overriding
+    ///    then is a semantic no-op that still hands CoreAudio a route
+    ///    reconfiguration — and a route change makes the echo canceller
+    ///    re-adapt. `forceSpeakerIfNeeded` is called twice around connect, the
+    ///    second time on a 500 ms timer that lands squarely in the window where
+    ///    the FIRST assistant utterance plays. Measured 2026-08-22: the
+    ///    assistant's own audio leaked into the mic and was transcribed as a
+    ///    user turn on **4 of 4** session starts, always the first utterance,
+    ///    never later.
+    ///
+    /// **The earpiece case must still override**, which is what keeps this a
+    /// skip rather than a deletion: `.builtInReceiver` returns true here, so a
+    /// route WebRTC genuinely moved is still corrected (138-C).
+    nonisolated static func shouldOverrideOutputToSpeaker(
+        currentOutputPortTypes: [AVAudioSession.Port]
+    ) -> Bool {
+        let external: Set<AVAudioSession.Port> = [
+            .headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio,
+        ]
+        if currentOutputPortTypes.contains(where: external.contains) { return false }
+        if currentOutputPortTypes.contains(.builtInSpeaker) { return false }
+        return true
+    }
+
     /// Re-assert the speaker override after WebRTC (or any other subsystem) may
     /// have reset the audio route.  Safe to call at any time — skips the override
-    /// when headphones, Bluetooth, AirPlay, or CarPlay are connected.
+    /// when headphones, Bluetooth, AirPlay, or CarPlay are connected, and (#138-B)
+    /// when the route is already the built-in speaker.
     private func forceSpeakerIfNeeded() {
         let audioSession = AVAudioSession.sharedInstance()
-        let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
-            [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
-                .contains(output.portType)
-        }
-        guard !hasExternalOutput else { return }
+        guard Self.shouldOverrideOutputToSpeaker(
+            currentOutputPortTypes: audioSession.currentRoute.outputs.map(\.portType)
+        ) else { return }
         do {
             try audioSession.overrideOutputAudioPort(.speaker)
         } catch {
