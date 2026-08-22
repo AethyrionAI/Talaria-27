@@ -16929,7 +16929,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). NOT STARTED; bars pre-register here before any code.**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. Plugin half is the next build.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire
@@ -17022,6 +17022,87 @@ and exist for exactly that bounded purpose.
 None are written yet, deliberately: the plugin-side shape is undesigned, and
 writing bars against a guess is how a lane gets bars it can pass without
 proving anything. First move is a design pass, not a build.
+
+
+> **✅ 2026-08-22 — OWEN RULED ALL THREE §8 QUESTIONS. LIVE-INSTALL GO GRANTED
+> (named here, per the standing rule). Bars written below, before any code.**
+>
+> ### The ruling
+>
+> 1. **Live-install go: GRANTED — "Mac first, then OJAMD."** The plugin half
+>    may deploy to the **Mac** and bounce the Mac gateway; **OJAMD only after
+>    the Mac works end to end.** This is the per-experiment go the standing
+>    rule requires, recorded in this entry as #251/3C/3D's precedent demands.
+>    It covers the four voice verbs and nothing else.
+> 2. **Hazard 1: COMPENSATE**, not exempt. Voice verbs stay superseded like
+>    everything else; an abandoned bootstrap fires a compensating end.
+> 3. **`talk_turn_append`: INVESTIGATE AND REPORT BACK** — Owen explicitly
+>    declined to pre-decide. Result below; **the port/drop call is still his.**
+>
+> ### 🔴 `talk_turn_append` — the investigation, and it found a reason the
+> design doc did not have
+>
+> Three findings, in ascending order of weight:
+>
+> 1. **The app never reads voice turns back.** `talk/session/{id}/turns`
+>    appears exactly once in the tree — the POST at
+>    `LiveVoiceSessionService.swift:729`. There is no GET, and
+>    `VoiceTurnPersistResponse` is decoded only to be discarded. Porting it
+>    would build a host-side store **nothing in the app consumes.**
+> 2. **#1 already covers the need it was built for.** The transcript is
+>    composed **entirely on-device** from the TalkStore snapshot
+>    (`ChatStore.appendVoiceTranscript`) and — when the user allows it —
+>    posted to the Sessions API as a normal text turn, which is what actually
+>    gives the agent voice context on the next exchange. That is the same end
+>    by a path that already works and does not touch the relay.
+> 3. **🔴 IT BYPASSES THE USER'S OWN PRIVACY TOGGLE, and this is the finding
+>    that should decide it.** `persistFinalTurn` is gated on nothing but a
+>    non-empty string and a live session id — **not** on
+>    `UserSettings.postVoiceTranscriptsToHermes`. #1's path IS gated on it
+>    (`ContentView.swift:76`). So today, a user who has turned "post voice
+>    transcripts to Hermes" **off** still has every realtime turn shipped
+>    host-side, one at a time, by this verb.
+>
+>    **Porting it would faithfully rebuild that.** It would carry a
+>    toggle-bypassing transcript path onto the plugin — the plane #386's
+>    published privacy policy describes — and it would do so *on purpose*,
+>    which is worse than inheriting it by accident. The honest options are
+>    drop it, or port it **gated on the toggle**, which makes it a behaviour
+>    CHANGE rather than a port and needs saying out loud.
+>
+> **Recommendation: DROP**, and accept the loss the way #309 path 16 did.
+> Nothing reads it, #1 covers the need, and its current behaviour contradicts
+> a setting the user can see. **Owen's call.**
+>
+> ### 🎯 BARS 383-A..F — pre-registered, design done, no code written
+>
+> - **383-A (step 1 is invisible).** With the plugin half deployed to the Mac
+>   and the gateway bounced, the app — still on the relay path — behaves
+>   **identically**: voice is still broken in exactly the way it is broken
+>   today. A step-1 deploy that changes app behaviour means the halves are
+>   coupled and the sequencing claim was false.
+> - **383-B (no provider credential reaches the device).** After the app half,
+>   `grep -ri "OPENAI\|sk-" Talaria/ Shared/` yields nothing, and the app's
+>   only voice credential is the device token it already holds. **This is the
+>   property route (b) was rejected to protect; it gets a bar, not a comment.**
+> - **383-C (compensation is DEMONSTRATED, never assumed).** A bootstrap
+>   abandoned mid-flight — supersession fired between mint and use — must
+>   leave **no** live host-side provider session. Shown by actually abandoning
+>   one and then proving the session is gone, not by reading the cleanup code.
+>   **#288's orphan-row shape is the precedent, and it is the one hazard here
+>   that costs real money.**
+> - **383-D (voice stops being a second auth plane).** Zero relay
+>   access-token use on the voice path afterwards — the #15/#94 refresh ladder
+>   is not merely unused but unreachable from voice.
+> - **383-E (verify the LISTENER after every bounce, not the process).**
+>   #264's rule, and the 2026-08-09 headless-gateway incident is why: after
+>   each gateway restart, `lsof -nP -iTCP:8642 -sTCP:LISTEN` before anything
+>   is called done. A bounce that leaves the box headless must be caught by
+>   the procedure, not by Owen noticing chat is down.
+> - **383-F (OJAMD is gated on the Mac succeeding END TO END).** Not "the Mac
+>   deploy didn't error" — an actual realtime voice session, started and ended
+>   from the phone against the Mac. Owen's ruling is "Mac first, then OJAMD";
+>   this bar is what makes "then" mean something.
 
 **Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
 venture), #375 (the retirement that made this urgent), #254-D/#303 (the
