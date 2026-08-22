@@ -186,6 +186,18 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         eventHub.stream(initial: snapshot)
     }
 
+
+    /// #383 hazard 5: two hosts, one app. A host whose plugin predates the
+    /// voice verbs answers `unknown_event_type`, and that must reach the user
+    /// as something they can act on rather than as an unreachable host.
+    private func requireData(_ outcome: VoiceVerbOutcome) throws -> Data {
+        switch outcome {
+        case let .ok(data): return data
+        case .unsupported: throw VoiceTransportError.hostDoesNotSupportVoice
+        case .unreachable: throw VoiceTransportError.hostUnreachable
+        }
+    }
+
     func refreshReadiness() async {
         // Don't disrupt an active or connecting session with a readiness check.
         if connectionState == .connected || connectionState == .connecting {
@@ -193,9 +205,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         }
         connectionState = .checking
         do {
-            guard let data = await voiceTransport.talkReadiness() else {
-                throw VoiceTransportError.hostUnreachable
-            }
+            let data = try requireData(await voiceTransport.talkReadiness())
             let response = try Self.decoder.decode(TalkReadinessResponse.self, from: data)
             blockedReason = response.blockedReason
             canStartSession = response.ready
@@ -278,9 +288,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             let prepared = try await prepareWebRTC()
             #endif
 
-            guard let data = await voiceTransport.talkSessionCreate() else {
-                throw VoiceTransportError.hostUnreachable
-            }
+            let data = try requireData(await voiceTransport.talkSessionCreate())
             let response = try Self.decoder.decode(TalkSessionResponse.self, from: data)
             voiceSessionID = response.voiceSession.id
             // #139: the user dismissed while this request was in flight. Do not
@@ -445,8 +453,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     }
 
     private func friendlyStatusMessage(for error: Error) -> String {
-        if error is VoiceTransportError {
-            return VoiceTransportError.hostUnreachable.localizedDescription
+        if let transportError = error as? VoiceTransportError {
+            return transportError.localizedDescription
         }
         // #383: the relay's 401 ladder is gone with the relay. The platform
         // link re-pairs itself on 401 (one attempt, then it gives up), so an

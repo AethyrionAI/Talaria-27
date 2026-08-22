@@ -474,27 +474,35 @@ final class TalariaPlatformLink {
     /// Returns the raw body: the plugin answers with BARE JSON, where the
     /// relay wrapped everything in `{"data": …}`. Decoding stays with the
     /// caller that owns the contract.
-    private func voiceVerb(_ type: String, extra: [String: Any] = [:]) async -> Data? {
-        guard let context = makeTurnContext() else { return nil }
-        guard await ensurePaired(context: context) else { return nil }
+    private func voiceVerb(_ type: String, extra: [String: Any] = [:]) async -> VoiceVerbOutcome {
+        guard let context = makeTurnContext() else { return .unreachable }
+        guard await ensurePaired(context: context) else { return .unreachable }
         guard let token = await secureStore.retrieve(key: context.tokenKey),
               let deviceID = await secureStore.retrieve(key: context.deviceIDKey)
-        else { return nil }
+        else { return .unreachable }
         // #285 checkpoint: a superseded turn falls silent before the wire.
         // For `talk_session_create` this is what stops a mint the caller
         // would never learn about — the cheapest possible compensation is
         // not minting in the first place.
-        guard isCurrent(context) else { return nil }
+        guard isCurrent(context) else { return .unreachable }
 
         var body: [String: Any] = ["type": type, "auth": token, "device_id": deviceID]
         for (key, value) in extra { body[key] = value }
         guard let (status, data) = await post(body, context: context, bearer: token, timeout: Self.voiceTimeout)
-        else { return nil }
+        else { return .unreachable }
         guard status == 200 else {
             logEnvelopeError(status: status, data: data, verb: type)
-            return nil
+            return .unreachable
         }
-        return data
+        // The envelope answers 200 with an error BODY, so a status check alone
+        // would hand back bytes that then fail to decode — and the user would
+        // see a JSON error for "this host has not been updated". #383 hazard 5.
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let code = object["code"] as? String {
+            logEnvelopeError(status: status, data: data, verb: type)
+            return code == "unknown_event_type" ? .unsupported : .unreachable
+        }
+        return .ok(data)
     }
 
     // MARK: - Link probe (#269-A)
@@ -588,11 +596,11 @@ enum PhoneQueryDeniedGate: Equatable {
 /// it without widening the method's visibility for no other reason.
 extension TalariaPlatformLink: VoiceBootstrapTransport {
 
-    func talkReadiness() async -> Data? {
+    func talkReadiness() async -> VoiceVerbOutcome {
         await voiceVerb("talk_readiness")
     }
 
-    func talkSessionCreate() async -> Data? {
+    func talkSessionCreate() async -> VoiceVerbOutcome {
         await voiceVerb("talk_session_create")
     }
 
@@ -601,7 +609,10 @@ extension TalariaPlatformLink: VoiceBootstrapTransport {
     /// second error to reason about. The boolean is for tests and logs.
     @discardableResult
     func talkSessionEnd(voiceSessionID: String) async -> Bool {
-        await voiceVerb("talk_session_end", extra: ["voice_session_id": voiceSessionID]) != nil
+        if case .ok = await voiceVerb("talk_session_end", extra: ["voice_session_id": voiceSessionID]) {
+            return true
+        }
+        return false
     }
 }
 
