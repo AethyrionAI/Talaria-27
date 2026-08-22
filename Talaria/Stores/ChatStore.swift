@@ -2766,11 +2766,18 @@ final class ChatStore {
         // which this trigger cannot bypass; the probe here keeps reporting
         // honestly through the window.
         guard !isStreaming else {
+            // #394 instrumentation: this branch asserts `.connected` WITHOUT
+            // probing, so a stuck `isStreaming` would look exactly like the
+            // device symptom — network dead, no offline banner, and no
+            // `/v1/models` request in the log. Named so the archive can rule
+            // it in or out instead of it staying a candidate.
+            TalariaLog.logger.verbose("direct-health: skipped (isStreaming) — asserting .connected unprobed")
             directConnectionStatus = .connected
             return
         }
         await hermesClient.connect()
         directConnectionStatus = hermesClient.connectionStatus
+        TalariaLog.logger.verbose("direct-health: probed -> \(directConnectionStatus)")
         // P1 (#90): reachability is the compose outbox's drain trigger — the
         // chat screen runs this probe on appear and every ~10s.
         if directConnectionStatus == .connected {

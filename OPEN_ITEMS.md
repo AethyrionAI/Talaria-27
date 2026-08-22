@@ -857,7 +857,7 @@ published privacy policy — a user-facing opt-out is consistent with it, and
 tier is used), **#390** (the still-unrouted tier-aware vision question, which
 this toggle does not answer), **#180** (the notice-honesty family).
 
-## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. See the late-2026-08-21 block.**
+## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. **CAUSE FOUND AND FIXED THE SAME NIGHT: the loop read a `scenePhase` FROZEN at task-start, so its foreground gate never reopened. `.task(id: scenePhase)`. Device verification of cadence still owed.**
 
 **The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
 Base URL `http://ojamd:8642`, a host that was up the entire time.
@@ -1134,6 +1134,105 @@ question for the lane.
 > automatic and bounded — and the reason it is not is that nothing is checking.
 > 394-D still stands and is now more interesting, since the two paths disagreed
 > because only one of them was ever consulted.
+
+
+> **✅ 2026-08-21 LATE — CAUSE FOUND AND FIXED. The loop was never dead: it woke
+> every ten seconds and declined every time, because it was reading a
+> `scenePhase` FROZEN AT TASK-START. Six log lines, after three wrong theories
+> built from reading code.**
+>
+> ### The proof — both values, one process, ten seconds apart
+>
+> A temporary `.onChange(of: scenePhase)` logged the LIVE phase beside the
+> loop's own:
+>
+> ```
+> 22:34:54.623  scene-phase: LIVE = inactive
+> 22:34:54.629  health-poll: LOOP START status=connected
+> 22:34:55.082  scene-phase: LIVE = active          ← SwiftUI goes active
+> 22:35:05.264  health-poll: wake #1  phase=inactive  ← the loop still reads inactive
+> 22:35:05.264  health-poll: skip #1 — phase not active
+> ```
+>
+> Fourteen consecutive ticks read `inactive` while the app was demonstrably
+> foreground and interactive (screenshot taken mid-run), including 47 s after
+> the Simulator was explicitly fronted.
+>
+> ### The mechanism
+>
+> `monitorConnectionStatus()` is an **async method on a View STRUCT**. The
+> `.task` closure captures `self` **by value**, and `@Environment(\.scenePhase)`
+> resolves out of that captured copy — which SwiftUI never updates. It captured
+> `.inactive` (the phase during first appearance) and returned `.inactive` for
+> the life of the view, so `ChatHealthPollPolicy.shouldProbe` returned false on
+> every tick, forever.
+>
+> **The per-tick check is what hid it.** Reading the code, it looks like the
+> phase is consulted fresh every ten seconds. It was re-reading one frozen
+> value ten seconds apart.
+>
+> ### 🔴 The bitter part: #175's own fix caused this
+>
+> #175 added the foreground-only rule to stop the poll running while
+> backgrounded — its comment records that it *"used to be a flat 10s loop that
+> ran while backgrounded too."* **The wasteful version worked.** The fix that
+> made it polite made it silent, and nothing noticed for weeks because **a
+> health probe that never runs is indistinguishable from a healthy
+> connection.** Same family as #218 (a promoted clause read by production while
+> declared under `#if DEBUG`) and #300 (a classifier that could not tell a real
+> failure from a flake): the failure mode of a correctness fix is usually
+> silence, not noise.
+>
+> ### The fix
+>
+> **`.task(id: scenePhase) { await monitorConnectionStatus() }`.** Keying the
+> task on the phase restarts it whenever the phase changes, so every run
+> captures a value that is correct for its whole lifetime. The per-tick check
+> becomes a single guard at the top — **now correct where per-tick was not** —
+> and the foreground-only rule becomes STRUCTURAL: a backgrounded app cancels
+> the task rather than running a loop that wakes only to decline.
+>
+> Rejected alternatives, both of which work and both of which leave the trap in
+> place for the next person: routing the phase through `@State`, and reading
+> `UIApplication.shared.applicationState` inside the loop.
+>
+> ### ⚠️ What is VERIFIED and what is NOT — read before trusting this
+>
+> - ✅ **The defect**, beyond doubt: LIVE `active` vs loop `inactive`, 14 ticks,
+>   with a screenshot proving the app was foreground.
+> - ✅ **The gate now opens**: post-fix the sim logs `LOOP START phase=active`
+>   where pre-fix every tick logged `skip — phase not active`. A behavioural
+>   change at exactly the point of failure.
+> - ⛔ **NOT verified: probe cadence end to end.** The simulator blocked both
+>   routes — the per-tick line is verbose-gated and `AppContainer` resets that
+>   flag from `UserSettings` at launch, and the sim has no host configured so
+>   probes make no network request to count. A clean background→foreground
+>   transition could not be driven from `simctl` either, so the task RESTART
+>   was not observed.
+> - The code after the guard is unchanged and was already shipping — it was
+>   simply never reached — so the residual risk is low. **Low risk is not
+>   measured**, and this item has already punished three confident inferences.
+>   **Device verification is owed** and is trivial there: a configured host
+>   makes a working probe observable as a status change, with no reliance on
+>   our own logging.
+>
+> ### Instrumentation kept, deliberately
+>
+> `LOOP START` / `LOOP EXIT` stay **always-on** — two lines per foreground
+> transition. They are the only thing that would have made this visible without
+> a special build, and their cost is nil. Per-tick lines are verbose-gated.
+> **The lesson is that this loop had no liveness signal at all**, which is why
+> a month of silence read as health.
+>
+> ### Bars
+>
+> **394-A ✅** — the reproduction requirement is what produced this. It killed
+> its own first mechanism (the pooled socket self-heals) and then the device
+> log killed the rest. **394-C ✅ in mechanism, ⛔ unverified on device** —
+> recovery is automatic again because the probe runs again, but the bound is
+> not yet measured. **394-B** moot: no session change. **394-D** — the two
+> paths disagreed because only one of them was ever consulted; a test pinning
+> their agreement is still owed.
 
 **Cross-references:** **#145 Part A** (why the private session exists — do not
 undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
