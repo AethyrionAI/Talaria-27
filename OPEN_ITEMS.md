@@ -16929,7 +16929,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — one voice attempt on the Mac Mini profile answers it.**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. OJAMD is unblocked but needs Owen at the keyboard (no launchd there).**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire
@@ -17269,6 +17269,37 @@ proving anything. First move is a design pass, not a build.
 > **Still owed after that:** step 3 of the sequencing — delete #309's relay
 > voice rows — and Owen's ruling on `talk_turn_append` (investigated, dropped,
 > recommendation was DROP).
+
+
+> **✅ 2026-08-22 ~03:0x — 383-F MET. REALTIME VOICE WORKS END TO END ON THE
+> MAC, over the plugin.** Owen, on build 2944, Mac Mini profile: the header
+> read the realtime banner (*"audio leaves this phone to your host's provider —
+> fixed for this session"*) and **the reply was the realtime voice, not the
+> local pipeline.**
+>
+> That closes the re-home on the Mac. The chain now runs: app → platform link →
+> `talk_session_create` → plugin mints an ephemeral secret host-side → phone
+> exchanges SDP with OpenAI directly. **The provider key never left the host**,
+> which is the property route (b) was rejected to protect (383-B).
+>
+> **What it took after the app half merged:** three defects the device found and
+> a green gate could not — a routing gate still reading retired relay pairing, a
+> failure path with no log, and a host-side fix that was edited but never
+> deployed. All three recorded in the block above.
+>
+> ### ⛔ NEXT: OJAMD, and it needs Owen at the keyboard
+>
+> Owen's go already covers it (*"Mac first, then OJAMD"*) and the Mac gate is
+> now met — but **OJAMD's gateway is NOT launchd-supervised.** It is a user
+> process started by `Hermes_Gateway.vbs` from the Startup folder, so loading a
+> new plugin there needs a hand relaunch (`wscript.exe "<that path>"`), and a
+> bounce takes **Discord down with chat** (#S6: 4 of 5 platforms connected).
+> Tonight's headless-bounce recurrence on the Mac — where launchd *does*
+> respawn — is the argument for not attempting OJAMD unattended.
+>
+> **Still owed:** step 3 of the sequencing (delete #309's relay voice rows), and
+> Owen's ruling on `talk_turn_append` (investigated; recommendation DROP).
+
 
 **Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
 venture), #375 (the retirement that made this urgent), #254-D/#303 (the
