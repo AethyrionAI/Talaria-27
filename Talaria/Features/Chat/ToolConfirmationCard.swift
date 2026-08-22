@@ -16,7 +16,7 @@ struct ToolConfirmationCard: View {
                     .font(.system(size: Design.Size.iconSmall))
                     .foregroundStyle(Design.Brand.forge)
                 MonoLabel("Confirm", size: 9, weight: .medium,
-                          tracking: Design.Tracking.monoWide, color: Design.Brand.forge)
+                          tracking: Design.Tracking.monoWide, color: Design.Brand.forgeText)
                 Spacer()
             }
 
@@ -56,7 +56,7 @@ struct ToolConfirmationCard: View {
                         .font(.system(size: Design.Size.iconSmall))
                         .foregroundStyle(Design.Brand.forge)
                     MonoLabel(caution.uppercased(), size: 11, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                              tracking: Design.Tracking.mono, color: Design.Brand.forgeText)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Caution: \(caution)")

@@ -43,7 +43,7 @@ struct AboutSettingsContent: View {
                 motif: .sparkline,
                 title: SettingsSubsystem.about.title,
                 status: SettingsCardValues.about(isHealthy: isHealthy),
-                statusColor: isHealthy ? Design.Brand.accent : Design.Brand.forge,
+                statusColor: isHealthy ? Design.Brand.accent : Design.Brand.forgeText,
                 chip: SettingsSubsystem.about.chip,
                 accented: isHealthy
             )
@@ -117,7 +117,7 @@ struct AboutSettingsContent: View {
         case .livePaired:
             RowStatus(text: pluginLink.label, color: Design.Brand.accent, blinks: false)
         case .notLive:
-            RowStatus(text: pluginLink.label, color: Design.Brand.forge, blinks: false)
+            RowStatus(text: pluginLink.label, color: Design.Brand.forgeText, blinks: false)
         case .unknown, .liveNotPaired, .hostUnreachable:
             RowStatus(text: pluginLink.label, color: Design.Colors.mutedForeground, blinks: false)
         }
@@ -175,7 +175,7 @@ struct AboutSettingsContent: View {
     private var hermesAPIStatus: RowStatus {
         switch container.chatStore.directConnectionStatus {
         case .connected:    RowStatus(text: "REACHABLE",   color: Design.Brand.accent,        blinks: false)
-        case .connecting:   RowStatus(text: "CHECKING",     color: Design.Brand.forge,         blinks: true)
+        case .connecting:   RowStatus(text: "CHECKING",     color: Design.Brand.forgeText,         blinks: true)
         case .disconnected: RowStatus(text: "UNREACHABLE",  color: Design.Colors.danger,       blinks: false)
         case .error:        RowStatus(text: "ERROR",        color: Design.Colors.danger,       blinks: false)
         }
@@ -191,7 +191,7 @@ struct AboutSettingsContent: View {
         case .connected:
             return RowStatus(text: "LINKED", color: Design.Brand.accent, blinks: false)
         case .connecting:
-            return RowStatus(text: "CONNECTING", color: Design.Brand.forge, blinks: true)
+            return RowStatus(text: "CONNECTING", color: Design.Brand.forgeText, blinks: true)
         case .disconnected, .error:
             if TalariaLinkObservation.legacyRelayReadsAsError(
                 pluginLive: pluginLive, relayReachable: false) {
@@ -218,7 +218,7 @@ struct AboutSettingsContent: View {
         // happened is unknown here. Warning-coloured rather than danger — the
         // pairing is intact and a first unlock usually resolves it.
         if container.credentialsUnreadableHold {
-            return RowStatus(text: "CREDENTIAL UNREADABLE", color: Design.Brand.forge, blinks: false)
+            return RowStatus(text: "CREDENTIAL UNREADABLE", color: Design.Brand.forgeText, blinks: false)
         }
         if container.pairingStore.identityMismatchDetected {
             return RowStatus(text: "STALE — RE-PAIR", color: Design.Colors.danger, blinks: true)
@@ -230,7 +230,7 @@ struct AboutSettingsContent: View {
         if container.pairingStore.expectedRelayUserID == nil {
             // Pre-#3 pairing: identity shown but unverifiable until a re-pair
             // records the minted user.
-            return RowStatus(text: "USER \(short) · UNVERIFIED", color: Design.Brand.forge, blinks: false)
+            return RowStatus(text: "USER \(short) · UNVERIFIED", color: Design.Brand.forgeText, blinks: false)
         }
         return RowStatus(text: "USER \(short)", color: Design.Brand.accent, blinks: false)
     }
@@ -293,7 +293,7 @@ struct AboutSettingsContent: View {
         case .denied, .restricted:
             Design.Colors.danger
         case .limited:
-            Design.Brand.forge
+            Design.Brand.forgeText
         case .notDetermined, .unsupported, .none:
             Design.Colors.mutedForeground
         }
@@ -371,7 +371,7 @@ struct AboutSettingsContent: View {
     private func permissionColor(_ status: PermissionStatus) -> Color {
         switch status {
         case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accent
-        case .limited: Design.Brand.forge
+        case .limited: Design.Brand.forgeText
         case .denied, .restricted, .unsupported: Design.Colors.danger
         case .notDetermined: Design.Colors.mutedForeground
         }

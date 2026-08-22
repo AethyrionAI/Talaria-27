@@ -138,7 +138,7 @@ struct ConnectHermesScreen: View {
                 if let relayValidationMessage {
                     Text(relayValidationMessage)
                         .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Brand.forge)
+                        .foregroundStyle(Design.Brand.forgeText)
                 }
             }
             .padding(Design.Spacing.lg)

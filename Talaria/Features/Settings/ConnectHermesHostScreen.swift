@@ -275,7 +275,7 @@ struct ConnectHermesHostScreen: View {
         case .online:
             return Design.Brand.accent
         case .offline, .unreachable:
-            return Design.Brand.forge
+            return Design.Brand.forgeText
         case .notConnected:
             return Design.Colors.secondaryForeground
         case .checking:

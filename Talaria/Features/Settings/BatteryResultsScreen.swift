@@ -438,7 +438,7 @@ struct BatteryTrialListScreen: View {
                           tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
                 if let route = trial.route {
                     MonoLabel("route=\(route)", size: 9, tracking: Design.Tracking.mono,
-                              color: route == "toolless" ? Design.Brand.accent : Design.Brand.forge)
+                              color: route == "toolless" ? Design.Brand.accent : Design.Brand.forgeText)
                 }
                 Spacer()
                 MonoLabel(String(format: "%.1fs", trial.latencySeconds), size: 9,
@@ -447,7 +447,7 @@ struct BatteryTrialListScreen: View {
 
             ForEach(Array(trial.toolCalls.enumerated()), id: \.offset) { _, call in
                 MonoLabel("⚙ \(call.name)\(call.detail.isEmpty ? "" : " — \(call.detail)")\(confirmSuffix(for: call))",
-                          size: 9, tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                          size: 9, tracking: Design.Tracking.mono, color: Design.Brand.forgeText)
                     .lineLimit(4)
             }
 

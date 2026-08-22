@@ -109,11 +109,11 @@ struct VoiceSettingsScreen: View {
     private var engineState: (text: String, color: Color, blinks: Bool) {
         switch talkStore.connectionState {
         case .idle:       ("STANDBY", Design.Colors.mutedForeground, false)
-        case .checking:   ("CHECKING", Design.Brand.forge, true)
+        case .checking:   ("CHECKING", Design.Brand.forgeText, true)
         case .ready:      ("READY", Design.Brand.accent, false)
-        case .connecting: ("CONNECTING", Design.Brand.forge, true)
+        case .connecting: ("CONNECTING", Design.Brand.forgeText, true)
         case .connected:  ("SESSION LIVE", Design.Brand.accent, false)
-        case .blocked:    ("BLOCKED", Design.Brand.forge, false)
+        case .blocked:    ("BLOCKED", Design.Brand.forgeText, false)
         case .failed:     ("ERROR", Design.Colors.danger, false)
         }
     }
@@ -126,7 +126,7 @@ struct VoiceSettingsScreen: View {
             VStack(spacing: 0) {
                 // #180 lane 180-L: "—" until an engine has been published.
                 statusRow("Engine", (talkStore.voiceEngine?.monoLabel ?? "—",
-                                     talkStore.voiceEngine == .native ? Design.Brand.forge : Design.Brand.accent))
+                                     talkStore.voiceEngine == .native ? Design.Brand.forgeText : Design.Brand.accent))
                 rowDivider
                 statusRow("Host", boolStatus(readiness.hostOnline, yes: "ONLINE", no: "OFFLINE",
                                              noColor: Design.Colors.danger))

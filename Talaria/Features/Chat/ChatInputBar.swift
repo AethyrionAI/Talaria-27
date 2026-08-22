@@ -543,7 +543,7 @@ struct ChatInputBar: View {
                 "PDF SENDS AS EXTRACTED TEXT — HOLD CHIP TO EXTRACT",
                 size: 9,
                 tracking: Design.Tracking.mono,
-                color: Design.Brand.forge
+                color: Design.Brand.forgeText
             )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -791,7 +791,7 @@ struct ChatInputBar: View {
                 chip.doorName,
                 size: 9,
                 tracking: Design.Tracking.mono,
-                color: chip.state == .interrupting ? Design.Brand.forge : Design.Brand.accentBright
+                color: chip.state == .interrupting ? Design.Brand.forgeText : Design.Brand.accentBright
             )
             Text(chip.text)
                 .font(Design.Typography.caption)
@@ -819,7 +819,7 @@ struct ChatInputBar: View {
                     chip.door.displayName,
                     size: 9,
                     tracking: Design.Tracking.mono,
-                    color: chip.isSurfaced ? Design.Brand.forge : Design.Brand.accentBright
+                    color: chip.isSurfaced ? Design.Brand.forgeText : Design.Brand.accentBright
                 )
                 Spacer()
                 if chip.isSurfaced {
@@ -861,7 +861,7 @@ struct ChatInputBar: View {
                 .lineLimit(2)
             Text(chip.statusLine)
                 .font(Design.Typography.caption2)
-                .foregroundStyle(chip.isSurfaced ? Design.Brand.forge : Design.Colors.mutedForeground)
+                .foregroundStyle(chip.isSurfaced ? Design.Brand.forgeText : Design.Colors.mutedForeground)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.top, Design.Spacing.sm)

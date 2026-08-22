@@ -215,7 +215,7 @@ struct ToolActivityRail: View {
                 if let failure = activity.failure, !failure.isEmpty {
                     Text(failure)
                         .font(Design.Typography.monoSmall)
-                        .foregroundStyle(Design.Brand.forge)
+                        .foregroundStyle(Design.Brand.forgeText)
                         .lineLimit(2)
                         .truncationMode(.middle)
                 }

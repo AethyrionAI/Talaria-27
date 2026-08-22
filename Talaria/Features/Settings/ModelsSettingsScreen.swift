@@ -299,7 +299,7 @@ struct ModelsSettingsScreen: View {
             color = Design.Colors.mutedForeground
         case .belowLimit(approaching: true):
             label = "PRIVATE CLOUD β · NEARING DAILY LIMIT"
-            color = Design.Brand.forge
+            color = Design.Brand.forgeText
         case .limitReached(let resetDate):
             let resets = resetDate.map { " · RESETS \($0.formatted(date: .omitted, time: .shortened))" } ?? ""
             label = "PRIVATE CLOUD β · DAILY LIMIT REACHED\(resets)"

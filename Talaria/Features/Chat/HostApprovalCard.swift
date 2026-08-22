@@ -76,7 +76,7 @@ struct HostApprovalCard: View {
                 .font(.system(size: Design.Size.iconSmall))
                 .foregroundStyle(Design.Brand.forge)
             MonoLabel("HOST APPROVAL", size: 9, weight: .medium,
-                      tracking: Design.Tracking.monoWide, color: Design.Brand.forge)
+                      tracking: Design.Tracking.monoWide, color: Design.Brand.forgeText)
             Spacer()
             MonoLabel(actorLabel.uppercased(), size: 9,
                       tracking: Design.Tracking.mono,
@@ -143,7 +143,7 @@ struct HostApprovalCard: View {
                 .foregroundStyle(Design.Brand.forge)
             Text(notice)
                 .font(Design.Typography.caption)
-                .foregroundStyle(Design.Brand.forge)
+                .foregroundStyle(Design.Brand.forgeText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -194,7 +194,7 @@ struct HostApprovalCard: View {
                 .foregroundStyle(Design.Brand.forge)
             Text(RunApprovalRequest.consequenceStatement(for: choice, host: actorLabel))
                 .font(Design.Typography.caption)
-                .foregroundStyle(Design.Brand.forge)
+                .foregroundStyle(Design.Brand.forgeText)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityElement(children: .combine)
@@ -221,7 +221,7 @@ struct HostApprovalCard: View {
                 Text("CONFIRM \(RunApprovalRequest.buttonLabel(for: choice))")
                     .font(Design.Typography.mono(11, weight: .medium))
                     .tracking(Design.Tracking.mono)
-                    .foregroundStyle(Design.Brand.forge)
+                    .foregroundStyle(Design.Brand.forgeText)
                     .padding(.horizontal, Design.Spacing.md)
                     .padding(.vertical, Design.Spacing.xs)
                     .background(Design.Brand.forge.opacity(0.12), in: Capsule())

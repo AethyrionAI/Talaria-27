@@ -31,6 +31,7 @@
 		0699DDCC47EA218CB27160AF /* ToolActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */; };
 		073F514793203C57186558F6 /* TalariaPlatformLinkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A68D762376A815E45F9F5114 /* TalariaPlatformLinkTests.swift */; };
 		07E0800E7104CF04955F0360 /* VoiceMemoRecorderSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59F7F29D1DB87BEA4BCCE4D5 /* VoiceMemoRecorderSheet.swift */; };
+		080F1AC772AB1E4B230941F6 /* WarningTokenContrastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 983BB1D2C95DB88D6859C82D /* WarningTokenContrastTests.swift */; };
 		08751E12A738BFBF97809B26 /* SessionBootstrapResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB2D09CCD9B4464AAADCD11A /* SessionBootstrapResponse.swift */; };
 		08B3FB0C74D278495673F432 /* TalkModeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B8FF666C56327F765813BB9 /* TalkModeScreen.swift */; };
 		0905D7E4B1534BB7DCF1B0FA /* InsightsAggregationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 520B8194AEA8B671E7A43451 /* InsightsAggregationTests.swift */; };
@@ -984,6 +985,7 @@
 		96D3920640ABF46FAC184C3D /* AttachmentInlining.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentInlining.swift; sourceTree = "<group>"; };
 		976BAC43D166A0D9AD794CF2 /* TurnReceipts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnReceipts.swift; sourceTree = "<group>"; };
 		97A4A4DFFDB1378E800FD55A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		983BB1D2C95DB88D6859C82D /* WarningTokenContrastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarningTokenContrastTests.swift; sourceTree = "<group>"; };
 		98F42904CB5A6D7C2A094D14 /* Icon-SummerSolar@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SummerSolar@2x.png"; sourceTree = "<group>"; };
 		99286B618A5D9C43C4ECBE6A /* GenUIDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenUIDecoder.swift; sourceTree = "<group>"; };
 		992ACC9FF55104E22717D5ED /* MessageIdentityUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageIdentityUITests.swift; sourceTree = "<group>"; };
@@ -1492,6 +1494,7 @@
 				8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */,
 				A42B2B8FA97D4011C00D59F8 /* VoiceMemoAttachmentTests.swift */,
 				5F28E7FA18E6D1C83E907BC0 /* VoiceTranscriptTests.swift */,
+				983BB1D2C95DB88D6859C82D /* WarningTokenContrastTests.swift */,
 				0FE343EDAB6F66DD9764DC7A /* WeatherTomorrowTests.swift */,
 			);
 			path = TalariaTests;
@@ -2944,6 +2947,7 @@
 				57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */,
 				FD9C24D0167C5C2B57A089E8 /* VoiceMemoAttachmentTests.swift in Sources */,
 				B3C557575E129EB751B4C5EF /* VoiceTranscriptTests.swift in Sources */,
+				080F1AC772AB1E4B230941F6 /* WarningTokenContrastTests.swift in Sources */,
 				4E204D5C7F1352A9CE981C69 /* WeatherTomorrowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

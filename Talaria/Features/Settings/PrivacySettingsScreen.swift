@@ -256,7 +256,7 @@ struct PrivacySettingsScreen: View {
     private func statusColor(_ status: PermissionStatus) -> Color {
         switch status {
         case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accent
-        case .limited: Design.Brand.forge
+        case .limited: Design.Brand.forgeText
         case .denied, .restricted: Design.Colors.danger
         case .notDetermined, .unsupported: Design.Colors.mutedForeground
         }
@@ -630,7 +630,7 @@ struct PrivacySettingsScreen: View {
     private func revokeStateColor(_ state: RevokeRowState) -> Color {
         switch state {
         case .active: Design.Brand.accent
-        case .needsPermission: Design.Brand.forge
+        case .needsPermission: Design.Brand.forgeText
         case .blockedByIOS: Design.Colors.danger
         case .off, .unavailable: Design.Colors.mutedForeground
         }

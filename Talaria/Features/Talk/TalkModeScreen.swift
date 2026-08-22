@@ -55,7 +55,7 @@ struct TalkModeScreen: View {
                 if let blockedReason = talkStore.blockedReason, !talkStore.isSessionActive {
                     Text(blockedReason)
                         .font(Design.Typography.callout)
-                        .foregroundStyle(Design.Brand.forge)
+                        .foregroundStyle(Design.Brand.forgeText)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, Design.Spacing.lg)
                 }
@@ -138,7 +138,7 @@ struct TalkModeScreen: View {
     private var statusColor: Color {
         switch talkStore.voiceState {
         case .speaking, .listening, .thinking: Design.Brand.accent
-        case .interrupted: Design.Brand.forge
+        case .interrupted: Design.Brand.forgeText
         case .disconnected: Design.Colors.danger
         case .idle: Design.Colors.mutedForeground
         }
@@ -268,7 +268,7 @@ struct TalkModeScreen: View {
             MonoLabel(
                 live ? "LIVE" : "MOCK",
                 tracking: Design.Tracking.mono,
-                color: live ? Design.Brand.accent : Design.Brand.forge
+                color: live ? Design.Brand.accent : Design.Brand.forgeText
             )
         }
         .padding(.horizontal, Design.Spacing.xs)

@@ -166,7 +166,7 @@ struct VoiceOverlayScreen: View {
                     size: 9,
                     weight: .medium,
                     tracking: Design.Tracking.monoWide,
-                    color: Design.Brand.forge
+                    color: Design.Brand.forgeText
                 )
             }
 
@@ -335,7 +335,7 @@ struct VoiceOverlayScreen: View {
             VStack(spacing: Design.Spacing.sm) {
                 Text(talkStore.blockedReason ?? "Unable to connect")
                     .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Brand.forge)
+                    .foregroundStyle(Design.Brand.forgeText)
                     .multilineTextAlignment(.center)
 
                 // Show "Open Settings" for permission-related blocks (#84:
@@ -363,7 +363,7 @@ struct VoiceOverlayScreen: View {
                 if let hint = talkStore.micHealthHint {
                     Text(hint)
                         .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Brand.forge)
+                        .foregroundStyle(Design.Brand.forgeText)
                         .multilineTextAlignment(.center)
                     openSettingsButton
                 }

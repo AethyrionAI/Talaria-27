@@ -213,7 +213,7 @@ private struct InsightsContent: View {
             VStack(alignment: .leading, spacing: 2) {
                 MonoLabel("REFRESH FAILED — SHOWING LAST FETCH", size: 9,
                           weight: .medium, tracking: Design.Tracking.mono,
-                          color: Design.Brand.forge)
+                          color: Design.Brand.forgeText)
                 Text(message)
                     .font(Design.Typography.body(12))
                     .foregroundStyle(Design.Colors.secondaryForeground)
