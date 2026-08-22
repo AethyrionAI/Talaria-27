@@ -778,7 +778,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. NOT STARTED.**
+## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
 once at 3am is exactly what a tracker is for, and because #383 shipped the very
@@ -827,7 +827,7 @@ What the provider offers, for the record:
 - **`interrupt_response: True`** is what lets incoming audio cut the assistant
   off. If the fault is (3), this is the line, not the threshold.
 
-### The local side is UNREAD
+### The local side is UNREAD — ✅ **READ 2026-08-22 AM; see the dated block below**
 
 `NativeVoicePipelineService`'s endpointing has not been looked at. **Do not
 assume the two engines share a cause** — they share a symptom, and #383 just
@@ -898,8 +898,96 @@ on #394 before the right one). Characterise each separately.
 > entry's own four-faults table is the evidence that even naming the symptom is
 > hard. **396-D still binds: no default moves without recording before/after.**
 >
-> **Still unread: the local pipeline.** Owen reports the symptom on both, but
-> only the realtime side has been characterised.
+> ~~**Still unread: the local pipeline.** Owen reports the symptom on both, but
+> only the realtime side has been characterised.~~ **READ 2026-08-22 AM — next
+> block. It did not go where this one assumed.**
+
+
+> **🔬 2026-08-22 AM — THE LOCAL PIPELINE, READ. 396-C's warning was right: the
+> two engines do NOT share a fixable cause, and the naive fix is BACKWARDS on
+> this one.** Source read only — no device, no knob moved.
+>
+> Three values are hardcoded in `NativeVoicePipelineService.swift`, and they
+> map onto the four faults very differently from the realtime side:
+>
+> | # | local site | what it actually governs |
+> |---|---|---|
+> | 1 | `SpeechDetector(detectionOptions: .init(sensitivityLevel: .medium))` — `:1102` | **NOT the activation threshold.** See below. |
+> | 2 | `endpointSilence = 1.35` — `:39` | the **fallback** endpointer only |
+> | 3 | `SpeechTranscriber(preset: .progressiveTranscription)` — `:1015` | volatile-vs-final REPORTING, a UX contract, not a sensitivity |
+>
+> ### 🔴 `SpeechDetector` cannot fix fault 1, and turning it "down" makes it worse
+>
+> Read from Apple's own documentation rather than inferred from the name —
+> which matters, because the obvious move (*"it's too sensitive, so lower the
+> sensitivity"*) is wrong twice over:
+>
+> - **The direction is inverted.** `.low` is the *more **forgiving*** model;
+>   `.high` is *more **aggressive***. Aggressive means it DROPS more audio. So
+>   the pickup-reducing direction is `.high`, not `.low`.
+> - **The mechanism is the wrong one anyway.** `SpeechDetector` "asks *is there
+>   speech?*… saving power otherwise used by attempting to transcribe what is
+>   likely to be silence." It is a **power optimization that gates on
+>   speech-presence** — and **television dialogue IS speech.** No value of this
+>   enum rejects a talking TV. It would help against a fan, traffic or
+>   keyboard; it cannot help against the thing Owen actually reported.
+>
+> **So on the local engine, fault 1 has NO knob.** Not a hardcoded one — none.
+> A VAD answers *is someone speaking*, and the question this fault needs
+> answered is *is it **you***, which no Speech API on this SDK exposes. The
+> honest options are all product decisions, not tuning: push-to-talk, a
+> near-field/level gate we'd have to build, or accepting it.
+>
+> ### Fault 2 is OURS or APPLE'S, and one already-shipped log line decides which
+>
+> `endpointSilence = 1.35` is documented at its own definition as a **fallback**
+> that fires *"only when the VAD/finalization path misbehaves"* — primary
+> endpointing is the transcriber's own finals. So a local cut-off has two
+> possible authors, and they take opposite fixes:
+>
+> - **ours** → the 1.35 s watchdog fired early; raising it is a real fix;
+> - **Apple's** → `SpeechTranscriber` finalized; **we have no knob at all**, and
+>   the only lever is the preset, which is a UX contract (dropping volatile
+>   results would take the live text away).
+>
+> **The discriminator already ships, at `.notice`, on every device build:**
+> `fallback endpointer fired (no final from transcriber)` (`:462`). Correlating
+> that line against the timestamps of a cut-off answers 396-A for the local
+> engine with **no new instrument and no code change** — which makes it the
+> cheapest measurement on this entry and the one that should happen first.
+>
+> ### Fault 3, both engines: AEC is already on, and local barge-in has no switch
+>
+> Both engines set `AVAudioSession` mode **`.voiceChat`** (`:995`,
+> `LiveVoiceSessionService:696/743`) — the system voice-processing chain, i.e.
+> echo cancellation is already engaged. That is consistent with Owen not
+> observing self-barge-in, and it *weakens* — does not kill — the
+> louder-volume hypothesis, since AEC degrades as the speaker approaches
+> clipping.
+>
+> Worth recording for whoever takes fault 3: realtime has
+> `interrupt_response: True`, a flag that can be turned off. **Local has no
+> equivalent** — `commitUserUtterance` cancels an in-flight `turnTask`
+> unconditionally whenever a final lands (`:679`). Making local barge-in
+> optional is a code change, not a configuration one.
+>
+> ### What this does to the item's shape
+>
+> **396-B was written as "restore the realtime knobs to configuration". It
+> cannot be symmetrical**, because the local engine's knobs do not address the
+> confirmed faults:
+>
+> | fault | realtime | local |
+> |---|---|---|
+> | 1 room noise | real knob (`server_vad.threshold`), behind an unbuilt session type | **no knob exists** |
+> | 2 end-of-turn | `eagerness` — hardcoded literal, easy | ours (1.35 s) *or* Apple's — **unmeasured; one log line decides** |
+> | 3 self-barge-in | `interrupt_response` flag | structural, no flag |
+>
+> **Consequence for Owen's user-adjustable direction:** a Quiet/Normal/Noisy
+> picker can be made to mean something real on realtime and would be **partly
+> cosmetic on local**, where only the end-of-turn half has anything to bind to.
+> A control that silently does less on one engine than the other is worse than
+> one that says so. That is a scope input, not a scope decision.
 
 **Cross-references:** **#383** (the re-home that hardcoded these), **#138**
 (realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
