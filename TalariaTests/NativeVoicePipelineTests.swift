@@ -399,7 +399,7 @@ struct NativeVoicePipelineTests {
     @Test func unpairedDeviceRoutesStraightToNativeEngine() async {
         let realtime = StubVoiceService(engine: .realtime)
         let native = StubVoiceService(engine: .native)
-        let router = VoiceEngineRouter(realtime: realtime, native: native, isRelayPaired: { false }, activeBrain: { .hermes })
+        let router = VoiceEngineRouter(realtime: realtime, native: native, isVoiceHostPaired: { false }, activeBrain: { .hermes })
 
         #expect(router.activeEngine == .native)
         await router.startSession()
@@ -414,7 +414,7 @@ struct NativeVoicePipelineTests {
         realtime.stateAfterRefresh = .blocked
         realtime.readiness = TalkReadinessInfo(hostOnline: true, configured: false, ready: false)
         let native = StubVoiceService(engine: .native)
-        let router = VoiceEngineRouter(realtime: realtime, native: native, isRelayPaired: { true }, activeBrain: { .hermes })
+        let router = VoiceEngineRouter(realtime: realtime, native: native, isVoiceHostPaired: { true }, activeBrain: { .hermes })
 
         #expect(router.activeEngine == .realtime)
         await router.refreshReadiness()
@@ -428,7 +428,7 @@ struct NativeVoicePipelineTests {
         realtime.stateAfterStart = .failed
         realtime.blockedReason = "Could not reach the relay."
         let native = StubVoiceService(engine: .native)
-        let router = VoiceEngineRouter(realtime: realtime, native: native, isRelayPaired: { true }, activeBrain: { .hermes })
+        let router = VoiceEngineRouter(realtime: realtime, native: native, isVoiceHostPaired: { true }, activeBrain: { .hermes })
 
         await router.startSession()
         #expect(realtime.startCalls == 1)
@@ -440,7 +440,7 @@ struct NativeVoicePipelineTests {
     @Test func healthyRealtimeStartNeverTouchesNative() async {
         let realtime = StubVoiceService(engine: .realtime)
         let native = StubVoiceService(engine: .native)
-        let router = VoiceEngineRouter(realtime: realtime, native: native, isRelayPaired: { true }, activeBrain: { .hermes })
+        let router = VoiceEngineRouter(realtime: realtime, native: native, isVoiceHostPaired: { true }, activeBrain: { .hermes })
 
         await router.startSession()
         #expect(realtime.startCalls == 1)
@@ -460,7 +460,7 @@ struct NativeVoicePipelineTests {
         let native = StubVoiceService(engine: .native)
         let router = VoiceEngineRouter(
             realtime: realtime, native: native,
-            isRelayPaired: { true },          // pairing says yes …
+            isVoiceHostPaired: { true },          // pairing says yes …
             activeBrain: { .onDevice }        // … and the brain still wins
         )
 
@@ -487,7 +487,7 @@ struct NativeVoicePipelineTests {
         var brain = ChatBackendRouter.Brain.hermes
         let router = VoiceEngineRouter(
             realtime: realtime, native: native,
-            isRelayPaired: { true },
+            isVoiceHostPaired: { true },
             activeBrain: { brain }
         )
         #expect(router.activeEngine == .realtime)
@@ -539,7 +539,7 @@ struct NativeVoicePipelineTests {
         let native = StubVoiceService(engine: .native)
         let router = VoiceEngineRouter(
             realtime: realtime, native: native,
-            isRelayPaired: { true }, activeBrain: { .hermes }
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
         )
         // Keep the belt out of this arm — the timeout has its own test below.
         router.realtimeStartTimeout = .seconds(600)
@@ -576,7 +576,7 @@ struct NativeVoicePipelineTests {
         let native = StubVoiceService(engine: .native)
         let router = VoiceEngineRouter(
             realtime: realtime, native: native,
-            isRelayPaired: { true }, activeBrain: { .hermes }
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
         )
         router.realtimeStartTimeout = .milliseconds(50)
 
@@ -734,7 +734,7 @@ struct NativeVoicePipelineTests {
         let native = StubVoiceService(engine: .native)
         let router = VoiceEngineRouter(
             realtime: realtime, native: native,
-            isRelayPaired: { true }, activeBrain: { .hermes }
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
         )
 
         await router.startSession()
