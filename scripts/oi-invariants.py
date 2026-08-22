@@ -203,10 +203,64 @@ def check_open_pr_claims() -> tuple[bool, str, list[str]]:
     return True, "every header claiming an open PR has one", []
 
 
+
+# A RESULT block announcing bars met — `✅ … 389-A/B/C ALL MET …`. Deliberately
+# narrow: it requires a verdict marker, a bar reference, and a MET/MISSED word
+# on the SAME line, because entries legitimately mention other items' bars in
+# prose all the time (#383 cites 310-E; #392 cites #372(c)). Cross-references
+# are not what this hunts. A block claiming an item's OWN bars are discharged is.
+BAR_RESULT = re.compile(
+    r"(✅|🟡|🔴|❌).*?\b(\d+)-[A-Z]\b.*?\b(ALL MET|MET|MISSED|NOT MET)\b"
+)
+
+
+def check_bar_results_live_under_their_own_item() -> tuple[bool, str, list[str]]:
+    """A result block must sit under the item whose bars it discharges.
+
+    WHY: on 2026-08-22 #389's entire result block was found inside #372 —
+    complete, correct, and 14,000 lines from home. #389's header still read
+    "NOT STARTED", so a reader arriving at #389 saw unfinished work and no
+    result, and began rebuilding it. Nothing else in this file could see that:
+    both halves were internally consistent, and the item numbers never
+    collided. A misfiled block is not a staleness bug (the text was current)
+    and not an allocation bug (the number was fine) — it is a LOCATION bug,
+    which is a third kind this script had no check for.
+
+    Fails safe, same posture as the rest of the file: a legitimate mention of
+    another item's bar in a verdict-shaped sentence will trip this. The fix
+    for a false alarm is to reword the sentence or move the block — both of
+    which leave the tracker easier to read than the sentence that tripped it.
+    """
+    text = LIVE.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    current: str | None = None
+    offenders: list[str] = []
+    for n, line in enumerate(lines, 1):
+        header = HEADER.match(line)
+        if header:
+            current = header.group(1)
+            continue
+        if current is None:
+            continue
+        m = BAR_RESULT.search(line)
+        if not m:
+            continue
+        owner = m.group(2)
+        if owner != current.rstrip("ABCDEFGHIJKLMNOPQRSTUVWXYZ") and owner != current:
+            offenders.append(
+                f"line {n}: a #{owner} bar verdict sits under #{current} — "
+                f"move the block to #{owner}, or reword if it is a cross-reference"
+            )
+    if offenders:
+        return False, f"{len(offenders)} bar verdict(s) filed under the wrong item", offenders
+    return True, "every bar verdict sits under the item whose bars it discharges", []
+
+
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
     ("claimed merge state vs git", check_claimed_merge_state),
     ("headers claiming an open PR", check_open_pr_claims),
+    ("bar verdicts filed under their own item", check_bar_results_live_under_their_own_item),
     ("open PRs vs entries (report only)", check_open_prs_against_entries),
 ]
 

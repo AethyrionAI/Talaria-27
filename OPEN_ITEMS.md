@@ -2023,7 +2023,7 @@ decision whose premise this falsifies), **#385** (the tier-aware pattern any
 gate should follow), **#386** (the published policy that describes the tiers),
 **#387** (the watch obligation on Apple's own pages).
 
-## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. NOT STARTED; bars pre-registered below.**
+## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.**
 
 **The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
 order:
@@ -2086,6 +2086,69 @@ would have shipped the perturbation too.
   / `reloadCapabilities` suspend — and record the red. **A timing fix whose
   bug was never reproduced on demand is a guess**, and this entry exists
   because a plausible guess was already made once here.
+
+> **✅ 2026-08-21 PM — 389-A/B/C ALL MET, and the fix is not the one the entry
+> was most at risk of getting.**
+>
+> **389-C first, as the bar demanded.** The race is now a deterministic FACT
+> rather than a flake: `PermissionsStore.reloadCapabilities()` awaits
+> `healthService.refreshAuthorizationStatus()`, and that call sits between the
+> hoisted widget write and `hostStore.refresh()`. A `GatedHealthService`
+> injected into the launch harness holds it open, so the activation is
+> **provably** parked in that gap — the widget snapshot is written and the
+> fetch cannot have happened. No timing luck involved.
+>
+> **389-A: the assertion POLLS; the timeout was NOT raised.** A longer timeout
+> changes how often the race is lost, not whether it exists, and it is the
+> change a reader reaches for first — which is why the bar named it in advance.
+>
+> **389-B: the guard keeps its meaning.** It still fails on a build where the
+> chain never reaches the fetch; it just fails for that reason instead of for a
+> schedule.
+>
+> **The mutation, and it is what makes the new test more than a repro.**
+> Removing #145 Part B's hoist — putting `reconcileLiveActivities()` /
+> `updateWidgetData()` back BEHIND the network chain, i.e. re-introducing the
+> regression that made the app look broken for minutes after an outage —
+> turns the new test RED at `wroteWhileParked`. So it is a permanent POSITIVE
+> pin on Part B's actual property (*visible state refreshes before the network
+> is touched*), which the old test could only ever assert sideways. That is
+> why it is a new test rather than an edit to the old one.
+>
+> **Provenance:** filed this morning while gating #388, whose first draft
+> `dlopen`'d three frameworks into the test host and perturbed suite timing
+> enough to expose this. The perturbation was fixed there; the race was
+> latent on `main` before it and would have outlived it.
+
+> **🔴 2026-08-22 — THE RESULT ABOVE WAS FILED UNDER #372, AND THAT IS ITS OWN
+> FINDING.** The block was complete, correct, dated, and **~14,500 lines from
+> home**, wedged between two of #372's blocks. This entry's header still said
+> *NOT STARTED*, so the two halves were each internally consistent and pointed
+> in opposite directions.
+>
+> **Cost, measured rather than imagined:** a session on 2026-08-22 read this
+> entry, saw unfinished work with pre-registered bars, and started rebuilding
+> it — stopping only because it read the CODE before writing any, and found
+> `theWidgetWriteLandsBeforeTheHostFetchIsEvenReached` already there. **The
+> tracker discipline did not catch this; the habit of reading source first
+> did.** (Memory: *squash-merge blinds ancestry* — verify a lane's premise in
+> the code at HEAD, never from the entry header alone. It paid for itself here.)
+>
+> **This is a THIRD kind of tracker defect**, and `oi-invariants.py` had no
+> check for it. Its existing three hunt STALENESS (a claim that has since gone
+> false) and ALLOCATION (one number, two items). This text was never stale and
+> the number never collided — it was in the wrong PLACE. Location is a
+> different failure, and nothing mechanical could see it.
+>
+> **✅ Closed structurally, not just repaired.** `check_bar_results_live_under_
+> their_own_item` now flags any line carrying a verdict marker, a `NNN-X` bar
+> reference, and a MET/MISSED word while sitting under a different item. It is
+> deliberately narrow — entries cite each other's bars in prose constantly
+> (#383 cites 310-E, #392 cites #372(c)) and cross-references are not what it
+> hunts. **Verified to FAIL**, per #218's rule that an unfired check is not
+> evidence: run against the pre-move file it reports
+> *"line 16663: a #389 bar verdict sits under #372"* and exits 1. Run over the
+> whole live board after the move, it finds **no other misfile**.
 
 **Cross-references:** **#388** (the lane that exposed it, and the `dlopen`
 perturbation that did the exposing), **#145** (Part B, the property this test
@@ -16660,38 +16723,9 @@ scope: **wholesale, or a permanent dual path?**
 > that puts the 2026-08-15 promotion back in question rather than confirming
 > it. Both are publishable and neither is a disappointment.
 
-> **✅ 2026-08-21 PM — 389-A/B/C ALL MET, and the fix is not the one the entry
-> was most at risk of getting.**
->
-> **389-C first, as the bar demanded.** The race is now a deterministic FACT
-> rather than a flake: `PermissionsStore.reloadCapabilities()` awaits
-> `healthService.refreshAuthorizationStatus()`, and that call sits between the
-> hoisted widget write and `hostStore.refresh()`. A `GatedHealthService`
-> injected into the launch harness holds it open, so the activation is
-> **provably** parked in that gap — the widget snapshot is written and the
-> fetch cannot have happened. No timing luck involved.
->
-> **389-A: the assertion POLLS; the timeout was NOT raised.** A longer timeout
-> changes how often the race is lost, not whether it exists, and it is the
-> change a reader reaches for first — which is why the bar named it in advance.
->
-> **389-B: the guard keeps its meaning.** It still fails on a build where the
-> chain never reaches the fetch; it just fails for that reason instead of for a
-> schedule.
->
-> **The mutation, and it is what makes the new test more than a repro.**
-> Removing #145 Part B's hoist — putting `reconcileLiveActivities()` /
-> `updateWidgetData()` back BEHIND the network chain, i.e. re-introducing the
-> regression that made the app look broken for minutes after an outage —
-> turns the new test RED at `wroteWhileParked`. So it is a permanent POSITIVE
-> pin on Part B's actual property (*visible state refreshes before the network
-> is touched*), which the old test could only ever assert sideways. That is
-> why it is a new test rather than an edit to the old one.
->
-> **Provenance:** filed this morning while gating #388, whose first draft
-> `dlopen`'d three frameworks into the test host and perturbed suite timing
-> enough to expose this. The perturbation was fixed there; the race was
-> latent on `main` before it and would have outlived it.
+> *(A #389 result block sat here until 2026-08-22 — misfiled, not #372's.
+> Moved verbatim to #389. See #389 for it.)*
+
 
 > **🟡 2026-08-21 22:41–22:53 UTC — THE ROLLBACK ARM RAN. 372-C1 IS MET ON
 > DEVICE; THE MEASUREMENT IS A NULL AND THE RUN IS UNDERPOWERED BY
