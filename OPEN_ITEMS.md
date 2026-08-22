@@ -857,7 +857,14 @@ published privacy policy — a user-facing opt-out is consistent with it, and
 tier is used), **#390** (the still-unrouted tier-aware vision question, which
 this toggle does not answer), **#180** (the notice-honesty family).
 
-## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. **CAUSE FOUND AND FIXED THE SAME NIGHT: the loop read a `scenePhase` FROZEN at task-start, so its foreground gate never reopened. `.task(id: scenePhase)`. Device verification of cadence still owed.**
+## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
+
+> **The title this entry carried until it was solved, kept verbatim because the
+> whole value of the item is the distance between it and the header above.** It
+> named a mechanism that is real, reproducible, and NOT the cause:
+>
+> > ## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. **CAUSE FOUND AND FIXED THE SAME NIGHT: the loop read a `scenePhase` FROZEN at task-start, so its foreground gate never reopened. `.task(id: scenePhase)`. **DEVICE-VERIFIED 2026-08-21, BOTH DIRECTIONS HANDS-OFF: offline < 30 s, recovery ~15–20 s. CLOSED.**
+
 
 **The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
 Base URL `http://ojamd:8642`, a host that was up the entire time.
@@ -1233,6 +1240,52 @@ question for the lane.
 > not yet measured. **394-B** moot: no session change. **394-D** — the two
 > paths disagreed because only one of them was ever consulted; a test pinning
 > their agreement is still owed.
+
+
+> **✅ 2026-08-21 23:5x — DEVICE-VERIFIED, BOTH DIRECTIONS, HANDS OFF. Build
+> 2933 (`main` @ `9709668a`), Owen on the chat screen throughout.**
+>
+> | transition | result |
+> |---|---|
+> | airplane **ON** → OFFLINE banner | **< 30 s** *(before the fix: never — five minutes, nothing)* |
+> | airplane **OFF** → back ONLINE | **~15–20 s**, untouched |
+>
+> ### 🔴 The first transition is the load-bearing one, and it is what the
+> simulator could not give
+>
+> **Owen sent nothing.** No message, no Settings visit, no background/foreground
+> cycle. **Nothing but a periodic probe could have detected the loss** — so the
+> banner appearing at all proves the timer loop is probing again. That is the
+> cadence measurement this lane recorded as UNVERIFIED four hours earlier, and
+> it is now closed by the only instrument that could close it.
+>
+> `< 30 s` is the right shape for a 10 s interval plus a probe that must fail
+> first; `~15–20 s` for recovery matches a 10 s interval plus a fast success.
+> **The ~80 s arithmetic this entry once proposed was wrong** — it was built on
+> the assumption that probes were running and merely slow. They were not
+> running at all.
+>
+> ### Bars — final
+>
+> - **394-A ✅** The reproduction requirement is what produced every real result
+>   here. It killed its own first mechanism, and the device log killed the
+>   second. **Three mechanisms died on this item and the bar caught all three
+>   before any of them reached a fix.**
+> - **394-B** — moot. No session change was contemplated; #145 Part A's private
+>   session is untouched.
+> - **394-C ✅ DEVICE-VERIFIED.** Recovery is automatic and bounded, and the
+>   bound is now measured rather than asserted: **~15–20 s**, hands off.
+> - **394-D ⛔ RETIRED, ITS PREMISE FALSIFIED.** It required a test pinning that
+>   the client session and a fresh session return the same verdict, on the
+>   reasoning that *"the disagreement IS the bug."* **It was not.** The two
+>   paths disagreed because **only one of them was ever consulted** — Test
+>   Connection probed and the chat did not. A test pinning their agreement
+>   would pin something that was never broken, and would have passed
+>   throughout the defect's entire life. **Building it would have bought
+>   nothing and implied coverage that did not exist.**
+>
+> **STATUS: ✅ CLOSED** — moves to `OPEN_ITEMS-ARCHIVE.md` verbatim at the next
+> sweep, per #261.
 
 **Cross-references:** **#145 Part A** (why the private session exists — do not
 undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
