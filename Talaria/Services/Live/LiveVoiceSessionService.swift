@@ -1203,8 +1203,30 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// to automatically cancel the in-flight response on VAD start. The client still
     /// needs to cut off any buffered playback locally and truncate the assistant item
     /// to the portion the user actually heard.
+    /// **#138: the barge-in event, and until 2026-08-22 it was SILENT.**
+    ///
+    /// This is the one moment that answers *"was the assistant cut off?"*, and
+    /// it logged nothing — so the question had to be answered from the live
+    /// transcript, which **structurally cannot answer it**. Realtime generates
+    /// text ahead of audio playout, so a response whose AUDIO is cancelled
+    /// mid-sentence still shows a COMPLETE sentence in the transcript. Reading
+    /// completeness as "not interrupted" produced a wrong verdict on
+    /// 2026-08-22, corrected by Owen from what he actually heard.
+    ///
+    /// Both arms log, because the distinction is the measurement: fired while
+    /// the assistant was SPEAKING is a barge-in (self-inflicted when the audio
+    /// is our own echo); fired while it was not is speech detected in silence,
+    /// which is a phantom TURN without an interruption. #138 has both symptoms
+    /// and they had no way to be told apart.
     private func handleServerVADInterruption() {
-        guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else { return }
+        let elapsed = assistantAudioPlaybackStartedAtUptime.map {
+            String(format: "%.2f", ProcessInfo.processInfo.systemUptime - $0)
+        } ?? "n/a"
+        guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else {
+            Self.logger.notice("#138 speech_started while assistant idle — phantom turn, no interruption (state=\(self.voiceState.rawValue, privacy: .public))")
+            return
+        }
+        Self.logger.notice("#138 BARGE-IN: assistant audio cancelled \(elapsed, privacy: .public)s into playback (state=\(self.voiceState.rawValue, privacy: .public))")
         interruptAssistantOutput(sendCancelAndClear: true)
     }
 

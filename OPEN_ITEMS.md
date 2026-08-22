@@ -4571,13 +4571,38 @@ Logged 2026-07-20 (Session V launch sweep).
 > information: it points at AEC residue rather than at anything we do to the
 > route.
 >
-> **Self-INTERRUPTION appears resolved** — every assistant utterance in both
-> transcripts is a complete sentence, where the 4/4 runs were cut off
-> mid-greeting. **Held as PROVISIONAL, not scored:** the model's own *"no
-> interruptions on my end"* is worthless as evidence (it cannot know), and two
-> sessions is thin. **Owen's answer to "was Hermes ever cut off mid-sentence?"
-> is what settles it** — that question is owed before 138-B is called a
-> partial win.
+> ~~**Self-INTERRUPTION appears resolved** — every assistant utterance in both
+> transcripts is a complete sentence…~~ **❌ WRONG, corrected by Owen within the
+> minute: *"it interrupted itself both times on the test. What's partial about
+> it?"* Nothing is. 138-B is refuted OUTRIGHT — both symptoms survive it.**
+>
+> ### 🔴 THE INSTRUMENT WAS THE ERROR, AND IT IS A REUSABLE ONE
+>
+> I read "complete sentences in the transcript" as "not cut off". **That
+> inference is structurally invalid.** Realtime generates TEXT ahead of audio
+> playout, so a response whose AUDIO is cancelled mid-sentence still delivers
+> its full text over the data channel — **the transcript shows a complete
+> utterance for an interruption the user plainly heard.**
+>
+> **So the live transcript can never score barge-in, and no #138 or #396 bar
+> may be scored from it.** It was the only instrument I had, which is the
+> actual defect:
+>
+> **`handleServerVADInterruption` — the one function that answers this — logged
+> NOTHING.** It fires on `input_audio_buffer.speech_started`, cancels the
+> assistant's audio, and returned silently. **Fourth instance this week of *the
+> failure path is the path with no instrument*** (after #394's silent poll loop,
+> the envelope's 200-with-an-error-body, and #383's unlogged realtime fallback).
+> Worse than the others: here the *misleading* instrument was in the UI, in
+> front of both of us, and it read as evidence.
+>
+> **Now instrumented, both arms**, because the distinction IS the measurement:
+> `#138 BARGE-IN: assistant audio cancelled Xs into playback` versus
+> `#138 speech_started while assistant idle — phantom turn, no interruption`.
+> The elapsed time separates "cut off at 0.2 s" from "cut off at 3 s", which
+> bears directly on whether the residue arrives with the utterance or trails it.
+> **Every future session now scores itself from the device log instead of from
+> Owen's ear or from a transcript that cannot know.**
 >
 > ### 🔴 FALSIFICATION 1 — "first utterance only" was an ARTIFACT OF THE USER TALKING
 >
