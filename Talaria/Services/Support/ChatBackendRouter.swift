@@ -117,6 +117,16 @@ final class ChatBackendRouter: HermesClientProtocol {
     /// = entitlement + availability pass (the picker entry exists at all);
     /// usable = can take a turn right now (also below the daily quota).
     var isPrivateCloudSelectable: @MainActor () -> Bool = { false }
+
+    /// **#395: whether the tier is off because the USER turned it off**, as
+    /// opposed to being unavailable or rate-limited.
+    ///
+    /// It exists purely so the fallback notice can tell the truth. Both causes
+    /// degrade to on-device identically, but reporting a user's own setting as
+    /// *"unavailable or over its daily limit"* is the #180 family exactly — a
+    /// surface describing a state it did not observe — and it is the kind of
+    /// message that sends someone hunting for a network fault they do not have.
+    var isPrivateCloudDisabledByUser: @MainActor () -> Bool = { false }
     var isPrivateCloudUsable: @MainActor () -> Bool = { false }
     /// #30: tells the local backend which tier a locally-routed turn runs on.
     var applyLocalTier: (@MainActor (Brain) -> Void)?
@@ -204,10 +214,18 @@ final class ChatBackendRouter: HermesClientProtocol {
                 return BrainResolution(brain: .privateCloud, reason: preference.source)
             }
             if privateCloudFallbackNotice == nil {
-                privateCloudFallbackNotice = "Private Cloud β is unavailable or over its daily limit — continuing on-device."
-                Self.logger.notice("PCC pin degraded to on-device (unavailable/rate-limited)")
+                // #395: name the cause the user can act on.
+                if isPrivateCloudDisabledByUser() {
+                    privateCloudFallbackNotice = "Private Cloud β is turned off in Settings — continuing on-device."
+                    Self.logger.notice("PCC pin degraded to on-device (disabled by user)")
+                } else {
+                    privateCloudFallbackNotice = "Private Cloud β is unavailable or over its daily limit — continuing on-device."
+                    Self.logger.notice("PCC pin degraded to on-device (unavailable/rate-limited)")
+                }
             }
-            return BrainResolution(brain: .onDevice, reason: "pcc-degraded")
+            return BrainResolution(
+                brain: .onDevice,
+                reason: isPrivateCloudDisabledByUser() ? "pcc-disabled-by-user" : "pcc-degraded")
         }
 
         guard isHermesConfigured() else {

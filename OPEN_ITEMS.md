@@ -778,7 +778,86 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.**
+## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
+
+**Owen, ruling it:** *"Yeah I know it's already available. We've done light
+testing. The picker works. But what if we don't want it. What if we're out of
+quota and using it makes the app weird. Lots of things. Privacy, etc. That's why
+I considered the enable/disable toggle."*
+
+**The distinction, because I got it wrong first.** My initial reading was that
+this duplicated an existing control — `ChatBackendRouter.selectableBrains`
+already appends `.privateCloud` whenever the tier is live, so PCC has always
+been pickable. **That is a different control.** The picker answers *who handles
+the next turn*; nothing answered *may this app use Apple's servers at all*.
+There was no way to say no.
+
+### What shipped
+
+- **`UserSettings.privateCloudEnabled`, default ON.** The asymmetry against
+  `spotlightIndexingEnabled` (opt-IN) is deliberate and documented at the
+  property: Spotlight indexing starts sending data somewhere new, so it must be
+  opted into; **PCC already shipped enabled (#72/#386), so defaulting this OFF
+  would silently withdraw a capability users already have.** An absent JSON key
+  decodes to `true`, pinned by a test that feeds it settings JSON predating the
+  key.
+- **BOTH router predicates are gated**, not just the picker one —
+  `isPrivateCloudSelectable` *and* `isPrivateCloudUsable`.
+- **The fallback notice names the cause.** A pinned PCC conversation already
+  degraded to on-device with *"unavailable or over its daily limit"*; reporting
+  a user's own setting that way is #180's family exactly, and would send
+  someone hunting for a network fault they do not have. It now reads
+  *"Private Cloud β is turned off in Settings — continuing on-device."*
+  and logs `pcc-disabled-by-user`.
+- **The toggle shows whenever the tier EXISTS on the device**, not when it is
+  selectable — gating its visibility on `selectableBrains` would make the switch
+  vanish the moment it was used, with no way back.
+
+### 🔴 The test that exists because the first version of these tests was hollow
+
+The suite's first draft set both predicates from one expression, and its comment
+claimed it "mirrors the wiring rather than assuming it." **It assumed it** —
+every test would have passed whether the container gated one predicate or both.
+
+`gatingOnlyThePickerWouldLeaveAutomaticRoutingIntact` now constructs the
+HALF-gated arrangement and **asserts the broken behaviour**: picker entry
+hidden, pinned conversation still routing to `.privateCloud`. That is the
+demonstration the double gate exists for, and it says so in its own failure
+message so a future reader does not delete it as backwards.
+
+**⚠️ What is still NOT pinned, stated rather than glossed:** `AppContainer`'s
+wiring itself has no unit-test harness, so the suite documents *why* both
+predicates are gated but cannot enforce that they *are*. A regression there
+would be caught by nothing in this suite.
+
+### ⚠️ Bars, and the deviation named
+
+**These were recorded after the implementation, not before it** — Owen ruled and
+the build followed inside the same exchange. #215's discipline governs
+MEASUREMENT bars, and nothing here is measured; but the honest statement is that
+this lane did not pre-register, and it should be read accordingly.
+
+- **395-A** ✅ off means off on both predicates, proven by the half-gated
+  demonstration above.
+- **395-B** ✅ an install predating the key keeps the tier.
+- **395-C** ✅ the degrade notice names the user-actionable cause and the
+  quota cause keeps its own wording — both directions asserted, so the fix
+  cannot collapse two states into one message either way.
+- **395-D** ⛔ **NOT DONE, and it is Owen's call:** the toggle currently lives
+  on the Models screen directly above the usage row, so control and state are
+  one surface. Owen's suggestion was a **dedicated PCC tile in Settings**
+  ("looks like there's space if we add another square"). Placing that tile is a
+  layout decision, and the two rows are built so moving them is a move rather
+  than a rewrite.
+
+**Cross-references:** **#391** (the usage row this sits above, and the
+conversation that produced this ruling), **#72**/**#386** (the tier and its
+published privacy policy — a user-facing opt-out is consistent with it, and
+#386's text is unaffected because the policy describes what happens WHEN the
+tier is used), **#390** (the still-unrouted tier-aware vision question, which
+this toggle does not answer), **#180** (the notice-honesty family).
+
+## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. **CAUSE FOUND AND FIXED THE SAME NIGHT: the loop read a `scenePhase` FROZEN at task-start, so its foreground gate never reopened. `.task(id: scenePhase)`. Device verification of cadence still owed.**
 
 **The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
 Base URL `http://ojamd:8642`, a host that was up the entire time.
@@ -949,6 +1028,211 @@ question for the lane.
 > itself in one probe. **394-C is now the load-bearing bar**, and its wording
 > already anticipated this: recovery must be *bounded and asserted in seconds*,
 > not left to "eventually".
+
+
+> **🔴 2026-08-21 LATE — MEASURED ON DEVICE, AND IT REFUTES THE POOLED-SOCKET
+> MECHANISM OUTRIGHT. THE HEALTH PROBE DOES NOT RUN. Third hypothesis on this
+> item, and the first one killed by measurement rather than by argument.**
+>
+> ### How the test was supposed to go, and what actually happened
+>
+> The instruction was: airplane ON, wait for OFFLINE, airplane OFF, time the
+> recovery. **The precondition never held.** Owen, verbatim: *"Airplane mode,
+> waiting — been 90s. Still no banner for offline… 2m and counting. 3 —
+> nothing. 4mins — still nothing. I'm gonna stop here right before 5m."* Then:
+> **"If I do nothing, no banner. If I send a message, the banner appears."**
+>
+> So the app never went offline **at all** with the network dead. The question
+> stopped being "why doesn't it recover" and became "why doesn't it notice".
+>
+> ### The measurement (`~/Desktop/talaria-394.logarchive`, 20:45–22:10)
+>
+> Window **21:00:40 → 21:07:10**, app foregrounded and `scenePhase == .active`
+> throughout (no transitions between 21:00:34 and 21:07:14), network dead:
+>
+> | endpoint | connection attempts |
+> |---|---|
+> | `/api/platforms/talaria/events` | **47** |
+> | **`/v1/models`** (the health probe) | **0** |
+>
+> **The app was networking hard the whole time.** The platform link retried
+> forty-seven times. The probe that drives the offline banner attempted
+> nothing.
+>
+> **Across the ENTIRE 85-minute archive there are exactly TWO `/v1/models`
+> connection starts, both at the same instant — 21:11:08.759 — immediately
+> after an app foreground transition.** Roughly 64 of those 85 minutes were
+> foregrounded, and about 54 of them were foregrounded *and online*. At the
+> steady 30 s cadence that is on the order of **130 probes expected, 2
+> observed**, and both of those are the activation probe, not the timer.
+>
+> **And zero `Sessions API /v1/models failed` lines anywhere in the archive** —
+> `connect()` logs that on every failed probe, subsystem confirmed
+> `org.aethyrion.talaria`/`SessionsHermesClient`. So this is not a probe that
+> ran and failed to propagate. **Nothing ran.**
+>
+> ### 🔴 What this refutes
+>
+> - **The pooled dead socket is NOT the cause.** No connection was reused
+>   because none was attempted. The `PooledConnectionWedgeTests` reproduction
+>   remains correct about `URLSession` — a poisoned pooled connection does wedge
+>   one request, and does self-heal on the next — but it is **not this bug**.
+>   Two mechanisms have now been disproved on this item (ATS/MagicDNS, then the
+>   pool) and this is the first time evidence rather than re-reading did it.
+> - **The `.checking`-renders-as-nothing theory is not needed either.** It was a
+>   sound reading of the banner rule and it explained the symptom; it just
+>   isn't what happened, because the status was never recomputed at all.
+>
+> ### ✅ What ONE mechanism now explains, in both directions
+>
+> If the periodic probe does not run, `directConnectionStatus` only changes on
+> activation and on a send:
+>
+> | observation | explanation |
+> |---|---|
+> | network dies, no OFFLINE banner | status never recomputed; keeps its last value (`.connected`) |
+> | send a message → banner appears | `send()` is a different path; it fails and sets `.error` |
+> | network returns, still OFFLINE (the original #394) | `.error` is never cleared, because nothing re-probes |
+> | Test Connection PASSES meanwhile | separate path, `URLSession.shared`, 5 s budget — never touches `directConnectionStatus` |
+> | switching hosts fixes it instantly | a state change that re-enters the resolution path |
+> | it eventually recovered at 21:11 | an app background→foreground cycle, which is the ONLY thing in the archive that ever probed |
+>
+> **The original report and tonight's inverse are the same defect**, and it is
+> not a transport bug at all — it is that **the thing which is supposed to
+> notice is not running.**
+>
+> ### ⚠️ NOT yet established — do not skip this before fixing
+>
+> **WHY the loop is silent is unmeasured**, and this item has now paid three
+> times for reasoning ahead of evidence. Candidates, none elected:
+> `monitorConnectionStatus()`'s `.task` being cancelled or never started (a
+> `.task` dies with its view — Owen navigated to Settings during the original
+> episode); `refreshDirectHealth`'s `guard !isStreaming` early-returning; the
+> tick being awaited somewhere that never returns.
+>
+> **One confound to close first:** a `.task` is cancelled when its view goes
+> away, so if the chat screen was not the visible screen for parts of the
+> archive, some of that silence is correct behaviour. It does **not** explain
+> 21:00:40–21:07:10, when Owen was watching the chat screen for a banner and
+> the probe attempted nothing — but a follow-up should pin screen visibility
+> rather than infer it.
+>
+> **The cheapest next step is instrumentation, not a fix:** one log line per
+> tick in `monitorConnectionStatus()` naming the interval and the
+> `shouldProbe` verdict, plus one in `refreshDirectHealth` naming which branch
+> it took. That turns "the loop is silent" into "the loop stopped HERE", and it
+> costs one build.
+>
+> ### Bars
+>
+> **394-A ✅ MET, twice over and in opposite directions.** The bar demanded a
+> reproduction before any fix precisely because a transport bug fixed without
+> one is a guess. It first produced a clean reproduction that half-refuted its
+> own mechanism, and then a device measurement that refuted the rest. **No fix
+> has been written, which is the bar working.** 394-B is moot (no session
+> change is contemplated). **394-C is now the target**: recovery must be
+> automatic and bounded — and the reason it is not is that nothing is checking.
+> 394-D still stands and is now more interesting, since the two paths disagreed
+> because only one of them was ever consulted.
+
+
+> **✅ 2026-08-21 LATE — CAUSE FOUND AND FIXED. The loop was never dead: it woke
+> every ten seconds and declined every time, because it was reading a
+> `scenePhase` FROZEN AT TASK-START. Six log lines, after three wrong theories
+> built from reading code.**
+>
+> ### The proof — both values, one process, ten seconds apart
+>
+> A temporary `.onChange(of: scenePhase)` logged the LIVE phase beside the
+> loop's own:
+>
+> ```
+> 22:34:54.623  scene-phase: LIVE = inactive
+> 22:34:54.629  health-poll: LOOP START status=connected
+> 22:34:55.082  scene-phase: LIVE = active          ← SwiftUI goes active
+> 22:35:05.264  health-poll: wake #1  phase=inactive  ← the loop still reads inactive
+> 22:35:05.264  health-poll: skip #1 — phase not active
+> ```
+>
+> Fourteen consecutive ticks read `inactive` while the app was demonstrably
+> foreground and interactive (screenshot taken mid-run), including 47 s after
+> the Simulator was explicitly fronted.
+>
+> ### The mechanism
+>
+> `monitorConnectionStatus()` is an **async method on a View STRUCT**. The
+> `.task` closure captures `self` **by value**, and `@Environment(\.scenePhase)`
+> resolves out of that captured copy — which SwiftUI never updates. It captured
+> `.inactive` (the phase during first appearance) and returned `.inactive` for
+> the life of the view, so `ChatHealthPollPolicy.shouldProbe` returned false on
+> every tick, forever.
+>
+> **The per-tick check is what hid it.** Reading the code, it looks like the
+> phase is consulted fresh every ten seconds. It was re-reading one frozen
+> value ten seconds apart.
+>
+> ### 🔴 The bitter part: #175's own fix caused this
+>
+> #175 added the foreground-only rule to stop the poll running while
+> backgrounded — its comment records that it *"used to be a flat 10s loop that
+> ran while backgrounded too."* **The wasteful version worked.** The fix that
+> made it polite made it silent, and nothing noticed for weeks because **a
+> health probe that never runs is indistinguishable from a healthy
+> connection.** Same family as #218 (a promoted clause read by production while
+> declared under `#if DEBUG`) and #300 (a classifier that could not tell a real
+> failure from a flake): the failure mode of a correctness fix is usually
+> silence, not noise.
+>
+> ### The fix
+>
+> **`.task(id: scenePhase) { await monitorConnectionStatus() }`.** Keying the
+> task on the phase restarts it whenever the phase changes, so every run
+> captures a value that is correct for its whole lifetime. The per-tick check
+> becomes a single guard at the top — **now correct where per-tick was not** —
+> and the foreground-only rule becomes STRUCTURAL: a backgrounded app cancels
+> the task rather than running a loop that wakes only to decline.
+>
+> Rejected alternatives, both of which work and both of which leave the trap in
+> place for the next person: routing the phase through `@State`, and reading
+> `UIApplication.shared.applicationState` inside the loop.
+>
+> ### ⚠️ What is VERIFIED and what is NOT — read before trusting this
+>
+> - ✅ **The defect**, beyond doubt: LIVE `active` vs loop `inactive`, 14 ticks,
+>   with a screenshot proving the app was foreground.
+> - ✅ **The gate now opens**: post-fix the sim logs `LOOP START phase=active`
+>   where pre-fix every tick logged `skip — phase not active`. A behavioural
+>   change at exactly the point of failure.
+> - ⛔ **NOT verified: probe cadence end to end.** The simulator blocked both
+>   routes — the per-tick line is verbose-gated and `AppContainer` resets that
+>   flag from `UserSettings` at launch, and the sim has no host configured so
+>   probes make no network request to count. A clean background→foreground
+>   transition could not be driven from `simctl` either, so the task RESTART
+>   was not observed.
+> - The code after the guard is unchanged and was already shipping — it was
+>   simply never reached — so the residual risk is low. **Low risk is not
+>   measured**, and this item has already punished three confident inferences.
+>   **Device verification is owed** and is trivial there: a configured host
+>   makes a working probe observable as a status change, with no reliance on
+>   our own logging.
+>
+> ### Instrumentation kept, deliberately
+>
+> `LOOP START` / `LOOP EXIT` stay **always-on** — two lines per foreground
+> transition. They are the only thing that would have made this visible without
+> a special build, and their cost is nil. Per-tick lines are verbose-gated.
+> **The lesson is that this loop had no liveness signal at all**, which is why
+> a month of silence read as health.
+>
+> ### Bars
+>
+> **394-A ✅** — the reproduction requirement is what produced this. It killed
+> its own first mechanism (the pooled socket self-heals) and then the device
+> log killed the rest. **394-C ✅ in mechanism, ⛔ unverified on device** —
+> recovery is automatic again because the probe runs again, but the bound is
+> not yet measured. **394-B** moot: no session change. **394-D** — the two
+> paths disagreed because only one of them was ever consulted; a test pinning
+> their agreement is still owed.
 
 **Cross-references:** **#145 Part A** (why the private session exists — do not
 undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
@@ -1246,7 +1530,7 @@ this), **#180** (honest degradation), **#340** (a confident sentence about a
 non-existent artifact), **#343** (the governor fix that made the denominator
 real), **#372(c)** (tonight's lesson on base rates and power).
 
-## 391. 🔴 THE MODELS SCREEN TELLS THE USER "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED — quota tracking is INERT on this seed and the row states a status anyway — **MEASURED ON DEVICE 2026-08-21 (#388-B). SPAWNED BY #388 per its scope rule; NOT STARTED, bars pre-registered below.**
+## 391. 🔴 THE MODELS SCREEN TELLS THE USER "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED — quota tracking is INERT on this seed and the row states a status anyway — **MEASURED ON DEVICE 2026-08-21 (#388-B). SPAWNED BY #388 per its scope rule. **SHIPPED 2026-08-21 on Owen's fourth route — and the fix found a PLUMBING bug this entry never suspected: the reset date was discarded on the below-limit path. 391-A/B SUPERSEDED by the ruling, see below.**
 
 **The measurement** (`planning/reports/2026-08-21-388-pcc-surface.json`, plus
 Owen's `log collect`):
@@ -1300,6 +1584,91 @@ tell whether one was measured.**
 - **391-D (no polling, no meter, no alert).** #30's ruling that quota is
   PERSISTENT STATUS rather than an alert stands, and #388 proved no number
   exists to display. This is a copy-and-nil-handling change, not a feature.
+
+
+> **✅ 2026-08-21 — OWEN RULED A FOURTH ROUTE, AND IT IS BETTER THAN THE THREE
+> THAT WERE OFFERED. Shipped. Two of this entry's own bars are SUPERSEDED by
+> the ruling rather than met — recorded as a route change, not as a pass.**
+>
+> ### The ruling
+>
+> Three routes were put to him: suppress the reassuring arm, guess whether the
+> value was measured, or leave it. **He took none of them:**
+>
+> > *"So we may want to use the data that we have available. … Print what it
+> > shows. If it's nil, it's nil. Same with the optional reset date. But when
+> > it starts showing a number, it'll already be there. That reset date is
+> > handy. And if the user goes into settings down the line, and sees that they
+> > have no PCC left, and it resets tomorrow, it'll encourage them to return to
+> > the app."*
+>
+> **Stop narrating a status; display the fields.** An absent value renders `—`
+> rather than being smoothed away or guessed at, and the row is already correct
+> the day the OS starts populating it. It needs no discriminator, hides
+> nothing, and — unlike the suppress route — keeps the surface that becomes
+> useful later.
+>
+> ### 🔴 The defect was in the PLUMBING, and this entry did not know that
+>
+> This entry was filed as "the row states a status nothing measured". True, and
+> incomplete. Reading the code for the fix turned up a second, concrete bug the
+> measurement could not have seen:
+>
+> **`privateCloudStatus()` read `usage.resetDate` ONLY inside the
+> limit-reached branch.** On the far more common below-limit path, a reset date
+> the OS *had supplied* was discarded before anything could render it. So the
+> single field Owen most wanted was not merely unshown — it was thrown away at
+> the source. That is not a copy problem and no amount of rewording the label
+> would have found it.
+>
+> ### What shipped
+>
+> - **`resetDate` is carried on every arm**, and `limitReached(resetDate:)`
+>   lost its associated value so there is exactly one home for it.
+> - **A new `.unknown` quota arm.** The `else` branch used to coerce an
+>   unrecognised `QuotaUsage.Status` into `.belowLimit(approaching: false)` —
+>   an unnameable status rendered to the user as good news. It now renders
+>   `STATUS —` in `dimForeground`, borrowing neither the reassuring tone nor
+>   the alarming one. **This arm involves no guessing:** it fires only when the
+>   SDK reports a case this build cannot name, which *is* unknown.
+> - **The row is fields, not a sentence:**
+>   `PRIVATE CLOUD β · BELOW DAILY LIMIT · RESETS —`. The RESETS field is
+>   always present so its absence is visible; a row that omitted it could not
+>   tell the user the app was never given a date. A reset on another day
+>   carries the date, because "resets at 9:00" is useless if the turnover is
+>   tomorrow — the case Owen named.
+> - **A pure `make(...)` seam.** `privateCloudStatus()` extracts the OS's four
+>   facts and a pure function maps them, so the mapping is assertable without a
+>   `PrivateCloudComputeLanguageModel`. **This was added because the first
+>   draft of the tests was hollow:** they drove the label formatter with an
+>   explicit date and would have stayed green through the very bug above — it
+>   was never the formatter that dropped the value. Mutation-verified:
+>   reintroducing `resetDate: isLimitReached ? resetDate : nil` turns
+>   `theResetDateSurvivesTheMappingOnTheBelowLimitArm` RED with
+>   *"the below-limit arm discarded the OS's reset date"*, and nothing else.
+>
+> ### ⚠️ Bars — two SUPERSEDED, and that is a route change, not a pass
+>
+> - **391-A ⛔ NOT BUILT, deliberately.** It required a discriminator between
+>   "measured" and "never measured", *verified against a wired seed first*. No
+>   such seed exists, and its own text says a heuristic that fires on a healthy
+>   device is worse than the current row. **Owen's route removes the need for
+>   it**, which is why this is superseded rather than outstanding.
+> - **391-B ⚠️ PARTIALLY met, and the gap is stated rather than glossed.** An
+>   *unnameable* status now renders as unknown. But the case this entry was
+>   FILED for — the tracker inert, `.belowLimit` returned as a default —
+>   still renders "BELOW DAILY LIMIT", now beside an honest `RESETS —`. **The
+>   app still cannot tell that state from a real one**, and under Owen's route
+>   it is not trying to; it is showing what it has and letting the missing
+>   field be visible. A reader should not take 391-B as satisfied.
+> - **391-C ✅** the `limitReached` path is untouched in meaning.
+> - **391-D ✅** no polling, no meter, no alert — this is copy and nil
+>   handling. **The enable/disable toggle Owen raised in the same breath is a
+>   FEATURE and went to its own entry, #395**, rather than being stretched into
+>   this one.
+>
+> **Cross-references added:** **#395** (the opt-out, spawned from this
+> discussion).
 
 **Cross-references:** **#388-B** (the measurement and the log correlation),
 **#30** (the row's original design), **#180** (honest degradation — the family),

@@ -1,0 +1,11 @@
+ 387 url: http://ojamd:8642/api/platforms/talaria/events
+  21 url: http://ojamd:8000/v1/talk/readiness
+  18 url: http://ojamd:8000/v1/commands
+   3 url: http://ojamd:8642/v1/models
+   3 url: http://ojamd:8642/api/sessions
+   3 url: http://100.79.222.100:8642/v1/models
+   3 url: http://100.79.222.100:8642/api/sessions
+
+--- /v1/models connection starts, whole archive ---
+2026-08-21 21:11:08.759
+2026-08-21 21:11:08.759

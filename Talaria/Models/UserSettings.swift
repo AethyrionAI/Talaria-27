@@ -385,6 +385,23 @@ struct UserSettings: Codable, Hashable, Sendable {
     /// #17: donate sessions + agent files to Spotlight. Default OFF — chat
     /// previews entering the system index is an explicit opt-in privacy trade.
     var spotlightIndexingEnabled: Bool
+
+    /// **#395: hard opt-out for the Private Cloud Compute tier.**
+    ///
+    /// **Not the same control as the brain picker**, which chooses who answers
+    /// the NEXT turn. This decides whether the tier is offered to this app at
+    /// all: off means `.privateCloud` does not appear in `selectableBrains`
+    /// and nothing can route to it.
+    ///
+    /// **Default ON, unlike `spotlightIndexingEnabled` above, and the
+    /// asymmetry is deliberate.** Spotlight indexing is opt-IN because turning
+    /// it on starts sending data somewhere new. PCC already shipped enabled
+    /// (#72/#386), so defaulting this OFF would silently withdraw a capability
+    /// users already have — a migration doing that quietly is worse than the
+    /// gap it closes. Owen's reasons for wanting the gate (2026-08-21) are
+    /// privacy, and being able to shut the tier off when quota is exhausted
+    /// and its behaviour turns strange.
+    var privateCloudEnabled: Bool
     /// Sessions drawer: show rows the host reports as having zero messages.
     /// Default OFF — the gateway accepts `?min_messages=1` and ignores it
     /// (OPEN_ITEMS #187), so the shelf filters them client-side. The active
@@ -464,6 +481,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion: Bool = false,
         verboseLogging: Bool = false,
         spotlightIndexingEnabled: Bool = false,
+        privateCloudEnabled: Bool = true,
         showEmptySessions: Bool = false,
         midTurnSendAction: MidTurnSendAction = .queue,
         appLockEnabled: Bool = false,
@@ -497,6 +515,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.reduceMotion = reduceMotion
         self.verboseLogging = verboseLogging
         self.spotlightIndexingEnabled = spotlightIndexingEnabled
+        self.privateCloudEnabled = privateCloudEnabled
         self.showEmptySessions = showEmptySessions
         self.midTurnSendAction = midTurnSendAction
         self.appLockEnabled = appLockEnabled
@@ -532,6 +551,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case reduceMotion
         case verboseLogging
         case spotlightIndexingEnabled
+        case privateCloudEnabled
         case showEmptySessions
         case midTurnSendAction
         case appLockEnabled
@@ -575,6 +595,9 @@ struct UserSettings: Codable, Hashable, Sendable {
         reduceMotion = try container.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false
         verboseLogging = try container.decodeIfPresent(Bool.self, forKey: .verboseLogging) ?? false
         spotlightIndexingEnabled = try container.decodeIfPresent(Bool.self, forKey: .spotlightIndexingEnabled) ?? false
+        // #395: absent key ⇒ true. An existing install that predates the
+        // toggle keeps the tier it already had.
+        privateCloudEnabled = try container.decodeIfPresent(Bool.self, forKey: .privateCloudEnabled) ?? true
         showEmptySessions = try container.decodeIfPresent(Bool.self, forKey: .showEmptySessions) ?? false
         midTurnSendAction = try container.decodeIfPresent(MidTurnSendAction.self, forKey: .midTurnSendAction) ?? .queue
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
@@ -628,6 +651,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         try container.encode(reduceMotion, forKey: .reduceMotion)
         try container.encode(verboseLogging, forKey: .verboseLogging)
         try container.encode(spotlightIndexingEnabled, forKey: .spotlightIndexingEnabled)
+        try container.encode(privateCloudEnabled, forKey: .privateCloudEnabled)
         try container.encode(showEmptySessions, forKey: .showEmptySessions)
         try container.encode(appLockEnabled, forKey: .appLockEnabled)
         try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)

@@ -467,7 +467,22 @@ struct ChatScreen: View {
                 if seed != nil { consumeShareSeed() }
             }
             .task { await startChatSession() }
-            .task { await monitorConnectionStatus() }
+            // #394: KEYED ON THE SCENE PHASE, and that keying is the fix.
+            //
+            // `monitorConnectionStatus()` is an async method on a View STRUCT,
+            // so the closure captures `self` by value and `@Environment(\.scenePhase)`
+            // resolves out of that frozen copy. It captured `.inactive` — the
+            // phase during first appearance — and returned `.inactive` for the
+            // life of the view, so the poll's foreground gate never opened
+            // again. Measured 2026-08-21: the loop woke every 10s and skipped
+            // every time, for 85 minutes.
+            //
+            // Keying the task on the phase restarts it whenever the phase
+            // changes, so each run captures a value that is correct for its
+            // whole lifetime. It also makes the foreground-only rule
+            // STRUCTURAL — a backgrounded app cancels the task instead of
+            // running a loop that wakes only to decline.
+            .task(id: scenePhase) { await monitorConnectionStatus() }
             .task {
                 // #235 F2: opening the chat is the user looking at the
                 // transcript — one single-shot reconcile; the store's
@@ -584,6 +599,7 @@ struct ChatScreen: View {
     /// ticker — the sweep can sit in minute-scale timeouts against a sick
     /// dormant profile, and the banner's probe must not wait on it.
     private func startChatSession() async {
+        TalariaLog.logger.verbose("health-poll: activation probe (startChatSession)")
         chatStore.setPollingEnabled(true)
         await healthTicker.tick(
             hostRefresh: { await hostStore.refresh() },
@@ -600,23 +616,39 @@ struct ChatScreen: View {
     /// while the host sweep hangs (single-flight — a stuck sweep doesn't
     /// stack).
     private func monitorConnectionStatus() async {
+        // #394: the task is keyed on `scenePhase`, so this value is captured
+        // fresh per run and CANNOT go stale underneath the loop — checking it
+        // once here is now correct where a per-tick check was not. The
+        // per-tick form is what hid the bug: it looked like it was consulting
+        // live state every ten seconds and was re-reading one frozen value.
+        guard ChatHealthPollPolicy.shouldProbe(scenePhase: pollScenePhase) else { return }
+
+        // LOOP START / EXIT stay always-on. They are cheap (two lines per
+        // foreground transition) and they are the only thing that would have
+        // made this defect visible without a special build: a loop that is
+        // running but achieving nothing looks exactly like a healthy
+        // connection from the outside.
+        var iteration = 0
+        TalariaLog.event("health-poll: LOOP START phase=\(pollScenePhase) status=\(chatStore.directConnectionStatus)")
+        defer {
+            TalariaLog.event(
+                "health-poll: LOOP EXIT after \(iteration) probe(s) cancelled=\(Task.isCancelled)")
+        }
+
         var unchangedProbes = 0
         var lastStatus = chatStore.directConnectionStatus
         while !Task.isCancelled {
             let interval = ChatHealthPollPolicy.interval(consecutiveUnchangedProbes: unchangedProbes)
             try? await Task.sleep(for: .seconds(interval))
             guard !Task.isCancelled else { break }
-            guard ChatHealthPollPolicy.shouldProbe(scenePhase: pollScenePhase) else {
-                // Re-probe promptly on return rather than up to a steady
-                // interval later.
-                unchangedProbes = 0
-                continue
-            }
+            iteration += 1
             await healthTicker.tick(
                 hostRefresh: { await hostStore.refresh() },
                 directRefresh: { await chatStore.refreshDirectHealth() }
             )
             let status = chatStore.directConnectionStatus
+            TalariaLog.logger.verbose(
+                "health-poll: probe #\(iteration) interval=\(Int(interval))s -> \(status)")
             if status == lastStatus {
                 unchangedProbes += 1
             } else {

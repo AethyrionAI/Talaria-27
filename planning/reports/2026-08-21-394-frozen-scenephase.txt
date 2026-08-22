@@ -1,0 +1,21 @@
+getpwuid_r did not find a match for uid 501
+Filtering the log data using "subsystem BEGINSWITH "org.aethyrion""
+Timestamp               Ty Process[PID:TID]
+2026-08-21 22:34:53.518 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria:VoiceEngineRouter] active voice engine → native (initial; relayPaired=false)
+2026-08-21 22:34:53.589 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria:AppContainer] handleSystemLaunch: entered
+2026-08-21 22:34:53.589 E  Talaria 27[80120:16a1ece] [org.aethyrion.talaria:AppContainer] handleSystemLaunch: BLOCKED — not paired
+2026-08-21 22:34:54.616 E  Talaria 27[80120:16a1ece] [org.aethyrion.talaria:AppContainer] initialize: ABORT — not paired
+2026-08-21 22:34:54.623 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] scene-phase: LIVE = inactive
+2026-08-21 22:34:54.623 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] health-poll: ACTIVATION probe (startChatSession)
+2026-08-21 22:34:54.624 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] direct-health: probing
+2026-08-21 22:34:54.627 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] direct-health: probed -> connected
+2026-08-21 22:34:54.629 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] health-poll: LOOP START status=connected
+2026-08-21 22:34:54.937 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria:LocalChatBackend] restored 0 cached message(s) for transcript replay (#26)
+2026-08-21 22:34:55.071 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:AppLock] scenePhase background -> active | pre: cover=none locked=false authenticating=false didFail=false attempt=0
+2026-08-21 22:34:55.080 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:AppLock] autoAuth BLOCKED guard=cover(none)
+2026-08-21 22:34:55.082 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] scene-phase: LIVE = active
+2026-08-21 22:34:55.115 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria:Entitlements] entitlement scan: connected tier not entitled
+2026-08-21 22:34:55.127 E  Talaria 27[80120:16a1ece] [org.aethyrion.talaria:AppContainer] handleAppDidBecomeActive: BLOCKED — not paired
+2026-08-21 22:35:05.264 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] health-poll: wake #1 interval=10s phase=inactive
+2026-08-21 22:35:05.264 Df Talaria 27[80120:16a1ece] [org.aethyrion.talaria27:app] health-poll: skip #1 — phase not active
+Child process terminated with signal 9: Killed

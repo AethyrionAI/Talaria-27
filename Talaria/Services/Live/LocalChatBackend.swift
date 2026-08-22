@@ -315,10 +315,29 @@ final class LocalChatBackend: HermesClientProtocol {
     struct PrivateCloudStatus: Equatable, Sendable {
         enum Quota: Equatable, Sendable {
             case belowLimit(approaching: Bool)
-            case limitReached(resetDate: Date?)
+            case limitReached
+            /// **#391: the SDK reported a status this build does not know.**
+            /// It used to be folded into `belowLimit(approaching: false)` —
+            /// i.e. an unrecognised value was rendered to the user as good
+            /// news. This arm involves no guessing: it fires only when
+            /// `QuotaUsage.Status` is a case we cannot name, which IS
+            /// unknown, and it renders as unknown.
+            case unknown
         }
 
         let quota: Quota
+
+        /// **#391: carried in EVERY arm, not only on `limitReached`.**
+        ///
+        /// The OS exposes `resetDate` independently of the status, and this
+        /// type used to read it only inside the limit-reached branch — so on
+        /// the far more common below-limit path a date the OS had supplied
+        /// was discarded before anything could show it. Owen's ruling
+        /// (2026-08-21): *"print what it shows. If it's nil, it's nil. Same
+        /// with the optional reset date."* `nil` is a real answer here and
+        /// renders as one.
+        let resetDate: Date?
+
         let hasLimitIncreaseSuggestion: Bool
     }
 
@@ -327,16 +346,20 @@ final class LocalChatBackend: HermesClientProtocol {
         let pcc = PrivateCloudComputeLanguageModel()
         guard pcc.isAvailable else { return nil }
         let usage = pcc.quotaUsage
-        let quota: PrivateCloudStatus.Quota
-        if usage.isLimitReached {
-            quota = .limitReached(resetDate: usage.resetDate)
-        } else if case .belowLimit(let info) = usage.status {
-            quota = .belowLimit(approaching: info.isApproachingLimit)
+        // #391: the SDK's four facts are extracted here and MAPPED by a pure
+        // function below, so the mapping — including "carry the reset date on
+        // every arm" — is assertable without a `PrivateCloudComputeLanguageModel`.
+        // Reading `usage` is untestable; deciding what it means need not be.
+        let isApproaching: Bool?
+        if case .belowLimit(let info) = usage.status {
+            isApproaching = info.isApproachingLimit
         } else {
-            quota = .belowLimit(approaching: false)
+            isApproaching = nil
         }
-        return PrivateCloudStatus(
-            quota: quota,
+        return PrivateCloudStatus.make(
+            isLimitReached: usage.isLimitReached,
+            isApproachingLimit: isApproaching,
+            resetDate: usage.resetDate,
             hasLimitIncreaseSuggestion: usage.limitIncreaseSuggestion != nil
         )
     }
@@ -2626,5 +2649,87 @@ enum LocalChatBackendError: LocalizedError {
         case .sessionUnreadable:
             return "This conversation is stored on the device, but its transcript couldn't be read."
         }
+    }
+}
+
+extension LocalChatBackend.PrivateCloudStatus {
+
+    /// **#391: the quota row as FIELDS, not as a sentence.**
+    ///
+    /// Owen's ruling (2026-08-21): *"Print what it shows. If it's nil, it's
+    /// nil. Same with the optional reset date. But when it starts showing a
+    /// number, it'll already be there."* So the row always carries a RESETS
+    /// field, and an absent reset date renders `—` rather than being omitted
+    /// — the absence is the information. A user who sees `RESETS —` beside a
+    /// status can tell the app was not told when the window turns over; a row
+    /// that silently dropped the field could not convey that.
+    ///
+    /// Pure and `now`-injected so the today-vs-later branch is assertable
+    /// without a clock (the `resolveBareClock(_:now:)` precedent from #340).
+    static func quotaRowLabel(
+        quota: Quota,
+        resetDate: Date?,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> String {
+        let state: String
+        switch quota {
+        case .belowLimit(approaching: false): state = "BELOW DAILY LIMIT"
+        case .belowLimit(approaching: true): state = "NEARING DAILY LIMIT"
+        case .limitReached: state = "DAILY LIMIT REACHED"
+        // #391: an unrecognised status says so. It does not say "you're fine".
+        case .unknown: state = "STATUS —"
+        }
+        return "PRIVATE CLOUD β · \(state) · RESETS \(resetFieldText(resetDate, now: now, calendar: calendar))"
+    }
+
+    /// `—` for nil; a bare time when the reset falls today (the common case,
+    /// where a date would be noise); date + time otherwise, because "resets
+    /// at 9:00" is ambiguous and useless if the turnover is tomorrow — which
+    /// is precisely the case Owen named as the one worth surfacing.
+    static func resetFieldText(
+        _ resetDate: Date?,
+        now: Date,
+        calendar: Calendar = .current
+    ) -> String {
+        guard let resetDate else { return "—" }
+        if calendar.isDate(resetDate, inSameDayAs: now) {
+            return resetDate.formatted(date: .omitted, time: .shortened)
+        }
+        return resetDate.formatted(date: .abbreviated, time: .shortened)
+    }
+}
+
+extension LocalChatBackend.PrivateCloudStatus {
+
+    /// **#391: the pure mapping from the OS's facts to what the row shows.**
+    ///
+    /// `isApproachingLimit == nil` means the SDK reported a status this build
+    /// cannot name — which is `unknown`, not reassurance. That arm used to be
+    /// folded into `belowLimit(approaching: false)`.
+    ///
+    /// `resetDate` is passed through on EVERY arm. The bug this closes was in
+    /// the plumbing rather than the formatting: the date was read only inside
+    /// the limit-reached branch, so on the below-limit path a value the OS had
+    /// supplied never reached the view at all.
+    static func make(
+        isLimitReached: Bool,
+        isApproachingLimit: Bool?,
+        resetDate: Date?,
+        hasLimitIncreaseSuggestion: Bool
+    ) -> Self {
+        let quota: Quota
+        if isLimitReached {
+            quota = .limitReached
+        } else if let isApproachingLimit {
+            quota = .belowLimit(approaching: isApproachingLimit)
+        } else {
+            quota = .unknown
+        }
+        return .init(
+            quota: quota,
+            resetDate: resetDate,
+            hasLimitIncreaseSuggestion: hasLimitIncreaseSuggestion
+        )
     }
 }
