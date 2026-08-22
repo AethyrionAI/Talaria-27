@@ -16929,7 +16929,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. Plugin half is the next build.**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. App half next.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire
@@ -17103,6 +17103,83 @@ proving anything. First move is a design pass, not a build.
 >   deploy didn't error" — an actual realtime voice session, started and ended
 >   from the phone against the Mac. Owen's ruling is "Mac first, then OJAMD";
 >   this bar is what makes "then" mean something.
+
+
+> **✅ 2026-08-22 00:25 — PLUGIN HALF BUILT AND DEPLOYED TO THE MAC. Live-probed
+> on the running gateway. 383-A and 383-E met; app half next.**
+>
+> ### 🔴 The design doc was WRONG about the handlers, and it mattered
+>
+> §1 said "four new entries in that dict **plus their handlers**", treating the
+> handlers as a port. **The relay never minted anything** — it delegated via
+> `send_connector_rpc(method="talk.session.create")`, so the minting logic lived
+> in the CONNECTOR, not the relay. Reading the relay alone would have produced a
+> handler that forwards to a process that no longer exists.
+>
+> What the connector actually does, now ported:
+> - mints against **`https://api.openai.com/v1/realtime/client_secrets`** — not
+>   `/v1/realtime/sessions`, which is what recall would have supplied. **Read,
+>   not remembered**, and this is exactly the class of thing that costs a day
+>   when guessed.
+> - iterates a **model fallback list** (`gpt-realtime-1.5` → `gpt-realtime`),
+>   because the first can 400 on an account that lacks it and a bootstrap that
+>   died on the first refusal would strand the user with no explanation.
+>
+> ### 🔴 Hazard 1's PREMISE was falsified — Owen ruled on reasoning that was wrong
+>
+> The doc (and the question put to Owen) said an abandoned bootstrap leaves a
+> **provider session that costs money**. It does not. `_rpc_talk_session_end`
+> never touches OpenAI — it pops a local dict — and the relay's `end` only
+> marked its own DB row. **The host mints an ephemeral secret; the realtime
+> session is phone ↔ OpenAI.** An abandoned bootstrap leaks a short-lived
+> unused credential that expires on its own.
+>
+> **COMPENSATE remains the right call**, for credential hygiene rather than
+> billing, and Owen was told the moment it was found. **383-C's bar text
+> ("the one hazard here that costs real money") is corrected by this block.**
+>
+> ### What shipped
+>
+> `talaria/voice.py` + three dispatch entries. `talk_turn_append` deliberately
+> absent (the investigation above). **Memory-only prompt per Owen's ruling** —
+> and one omission that is a FIX: the connector's prompt described a
+> `hermes_delegate` tool the session has never carried (#85 turned MCP
+> advertising off), i.e. it instructed the model to reach for something absent.
+> Replaced with an explicit statement of its own limits.
+>
+> ### Verification — live, on the running gateway
+>
+> Gateway bounced **75820 → 95278**, listener verified up, `/health` 200. No
+> Errno 48 headless case (**383-E met**; the 2026-08-09 incident is why that is
+> a bar and not a habit).
+>
+> Dispatch probe against the LIVE endpoint — a *known* verb with bad device auth
+> answers `device_auth_mismatch`, an unknown one answers `unknown_event_type`,
+> so registration is provable without a device token:
+>
+> ```
+> drain               → device_auth_mismatch   (existing verb, unchanged)
+> talk_readiness      → device_auth_mismatch   ← registered
+> talk_session_create → device_auth_mismatch   ← registered
+> talk_session_end    → device_auth_mismatch   ← registered
+> talk_turn_append    → unknown_event_type     (deliberately not built)
+> bogus_verb          → unknown_event_type     (control)
+> ```
+>
+> **383-A met:** `drain` answers identically, so chat and sensors are
+> undisturbed, and the app — still on the dead relay path — sees no change.
+> Voice remains broken exactly as it was; that is what makes step 1 revertable.
+>
+> **Tests:** 17 new, full plugin suite **187 passed**. The 2 failures in
+> `test_storage_concurrency.py` are **PRE-EXISTING** — verified by stashing the
+> diff and reproducing them on clean HEAD rather than assuming.
+>
+> Plugin commit `4aa69c7` (the plugin is its own repo, outside `hermes-agent`,
+> so `hermes update` cannot overwrite it).
+>
+> **Next: the app half** — swap `LiveVoiceSessionService`'s `RelayAPIClient` for
+> the platform link. **383-F gates OJAMD on end-to-end voice working on the
+> Mac**, which needs the app half plus a device build.
 
 **Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
 venture), #375 (the retirement that made this urgent), #254-D/#303 (the
