@@ -864,7 +864,7 @@ on #394 before the right one). Characterise each separately.
 > |---|---|
 > | **1. room noise opens a turn** | **CONFIRMED** — TV audio, and *"every word"* transcribed |
 > | **2. end-of-turn too eager** | **CONFIRMED, and mutual** — *"I cut it off and it cut me off"* |
-> | **3. self-barge-in (#138)** | **NOT OBSERVED — and the negative is CONTAMINATED.** Owen was *"pausing everything to test"*, i.e. he suppressed the condition while working around the other two faults. His own hypothesis: it would appear at higher volume. **Absence here is not evidence.** |
+> | **3. self-barge-in (#138)** | ~~NOT OBSERVED — and the negative is CONTAMINATED.~~ **✅ CONFIRMED 2026-08-22 PM, un-suppressed, on the first OJAMD session** — *"it interrupted itself to begin with, but then carried on a full conversation afterwards."* **The contamination call was right**: treating the earlier absence as evidence would have closed a live fault. Recorded at **#138**, whose item this is — and it is START-OF-SESSION ONLY now, where July's was every reply, which points at AEC convergence rather than any threshold. |
 > | **4. background speech transcribed** | **CONFIRMED** — same evidence as 1 |
 >
 > ### 🔴 The lead this points at, and it is not an eagerness tweak
@@ -4354,6 +4354,75 @@ like the app's TTS voices or like server-generated audio? (2) does the #130 gate
 cleanly at the realtime ingest? (3) Mac-host comparison once its voice config is brought up.
 
 Logged 2026-07-20 (Session V launch sweep).
+
+> **🔴 2026-08-22 — CONFIRMED ON THE RE-HOMED PATH, AND THE SHAPE HAS CHANGED
+> IN A WAY THAT POINTS AT THE MECHANISM.** Owen, first realtime session against
+> OJAMD after #383's deploy: *"it interrupted itself to begin with, but then
+> carried on a full conversation afterwards."*
+>
+> **This is the decontaminated observation #396 said was owed.** On 2026-08-22
+> ~03:1x he reported NOT seeing self-interruption — but he was *"pausing
+> everything to test"*, suppressing the very condition. #396 recorded that
+> negative as contaminated rather than as evidence. Un-suppressed, it fired on
+> the first utterance of the first session.
+>
+> ### The change from July is the finding, not the recurrence
+>
+> | | 2026-07-20 | 2026-08-22 |
+> |---|---|---|
+> | frequency | **every reply**, "persisted through the entire conversation" | **once, at session start**, then a full clean conversation |
+>
+> **Hypothesis this suggests, and it is not a threshold: AEC CONVERGENCE.**
+> Both engines now set `AVAudioSession` mode `.voiceChat` (the system
+> voice-processing chain). An echo canceller has to ADAPT to the acoustic path
+> before it suppresses anything, so the first assistant utterance can leak into
+> the mic before convergence and be transcribed as user speech — which, with
+> `interrupt_response: true`, cuts the assistant off mid-greeting. Once
+> converged, it stops. That is exactly "interrupted itself to begin with, then
+> carried on."
+>
+> It also explains the July→August change: with no AEC the leak recurs every
+> reply; with AEC it survives only in the pre-convergence window.
+>
+> **The route makes it plausible rather than exotic** — the session header
+> reads `ROUTE · IPHONE MICROPHONE → SPEAKER`. Speakerphone is the worst
+> acoustic case and the one AEC has most work to do on.
+>
+> ### 🔎 A candidate artifact in the transcript, flagged NOT claimed
+>
+> The screenshot's transcript carries a user turn reading **`Kanada`** between
+> two near-identical assistant greetings. That is consistent with assistant
+> audio being captured and transcribed as a user turn — which would make it the
+> mechanism caught in the act. **But it is not proven**: Owen may simply have
+> spoken. His own words ("it interrupted itself") are the finding; this row is
+> a candidate.
+> **Discriminator, and it needs no new instrument:** the device log's assistant
+> audio timeline against the input transcription timestamps — a user turn whose
+> transcription window lies *inside* an assistant utterance is self-capture.
+>
+> ### 🎯 What this rules OUT, which is the expensive part to get wrong
+>
+> **A turn-detection threshold cannot fix this.** The leaked signal is the
+> assistant at full speaker volume — loud, speech-shaped, and trivially over
+> any activation threshold. Raising `threshold` (now reachable via #396-B)
+> would degrade real user speech long before it rejected this.
+>
+> The candidates that fit the mechanism instead:
+> 1. **Gate turn detection for the first assistant utterance** (or a short
+>    fixed window), letting AEC converge before the mic can open a turn — the
+>    realtime analogue of #130's half-duplex gate.
+> 2. **`interrupt_response: false`** — now a host-side setting rather than a
+>    literal (#396-B), so this arm is cheap to try. Cost: real barge-in stops
+>    working, which is a genuine feature loss and probably too blunt.
+> 3. **Verify the far-end reference** — #138's original discriminator (3)
+>    remains unanswered: who renders the remote track? If the app plays it
+>    outside WebRTC's playout, AEC has no reference and (1) is a patch over a
+>    routing bug.
+>
+> **Sharp prediction worth testing before building anything:** if convergence
+> is the mechanism, the self-interrupt lands on the FIRST assistant utterance
+> of a session and essentially never later. A few session starts settle it, and
+> a negative kills the hypothesis cheaply.
 
 ---
 
@@ -17328,7 +17397,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. OWED: the phone's end-to-end realtime turn against OJAMD — the only unproven link left, ~1 minute.**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. **✅ 383-F MET ON OJAMD TOO, 2026-08-22 PM — Owen ran a full realtime conversation against the OJAMD profile (`LINKED · OJAMD · KIMI-K3`, `VOICE · REALTIME`, header `REALTIME VOICE · AUDIO LEAVES THIS PHONE TO YOUR HOST'S PROVIDER`). EVERY BAR MET ON BOTH HOSTS; nothing owed. THE ITEM IS DONE. The session also produced the decontaminated self-barge-in observation that #138 was owed — recorded there, not here.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire
