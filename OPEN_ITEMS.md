@@ -778,7 +778,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. NOT STARTED.**
+## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. NOT STARTED.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
 once at 3am is exactly what a tracker is for, and because #383 shipped the very
@@ -848,6 +848,58 @@ on #394 before the right one). Characterise each separately.
 - **396-D (no silent default change).** If a default moves, the entry records
   the before/after values and the session that justified it — sensitivity is
   subjective, and an unrecorded tweak cannot be argued with later.
+
+
+> **📋 2026-08-22 ~03:2x — OWEN CHARACTERISED IT, unprompted, in one message.
+> 396-A is largely answered for the realtime engine before the lane opened.**
+>
+> Verbatim: *"room noise, tv noise were picked up, ever word. I cut it off and
+> it cut me off. I didn't see self interrupting yet, but I started pausing
+> everything to test — just to get through it. I bet if I turned the volume up
+> though."*
+>
+> Against this entry's four faults:
+>
+> | fault | verdict |
+> |---|---|
+> | **1. room noise opens a turn** | **CONFIRMED** — TV audio, and *"every word"* transcribed |
+> | **2. end-of-turn too eager** | **CONFIRMED, and mutual** — *"I cut it off and it cut me off"* |
+> | **3. self-barge-in (#138)** | **NOT OBSERVED — and the negative is CONTAMINATED.** Owen was *"pausing everything to test"*, i.e. he suppressed the condition while working around the other two faults. His own hypothesis: it would appear at higher volume. **Absence here is not evidence.** |
+> | **4. background speech transcribed** | **CONFIRMED** — same evidence as 1 |
+>
+> ### 🔴 The lead this points at, and it is not an eagerness tweak
+>
+> **`semantic_vad` has no activation threshold.** It takes an `eagerness` — how
+> quickly it decides the user has *finished* — which addresses fault 2 and does
+> nothing for fault 1. The threshold knob (`threshold`, `prefix_padding_ms`,
+> `silence_duration_ms`) belongs to **`server_vad`**, a turn-detection type this
+> build cannot reach at all, because #383 hardcoded `type: "semantic_vad"`.
+>
+> So the two confirmed faults likely need **different mechanisms**, and one of
+> them needs a session type that is currently unreachable. **A lane that opens
+> by lowering `eagerness` will fix the interruptions and leave the TV in the
+> transcript.**
+>
+> ### 🧭 OWEN'S DIRECTION: make them USER-adjustable, not just host-configurable
+>
+> *"If they're configurable, we may want to think about making them user side
+> adjustable for different situations, etc."*
+>
+> **This widens 396-B.** That bar restored host-side configuration; Owen is
+> asking for a user-facing control, and his reason is the right one — the
+> correct sensitivity is not a property of the install, it is a property of the
+> ROOM. A quiet office and a room with a TV want different answers, and the
+> person who knows which is which is holding the phone.
+>
+> Scope is his call and NOT decided here. The obvious shapes: a coarse picker
+> (Quiet / Normal / Noisy) mapping to a small set of vetted values, versus
+> exposing raw knobs. **The coarse form is the one worth arguing for** — a raw
+> `threshold` slider is a control almost nobody can turn correctly, and this
+> entry's own four-faults table is the evidence that even naming the symptom is
+> hard. **396-D still binds: no default moves without recording before/after.**
+>
+> **Still unread: the local pipeline.** Owen reports the symptom on both, but
+> only the realtime side has been characterised.
 
 **Cross-references:** **#383** (the re-home that hardcoded these), **#138**
 (realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
