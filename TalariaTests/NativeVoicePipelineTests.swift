@@ -674,10 +674,7 @@ struct NativeVoicePipelineTests {
     /// the call site is covered by 139-F on device.
     @MainActor
     @Test func intentionalEndInvalidatesAnInFlightRealtimeStart() async {
-        let service = LiveVoiceSessionService(
-            apiClient: RelayAPIClient(baseURLProvider: { "https://relay.example.com/v1" }),
-            accessTokenProvider: { "token" }
-        )
+        let service = LiveVoiceSessionService()
         let captured = service.startGeneration
 
         await service.endSession()

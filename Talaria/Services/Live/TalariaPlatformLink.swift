@@ -436,11 +436,16 @@ final class TalariaPlatformLink {
     // MARK: - Transport
 
     /// #285: the URL comes from the TURN's frozen base, never a live re-read.
-    private func post(_ body: [String: Any], context: TurnContext, bearer: String) async -> (status: Int, data: Data)? {
+    private func post(
+        _ body: [String: Any],
+        context: TurnContext,
+        bearer: String,
+        timeout: TimeInterval = TalariaPlatformLink.requestTimeout
+    ) async -> (status: Int, data: Data)? {
         guard let url = URL(string: context.gatewayBaseURL + Self.eventsPath),
               let payload = try? JSONSerialization.data(withJSONObject: body)
         else { return nil }
-        var request = URLRequest(url: url, timeoutInterval: Self.requestTimeout)
+        var request = URLRequest(url: url, timeoutInterval: timeout)
         request.httpMethod = "POST"
         request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -449,6 +454,47 @@ final class TalariaPlatformLink {
               let http = response as? HTTPURLResponse
         else { return nil }
         return (http.statusCode, data)
+    }
+
+    // MARK: - #383: realtime voice verbs
+
+    /// Voice gets its own budget. `requestTimeout` is 40 s because the DRAIN
+    /// long-polls; a readiness check that inherited it would leave the user
+    /// staring at a spinner for most of a minute against a wedged host.
+    private static let voiceTimeout: TimeInterval = 12
+
+    /// One voice verb, as its own request.
+    ///
+    /// **Deliberately NOT a slot in the drain turn** (#383 hazard 2): the
+    /// drain parks for up to 40 s waiting for work, and a voice bootstrap
+    /// queued behind a parked drain would start the session that much late.
+    /// This class is `@MainActor` rather than a serial actor, so a parked
+    /// drain has already yielded at its `await` and these interleave.
+    ///
+    /// Returns the raw body: the plugin answers with BARE JSON, where the
+    /// relay wrapped everything in `{"data": …}`. Decoding stays with the
+    /// caller that owns the contract.
+    private func voiceVerb(_ type: String, extra: [String: Any] = [:]) async -> Data? {
+        guard let context = makeTurnContext() else { return nil }
+        guard await ensurePaired(context: context) else { return nil }
+        guard let token = await secureStore.retrieve(key: context.tokenKey),
+              let deviceID = await secureStore.retrieve(key: context.deviceIDKey)
+        else { return nil }
+        // #285 checkpoint: a superseded turn falls silent before the wire.
+        // For `talk_session_create` this is what stops a mint the caller
+        // would never learn about — the cheapest possible compensation is
+        // not minting in the first place.
+        guard isCurrent(context) else { return nil }
+
+        var body: [String: Any] = ["type": type, "auth": token, "device_id": deviceID]
+        for (key, value) in extra { body[key] = value }
+        guard let (status, data) = await post(body, context: context, bearer: token, timeout: Self.voiceTimeout)
+        else { return nil }
+        guard status == 200 else {
+            logEnvelopeError(status: status, data: data, verb: type)
+            return nil
+        }
+        return data
     }
 
     // MARK: - Link probe (#269-A)
@@ -534,3 +580,28 @@ enum PhoneQueryDeniedGate: Equatable {
     /// — for weather that is LOCATION, the toggle a user must actually flip.
     case stream(sensor: String)
 }
+
+// MARK: - #383: VoiceBootstrapTransport
+
+/// The conformance lives in this file because `voiceVerb` is `private`, and
+/// Swift's `private` is FILE-scoped — an extension elsewhere could not reach
+/// it without widening the method's visibility for no other reason.
+extension TalariaPlatformLink: VoiceBootstrapTransport {
+
+    func talkReadiness() async -> Data? {
+        await voiceVerb("talk_readiness")
+    }
+
+    func talkSessionCreate() async -> Data? {
+        await voiceVerb("talk_session_create")
+    }
+
+    /// Best-effort by construction: the caller fires this while unwinding a
+    /// failure it has already handled, so a nil answer must not become a
+    /// second error to reason about. The boolean is for tests and logs.
+    @discardableResult
+    func talkSessionEnd(voiceSessionID: String) async -> Bool {
+        await voiceVerb("talk_session_end", extra: ["voice_session_id": voiceSessionID]) != nil
+    }
+}
+
