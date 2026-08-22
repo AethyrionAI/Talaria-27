@@ -778,6 +778,81 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
+## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. NOT STARTED.**
+
+**Raised as a thought, not a request** — filed anyway because a perception noted
+once at 3am is exactly what a tracker is for, and because #383 shipped the very
+knobs this would turn.
+
+### 🔴 MEASURE FIRST — "too sensitive" names a feeling, not a mechanism
+
+At least four different faults produce the same complaint, and they take
+opposite fixes:
+
+1. **Room noise opens a turn** — the activation threshold is too low.
+2. **It cuts the user off mid-sentence** — end-of-turn is decided too eagerly;
+   the user is still talking.
+3. **It hears ITSELF and interrupts its own reply** — self-barge-in, which is
+   **#138's territory**, not a threshold at all.
+4. **Transcription picks up background speech** the user did not address to it.
+
+**Turning a threshold down when the real fault is (3) makes it worse.** A
+tuning lane that starts by adjusting knobs will chase its tail, so the first
+deliverable is a characterisation: which of these is actually happening, from a
+recorded session rather than from memory of one.
+
+### The knobs that exist, realtime side
+
+**They are HARDCODED as of #383, and that is a regression this entry should
+fix regardless of the tuning outcome.** `talaria/voice.py` writes:
+
+```python
+"turn_detection": {"type": "semantic_vad", "eagerness": "medium",
+                   "create_response": True, "interrupt_response": True}
+```
+
+The retired connector carried the same values as **configuration**
+(`RealtimeTalkConfig.turn_detection_type / create_response / interrupt_response`,
+plus `voice` and `preferred_models`). The re-home ported the behaviour and
+dropped the configurability — nobody asked for that, it was simply not part of
+the port. **Restoring it is the cheap half of this item and is worth doing even
+if the defaults turn out to be right.**
+
+What the provider offers, for the record:
+- **`semantic_vad`** takes an `eagerness` (this ships `medium`) — lower waits
+  longer before declaring the turn over, which is the knob for fault (2).
+- **`server_vad`** instead takes `threshold`, `prefix_padding_ms` and
+  `silence_duration_ms` — `threshold` is the knob for fault (1), and this
+  session type is not currently reachable at all because the type is fixed.
+- **`interrupt_response: True`** is what lets incoming audio cut the assistant
+  off. If the fault is (3), this is the line, not the threshold.
+
+### The local side is UNREAD
+
+`NativeVoicePipelineService`'s endpointing has not been looked at. **Do not
+assume the two engines share a cause** — they share a symptom, and #383 just
+finished demonstrating how expensive that assumption is (three mechanisms died
+on #394 before the right one). Characterise each separately.
+
+### 🎯 Bars — pre-registered, before any knob moves
+
+- **396-A (characterise before tuning).** Name which of the four faults is
+  occurring, per engine, from a recorded session. A lane that opens by changing
+  a value has skipped this.
+- **396-B (the realtime knobs become configuration again).** Whatever the
+  tuning answer, `turn_detection` stops being a literal in `voice.py`. Ported
+  behaviour that quietly lost its configurability is a regression to repair on
+  its own merits.
+- **396-C (both engines, measured separately).** One symptom is not evidence of
+  one cause.
+- **396-D (no silent default change).** If a default moves, the entry records
+  the before/after values and the session that justified it — sensitivity is
+  subjective, and an unrecorded tweak cannot be argued with later.
+
+**Cross-references:** **#383** (the re-home that hardcoded these), **#138**
+(realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
+native pipeline), **#1** (voice transcripts).
+
 ## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
 
 **Owen, ruling it:** *"Yeah I know it's already available. We've done light
