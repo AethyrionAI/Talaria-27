@@ -879,7 +879,7 @@ Sci-Fi — yellow. Yellow is dang near unusable."*
 | `accentBright` | **13 / 21** | **10 / 21** | `retroSciFi × violet` `#FFE03F` — **1.16:1** |
 | `accent` (base) | **18 / 21** | **11 / 21** | `retroSciFi × violet` `#FFD600` — **1.24:1** |
 
-**Dark themes: 0 of 69 fail either floor.** Light-themes-only, exactly #325's
+**~~Dark themes: 0 of 69 fail either floor.~~ FALSIFIED 2026-08-21 by this item's own 393-A sweep — true of `accentBright` only; `accent` fails 5 dark cells, `danger`/`dangerBright` 12, `dimForeground` 46. See the 393-A block below.** Light-themes-only, exactly #325's
 shape — but #325's worst was 2.18:1 and this is **1.16:1**, which is below the
 floor for purely DECORATIVE elements and close to invisible.
 
@@ -955,6 +955,139 @@ candidates mirror #325's: a text-variant token (`accentText`), a per-theme
 retune of the light accents, or accepting decorative-only use with a
 documented exception. #325's experience says the token-split is least
 invasive and that the retune question is where the design judgement lives.
+
+
+> **✅ 2026-08-21 — 393-A ANSWERED, AND IT WIDENED THE ITEM TWICE OVER.
+> `SemanticForegroundContrastTests` demonstrated RED before any palette or
+> call-site change. NINE tokens fail, not two — and the biggest of them is not
+> an accent and is not light-themes-only.**
+>
+> ### The sweep, and the two cross-checks that make it trustworthy
+>
+> Thirteen semantic foreground tokens × 88 reachable cells = 1,144
+> measurements, at the floor each token's usage implies (SC 1.4.3's 4.5:1 for
+> anything rendered as read text, SC 1.4.11's 3.0:1 for the two that are not).
+>
+> **Cross-check 1 — the three minima this entry quoted reproduce EXACTLY**, from
+> an instrument written days later and never given the expected answers:
+> `retroSciFi × violet` accentBright **1.16:1**, `accent` **1.24:1**,
+> `winterFrost × amber` accentBright **1.35:1**. The light-cell counts also
+> reproduce exactly: `accent` **18/21 light**, `accentBright` **13/21 light**.
+>
+> **Cross-check 2 — #325's own numbers are unmoved.** The sweep's math is now
+> shared with `WarningTokenContrastTests` rather than copied a third time, and
+> #325's census still prints `deepField` cyan **12.39:1** / amber **7.68:1**,
+> byte-identical to what that lane recorded. The migration is behaviour-
+> preserving, which is the only thing that lets these two suites be compared.
+>
+> ### 🔴 The full failure list (the 393-A artifact)
+>
+> | token | floor | fails | of which DARK | worst cell |
+> |---|---|---|---|---|
+> | **`dimForeground`** | 4.5 | **67 / 88** | **46** | `pulpNoir` — **2.36:1** |
+> | `accentDeep` | 3.0 | 31 / 88 | 17 | `comicFunnies × amber` — 1.15:1 |
+> | **`accent` (base)** | 4.5 | **23 / 88** | **5** | `retroSciFi × violet` — 1.24:1 |
+> | **`accentBright`** | 4.5 | **13 / 88** | 0 | `retroSciFi × violet` — 1.16:1 |
+> | `danger` | 4.5 | 12 / 88 | **9** | `autumnHarvest` — **2.60:1** |
+> | `mutedForeground` | 4.5 | 9 / 88 | 3 | `pulpNoir` — 3.84:1 |
+> | `secondaryForeground` | 4.5 | 6 / 88 | 0 | `pulpNoir` — 3.84:1 |
+> | `coolForeground` | 4.5 | 6 / 88 | 0 | `pulpNoir` — 3.84:1 |
+> | `dangerBright` | 4.5 | 3 / 88 | **3** | `autumnHarvest` — 3.95:1 |
+>
+> Clean at every floor: `foreground`, `foregroundBright`, `forge`, `forgeText`
+> — the last two because #325 fixed them, which is the sweep agreeing with a
+> finished lane.
+>
+> ### 🔴 What this entry got WRONG, corrected here per #317
+>
+> **"Dark themes: 0 of 69 fail either floor" is FALSE.** It was true of
+> `accentBright` — 0 dark cells — and false of everything else measured since:
+>
+> - **`accent` fails 5 DARK cells**: `autumnHarvest × amber` 4.12:1,
+>   `luchaLibre × cyan` 4.26:1, `cosmicBowling × violet` 3.92:1,
+>   `casinoLucky7s × violet` 3.76:1, `graffitiGalaxy × amber` 3.50:1.
+> - **`danger` fails 9 dark cells and `dangerBright` 3**, all of
+>   `autumnHarvest` and `casinoLucky7s` — **error text**, at 2.60:1.
+> - **`dimForeground` fails 46 dark cells**, `deepField` among them.
+>
+> The claim was not a measurement error; it was an **aperture** error, made by
+> the entry that was written to name that exact failure mode. Measuring two
+> tokens and generalising to "dark themes are fine" is the same move #325 made
+> and this entry criticised — one level up, on the same day, by the same hand.
+>
+> ### 🔴 The finding this lane did not go looking for: `dimForeground`
+>
+> **67 of 88 cells, including `deepField` — the DEFAULT theme — at 3.16:1**,
+> and `solarForge` 3.97, `terminal` 4.03. It has **109 call sites**, effectively
+> all of them `MonoLabel(…, color:)` or `.foregroundStyle(…)`: timestamps,
+> counts, captions, syntax-highlighted comments, the Insights and Models
+> screens. **This is real read text and it is below AA on three quarters of the
+> catalogue including the theme every user starts in.**
+>
+> By raw reach it is larger than the accent defect that opened this item. It was
+> invisible to Owen's device pass for the reason it is dangerous: dim text
+> *looks* deliberately dim, so nobody reports it — where an unreadable yellow
+> button gets reported the same evening.
+>
+> **⚠️ One column that is NOT a defect claim.** `accentDeep`'s 31 failures are
+> measured against a 3.0 floor this sweep assigned it; its only two call sites
+> are a gradient stop (`AppearanceDeckPage.swift:42`) and a chart series colour
+> (`ChartSegmentView.swift:125`). The gradient owes nothing; the chart series
+> plausibly owes 3.0 against *adjacent series*, which is a different
+> measurement than against the background. **Recorded as unresolved rather than
+> counted as broken** — a survey that inflates its own numbers is the failure
+> mode one column over from the one that caused this item.
+>
+> ### Bars
+>
+> **393-A ✅ met** — the sweep was extended to every semantic foreground,
+> demonstrated RED before any change, and its full output is above. It was not
+> aimed at a token chosen in advance, and it surprised the person who wrote it,
+> which is the property 393-A existed to buy.
+> **393-B..E remain open** — they govern a fix, and there is no fix yet.
+>
+> ### ⛔ ROUTE IS STILL OWEN'S CALL, and the survey has changed the question
+>
+> This is no longer "give the accent a text variant." It is **four separable
+> decisions**, and they do not have the same answer:
+> 1. **`accent` / `accentBright` as text** — the original item; `forgeText`'s
+>    shape applies directly.
+> 2. **`dimForeground`** — a ramp step, not an accent. Raising it narrows the
+>    gap to `mutedForeground` and may collapse a six-step ramp into five.
+> 3. **`danger` / `dangerBright` on `autumnHarvest` + `casinoLucky7s`** — five
+>    themes' worth of error text, the smallest and most clearly-broken slice.
+> 4. **`secondaryForeground` / `coolForeground` on `pulpNoir` +
+>    `stickerBombToybox`** — six cells each, all marginal (3.84–4.20).
+>
+> **Nothing was changed in the palette by this lane.** The sweep ships as a
+> **RATCHET**, not as a red test and not as a disabled one: the 170 measured
+> cells are pinned in `knownFailingCells`, the assertion is *containment* —
+> **no cell may fail that is not already in the baseline** — and any baseline
+> cell that starts passing is PRINTED so the baseline gets tightened rather
+> than carried forever.
+>
+> **A disabled test was the obvious move and it is the wrong one.** It would
+> still be disabled after the fix and nothing would notice; that is the same
+> silent-rot shape as a `#if DEBUG` clause read by production (#218). The
+> ratchet is green today at numbers this entry publishes, goes RED the moment a
+> new theme or a retuned hue adds a failing cell, and cannot be satisfied by
+> deleting the fix. Improvements never fail it — a ratchet that punishes
+> progress stops being a ratchet.
+>
+> **The ratchet was MUTATION-TESTED, because an untested ratchet is a claim.**
+> `deepField`'s ramp `foreground` was temporarily darkened `0xE8EEF5 →
+> 0x1A2028` and the suite went **RED**, naming exactly the three new cells and
+> their ratios:
+> ```
+> 3 semantic-foreground cell(s) fall below their contrast floor and are
+> NOT in #393's recorded baseline — this is new:
+>     foreground|deepField|cyan   — 1.22:1 (floor 4.5)
+>     foreground|deepField|amber  — 1.22:1 (floor 4.5)
+>     foreground|deepField|violet — 1.22:1 (floor 4.5)
+> ```
+> Palette reverted, suite green again. Per the standing lesson that a test
+> written around a known defect tends to pin text the fix never touches: this
+> one was shown to fail for the reason it exists.
 
 **Cross-references:** **#325** (the same class in `forge`, and the sweep this
 should have extended), **#320** (which chose `foregroundBright` for its badge

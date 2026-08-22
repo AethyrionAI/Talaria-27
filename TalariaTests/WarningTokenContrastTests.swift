@@ -26,31 +26,24 @@ import UIKit
 @MainActor
 struct WarningTokenContrastTests {
 
-    // MARK: - WCAG 2.1, identical to #320's implementation
+    // MARK: - Measurement
 
-    private static func relativeLuminance(_ color: Color) -> Double {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        UIColor(color).getRed(&r, green: &g, blue: &b, alpha: &a)
-        func channel(_ value: CGFloat) -> Double {
-            let v = Double(value)
-            return v <= 0.03928 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)
-        }
-        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+    /// **Shared with #393's sweep** (`ThemeContrastMath` /
+    /// `ThemeContrastCells` in `SemanticForegroundContrastTests.swift`).
+    ///
+    /// This file originally carried its own private copy of the WCAG 2.1
+    /// math, with a docstring warning that a second implementation "could
+    /// disagree with it on a boundary case and leave two 'measured' numbers
+    /// with no way to tell which is right". #393 then needed a third, so the
+    /// math moved to one place and this suite calls it. The numbers are
+    /// unchanged — every token measured here is opaque, so the shared
+    /// implementation's alpha compositing is the identity for them.
+    private static func contrastRatio(_ foreground: Color, _ background: Color) -> Double {
+        ThemeContrastMath.ratio(foreground, on: background)
     }
 
-    private static func contrastRatio(_ a: Color, _ b: Color) -> Double {
-        let la = relativeLuminance(a), lb = relativeLuminance(b)
-        return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
-    }
-
-    /// Every reachable `(theme, accent)` cell. `lockedAccentSlot` themes pin
-    /// one slot, so enumerating the cross product would invent cells the app
-    /// cannot enter — the #215 error in a palette costume.
     private static var reachableCells: [(theme: ThemeID, accent: AccentSlot)] {
-        ThemeID.allCases.flatMap { theme -> [(ThemeID, AccentSlot)] in
-            if let locked = theme.lockedAccentSlot { return [(theme, locked)] }
-            return AccentSlot.allCases.map { (theme, $0) }
-        }
+        ThemeContrastCells.reachable
     }
 
     // MARK: - 325-D: the sweep
