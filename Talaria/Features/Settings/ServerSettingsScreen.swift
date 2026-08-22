@@ -383,7 +383,7 @@ struct ServerSettingsScreen: View {
         switch result {
         case .unknown: Design.Colors.mutedForeground
         case .online: Design.Brand.accent
-        case .unauthorized: Design.Brand.forge
+        case .unauthorized: Design.Brand.forgeText
         case .offline: Design.Colors.danger
         }
     }
@@ -438,7 +438,7 @@ struct ServerSettingsScreen: View {
     private func errorNotice(_ message: String) -> some View {
         Text(message)
             .font(Design.Typography.caption)
-            .foregroundStyle(Design.Brand.forge)
+            .foregroundStyle(Design.Brand.forgeText)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -482,7 +482,7 @@ struct ServerSettingsScreen: View {
     private var talariaLinkColor: Color {
         switch talariaLink {
         case .livePaired: Design.Brand.accent
-        case .notLive: Design.Brand.forge
+        case .notLive: Design.Brand.forgeText
         case .unknown, .liveNotPaired, .hostUnreachable: Design.Colors.mutedForeground
         }
     }
@@ -710,7 +710,7 @@ private struct ProfileEditorSheet: View {
                         if let message = draft.validationMessage {
                             Text(message)
                                 .font(Design.Typography.caption)
-                                .foregroundStyle(Design.Brand.forge)
+                                .foregroundStyle(Design.Brand.forgeText)
                         }
 
                         GlowButton(title: existing == nil ? "Add Profile" : "Save Changes") {

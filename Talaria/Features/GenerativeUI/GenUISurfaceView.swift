@@ -139,7 +139,7 @@ private struct GenUILeafView: View {
         case .muted: Design.Colors.mutedForeground
         case .dim: Design.Colors.dimForeground
         case .accent: Design.Brand.accent
-        case .warning: Design.Brand.forge
+        case .warning: Design.Brand.forgeText
         case .danger: Design.Colors.danger
         }
     }

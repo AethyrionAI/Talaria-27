@@ -217,7 +217,7 @@ struct InlineDiffView: View {
         case "added": return Design.Brand.accent
         case "deleted": return Design.Colors.danger
         case "renamed": return Design.Brand.accentBright
-        default: return Design.Brand.forge
+        default: return Design.Brand.forgeText
         }
     }
 

@@ -122,7 +122,7 @@ enum RealtimeVoiceNotice {
 
     /// Bar 320-D, the alert hue: the theme's warning token, resolved live by
     /// `ThemeRuntime`. It is carried by the PIP only — see `textColor` for why.
-    @MainActor static var tint: Color { Design.Brand.forge }
+    @MainActor static var tint: Color { Design.Brand.forgeText }
 
     /// Bar 320-D, the legibility half — and this is the one place the lane
     /// departed from the obvious design, on measurement.

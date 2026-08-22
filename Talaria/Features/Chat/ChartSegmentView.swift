@@ -122,7 +122,7 @@ struct ChartCanvas: View {
     /// Series colors cycle the theme's own hues (hero, bright, deep, forge),
     /// dimmed on the second pass — derived from the palette, never a rainbow.
     private var seriesColors: [Color] {
-        let base = [Design.Brand.accent, Design.Brand.accentBright, Design.Brand.accentDeep, Design.Brand.forge]
+        let base = [Design.Brand.accent, Design.Brand.accentBright, Design.Brand.accentDeep, Design.Brand.forgeText]
         return spec.series.indices.map { index in
             index < base.count ? base[index % base.count] : base[index % base.count].opacity(0.55)
         }

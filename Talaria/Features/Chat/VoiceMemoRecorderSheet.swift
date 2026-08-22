@@ -346,7 +346,7 @@ struct VoiceMemoRecorderSheet: View {
                 "VOICE SESSION ACTIVE — END IT TO RECORD A MEMO",
                 size: 9,
                 tracking: Design.Tracking.mono,
-                color: Design.Brand.forge
+                color: Design.Brand.forgeText
             )
         }
         .padding(.vertical, Design.Spacing.lg)

@@ -262,7 +262,7 @@ struct TaskDetailScreen: View {
                 }
                 if let deliveryError = job.lastDeliveryError?.trimmingCharacters(in: .whitespacesAndNewlines),
                    !deliveryError.isEmpty {
-                    metaTextBlock("Delivery error", deliveryError, color: Design.Brand.forge)
+                    metaTextBlock("Delivery error", deliveryError, color: Design.Brand.forgeText)
                 }
                 if let execution {
                     metaRow("Execution", execution.status ?? "—")

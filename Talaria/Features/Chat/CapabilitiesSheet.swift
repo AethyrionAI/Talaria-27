@@ -184,6 +184,6 @@ struct CapabilitiesSheet: View {
     private func riskPill(_ riskClass: CapabilityRiskClass) -> some View {
         MonoLabel(riskClass == .write ? "ASKS FIRST" : "READ-ONLY",
                   size: 8, tracking: Design.Tracking.monoWide,
-                  color: riskClass == .write ? Design.Brand.forge : Design.Colors.dimForeground)
+                  color: riskClass == .write ? Design.Brand.forgeText : Design.Colors.dimForeground)
     }
 }

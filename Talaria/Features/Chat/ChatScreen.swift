@@ -1089,19 +1089,19 @@ struct ChatScreen: View {
 
     private func contextColor(_ progress: Double) -> Color {
         if progress > 0.85 { return Design.Colors.danger }
-        if progress > 0.65 { return Design.Brand.forge }
+        if progress > 0.65 { return Design.Brand.forgeText }
         return Design.Brand.accent
     }
 
     private var connectionIndicatorColor: Color {
         if isLocalBrainActive {
-            return isLocalBrainReady ? Design.Brand.accent : Design.Brand.forge
+            return isLocalBrainReady ? Design.Brand.accent : Design.Brand.forgeText
         }
         switch effectiveConnectionState {
         case .online:
             return Design.Brand.accent
         case .offline, .unreachable:
-            return Design.Brand.forge
+            return Design.Brand.forgeText
         case .notConnected:
             return Design.Colors.dimForeground
         case .checking:

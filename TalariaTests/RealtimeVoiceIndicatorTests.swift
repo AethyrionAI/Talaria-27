@@ -432,6 +432,20 @@ struct RealtimeVoiceIndicatorTests {
     /// design system ever raises `forge` above AA everywhere, this test fails
     /// and the indicator can go back to the warning hue — which is the outcome
     /// this pin is hoping for, not one it is blocking.
+    ///
+    /// **⚠️ UPDATED 2026-08-21 by #325, which changed the numbers under this
+    /// test without changing its verdict.** `forge` was nudged in four light
+    /// themes to clear the 3.0:1 NON-TEXT floor, so the measured minimum is no
+    /// longer 2.18:1 — it is ~3.03:1. Still under AA, so `offenders` is still
+    /// non-empty and this pin still holds.
+    ///
+    /// **But the outcome it hoped for has arrived by another route.** #325 did
+    /// not raise `forge` above AA; it added `Design.Brand.forgeText`, which
+    /// clears 4.5:1 in every theme. **So this badge COULD now use the warning
+    /// hue legibly** — via `forgeText` rather than via `forge`. That is a
+    /// design decision for #320's surface and Owen's to make, so it is named
+    /// here and deliberately not taken: changing the badge inside a palette
+    /// lane would be #325 quietly editing #320's ruled outcome.
     @Test func theWarningTokenIsNotLegibleEnoughForThisBadgeInEveryTheme() {
         let offenders = ThemeID.allCases.filter { theme in
             Self.contrastRatio(
@@ -440,7 +454,7 @@ struct RealtimeVoiceIndicatorTests {
             ) < 4.5
         }
         #expect(!offenders.isEmpty,
-                "measured 2026-08-11: forge falls under AA text contrast in several themes (min 2.18:1), which is why the badge text uses foregroundBright")
+                "forge falls under AA text contrast in several themes — min 2.18:1 as measured 2026-08-11, ~3.03:1 after #325 nudged four light themes to the 3.0 non-text floor. Still under AA, which is why this badge uses foregroundBright rather than forge. #325's forgeText is the legible alternative and is a #320 decision, not a #325 one.")
         #expect(offenders.contains(.springSprout) || offenders.contains(.retroSciFi) || offenders.contains(.winterFrost),
                 "the measured worst cases were springSprout / retroSciFi / winterFrost / pulpNoir")
     }

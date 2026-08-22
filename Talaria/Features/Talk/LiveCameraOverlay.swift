@@ -85,7 +85,7 @@ struct LiveCameraOverlay: View {
                             "CAMERA ACCESS REQUIRED",
                             weight: .medium,
                             tracking: Design.Tracking.monoWide,
-                            color: Design.Brand.forge
+                            color: Design.Brand.forgeText
                         )
 
                         Button {

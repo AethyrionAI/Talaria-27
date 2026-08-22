@@ -840,7 +840,7 @@ struct ConversationListPane: View {
             Label(model.isArchived(item) ? "Unarchive" : "Archive",
                   systemImage: model.isArchived(item) ? "tray.and.arrow.up" : "archivebox")
         }
-        .tint(Design.Brand.forge)
+        .tint(Design.Brand.forgeText)
     }
 
     // MARK: Dock (§04, §2)

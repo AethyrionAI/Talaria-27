@@ -160,7 +160,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#310** 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no …
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; NOT STARTED
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
-- **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). NOT STARTED; retuning curated hues is OWEN'S CALL, four routes and bars pre-registered in the entry; `ThemePaletteCore.swift` deliberately untouched**
+- **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
@@ -6837,6 +6837,125 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 > `DesignThemeTests`' byte-identity guard (Deep Field × cyan) must hold.
 > Lane not scheduled this week (the board's build slots are full) — next
 > free design slot; bars pre-register here when it opens.
+> **✅ 2026-08-21 EVENING — ROUTE (c) BUILT, AND IT NEEDED A SECOND HALF THE
+> RULING DID NOT ANTICIPATE. 325-A..E all met.**
+>
+> ### 🔴 Route (c) alone could NOT satisfy 325-A, and the sweep is what showed it
+>
+> 325-A has two clauses: text ≥ 4.5:1 **and** pip/border/fill ≥ 3.0:1. Route (c)
+> adds `forgeText` for text and *leaves `forge` as the decorative hue* — so it
+> fixes the first clause and does nothing for the second. **Four light themes
+> shipped a `forge` below even the non-text floor** (`springSprout` and
+> `pulpNoir` at 2.18:1, `retroSciFi` 2.52, `winterFrost` 2.54), which would
+> have left 325-A red on a lane that looked complete.
+>
+> **Put to Owen 2026-08-21 with mechanical candidates and rendered swatches on
+> each theme's real background. He ruled: nudge the four.** So the lane is
+> route (c) *plus* a minimal retune — four themes, and only to 3.0:1, not
+> route (a)'s 4.5 across seven.
+>
+> **His reason for caring is the one that reframes this entry:** *"They all
+> look like they're gonna be much better, honestly. I'll finally be able to
+> use those themes too!"* — **the only user of this app could not use seven of
+> its themes.** This was filed as a WCAG contrast item; it is actually a
+> catalogue half of which was unusable by its owner.
+>
+> ### 325-D — RED FIRST, and the numbers reproduced the entry's own
+>
+> `WarningTokenContrastTests` was written and run **before any palette value
+> changed**. Verbatim failure:
+>
+> ```
+> 21 of 88 reachable cells render warning TEXT below WCAG AA's 4.5:1 floor:
+>   springSprout × cyan/amber/violet — 2.18:1      retroSciFi × ×3 — 2.52:1
+>   pulpNoir × cyan/violet — 2.18:1                winterFrost × ×3 — 2.54:1
+>   stickerBombToybox ×3 — 3.50:1                  comicFunnies ×3 — 3.50:1
+>   paperTape × cyan/amber — 3.85:1                paperTape × violet — 4.37:1
+> 11 of 88 render warning DECORATION below WCAG's 3.0:1 non-text floor.
+> ```
+>
+> **21 and 11 — identical to the figures this entry computed by hand on
+> 2026-08-18.** Two derivations, three days apart, same answer. That is the
+> cross-check that makes the table trustworthy rather than quoted.
+>
+> The suite also carries a **census test that always passes and always
+> prints**, so these numbers are regenerable at any commit without re-deriving
+> the method. A table in a tracker entry with no way to reproduce it is a
+> claim, not a measurement.
+>
+> ### What shipped
+>
+> - **`ThemeAccentVariant.forgeText: Color?`**, per slot, defaulting to
+>   `forge`. Optional rather than required **on purpose**: a required field
+>   would have forced a value into all 21 dark variants and hidden the four
+>   hues that actually changed among twenty-one that did not.
+> - **Seven light themes** carry a `forgeText` clearing 4.5:1. **Only four**
+>   had `forge` nudged; `paperTape`, `stickerBombToybox` and `comicFunnies`
+>   keep their decorative hue exactly as shipped.
+> - **69 text call sites** on `forgeText`; **61 decorative** left on `forge`.
+>
+> ### 🔴 Two migration errors, both invisible to the gate
+>
+> Recorded because the lesson is about what tests cannot see.
+>
+> 1. **Under-migration.** The first pass excluded any site with an `Image(`
+>    within six lines, which swallowed **ten genuine `MonoLabel`/`Text` colour
+>    sites** that merely sit beside an icon — including `HostApprovalCard` and
+>    both `ToolConfirmationCard` labels. Fixed by binding to the **nearest**
+>    preceding construct rather than any within a window.
+> 2. **Over-migration.** The decorative regex matched `.stroke(` but not
+>    `.strokeBorder(`, so two borders were moved to `forgeText`.
+>
+> **Neither could fail a test.** Over-migrating a border still clears every
+> floor; under-migrating text still compiles, and the contrast sweep measures
+> the TOKENS, not which sites use them. **A green sweep proves the values are
+> right and says nothing about whether the right surfaces got them.** Both were
+> caught by reading call sites.
+>
+> **The asymmetry that governed the ~37 indirect sites** (computed colours
+> returned from a `switch`, where the consumer decides): `forgeText` clears
+> 3.0 as well as 4.5, so over-migrating costs a slightly darker decoration
+> while under-migrating leaves warning text at 2.18:1. Erring toward
+> legibility is the only direction whose failure mode is harmless.
+>
+> ### 🟡 An interaction with #320 — named, corrected, and deliberately NOT taken
+>
+> #320 made its voice-indicator badge use `foregroundBright` because `forge`
+> was illegible, and pinned that with a test asserting `forge` fails AA. That
+> test's docstring says it *hopes* to be broken: *"If the design system ever
+> raises `forge` above AA everywhere, this test fails and the indicator can go
+> back to the warning hue."*
+>
+> **#325 did not raise `forge` above AA — it added a second token that clears
+> it.** So the hoped-for outcome has arrived by a route the pin did not
+> anticipate: that badge could now show the warning hue legibly via
+> `forgeText`.
+>
+> Two obligations discharged, one decision left open:
+> - The pin's message said *"min 2.18:1"*, now false — the minimum is ~3.03:1
+>   after the nudge. **Corrected in the same commit (#317).** The assertion
+>   still holds (`forge` is still under AA) so the pin still guards the badge.
+> - **The badge itself was NOT changed.** That is #320's ruled surface, and a
+>   palette lane quietly editing another lane's design decision because it now
+>   *could* is how rulings stop being traceable. **Owen's call.**
+>
+> ### Bars
+>
+> **325-A** ✅ both clauses, all 88 cells. **325-B** ✅ `DesignThemeTests` green
+> with no edits — dark themes resolve `forgeText` to `forge`, and the census
+> shows `deepField` cyan 12.39:1 / amber 7.68:1, matching this entry's
+> pre-existing figures. **325-C** ✅ separability untouched (no `base` changed).
+> **325-D** ✅ demonstrated RED first, above. **325-E** ✅ the token lives in
+> `Shared/ThemePaletteCore.swift`, compiled into both targets; the widget has
+> no `forge` call sites of its own.
+>
+> **Gate:** `GATE: PASS`, Swift Testing **2428** / XCUITest 14 / Release
+> (2425 + 3 contrast tests).
+>
+> **Still owed: DEVICE verification.** The swatches were HTML on a flat
+> background; the app is the real test. Queued for Owen on the four worst
+> themes plus `paperTape` as a did-it-change-too-much control.
+
 ## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.**
 
 > **✅ 2026-08-19 — ROUTE 1's QUESTION DISSOLVES rather than being answered,

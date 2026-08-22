@@ -130,7 +130,7 @@ struct TaskEditSheet: View {
                 .foregroundStyle(Design.Brand.forge)
             VStack(alignment: .leading, spacing: 2) {
                 MonoLabel("HOST REJECTED THIS TASK", size: 9, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                          tracking: Design.Tracking.mono, color: Design.Brand.forgeText)
                 Text(message)
                     .font(Design.Typography.body(12))
                     .foregroundStyle(Design.Colors.secondaryForeground)

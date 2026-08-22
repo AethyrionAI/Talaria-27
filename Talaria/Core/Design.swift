@@ -27,7 +27,20 @@ enum Design {
         @MainActor static var accentDeep: Color { ThemeRuntime.shared.palette.deep }
         /// Secondary "Forge" warning accent. Theme-resolved; always separable
         /// from the active accent (e.g. status pips).
+        /// #325: the DECORATIVE warning hue — pips, borders, fills. 3.0:1
+        /// floor. **For warning TEXT use `forgeText`.**
         @MainActor static var forge: Color { ThemeRuntime.shared.palette.forge }
+
+        /// #325: the WARNING TEXT hue, 4.5:1 floor.
+        ///
+        /// On every DARK theme this resolves to exactly `forge` — the split
+        /// exists because on the seven LIGHT themes one hue could not clear
+        /// both floors without a redesign of the curated palettes (route (a),
+        /// rejected 2026-08-18). Owen's own words on seeing the fix: *"I'll
+        /// finally be able to use those themes too"* — warning text on those
+        /// palettes measured as low as **2.18:1**, which is why this is a
+        /// usability fix and not a compliance one.
+        @MainActor static var forgeText: Color { ThemeRuntime.shared.palette.forgeText }
 
         /// Primary CTA gradient — soft accent fill for glowing buttons.
         @MainActor static var accentGradient: LinearGradient {

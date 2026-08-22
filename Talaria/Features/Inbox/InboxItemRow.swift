@@ -160,7 +160,7 @@ struct InboxItemRow: View {
     private var priorityColor: Color {
         switch priority {
         case .high, .urgent: Design.Colors.danger
-        case .normal: Design.Brand.forge
+        case .normal: Design.Brand.forgeText
         case .low: Design.Brand.accent
         }
     }

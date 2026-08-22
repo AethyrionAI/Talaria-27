@@ -217,7 +217,7 @@ struct UplinkSettingsScreen: View {
     private var linkColor: Color {
         switch effectiveConnectionState {
         case .online: Design.Brand.accent
-        case .offline, .unreachable: Design.Brand.forge
+        case .offline, .unreachable: Design.Brand.forgeText
         case .notConnected: Design.Colors.mutedForeground
         case .checking: Design.Colors.mutedForeground
         }
@@ -277,7 +277,7 @@ struct UplinkSettingsScreen: View {
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                 MonoLabel("PAIRED — KEY MISSING", size: 10, weight: .medium,
-                          tracking: Design.Tracking.monoWide, color: Design.Brand.forge)
+                          tracking: Design.Tracking.monoWide, color: Design.Brand.forgeText)
                 Text("\(activeProfileName) is paired for sensors, but chat needs its API key. Paste the API_SERVER_KEY from ~/.hermes/.env below.")
                     .font(Design.Typography.caption)
                     .foregroundStyle(Design.Colors.secondaryForeground)
@@ -288,7 +288,7 @@ struct UplinkSettingsScreen: View {
         .hudPanel(
             cornerRadius: Design.CornerRadius.lg,
             borderColor: Design.Brand.forge.opacity(0.35),
-            fill: Design.Brand.forge.opacity(0.07),
+            fill: Design.Brand.forgeText.opacity(0.07),
             innerGlow: false
         )
     }
@@ -507,10 +507,10 @@ struct UplinkSettingsScreen: View {
                 }
             }
         case .done(.failed(let failure)):
-            testRow(color: Design.Brand.forge, showsSpinner: false) {
+            testRow(color: Design.Brand.forgeText, showsSpinner: false) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                     MonoLabel(failure.label, size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.forge)
+                              tracking: Design.Tracking.mono, color: Design.Brand.forgeText)
                     Text(failure.detail)
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)

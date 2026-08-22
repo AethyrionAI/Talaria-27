@@ -122,7 +122,7 @@ struct InboxItemDetailSheet: View {
     private var priorityColor: Color {
         switch item.priority {
         case .high, .urgent: Design.Colors.danger
-        case .normal: Design.Brand.forge
+        case .normal: Design.Brand.forgeText
         case .low: Design.Brand.accent
         }
     }

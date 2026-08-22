@@ -91,7 +91,7 @@ struct DeveloperSettingsScreen: View {
             StatusPip(color: Design.Brand.forge, diameter: 7, blinks: true)
             Text("Internal tools — visible in all builds until launch (#231).")
                 .font(Design.Typography.caption)
-                .foregroundStyle(Design.Brand.forge)
+                .foregroundStyle(Design.Brand.forgeText)
             Spacer(minLength: 0)
         }
         .padding(.horizontal, Design.Spacing.md)
@@ -220,7 +220,7 @@ struct DeveloperSettingsScreen: View {
             if settingsStore.settings.composerWritingToolsEnabled {
                 Text("The full Writing Tools panel froze the device on iOS 27 beta 2. Leave this on only while re-testing on a newer beta (#4).")
                     .font(Design.Typography.caption)
-                    .foregroundStyle(Design.Brand.forge)
+                    .foregroundStyle(Design.Brand.forgeText)
             }
         }
     }
@@ -560,7 +560,7 @@ struct DeveloperSettingsScreen: View {
             if !throwawayHarness.service.isAvailable {
                 MonoLabel("Live Activities are disabled for Talaria — enable them in Settings → Talaria → Live Activities, or nothing will appear.",
                           size: 9, tracking: Design.Tracking.mono,
-                          color: Design.Brand.forge)
+                          color: Design.Brand.forgeText)
             } else if throwawayHarness.isRunning {
                 MonoLabel("Running — long-press the island to expand it. Auto-ends in ≤\(throwawayAutoEndSeconds)s.",
                           size: 9, tracking: Design.Tracking.mono,

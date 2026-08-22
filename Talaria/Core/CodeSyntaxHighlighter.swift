@@ -167,7 +167,7 @@ enum CodeSyntaxHighlighter {
     private static func color(for kind: CodeTokenKind) -> Color {
         switch kind {
         case .keyword: return Design.Brand.accentBright
-        case .string: return Design.Brand.forge
+        case .string: return Design.Brand.forgeText
         case .comment: return Design.Colors.dimForeground
         case .number: return Design.Brand.accent
         }
