@@ -150,7 +150,9 @@ struct TalkLatencyMetrics: Codable, Hashable, Sendable {
     }
 }
 
-/// Read-only detail from the relay's talk/readiness probe. All fields are
+/// Read-only detail from the voice readiness probe — the talaria plugin's
+/// `talk_readiness` verb since #383, the relay's `talk/readiness` before it.
+/// All fields are
 /// optional — nil means the probe hasn't answered (or failed), rendered as
 /// "—" per the real-data-only rule. Model + voice are server-managed; the
 /// iOS surface has no set-voice, so these are display-only (#35).

@@ -2332,15 +2332,9 @@ final class AppContainer {
             lastKnownHostOnline = hostStore.isHostOnline
             await inboxStore.loadInbox(force: true)
         }
-        // #310: both of these are relay-plane too, and both sit OUTSIDE the
-        // block above — which is why the gate is repeated rather than the
-        // block simply widened. `refreshCommandCatalog` is #309 path 16
-        // (`GET commands`) and `refreshReadiness` is paths 11–12
-        // (`talk/readiness`, `talk/session`), the realtime voice bootstrap
-        // #383 re-homes onto the plugin. Until #383 lands, a gateway-only
-        // profile has no realtime voice at all — that is the honest state,
-        // and `TalkStore` must SAY so rather than sit silently un-refreshed
-        // (bar 310-E).
+        // #310: `refreshCommandCatalog` is relay-plane too and sits OUTSIDE
+        // the block above — which is why the gate is repeated rather than the
+        // block simply widened. It is #309 path 16 (`GET commands`).
         if profile.hasRelay {
             await refreshCommandCatalog(force: true)
         } else {
@@ -2349,11 +2343,24 @@ final class AppContainer {
         if chatStore.activeModelName == nil {
             await seedActiveModelFromGateway()
         }
-        if profile.hasRelay {
-            await talkStore.refreshReadiness()
-        } else {
-            talkStore.markRelayUnavailable()
-        }
+        // #383-G: readiness is NOT gated any more, and the gate that stood
+        // here was this item's finding #1 at a second site.
+        //
+        // Voice used to be #309 paths 11–12 on the relay, so #310 gated this
+        // on `profile.hasRelay` and declared realtime unavailable otherwise.
+        // #383 moved the bootstrap onto the talaria plugin — and then #310's
+        // own migration CLEARED `relayBaseURL` on every profile, so the
+        // else-branch became the ONLY branch: every profile switch declared
+        // realtime voice dead and said it "needs a relay", a component
+        // retired on both hosts.
+        //
+        // 310-E's REQUIREMENT survives untouched — a switch must never leave
+        // the previous profile's verdict on screen — but it is now met by
+        // ASKING rather than by assuming. The service degrades honestly on
+        // its own: no talaria link resolves to `UnavailableVoiceTransport`
+        // (blocked, no network), and a host whose plugin predates #383
+        // answers `unsupported` and says so.
+        await talkStore.refreshReadiness()
         await chatStore.refreshDirectHealth()
         // #285 checkpoint: a superseded activation must never restart the
         // link — the winning activation's own handler does that, against ITS

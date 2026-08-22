@@ -254,16 +254,21 @@ struct AppStoresTests {
             eventHub.stream(initial: snapshot)
         }
 
-        /// #310: relay-plane call counter. `refreshReadiness` is #309 paths
-        /// 11–12 (`talk/readiness`), so on a gateway-only profile this must
-        /// stay at zero.
+        /// Readiness call counter.
+        ///
+        /// **#310 held this to ZERO on a gateway-only profile** — voice was
+        /// #309 paths 11–12 on the relay, so a relayless profile could not
+        /// ask. **#383 inverted that:** the bootstrap moved onto the talaria
+        /// plugin, so the same switch must now count exactly ONE call. The
+        /// counter did not change meaning; the plane underneath it did.
         var refreshReadinessCallCount = 0
 
         /// #310: when true, a readiness refresh lands a HOST-IS-READY verdict
         /// instead of this fixture's historical blocked one.
         ///
         /// **This knob exists because a bar failed to fail.** The first
-        /// version of `relaylessProfileMarksRealtimeVoiceUnavailableRather…`
+        /// version of what is now
+        /// `aSwitchNeverLeavesThePreviousProfilesReadinessOnScreen`
         /// PASSED against a build with the relay gate deliberately removed:
         /// the blocked-plus-empty-readiness state this fixture produced was
         /// byte-identical to what `TalkStore.markRelayUnavailable()` produces,
@@ -5039,7 +5044,16 @@ struct AppStoresTests {
         #expect(harness.bootstrapService.loadCallCount == 0)
         #expect(harness.hostService.fetchCallCount == 0)
         #expect(harness.inboxService.fetchCallCount == 0)
-        #expect(harness.voiceService.refreshReadinessCallCount == 0)
+        // **#383-G: this line changed sides, and 310-C did not.** Readiness
+        // used to be #309 paths 11–12 ON THE RELAY, so zero was the right
+        // number for a relay-less profile. #383 moved the voice bootstrap to
+        // the talaria plugin, which a gateway-only profile can reach — so a
+        // relay-less activation now SHOULD ask, exactly once.
+        //
+        // 310-C's actual claim is untouched and is carried entirely by
+        // `counter.count` below: no request reached the RELAY client. That is
+        // the assertion to protect if these two ever seem to disagree.
+        #expect(harness.voiceService.refreshReadinessCallCount == 1)
         #expect(counter.count == 0)
     }
 
@@ -5063,6 +5077,10 @@ struct AppStoresTests {
         #expect(harness.bootstrapService.loadCallCount >= 1)
         #expect(harness.hostService.fetchCallCount >= 1)
         #expect(harness.inboxService.fetchCallCount >= 1)
+        // #383-G: kept, but it no longer DISCRIMINATES — readiness is asked
+        // on both planes now, so this line passes for a relay-less profile
+        // too. Said in place so nobody reads it as evidence the relay branch
+        // ran; the three counters above are what carry this control.
         #expect(harness.voiceService.refreshReadinessCallCount >= 1)
     }
 
@@ -5159,27 +5177,62 @@ struct AppStoresTests {
         #expect(harness.bootstrapService.registerCallCount == 0)
     }
 
-    /// **310-E** — relay-fed voice degrades HONESTLY rather than silently.
+    /// **383-G** — a profile with no relay STILL ASKS the voice host.
     ///
-    /// The failure this forbids is subtle: simply NOT refreshing readiness
-    /// leaves the PREVIOUS profile's verdict on screen, so a switch away from
-    /// a relay-bearing host to a gateway-only one would keep showing that
-    /// host's "ready". Un-refreshed and unavailable look identical to the
-    /// user and opposite to the truth (#180).
+    /// **This replaces #310's `relaylessProfileMarksRealtimeVoiceUnavailable…`,
+    /// and the replacement is the point.** That test was correct when written:
+    /// voice bootstrapped over the relay (#309 paths 11–12), so a relayless
+    /// profile genuinely could not ask, and `markRelayUnavailable()` was the
+    /// honest answer. **#383 moved the bootstrap onto the talaria plugin, and
+    /// then #310's own migration cleared `relayBaseURL` on every profile** —
+    /// so the gate's else-branch became the ONLY branch and every profile
+    /// switch declared realtime voice dead.
+    ///
+    /// The old test PINNED that behaviour, which is why nothing went red when
+    /// the premise died. A test written against a mechanism outlives the
+    /// mechanism unless someone goes looking.
     @Test @MainActor
-    func relaylessProfileMarksRealtimeVoiceUnavailableRatherThanStale() async throws {
+    func aProfileWithNoRelayStillAsksTheVoiceHostRatherThanDeclaringItDead() async throws {
         let harness = await makeLaunchHarness(
-            suiteName: "310-relayless-voice-honesty",
+            suiteName: "383-relayless-voice-still-asks",
             sessionUserMatchesPairedUser: true
         )
         harness.openAllGates()
         let container = harness.container
-        // #310: make a refresh land READY, so "refreshed against a live
-        // relay" and "refused to ask" are DIFFERENT observable states. With
-        // the fixture's default blocked verdict the two coincide and this
-        // test passes against a build with the gate removed — measured, not
-        // theorised (2026-08-20 mutation run).
         harness.voiceService.readinessLandsReady = true
+
+        await container.handleActiveProfileChanged(to: BackendProfile(
+            name: "Gateway only",
+            gatewayBaseURL: "http://gateway-only:8642"
+        ))
+
+        // The call counter is the load-bearing assertion: it separates "we
+        // asked and the host said yes" from "we refused to ask". Against the
+        // pre-fix build this reads 0 and the state below reads blocked.
+        #expect(harness.voiceService.refreshReadinessCallCount == 1)
+        #expect(container.talkStore.connectionState == .ready)
+        #expect(container.talkStore.canStartSession)
+        #expect(container.talkStore.blockedReason == nil)
+    }
+
+    /// **383-I / 310-E's surviving requirement** — a switch never leaves the
+    /// PREVIOUS profile's verdict on screen.
+    ///
+    /// #310's failure mode is unchanged and still forbidden: switching away
+    /// from a host that answered "Ready" must not keep showing that host's
+    /// answer. What changed is how the requirement is met — by ASKING the new
+    /// host, not by assuming the answer. This is the bar that stops 383-G's
+    /// fix from degenerating into "always optimistic".
+    @Test @MainActor
+    func aSwitchNeverLeavesThePreviousProfilesReadinessOnScreen() async throws {
+        let harness = await makeLaunchHarness(
+            suiteName: "383-switch-clears-stale-readiness",
+            sessionUserMatchesPairedUser: true
+        )
+        harness.openAllGates()
+        let container = harness.container
+        // The new host will answer UNAVAILABLE (fixture default).
+        harness.voiceService.readinessLandsReady = false
 
         // Land a READY verdict first — the stale value the bug would keep.
         container.talkStore.connectionState = .ready
@@ -5192,14 +5245,22 @@ struct AppStoresTests {
             gatewayBaseURL: "http://gateway-only:8642"
         ))
 
+        // Asked — and this is the ONLY assertion here that the pre-fix build
+        // fails, because `markRelayUnavailable()` produced a blocked state
+        // indistinguishable from a blocked REFRESH. Stated rather than
+        // discovered: the fixture's own doc comment records that trap.
+        #expect(harness.voiceService.refreshReadinessCallCount == 1)
         #expect(container.talkStore.connectionState == .blocked)
         #expect(!container.talkStore.canStartSession)
         #expect(container.talkStore.blockedReason?.isEmpty == false)
         // Readiness returns to UNKNOWN, not to a fabricated false: we did not
-        // learn the host is unconfigured, we learned we cannot ask.
+        // learn the host is unconfigured, we learned we could not ask it.
         #expect(container.talkStore.readiness.ready == nil)
         #expect(container.talkStore.readiness.configured == nil)
         #expect(container.talkStore.readiness.hostOnline == nil)
+        // 383-H: whatever the new blocked reason says, it must not name the
+        // relay — that component is retired on both hosts.
+        #expect(container.talkStore.blockedReason?.lowercased().contains("relay") != true)
     }
 
     /// **310-E, the store half — and the reason the gate is not only at the
