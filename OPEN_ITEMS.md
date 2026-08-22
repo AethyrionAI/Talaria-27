@@ -16929,7 +16929,7 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
-## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. App half next.**
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — one voice attempt on the Mac Mini profile answers it.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
 2026-08-20 (see the block at the foot of this entry).** The app's entire
@@ -17180,6 +17180,95 @@ proving anything. First move is a design pass, not a build.
 > **Next: the app half** — swap `LiveVoiceSessionService`'s `RelayAPIClient` for
 > the platform link. **383-F gates OJAMD on end-to-end voice working on the
 > Mac**, which needs the app half plus a device build.
+
+
+> **🟡 2026-08-22 02:5x — APP HALF MERGED, MAC PLUGIN DEPLOYED AND CORRECTED.
+> Voice now SELECTS realtime on device. The last known defect is fixed but
+> UNVERIFIED end-to-end — that is the single open question when this resumes.**
+>
+> ### What shipped (PRs #344, #345, #346, #347; plugin `4aa69c7` + `b609ec9`)
+>
+> - `VoiceBootstrapTransport` + the link's three verbs; `LiveVoiceSessionService`
+>   swapped off `RelayAPIClient`. **`accessTokenProvider`,
+>   `accessTokenRefresher` and `performAuthorizedRequest` existed ONLY for the
+>   four voice calls, so voice genuinely stopped being a second auth plane**
+>   rather than merely changing transport.
+> - `persistFinalTurn` removed with the dropped `talk_turn_append`.
+> - **Hazard 5 handled:** the envelope answers **HTTP 200 with the error in the
+>   BODY**, so an un-updated host reached the app as a *decode* failure.
+>   `VoiceVerbOutcome` (`ok`/`unsupported`/`unreachable`) now names it.
+>
+> ### 🔴 THREE DEFECTS, and the pattern is the same one all night
+>
+> **1. The ROUTING GATE still read relay pairing.** `VoiceEngineRouter` gated
+> realtime on `isRelayPaired()`; the relay is retired, so that is permanently
+> false and voice fell to the local pipeline no matter how healthy the plugin
+> was. **Found on device.** Renamed `isVoiceHostPaired`, pointed at the link.
+>
+> **Why 2,455 green tests could not catch it: every router test passes
+> `isRelayPaired: { true }`.** Four sites assert `activeEngine == .realtime` —
+> all under a stub that always says yes. The defect was in `AppContainer`'s
+> WIRING, which has no unit-test harness. **A stub that always answers yes
+> cannot fail the way production failed.**
+>
+> **2. The failure path had NO LOG.** A failed realtime start set
+> `blockedReason`, fell back, and the reason lived on screen for a flash. Third
+> instance tonight of *the failure path is the path with no instrument* (#394's
+> poll loop; the 200-with-an-error-body; this). Now logged — and it immediately
+> paid for itself:
+>
+> ```
+> realtime start FAILED — DecodingError.dataCorrupted
+> Path: voiceSession.id — Attempted to decode UUID from invalid UUID string.
+> ```
+>
+> **3. 🔴 EDITED IS NOT DEPLOYED.** That UUID bug — `uuid4().hex` where the app
+> decodes a Swift `UUID`, which rejects an undashed string — was **caught hours
+> earlier** while reading the app's decode targets, and fixed in the file. It
+> was never committed and the gateway was never bounced. The listener had been
+> up since 00:25:11; the file changed at 00:35. **Every `talk_session_create`
+> in between served the broken id, while the record said "fixed host-side".**
+> Same family as CLAUDE.md's *stopped ≠ disabled*: a host-side edit is not a
+> host-side change until the process that reads it restarts.
+>
+> ### ⚠️ The bounce went HEADLESS again — #264's hazard, second occurrence
+>
+> Deploying the fix required a gateway restart, and launchd respawned faster
+> than the old process released `:8642`: the new gateway came up **alive with
+> MCP children and no listener**, i.e. chat down. `gateway_state.json` named it
+> exactly — `api_server state: fatal, error_code: api_server_port_in_use` —
+> which is #264's ops upgrade working as designed. A second restart fixed it.
+> **Listener 18557 @ 02:51:37, health 200, all three verbs registered.**
+>
+> **And the process lesson:** a waiter was armed on a listener that was never
+> coming back, and seven minutes passed with chat down before Owen asked. The
+> rule already exists ("budget a verify-and-maybe-restart-again step") — it was
+> followed once and then waited on instead of re-checked.
+>
+> ### ✅ VERIFIED host-side, against the real provider
+>
+> - the key resolves on the Mac; the mint succeeds (`gpt-realtime-1.5`);
+> - **`/v1/realtime/calls` ACCEPTS the plugin's ephemeral secret** with that
+>   model — a deliberately malformed offer was refused `invalid_offer`, an
+>   SDP-content error, not auth;
+> - every date shape the plugin emits decodes with the app's real decoder,
+>   including the `+00:00` offsets Python writes and the relay never sent (one
+>   create response carries BOTH a fractional and a non-fractional stamp).
+>
+> ### ⛔ THE OPEN QUESTION — one device attempt answers it
+>
+> **Build 2944 is on the phone and is already correct; the bug was host-side.**
+> The corrected plugin is live. **Nobody has started a voice session since.**
+> Mac Mini profile + Hermes brain → does it connect?
+>
+> - **If yes:** 383-F is met and OJAMD's deploy is unblocked (Owen's go already
+>   covers it — Mac first, then OJAMD).
+> - **If no:** `realtime start FAILED` now carries the real error;
+>   `sudo /usr/bin/log collect --device-udid 00008150-000E794C3C47801C --start "<time>" --output ~/Desktop/v.logarchive`.
+>
+> **Still owed after that:** step 3 of the sequencing — delete #309's relay
+> voice rows — and Owen's ruling on `talk_turn_append` (investigated, dropped,
+> recommendation was DROP).
 
 **Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
 venture), #375 (the retirement that made this urgent), #254-D/#303 (the
