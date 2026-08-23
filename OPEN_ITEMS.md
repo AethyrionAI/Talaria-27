@@ -191,6 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#223** 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the …
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
+- **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -15359,6 +15360,118 @@ once per device session.
 > hang-RISK warning, and no hang has been reported.
 
 
+> **🔴 2026-08-23 — LANE OPENED, WORKED, AND DELIBERATELY STOPPED BEFORE ANY
+> CODE. The 08-20 table above is RIGHT about where the sites are and WRONG
+> about what to do with them: this entry's own prescribed fix for the
+> deactivation half would ship a RACE. Four hazard classes below; nothing
+> changed; bars pre-registered. Stopped under Owen's standing ruling for the
+> 08-23 night list — _if a lane turns out bigger or riskier than it looks,
+> stop, file what was learned, move to the next_ — which this is the first
+> lane to actually exercise.**
+>
+> **① THE PRESCRIBED `Task { … }` DEACTIVATION SHAPE IS UNSAFE HERE.** The
+> block above rules ~6 deactivations "safe to move" because *"nothing
+> downstream awaits them."* That is true and **insufficient** — the hazard is
+> not a downstream await, it is **a subsequent activation on the same tick.**
+> `VoiceMemoPlayer.togglePlayback(path:)` calls `stop()` — which deactivates
+> — and then, **in the same synchronous body**, `setCategory` +
+> `setActive(true)` (`:47` then `:52-53`). Defer that deactivation into a
+> `Task` and it lands *after* the activation it was meant to precede. Worse
+> than "later": `AudioSessionOffMain` runs its body on a **detached** task, so
+> the teardown and the setup are genuinely **unordered** against each other —
+> a data race on one shared global session, not merely a reordering. The same
+> shape sits at lower acuity in `finishRecorder()` (`:129`), where a re-record
+> is user-speed rather than same-tick. **The fix for the deactivation half is
+> therefore NOT the cheap half; it needs the same ordering guarantee the
+> activation half does.**
+>
+> **② MAKING THE CALLERS `async` MAKES PREVIOUSLY-ATOMIC UI ACTIONS
+> RE-ENTRANT — #128's class.** `togglePlayback` today is one main-actor
+> run-to-completion: a double-tap **cannot** interleave. Introduce an `await`
+> inside it and two taps can, so the sequence becomes stop→start→stop→start
+> interleaved across two invocations. #128 is exactly this failure — *two
+> interleaved capture starts double-installed a tap and crashed a device*
+> (`CreateRecordingTap: nullptr == Tap()`). Any async version needs an
+> explicit transition guard; the 08-20 estimate budgets for the signature
+> ripple and **not** for the guard, and `VoiceMemoRecorder`'s existing
+> `guard !isRecording` does not cover it (`isRecording` is set at `:82`,
+> after the whole do/catch, and the function already suspends at `:51`).
+>
+> **③ THREE OF THE TWELVE SITES ARE DELIBERATELY SYNCHRONOUS, AND THE CODE
+> SAYS SO.** `SpeechOutputService:236` carries a comment naming *this very
+> rider* and refusing it: activation must complete before
+> `synthesizer.speak` on the same tick; the release is interlocked with the
+> #106 `didActivateAudioSession` gate, so hopping **either** off-main could
+> reorder activate/deactivate across a `stop()` → `speak()` boundary; and
+> voice sessions never reach these calls anyway (`managesAudioSession ==
+> false` on the pipeline's instance, and the shared instance is gated off
+> while Talk is active). **So a FOURTH classification trap joins the two
+> above: a site can be synchronous ON PURPOSE.** The 08-20 pass classified by
+> *is it off-main?* and structurally could not see a recorded decision. These
+> three sites are **not** in scope for a mechanical rider; moving them is a
+> re-litigation of #84/#106 and needs its own justification.
+>
+> **④ TWO SCOPE CORRECTIONS, both making the lane SMALLER than stated.**
+> `VoiceMemoRecorder.startRecording()` is **already `async`** — it is absent
+> from the 08-20 list of synchronous enclosing functions, correctly, but the
+> consequence was never drawn: its two activation sites (`:63 :64`) carry
+> **zero caller ripple**. And the feared ripple *"into SwiftUI views and
+> delegate callbacks"* is four `Button` actions
+> (`MessageBubble:782`, `ChatInputBar:502`, `VoiceMemoRecorderSheet:216` and
+> `:305`), where `Task { await … }` is idiomatic, plus one delegate callback
+> that **already** wraps itself in `Task { @MainActor in }`
+> (`VoiceMemoPlayer:82`). The signatures are the easy part. **The guard and
+> the ordering are the lane.**
+>
+> **WHAT THIS LEAVES — the corrected scope, by what each site actually
+> needs:**
+>
+> | sites | where | needs |
+> |---|---|---|
+> | `:248 :249 :264` | `SpeechOutputService` | **nothing — deliberate, documented** |
+> | `:63 :64 :69 :78` | `VoiceMemoRecorder.startRecording()` | already `async`; ordered `await`, no ripple |
+> | `:52 :53` | `VoiceMemoPlayer.togglePlayback` | `async` + **re-entrancy guard** |
+> | `:58 :74 :129` | player `stop()`, recorder `finishRecorder()` | **ordering guarantee, NOT fire-and-forget** |
+>
+> **RECOMMENDED DESIGN when this is built:** make the player's and recorder's
+> transitions `async` and **await every one of them**, so ordering is
+> preserved by construction rather than by argument — never `Task { }` a
+> deactivation on a path that can reactivate. Add one `isTransitioning`
+> guard per service to restore the atomicity the `await` removes. Leave
+> `SpeechOutputService` alone and extend its comment to record that this lane
+> considered and declined it.
+>
+> **BARS — pre-registered 2026-08-23, before any code (#215):**
+> - **198B-A (the point of the item).** A device session that records a memo,
+>   plays it, and stops it emits **ZERO** `AVAudioSession_iOS.mm:978` lines,
+>   read at `oslogSeverity: all`. *Any* such line falsifies. Read `all` —
+>   `default` is what hid this for weeks.
+> - **198B-B (ordering, unit-testable).** A test drives
+>   stop-then-start on one action and asserts the session's observed call
+>   order is `deactivate` **then** `activate`. Must be written against a seam
+>   that records order, and must be shown RED against the fire-and-forget
+>   shape hazard ① describes — a bar that never saw the bug it forbids is not
+>   a bar.
+> - **198B-C (re-entrancy, unit-testable).** Two toggles issued without
+>   awaiting between them produce **exactly one** activation. Shown RED
+>   against an unguarded async version.
+> - **198B-D (#84 non-regression).** Read-aloud `stop()` during a native voice
+>   session still performs **no** deactivation — `shouldReleaseAudioSession`
+>   stays the gate and stays covered.
+>
+> **NOT a reason to build it blind:** the fault is a hang-RISK warning and no
+> hang has ever been reported (option (c) above). Against that, these are the
+> paths with #82's wedge, #128's device crash, #84's killed mic and #138's
+> barge-in, and **a simulator cannot exercise a real route change** — so the
+> verification this needs is device time, which is the one thing the lane
+> cannot self-serve.
+>
+> **SPAWNED: #399** — the memo PLAY buttons lack the Talk gate that every
+> sibling surface carries. Found while reading these files; graded honestly
+> there (it is a defence-in-depth gap, not a demonstrated live bug) and filed
+> separately per #268 rather than buried in this entry.
+
+
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
@@ -15636,6 +15749,64 @@ Corroborating evidence already banked in #211: on `stepsdirect`, control offered
 on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
+
+## 399. 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — every sibling has one — **FILED 2026-08-23 per #268, found while reading #198B's files. GRADED HONESTLY: a defence-in-depth gap, NOT a demonstrated live bug. NOT STARTED.**
+
+**The pattern, which this codebase applies consistently at three of four
+sites.** Anything that touches the shared `AVAudioSession` refuses to run
+while a Talk session owns it:
+
+| surface | gate |
+|---|---|
+| memo **recording** | `VoiceMemoRecorderSheet:53` — `if talkStore.isSessionActive` → honest refusal notice |
+| **read-aloud** toggle | `MessageBubble:302` — `&& !talkStore.isSessionActive` → hidden |
+| read-aloud **service** | `SpeechOutputService.isBlocked` + `managesAudioSession` (#84/#106) |
+| memo **playback** | **none** |
+
+`VoiceMemoPlayer.togglePlayback` re-categorizes the shared session to
+`.playback` and calls `setActive(true)` (`:52-53`), and `stop()` calls
+`setActive(false, .notifyOthersOnDeactivation)` **unconditionally** (`:74`)
+with the comment *"releasing an inactive session is harmless."* **That
+sentence is the exact claim #84 falsified** — read-aloud deactivating a
+session it had never activated is what killed the live mic dozens of times a
+minute on 2026-07-16, and it is why `SpeechOutputService` grew the
+`didActivateAudioSession` gate. The player has no equivalent.
+
+**⚠️ WHY THIS IS FILED AS A GAP AND NOT AS A BUG — the reachability was
+checked, not assumed.** During a session the voice UI is a `fullScreenCover`
+on MainTabView, so the chat bubbles carrying the play button are **not
+reachable**; and `VoiceOverlayScreen.onDisappear` calls `abandonSession()`
+after a 500 ms delay (`:126-132`), so dismissal closes the window it opens.
+**No path to the button during a live session was demonstrated.** The
+candidate worth a look is **CarPlay (#19)**, which by design runs voice with
+the phone UI backgrounded — the one configuration where a live session and an
+interactive chat could plausibly coexist. That is a question, not a claim.
+
+**So the honest statement is: three of four audio surfaces are defended by an
+explicit gate, the fourth is defended only by a presentation accident.** #397
+is the standing proof that presentation accidents in this area do not hold —
+a timed-out start left a live mic streaming precisely because a teardown was
+keyed on something other than the session itself.
+
+**BARS — pre-registered before any code:**
+- **399-A.** Establish reachability first, from source: name a path on which
+  `talkStore.isSessionActive` is true while `MessageBubble`/`ChatInputBar` is
+  hittable, or record that none was found. **A null result closes this as
+  defence-in-depth and the fix ships on that basis, not on a claimed defect.**
+- **399-B.** The fix is the sibling pattern, not a new mechanism: gate both
+  play buttons on `!talkStore.isSessionActive`, matching `MessageBubble:302`
+  three lines away.
+- **399-C.** `VoiceMemoPlayer.stop()` gains the #84 guard — never deactivate a
+  session this instance did not activate — pinned by a unit test in
+  `SpeechOutputService.shouldReleaseAudioSession`'s shape. **This is the half
+  that matters even if 399-A comes back null**, because it removes the
+  unconditional deactivation rather than merely hiding the button that reaches
+  it.
+
+**Relationship to #198B:** same files, different defect. #198B is a
+main-thread hang-RISK warning; this is session ownership. 399-C would be
+natural to land inside #198B's refactor, but is **filed separately so it does
+not die with it** — #198B is stopped and this does not depend on it.
 
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
 
