@@ -1791,7 +1791,7 @@ this claims OFFLINE against a live one), **#136** (the black-holed-host outage
 whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
 which is how most users would meet this first).
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 OPEN, deliberately held: the closing bar is Owen's device eyeball of the ramp feel. Result block at the foot.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -2245,6 +2245,16 @@ Marquee ships three of the worst-affected palettes).
 >   (raise it and update the legacy pin, or accept 3.16 as the pinned
 >   default's cost — Owen's call), and the unelected calls: `mutedForeground`
 >   (9/88) and call 4's remaining marginal cells.
+
+> **✅ 2026-08-23 (later) — THE CLOSING BAR IS MET AND THE PR IS MERGED
+> (squash `c8341df5`).** Owen installed build 2971 and judged the ramp on
+> device: *"toybox and pulp noir look good"* — the two ramp-capped themes,
+> named specifically, which is exactly the pair the cap was designed around.
+> **Not ruled in the same breath, so still open:** the deepField pinned-dim
+> question (its 3 cells stay at 3.16 under the legacy byte-pin until Owen
+> rules), `mutedForeground` (9/88, unelected), and `retroSciFi`'s
+> decorative accent (explicitly declined at election). Calls 1–5 are
+> otherwise discharged.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
