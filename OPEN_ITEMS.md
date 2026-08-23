@@ -16240,6 +16240,24 @@ not die with it** — #198B is stopped and this does not depend on it.
 > further out.
 
 
+## 400. 🐛 `midTurnSendAction` DECODES BUT IS NEVER ENCODED — the user's mid-turn send-behavior choice silently reverts to `.queue` on relaunch — **FOUND 2026-08-23 by the Opus-week audit (cluster A, in passing, while verifying #368's decoder edits). PROVEN FROM SOURCE, then re-verified by hand: `UserSettings.swift:573` has the CodingKeys case, `:619` decodes it, and the hand-written `encode(to:)` (`:644`, 32 keys) never writes it. Introduced `d60e6642` (#357 3C era). A systematic CodingKeys-vs-encode diff confirms it is the ONLY omitted key (`customRelayBaseURL` flagged beside it was a false positive — nested `RelayConfiguration`'s encode is synthesized from its own CodingKeys). Bars below, pre-registered before code.**
+
+**The elected fix is structural, not additive.** Every other CodingKeys case
+is already encoded and no decode-only legacy key exists in the enum (the
+diff proves both), so the hand-written `encode(to:)` earns nothing — it
+exists only because `init(from:)` is hand-written for decode defaults, and
+a synthesized encode is derived from CodingKeys and **cannot omit a case**.
+Deleting it fixes the bug and eliminates the class in one move.
+
+> **🎯 BARS 400-A/B — pre-registered 2026-08-23, before code:**
+> - **400-A (the roundtrip).** Encode→decode of settings carrying a
+>   non-default `midTurnSendAction` preserves it. Written RED first against
+>   today's encode.
+> - **400-B (the class).** The hand-written `encode(to:)` is GONE — encode
+>   is synthesized from CodingKeys, so the next added key cannot repeat
+>   this silently. Falsifier: any hand-written `encode(to:)` returning to
+>   `UserSettings`; a comment at the CodingKeys enum says why it must not.
+
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
 
 **What was measured, not inferred:**
