@@ -2098,6 +2098,71 @@ that does not exist).
   no artifact can exist, so text is all there is and there is nothing for it to
   lie against — #202C's justification, which #199A used for the same reason.
 
+> **✅ ROUTED 2026-08-22 PM (Owen): INSTRUMENT AND MEASURE, ELECT NOTHING.**
+> Verbatim: *"I think this is really instrument and measure more. It's been
+> weird, and we thought we had it before. Better to be sure after all this time
+> invested."*
+>
+> **The route is right for a reason worth stating:** 392-A already demands
+> n ≥ 30 calendar declines per arm, and the entry's own 2/10 is too thin to
+> score any treatment against. Electing a cause now would spend a device run
+> learning what is already recorded. Measuring first buys a real denominator.
+
+> **✅ 2026-08-23 — THE INSTRUMENT IS BUILT. No treatment elected, by design.**
+>
+> **The runnable half already existed** — `InstrumentRegistry`'s `decline` spec
+> (auto-decline, `declineBatteryCells = [.armed]`, no treatment arm) over the
+> default prompt set, which already carries **calendar / remind / alarm**, so
+> 392-C's untouched controls ride along for free. What was missing was scoring.
+>
+> **`DeclineAttributionScorer`** (Swift, 9 tests) classifies a reply as
+> `attributedToUser` / `attributedToTool` / `actorUnnamed` / `unscorable`, and
+> is pinned against the **verbatim strings the device emitted**. Three
+> judgement calls are recorded rather than left implicit:
+>
+> 1. **User attribution WINS over a tool phrase.** *"You declined, so the event
+>    wasn't created"* contains `wasn't created` — a fact stated after naming
+>    the right actor. Scoring it as the defect pads the rate with correct
+>    answers, which manufactures a problem rather than missing one.
+> 2. **`"couldn't be added"` counts as tool attribution.** It names no actor,
+>    but **the second real device instance was exactly that shape** — a scorer
+>    hunting only for the word "calendar" would catch one of two known
+>    instances and halve the rate it exists to measure.
+> 3. **Unscorable replies are excluded from the denominator**, not counted
+>    clean — otherwise a run where the model wanders off-topic reads as an
+>    improvement (#215's sibling lesson: an instrument with no error bucket
+>    reports its own failures as behaviour).
+>
+> **Why the scorer is written BEFORE the run**, and this is the part Owen's
+> route actually buys: a classifier authored after seeing replies can be
+> nudged, sentence by sentence, into agreeing with whatever came out. Fixed in
+> advance, it can disagree with us.
+>
+> ### The two-implementation problem, and the check that closes it
+>
+> Scoring happens on the Mac over an exported run record, so the executable is
+> **`scripts/mac/score-decline-attribution.py`**. That is a second
+> implementation of one classifier — the shape that made two date decoders
+> drift until they disagreed about a boundary case.
+>
+> **`score-decline-attribution-test.py` PARSES the Swift file and asserts the
+> three phrase lists match, element for element.** Cheaper and harder to fool
+> than a shared fixture, which can go stale against both sides. **Verified to
+> fail** (#218's rule): inserting one phrase into the Swift list turns it RED
+> and names which side moved. 7 behaviour checks + parity over 48 phrases,
+> ~1 s, no build.
+>
+> ### 🔴 What was deliberately NOT done
+>
+> - **No `battery:` line change.** That shape is depended on byte-identically
+>   by four instruments across eight call sites and by `score-eras.py`; #297
+>   hit the same wall and inlined its own loop rather than touch it. Same
+>   precedent, same reason — which is why scoring reads the export instead.
+> - **No treatment cell.** Owen's route. The next step is a RUN, not a fix.
+>
+> **OWED: the device run** — `--instrument decline`, n ≥ 30 calendar declines,
+> auto-decline so nothing is written and nothing needs reaping.
+
 **Cross-references:** **#199A** (the refuted parent, and the run that found
 this), **#180** (honest degradation), **#340** (a confident sentence about a
 non-existent artifact), **#343** (the governor fix that made the denominator
