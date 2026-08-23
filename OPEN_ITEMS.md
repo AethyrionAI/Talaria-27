@@ -4878,6 +4878,50 @@ Logged 2026-07-20 (Session V launch sweep).
 >   that repairs the guard and nothing else turns overlapping responses into
 >   constant interruption. 138-J does not ship to a device by itself.
 
+> **🧪 2026-08-22 20:09 — 138-E ARM 1 IS LIVE ON THE MAC.** Owen's go: *"go for
+> 138-E on the mac"*. Host config only; no app build. Listener **34110**, health
+> 200 in ~5 s, `✓ talaria connected` 20:09:57, wire-proven with the
+> nonsense-verb control.
+>
+> **396-D, both halves in one place:**
+>
+> | | BEFORE (shipped) | AFTER (arm 1) |
+> |---|---|---|
+> | `type` | `semantic_vad` | **`server_vad`** |
+> | activation | *none exists* | **`threshold: 0.8`** |
+> | end-of-turn | `eagerness: medium` | `silence_duration_ms: 500` (provider default) |
+> | `prefix_padding_ms` | n/a | `300` (provider default) |
+> | `create_response` / `interrupt_response` | `true` / `true` | unchanged |
+>
+> **Only the threshold was chosen; everything else is a provider default.** One
+> deliberate variable, so a result is attributable.
+>
+> **⚠️ THE CONFOUND, NAMED BEFORE THE RUN so it cannot be discovered
+> conveniently afterwards:** `threshold` exists only on `server_vad`, so
+> reaching it necessarily changes the turn-detection TYPE as well. That means
+> **two things moved**, and `semantic_vad`'s smarter end-of-turn is gone with
+> it. So: fewer phantom turns is attributable to the threshold, but **any
+> change in how it judges the END of Owen's sentences may be the type change,
+> not the threshold.** If turn-taking feels worse while phantoms drop, that is
+> the confound talking and the next arm is `server_vad` at the DEFAULT 0.5 —
+> which isolates type from threshold.
+>
+> **Why 0.8:** the residue transcribes as short garbled non-English tokens
+> (`嗨`, `Echt?`, `Hogy?`), i.e. it is attenuated rather than loud, so it should
+> sit well below a normal speaking voice at phone distance. **0.8 is a guess
+> with a reason, not a measurement.** If it also rejects Owen, the answer is a
+> lower value (0.65), not abandoning the approach — and that is a one-line
+> change plus a bounce.
+>
+> **Reversal is four lines and a bounce.** `~/.hermes/.env` carries the block
+> with its own removal note; the pre-change file is backed up at
+> `~/.hermes/.env.bak-138e-200922`.
+>
+> **Bars for the run:** phantom `speech_started` events per minute of assistant
+> speech, from the device log — **scored from `#138` log lines, never from the
+> transcript** (which cannot see barge-in) and never from the model's
+> self-report. BEFORE is the 2958 archive: **7 cycles in ~90 s.**
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
