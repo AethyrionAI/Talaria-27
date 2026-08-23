@@ -836,6 +836,29 @@ in. That is #139's zombie-session shape, and #139 exists because it happened.
   fallback fix does not fire on the abandonment path, so the two cannot be
   conflated by a later reader.
 
+> **✅ 2026-08-22 — 397-A/B/C MET, mutation-verified.** `await
+> realtime.endSession()` now precedes `setActive(.native)` in the fallback
+> branch, which is safe there specifically because `generation ==
+> startGeneration` is checked immediately before it — that branch provably owns
+> the session.
+>
+> **Mutation:** removing the one line turns
+> `aTimedOutRealtimeStartEndsThatSessionBeforeOpeningTheLocalMic` RED on
+> `realtime.endCalls == 1`. 397-B rides the same test (`native.startCalls == 1`
+> — #247's belt must still fire), and 397-C is pinned inside the pre-existing
+> abandonment test as `realtime.endCalls == 1`, i.e. exactly the one explicit
+> end and no second one smuggled in.
+>
+> **⚠️ A HARNESS FAILURE WAS NEARLY SCORED AS THE MUTATION'S RED.** The first
+> mutation run reported `** TEST FAILED **` — but with
+> `NSPOSIXErrorDomain Code=3`, *"did not return a process handle nor launch
+> error"*: the test host never launched. Load average was **33** from a gate,
+> an OTA archive and a test run overlapping. That is CLAUDE.md's documented
+> host-capacity signature, and it is the inverse of the usual trap — **a RED
+> that is not yours**. Taking it at face value would have "verified" a mutation
+> that never ran a single assertion. Re-run on an idle host, it failed on the
+> intended line.
+
 **Cross-references:** **#138** (found here, and refuted as its cause),
 **#247** (B1, the belt this rides), **#139** (zombie session — the related
 path, and the reason severity is privacy), **#310** (the router's other stale

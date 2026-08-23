@@ -324,6 +324,24 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
                     ? "timed out after \(realtimeStartTimeout)"
                     : "failed (\(attempted.blockedReason ?? "no reason"))"
                 Self.logger.notice("Realtime start \(cause, privacy: .public) — falling back to local voice for this session (#247)")
+                // **#397: end what we are abandoning, BEFORE opening the local
+                // mic.** `start.cancel()` above cancels a Swift Task — it does
+                // not tear down a peer connection. A start that times out at 12 s
+                // but whose WebRTC connection completes a moment later leaves
+                // `LiveVoiceSessionService` holding a live session, and the line
+                // below then starts the native engine beside it: two engines, two
+                // voices, each hearing the other.
+                //
+                // The severity is privacy rather than audio — a surviving
+                // realtime session is a live microphone streaming to OpenAI for a
+                // session the app believes it is not in. That is #139's shape.
+                //
+                // Safe here specifically because `generation == startGeneration`
+                // was just checked: this branch provably owns the session. The
+                // #139 abandonment branch above does NOT own it (a NEW start also
+                // bumps the generation), so it is deliberately left alone — see
+                // #397-C.
+                await realtime.endSession()
                 setActive(.native)
                 await native.startSession()
             }
