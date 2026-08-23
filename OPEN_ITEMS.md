@@ -8101,6 +8101,31 @@ pre-register here if it is ever routed.**
 > against floating HEAD — with four candidate homes for a floor laid out in
 > the report.
 
+> **⚖️ RULED 2026-08-23 (Owen, decision pass — all four scrub decisions):**
+> 1. **Publish mechanism: FRESH-HISTORY.** At the #269-B moment the scrubbed
+>    tree is squashed onto a new public history; this repo keeps the private
+>    history. Clears the email finding and every minor history finding in one
+>    move; deployed `--ref` pins get re-issued once. The mailmap rewrite is
+>    declined.
+> 2. **License: MIT + upstream-heritage note.** MIT matching the app repo,
+>    plus a one-line acknowledgment that `voice.py` ports the retired
+>    connector bootstrap's behavior (dylan-buck lineage, MIT).
+> 3. **Depersonalize: MINIMAL.** Rename the `whoGoesThere` fixture and reword
+>    the two `OJAMD` comments in the pre-publish commit; the "Owen ruled…"
+>    provenance comments and "Owen's iPhone" fixtures stay — load-bearing
+>    provenance, low-risk once the email is gone.
+> 4. **Compatibility floor: the FULL STACK.** `manifest_version: 1` + a loud
+>    logged floor check in `register()` (fail-soft preserved) + a README
+>    tested-against line + CI pinned to a tag/SHA. This closes the open #308
+>    compatibility question as a ruling; the build is a plugin lane and its
+>    deploy rides the per-experiment go like any other.
+>
+> Same day: the live checkout's git identity was set to the noreply address
+> (`git config user.email`, repo metadata only — nothing the gateway loads),
+> so post-scrub commits stop re-introducing the BLOCKS-PUBLISH finding.
+> **What #308 still waits on:** the #269-B publication moment itself, which
+> remains outward-facing and needs Owen's explicit per-submission go.
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
