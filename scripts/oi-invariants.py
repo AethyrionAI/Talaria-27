@@ -256,11 +256,78 @@ def check_bar_results_live_under_their_own_item() -> tuple[bool, str, list[str]]
     return True, "every bar verdict sits under the item whose bars it discharges", []
 
 
+
+# A header still claiming the work has not begun.
+NOT_STARTED = re.compile(r"NOT STARTED|NOT BUILT", re.I)
+# A dated result INSIDE the entry: a ✅ verdict, or an explicit merge.
+HAS_RESULT = re.compile(
+    r"✅[^\n]{0,80}(MET|BUILT|DONE|FIXED|MERGED|SHIPPED|CLOSED)|\bMERGED (as|20)"
+)
+# The sweep's own correction marker — an entry that has been reconciled says so
+# in its header, and must not re-trip the check forever after.
+RECONCILED = re.compile(r"HEADER CORRECTED", re.I)
+
+
+def check_headers_claiming_not_started() -> tuple[bool, str, list[str]]:
+    """A header saying NOT STARTED over an entry that records a result.
+
+    WHY: on 2026-08-22 a session read #389, saw "NOT STARTED" with
+    pre-registered bars, and began REBUILDING work that had merged the day
+    before. It stopped only because it read the code first. The result block
+    existed — it was filed under #372 — but the header is what a reader
+    believes, and the header was wrong.
+
+    The sweep that followed found **14** headers in this state. That is not a
+    stale-claim problem of the kind the merge check already catches (those are
+    about git), nor an allocation problem: it is a header disagreeing with its
+    own body, which nothing here could see.
+
+    Deliberately narrow. It requires BOTH a not-started claim in the header AND
+    a dated verdict in the body, so an entry that is genuinely unstarted with
+    bars pre-registered — the normal, correct shape — does not trip it. An
+    entry whose header carries the sweep's `HEADER CORRECTED` marker is
+    reconciled and exempt: some items are legitimately part-done, and the
+    honest fix there is a corrected header, not a rewritten one.
+    """
+    text = LIVE.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    offenders: list[str] = []
+    current: str | None = None
+    header_line: str = ""
+    body: list[str] = []
+
+    def flush() -> None:
+        if current is None:
+            return
+        if not NOT_STARTED.search(header_line) or RECONCILED.search(header_line):
+            return
+        if HAS_RESULT.search("\n".join(body)):
+            offenders.append(
+                f"#{current}: header says NOT STARTED but the entry records a result — "
+                f"correct the header, or say why the result does not close it"
+            )
+
+    for line in lines:
+        m = HEADER.match(line)
+        if m:
+            flush()
+            current, header_line, body = m.group(1), line, []
+            continue
+        if current is not None:
+            body.append(line)
+    flush()
+
+    if offenders:
+        return False, f"{len(offenders)} header(s) claim NOT STARTED over a recorded result", offenders
+    return True, "no header claims NOT STARTED over an entry that records a result", []
+
+
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
     ("claimed merge state vs git", check_claimed_merge_state),
     ("headers claiming an open PR", check_open_pr_claims),
     ("bar verdicts filed under their own item", check_bar_results_live_under_their_own_item),
+    ("headers claiming NOT STARTED over a result", check_headers_claiming_not_started),
     ("open PRs vs entries (report only)", check_open_prs_against_entries),
 ]
 

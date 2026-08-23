@@ -336,7 +336,7 @@ Logged 2026-06-27.
 
 ---
 
-## 385. 🐛 On the PCC tier the assistant TELLS THE USER ITS CONVERSATION NEVER LEAVES THE DEVICE — and that is false — **FOUND ON DEVICE 2026-08-20, the first hour PCC ever ran (#72's 72-D pass). MEASURED, not inferred: the model said it in a screenshot and the shipping instruction string says it verbatim. NOT STARTED; bars pre-register here before any code. ⛔ This gates SHIPPING the PCC tier, not #72's plumbing.**
+## 385. 🐛 On the PCC tier the assistant TELLS THE USER ITS CONVERSATION NEVER LEAVES THE DEVICE — and that is false — **FOUND ON DEVICE 2026-08-20, the first hour PCC ever ran (#72's 72-D pass). MEASURED, not inferred: the model said it in a screenshot and the shipping instruction string says it verbatim. NOT STARTED; bars pre-register here before any code. ⛔ This gates SHIPPING the PCC tier, not #72's plumbing.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 385-A…D ALL MET 2026-08-20, two mutations isolating cleanly.**
 
 **What Owen saw.** He selected Private Cloud β, asked *"Private cloud compute.
 The new backend you're on,"* and the assistant answered:
@@ -778,7 +778,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.**
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.**
 
 **The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
 
@@ -864,7 +864,7 @@ in. That is #139's zombie-session shape, and #139 exists because it happened.
 path, and the reason severity is privacy), **#310** (the router's other stale
 gate, #383's finding #1).
 
-## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.**
+## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 396-B BUILT + deployed to BOTH hosts 2026-08-22 and the local pipeline is characterised; the TUNING lane is what remains unstarted.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
 once at 3am is exactly what a tracker is for, and because #383 shipped the very
@@ -1672,7 +1672,7 @@ this claims OFFLINE against a live one), **#136** (the black-holed-host outage
 whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
 which is how most users would meet this first).
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -2048,7 +2048,7 @@ everywhere), **#49** (the data-driven catalog that makes a fix data rather
 than switch arms), **#12** (Terminal's locked accent slot), **#112** (Midnight
 Marquee ships three of the worst-affected palettes).
 
-## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.**
+## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
 battery, 30 action declines, every one reached):
@@ -2347,7 +2347,7 @@ decision whose premise this falsifies), **#385** (the tier-aware pattern any
 gate should follow), **#386** (the published policy that describes the tiers),
 **#387** (the watch obligation on Apple's own pages).
 
-## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.**
+## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): FIXED + MERGED 2026-08-21 as `df6b987b` (PR #335), 389-A/B/C all met.**
 
 **The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
 order:
@@ -2481,7 +2481,7 @@ pins — the hoist is CORRECT and must not be touched to make the test easier),
 is a DIFFERENT, unexplained signal), **#215** (measuring a configuration the
 system never enters; this is its test-side cousin).
 
-## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.**
+## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built and the probe RAN on device 2026-08-21; it spawned #390 and #391.**
 
 **The premise is earned, not cautious.** Hours before this was filed, #72's
 five-week-old SIGTRAP was **measured out of existence** on beta5 — the crash
@@ -7506,7 +7506,7 @@ local substitution — cited here to note this is *not* an instance of it).
 > (Owen), so 303-A/B are runnable; #320's shipped indicator is the free
 > instrument for reading the engine off-screen. Queued with #254-D.
 
-## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~
+## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~ **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the GATE IS BUILT — 302-D…G all met 2026-08-20, each mutation-proven. Device closing bars owed.**
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -8552,7 +8552,7 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
-## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.**
+## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
 
 **How it was found.** #302's bar 302-B asked one question — is the *microphone*
 live behind App Lock — and the answer was yes (see #302's RESULT block). Mining
@@ -8820,7 +8820,7 @@ locked-interval transcript to keep, because the turn never starts.
 finding, which is this entry's half of the lane even though it surfaced on
 #302's side of the work.
 
-## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.**
+## 325. 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** against its own background where WCAG's NON-TEXT floor is 3.0:1, and it is the colour of shipping warning **TEXT** — **FILED 2026-08-11 by the #320 lane, per #268 (measured while building the realtime voice indicator; given a number the day it was found rather than left inside one file's doc comment). MEASURED over all 90 (ThemeID × AccentSlot) cells and re-derived independently at filing time — not inferred. NOT STARTED. `Shared/ThemePaletteCore.swift` is DELIBERATELY UNTOUCHED by this filing: retuning curated per-theme hues is a design-system decision and needs OWEN'S CALL, not a lane's judgement. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): route (c) BUILT 2026-08-21; `forgeText` ships and measures 0/88.**
 
 **The measurement.** WCAG 2.1 relative luminance (sRGB linearisation, `L = 0.2126R + 0.7152G + 0.0722B`, ratio `(L₁+0.05)/(L₂+0.05)`) computed over every `(ThemeID × AccentSlot)` pair in `Shared/ThemePaletteCore.swift`, comparing the resolved `palette.forge` (= `Design.Brand.forge`, the warning token) against the resolved `palette.background`. 30 themes × 3 slots = **90 cells; 88 reachable** — Terminal's `lockedAccentSlot: .cyan` pin makes its amber and violet variants unreachable by construction. Run first on the #320 lane 2026-08-11, then **re-derived from scratch at filing time by a second parse of the same file: every figure below reproduced exactly.**
 
@@ -9695,7 +9695,7 @@ sibling lesson — a failure that looked device-specific and was really contenti
 **#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
 
-## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.**
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the artifact was cleared 2026-08-22 and 340-B/G1 were measured 2026-08-12 — but the route-(a) FIX is genuinely unbuilt, so this header's NOT STARTED is accurate about the fix and only the fix.**
 
 > **🧹 2026-08-22 — THE STRAY ARTIFACT IS GONE, and it was cleared BEFORE anyone
 > asked.** Owen, when handed the delete as a device chore: *"i looked and
@@ -11534,7 +11534,7 @@ git (`.git/info/exclude`) and never publish, so they were left alone — but a
 worktree resurrected onto a branch would reintroduce the string. Worth
 knowing, not worth a chore.
 
-## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.**
+## 269. 🗣️ #251 SLICE 2B — the conversational installer: the AGENT installs its own plugin and the user never touches a terminal — **FILED 2026-08-06 late night by the roadmap-recovery pass (#268). Owen ROUTED the shape on 2026-08-05 ("I like this. Empowers the user too") but it was never given an entry, a lane, or bars. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 269-A MERGED 2026-08-16; the remainder of slice 2B is still unbuilt.**
 
 **The correction that produced it (Owen, 2026-08-05 late, quoted in #251):**
 *"I didn't even know it had a terminal cli until I had update issues."* Real
@@ -17048,7 +17048,7 @@ PR #320's CTX fixes in one build.
 > `8f6f9c42`**. **OWED: the shared reopen check with #349 on the next OTA —
 > exactly ONE chip on the `Ojamd-fix.md` thread.**
 
-## 368. 🔧 Phase 3 slice 3E — the runs-transport CUTOVER: runs becomes the default plane — **FILED 2026-08-18 night per #268, the same session Owen RULED GO ("Go — build it Wed/Thu"; deferred that morning, unblocked by the OJAMD rollout putting the mirror on both hosts). Build 2026-08-19 PM → 08-20; M-sized. NOT STARTED; bars pre-register here before code.**
+## 368. 🔧 Phase 3 slice 3E — the runs-transport CUTOVER: runs becomes the default plane — **FILED 2026-08-18 night per #268, the same session Owen RULED GO ("Go — build it Wed/Thu"; deferred that morning, unblocked by the OJAMD rollout putting the mirror on both hosts). Build 2026-08-19 PM → 08-20; M-sized. NOT STARTED; bars pre-register here before code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): MERGED 2026-08-19 as `33108d05` (PR #322).**
 
 - Owns the cutover DECISION #362 and #283 both deferred to an unnumbered "3E";
   absorbs #283's 3E evidence-clock note (2026-08-17 — the clock has run since).
@@ -18134,7 +18134,7 @@ scope: **wholesale, or a permanent dual path?**
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
 > later if ever wanted. Buildable when routed; not scheduled this week.
 
-## 384. 🚨 EVERY fresh install seeds a profile pointing at OJAMD — `defaultHermesAPIBaseURL` is Owen's personal production host, hardcoded and NOT debug-gated — **FILED 2026-08-20 per #268, found while answering #348's Mac-side question. The line is the CAUSE of #348's 85 × 401. NOT STARTED; bars pre-register here before any code.**
+## 384. 🚨 EVERY fresh install seeds a profile pointing at OJAMD — `defaultHermesAPIBaseURL` is Owen's personal production host, hardcoded and NOT debug-gated — **FILED 2026-08-20 per #268, found while answering #348's Mac-side question. The line is the CAUSE of #348's 85 × 401. NOT STARTED; bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #352); 384-A/B/C/D met.**
 
 `UserSettings.swift:333`:
 
