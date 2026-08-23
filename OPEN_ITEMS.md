@@ -15509,6 +15509,70 @@ on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
 
+## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
+
+**What was measured, not inferred:**
+
+| | build |
+|---|---|
+| device `whoGoesThere` | **`24A5418b`** (beta 6) |
+| newest sim runtime we hold | `24A5408d` (beta 5) |
+| Xcode / SDK | `27A5237l` (beta 5) — **and Apple has shipped no beta 6 Xcode** |
+
+**So every gate result is measured on a runtime the user does not run**, and
+there is no local twin of the one they do. This was true for an unknown number
+of days and **nothing in the tracker or CLAUDE.md knew it** — the toolchain
+section still describes beta5 as the frontier.
+
+### 🔴 Why this is worse for the BRAIN than for anything else
+
+For most of the app a runtime skew is a compatibility question. For the
+on-device model it is a **measurement** question, because of #324's finding:
+**the simulator cannot generate on the on-device model at all** — `contextSize`
+0, generation fails in every build × runtime cell. So brain behaviour has only
+ever been answerable on a device, and the device has now moved somewhere we
+cannot follow.
+
+**This is the SECOND known contamination window on the battery numbers.** #343
+established the first: every rate measured between 2026-08-02 and its fix was
+governor-strangled. This is a wider one, and unlike #343's it cannot be closed
+by fixing an instrument — it can only be closed by re-measuring on the device.
+
+**Dates of the foundations, which is Owen's actual worry:** the #200-series
+batteries are **July, beta3/beta4 era**. #324 re-audited the API surface at
+beta5 and found zero Talaria-called FM API changed — but API surface is not
+behaviour, and behaviour is what a battery measures.
+
+### ⛔ What will NOT solve this, recorded so nobody spends a night on it
+
+- **A device restore IPSW is not a simulator runtime.** Owen downloaded
+  `iPhone18,2_27.0_24A5418b_Restore.ipsw` and stopped when the distinction
+  surfaced. `simctl runtime add` takes runtime disk images; an IPSW is a device
+  image, different architecture (`arm64-apple-ios` vs `-ios-simulator`) and
+  different packaging. **There is no path from an IPSW to a sim runtime.**
+- **And a beta 6 sim runtime would not help the brain even if one existed**,
+  per #324's cannot-generate finding. It would help the rest of the app.
+
+### 🎯 BARS 398-A…C — pre-registered before any work
+
+- **398-A (name the skew everywhere it is load-bearing).** CLAUDE.md's
+  toolchain section and every entry quoting a battery rate carry the runtime
+  they were measured on. A number without its runtime is now ambiguous.
+- **398-B (re-measure the load-bearing rates on 24A5418b, not all of them).**
+  The #215 routing contrast and #343's canary are the two that decide product
+  shape; the rest are cell contrasts that were never production facts anyway
+  (#215's own rule). **Scoped deliberately — "re-run every battery" is a week
+  and most of it would answer nothing.**
+- **398-C (the gate's blind spot is STATED, not fixed).** The gate runs on
+  beta5 sims and will keep doing so; there is no beta 6 runtime to move it to.
+  The honest response is a line in the gate's own output naming the runtime it
+  measured, so a green gate stops implying "green on the user's device."
+
+**Cross-references:** **#324** (the beta5 audit, and the cannot-generate
+finding that makes this a measurement problem), **#343** (the first
+contamination window), **#215** (armed-cell rule — a rate measured in a
+configuration the system never enters), **#388** (the beta5 surface sweep).
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims

@@ -566,6 +566,16 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Build / tooling
 
+- **🚨 THE DEVICE HAS MOVED PAST THE TOOLCHAIN (measured 2026-08-22, #398).**
+  `whoGoesThere` runs **`24A5418b`** (beta 6); the newest sim runtime we hold is
+  **`24A5408d`** (beta 5), and **Apple has shipped no Xcode beta 6.** So every
+  gate result is measured on a runtime the user does not run, and there is no
+  local twin of the one they do. **A device restore IPSW cannot close this** —
+  `simctl runtime add` takes runtime disk images, not device images (different
+  architecture, different packaging). Read any battery number together with the
+  runtime it was measured on; a rate without one is now ambiguous. Worst for the
+  on-device BRAIN, because #324 established the simulator cannot generate on
+  that model at all, so its behaviour has only ever been device-answerable.
 - **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
   standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
   pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
