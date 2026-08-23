@@ -376,12 +376,67 @@ def check_headers_claiming_not_started() -> tuple[bool, str, list[str]]:
     return True, "no header claims NOT STARTED over an entry that records a result", []
 
 
+# A header still saying the decision is Owen's, over a body that records his
+# ruling. Sibling of NOT_STARTED-over-a-result: same failure (the header
+# disagrees with its own body), different word.
+AWAITING_DECISION = re.compile(
+    r"Owen routes|Owen'?s call|decision owed|Owen must route|awaiting Owen|Owen'?s decision",
+    re.I,
+)
+DECISION_MADE = re.compile(r"\bRULED\b|Owen (?:ruled|elected|granted)", re.I)
+
+
+def check_headers_awaiting_a_decision_already_made() -> tuple[bool, str, list[str]]:
+    """A header saying a decision is owed, over a body that records it made.
+
+    WHY: on 2026-08-23 a night build list booked five items and **four were not
+    buildable**. Two of them — #365 and #381 — had headers reading "the FIX is
+    unrouted and is Owen's call" and "a follow-up affordance is Owen's call"
+    over bodies where Owen had ruled days earlier. The list was assembled from
+    headers, so it elected work that did not exist, and the session that ran it
+    discovered this one entry at a time.
+
+    That is the same disagreement `check_headers_claiming_not_started` catches,
+    wearing a different word: NOT STARTED is about BUILD state, this is about
+    DECISION state, and a tracker that tells you a call is owed when it was
+    already made wastes exactly as much time.
+
+    Its first run flagged three more (#308/#378/#379), so this is not a
+    one-off shape.
+
+    Exempt, same rule as its sibling: a header carrying the house `⟵` clause
+    has been reconciled deliberately — some items are legitimately part-ruled,
+    and the honest fix is an appended clause, not a rewritten header.
+    """
+    if not LIVE.exists():
+        return False, "NO DATA — OPEN_ITEMS.md not found", []
+    text = LIVE.read_text(encoding="utf-8")
+    parts = re.split(r"^## (\d+[A-Z]?)\.", text, flags=re.M)
+    offenders: list[str] = []
+    for i in range(1, len(parts) - 1, 2):
+        num, body = parts[i], parts[i + 1]
+        header, _, rest = body.partition("\n")
+        if not AWAITING_DECISION.search(header):
+            continue
+        if CORRECTION_CLAUSE.search(header):
+            continue
+        if DECISION_MADE.search(rest):
+            offenders.append(
+                f"#{num}: header says the decision is owed, but the body records a "
+                f"ruling — correct the header, or say which part is still open"
+            )
+    if offenders:
+        return False, f"{len(offenders)} header(s) await a decision the body records as made", offenders
+    return True, "no header awaits a decision its own body records as made", []
+
+
 CHECKS = [
     ("duplicate item numbers", check_duplicate_numbers),
     ("claimed merge state vs git", check_claimed_merge_state),
     ("headers claiming an open PR", check_open_pr_claims),
     ("bar verdicts filed under their own item", check_bar_results_live_under_their_own_item),
     ("headers claiming NOT STARTED over a result", check_headers_claiming_not_started),
+    ("headers awaiting a decision already made", check_headers_awaiting_a_decision_already_made),
     ("open PRs vs entries (report only)", check_open_prs_against_entries),
 ]
 

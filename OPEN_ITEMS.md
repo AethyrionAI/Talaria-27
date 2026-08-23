@@ -7976,7 +7976,7 @@ Control Center → "Talk to Hermes" on a locked app, cancel Face ID, and read
 the same corpus for `capture chain HOT` inside the locked interval. **#124's
 seven App-Lock device checks fold into this pass** (Saturday's list, item 6).
 
-## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.**
+## 308. 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs — **NAMED 2026-08-09 by Owen ("The plugin could eventually be made public, especially if we tie some sort of git pull for the plugin or something"). Filed the day it was named per #268. NO DESIGN, NO LANE — Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: partly RULED already. Owen ruled 2026-08-18 (under #363, pointed here per the close-out rule) — **no deploy token**, and the repo goes public **AT the #269-B publication moment**. So the routing is decided; what is still owed is the **pre-publish scrub** (secrets / host paths / tailnet IPs / #255 naming / attribution) and the **compatibility-signal** question. The scrub is desk work available now; PUBLISHING is outward-facing and needs Owen's explicit per-submission go.**
 
 **What it unblocks, precisely.** #269-B (the conversational installer's install
 half) is blocked on **two** things and publishing fixes only the first:
@@ -18432,7 +18432,7 @@ scope: **wholesale, or a permanent dual path?**
   cover this. The diagnostics panel should detect the condition and name it
   instead of presenting a generic failure. App-side, small.
 
-## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.**
+## 378. 🧭 156c — the MEMORY introspection surface — **FILED 2026-08-18 night, re-homed from #156's close. SCOPE DECISION FIRST, Owen routes: `~/.hermes/memories/*.md` vs the authoritative shared Honcho instance. Bars pre-register after scope.** **⟵ HEADER CORRECTED 2026-08-23: the SCOPE DECISION WAS MADE — Owen ruled 2026-08-18 ~22:40 for **local `~/.hermes/memories/*.md` first, read-only, no new dependency**, Honcho later if ever wanted. So bars can pre-register now; what is missing is a SCHEDULE, not a scope. *"Buildable when routed; not scheduled this week."***
 
 > **2026-08-18 ~22:40 — SCOPE RULED (Owen, recommendations batch): local
 > `~/.hermes/memories/*.md` first,** read-only, no new dependency; Honcho
@@ -18585,7 +18585,7 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 > Filed here rather than as its own item because it was found and fixed in one
 > step, and it belongs to the same trace.
 
-## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
+## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.** **⟵ HEADER CORRECTED 2026-08-23: RULED — Owen PARKED this post-launch on 2026-08-18 ~22:40. Not an open routing question; do not re-raise it before launch.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
 > post-launch.**
