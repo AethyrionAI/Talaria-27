@@ -594,6 +594,67 @@ struct NativeVoicePipelineTests {
 
         #expect(native.startCalls == 0,
                 "a timed-out start on an abandoned session must not open the local mic either")
+        // **#397-C — the abandonment path is deliberately NOT swept into
+        // #397's fix.** Exactly ONE end, the explicit `router.endSession()`
+        // above; the fallback branch must not add a second here.
+        //
+        // Why this branch is left alone: `startGeneration` is bumped by a NEW
+        // start as well as by a dismissal, so an unconditional
+        // `realtime.endSession()` on the abandonment path could tear down a
+        // session the NEXT start owns. The fallback branch has no such hazard
+        // (`generation == startGeneration` is checked immediately before it).
+        // Fixing it properly needs a generation-scoped end, which is a design
+        // question rather than a line — filed at #397, not smuggled in here.
+        #expect(realtime.endCalls == 1,
+                "the abandonment path grew a second endSession — #397 was swept in where it does not belong")
+    }
+
+    /// **#397-A — a timed-out realtime start must END the realtime session
+    /// before the local mic opens.**
+    ///
+    /// `start.cancel()` cancels a Swift Task; it does not tear down a peer
+    /// connection. So a start that times out at 12 s but whose WebRTC
+    /// connection completes a moment later leaves `LiveVoiceSessionService`
+    /// holding a LIVE session — and the fallback then starts the native engine
+    /// beside it. Two engines, two voices, each hearing the other.
+    ///
+    /// **Severity is privacy, not audio:** a surviving realtime session is a
+    /// live microphone streaming to OpenAI for a session the app believes it
+    /// is not in — #139's shape, and #139 exists because that happened.
+    ///
+    /// Found 2026-08-22 while chasing #138, and explicitly NOT its cause (the
+    /// device log shows no fallback in the affected session). Filed and fixed
+    /// on its own merits rather than allowed to wear another item's evidence.
+    @MainActor
+    @Test func aTimedOutRealtimeStartEndsThatSessionBeforeOpeningTheLocalMic() async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        realtime.startGate = gate
+        // Reach the fallback branch. The default is `.connected`, which
+        // `shouldFallBackToNative` exempts by design — the sibling test above
+        // records that trap costing a green that proved nothing.
+        realtime.stateAfterStart = .failed
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
+        )
+        router.realtimeStartTimeout = .milliseconds(50)
+
+        let start = Task { await router.startSession() }
+        let inFlight = await waitUntil("the realtime start to be in flight") { realtime.startCalls == 1 }
+        #expect(inFlight)
+        try? await Task.sleep(for: .milliseconds(150))
+        gate.open()
+        await start.value
+
+        #expect(realtime.endCalls == 1,
+                "the abandoned realtime session was left running beside the native engine")
+        // **#397-B — #247's belt survives.** A build that stops falling back
+        // has traded a rare double-session for a dead voice feature, which is
+        // strictly worse. The fallback must still happen, and for the same
+        // reason it always did.
+        #expect(native.startCalls == 1, "the fallback to local voice stopped happening")
     }
 
     /// **139-A — the core bar.** A start that resolves AFTER the user

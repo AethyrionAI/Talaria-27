@@ -778,6 +778,92 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.**
+
+**The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
+
+```swift
+if Self.shouldFallBackToNative(connectionState:blockedReason:timedOut:) {
+    Self.logger.notice("Realtime start \(cause) — falling back to local voice for this session (#247)")
+    setActive(.native)
+    await native.startSession()          // ← the realtime session is never ended
+}
+```
+
+**`start.cancel()` cancels a Swift Task; it does not tear down a peer
+connection.** #247 B1's belt cancels the start at 12 s, which aborts the
+in-flight bootstrap *request* — but if the WebRTC connection has already been
+established, or establishes moments later, `LiveVoiceSessionService` still owns
+a live `peerConnection`, `audioTrack` and data channel. The router then starts
+the native engine beside it.
+
+**The predicted symptom is exactly what #138 looks like** — two voices, each
+answering, each hearing the other — which is why this looked like #138's cause.
+**It is not:** the 2026-08-22 archive shows no `falling back to local voice`
+line in the affected session. **A true bug reached while chasing a different
+one.** Recorded that way deliberately; #388's diagnosis went wrong by the same
+route, and the correction is to file it rather than to let it wear the other
+item's evidence.
+
+**Severity is privacy, not just audio.** A realtime session left running is a
+live microphone streaming to OpenAI for a session the app believes it is not
+in. That is #139's zombie-session shape, and #139 exists because it happened.
+
+> **⚠️ A SECOND, RELATED PATH — flagged, deliberately NOT fixed with the first.**
+> The `#139` abandonment branch (`:314-317`) also returns without ending the
+> realtime session:
+> ```swift
+> if generation != startGeneration { …notice("abandoned mid-connect…"); return }
+> ```
+> **But the naive fix is unsafe here and the reason matters:** `startGeneration`
+> is bumped by a NEW start as well as by a dismissal, so an unconditional
+> `realtime.endSession()` on this path could tear down a session the *next*
+> start owns. The fallback path has no such hazard (`generation ==
+> startGeneration` there, so it provably owns the session). **Fix the safe one;
+> the other needs a generation-scoped end, which is a design question rather
+> than a line.**
+
+### 🎯 BARS 397-A…C — pre-registered before any code
+
+- **397-A (the fallback ends what it abandons).** A router whose realtime start
+  times out calls `endSession()` on the realtime service **before**
+  `startSession()` on the native one. Written RED first against today's code.
+- **397-B (#247's belt survives).** The fallback still happens, and still
+  happens for the same reasons — a build that stops falling back has traded a
+  rare double-session for a dead voice feature, which is strictly worse.
+- **397-C (the #139 path is NOT swept in with it).** The abandonment branch is
+  left alone until a generation-scoped end is designed. A test pins that the
+  fallback fix does not fire on the abandonment path, so the two cannot be
+  conflated by a later reader.
+
+> **✅ 2026-08-22 — 397-A/B/C MET, mutation-verified.** `await
+> realtime.endSession()` now precedes `setActive(.native)` in the fallback
+> branch, which is safe there specifically because `generation ==
+> startGeneration` is checked immediately before it — that branch provably owns
+> the session.
+>
+> **Mutation:** removing the one line turns
+> `aTimedOutRealtimeStartEndsThatSessionBeforeOpeningTheLocalMic` RED on
+> `realtime.endCalls == 1`. 397-B rides the same test (`native.startCalls == 1`
+> — #247's belt must still fire), and 397-C is pinned inside the pre-existing
+> abandonment test as `realtime.endCalls == 1`, i.e. exactly the one explicit
+> end and no second one smuggled in.
+>
+> **⚠️ A HARNESS FAILURE WAS NEARLY SCORED AS THE MUTATION'S RED.** The first
+> mutation run reported `** TEST FAILED **` — but with
+> `NSPOSIXErrorDomain Code=3`, *"did not return a process handle nor launch
+> error"*: the test host never launched. Load average was **33** from a gate,
+> an OTA archive and a test run overlapping. That is CLAUDE.md's documented
+> host-capacity signature, and it is the inverse of the usual trap — **a RED
+> that is not yours**. Taking it at face value would have "verified" a mutation
+> that never ran a single assertion. Re-run on an idle host, it failed on the
+> intended line.
+
+**Cross-references:** **#138** (found here, and refuted as its cause),
+**#247** (B1, the belt this rides), **#139** (zombie session — the related
+path, and the reason severity is privacy), **#310** (the router's other stale
+gate, #383's finding #1).
+
 ## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
@@ -1771,7 +1857,27 @@ invasive and that the retune question is where the design judgement lives.
 > which is the property 393-A existed to buy.
 > **393-B..E remain open** — they govern a fix, and there is no fix yet.
 >
-> ### ⛔ ROUTE IS STILL OWEN'S CALL, and the survey has changed the question
+> ### ✅ ROUTED 2026-08-22 PM (Owen): BUILD CALL 1 — `accent` / `accentBright` as text
+>
+> The original finding, and the one with the worst numbers: `accent` **18/21**
+> light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst
+> **1.16:1** — below even the DECORATIVE floor). `forgeText`'s shape applies
+> directly, so this lane follows a proven precedent rather than inventing a
+> pattern.
+>
+> **Calls 2, 3 and 4 are NOT elected and stay open** — `dimForeground` (the
+> largest at 67/88, and the riskiest: a ramp step, so raising it may collapse a
+> six-step ramp into five, which wants Owen's eye rather than a blind build),
+> `danger`/`dangerBright` on the five light themes, and
+> `secondaryForeground`/`coolForeground`'s marginal cells. Recorded explicitly
+> so a later reader does not mistake call 1 shipping for the ITEM closing.
+>
+> **The ratchet's baseline must SHRINK as call 1 lands.** Printing
+> newly-passing cells is the whole point of its design; a build that fixes
+> `accent` and leaves all 170 cells pinned has not met the ratchet's own
+> contract.
+>
+> ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
 > This is no longer "give the accent a text variant." It is **four separable
 > decisions**, and they do not have the same answer:
@@ -4494,6 +4600,419 @@ Logged 2026-07-20 (Session V launch sweep).
 >   short-circuit `forceSpeakerIfNeeded` entirely, so a headset trial cannot
 >   test this and must not be scored as one. Owen's observation was
 >   `ROUTE · IPHONE MICROPHONE → SPEAKER`; the bar inherits it.
+
+> **✅ 2026-08-22 — 138-A MET, 4/4, AND THE PREDICTION HELD EXACTLY.** Owen ran
+> three fresh session starts on the speakerphone route, giving **only a
+> greeting** each time. In every one, Hermes began speaking, then interrupted
+> itself. With the earlier OJAMD session that is **4 of 4 — always the FIRST
+> assistant utterance, never later.**
+>
+> | # | assistant's opener | phantom "user" turn | assistant's recovery |
+> |---|---|---|---|
+> | 1 | *"Hi Owen, good to hear from you. What's on your mind today?"* | **嗨** | *"Hi there, what's on your mind today?"* |
+> | 2 | *"Hello there. How can I help today?"* | **Echt?** | *"I'm here. What's on your mind today?"* |
+> | 3 | *"Hello there. I'm here and ready to help… How's your day going?"* | **OK.** | *"Hi there. I'm here and ready to help…"* |
+> | 0 | *"Hello there. What's on your mind today?"* | **Kanada** | *"Hi there, Owen. What's on your mind today?"* |
+>
+> ### 🔴 The CONTENT of those turns is the strongest evidence, not the timing
+>
+> `嗨` (Chinese "hi"), `Echt?` (German "really?"), `OK.`, `Kanada`. Owen spoke
+> none of them — **he gave a greeting and nothing else.** Short, mostly
+> non-English tokens are the classic signature of **echo residue reaching a
+> speech recogniser**: the ASR receives an attenuated, distorted copy of the
+> assistant's own speech and emits a brief out-of-language fragment. A person
+> saying "hi" does not produce `嗨` on one turn and `Echt?` on the next.
+>
+> **This retires the "candidate artifact" caveat filed earlier today.** The
+> `Kanada` row was flagged as *consistent with* self-capture but not proven,
+> because Owen might simply have spoken. Three more instances, in three
+> languages, on three consecutive session starts, from a user who only said
+> hello, settle it. **The hedge was right to make and right to drop — on
+> evidence, not on it having become inconvenient.**
+>
+> Also note the assistant's recovery each time is a *re-greeting*: it answers
+> the phantom turn as if the user had just arrived. So the user-visible cost is
+> not only a stutter — the first exchange of every session is spent twice.
+>
+> ### ⚖️ What 138-A does and does NOT establish
+>
+> **Established:** self-capture is real, reproducible on demand, confined to
+> the first assistant utterance, and it is the assistant's own audio.
+> **NOT established:** that the +500 ms route override is the cause. 138-A was
+> written so a negative would kill that hypothesis; a positive is consistent
+> with it *and* with plain AEC convergence, which the same 4 sessions cannot
+> separate. The discriminating test is the fix itself — **138-B removes the
+> route perturbation while leaving convergence untouched, so if the
+> self-interrupt survives, convergence was the mechanism and the next lane is a
+> start-of-session turn-detection gate, not a routing fix.** Recorded now so
+> that outcome reads as information rather than as failure.
+
+> **✅ 2026-08-22 — 138-B/C BUILT, mutation-verified.**
+> `LiveVoiceSessionService.shouldOverrideOutputToSpeaker(currentOutputPortTypes:)`
+> — pure, per the `NativeVoicePipelineService` convention — now declines for
+> two reasons rather than one: an external output is connected (pre-existing),
+> **or the route is already `.builtInSpeaker` (new)**. Both call sites use it,
+> which is what silences the 500 ms safety net on the ordinary path.
+>
+> **138-C is the bar that shaped the fix.** `.builtInReceiver` still returns
+> true, so a route WebRTC genuinely moved is still corrected — the override
+> keeps its purpose instead of being deleted. Five tests in
+> `TalariaTests/SpeakerRouteOverrideTests.swift`; removing the one new line
+> turns `alreadyOnTheBuiltInSpeakerDoesNotOverrideAgain` RED and leaves the
+> other four green, so each arm is pinned separately rather than by one
+> assertion doing all the work.
+>
+> **What a unit test cannot say, stated rather than implied:** these pin the
+> DECISION, not the acoustics. Whether the skip actually removes the
+> self-interrupt is 138-A's re-run on a device — and per the note above, a
+> surviving self-interrupt is the informative outcome, not a failed lane.
+
+> **🟡 2026-08-22 — BUILD 2955 TESTED. SPLIT RESULT, AND IT FALSIFIES TWO OF MY
+> OWN CLAIMS.** Two sessions on the OJAMD profile.
+>
+> **Self-CAPTURE persists.** The phantom turns are still there and still carry
+> the same signature: `再考`, `是。`, `Hogy?` — Chinese, Chinese, Hungarian, none
+> of them spoken. So **the route perturbation was not the cause**, and 138-B is
+> refuted as a fix for this. Per the pre-registered reading, that is
+> information: it points at AEC residue rather than at anything we do to the
+> route.
+>
+> ~~**Self-INTERRUPTION appears resolved** — every assistant utterance in both
+> transcripts is a complete sentence…~~ **❌ WRONG, corrected by Owen within the
+> minute: *"it interrupted itself both times on the test. What's partial about
+> it?"* Nothing is. 138-B is refuted OUTRIGHT — both symptoms survive it.**
+>
+> ### 🔴 THE INSTRUMENT WAS THE ERROR, AND IT IS A REUSABLE ONE
+>
+> I read "complete sentences in the transcript" as "not cut off". **That
+> inference is structurally invalid.** Realtime generates TEXT ahead of audio
+> playout, so a response whose AUDIO is cancelled mid-sentence still delivers
+> its full text over the data channel — **the transcript shows a complete
+> utterance for an interruption the user plainly heard.**
+>
+> **So the live transcript can never score barge-in, and no #138 or #396 bar
+> may be scored from it.** It was the only instrument I had, which is the
+> actual defect:
+>
+> **`handleServerVADInterruption` — the one function that answers this — logged
+> NOTHING.** It fires on `input_audio_buffer.speech_started`, cancels the
+> assistant's audio, and returned silently. **Fourth instance this week of *the
+> failure path is the path with no instrument*** (after #394's silent poll loop,
+> the envelope's 200-with-an-error-body, and #383's unlogged realtime fallback).
+> Worse than the others: here the *misleading* instrument was in the UI, in
+> front of both of us, and it read as evidence.
+>
+> **Now instrumented, both arms**, because the distinction IS the measurement:
+> `#138 BARGE-IN: assistant audio cancelled Xs into playback` versus
+> `#138 speech_started while assistant idle — phantom turn, no interruption`.
+> The elapsed time separates "cut off at 0.2 s" from "cut off at 3 s", which
+> bears directly on whether the residue arrives with the utterance or trails it.
+> **Every future session now scores itself from the device log instead of from
+> Owen's ear or from a transcript that cannot know.**
+>
+> ### 🔴 FALSIFICATION 1 — "first utterance only" was an ARTIFACT OF THE USER TALKING
+>
+> 138-A recorded the fault as confined to the first assistant utterance, from
+> four sessions in which Owen said only a greeting and then let it run. **In
+> this run he spoke once and stayed quiet, and a phantom turn followed EVERY
+> assistant utterance** — three in one session.
+>
+> So the earlier "never later" was almost certainly **his real speech masking
+> it**: while he was talking, the assistant's turns were followed by genuine
+> user audio, and the echo had no empty window to land in. **The AEC-convergence
+> story built on top of that observation is unsupported** — the fault is not
+> confined to a start-of-session window at all, and never was.
+>
+> This is #215's lesson in a new costume: a rate measured under one usage
+> pattern was read as a property of the system.
+>
+> ### 🔴 FALSIFICATION 2 — I said a THRESHOLD CANNOT FIX THIS. That was wrong.
+>
+> Written into this entry earlier today: *"the leaked signal is the assistant at
+> full speaker volume — loud, speech-shaped, and trivially over any activation
+> threshold."* **The evidence contradicts it, and the evidence was already in
+> hand when I wrote it.**
+>
+> If the residue were the assistant at full volume, ASR would transcribe it
+> **accurately** — we would see Hermes's actual words appearing as user turns.
+> Instead every single instance is a short, garbled, usually non-English token
+> (`嗨`, `Echt?`, `Kanada`, `再考`, `是。`, `Hogy?`). **That is the fingerprint of a
+> heavily ATTENUATED signal** — AEC is working, and what survives is weak enough
+> to defeat the recogniser but not weak enough to fall under the activation
+> threshold.
+>
+> **Which makes `server_vad`'s `threshold` a live candidate after all**, and
+> makes #396-B's reachability work directly load-bearing rather than
+> preparatory. The discriminating question is whether a threshold exists that
+> rejects the residue while still accepting Owen at a normal speaking distance —
+> which is measurable, not arguable.
+>
+> ### 🎯 NEXT — 138-E, the threshold arm (host-side config, no app build)
+>
+> `TALARIA_VOICE_TURN_DETECTION=server_vad` plus a raised
+> `TALARIA_VOICE_VAD_THRESHOLD` in the host's `.env`, gateway bounced. **Needs
+> Owen's live-install go** (config, not code — but it is a live install).
+> **396-D binds:** the BEFORE row is already recorded on both hosts, so the
+> after-values and the session that justified them go in the same block.
+>
+> **The rival candidate, kept alive on purpose:** a half-duplex gate at the
+> realtime ingest — #130's fix, which this entry named in July as the likely
+> shape. Cost: it kills real barge-in. The threshold arm is cheaper and
+> reversible, so it goes first; if no threshold separates residue from user,
+> the gate is the answer and its cost is the price.
+
+> **🔬 2026-08-22 18:00 — THE FIRST INSTRUMENTED ARCHIVE, and it refutes MORE
+> of my own hypotheses than it confirms.** Build 2957,
+> `talaria-138-two-voices.logarchive`, one 40-second session.
+>
+> Owen's report first, because it reframed the fault before the log did:
+> *"there's two responses. It's interrupting itself… with… itself. Two
+> different voices too. One male, one female."*
+>
+> ### What the log SHOWS
+>
+> ```
+> 18:00:07  voice session starting on engine realtime (voiceHostPaired=true)
+> 18:00:09  #138 speech_started while assistant idle — phantom turn, no interruption (state=listening)
+> 18:00:15  (same)   18:00:21  (same)   18:00:27  (same)   18:00:46  (same)
+>           no-op cancel race swallowed: Cancellation failed: no active response found
+> ```
+>
+> **Five phantom detections in forty seconds. ZERO barge-in events.**
+>
+> ### ❌ REFUTED: two engines running at once
+>
+> The two voices made a second engine the obvious reading — one realtime
+> (`ballad`), one on-device TTS — and `VoiceEngineRouter`'s fallback does start
+> the native engine **without ending the realtime session** (`:318-329`, no
+> `realtime.endSession()`), which would produce exactly that. **But there is no
+> `falling back to local voice` line in this session.** The native engine never
+> started. It is one engine.
+>
+> *(The missing `endSession` on that fallback path is a REAL latent defect and
+> is filed on its own merits below — it just is not this. Reaching a true bug
+> while chasing a different one is how #388's diagnosis went wrong too.)*
+>
+> ### ❌ REFUTED: our barge-in path is involved
+>
+> **Zero `#138 BARGE-IN` lines.** `handleServerVADInterruption` never cancelled
+> anything, because its guard requires the app to believe the assistant is
+> speaking and the app never did. So what Owen hears as self-interruption is
+> **not our cancel path** — it is responses overlapping.
+>
+> ### ✅ THE MECHANISM THAT FITS: `create_response: true`
+>
+> Every detection — phantom or real — spawns a response. Five phantom
+> detections spawn up to five extra responses, which play over each other.
+> *"Two of y'all responding"* is **one engine answering itself**, not two
+> engines. The `Cancellation failed: no active response found` line is the same
+> story from the other side: a cancel arriving for a response the server had
+> already finished.
+>
+> ### ⚖️ THE ONE THING THE ARCHIVE CANNOT SETTLE — and it is the fork
+>
+> Every phantom logged `state=listening`, which is **ambiguous**:
+> **(a)** the assistant genuinely was idle, or **(b)** the app never learned it
+> started — `output_audio_buffer.started` may not arrive at all. The app's ONLY
+> model of assistant speech is those events, and they had no logging.
+>
+> **The two readings take opposite fixes.** (a) makes an app-side gate viable.
+> (b) makes an app-side gate **impossible** — you cannot gate on a state you
+> cannot observe — and forces the fix server-side onto the threshold.
+>
+> Now instrumented: `#138 audio.started`, `#138 audio.stopped after Nms`,
+> `#138 audio.cleared after Nms`, and `#138 response.created (state=…)`. The
+> response-created pattern is also the direct evidence for or against
+> overlapping responses.
+>
+> ### 🔴 THE TALLY, recorded because it is the lesson
+>
+> **Four hypotheses on this item in one day; four wrong.**
+>
+> | # | claim | killed by |
+> |---|---|---|
+> | 1 | AEC convergence window | phantom turns after EVERY utterance once the user went quiet |
+> | 2 | "a threshold cannot fix this" | the residue transcribes as garbled non-English — i.e. attenuated, not loud |
+> | 3 | "self-interruption appears resolved" | Owen: *"it interrupted itself both times"* — the transcript cannot show barge-in |
+> | 4 | two engines live at once | no fallback line in the log |
+>
+> **Every one died the moment a real instrument existed, and not one died to
+> argument.** Three of the four were stated confidently to Owen before any
+> instrument could see the thing. The rule this earns: on this item, **no
+> mechanism claim without a log line that would have to change if it were
+> false** — which is the same discipline #215 and #300 arrived at from their
+> own directions.
+
+> **✅ 2026-08-22 19:56 — THE FORK IS RESOLVED AND THE LOOP IS PROVEN.** Build
+> 2958, `talaria-138-fork.logarchive`. The ordering is the finding:
+>
+> ```
+> 19:56:21.402  speech_started while assistant idle (state=listening)
+> 19:56:22.813  response.created (state=listening)
+> 19:56:23.536  audio.started — assistant playback begins
+> 19:56:25.730  audio.stopped after 0ms
+> 19:56:29.921  speech_started while assistant idle (state=listening)   ← and round again
+> ```
+>
+> **Seven cycles, always the same order: `speech_started` → `response.created`
+> → `audio.started`.** The phantom detection is what CREATES each response.
+> This is not two engines and not two sessions — **it is one session in a
+> feedback loop**: the assistant speaks, the mic hears it, the server's VAD
+> calls that a user turn, `create_response: true` answers it, and that answer
+> feeds the next lap. *"Two of y'all responding"* is the loop overlapping with
+> itself.
+>
+> ### ✅ Fork answer: `audio.started` DOES arrive — the app CAN see playback
+>
+> So reading (b) is dead: the app is not structurally blind, and an app-side
+> gate is not impossible. **But reading (a) was not right either**, and the
+> reason is a defect neither branch anticipated.
+>
+> ### 🔴 ROOT CAUSE of the blind guard — `LiveVoiceSessionService.swift:825`
+>
+> ```swift
+> case "conversation.item.created", "conversation.item.added":
+>     if …role == "assistant"… {
+>         resetAssistantAudioPlaybackTracking()   // ← clears startedAt
+>     }
+> ```
+>
+> A NEW assistant item arrives **while the PREVIOUS response's audio is still
+> playing**, and this zeroes `assistantAudioPlaybackStartedAtUptime`. From that
+> moment the app believes nothing is playing, so
+> `handleServerVADInterruption`'s guard declines and every subsequent echo logs
+> *"assistant idle"* — **which is exactly what we saw, including at 19:56:33.285,
+> 1.47 s INTO a playback that had started at 31.813.** It also explains the
+> otherwise-nonsensical `audio.stopped after 0ms`: tracking had been reset
+> mid-playback, so the accumulator read zero.
+>
+> **Playback state is being driven by the CONVERSATION lifecycle when only the
+> AUDIO BUFFER lifecycle knows the answer.** `output_audio_buffer.started` /
+> `.stopped` / `.cleared` are the authority; item-created is not.
+>
+> ### ⚠️ BUT FIXING THE GUARD ALONE WOULD MAKE IT WORSE, and this is the part
+> worth pausing on
+>
+> `speech_started` comes **from the server** — its VAD ran on audio **we
+> uplinked**, and by the time the app sees the event the response already
+> exists. So an app-side gate on the EVENT cannot prevent the response. And a
+> guard that worked perfectly would convert *"two voices overlapping"* into
+> *"the assistant is cut off constantly"* — trading one symptom for the
+> original complaint.
+>
+> **The echo has to stop reaching the uplink, or stop being scored as speech.**
+> That leaves three, and only the middle one is cheap and reversible:
+>
+> | | effect | cost |
+> |---|---|---|
+> | mute the local track while the assistant plays (+hangover) — #130's shape | kills the loop at source | **kills real barge-in** |
+> | **`server_vad` + raised `threshold` (138-E)** | fewer detections; residue is attenuated, so a threshold plausibly separates it | may also reject a quiet user — measurable |
+> | `create_response: false` | breaks the loop | the assistant stops answering by itself; not a product we want |
+>
+> ### 🎯 BARS 138-J/K — pre-registered before any code
+>
+> - **138-J (playback state follows the AUDIO BUFFER, not the item lifecycle).**
+>   A new assistant `conversation.item.added` must not clear
+>   `assistantAudioPlaybackStartedAtUptime` while playback is active. Written
+>   RED against today's code. **This is worth fixing on its own merits even
+>   though it does not stop the loop** — the guard is load-bearing for real
+>   barge-in too, and it has been silently inoperative.
+> - **138-K (the guard fix ships WITH a detection fix, never alone).** A build
+>   that repairs the guard and nothing else turns overlapping responses into
+>   constant interruption. 138-J does not ship to a device by itself.
+
+> **🧪 2026-08-22 20:09 — 138-E ARM 1 IS LIVE ON THE MAC.** Owen's go: *"go for
+> 138-E on the mac"*. Host config only; no app build. Listener **34110**, health
+> 200 in ~5 s, `✓ talaria connected` 20:09:57, wire-proven with the
+> nonsense-verb control.
+>
+> **396-D, both halves in one place:**
+>
+> | | BEFORE (shipped) | AFTER (arm 1) |
+> |---|---|---|
+> | `type` | `semantic_vad` | **`server_vad`** |
+> | activation | *none exists* | **`threshold: 0.8`** |
+> | end-of-turn | `eagerness: medium` | `silence_duration_ms: 500` (provider default) |
+> | `prefix_padding_ms` | n/a | `300` (provider default) |
+> | `create_response` / `interrupt_response` | `true` / `true` | unchanged |
+>
+> **Only the threshold was chosen; everything else is a provider default.** One
+> deliberate variable, so a result is attributable.
+>
+> **⚠️ THE CONFOUND, NAMED BEFORE THE RUN so it cannot be discovered
+> conveniently afterwards:** `threshold` exists only on `server_vad`, so
+> reaching it necessarily changes the turn-detection TYPE as well. That means
+> **two things moved**, and `semantic_vad`'s smarter end-of-turn is gone with
+> it. So: fewer phantom turns is attributable to the threshold, but **any
+> change in how it judges the END of Owen's sentences may be the type change,
+> not the threshold.** If turn-taking feels worse while phantoms drop, that is
+> the confound talking and the next arm is `server_vad` at the DEFAULT 0.5 —
+> which isolates type from threshold.
+>
+> **Why 0.8:** the residue transcribes as short garbled non-English tokens
+> (`嗨`, `Echt?`, `Hogy?`), i.e. it is attenuated rather than loud, so it should
+> sit well below a normal speaking voice at phone distance. **0.8 is a guess
+> with a reason, not a measurement.** If it also rejects Owen, the answer is a
+> lower value (0.65), not abandoning the approach — and that is a one-line
+> change plus a bounce.
+>
+> **Reversal is four lines and a bounce.** `~/.hermes/.env` carries the block
+> with its own removal note; the pre-change file is backed up at
+> `~/.hermes/.env.bak-138e-200922`.
+>
+> **Bars for the run:** phantom `speech_started` events per minute of assistant
+> speech, from the device log — **scored from `#138` log lines, never from the
+> transcript** (which cannot see barge-in) and never from the model's
+> self-report. BEFORE is the 2958 archive: **7 cycles in ~90 s.**
+
+> **❌ 2026-08-22 20:13 — ARM 1 FAILED. `server_vad` @ 0.8 does NOT stop the
+> loop.** Verified on the right host (`active profile → 'Mac Mini'`, gateway
+> online), session minted after the 20:09:57 bounce.
+>
+> ```
+> 20:13:44.685  speech_started, assistant not playing     ← Owen's greeting
+> 20:13:45.989  audio.started
+> 20:13:46.510  speech_started  +  audio.cleared          ← 0.52 s INTO playback = echo
+> 20:13:47.832  audio.started                              ← and round again
+> ```
+>
+> Owen's transcript is the clean illustration: Hermes says *"Good afternoon.
+> How can I assist you today?"*, a USER turn appears reading **"Good
+> afternoon."**, and Hermes answers it.
+>
+> **The session was short (~9 s), so this is not a rate** — but it does not
+> need to be. One unambiguous echo 0.52 s into playback at a threshold of 0.8
+> falsifies "the residue is attenuated enough for a threshold to reject it".
+> Pushing to 0.9 risks rejecting Owen and is a guess on top of a failed guess.
+>
+> ### 🔬 MY OWN INSTRUMENT WAS LYING, and I introduced it
+>
+> The line read *"speech_started while assistant idle — **phantom turn**, no
+> interruption"*. **That branch is also exactly what a legitimate user turn
+> looks like** — and the 20:13 archive opens with one: Owen's own greeting,
+> labelled "phantom" by my line. Echo is distinguished by **arriving DURING
+> playback**, not by this branch. Reworded to report what it saw and nothing
+> more. Baking a conclusion into a log line is how the next reader inherits my
+> error as data.
+>
+> ### 🎯 138-L — THE CONTROL THAT SPLITS THE PROBLEM IN HALF (do this FIRST)
+>
+> **One session with headphones connected.** Nothing acoustic survives
+> headphones, so:
+>
+> | result | meaning | where the work is |
+> |---|---|---|
+> | loop **stops** | genuinely acoustic — speaker → mic | route/volume tradeoff, or half-duplex. Threshold tuning is dead. |
+> | loop **persists** | **NOT acoustic at all** — the assistant's audio is reaching the uplink inside the app | a software loopback; every hypothesis on this entry so far is aimed at the wrong layer |
+>
+> **This should have been the first experiment of the day.** Five mechanisms
+> have been proposed and falsified (AEC convergence, threshold-can't-help, the
+> transcript reading, two engines, threshold-can-help), and **every single one
+> assumed acoustic echo without ever testing that assumption.** The one control
+> that interrogates the shared premise costs a pair of headphones and one
+> session. `forceSpeakerIfNeeded` also deliberately drives the speaker at
+> maximum volume into the same device's microphone, which makes the acoustic
+> branch entirely plausible — but plausible is what the last five were.
 
 ---
 

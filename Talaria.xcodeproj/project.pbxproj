@@ -575,6 +575,7 @@
 		F54C1CD1154996479260813C /* GenUISchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB3976CD4EE70D0721D03B0 /* GenUISchema.swift */; };
 		F554034D7B098340F5B960E5 /* UITestSecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FAE2542B7FCC56AC7DD7A30 /* UITestSecureStore.swift */; };
 		F63E152F37B5BE8A35640D25 /* ModelsPickerModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C2A6A4225D5F4614D927788 /* ModelsPickerModelTests.swift */; };
+		F6E6A58A0753E3028A5B34DE /* SpeakerRouteOverrideTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88DF8CC93BADD1B3DA31C631 /* SpeakerRouteOverrideTests.swift */; };
 		F74187AC47A3F89ED9939E02 /* Icon-DeepField@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = FB4B4E5BA743254D0C695B48 /* Icon-DeepField@2x.png */; };
 		F749E3005CC8953DF12F88C5 /* RunsTransportSwitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B8758ADF346AF83A9836FB /* RunsTransportSwitchTests.swift */; };
 		F788AB25DDD88BCA177DCBA2 /* MockHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EAD54E9A9E2AA0D4604C4467 /* MockHermesClient.swift */; };
@@ -965,6 +966,7 @@
 		88CAC7066A927294099D41BE /* InboxItemStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InboxItemStatus.swift; sourceTree = "<group>"; };
 		88CB6E843D925525F80A38CE /* JetBrainsMono-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "JetBrainsMono-Medium.ttf"; sourceTree = "<group>"; };
 		88D53E5BA48BFBDA5A4B9A57 /* HostFedListPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostFedListPresentationTests.swift; sourceTree = "<group>"; };
+		88DF8CC93BADD1B3DA31C631 /* SpeakerRouteOverrideTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakerRouteOverrideTests.swift; sourceTree = "<group>"; };
 		89B6DC0F730603BCA9C94F52 /* TalariaAlarmMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaAlarmMetadata.swift; sourceTree = "<group>"; };
 		89B8FD72600750DA213172D8 /* Icon-EventHorizon@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-EventHorizon@2x.png"; sourceTree = "<group>"; };
 		8A3D34B1ECAAC5E9F2972E23 /* HermesWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesWidgetBundle.swift; sourceTree = "<group>"; };
@@ -1482,6 +1484,7 @@
 				6CFDC1C0E69F3F22B6BFD94D /* SkillsGroupingTests.swift */,
 				DEA4FFA15643D2007BC80DA7 /* SkillsPickerSelectionTests.swift */,
 				0D83C47A3DF942BEA0E95E30 /* SkillsStoreTests.swift */,
+				88DF8CC93BADD1B3DA31C631 /* SpeakerRouteOverrideTests.swift */,
 				41D16ECA82E1B93428AB787F /* SpeechOutputTests.swift */,
 				7BAC4C9847BE119AB66D781D /* SplitViewLayoutTests.swift */,
 				43FDBE36354084B4A9D586C5 /* SpotlightIndexingTests.swift */,
@@ -2940,6 +2943,7 @@
 				02BD26D398CFDAFAD9D276A1 /* SkillsGroupingTests.swift in Sources */,
 				9481D2D387207B47A971355E /* SkillsPickerSelectionTests.swift in Sources */,
 				745D750FC3AC9E9CEE88F72B /* SkillsStoreTests.swift in Sources */,
+				F6E6A58A0753E3028A5B34DE /* SpeakerRouteOverrideTests.swift in Sources */,
 				D534C18BF7446EE2215B44D4 /* SpeechOutputTests.swift in Sources */,
 				D3E7437E18DE7F64ACF26C16 /* SplitViewLayoutTests.swift in Sources */,
 				9304F2AB740D219F4BBB136C /* SpotlightIndexingTests.swift in Sources */,

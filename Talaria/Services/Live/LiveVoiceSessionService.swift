@@ -746,28 +746,57 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             try audioSession.setActive(true)
 
             // Force output to the speaker for maximum volume — but only when no
-            // headphones or Bluetooth audio device is connected. Headsets handle
-            // their own volume and don't need the override.
-            let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
-                [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
-                    .contains(output.portType)
-            }
-            if !hasExternalOutput {
+            // headphones or Bluetooth audio device is connected, and only when
+            // the route is not already there (#138-B).
+            if LiveVoiceSessionService.shouldOverrideOutputToSpeaker(
+                currentOutputPortTypes: audioSession.currentRoute.outputs.map(\.portType)
+            ) {
                 try audioSession.overrideOutputAudioPort(.speaker)
             }
         }
     }
 
+    /// **#138-B — should the output route be forced to the speaker?**
+    ///
+    /// Pure, so the decision is unit-testable without an audio session (the
+    /// `NativeVoicePipelineService` convention). Two reasons to decline, and
+    /// the second is this lane's:
+    ///
+    /// 1. **An external output is connected.** Headsets handle their own
+    ///    volume and routing; overriding them is user-hostile. Pre-existing.
+    /// 2. **The route is ALREADY the built-in speaker (#138-B).** Overriding
+    ///    then is a semantic no-op that still hands CoreAudio a route
+    ///    reconfiguration — and a route change makes the echo canceller
+    ///    re-adapt. `forceSpeakerIfNeeded` is called twice around connect, the
+    ///    second time on a 500 ms timer that lands squarely in the window where
+    ///    the FIRST assistant utterance plays. Measured 2026-08-22: the
+    ///    assistant's own audio leaked into the mic and was transcribed as a
+    ///    user turn on **4 of 4** session starts, always the first utterance,
+    ///    never later.
+    ///
+    /// **The earpiece case must still override**, which is what keeps this a
+    /// skip rather than a deletion: `.builtInReceiver` returns true here, so a
+    /// route WebRTC genuinely moved is still corrected (138-C).
+    nonisolated static func shouldOverrideOutputToSpeaker(
+        currentOutputPortTypes: [AVAudioSession.Port]
+    ) -> Bool {
+        let external: Set<AVAudioSession.Port> = [
+            .headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio,
+        ]
+        if currentOutputPortTypes.contains(where: external.contains) { return false }
+        if currentOutputPortTypes.contains(.builtInSpeaker) { return false }
+        return true
+    }
+
     /// Re-assert the speaker override after WebRTC (or any other subsystem) may
     /// have reset the audio route.  Safe to call at any time — skips the override
-    /// when headphones, Bluetooth, AirPlay, or CarPlay are connected.
+    /// when headphones, Bluetooth, AirPlay, or CarPlay are connected, and (#138-B)
+    /// when the route is already the built-in speaker.
     private func forceSpeakerIfNeeded() {
         let audioSession = AVAudioSession.sharedInstance()
-        let hasExternalOutput = audioSession.currentRoute.outputs.contains { output in
-            [.headphones, .bluetoothA2DP, .bluetoothHFP, .bluetoothLE, .airPlay, .carAudio]
-                .contains(output.portType)
-        }
-        guard !hasExternalOutput else { return }
+        guard Self.shouldOverrideOutputToSpeaker(
+            currentOutputPortTypes: audioSession.currentRoute.outputs.map(\.portType)
+        ) else { return }
         do {
             try audioSession.overrideOutputAudioPort(.speaker)
         } catch {
@@ -803,21 +832,37 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
+        // #138: these three drive the app's ONLY model of "is the assistant
+        // speaking", and the 2026-08-22 archive could not say whether they
+        // arrive at all — every phantom `speech_started` logged
+        // `state=listening`, which is ambiguous between "the assistant really
+        // was idle" and "we never learned it started". Those two readings take
+        // OPPOSITE fixes: the first makes an app-side gate viable, the second
+        // makes it impossible and forces the fix server-side. Logged so the
+        // next archive answers it instead of leaving it to argument.
         case "output_audio_buffer.started":
+            Self.logger.notice("#138 audio.started — assistant playback begins")
             startAssistantAudioPlaybackTracking()
             voiceState = .speaking
             statusMessage = "Hermes is speaking."
         case "output_audio_buffer.stopped":
+            Self.logger.notice("#138 audio.stopped after \(self.currentAssistantAudioPlaybackMilliseconds(), privacy: .public)ms")
             stopAssistantAudioPlaybackTracking()
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
         case "output_audio_buffer.cleared":
+            Self.logger.notice("#138 audio.cleared after \(self.currentAssistantAudioPlaybackMilliseconds(), privacy: .public)ms")
             stopAssistantAudioPlaybackTracking()
             currentRealtimeResponseID = nil
             voiceState = .listening
             statusMessage = "Listening"
         case "response.created":
+            // #138: `create_response: true` means EVERY detection — phantom or
+            // real — spawns a response. Two overlapping responses is what
+            // "there's two of y'all responding" sounds like, so the arrival
+            // pattern of this event is the direct evidence for or against that.
+            Self.logger.notice("#138 response.created (state=\(self.voiceState.rawValue, privacy: .public))")
             currentRealtimeResponseID = ((payload["response"] as? [String: Any])?["id"] as? String)
             ignoreCurrentAssistantFinalization = false
             voiceState = .thinking
@@ -1174,8 +1219,37 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     /// to automatically cancel the in-flight response on VAD start. The client still
     /// needs to cut off any buffered playback locally and truncate the assistant item
     /// to the portion the user actually heard.
+    /// **#138: the barge-in event, and until 2026-08-22 it was SILENT.**
+    ///
+    /// This is the one moment that answers *"was the assistant cut off?"*, and
+    /// it logged nothing — so the question had to be answered from the live
+    /// transcript, which **structurally cannot answer it**. Realtime generates
+    /// text ahead of audio playout, so a response whose AUDIO is cancelled
+    /// mid-sentence still shows a COMPLETE sentence in the transcript. Reading
+    /// completeness as "not interrupted" produced a wrong verdict on
+    /// 2026-08-22, corrected by Owen from what he actually heard.
+    ///
+    /// Both arms log, because the distinction is the measurement: fired while
+    /// the assistant was SPEAKING is a barge-in (self-inflicted when the audio
+    /// is our own echo); fired while it was not is speech detected in silence,
+    /// which is a phantom TURN without an interruption. #138 has both symptoms
+    /// and they had no way to be told apart.
     private func handleServerVADInterruption() {
-        guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else { return }
+        let elapsed = assistantAudioPlaybackStartedAtUptime.map {
+            String(format: "%.2f", ProcessInfo.processInfo.systemUptime - $0)
+        } ?? "n/a"
+        guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else {
+            // Deliberately NOT called "phantom" — that was this line's first
+            // wording and it baked in a conclusion the log cannot support.
+            // speech_started while the assistant is idle is ALSO exactly what a
+            // legitimate user turn looks like, and the 2026-08-22 20:13 archive
+            // opened with one: Owen's own greeting, labelled "phantom" by this
+            // very line. Echo is distinguished by ARRIVING DURING PLAYBACK, not
+            // by this branch — so the branch reports what it saw and nothing more.
+            Self.logger.notice("#138 speech_started, assistant not playing (state=\(self.voiceState.rawValue, privacy: .public))")
+            return
+        }
+        Self.logger.notice("#138 BARGE-IN: assistant audio cancelled \(elapsed, privacy: .public)s into playback (state=\(self.voiceState.rawValue, privacy: .public))")
         interruptAssistantOutput(sendCancelAndClear: true)
     }
 
