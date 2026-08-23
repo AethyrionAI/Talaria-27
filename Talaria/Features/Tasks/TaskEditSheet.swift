@@ -66,7 +66,7 @@ struct TaskEditSheet: View {
                 if isSaving {
                     ToolbarItem(placement: .topBarTrailing) {
                         ProgressView()
-                            .tint(Design.Brand.accent)
+                            .tint(Design.Brand.accentText)
                     }
                 }
             }
@@ -212,7 +212,7 @@ struct TaskEditSheet: View {
                         .font(Design.Typography.body(14))
                         .foregroundStyle(Design.Colors.foreground)
                 }
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
 
                 if let times = draft.repeatTimes {
                     Stepper(value: Binding(
@@ -237,7 +237,7 @@ struct TaskEditSheet: View {
                     .font(Design.Typography.body(14))
                     .foregroundStyle(Design.Colors.foreground)
             }
-            .tint(Design.Brand.accent)
+            .tint(Design.Brand.accentText)
             .padding(Design.Spacing.sm)
             .hudPanel(cornerRadius: Design.CornerRadius.md, borderColor: Design.Colors.hairline)
         }
@@ -370,7 +370,7 @@ struct TaskDeliverPicker: View {
             mode.useList()
         } label: {
             MonoLabel("USE LIST", size: 8, weight: .medium,
-                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                      tracking: Design.Tracking.mono, color: Design.Brand.accentText)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Use the platform list instead of text")
@@ -501,12 +501,12 @@ struct ScheduleInputView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
             }
             DatePicker("At", selection: timeOfDayBinding, displayedComponents: .hourAndMinute)
                 .font(Design.Typography.body(14))
                 .foregroundStyle(Design.Colors.foreground)
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
         }
     }
 
@@ -534,7 +534,7 @@ struct ScheduleInputView: View {
                 )
                 .font(Design.Typography.body(14))
                 .foregroundStyle(Design.Colors.foreground)
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
             }
         }
     }
@@ -565,7 +565,7 @@ struct ScheduleInputView: View {
             HStack(spacing: Design.Spacing.xs) {
                 Image(systemName: "clock")
                     .font(.system(size: 11))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                 Text(preview)
                     .font(Design.Typography.body(13))
                     .foregroundStyle(Design.Colors.coolForeground)

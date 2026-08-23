@@ -1876,6 +1876,81 @@ invasive and that the retune question is where the design judgement lives.
 > newly-passing cells is the whole point of its design; a build that fixes
 > `accent` and leaves all 170 cells pinned has not met the ratchet's own
 > contract.
+
+> **✅ 2026-08-22 — CALL 1 BUILT. `accentText` 0/88, `accentBrightText` 0/88.**
+> Baseline tightened **170 → 155**, so the ratchet's contract is met by
+> measurement rather than by assertion.
+>
+> **The values are COMPUTED, and the generator ships with them**
+> (`AccentTextVariantGeneratorTests`). It blends each failing hue toward the
+> background's own extreme by binary search, stopping at the first value
+> clearing 4.5:1 — minimal movement, so the result still reads as that theme's
+> accent instead of drifting grey.
+>
+> **It independently reproduced 393-A's numbers**: 23 `accent` cells, 13
+> `accentBright`, and *exactly* the five dark cells this entry names. Two
+> derivations by different methods agreeing is why these numbers can be
+> trusted; the first version of this entry got its dark-theme claim wrong by
+> having only one.
+>
+> **A real flaw in the first generator, worth keeping:** it solved on a
+> continuous blend factor and then rounded to an 8-bit hex literal — and
+> rounding can drop a hairline 4.50 back under the floor. It now searches over
+> the ROUNDED value, so every shipped literal measures 4.50–4.55. Solving on
+> the float and trusting it is the "green that proves nothing" shape one layer
+> down: the generator would have reported 4.50 for a literal that renders 4.49.
+>
+> ### The migration, and why it did not repeat #325's two errors
+>
+> #325 lost ten real text sites to an `Image(`-proximity rule and
+> over-migrated on a regex that matched `.stroke(` but not `.strokeBorder(`.
+> **So this lane used no proximity regex.** A paren-walking pass resolves the
+> ENCLOSING CALL for every occurrence and **refuses to classify what it cannot
+> recognise** — 94 unknowns, then 23, each family then resolved by reading the
+> code:
+>
+> - **`statusPipLabel` settled the largest family.** It hands the *same* colour
+>   to a `StatusPip` and a `MonoLabel` — so the colour is read, and migrating
+>   costs a marginally darker dot.
+> - **`CodeSyntaxHighlighter.color(for:)`** returns `forgeText` two lines from
+>   `accent`; a text-colour function by construction.
+> - **`StatusPip` / `hudGlow` / `CornerBrackets` / `ThemeStarfield`**, and the
+>   orb, texture and glow files entire, stay decorative.
+>
+> **Final: 215 text · 62 decorative · 0 unclassified**, governed throughout by
+> this entry's own asymmetry — over-migrating costs a darker pip, under-
+> migrating leaves real text at 2.18:1.
+>
+> ### 🔴 A NEW FINDING the re-flooring exposed — NOT fixed here
+>
+> With `accent`/`accentBright` re-floored to **3.0** as decoration, they still
+> fail **11** and **10** cells: `retroSciFi × violet` measures **1.24:1** and
+> **1.16:1** — below even the DECORATIVE floor. So on those cells the accent is
+> not merely unreadable as text, it is nearly invisible as a pip, border or
+> fill.
+>
+> **Recorded rather than folded in**, because a passing ratchet is exactly
+> where a finding like this would hide: the cells are still in
+> `knownFailingCells`, so nothing goes red, and the only way anyone learns is
+> if someone writes it down. It is a fifth call on this entry, and it is not
+> elected.
+
+> **✅ 2026-08-23 — CALL 1 DEVICE-VERIFIED. Owen on build 2960: *"all the
+> colors check out."*** The half no instrument could reach.
+>
+> **This was a real risk, not a formality.** The generator optimises for
+> contrast and nothing else, and several values move a long way — `retroSciFi ×
+> violet` goes `#FFD600` bright yellow → `#816C00` dark olive, and
+> `winterFrost × amber` `#8FD4F4` pale blue → `#51778A` slate. A 4.5:1 ratio
+> says a value is READABLE; it says nothing about whether the theme still looks
+> like itself. **Three cells also collapse `base` and `bright` onto the same
+> literal** (`pulpNoir × amber`, `stickerBombToybox × cyan/amber`) because both
+> had to reach the same floor from the same side, so text loses that
+> distinction there.
+>
+> All of that survived Owen's eye, which is the only instrument that could
+> judge it. **Call 1 is DONE:** measured 0/88 on both text tokens, baseline
+> 170 → 155, and confirmed on device.
 >
 > ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
@@ -15450,6 +15525,70 @@ Corroborating evidence already banked in #211: on `stepsdirect`, control offered
 on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
+
+## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
+
+**What was measured, not inferred:**
+
+| | build |
+|---|---|
+| device `whoGoesThere` | **`24A5418b`** (beta 6) |
+| newest sim runtime we hold | `24A5408d` (beta 5) |
+| Xcode / SDK | `27A5237l` (beta 5) — **and Apple has shipped no beta 6 Xcode** |
+
+**So every gate result is measured on a runtime the user does not run**, and
+there is no local twin of the one they do. This was true for an unknown number
+of days and **nothing in the tracker or CLAUDE.md knew it** — the toolchain
+section still describes beta5 as the frontier.
+
+### 🔴 Why this is worse for the BRAIN than for anything else
+
+For most of the app a runtime skew is a compatibility question. For the
+on-device model it is a **measurement** question, because of #324's finding:
+**the simulator cannot generate on the on-device model at all** — `contextSize`
+0, generation fails in every build × runtime cell. So brain behaviour has only
+ever been answerable on a device, and the device has now moved somewhere we
+cannot follow.
+
+**This is the SECOND known contamination window on the battery numbers.** #343
+established the first: every rate measured between 2026-08-02 and its fix was
+governor-strangled. This is a wider one, and unlike #343's it cannot be closed
+by fixing an instrument — it can only be closed by re-measuring on the device.
+
+**Dates of the foundations, which is Owen's actual worry:** the #200-series
+batteries are **July, beta3/beta4 era**. #324 re-audited the API surface at
+beta5 and found zero Talaria-called FM API changed — but API surface is not
+behaviour, and behaviour is what a battery measures.
+
+### ⛔ What will NOT solve this, recorded so nobody spends a night on it
+
+- **A device restore IPSW is not a simulator runtime.** Owen downloaded
+  `iPhone18,2_27.0_24A5418b_Restore.ipsw` and stopped when the distinction
+  surfaced. `simctl runtime add` takes runtime disk images; an IPSW is a device
+  image, different architecture (`arm64-apple-ios` vs `-ios-simulator`) and
+  different packaging. **There is no path from an IPSW to a sim runtime.**
+- **And a beta 6 sim runtime would not help the brain even if one existed**,
+  per #324's cannot-generate finding. It would help the rest of the app.
+
+### 🎯 BARS 398-A…C — pre-registered before any work
+
+- **398-A (name the skew everywhere it is load-bearing).** CLAUDE.md's
+  toolchain section and every entry quoting a battery rate carry the runtime
+  they were measured on. A number without its runtime is now ambiguous.
+- **398-B (re-measure the load-bearing rates on 24A5418b, not all of them).**
+  The #215 routing contrast and #343's canary are the two that decide product
+  shape; the rest are cell contrasts that were never production facts anyway
+  (#215's own rule). **Scoped deliberately — "re-run every battery" is a week
+  and most of it would answer nothing.**
+- **398-C (the gate's blind spot is STATED, not fixed).** The gate runs on
+  beta5 sims and will keep doing so; there is no beta 6 runtime to move it to.
+  The honest response is a line in the gate's own output naming the runtime it
+  measured, so a green gate stops implying "green on the user's device."
+
+**Cross-references:** **#324** (the beta5 audit, and the cannot-generate
+finding that makes this a measurement problem), **#343** (the first
+contamination window), **#215** (armed-cell rule — a rate measured in a
+configuration the system never enters), **#388** (the beta5 surface sweep).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

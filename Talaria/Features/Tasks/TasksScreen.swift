@@ -192,7 +192,7 @@ private struct TasksContent: View {
     private var loadingState: some View {
         VStack(spacing: Design.Spacing.md) {
             ProgressView()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
             MonoLabel(
                 "FETCHING SCHEDULED TASKS",
                 size: 10,
@@ -236,7 +236,7 @@ private struct TasksContent: View {
                         .foregroundStyle(Design.Colors.foregroundBright)
                 } icon: {
                     Image(systemName: "clock.arrow.2.circlepath")
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             } description: {
                 MonoLabel(
@@ -332,7 +332,7 @@ extension CronJobStatus {
 
     @MainActor var badgeColor: Color {
         switch self {
-        case .running, .active: Design.Brand.accent
+        case .running, .active: Design.Brand.accentText
         case .paused: Design.Colors.mutedForeground
         case .off: Design.Colors.dimForeground
         case .error: Design.Colors.danger

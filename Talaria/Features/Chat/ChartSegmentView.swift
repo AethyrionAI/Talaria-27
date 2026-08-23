@@ -122,7 +122,7 @@ struct ChartCanvas: View {
     /// Series colors cycle the theme's own hues (hero, bright, deep, forge),
     /// dimmed on the second pass — derived from the palette, never a rainbow.
     private var seriesColors: [Color] {
-        let base = [Design.Brand.accent, Design.Brand.accentBright, Design.Brand.accentDeep, Design.Brand.forgeText]
+        let base = [Design.Brand.accentText, Design.Brand.accentBrightText, Design.Brand.accentDeep, Design.Brand.forgeText]
         return spec.series.indices.map { index in
             index < base.count ? base[index % base.count] : base[index % base.count].opacity(0.55)
         }
@@ -215,7 +215,7 @@ struct ChartableTableView: View {
                     Text(showChart ? "TABLE" : "CHART")
                         .font(Design.Typography.monoTiny)
                 }
-                .foregroundStyle(showChart ? Design.Brand.accent : Design.Colors.mutedForeground)
+                .foregroundStyle(showChart ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 .padding(.horizontal, Design.Spacing.xs)
                 .padding(.vertical, 3)
                 .overlay {

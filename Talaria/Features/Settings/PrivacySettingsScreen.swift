@@ -155,7 +155,7 @@ struct PrivacySettingsScreen: View {
                                 health: settingsStore.settings.healthCollectionEnabled,
                                 location: settingsStore.settings.locationCollectionEnabled,
                                 motion: settingsStore.settings.motionCollectionEnabled),
-                            statusColor: privacyIsAccented ? Design.Brand.accent : Design.Colors.mutedForeground,
+                            statusColor: privacyIsAccented ? Design.Brand.accentText : Design.Colors.mutedForeground,
                             chip: SettingsSubsystem.privacy.chip,
                             accented: privacyIsAccented
                         )
@@ -255,7 +255,7 @@ struct PrivacySettingsScreen: View {
 
     private func statusColor(_ status: PermissionStatus) -> Color {
         switch status {
-        case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accent
+        case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accentText
         case .limited: Design.Brand.forgeText
         case .denied, .restricted: Design.Colors.danger
         case .notDetermined, .unsupported: Design.Colors.mutedForeground
@@ -307,7 +307,7 @@ struct PrivacySettingsScreen: View {
                         Spacer()
                         Toggle("", isOn: sensorStreamingBinding)
                             .labelsHidden()
-                            .tint(Design.Brand.accent)
+                            .tint(Design.Brand.accentText)
                             .accessibilityLabel("Share Sensors with Hermes")
                     }
                     Text(sensorStreamingCaption)
@@ -374,7 +374,7 @@ struct PrivacySettingsScreen: View {
                 .lineLimit(1)
             Toggle("", isOn: sensorStreamBinding(sensor))
                 .labelsHidden()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
                 .accessibilityLabel("Share \(sensor.displayLabel)")
         }
         .padding(.horizontal, Design.Spacing.md)
@@ -424,7 +424,7 @@ struct PrivacySettingsScreen: View {
                         Spacer()
                         Toggle("", isOn: appLockEnabledBinding)
                             .labelsHidden()
-                            .tint(Design.Brand.accent)
+                            .tint(Design.Brand.accentText)
                             .disabled(!appLock.capability.lockPolicyAvailable)
                     }
                     Text(appLockCaption)
@@ -503,7 +503,7 @@ struct PrivacySettingsScreen: View {
                     Spacer()
                     Toggle("", isOn: spotlightIndexingBinding)
                         .labelsHidden()
-                        .tint(Design.Brand.accent)
+                        .tint(Design.Brand.accentText)
                 }
                 Text("Makes Hermes sessions and agent files findable in system search. Chat titles and previews enter the Spotlight index — off by default; turning it off removes everything already donated.")
                     .font(Design.Typography.caption)
@@ -629,7 +629,7 @@ struct PrivacySettingsScreen: View {
 
     private func revokeStateColor(_ state: RevokeRowState) -> Color {
         switch state {
-        case .active: Design.Brand.accent
+        case .active: Design.Brand.accentText
         case .needsPermission: Design.Brand.forgeText
         case .blockedByIOS: Design.Colors.danger
         case .off, .unavailable: Design.Colors.mutedForeground

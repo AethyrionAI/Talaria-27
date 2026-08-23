@@ -43,7 +43,7 @@ struct AboutSettingsContent: View {
                 motif: .sparkline,
                 title: SettingsSubsystem.about.title,
                 status: SettingsCardValues.about(isHealthy: isHealthy),
-                statusColor: isHealthy ? Design.Brand.accent : Design.Brand.forgeText,
+                statusColor: isHealthy ? Design.Brand.accentText : Design.Brand.forgeText,
                 chip: SettingsSubsystem.about.chip,
                 accented: isHealthy
             )
@@ -115,7 +115,7 @@ struct AboutSettingsContent: View {
     private var pluginLinkStatus: RowStatus {
         switch pluginLink {
         case .livePaired:
-            RowStatus(text: pluginLink.label, color: Design.Brand.accent, blinks: false)
+            RowStatus(text: pluginLink.label, color: Design.Brand.accentText, blinks: false)
         case .notLive:
             RowStatus(text: pluginLink.label, color: Design.Brand.forgeText, blinks: false)
         case .unknown, .liveNotPaired, .hostUnreachable:
@@ -174,7 +174,7 @@ struct AboutSettingsContent: View {
 
     private var hermesAPIStatus: RowStatus {
         switch container.chatStore.directConnectionStatus {
-        case .connected:    RowStatus(text: "REACHABLE",   color: Design.Brand.accent,        blinks: false)
+        case .connected:    RowStatus(text: "REACHABLE",   color: Design.Brand.accentText,        blinks: false)
         case .connecting:   RowStatus(text: "CHECKING",     color: Design.Brand.forgeText,         blinks: true)
         case .disconnected: RowStatus(text: "UNREACHABLE",  color: Design.Colors.danger,       blinks: false)
         case .error:        RowStatus(text: "ERROR",        color: Design.Colors.danger,       blinks: false)
@@ -189,7 +189,7 @@ struct AboutSettingsContent: View {
         let pluginLive = pluginLink == .livePaired || pluginLink == .liveNotPaired
         switch sessionStore.state.connectionStatus {
         case .connected:
-            return RowStatus(text: "LINKED", color: Design.Brand.accent, blinks: false)
+            return RowStatus(text: "LINKED", color: Design.Brand.accentText, blinks: false)
         case .connecting:
             return RowStatus(text: "CONNECTING", color: Design.Brand.forgeText, blinks: true)
         case .disconnected, .error:
@@ -232,14 +232,14 @@ struct AboutSettingsContent: View {
             // records the minted user.
             return RowStatus(text: "USER \(short) · UNVERIFIED", color: Design.Brand.forgeText, blinks: false)
         }
-        return RowStatus(text: "USER \(short)", color: Design.Brand.accent, blinks: false)
+        return RowStatus(text: "USER \(short)", color: Design.Brand.accentText, blinks: false)
     }
 
     private var locationStatus: RowStatus {
         let level = permissionsStore.locationAuthorizationLevel
         switch level {
         case .always, .whenInUse:
-            return RowStatus(text: level.displayLabel.uppercased(), color: Design.Brand.accent, blinks: false)
+            return RowStatus(text: level.displayLabel.uppercased(), color: Design.Brand.accentText, blinks: false)
         case .denied, .restricted:
             return RowStatus(text: level.displayLabel.uppercased(), color: Design.Colors.danger, blinks: false)
         case .notDetermined:
@@ -289,7 +289,7 @@ struct AboutSettingsContent: View {
     private func voicePermissionColor(_ type: PermissionType) -> Color {
         switch voiceCapabilityStatus(type) {
         case .authorized, .authorizedAlways, .authorizedWhenInUse:
-            Design.Brand.accent
+            Design.Brand.accentText
         case .denied, .restricted:
             Design.Colors.danger
         case .limited:
@@ -318,7 +318,7 @@ struct AboutSettingsContent: View {
                 panelRow("Sensor Sharing",
                          settingsStore.settings.sensorStreamingEnabled ? "ON" : "OFF",
                          settingsStore.settings.sensorStreamingEnabled
-                            ? Design.Brand.accent : Design.Colors.mutedForeground)
+                            ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 rowDivider
                 queryGateRow("Health", enabled: settingsStore.settings.healthCollectionEnabled,
                              permission: .health)
@@ -370,7 +370,7 @@ struct AboutSettingsContent: View {
 
     private func permissionColor(_ status: PermissionStatus) -> Color {
         switch status {
-        case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accent
+        case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accentText
         case .limited: Design.Brand.forgeText
         case .denied, .restricted, .unsupported: Design.Colors.danger
         case .notDetermined: Design.Colors.mutedForeground
@@ -469,7 +469,7 @@ struct AboutSettingsContent: View {
             if let url { openURL(url) }
         } label: {
             MonoLabel(title, size: 9, weight: .medium, tracking: Design.Tracking.monoWide,
-                      color: url == nil ? Design.Colors.mutedForeground : Design.Brand.accent)
+                      color: url == nil ? Design.Colors.mutedForeground : Design.Brand.accentText)
         }
         .buttonStyle(.plain)
         .disabled(url == nil)

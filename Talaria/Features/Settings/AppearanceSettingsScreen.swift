@@ -150,7 +150,7 @@ struct AppearanceSettingsScreen: View {
                 MonoLabel("APPEARANCE", size: 9, weight: .medium,
                           tracking: Design.Tracking.monoWide, color: Design.Colors.mutedForeground)
                 MonoLabel(counterText, size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                          tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                     .accessibilityIdentifier("appearance.channelCounter")
             }
             Spacer()
@@ -338,7 +338,7 @@ struct AppearanceSettingsScreen: View {
                           tracking: Design.Tracking.monoWide, color: Design.Colors.mutedForeground)
                 Image(systemName: "chevron.up")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 40)
@@ -363,7 +363,7 @@ struct AppearanceSettingsScreen: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .frame(width: 56, height: 50)
                 .background(Design.Colors.accentTint(0.10),
                             in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
@@ -434,10 +434,10 @@ struct AppearanceSettingsScreen: View {
                           color: Design.Colors.mutedForeground)
                 Spacer()
                 MonoLabel(String(format: "%.1f", glow), size: 11, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                          tracking: Design.Tracking.mono, color: Design.Brand.accentText)
             }
             Slider(value: glowBinding, in: 0...1.6, step: 0.1)
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
                 .padding(.horizontal, Design.Spacing.xxs)
         }
     }
@@ -486,7 +486,7 @@ struct AppearanceSettingsScreen: View {
                 Spacer()
                 Toggle("", isOn: reduceMotionBinding)
                     .labelsHidden()
-                    .tint(Design.Brand.accent)
+                    .tint(Design.Brand.accentText)
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
@@ -505,7 +505,7 @@ struct AppearanceSettingsScreen: View {
                 Spacer()
                 Toggle("", isOn: hapticsBinding)
                     .labelsHidden()
-                    .tint(Design.Brand.accent)
+                    .tint(Design.Brand.accentText)
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
@@ -525,7 +525,7 @@ struct AppearanceSettingsScreen: View {
             HStack(spacing: Design.Spacing.sm) {
                 Image(systemName: "app.badge")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .frame(width: 32, height: 32)
                     .background(Design.Colors.accentTint(0.05),
                                 in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
@@ -538,7 +538,7 @@ struct AppearanceSettingsScreen: View {
                     .foregroundStyle(Design.Colors.foreground)
                 Spacer(minLength: Design.Spacing.xs)
                 MonoLabel(currentIconName.uppercased(), size: 10, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                          tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                     .lineLimit(1)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .bold))

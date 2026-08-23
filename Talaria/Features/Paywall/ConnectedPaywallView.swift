@@ -59,13 +59,13 @@ struct ConnectedPaywallView: View {
                     .frame(width: 80, height: 80)
                 Image(systemName: "antenna.radiowaves.left.and.right")
                     .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .hudGlow(Design.Brand.accent, radius: 12, strength: 0.4)
             }
             .padding(.top, Design.Spacing.sm)
 
             MonoLabel("CONNECTED TIER", weight: .medium, tracking: Design.Tracking.monoXWide,
-                      color: Design.Brand.accent)
+                      color: Design.Brand.accentText)
 
             Text("Pair Talaria with your own Hermes host. Everything on-device stays free — Connected unlocks the bring-your-own-host feature set.")
                 .font(Design.Typography.callout)
@@ -109,7 +109,7 @@ struct ConnectedPaywallView: View {
         HStack(alignment: .top, spacing: Design.Spacing.sm) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
                 .frame(width: 20)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {

@@ -275,7 +275,7 @@ struct ConversationSearchScreen: View {
             if drawerModel.journal?.isPinned == true {
                 Image(systemName: "diamond.fill")
                     .font(.system(size: 7))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .accessibilityLabel("Pinned")
             }
             if drawerModel.journal?.isArchived == true {
@@ -298,7 +298,7 @@ struct ConversationSearchScreen: View {
             HStack(alignment: .top, spacing: Design.Spacing.sm) {
                 MonoLabel(hit.role == .user ? "YOU" : "HERMES", size: 8,
                           tracking: Design.Tracking.mono,
-                          color: hit.role == .user ? Design.Colors.secondaryForeground : Design.Brand.accent)
+                          color: hit.role == .user ? Design.Colors.secondaryForeground : Design.Brand.accentText)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(Design.Colors.chipSurface, in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs))
@@ -337,7 +337,7 @@ struct ConversationSearchScreen: View {
                         .lineLimit(1)
                     Spacer()
                     MonoLabel(ConversationSearch.timeLabel(for: hit.lastActive), size: 9,
-                              color: hit.isActive ? Design.Brand.accent : Design.Colors.dimForeground)
+                              color: hit.isActive ? Design.Brand.accentText : Design.Colors.dimForeground)
                 }
                 Text(hit.displayDetail)
                     .font(Design.Typography.body(12))
@@ -350,16 +350,16 @@ struct ConversationSearchScreen: View {
                               color: Design.Colors.dimForeground)
                     if hit.isActive {
                         MonoLabel("● CURRENT", size: 8, tracking: Design.Tracking.mono,
-                                  color: Design.Brand.accent)
+                                  color: Design.Brand.accentText)
                     }
                     if drawerModel.listState?.isPinned(hit.id) == true {
                         HStack(spacing: 2) {
                             Image(systemName: "diamond.fill")
                                 .font(.system(size: 6))
                             MonoLabel("PINNED", size: 8, tracking: Design.Tracking.mono,
-                                      color: Design.Brand.accent)
+                                      color: Design.Brand.accentText)
                         }
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                     }
                     if drawerModel.listState?.isArchived(hit.id) == true {
                         MonoLabel("ARCHIVED", size: 8, tracking: Design.Tracking.mono,

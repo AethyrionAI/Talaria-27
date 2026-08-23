@@ -399,7 +399,7 @@ private struct InsightsContent: View {
     private var loadingState: some View {
         VStack(spacing: Design.Spacing.md) {
             ProgressView()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
             MonoLabel(
                 "FETCHING SESSION STATS",
                 size: 10,
@@ -441,7 +441,7 @@ private struct InsightsContent: View {
                     .foregroundStyle(Design.Colors.foregroundBright)
             } icon: {
                 Image(systemName: "chart.bar.xaxis")
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
         } description: {
             MonoLabel(

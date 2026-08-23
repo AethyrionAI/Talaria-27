@@ -42,6 +42,26 @@ enum Design {
         /// usability fix and not a compliance one.
         @MainActor static var forgeText: Color { ThemeRuntime.shared.palette.forgeText }
 
+        /// **#393 call 1 — accent as TEXT. Use this for anything a user READS.**
+        ///
+        /// `accent` and `accentBright` are the DECORATIVE hues (3.0:1 floor —
+        /// fills, strokes, glows, the orb). 393-A measured them as text at
+        /// **1.24:1** and **1.16:1** at worst, the second below even the
+        /// decorative floor, across most of the light catalogue — including the
+        /// Appearance picker, which labels each theme in that theme's accent,
+        /// so the screen you would use to ESCAPE an illegible theme was
+        /// illegible in it.
+        ///
+        /// **Migration asymmetry, recorded in #393 and worth repeating here:**
+        /// the text token clears the decorative floor too, so over-migrating
+        /// costs a marginally darker pip while under-migrating leaves real text
+        /// at 2.18:1. **When unsure, use the text token.**
+        @MainActor static var accentText: Color { ThemeRuntime.shared.palette.accentText }
+
+        /// #393 call 1 — the bright slot's text variant. Same rule as
+        /// `accentText`: read → this, decorate → `accentBright`.
+        @MainActor static var accentBrightText: Color { ThemeRuntime.shared.palette.accentBrightText }
+
         /// Primary CTA gradient — soft accent fill for glowing buttons.
         @MainActor static var accentGradient: LinearGradient {
             LinearGradient(

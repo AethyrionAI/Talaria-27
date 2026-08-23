@@ -45,7 +45,7 @@ struct VoiceSettingsScreen: View {
                             status: engineState.text,
                             statusColor: engineState.color,
                             chip: SettingsSubsystem.voice.chip,
-                            accented: engineState.color == Design.Brand.accent
+                            accented: engineState.color == Design.Brand.accentText
                         )
                     } else {
                         heroPanel
@@ -111,9 +111,9 @@ struct VoiceSettingsScreen: View {
         switch talkStore.connectionState {
         case .idle:       ("STANDBY", Design.Colors.mutedForeground, false)
         case .checking:   ("CHECKING", Design.Brand.forgeText, true)
-        case .ready:      ("READY", Design.Brand.accent, false)
+        case .ready:      ("READY", Design.Brand.accentText, false)
         case .connecting: ("CONNECTING", Design.Brand.forgeText, true)
-        case .connected:  ("SESSION LIVE", Design.Brand.accent, false)
+        case .connected:  ("SESSION LIVE", Design.Brand.accentText, false)
         case .blocked:    ("BLOCKED", Design.Brand.forgeText, false)
         case .failed:     ("ERROR", Design.Colors.danger, false)
         }
@@ -127,7 +127,7 @@ struct VoiceSettingsScreen: View {
             VStack(spacing: 0) {
                 // #180 lane 180-L: "—" until an engine has been published.
                 statusRow("Engine", (talkStore.voiceEngine?.monoLabel ?? "—",
-                                     talkStore.voiceEngine == .native ? Design.Brand.forgeText : Design.Brand.accent))
+                                     talkStore.voiceEngine == .native ? Design.Brand.forgeText : Design.Brand.accentText))
                 rowDivider
                 statusRow("Host", boolStatus(readiness.hostOnline, yes: "ONLINE", no: "OFFLINE",
                                              noColor: Design.Colors.danger))
@@ -151,7 +151,7 @@ struct VoiceSettingsScreen: View {
     private func boolStatus(_ value: Bool?, yes: String, no: String,
                             noColor: Color) -> (text: String, color: Color) {
         guard let value else { return ("—", Design.Colors.mutedForeground) }
-        return value ? (yes, Design.Brand.accent) : (no, noColor)
+        return value ? (yes, Design.Brand.accentText) : (no, noColor)
     }
 
     // MARK: Model & voice (server-managed, read-only)
@@ -253,7 +253,7 @@ struct VoiceSettingsScreen: View {
             } label: {
                 HStack(spacing: Design.Spacing.xxs) {
                     MonoLabel(selectedVoiceLabel, size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                         .lineLimit(1)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 9, weight: .medium))
@@ -279,7 +279,7 @@ struct VoiceSettingsScreen: View {
                 ),
                 in: 0.3 ... 0.7
             )
-            .tint(Design.Brand.accent)
+            .tint(Design.Brand.accentText)
             MonoLabel("FAST", size: 8, weight: .regular,
                       tracking: Design.Tracking.mono, color: Design.Colors.mutedForeground)
         }
@@ -439,7 +439,7 @@ struct VoiceSettingsScreen: View {
             Spacer()
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)

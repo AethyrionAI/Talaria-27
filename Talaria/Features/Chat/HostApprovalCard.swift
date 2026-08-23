@@ -168,7 +168,7 @@ struct HostApprovalCard: View {
             Text(RunApprovalRequest.buttonLabel(for: choice))
                 .font(Design.Typography.mono(11, weight: .medium))
                 .tracking(Design.Tracking.mono)
-                .foregroundStyle(isDeny ? Design.Colors.mutedForeground : Design.Brand.accentBright)
+                .foregroundStyle(isDeny ? Design.Colors.mutedForeground : Design.Brand.accentBrightText)
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.xs)
                 .background(Design.Colors.accentTint(isDeny ? 0.0 : 0.10), in: Capsule())

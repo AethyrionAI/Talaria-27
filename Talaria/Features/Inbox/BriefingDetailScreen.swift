@@ -110,7 +110,7 @@ struct BriefingDetailScreen: View {
                     .foregroundStyle(Design.Colors.foregroundBright)
             } icon: {
                 Image(systemName: "sunrise")
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
         } description: {
             MonoLabel(

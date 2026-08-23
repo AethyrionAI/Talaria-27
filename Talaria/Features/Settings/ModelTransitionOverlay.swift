@@ -26,11 +26,11 @@ struct ModelTransitionOverlay: View {
 
     private var telemetry: [(String, Color)] {
         [
-            ("CALIBRATING INFERENCE", Design.Brand.accent),
+            ("CALIBRATING INFERENCE", Design.Brand.accentText),
             (shownModel, Design.Colors.foregroundBright),
-            ("HANDSHAKE · OK", Design.Brand.accent),
+            ("HANDSHAKE · OK", Design.Brand.accentText),
             ("LOADING WEIGHTS ···", Design.Colors.mutedForeground),
-            ("WARM-UP · ONLINE", Design.Brand.accent),
+            ("WARM-UP · ONLINE", Design.Brand.accentText),
         ]
     }
 
@@ -155,11 +155,11 @@ struct ModelTransitionOverlay: View {
                 ReactorOrb(size: 92, style: .standard, glowIntensity: Design.Glow.k * 1.7)
                 Image(systemName: "checkmark")
                     .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(Design.Brand.accentBright)
+                    .foregroundStyle(Design.Brand.accentBrightText)
                     .transition(.scale(scale: 0.5).combined(with: .opacity))
             }
             MonoLabel("MODEL ACTIVATED", size: 11, weight: .medium,
-                      tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
+                      tracking: Design.Tracking.monoWide, color: Design.Brand.accentText)
             MonoLabel(shownModel, size: 13, weight: .medium,
                       tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
             MonoLabel("NOW ACTIVE · APPLIES TO NEXT TURN", size: 8,

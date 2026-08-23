@@ -44,7 +44,7 @@ struct ToolActivityRail: View {
                     size: 10,
                     weight: .medium,
                     tracking: Design.Tracking.monoWide,
-                    color: Design.Brand.accent
+                    color: Design.Brand.accentText
                 )
             }
             .padding(.horizontal, Design.Spacing.sm + 1)
@@ -96,7 +96,7 @@ struct ToolActivityRail: View {
                     // means "this finished".
                     Image(systemName: summaryState == .interrupted ? "xmark" : "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(summaryState == .interrupted ? Design.Brand.forge : Design.Brand.accent)
+                        .foregroundStyle(summaryState == .interrupted ? Design.Brand.forge : Design.Brand.accentText)
 
                     MonoLabel(
                         collapsedLabel,
@@ -182,7 +182,7 @@ struct ToolActivityRail: View {
             case .completed:
                 Image(systemName: "circle.fill")
                     .font(.system(size: 8))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .frame(width: 11, height: 11)
             }
 
@@ -226,7 +226,7 @@ struct ToolActivityRail: View {
             if state == .running {
                 Text("running")
                     .font(Design.Typography.monoSmall)
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             } else {
                 Text(activity.startedAt, style: .time)
                     .font(Design.Typography.monoSmall)

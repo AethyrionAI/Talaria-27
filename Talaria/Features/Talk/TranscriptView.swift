@@ -13,7 +13,7 @@ struct TranscriptView: View {
 
     private var statusColor: Color {
         switch voiceState {
-        case .speaking, .listening, .thinking: Design.Brand.accent
+        case .speaking, .listening, .thinking: Design.Brand.accentText
         case .interrupted: Design.Brand.forgeText
         case .disconnected: Design.Colors.danger
         case .idle: Design.Colors.mutedForeground
@@ -107,7 +107,7 @@ struct VoiceWaveform: View {
     var isActive: Bool = true
     var barCount: Int = 21
     var height: CGFloat = 38
-    var color: Color = Design.Brand.accent
+    var color: Color = Design.Brand.accentText
 
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     private var reduceMotion: Bool { systemReduceMotion || ThemeRuntime.shared.appReduceMotion }

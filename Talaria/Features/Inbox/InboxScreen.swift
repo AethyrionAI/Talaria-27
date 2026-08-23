@@ -217,7 +217,7 @@ struct InboxScreen: View {
                     .foregroundStyle(Design.Colors.foregroundBright)
             } icon: {
                 Image(systemName: "tray")
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
         } description: {
             MonoLabel(

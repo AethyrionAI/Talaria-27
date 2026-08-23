@@ -126,7 +126,7 @@ struct CapabilitiesSheet: View {
         VStack(alignment: .leading, spacing: Design.Spacing.xs) {
             MonoLabel(group.capabilityAnswerTitle, size: 10,
                       weight: .medium, tracking: Design.Tracking.monoXWide,
-                      color: Design.Brand.accent)
+                      color: Design.Brand.accentText)
             // The family's one-line detail — the SAME registry copy the
             // capability answer block renders (one source, #202D). Plain
             // caption Text: MonoLabel force-uppercases, wrong for a sentence.

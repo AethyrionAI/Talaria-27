@@ -29,7 +29,7 @@ struct VoiceSessionBanner: View {
                 Text(formattedDuration(duration))
                     .font(Design.Typography.mono(10, relativeTo: .caption2).monospacedDigit())
                     .tracking(Design.Tracking.mono)
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
         }
         .padding(.horizontal, Design.Spacing.sm)

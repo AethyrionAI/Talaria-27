@@ -25,7 +25,7 @@ struct PermissionCard: View {
         HStack(spacing: Design.Spacing.sm) {
             Image(systemName: capability.permissionType.displayIcon)
                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .frame(width: Design.Size.avatarSmall, height: Design.Size.avatarSmall)
                 .background(Design.Colors.accentTint(0.10), in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
                 .overlay {

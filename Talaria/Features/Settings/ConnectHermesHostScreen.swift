@@ -102,7 +102,7 @@ struct ConnectHermesHostScreen: View {
                 HStack(spacing: Design.Spacing.xs) {
                     Image(systemName: "terminal")
                         .font(.system(size: Design.Size.iconSmall, weight: .semibold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                     MonoLabel("SETUP", weight: .medium, tracking: Design.Tracking.monoXWide,
                               color: Design.Colors.secondaryForeground)
                 }
@@ -139,7 +139,7 @@ struct ConnectHermesHostScreen: View {
                         icon: "qrcode.viewfinder",
                         label: "Pair New Device (QR)",
                         detail: "Scan a code from your Hermes machine.",
-                        color: Design.Brand.accent
+                        color: Design.Brand.accentText
                     )
                 }
                 .disabled(container.profilesStore?.activeProfileID == nil)
@@ -199,7 +199,7 @@ struct ConnectHermesHostScreen: View {
         HStack(alignment: .top, spacing: Design.Spacing.sm) {
             Text(number)
                 .font(Design.Typography.mono(12, weight: .bold))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
                 .frame(width: 22, height: 22)
                 .background(Design.Colors.accentTint(0.12))
                 .clipShape(Circle())
@@ -273,7 +273,7 @@ struct ConnectHermesHostScreen: View {
     private var statusColor: Color {
         switch hostStore.connectionState {
         case .online:
-            return Design.Brand.accent
+            return Design.Brand.accentText
         case .offline, .unreachable:
             return Design.Brand.forgeText
         case .notConnected:

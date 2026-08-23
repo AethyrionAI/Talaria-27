@@ -19,7 +19,7 @@ struct StatusCardView: View {
                 // Cyan checkmark box
                 Image(systemName: "checkmark")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .frame(width: Design.Size.avatarSmall, height: Design.Size.avatarSmall)
                     .background(Design.Colors.accentTint(0.14), in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm + 1))
                     .overlay {

@@ -101,7 +101,7 @@ struct ServerSettingsScreen: View {
                                 activeProfileName: container.profilesStore?.activeProfile?.name,
                                 isPaired: pairingStore.isPaired),
                             statusColor: container.profilesStore?.activeProfile != nil
-                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                                ? Design.Brand.accentText : Design.Colors.mutedForeground,
                             chip: SettingsSubsystem.server.chip,
                             accented: container.profilesStore?.activeProfile != nil
                         )
@@ -270,7 +270,7 @@ struct ServerSettingsScreen: View {
                             if isActive {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(Design.Brand.accent)
+                                    .foregroundStyle(Design.Brand.accentText)
                                     .accessibilityLabel("Active profile")
                             }
                         }
@@ -287,7 +287,7 @@ struct ServerSettingsScreen: View {
                     Spacer(minLength: Design.Spacing.xs)
                     VStack(alignment: .trailing, spacing: Design.Spacing.xxs) {
                         if isActive {
-                            tag("ACTIVE", color: Design.Brand.accent)
+                            tag("ACTIVE", color: Design.Brand.accentText)
                         }
                     }
                 }
@@ -300,7 +300,7 @@ struct ServerSettingsScreen: View {
                     Spacer(minLength: 0)
                     MonoLabel(isPaired ? "PAIRED" : "NOT PAIRED", size: 9, weight: .medium,
                               tracking: Design.Tracking.mono,
-                              color: isPaired ? Design.Brand.accent : Design.Colors.mutedForeground)
+                              color: isPaired ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 }
             }
             .padding(Design.Spacing.md)
@@ -382,7 +382,7 @@ struct ServerSettingsScreen: View {
     private func probeColor(_ result: ServerProbeResult) -> Color {
         switch result {
         case .unknown: Design.Colors.mutedForeground
-        case .online: Design.Brand.accent
+        case .online: Design.Brand.accentText
         case .unauthorized: Design.Brand.forgeText
         case .offline: Design.Colors.danger
         }
@@ -481,7 +481,7 @@ struct ServerSettingsScreen: View {
 
     private var talariaLinkColor: Color {
         switch talariaLink {
-        case .livePaired: Design.Brand.accent
+        case .livePaired: Design.Brand.accentText
         case .notLive: Design.Brand.forgeText
         case .unknown, .liveNotPaired, .hostUnreachable: Design.Colors.mutedForeground
         }
@@ -515,7 +515,7 @@ struct ServerSettingsScreen: View {
                 set: { settingsStore.settings.autoConnectOnLaunch = $0 }
             ))
             .labelsHidden()
-            .tint(Design.Brand.accent)
+            .tint(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)

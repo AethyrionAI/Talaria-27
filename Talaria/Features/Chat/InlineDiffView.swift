@@ -35,7 +35,7 @@ struct InlineDiffView: View {
             HStack(spacing: Design.Spacing.xs) {
                 Image(systemName: "doc.text.magnifyingglass")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
 
                 Text(diff.summary.uppercased())
                     .font(Design.Typography.monoSmall)
@@ -67,7 +67,7 @@ struct InlineDiffView: View {
             if diff.totalAdditions > 0 {
                 Text("+\(diff.totalAdditions)")
                     .font(Design.Typography.mono(10, weight: .medium, relativeTo: .caption2))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
             if diff.totalDeletions > 0 {
                 Text("-\(diff.totalDeletions)")
@@ -130,7 +130,7 @@ struct InlineDiffView: View {
                         if file.additions > 0 {
                             Text("+\(file.additions)")
                                 .font(Design.Typography.monoTiny)
-                                .foregroundStyle(Design.Brand.accent)
+                                .foregroundStyle(Design.Brand.accentText)
                         }
                         if file.deletions > 0 {
                             Text("-\(file.deletions)")
@@ -214,9 +214,9 @@ struct InlineDiffView: View {
 
     private func colorForStatus(_ fileStatus: String) -> Color {
         switch fileStatus {
-        case "added": return Design.Brand.accent
+        case "added": return Design.Brand.accentText
         case "deleted": return Design.Colors.danger
-        case "renamed": return Design.Brand.accentBright
+        case "renamed": return Design.Brand.accentBrightText
         default: return Design.Brand.forgeText
         }
     }
@@ -254,8 +254,8 @@ struct InlineDiffView: View {
                 result.append(DiffLine(
                     prefix: "+",
                     content: String(line.dropFirst()),
-                    prefixColor: Design.Brand.accent,
-                    contentColor: Design.Brand.accent,
+                    prefixColor: Design.Brand.accentText,
+                    contentColor: Design.Brand.accentText,
                     backgroundColor: Design.Colors.accentTint(0.08)
                 ))
             } else if line.hasPrefix("-") {
