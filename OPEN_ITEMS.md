@@ -1934,6 +1934,23 @@ invasive and that the retune question is where the design judgement lives.
 > `knownFailingCells`, so nothing goes red, and the only way anyone learns is
 > if someone writes it down. It is a fifth call on this entry, and it is not
 > elected.
+
+> **✅ 2026-08-23 — CALL 1 DEVICE-VERIFIED. Owen on build 2960: *"all the
+> colors check out."*** The half no instrument could reach.
+>
+> **This was a real risk, not a formality.** The generator optimises for
+> contrast and nothing else, and several values move a long way — `retroSciFi ×
+> violet` goes `#FFD600` bright yellow → `#816C00` dark olive, and
+> `winterFrost × amber` `#8FD4F4` pale blue → `#51778A` slate. A 4.5:1 ratio
+> says a value is READABLE; it says nothing about whether the theme still looks
+> like itself. **Three cells also collapse `base` and `bright` onto the same
+> literal** (`pulpNoir × amber`, `stickerBombToybox × cyan/amber`) because both
+> had to reach the same floor from the same side, so text loses that
+> distinction there.
+>
+> All of that survived Owen's eye, which is the only instrument that could
+> judge it. **Call 1 is DONE:** measured 0/88 on both text tokens, baseline
+> 170 → 155, and confirmed on device.
 >
 > ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
