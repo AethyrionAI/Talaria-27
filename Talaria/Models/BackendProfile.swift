@@ -13,9 +13,9 @@ import Foundation
 struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     let id: UUID
     var name: String
-    /// Hermes Sessions API base URL, e.g. "http://ojamd:8642".
+    /// Hermes Sessions API base URL, e.g. "http://your-host:8642".
     var gatewayBaseURL: String
-    /// Relay base URL including `/v1`, e.g. "http://ojamd:8000/v1".
+    /// Relay base URL including `/v1`, e.g. "http://your-host:8000/v1".
     ///
     /// **Optional since #310, and the optionality is the point:** a profile
     /// with no relay is a GATEWAY-ONLY profile — the "install Hermes, paste
@@ -29,7 +29,7 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// see `init(from:)`. Read this through `hasRelay` rather than testing
     /// for nil at the call site, so the relay-plane gate has ONE spelling.
     var relayBaseURL: String?
-    /// Talaria models-shim base URL, e.g. "http://ojamd:8765". Optional — a
+    /// Talaria models-shim base URL, e.g. "http://your-host:8765". Optional — a
     /// profile without a shim simply exposes no model picker.
     var shimBaseURL: String?
     /// Free text, e.g. "Apple ecosystem / Xcode / iMessage".
@@ -138,6 +138,29 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// what a relay-plane caller actually wants.
     var resolvedRelayBaseURL: String? {
         hasRelay ? relayBaseURL : nil
+    }
+
+    /// **#384-C: does this profile have a gateway at all?**
+    ///
+    /// The ONE spelling of the gateway-plane gate, added for the same reason
+    /// #310 added `hasRelay` above — *"a gate with two spellings is a gate with
+    /// a hole."* Three call sites were already testing
+    /// `gatewayBaseURL.isEmpty == false` by hand, which is two spellings of a
+    /// predicate that is about to become load-bearing: with #384 shipping no
+    /// default host, **the empty case stops being an edge and becomes every
+    /// fresh install's first state.**
+    ///
+    /// A profile with no gateway is not broken. Talaria is local-brain-first
+    /// and Hermes is the optional upgrade tier, so this is the normal state
+    /// until the user adds a host.
+    var hasGateway: Bool {
+        gatewayBaseURL.isEmpty == false
+    }
+
+    /// The gateway base URL, normalized to nil when empty — what a
+    /// gateway-plane caller actually wants. Mirrors `resolvedRelayBaseURL`.
+    var resolvedGatewayBaseURL: String? {
+        hasGateway ? gatewayBaseURL : nil
     }
 }
 

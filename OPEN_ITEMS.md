@@ -18172,6 +18172,50 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 >   install to fix a fresh-install problem. Pin it with a test over a persisted
 >   blob.
 
+> **✅ 2026-08-23 — BUILT. 384-A/B/C/D met; 5 tests.**
+>
+> **384-A:** the only `ojamd` strings left in the app target are two comments
+> recording what the values *were*. **Six sites changed, not three** — the two
+> `UserSettings` defaults, the profile NAME seed, the `TextField` placeholder,
+> **a user-visible help line** (*"e.g. http://ojamd:8642"*), and three doc
+> examples. The help line is the one worth noting: it was rendered copy, not a
+> comment, and a diff-reading pass would have called this item done without it.
+>
+> **384-C:** `hasGateway` / `resolvedGatewayBaseURL` added, mirroring #310's
+> `hasRelay`, and two of the three hand-spelled sites migrated onto it.
+> **The third is left alone, deliberately:** `UplinkSettingsScreen:245`
+> derives a `String` from the profile rather than holding one, so `hasGateway`
+> does not apply — forcing it there would be contrived. Recorded rather than
+> quietly skipped.
+>
+> **384-D** is pinned over a persisted JSON blob rather than a constructed
+> value, because the decoder is where a "helpful" default would actually get
+> applied. An existing `OJAMD` profile keeps its name and host.
+>
+> ### 🐛 AND STAGING THE OTA EXPOSED AN UNRELATED DEFECT IN OUR OWN TOOLING
+>
+> `ota-stage.sh` numbers builds with `git rev-list --count HEAD`. **That is not
+> monotonic across a squash-merge**, and it bit immediately:
+>
+> | tree | count |
+> |---|---|
+> | `t27-393-accent-text` (staged as build **2960**, installed on the phone) | 2961 |
+> | `main` after squash-merging it | **2958** |
+> | `t27-393-danger-text` | **2958** — *the same number as main* |
+>
+> So staging `main` **offered the phone a LOWER build than it already had**,
+> and two different trees computed the same id. Both defeat the #200D property
+> the line exists for: a run record that can prove which build produced it.
+>
+> **Fixed with a HIGH-WATER MARK rather than the served number** — and the
+> distinction is the whole point. The served value is not the installed one;
+> the phone can hold a build the server has since overwritten, which is exactly
+> how this was found. The mark only ever rises, and a fresh `serve_root` falls
+> through to the plain count. Seeded at 2960, the build Owen actually holds.
+>
+> Filed here rather than as its own item because it was found and fixed in one
+> step, and it belongs to the same trace.
+
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED

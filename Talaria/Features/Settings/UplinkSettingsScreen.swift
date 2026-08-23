@@ -304,7 +304,7 @@ struct UplinkSettingsScreen: View {
             MonoLabel("Base URL", size: 9, weight: .medium, tracking: Design.Tracking.monoWide,
                       color: Design.Colors.mutedForeground)
 
-            TextField("http://ojamd:8642", text: hermesAPIBaseURLBinding)
+            TextField("http://your-host:8642", text: hermesAPIBaseURLBinding)
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
                 .autocorrectionDisabled()
@@ -313,7 +313,7 @@ struct UplinkSettingsScreen: View {
                 .padding(Design.Spacing.md)
                 .modifier(HUDFieldBackground())
 
-            Text("Hermes Sessions API endpoint, e.g. http://ojamd:8642.")
+            Text("Hermes Sessions API endpoint, e.g. http://your-host:8642.")
                 .font(Design.Typography.caption)
                 .foregroundStyle(Design.Colors.secondaryForeground)
         }

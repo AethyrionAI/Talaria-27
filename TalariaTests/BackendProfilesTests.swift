@@ -142,7 +142,15 @@ struct BackendProfilesTests {
         let first = BackendProfilesStore(persistence: persistence, migrationSeeds: Self.ojamdSeeds)
         #expect(first.profiles.count == 1)
         let migrated = try #require(first.activeProfile)
-        #expect(migrated.name == "OJAMD")
+        // **#384: this asserted the literal `"OJAMD"`.** The fixture passes no
+        // `name`, so it was implicitly pinning the DEFAULT — which was Owen's
+        // personal host and is now neutral. The test's INTENT is that the mint
+        // honours its seed's name, so it now says that structurally: a future
+        // rename cannot fail this spuriously, and #384's
+        // `theMintedProfileIsNotNamedAfterAPersonalHost` is what guards the
+        // default from becoming personal again. One property per test.
+        #expect(migrated.name == BackendProfilesStore.MigrationSeeds(gatewayBaseURL: "").name)
+        #expect(!migrated.name.localizedCaseInsensitiveContains("ojamd"))
         #expect(migrated.gatewayBaseURL == "http://ojamd:8642")
         // #310 (2026-08-20): this line used to assert the relay SEED survived
         // the mint. It no longer does, and the change is a ruling rather than
