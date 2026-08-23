@@ -713,7 +713,7 @@ struct DeveloperSettingsScreen: View {
         if let weatherProbeResult {
             MonoLabel(weatherProbeResult, size: 9, tracking: Design.Tracking.mono,
                       color: weatherProbeResult.hasPrefix("OK")
-                          ? Design.Colors.foregroundBright : Design.Colors.danger)
+                          ? Design.Colors.foregroundBright : Design.Colors.dangerText)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -732,7 +732,7 @@ struct DeveloperSettingsScreen: View {
         } label: {
             MonoLabel(alarmSweepResult.map { "Swept — \($0)" } ?? "Sweep ALL Talaria alarms (incl. real)",
                       size: 10, tracking: Design.Tracking.mono,
-                      color: alarmSweepResult == nil ? Design.Colors.danger : Design.Colors.mutedForeground)
+                      color: alarmSweepResult == nil ? Design.Colors.dangerText : Design.Colors.mutedForeground)
         }
         .disabled(batteryRunning)
     }

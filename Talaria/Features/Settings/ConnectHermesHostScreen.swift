@@ -154,7 +154,7 @@ struct ConnectHermesHostScreen: View {
                             icon: "desktopcomputer.trianglebadge.exclamationmark",
                             label: "Revoke Host",
                             detail: "Unregisters this Hermes machine. The phone stays paired.",
-                            color: Design.Colors.danger
+                            color: Design.Colors.dangerText
                         )
                     }
                     .disabled(hostStore.isWorking)
@@ -172,7 +172,7 @@ struct ConnectHermesHostScreen: View {
                         icon: "rectangle.portrait.and.arrow.right",
                         label: "Disconnect",
                         detail: "Signs this device out and clears its pairing.",
-                        color: Design.Colors.danger
+                        color: Design.Colors.dangerText
                     )
                 }
             }

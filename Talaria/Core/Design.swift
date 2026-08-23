@@ -118,6 +118,22 @@ enum Design {
         /// High-emphasis danger glyph.
         @MainActor static var dangerBright: Color { ThemeRuntime.shared.palette.dangerBright }
 
+        /// **#393 call 3 — error text. Use this for anything a user READS.**
+        ///
+        /// `danger`/`dangerBright` are the DECORATIVE hues now (3.0:1 floor —
+        /// destructive fills, error pips, strokes). 393-A measured the pair as
+        /// text down to **2.60:1** on `autumnHarvest`: error text a user
+        /// literally cannot read, which is the least defensible thing that
+        /// sweep found.
+        ///
+        /// Same migration asymmetry as `accentText`: over-migrating costs a
+        /// marginally different pip, under-migrating leaves an error message
+        /// unreadable. **When unsure, use the text token.**
+        @MainActor static var dangerText: Color { ThemeRuntime.shared.palette.dangerText }
+
+        /// #393 call 3 — the bright slot's text variant.
+        @MainActor static var dangerBrightText: Color { ThemeRuntime.shared.palette.dangerBrightText }
+
         // --- Accent hairline helpers -------------------------------------
         /// Active accent at an arbitrary opacity.
         @MainActor static func accentTint(_ opacity: Double) -> Color {

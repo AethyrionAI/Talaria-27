@@ -172,7 +172,7 @@ struct ToolActivityRail: View {
                     .foregroundStyle(Design.Brand.forge)
                     .hudPulse(Design.Motion.blink, from: 1, to: 0.35)
             case .interrupted:
-                // #296: the warning slot, NOT `Design.Colors.danger`. The
+                // #296: the warning slot, NOT `Design.Colors.dangerText`. The
                 // usual cause is the user's own Stop — that is a thing they
                 // asked for, not a fault to flag in red.
                 Image(systemName: "xmark.circle.fill")

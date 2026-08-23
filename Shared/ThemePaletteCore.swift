@@ -355,6 +355,24 @@ struct ThemePaletteDefinition: Equatable, Sendable {
     let danger: Color
     let dangerBright: Color
 
+    /// **#393 call 3: the ERROR TEXT variants, 4.5:1 floor.**
+    ///
+    /// Third instance of the `forge`/`forgeText` split, and it earns its keep
+    /// the same way: `danger` has **both** uses — 10 decorative call sites
+    /// (fills, strokes, `StatusPip`, `hudGlow`) and 8 text ones — so one hue
+    /// cannot carry both floors.
+    ///
+    /// `nil` ⇒ use `danger` / `dangerBright`. Only four themes need a value.
+    /// **These are theme-level, not per-slot**, which is why 393-A saw the
+    /// failures arrive in threes: a theme's three accent slots share one
+    /// `danger` and fail together.
+    ///
+    /// Worst cell was `autumnHarvest` at **2.60:1** — error text a user
+    /// literally cannot read, which is the least defensible thing the 393-A
+    /// sweep found.
+    var dangerText: Color? = nil
+    var dangerBrightText: Color? = nil
+
     /// The three accent slots as this theme re-interprets them.
     let accents: ThemeAccentVariants
 
@@ -412,6 +430,9 @@ struct ThemePalette: Equatable, Sendable {
     let accentBrightText: Color
     let danger: Color
     let dangerBright: Color
+    /// #393 call 3 — error text variants, resolved with fallback.
+    let dangerText: Color
+    let dangerBrightText: Color
 
     // Behavior knobs
     /// Multiplier applied inside `hudGlow` — 1.0 on the dark themes, ≈0 on
@@ -484,6 +505,8 @@ struct ThemePalette: Equatable, Sendable {
         accentBrightText = variant.accentBrightText ?? variant.bright
         danger = definition.danger
         dangerBright = definition.dangerBright
+        dangerText = definition.dangerText ?? definition.danger
+        dangerBrightText = definition.dangerBrightText ?? definition.dangerBright
 
         glowScale = definition.glowScale
         gridStyle = definition.gridStyle
@@ -908,6 +931,7 @@ enum ThemePaletteCatalog {
         scrim: Color(hex: 0x0F2330, opacity: 0.35),
         danger: Color(hex: 0xC94545),
         dangerBright: Color(hex: 0xA13939),
+        dangerText: Color(hex: 0xC84545),
         accents: ThemeAccentVariants(
             cyan: ThemeAccentVariant(
                 displayName: "Ice · Winter",
@@ -1054,6 +1078,7 @@ enum ThemePaletteCatalog {
         scrim: Color(hex: 0x2A1F1A, opacity: 0.35),
         danger: Color(hex: 0xD94A4A),
         dangerBright: Color(hex: 0xAE3C3C),
+        dangerText: Color(hex: 0xCA4545),
         accents: ThemeAccentVariants(
             cyan: ThemeAccentVariant(
                 displayName: "Blossom · Spring",
@@ -1130,6 +1155,8 @@ enum ThemePaletteCatalog {
         scrim: Color(hex: 0x000000, opacity: 0.85),
         danger: Color(hex: 0xA03020),
         dangerBright: Color(hex: 0xB3594D),
+        dangerText: Color(hex: 0xB9665A),
+        dangerBrightText: Color(hex: 0xB9665A),
         accents: ThemeAccentVariants(
             cyan: ThemeAccentVariant(
                 displayName: "Pumpkin · Autumn",
@@ -2342,10 +2369,10 @@ enum ThemePaletteCatalog {
         ramp: ThemeForegroundRamp(
             foreground: Color(hex: 0x262019),
             foregroundBright: Color(hex: 0x262019),
-            secondaryForeground: Color(hex: 0x7D6F58),
+            secondaryForeground: Color(hex: 0x716450),
             mutedForeground: Color(hex: 0x7D6F58),
             dimForeground: Color(hex: 0xA2937A),
-            coolForeground: Color(hex: 0x7D6F58)
+            coolForeground: Color(hex: 0x716450)
         ),
         surface: Color(hex: 0xF9F2DD, opacity: 0.8),
         chips: .fixed(
@@ -2439,6 +2466,7 @@ enum ThemePaletteCatalog {
         scrim: Color(hex: 0x000000, opacity: 0.85),
         danger: Color(hex: 0xFF5252),
         dangerBright: Color(hex: 0xFF6B6B),
+        dangerText: Color(hex: 0xFF6B6B),
         accents: ThemeAccentVariants(
             cyan: ThemeAccentVariant(
                 displayName: "Chip Blue",
@@ -2570,10 +2598,10 @@ enum ThemePaletteCatalog {
         ramp: ThemeForegroundRamp(
             foreground: Color(hex: 0x26212E),
             foregroundBright: Color(hex: 0x26212E),
-            secondaryForeground: Color(hex: 0x7A7268),
+            secondaryForeground: Color(hex: 0x756D64),
             mutedForeground: Color(hex: 0x7A7268),
             dimForeground: Color(hex: 0xA39A8D),
-            coolForeground: Color(hex: 0x7A7268)
+            coolForeground: Color(hex: 0x756D64)
         ),
         surface: Color(hex: 0xFDFCF8, opacity: 0.8),
         chips: .fixed(

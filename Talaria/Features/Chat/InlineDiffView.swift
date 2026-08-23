@@ -72,7 +72,7 @@ struct InlineDiffView: View {
             if diff.totalDeletions > 0 {
                 Text("-\(diff.totalDeletions)")
                     .font(Design.Typography.mono(10, weight: .medium, relativeTo: .caption2))
-                    .foregroundStyle(Design.Colors.danger)
+                    .foregroundStyle(Design.Colors.dangerText)
             }
         }
     }
@@ -135,7 +135,7 @@ struct InlineDiffView: View {
                         if file.deletions > 0 {
                             Text("-\(file.deletions)")
                                 .font(Design.Typography.monoTiny)
-                                .foregroundStyle(Design.Colors.danger)
+                                .foregroundStyle(Design.Colors.dangerText)
                         }
                     }
 
@@ -215,7 +215,7 @@ struct InlineDiffView: View {
     private func colorForStatus(_ fileStatus: String) -> Color {
         switch fileStatus {
         case "added": return Design.Brand.accentText
-        case "deleted": return Design.Colors.danger
+        case "deleted": return Design.Colors.dangerText
         case "renamed": return Design.Brand.accentBrightText
         default: return Design.Brand.forgeText
         }
@@ -262,9 +262,9 @@ struct InlineDiffView: View {
                 result.append(DiffLine(
                     prefix: "-",
                     content: String(line.dropFirst()),
-                    prefixColor: Design.Colors.danger,
-                    contentColor: Design.Colors.danger,
-                    backgroundColor: Design.Colors.danger.opacity(0.1)
+                    prefixColor: Design.Colors.dangerText,
+                    contentColor: Design.Colors.dangerText,
+                    backgroundColor: Design.Colors.dangerText.opacity(0.1)
                 ))
             } else if !line.isEmpty {
                 result.append(DiffLine(

@@ -175,7 +175,7 @@ struct ModelTransitionOverlay: View {
             HStack(spacing: Design.Spacing.xs) {
                 StatusPip(color: Design.Colors.danger, blinks: true)
                 MonoLabel("ACTIVATION FAILED", size: 10, weight: .medium,
-                          tracking: Design.Tracking.monoWide, color: Design.Colors.dangerBright)
+                          tracking: Design.Tracking.monoWide, color: Design.Colors.dangerBrightText)
             }
             MonoLabel(shownModel, size: 13, weight: .medium,
                       tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
@@ -193,7 +193,7 @@ struct ModelTransitionOverlay: View {
                     model.errorMessage = nil
                     phase = .hidden
                 }
-                pillButton("Retry", tint: Design.Colors.danger, glyph: "arrow.clockwise") {
+                pillButton("Retry", tint: Design.Colors.dangerText, glyph: "arrow.clockwise") {
                     Task { await model.retryLast() }
                 }
             }

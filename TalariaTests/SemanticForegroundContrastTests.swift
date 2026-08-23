@@ -141,9 +141,15 @@ struct SemanticForegroundContrastTests {
         // lanes read off one instrument.
         Token(name: "forge", read: \.forge, isText: false),
         Token(name: "forgeText", read: \.forgeText, isText: true),
-        // Danger.
-        Token(name: "danger", read: \.danger, isText: true),
-        Token(name: "dangerBright", read: \.dangerBright, isText: true),
+        // Danger — **#393 call 3 split it**, same reason as the accent family:
+        // `danger` has 10 decorative call sites (fills, strokes, StatusPip,
+        // hudGlow) and 8 text ones, so one hue cannot carry both floors. The
+        // failures arrived in THREES because `danger` is theme-level, not
+        // per-slot: a theme's three accent slots share it.
+        Token(name: "danger", read: \.danger, isText: false),
+        Token(name: "dangerBright", read: \.dangerBright, isText: false),
+        Token(name: "dangerText", read: \.dangerText, isText: true),
+        Token(name: "dangerBrightText", read: \.dangerBrightText, isText: true),
     ]
 
     private static func floor(for token: Token) -> Double { token.isText ? 4.5 : 3.0 }
@@ -220,12 +226,6 @@ struct SemanticForegroundContrastTests {
     /// the suite — that is how a ratchet stops being a ratchet and starts
     /// being a reason not to fix things.
     private static let knownFailingCells: Set<String> = [
-        "secondaryForeground|pulpNoir|cyan",  // 3.84:1
-        "secondaryForeground|pulpNoir|amber",  // 3.84:1
-        "secondaryForeground|pulpNoir|violet",  // 3.84:1
-        "secondaryForeground|stickerBombToybox|cyan",  // 4.20:1
-        "secondaryForeground|stickerBombToybox|amber",  // 4.20:1
-        "secondaryForeground|stickerBombToybox|violet",  // 4.20:1
         "mutedForeground|deepField|cyan",  // 4.12:1
         "mutedForeground|deepField|amber",  // 4.12:1
         "mutedForeground|deepField|violet",  // 4.12:1
@@ -302,12 +302,6 @@ struct SemanticForegroundContrastTests {
         "dimForeground|comicFunnies|cyan",  // 2.52:1
         "dimForeground|comicFunnies|amber",  // 2.52:1
         "dimForeground|comicFunnies|violet",  // 2.52:1
-        "coolForeground|pulpNoir|cyan",  // 3.84:1
-        "coolForeground|pulpNoir|amber",  // 3.84:1
-        "coolForeground|pulpNoir|violet",  // 3.84:1
-        "coolForeground|stickerBombToybox|cyan",  // 4.20:1
-        "coolForeground|stickerBombToybox|amber",  // 4.20:1
-        "coolForeground|stickerBombToybox|violet",  // 4.20:1
         "accent (base)|winterFrost|cyan",  // 2.23:1
         "accent (base)|winterFrost|amber",  // 1.54:1
         "accent (base)|springSprout|cyan",  // 2.60:1
@@ -360,21 +354,9 @@ struct SemanticForegroundContrastTests {
         "accentDeep|comicFunnies|cyan",  // 1.66:1
         "accentDeep|comicFunnies|amber",  // 1.15:1
         "accentDeep|comicFunnies|violet",  // 1.94:1
-        "danger|winterFrost|cyan",  // 4.48:1
-        "danger|winterFrost|amber",  // 4.48:1
-        "danger|winterFrost|violet",  // 4.48:1
-        "danger|springSprout|cyan",  // 4.00:1
-        "danger|springSprout|amber",  // 4.00:1
-        "danger|springSprout|violet",  // 4.00:1
         "danger|autumnHarvest|cyan",  // 2.60:1
         "danger|autumnHarvest|amber",  // 2.60:1
         "danger|autumnHarvest|violet",  // 2.60:1
-        "danger|casinoLucky7s|cyan",  // 3.93:1
-        "danger|casinoLucky7s|amber",  // 3.93:1
-        "danger|casinoLucky7s|violet",  // 3.93:1
-        "dangerBright|autumnHarvest|cyan",  // 3.95:1
-        "dangerBright|autumnHarvest|amber",  // 3.95:1
-        "dangerBright|autumnHarvest|violet",  // 3.95:1
     ]
 
     /// **393-A. The survey, fenced at its measured size.**

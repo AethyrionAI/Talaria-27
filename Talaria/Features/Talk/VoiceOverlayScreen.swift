@@ -380,7 +380,7 @@ struct VoiceOverlayScreen: View {
             statusPipLabel("SPEAKING", color: Design.Brand.accentText, blinks: true)
 
         case (_, .disconnected):
-            statusPipLabel("DISCONNECTED", color: Design.Colors.danger, blinks: false)
+            statusPipLabel("DISCONNECTED", color: Design.Colors.dangerText, blinks: false)
 
         default:
             EmptyView()
@@ -429,7 +429,7 @@ struct VoiceOverlayScreen: View {
                 secondaryButton(
                     systemName: talkStore.isMuted ? "mic.slash.fill" : "mic.fill",
                     accessibility: talkStore.isMuted ? "Unmute" : "Mute",
-                    tint: talkStore.isMuted ? Design.Colors.danger : Design.Colors.foreground,
+                    tint: talkStore.isMuted ? Design.Colors.dangerText : Design.Colors.foreground,
                     accent: false
                 ) { Task { await talkStore.toggleMute() } }
 
@@ -485,7 +485,7 @@ struct VoiceOverlayScreen: View {
         Button(action: action) {
             Image(systemName: "phone.down.fill")
                 .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Design.Colors.dangerBright)
+                .foregroundStyle(Design.Colors.dangerBrightText)
                 .frame(width: 56, height: 56)
                 .background(Design.Colors.danger.opacity(0.22), in: Circle())
                 .overlay {

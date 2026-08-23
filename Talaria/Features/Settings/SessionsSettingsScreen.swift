@@ -349,14 +349,14 @@ struct SessionsSettingsScreen: View {
             HStack(spacing: Design.Spacing.sm) {
                 Text("Clear Conversation")
                     .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.dangerBright)
+                    .foregroundStyle(Design.Colors.dangerBrightText)
                 Spacer()
                 if isClearing {
                     ProgressView().controlSize(.mini)
                 } else {
                     Image(systemName: "xmark")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Design.Colors.dangerBright)
+                        .foregroundStyle(Design.Colors.dangerBrightText)
                         .frame(width: 18, height: 18)
                         .overlay {
                             RoundedRectangle(cornerRadius: Design.CornerRadius.xs)

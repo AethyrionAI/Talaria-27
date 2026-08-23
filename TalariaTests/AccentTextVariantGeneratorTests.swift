@@ -112,4 +112,80 @@ struct AccentTextVariantGeneratorTests {
         lines.append("--- accentText: \(counts.base) · accentBrightText: \(counts.bright) · unreachable: \(counts.impossible) ---")
         print(lines.joined(separator: "\n"))
     }
+
+    /// **#393 calls 3 and 4 — danger text, and the two marginal ramp steps.**
+    ///
+    /// Prints one line per FAILING CELL, but note the two families differ in
+    /// where the value lives, and that changes how many literals a fix needs:
+    ///
+    /// - `danger` / `dangerBright` are **theme-level**, so a theme's three
+    ///   accent slots fail together and share one fix. 15 failing cells are
+    ///   about 5 distinct literals.
+    /// - `secondaryForeground` / `coolForeground` come from the **ramp**, which
+    ///   is theme-level too unless a variant overrides it.
+    ///
+    /// **Ramp steps get no text/decorative split**, unlike the accent and
+    /// danger families: the census already calls the whole six-step ramp text
+    /// by construction, so there is no decorative use to protect. They are
+    /// raised in place — which is exactly why call 2 (`dimForeground`) is
+    /// risky and stayed unelected, and why the ramp-separation check below
+    /// exists for these two.
+    @Test func printDangerAndRampSuggestions() {
+        var lines: [String] = ["=== #393 calls 3+4 — danger / ramp suggestions ==="]
+        let targets: [(String, (ThemePalette) -> Color)] = [
+            ("dangerText", { $0.danger }),
+            ("dangerBrightText", { $0.dangerBright }),
+            ("secondaryForeground", { $0.secondaryForeground }),
+            ("coolForeground", { $0.coolForeground }),
+        ]
+        var seen = Set<String>()
+        for (theme, accent) in ThemeContrastCells.reachable {
+            let palette = ThemePalette(theme: theme, accent: accent)
+            let bg = palette.background
+            for (label, read) in targets {
+                let color = read(palette)
+                let ratio = ThemeContrastMath.ratio(color, on: bg)
+                guard ratio < 4.5 else { continue }
+                let key = "\(theme.rawValue)|\(accent.rawValue)|\(label)"
+                guard seen.insert(key).inserted else { continue }
+                guard let fix = Self.solve(color, on: bg, floor: 4.5) else {
+                    lines.append("  ⛔ \(key): UNREACHABLE")
+                    continue
+                }
+                lines.append(String(
+                    format: "  %-20@ %-7@ %-20@ %@ → %@   (%.2f → %.2f)",
+                    theme.rawValue as NSString, accent.rawValue as NSString, label as NSString,
+                    Self.hex(ThemeContrastMath.composite(color, over: bg)) as NSString,
+                    fix.hex as NSString, ratio, fix.ratio))
+            }
+        }
+        print(lines.joined(separator: "\n"))
+    }
+
+    /// **The check that makes call 4 safe, and the one call 2 would fail.**
+    ///
+    /// Raising a ramp step narrows its gap to the neighbours. A ramp whose
+    /// steps become indistinguishable has been collapsed — six tokens
+    /// rendering as four is a worse outcome than the marginal contrast it was
+    /// raised to fix. Prints the ramp's step-to-step luminance gaps so the
+    /// effect is visible rather than assumed.
+    @Test func printRampSeparation() {
+        var lines: [String] = ["=== ramp separation (luminance per step) ==="]
+        for (theme, accent) in ThemeContrastCells.reachable where accent == .cyan {
+            let p = ThemePalette(theme: theme, accent: accent)
+            let steps: [(String, Color)] = [
+                ("fgBright", p.foregroundBright), ("fg", p.foreground),
+                ("secondary", p.secondaryForeground), ("cool", p.coolForeground),
+                ("muted", p.mutedForeground), ("dim", p.dimForeground),
+            ]
+            let lums = steps.map { ThemeContrastMath.relativeLuminance(
+                ThemeContrastMath.composite($0.1, over: p.background)) }
+            let gaps = zip(lums, lums.dropFirst()).map { abs($0 - $1) }
+            let minGap = gaps.min() ?? 0
+            lines.append(String(format: "  %-22@ minGap %.4f  [%@]",
+                                theme.rawValue as NSString, minGap,
+                                gaps.map { String(format: "%.3f", $0) }.joined(separator: " ") as NSString))
+        }
+        print(lines.joined(separator: "\n"))
+    }
 }

@@ -78,7 +78,7 @@ struct GenUIDebugScreen: View {
             } else {
                 // Real data only: if a sample fails to decode, say so.
                 MonoLabel("Decode failed — see Console", size: 10,
-                          tracking: Design.Tracking.mono, color: Design.Colors.danger)
+                          tracking: Design.Tracking.mono, color: Design.Colors.dangerText)
             }
         }
     }

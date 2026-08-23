@@ -335,7 +335,7 @@ extension CronJobStatus {
         case .running, .active: Design.Brand.accentText
         case .paused: Design.Colors.mutedForeground
         case .off: Design.Colors.dimForeground
-        case .error: Design.Colors.danger
+        case .error: Design.Colors.dangerText
         case .needsAttention: Design.Brand.forgeText
         }
     }

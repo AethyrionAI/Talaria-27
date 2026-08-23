@@ -1951,6 +1951,52 @@ invasive and that the retune question is where the design judgement lives.
 > All of that survived Owen's eye, which is the only instrument that could
 > judge it. **Call 1 is DONE:** measured 0/88 on both text tokens, baseline
 > 170 → 155, and confirmed on device.
+
+> **✅ 2026-08-23 — CALLS 3 AND 4 BUILT (Owen elected both). Baseline 155 →
+> 131; EVERY text token in the catalogue is now 0/88.** GATE: PASS 2466 / 14 /
+> Release.
+>
+> | token | fails | |
+> |---|---|---|
+> | `foreground` / `foregroundBright` | 0/88 | untouched |
+> | `secondaryForeground` / `coolForeground` | **0/88** | call 4 |
+> | `accentText` / `accentBrightText` | **0/88** | call 1 |
+> | `dangerText` / `dangerBrightText` | **0/88** | call 3 |
+> | `forgeText` | 0/88 | #325 |
+>
+> ### Call 3 was FOUR values, not fifteen
+>
+> `danger` is **theme-level**, not per-accent-variant — which is *why* 393-A
+> saw its failures arrive in threes: a theme's three slots share one literal
+> and fail together. 15 failing cells, 4 distinct fixes.
+>
+> It earned the same split as `accent` on measurement rather than by analogy:
+> **10 decorative call sites** (fills, strokes, `StatusPip`, `hudGlow`) against
+> **8 text ones**, so one hue could not carry both floors. `autumnHarvest` at
+> **2.60:1** was error text a user genuinely cannot read.
+>
+> ### Call 4's collapse risk was INVERTED, and only measuring showed it
+>
+> The fear was that raising a ramp step narrows its gap to the neighbours. What
+> the ramp-separation instrument actually printed is that **both themes already
+> set `secondaryForeground`, `mutedForeground` and `coolForeground` to the SAME
+> literal** — the ramp was already collapsed there, by design. Several other
+> themes read `minGap 0.0000` too (`winterFrost`: `[0.003 0.106 0.000 0.000
+> 0.168]`).
+>
+> So on a light background, moving the two elected tokens DARKER **restores** a
+> distinction instead of destroying one. **`mutedForeground` was deliberately
+> left alone** — it was not elected, and it now sits one step lighter than its
+> two former twins, which is the ramp ordering doing what it should.
+>
+> ### 🔴 What is NOT fixed, stated so a passing ratchet cannot hide it
+>
+> - **`danger` fails the 3.0 DECORATIVE floor on `autumnHarvest`** (2.60:1) —
+>   the same shape as `accent` on `retroSciFi`. An error pip nearly invisible.
+> - **`mutedForeground` 9/88** and **`dimForeground` 67/88** are untouched.
+>   Call 2 remains unelected and is the genuinely risky one: `dimForeground`
+>   moves 2.36 → 4.5, a real jump rather than call 4's hairline, and it has 109
+>   call sites.
 >
 > ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
@@ -18076,6 +18122,55 @@ routes**, and the choice interacts with #269's installer story.
 state expressible), #251/#269 (the zero-setup goal this contradicts), #223
 Lane 5 (why the shim default is retired, not merely wrong), #166b (ATS — the
 CGNAT exception is why this reaches OJAMD at all from the tailnet).
+
+
+> **✅ ROUTED 2026-08-22 PM (Owen): SHIP NO DEFAULT HOST AT ALL.** Not the
+> debug-gate — a fresh install starts with no host and onboarding asks. His
+> reasoning matches the item's: debug-gating fixes the shipping-binary and
+> stranger's-install problems but **not #348**, because the gate builds Debug,
+> so simulator runs would keep authenticating against Owen's production box.
+>
+> **And it is the LAUNCH POSTURE, which makes it the correct default rather
+> than merely the safest.** Talaria is self-contained local-brain-first; Hermes
+> is the optional upgrade tier. A fresh install with no host is not a degraded
+> state to be apologised for — **it is the shipping product's normal first
+> state**, and hardcoding a host was quietly contradicting that.
+>
+> ### What the trace found — THREE personal-host literals, not one
+>
+> | site | value | note |
+> |---|---|---|
+> | `UserSettings.defaultHermesAPIBaseURL` | `http://ojamd:8642` | the filed one |
+> | `UserSettings.defaultModelsShimBaseURL` | `http://ojamd:8765` | **a second, for a service that is RETIRED** (#223 lane 5) |
+> | `BackendProfilesStore.MigrationSeeds.name` | `"OJAMD"` | the profile's NAME — so a stranger's install is *called* OJAMD too |
+> | `UplinkSettingsScreen:307` | `TextField("http://ojamd:8642", …)` | placeholder text, cosmetic but same leak |
+>
+> The seed path: `UserSettings` defaults → `AppContainer:377` → M-2's
+> `MigrationSeeds` → the minted profile. **Only the first was filed**; the
+> other three were found by executing the trace rather than re-reading the
+> entry — the same method that found #309's escaped voice paths.
+>
+> ### 🎯 BARS 384-A…D — pre-registered before any code
+>
+> - **384-A (no personal host survives in the binary).** No `ojamd` literal in
+>   any shipping default, placeholder, or seed name. Verified by grep over the
+>   app target, not by reading the diff.
+> - **384-B (an empty host degrades HONESTLY, and this is the risk).** A fresh
+>   install with no host must reach a usable local-brain app and a clear "add
+>   your host" path — **not** a chat screen that looks broken. Shipping an
+>   empty default without a route to fill it would be worse than today's state.
+>   The codebase already anticipates this (`hostConfigured:
+>   !gatewayBaseURL.isEmpty` at three sites), which is evidence it was designed
+>   for, not proof it works.
+> - **384-C (one spelling of the gateway gate).** Those three sites spell the
+>   test by hand. #310 created `hasRelay` precisely because *"a gate with two
+>   spellings is a gate with a hole"* — the gateway plane has no equivalent and
+>   should get one in this lane, with the hand-spelled sites migrated onto it.
+> - **384-D (Owen's own install is untouched).** The M-2 migration is one-shot
+>   and already ran on his device; his profile keeps its name and URL. A change
+>   that silently renames or clears an existing profile has broken a working
+>   install to fix a fresh-install problem. Pin it with a test over a persisted
+>   blob.
 
 ## 379. 🧭 156e — the PROJECTS introspection surface — **FILED 2026-08-18 night, re-homed from #156's close (Projects exist in hermes-agent — #159's correction). Post-launch candidate; Owen routes.**
 

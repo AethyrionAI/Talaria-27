@@ -384,7 +384,7 @@ struct ServerSettingsScreen: View {
         case .unknown: Design.Colors.mutedForeground
         case .online: Design.Brand.accentText
         case .unauthorized: Design.Brand.forgeText
-        case .offline: Design.Colors.danger
+        case .offline: Design.Colors.dangerText
         }
     }
 

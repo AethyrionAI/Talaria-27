@@ -141,7 +141,7 @@ struct AppIconSettingsScreen: View {
     private enum NoticeTone { case muted, danger }
 
     private func notice(_ text: String, tone: NoticeTone) -> some View {
-        let color = tone == .danger ? Design.Colors.danger : Design.Colors.mutedForeground
+        let color = tone == .danger ? Design.Colors.dangerText : Design.Colors.mutedForeground
         return HStack(spacing: Design.Spacing.sm) {
             Image(systemName: tone == .danger ? "exclamationmark.triangle" : "info.circle")
                 .font(.system(size: 13, weight: .semibold))
