@@ -251,4 +251,40 @@ struct PrivateCloudOptOutTests {
             resetDate: nil, hasLimitIncreaseSuggestion: false)
         #expect(approaching.quota == .belowLimit(approaching: true))
     }
+
+    // MARK: - #395-D: the toggle moved, the quota row stayed
+
+    /// **395-D-B/-D structural half** (source-reading pattern per
+    /// `VoiceMemoAttachmentTests.deactivationIsSpelledOnlyInsideTheInjectableSeam`,
+    /// #399): SwiftUI view bodies are unreachable from a unit test, so the
+    /// move is pinned in the sources. The binding WRITE is the discriminator —
+    /// `privateCloudEnabled = $0` — because whoever holds it holds the
+    /// control, and one source of truth means exactly one surface writes it.
+    ///
+    /// Fails loudly if a source cannot be read: a check that cannot run must
+    /// say so rather than print a pass it did not earn.
+    @Test func theToggleLivesOnlyOnTheDedicatedScreenAndModelsKeepsTheQuotaRow() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+        func source(_ relative: String) throws -> String {
+            let url = root.appendingPathComponent(relative)
+            return try #require(
+                try? String(contentsOf: url, encoding: .utf8),
+                "cannot read \(relative) — this check did not run"
+            )
+        }
+
+        let models = try source("Talaria/Features/Settings/ModelsSettingsScreen.swift")
+        let pcc = try source("Talaria/Features/Settings/PrivateCloudSettingsScreen.swift")
+
+        #expect(!models.contains("privateCloudEnabled = $0"),
+                "the toggle's binding write must not remain on the Models screen (#395-D)")
+        #expect(pcc.contains("privateCloudEnabled = $0"),
+                "the dedicated screen must write the SAME UserSettings key — one source of truth, no second flag")
+        #expect(models.contains("PrivateCloudQuotaRow"),
+                "the Models screen keeps its quota row beside the brain picker (#30)")
+        #expect(pcc.contains("PrivateCloudQuotaRow"),
+                "control and state stay one surface on the dedicated screen (#395's own principle)")
+    }
 }
