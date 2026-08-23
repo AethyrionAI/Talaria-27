@@ -191,6 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#223** 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the …
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
+- **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless — **✅ BUILT 2026-08-23**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -9695,7 +9696,39 @@ sibling lesson — a failure that looked device-specific and was really contenti
 **#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
 
-## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the artifact was cleared 2026-08-22 and 340-B/G1 were measured 2026-08-12 — but the route-(a) FIX is genuinely unbuilt, so this header's NOT STARTED is accurate about the fix and only the fix.**
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep), AND THE FIRST CORRECTION WAS ITSELF WRONG — REPLACED THE SAME DAY. It read *"the route-(a) FIX is genuinely unbuilt"*. **Route (a) was BUILT + MERGED 2026-08-21** (`DeviceActionParsing.parseBareClock`/`resolveBareClock`, wired into BOTH `performCreate` and the card-edit path; 340-H1..H4 met, wiring suite mutation-proven), and **340-H5 RAN on device the same day** — its bar missed and was retired as unfit, replaced by 340-H5′-A..D. What is actually owed is the **device A/B at n≥40/arm** (340-H5′) plus **340-E**, Owen's call. So this header's NOT STARTED is wrong outright, not "accurate about the fix".**
+
+> **🔴 2026-08-23 — A CORRECTION THAT WAS ITSELF WRONG, AND THE CHECK THAT
+> SHOULD HAVE CAUGHT IT EXEMPTED IT FOR SAYING SO.** The 08-23 stale-header
+> sweep appended a clause to this header claiming route (a) was *"genuinely
+> unbuilt."* It shipped 2026-08-21. The error then propagated: the Sunday
+> night build list booked #340 as *"the fix and the scorer are desk work"* and
+> Owen elected it on that description. It is **device work** — 340-H5′, n≥40
+> per arm — and there was nothing here to build.
+>
+> **The mechanism is worth more than the mistake.** Of the fourteen headers
+> that sweep corrected, **thirteen claimed something WAS built or merged, and
+> one — this one — claimed something was NOT.** A presence claim is settled by
+> a grep or a git check. **An ABSENCE claim can only be settled by reading the
+> whole entry**, and this is the longest entry in the tracker: the `✅ ROUTE
+> (a) BUILT` block sits roughly seven hundred lines below the header, past two
+> falsified candidates and four sets of pre-registered bars. The sweep read
+> enough to be confident and not enough to be right.
+>
+> **And `check_headers_claiming_not_started`, added by that same sweep, could
+> not fire here — because it exempts any header carrying the `HEADER
+> CORRECTED` marker.** The exemption is granted by the marker's PRESENCE, not
+> by whether what it says is true, so **a wrong correction silences the check
+> permanently.** A sweep that writes its own exemption is worse than one with
+> no check at all: the entry now reads as reconciled. The invariant is
+> narrowed in the same commit — a correction clause may no longer claim
+> not-started over a body that records a build — and mutation-verified against
+> this very text.
+>
+> **The rule this earns: an absence claim needs a positive read, not a
+> confident one.** It is the same shape as this project's `cmd | grep || echo
+> "absent"` trap — an empty result reading as a negative — moved from a shell
+> pipeline into prose.
 
 > **🧹 2026-08-22 — THE STRAY ARTIFACT IS GONE, and it was cleared BEFORE anyone
 > asked.** Owen, when handed the delete as a device chore: *"i looked and
@@ -15359,6 +15392,118 @@ once per device session.
 > hang-RISK warning, and no hang has been reported.
 
 
+> **🔴 2026-08-23 — LANE OPENED, WORKED, AND DELIBERATELY STOPPED BEFORE ANY
+> CODE. The 08-20 table above is RIGHT about where the sites are and WRONG
+> about what to do with them: this entry's own prescribed fix for the
+> deactivation half would ship a RACE. Four hazard classes below; nothing
+> changed; bars pre-registered. Stopped under Owen's standing ruling for the
+> 08-23 night list — _if a lane turns out bigger or riskier than it looks,
+> stop, file what was learned, move to the next_ — which this is the first
+> lane to actually exercise.**
+>
+> **① THE PRESCRIBED `Task { … }` DEACTIVATION SHAPE IS UNSAFE HERE.** The
+> block above rules ~6 deactivations "safe to move" because *"nothing
+> downstream awaits them."* That is true and **insufficient** — the hazard is
+> not a downstream await, it is **a subsequent activation on the same tick.**
+> `VoiceMemoPlayer.togglePlayback(path:)` calls `stop()` — which deactivates
+> — and then, **in the same synchronous body**, `setCategory` +
+> `setActive(true)` (`:47` then `:52-53`). Defer that deactivation into a
+> `Task` and it lands *after* the activation it was meant to precede. Worse
+> than "later": `AudioSessionOffMain` runs its body on a **detached** task, so
+> the teardown and the setup are genuinely **unordered** against each other —
+> a data race on one shared global session, not merely a reordering. The same
+> shape sits at lower acuity in `finishRecorder()` (`:129`), where a re-record
+> is user-speed rather than same-tick. **The fix for the deactivation half is
+> therefore NOT the cheap half; it needs the same ordering guarantee the
+> activation half does.**
+>
+> **② MAKING THE CALLERS `async` MAKES PREVIOUSLY-ATOMIC UI ACTIONS
+> RE-ENTRANT — #128's class.** `togglePlayback` today is one main-actor
+> run-to-completion: a double-tap **cannot** interleave. Introduce an `await`
+> inside it and two taps can, so the sequence becomes stop→start→stop→start
+> interleaved across two invocations. #128 is exactly this failure — *two
+> interleaved capture starts double-installed a tap and crashed a device*
+> (`CreateRecordingTap: nullptr == Tap()`). Any async version needs an
+> explicit transition guard; the 08-20 estimate budgets for the signature
+> ripple and **not** for the guard, and `VoiceMemoRecorder`'s existing
+> `guard !isRecording` does not cover it (`isRecording` is set at `:82`,
+> after the whole do/catch, and the function already suspends at `:51`).
+>
+> **③ THREE OF THE TWELVE SITES ARE DELIBERATELY SYNCHRONOUS, AND THE CODE
+> SAYS SO.** `SpeechOutputService:236` carries a comment naming *this very
+> rider* and refusing it: activation must complete before
+> `synthesizer.speak` on the same tick; the release is interlocked with the
+> #106 `didActivateAudioSession` gate, so hopping **either** off-main could
+> reorder activate/deactivate across a `stop()` → `speak()` boundary; and
+> voice sessions never reach these calls anyway (`managesAudioSession ==
+> false` on the pipeline's instance, and the shared instance is gated off
+> while Talk is active). **So a FOURTH classification trap joins the two
+> above: a site can be synchronous ON PURPOSE.** The 08-20 pass classified by
+> *is it off-main?* and structurally could not see a recorded decision. These
+> three sites are **not** in scope for a mechanical rider; moving them is a
+> re-litigation of #84/#106 and needs its own justification.
+>
+> **④ TWO SCOPE CORRECTIONS, both making the lane SMALLER than stated.**
+> `VoiceMemoRecorder.startRecording()` is **already `async`** — it is absent
+> from the 08-20 list of synchronous enclosing functions, correctly, but the
+> consequence was never drawn: its two activation sites (`:63 :64`) carry
+> **zero caller ripple**. And the feared ripple *"into SwiftUI views and
+> delegate callbacks"* is four `Button` actions
+> (`MessageBubble:782`, `ChatInputBar:502`, `VoiceMemoRecorderSheet:216` and
+> `:305`), where `Task { await … }` is idiomatic, plus one delegate callback
+> that **already** wraps itself in `Task { @MainActor in }`
+> (`VoiceMemoPlayer:82`). The signatures are the easy part. **The guard and
+> the ordering are the lane.**
+>
+> **WHAT THIS LEAVES — the corrected scope, by what each site actually
+> needs:**
+>
+> | sites | where | needs |
+> |---|---|---|
+> | `:248 :249 :264` | `SpeechOutputService` | **nothing — deliberate, documented** |
+> | `:63 :64 :69 :78` | `VoiceMemoRecorder.startRecording()` | already `async`; ordered `await`, no ripple |
+> | `:52 :53` | `VoiceMemoPlayer.togglePlayback` | `async` + **re-entrancy guard** |
+> | `:58 :74 :129` | player `stop()`, recorder `finishRecorder()` | **ordering guarantee, NOT fire-and-forget** |
+>
+> **RECOMMENDED DESIGN when this is built:** make the player's and recorder's
+> transitions `async` and **await every one of them**, so ordering is
+> preserved by construction rather than by argument — never `Task { }` a
+> deactivation on a path that can reactivate. Add one `isTransitioning`
+> guard per service to restore the atomicity the `await` removes. Leave
+> `SpeechOutputService` alone and extend its comment to record that this lane
+> considered and declined it.
+>
+> **BARS — pre-registered 2026-08-23, before any code (#215):**
+> - **198B-A (the point of the item).** A device session that records a memo,
+>   plays it, and stops it emits **ZERO** `AVAudioSession_iOS.mm:978` lines,
+>   read at `oslogSeverity: all`. *Any* such line falsifies. Read `all` —
+>   `default` is what hid this for weeks.
+> - **198B-B (ordering, unit-testable).** A test drives
+>   stop-then-start on one action and asserts the session's observed call
+>   order is `deactivate` **then** `activate`. Must be written against a seam
+>   that records order, and must be shown RED against the fire-and-forget
+>   shape hazard ① describes — a bar that never saw the bug it forbids is not
+>   a bar.
+> - **198B-C (re-entrancy, unit-testable).** Two toggles issued without
+>   awaiting between them produce **exactly one** activation. Shown RED
+>   against an unguarded async version.
+> - **198B-D (#84 non-regression).** Read-aloud `stop()` during a native voice
+>   session still performs **no** deactivation — `shouldReleaseAudioSession`
+>   stays the gate and stays covered.
+>
+> **NOT a reason to build it blind:** the fault is a hang-RISK warning and no
+> hang has ever been reported (option (c) above). Against that, these are the
+> paths with #82's wedge, #128's device crash, #84's killed mic and #138's
+> barge-in, and **a simulator cannot exercise a real route change** — so the
+> verification this needs is device time, which is the one thing the lane
+> cannot self-serve.
+>
+> **SPAWNED: #399** — the memo PLAY buttons lack the Talk gate that every
+> sibling surface carries. Found while reading these files; graded honestly
+> there (it is a defence-in-depth gap, not a demonstrated live bug) and filed
+> separately per #268 rather than buried in this entry.
+
+
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
 **Two real phone calls, corded whoGoesThere, PID 14087, 2026-08-01.**
@@ -15636,6 +15781,131 @@ Corroborating evidence already banked in #211: on `stepsdirect`, control offered
 on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
+
+## 399. 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — every sibling has one — **FILED 2026-08-23 per #268, found while reading #198B's files. GRADED HONESTLY: a defence-in-depth gap, NOT a demonstrated live bug. NOT STARTED.** **⟵ ✅ BUILT + gate-verified 2026-08-23, same night: 399-A answered NULL (no reachable path demonstrated; CarPlay NOT cleared), 399-B and 399-C SHIPPED at BOTH sites, two mutations each proven RED.**
+
+**The pattern, which this codebase applies consistently at three of four
+sites.** Anything that touches the shared `AVAudioSession` refuses to run
+while a Talk session owns it:
+
+| surface | gate |
+|---|---|
+| memo **recording** | `VoiceMemoRecorderSheet:53` — `if talkStore.isSessionActive` → honest refusal notice |
+| **read-aloud** toggle | `MessageBubble:302` — `&& !talkStore.isSessionActive` → hidden |
+| read-aloud **service** | `SpeechOutputService.isBlocked` + `managesAudioSession` (#84/#106) |
+| memo **playback** | **none** |
+
+`VoiceMemoPlayer.togglePlayback` re-categorizes the shared session to
+`.playback` and calls `setActive(true)` (`:52-53`), and `stop()` calls
+`setActive(false, .notifyOthersOnDeactivation)` **unconditionally** (`:74`)
+with the comment *"releasing an inactive session is harmless."* **That
+sentence is the exact claim #84 falsified** — read-aloud deactivating a
+session it had never activated is what killed the live mic dozens of times a
+minute on 2026-07-16, and it is why `SpeechOutputService` grew the
+`didActivateAudioSession` gate. The player has no equivalent.
+
+**⚠️ WHY THIS IS FILED AS A GAP AND NOT AS A BUG — the reachability was
+checked, not assumed.** During a session the voice UI is a `fullScreenCover`
+on MainTabView, so the chat bubbles carrying the play button are **not
+reachable**; and `VoiceOverlayScreen.onDisappear` calls `abandonSession()`
+after a 500 ms delay (`:126-132`), so dismissal closes the window it opens.
+**No path to the button during a live session was demonstrated.** The
+candidate worth a look is **CarPlay (#19)**, which by design runs voice with
+the phone UI backgrounded — the one configuration where a live session and an
+interactive chat could plausibly coexist. That is a question, not a claim.
+
+**So the honest statement is: three of four audio surfaces are defended by an
+explicit gate, the fourth is defended only by a presentation accident.** #397
+is the standing proof that presentation accidents in this area do not hold —
+a timed-out start left a live mic streaming precisely because a teardown was
+keyed on something other than the session itself.
+
+**BARS — pre-registered before any code:**
+- **399-A.** Establish reachability first, from source: name a path on which
+  `talkStore.isSessionActive` is true while `MessageBubble`/`ChatInputBar` is
+  hittable, or record that none was found. **A null result closes this as
+  defence-in-depth and the fix ships on that basis, not on a claimed defect.**
+- **399-B.** The fix is the sibling pattern, not a new mechanism: gate both
+  play buttons on `!talkStore.isSessionActive`, matching `MessageBubble:302`
+  three lines away.
+- **399-C.** `VoiceMemoPlayer.stop()` gains the #84 guard — never deactivate a
+  session this instance did not activate — pinned by a unit test in
+  `SpeechOutputService.shouldReleaseAudioSession`'s shape. **This is the half
+  that matters even if 399-A comes back null**, because it removes the
+  unconditional deactivation rather than merely hiding the button that reaches
+  it.
+
+**Relationship to #198B:** same files, different defect. #198B is a
+main-thread hang-RISK warning; this is session ownership. 399-C would be
+natural to land inside #198B's refactor, but is **filed separately so it does
+not die with it** — #198B is stopped and this does not depend on it.
+
+> **✅ 2026-08-23 — BUILT. 399-A answered NULL, 399-B and 399-C shipped, both
+> mutation-proven. Not on the night's elected list** — it was found and filed
+> hours earlier while reading #198B's files, and it is the only item of that
+> night that turned out to be desk work with a premise verified from source
+> rather than from a header.
+>
+> **399-A — NULL, and recorded as null rather than quietly dropped.** No path
+> was demonstrated on which `talkStore.isSessionActive` is true while the play
+> button is hittable: the voice UI is a `fullScreenCover` on MainTabView, and
+> `VoiceOverlayScreen.onDisappear` calls `abandonSession()` after a 500 ms
+> delay. **CarPlay (#19) was NOT cleared** — it runs voice with the phone UI
+> backgrounded by design, and nobody has checked what the chat surface does
+> there. So the gap is closed by the fix below rather than by the reachability
+> argument, which is the order 399-A's own wording required.
+>
+> **399-B — both play buttons now carry the Talk gate** (`MessageBubble`,
+> `ChatInputBar`), matching `MessageBubble:302`'s read-aloud gate three lines
+> away. In practice this changes nothing a user can see, because the button was
+> already unreachable during a session; that is what defence in depth looks
+> like when it lands before the defect does.
+>
+> **399-C — the unconditional deactivation is gone, at BOTH sites.**
+> `VoiceMemoPlayer.stop()` and `VoiceMemoRecorder.finishRecorder()` now release
+> only what the instance activated, guarded by a `didActivateAudioSession` flag
+> and a pure `shouldReleaseAudioSession(didActivate:)` mirroring
+> `SpeechOutputService`'s. The comment that used to justify the old behaviour —
+> *"releasing an inactive session is harmless"* — was the claim #84 falsified,
+> and it is replaced by a note saying so.
+>
+> **The recorder was NOT in 399-C's pre-registered wording and was fixed
+> anyway, deliberately.** Scope added with a reason is not a moved bar: #383-G
+> fixed its reported site and left two siblings for a later grep to find, and
+> the handoff carries that as a standing trap (*"when a premise dies, grep for
+> the PREMISE, not the symptom"*). Every failure path was walked before the
+> change: a start that dies at `AVAudioPlayer(contentsOf:)` or at `record()`
+> still releases, because the flag is set the instant `setActive(true)`
+> returns; only a start that never activated leaves the session alone.
+>
+> ### 🔴 The test hole I found in my own tests, and closed
+>
+> The wiring tests observe an injected `deactivateAudioSession` seam, so they
+> turn RED when the guard is deleted. **They do NOT see the mutation that
+> matters most** — reverting to the ORIGINAL direct
+> `AVAudioSession.sharedInstance().setActive(false, …)`, which bypasses the
+> seam and leaves the suite green while the shared session is really torn down.
+> That is the historical shape, so the suite would have been unable to see the
+> exact defect this item fixed.
+>
+> Closed with a STRUCTURAL test that reads the two sources via `#filePath` and
+> asserts each spells `setActive(false` exactly once — inside the seam's
+> default. Precedent for a test that parses our own source is already in the
+> tree (`score-decline-attribution-test.py` parses
+> `DeclineAttributionScorer.swift` to keep two implementations in sync). It
+> fails loudly if the sources cannot be read, per "no data is not a pass".
+>
+> | mutation | expected catcher | result |
+> |---|---|---|
+> | **M1** guard deleted, seam kept | the three wiring tests | RED |
+> | **M2** seam bypassed by a direct `setActive(false)` | the structural test | RED |
+>
+> **M2 is the one worth remembering.** A seam-based test is only as good as the
+> guarantee that the seam is the only door, and nothing about a seam enforces
+> that by itself. This is the same family as #340's eleven green parsing tests
+> surviving the deletion of the wiring they existed to protect — one level
+> further out.
+
 
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
 
@@ -16858,7 +17128,7 @@ papercut resolves itself when the repo goes PUBLIC at the #269-B
 publication moment. Until then the gh-credentialed one-liner is the
 update path, by design.**
 
-## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.**
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.** **⟵ HEADER CORRECTED AGAIN 2026-08-23: *"the FIX is unrouted and is Owen's call"* is SUPERSEDED — #310 removed the cause on 2026-08-20 (the relay bootstrap is gated on `profile.hasRelay`, and the migration CLEARED both retired relay URLs), so for Owen's own profiles the doomed bootstrap does not run at all. Nothing to BUILD here. The live remnant is **365-C, a device check** — switch both directions, no interstitial, #247 toast still arrives — and 365-A/B survive only for a profile that legitimately HAS a relay.**
 
 **What was observed (build 2808, whoGoesThere):** Server settings →
 select OJAMD → back → a full-screen Talaria connecting/orb screen for
@@ -18113,7 +18383,41 @@ scope: **wholesale, or a permanent dual path?**
 > `ProfileRelaySession.downloadAgentFile`) — gated lane, this week's free
 > bucket.
 
-## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.**
+## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.** **⟵ HEADER CORRECTED 2026-08-23 — ✅ CLOSED AS MOOT: the readout was DELETED by #352 two days BEFORE this item was filed. Nothing to fix; the surface is gone.**
+
+> **✅ 2026-08-23 — CLOSED AS MOOT. The surface this item describes no longer
+> exists, and it was already gone when the item was written.**
+>
+> **The row was real.** `Last Drain` lived in the About page's
+> `// Sensor Pipeline` panel, fed by
+> `SensorUploadService.SensorDiagnostics.lastDrainSummary` / `lastDrainAt` —
+> so the 08-18 naming block's untested guess (*"may still be fed by the legacy
+> relay drain path"*) was **right about the mechanism**. It was wrong about the
+> tense.
+>
+> **#352 deleted it.** `1bb5504c` removed `SensorUploadService` outright, and
+> `af0f88f3` (*"About page — Phone Queries panel replaces the relay-era Sensor
+> Pipeline panel", 352-D*) replaced the whole panel. Today's About page carries
+> `// Phone Queries` — Sensor Sharing plus three query gates — and **no
+> timestamp of any kind**, so there is nothing left that can go stale.
+>
+> **The dates are the finding.** Owen observed the stale drain on **2026-08-16**
+> during #271's phone pass; `af0f88f3` landed **2026-08-16 19:57**; this item
+> was filed **2026-08-18 night**. The fix shipped between the observation and
+> the filing, from a different lane, and neither the filing nor the 08-18
+> naming pass checked the code.
+>
+> **This is #340's stray-artifact shape with the polarity reversed.** There the
+> tracker kept asking for a chore already done outside it; here the tracker
+> **created** work for a surface already deleted inside it. Same root: an entry
+> written from an observation rather than from the tree. Both cost little
+> individually — this one was booked onto a night build list and closed by a
+> grep — but the generalisation is worth the two lines it takes: **an
+> observation ages; check the code before filing from one, and again before
+> building from one.**
+>
+> **Nothing owed.** Ready to move to `OPEN_ITEMS-ARCHIVE.md` verbatim at the
+> next sweep (#261).
 
 > **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check
 > first (not elected): the About content's last-drain readout may still be
@@ -18286,7 +18590,7 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
 > post-launch.**
 
-## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.**
+## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23: the call was MADE — Owen RULED *accept the limitation for now, WATCH* on 2026-08-18 ~22:40, with #368's cutover as the re-examination trigger. So this is not an open decision and not buildable work; it is a watch item waiting on #368.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which

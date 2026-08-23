@@ -115,3 +115,120 @@ struct VoiceMemoAttachmentTests {
         #expect(decoded.voiceMemoAudioPath == "/private/var/memo.m4a")
     }
 }
+
+/// **#399 — the #84 guard on the memo audio surfaces, tested through the
+/// PUBLIC entry points rather than through the decision alone.**
+///
+/// The decision (`shouldReleaseAudioSession`) is one line and a test of it in
+/// isolation proves almost nothing: delete the call in `stop()` and such a
+/// test stays green while the fix is gone. #340 measured exactly that — eleven
+/// green parsing tests survived removing the `performCreate` wiring they
+/// existed to protect — so these drive `stop()` and `discard()` and observe
+/// the injected deactivation seam.
+@MainActor
+struct VoiceMemoAudioSessionGuardTests {
+
+    // MARK: - The decision
+
+    /// The load-bearing case, and the one the old code got wrong: an instance
+    /// that never activated must never release. `VoiceMemoPlayer.stop()`
+    /// carried the comment *"releasing an inactive session is harmless"* —
+    /// which is the claim #84 falsified when read-aloud deactivating a session
+    /// it had never activated killed a live mic.
+    @Test func neitherServiceReleasesASessionItDidNotActivate() {
+        #expect(VoiceMemoPlayer.shouldReleaseAudioSession(didActivate: false) == false)
+        #expect(VoiceMemoRecorder.shouldReleaseAudioSession(didActivate: false) == false)
+        #expect(VoiceMemoPlayer.shouldReleaseAudioSession(didActivate: true) == true)
+        #expect(VoiceMemoRecorder.shouldReleaseAudioSession(didActivate: true) == true)
+    }
+
+    // MARK: - The WIRING (this is the half that catches a deleted fix)
+
+    /// A fresh player has activated nothing, so `stop()` must not touch the
+    /// shared session. **Restore the unconditional
+    /// `setActive(false, .notifyOthersOnDeactivation)` and this goes RED** —
+    /// which is the whole point of driving `stop()` instead of the predicate.
+    @Test func playerStopDoesNotDeactivateASessionItNeverActivated() {
+        let player = VoiceMemoPlayer()
+        var deactivations = 0
+        player.deactivateAudioSession = { deactivations += 1 }
+
+        player.stop()
+        player.stop()   // idempotent: still nothing to release
+
+        #expect(deactivations == 0)
+        #expect(player.playingPath == nil)
+    }
+
+    /// The recorder's sibling site. `discard()` reaches `finishRecorder()`
+    /// unconditionally, so a discard with no recording in flight is the exact
+    /// shape that used to fire a stray deactivation.
+    @Test func recorderDiscardDoesNotDeactivateASessionItNeverActivated() {
+        let recorder = VoiceMemoRecorder()
+        var deactivations = 0
+        recorder.deactivateAudioSession = { deactivations += 1 }
+
+        recorder.discard()
+
+        #expect(deactivations == 0)
+        #expect(recorder.isRecording == false)
+    }
+
+    /// `stopRecording()` returns nil with nothing in flight and must also stay
+    /// silent — it guards on `isRecording` before reaching `finishRecorder()`,
+    /// and this pins that it keeps doing so.
+    @Test func recorderStopWithNothingInFlightIsASessionNoOp() {
+        let recorder = VoiceMemoRecorder()
+        var deactivations = 0
+        recorder.deactivateAudioSession = { deactivations += 1 }
+
+        #expect(recorder.stopRecording() == nil)
+        #expect(deactivations == 0)
+    }
+
+    /// **The mutation the seam-based tests above CANNOT see, closed here.**
+    ///
+    /// Those tests observe `deactivateAudioSession`. Removing the guard while
+    /// keeping the seam turns them RED — but reverting to the ORIGINAL code,
+    /// a direct `AVAudioSession.sharedInstance().setActive(false, …)`, bypasses
+    /// the seam entirely and they stay GREEN while the shared session is being
+    /// torn down for real. That is the historical shape, so leaving it uncovered
+    /// would mean the suite cannot see the very defect #399 fixed.
+    ///
+    /// So this asserts the STRUCTURAL invariant instead: each service spells a
+    /// deactivation exactly once, inside the seam's default. Precedent for a
+    /// test that reads source is already in the tree —
+    /// `score-decline-attribution-test.py` parses `DeclineAttributionScorer.swift`
+    /// to hold two implementations in sync.
+    ///
+    /// Fails loudly if the sources cannot be read: a check that cannot run must
+    /// say so rather than print a pass it did not earn.
+    @Test func deactivationIsSpelledOnlyInsideTheInjectableSeam() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+
+        for name in ["VoiceMemoPlayer", "VoiceMemoRecorder"] {
+            let url = root.appendingPathComponent("Talaria/Services/Live/\(name).swift")
+            let source = try #require(
+                try? String(contentsOf: url, encoding: .utf8),
+                "cannot read \(name).swift at \(url.path) — this check did not run"
+            )
+            let direct = source.components(separatedBy: "setActive(false").count - 1
+            #expect(direct == 1, """
+                \(name) spells `setActive(false` \(direct) time(s); expected exactly 1                 (the `deactivateAudioSession` default). A second one is a #84 release                 that bypasses the ownership guard and the seam that tests it.
+                """)
+        }
+    }
+
+    /// The guard must not become "never release". These services DO own the
+    /// session while playing or recording, and failing to release it is the
+    /// opposite defect — other audio stays ducked and the category stays wrong.
+    ///
+    /// Driven through the real release path by way of the decision the path
+    /// consults, since activating for real needs device audio.
+    @Test func theGuardStillReleasesWhatTheInstanceDidActivate() {
+        #expect(VoiceMemoPlayer.shouldReleaseAudioSession(didActivate: true))
+        #expect(VoiceMemoRecorder.shouldReleaseAudioSession(didActivate: true))
+    }
+}

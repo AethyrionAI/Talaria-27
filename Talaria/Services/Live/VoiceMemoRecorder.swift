@@ -30,6 +30,22 @@ final class VoiceMemoRecorder {
     private(set) var level: Double = 0
 
     private var recorder: AVAudioRecorder?
+
+    /// **#399/#84** — the same guard the player grew, for the same reason: the
+    /// voice engines share the ONE `AVAudioSession`, and `finishRecorder()`
+    /// released it unconditionally. Recording is already refused while Talk is
+    /// live (`VoiceMemoRecorderSheet`), so this is defence in depth rather
+    /// than a demonstrated failure — but the sibling site is the one #383-G's
+    /// lesson says to fix in the same pass, not to leave for the grep that
+    /// finds it later.
+    @ObservationIgnored private var didActivateAudioSession = false
+
+    /// harness-visible (#216): the deactivation effect, injectable so a test
+    /// drives `discard()` and observes whether the guard let it through.
+    @ObservationIgnored var deactivateAudioSession: () -> Void = {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
     private var meterTask: Task<Void, Never>?
     private(set) var fileURL: URL?
 
@@ -62,11 +78,12 @@ final class VoiceMemoRecorder {
         do {
             try session.setCategory(.playAndRecord, mode: .default, options: [.duckOthers])
             try session.setActive(true, options: .notifyOthersOnDeactivation)
+            didActivateAudioSession = true
             let recorder = try AVAudioRecorder(url: destination, settings: Self.settings)
             recorder.isMeteringEnabled = true
             guard recorder.record() else {
                 Self.logger.error("Voice memo: AVAudioRecorder.record() returned false")
-                try? session.setActive(false, options: .notifyOthersOnDeactivation)
+                releaseAudioSessionIfOwned()
                 throw RecorderError.recordingFailed
             }
             self.recorder = recorder
@@ -75,7 +92,7 @@ final class VoiceMemoRecorder {
             throw error
         } catch {
             Self.logger.error("Voice memo: recording setup failed: \(error.localizedDescription, privacy: .public)")
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            releaseAudioSessionIfOwned()
             throw RecorderError.recordingFailed
         }
 
@@ -126,7 +143,24 @@ final class VoiceMemoRecorder {
         recorder = nil
         isRecording = false
         level = 0
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        releaseAudioSessionIfOwned()
+    }
+
+    /// The #84 release, guarded — see `VoiceMemoPlayer` for the full note.
+    @discardableResult
+    private func releaseAudioSessionIfOwned() -> Bool {
+        guard Self.shouldReleaseAudioSession(didActivate: didActivateAudioSession) else {
+            return false
+        }
+        didActivateAudioSession = false
+        deactivateAudioSession()
+        return true
+    }
+
+    /// The #84 decision, pure for tests: never deactivate a session this
+    /// instance did not activate.
+    nonisolated static func shouldReleaseAudioSession(didActivate: Bool) -> Bool {
+        didActivate
     }
 
     /// Recordings live beside the other staged attachments so the existing

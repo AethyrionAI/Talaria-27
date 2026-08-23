@@ -775,8 +775,13 @@ struct MessageBubble: View {
                 // Voice memo (#9): the transcript shipped; the audio stays
                 // playable from the bubble — but only while the local file
                 // actually exists (no dead play button, real data only).
+                // #399: hidden while a Talk session owns the audio session —
+                // the same gate the read-aloud toggle above already carries.
+                // Playback re-categorizes the SHARED session to `.playback`,
+                // which would fight a live `.playAndRecord` voice session.
                 if let audioPath = attachment.voiceMemoAudioPath,
-                   VoiceMemoPlayer.canPlay(path: audioPath) {
+                   VoiceMemoPlayer.canPlay(path: audioPath),
+                   !talkStore.isSessionActive {
                     let player = VoiceMemoPlayer.shared
                     Button {
                         player.togglePlayback(path: audioPath)
