@@ -557,7 +557,7 @@ not assert a capability or property we cannot stand behind), **#323**
 > mistake it for a new finding; not filed, per #215's rule against filing
 > noise.
 
-## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.**
+## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.** **⟵ HEADER CORRECTED 2026-08-23 (decision pass): ✅ PUBLISHED 2026-08-20 as PR #331 — Owen read and approved the exact wording; `PrivacyInfo.xcprivacy` checked (no change); the entry's own closing block says nothing blocking remains, with the watch obligation moved to #387. The 08-23 stale-header sweep missed this header, and the same night's handoff §3 still listed it as an owed decision — the sweep's own class, caught by reading the newest dated block.**
 
 **Why this is separate from #385 rather than part of it.** #385 fixes what the
 *assistant* says and what the *opt-in banner* says — both in-app, both ours to
@@ -779,7 +779,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.**
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).**
 
 **The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
 
@@ -864,6 +864,15 @@ in. That is #139's zombie-session shape, and #139 exists because it happened.
 **#247** (B1, the belt this rides), **#139** (zombie session — the related
 path, and the reason severity is privacy), **#310** (the router's other stale
 gate, #383's finding #1).
+
+> **⚖️ RULED 2026-08-23 (Owen, decision pass): BUILD the generation-scoped
+> end for the abandonment branch.** Chosen over accept-and-watch. The design
+> constraint is the one this entry already names: `startGeneration` is bumped
+> by a NEW start as well as by a dismissal, so the end must be scoped to the
+> session the abandoned start itself minted — an unconditional `endSession()`
+> can tear down the next start's session. 397-C's pin (the fallback fix must
+> not fire on this path) becomes the lane's non-regression floor. Bars
+> pre-register in this entry before any code.
 
 ## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 396-B BUILT + deployed to BOTH hosts 2026-08-22 and the local pipeline is characterised; the TUNING lane is what remains unstarted.**
 
@@ -1158,6 +1167,16 @@ moves a value without quoting these four fields has not met the bar.
 (realtime self-barge-in — fault 3 is that item, not this one), **#18** (the
 native pipeline), **#1** (voice transcripts).
 
+> **⚖️ SCOPE RULED 2026-08-23 (Owen, decision pass): the COARSE PICKER.**
+> Quiet / Normal / Noisy mapping to a small set of vetted `server_vad` values
+> on realtime; raw knobs are not exposed. The asymmetry ships HONESTLY: on
+> the local engine the control states plainly that (at most) end-of-turn
+> responds — a control that silently does less on one engine than the other
+> was the named hazard, and saying so is the ruled mitigation. Fault 2's
+> author question (our 1.35 s watchdog vs Apple's finalizer; one shipped log
+> line decides) is still the device row and still gates how the local half
+> binds. Bars pre-register here before the lane writes code.
+
 ## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
 
 **Owen, ruling it:** *"Yeah I know it's already available. We've done light
@@ -1236,6 +1255,12 @@ published privacy policy — a user-facing opt-out is consistent with it, and
 #386's text is unaffected because the policy describes what happens WHEN the
 tier is used), **#390** (the still-unrouted tier-aware vision question, which
 this toggle does not answer), **#180** (the notice-honesty family).
+
+> **⚖️ 395-D RULED 2026-08-23 (Owen, decision pass): the DEDICATED SETTINGS
+> TILE.** The toggle and its row pair move from the Models screen to a PCC
+> square in Settings — the rows were built so this is a move, not a rewrite.
+> The Models screen keeps the usage row. Bars for the move pre-register here
+> when the lane opens.
 
 ## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
 
@@ -1673,7 +1698,7 @@ this claims OFFLINE against a live one), **#136** (the black-holed-host outage
 whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
 which is how most users would meet this first).
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -2049,6 +2074,20 @@ everywhere), **#49** (the data-driven catalog that makes a fix data rather
 than switch arms), **#12** (Terminal's locked accent slot), **#112** (Midnight
 Marquee ships three of the worst-affected palettes).
 
+> **⚖️ RULED 2026-08-23 (Owen, decision pass) — the two remaining calls:**
+> - **Call 2 (`dimForeground`) ELECTED: build, with Owen's eye as the closing
+>   bar.** Raise the failing cells toward the 4.5 text floor with the ramp
+>   ORDER pinned by test (each step strictly ordered against its neighbours —
+>   the six-step ramp must not collapse into five), and the merge waits on
+>   Owen judging the ramp feel ON DEVICE, not on the numbers alone. The
+>   reclassify-to-3.0 route was offered and not taken.
+> - **Fifth call ELECTED AS THE DANGER SLICE ONLY:** `danger`/`dangerBright`
+>   on `autumnHarvest` + `casinoLucky7s` to ≥3.0 decorative — an invisible
+>   error pip is a defect. `retroSciFi × violet`'s dim accent-as-decoration
+>   is left as that theme's aesthetic, explicitly declined for now.
+>
+> Bars pre-register in this entry before the lane writes code.
+
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
@@ -2347,6 +2386,13 @@ now describes to the public. **Bars pre-register here when he routes it.**
 decision whose premise this falsifies), **#385** (the tier-aware pattern any
 gate should follow), **#386** (the published policy that describes the tiers),
 **#387** (the watch obligation on Apple's own pages).
+
+> **⚖️ 2026-08-23 (Owen, decision pass): DELIBERATELY DEFERRED.** Presented
+> with keep-OCR-only / tier-conditional / direct-everywhere, Owen chose to
+> decide later. So the accidental property (the picture never leaves the
+> phone) remains the shipping behaviour — and remains UNCHOSEN: this entry
+> stays a filing with no lane, and nothing may cite "the picture never leaves
+> the phone" as a designed guarantee until it is one.
 
 ## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): FIXED + MERGED 2026-08-21 as `df6b987b` (PR #335), 389-A/B/C all met.**
 
@@ -8033,6 +8079,27 @@ pre-register here if it is ever routed.**
 > plugin-update credential papercut. Still owed before the trigger: the
 > pre-publish scrub (secrets / host paths / tailnet IPs / #255 naming /
 > attribution) and the compatibility-signal question.
+
+> **✅ 2026-08-23 — THE PRE-PUBLISH SCRUB RAN** (read-only over the Mac's live
+> checkout `~/.hermes/plugins/talaria`, working tree AND full git history):
+> `planning/reports/2026-08-23-308-prepublish-scrub.md`. Verdicts: **zero
+> secrets anywhere** (tree or history — no 64-hex, no `sk-`, no committed
+> `.env`; the test key is a labeled runtime-built dummy), zero tailnet IPs or
+> `*.ts.net` names, no attack mechanics, and the #255 naming is 2 occurrences,
+> BOTH cosmetic docstrings — publishable as-is. **1 BLOCKS-PUBLISH: the
+> personal email is the commit identity on 43/44 commits**, history-resident,
+> so publishing requires either a `git filter-repo` mailmap rewrite (breaks
+> every SHA, including README install-by-SHA pins) or a FRESH-HISTORY publish
+> — the report recommends fresh-history, which also clears the minor
+> history-resident findings in one move. 5 NEEDS-OWEN-DECISION: publish
+> mechanics, license choice (**no LICENSE file exists**, and `talaria/voice.py`
+> self-describes as a port of the retired connector's voice bootstrap —
+> dylan-buck lineage, MIT — so heritage needs a note), `whoGoesThere` as a
+> test-fixture name, two OJAMD provenance comments + first-name mentions, and
+> the compatibility signal. **The compatibility-signal question is ANSWERED as
+> "nothing exists today"** — no version floor, fail-soft `register()`, CI
+> against floating HEAD — with four candidate homes for a floor laid out in
+> the report.
 
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
@@ -15502,6 +15569,14 @@ once per device session.
 > sibling surface carries. Found while reading these files; graded honestly
 > there (it is a defence-in-depth gap, not a demonstrated live bug) and filed
 > separately per #268 rather than buried in this entry.
+
+> **⚖️ ROUTED 2026-08-23 (Owen, decision pass): BUILD AT THE NEXT PRE-DEVICE
+> WINDOW.** The recommended design above stands (awaited transitions +
+> `isTransitioning` guards; `SpeechOutputService` untouched); the lane opens
+> when a device sitting is hours away rather than days, so 198B-A closes in
+> the same breath the change lands — the entry's own rule that a partial
+> audio change never ships without device time. Options (a) build-now and
+> (c) leave-it are declined.
 
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
