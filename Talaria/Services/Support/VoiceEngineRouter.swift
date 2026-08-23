@@ -60,6 +60,17 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
     /// `.idle` is precisely what the user's own `endSession()` leaves behind.
     private var startGeneration = 0
 
+    /// #397 sibling: which start generation last CLAIMED the realtime service.
+    ///
+    /// The abandonment branch may end only the session its own start minted.
+    /// `startGeneration` alone cannot tell it whether that is still the
+    /// service's session — the generation is bumped by a NEW start as well as
+    /// by a dismissal, and after a new realtime start the service carries
+    /// someone else's session. This advances only when a start actually
+    /// enters the realtime branch, so "owner == my generation" means no later
+    /// start has touched the realtime service since mine.
+    private var realtimeStartOwnerGeneration = 0
+
     init(
         realtime: any VoiceSessionServiceProtocol,
         native: any VoiceSessionServiceProtocol,
@@ -292,6 +303,9 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             return
         }
         if activeEngine == .realtime, isVoiceHostPaired() {
+            // #397 sibling: this start now owns whatever session the realtime
+            // service mints, until a later start claims it.
+            realtimeStartOwnerGeneration = generation
             // #247 B1: belt the start. A REFUSED relay fails fast and the
             // fallback below always ran; a BLACK-HOLED one (tailnet drop)
             // rode the shared 300s-timeout client and pinned ESTABLISHING
@@ -312,7 +326,26 @@ final class VoiceEngineRouter: VoiceSessionServiceProtocol {
             // Falling back now would open a LOCAL microphone for a session
             // nobody is in — the privacy defect, arriving by the fallback door.
             if generation != startGeneration {
-                Self.logger.notice("voice start abandoned mid-connect — not falling back to local voice (#139)")
+                // #397 sibling (ruled 2026-08-23): end the session this start
+                // minted — the user's `endSession()` tore down what existed at
+                // that instant, but the start it raced can complete a moment
+                // later and leave the service holding a live session
+                // (`start.cancel()` cancels a Task, not a peer connection, and
+                // the service's own #139 guard covers only the bootstrap
+                // phase). A surviving session is a live microphone streaming
+                // to OpenAI for a session the app believes it is not in.
+                //
+                // SCOPED, not unconditional: a NEWER start may have claimed
+                // the realtime service (the generation bumps on new starts
+                // too), and ending then would tear down the session that
+                // start owns — the exact hazard that kept this branch fixless
+                // until the generation-scoped design was ruled.
+                if realtimeStartOwnerGeneration == generation {
+                    Self.logger.notice("voice start abandoned mid-connect — ending the realtime session this start minted, not falling back to local voice (#139/#397)")
+                    await realtime.endSession()
+                } else {
+                    Self.logger.notice("voice start abandoned mid-connect — a newer start owns the realtime session; not touching it, not falling back to local voice (#139/#397)")
+                }
                 return
             }
             if Self.shouldFallBackToNative(
