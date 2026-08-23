@@ -1282,6 +1282,32 @@ this toggle does not answer), **#180** (the notice-honesty family).
 > The Models screen keeps the usage row. Bars for the move pre-register here
 > when the lane opens.
 
+> **🎯 BARS 395-D-A…D — pre-registered 2026-08-23, before any code (the
+> tile lane, opened the same night). Scope, stated precisely because the
+> ruling's two sentences pull in different directions:** the TOGGLE moves to
+> a dedicated PCC screen behind a new Settings tile; the PCC screen shows
+> the quota row too (control and state one surface, #395's own principle);
+> and the Models screen KEEPS its quota row beside the brain picker (#30
+> wanted quota visible where the brain is picked — that is the "Models
+> screen keeps the usage row" clause of the approved option). What leaves
+> the Models screen is the toggle; what is duplicated is state, never
+> control.
+> - **395-D-A (the tile exists, conditionally).** A `.privateCloud` tile
+>   appears in the Settings grid/deck when the tier exists on the device,
+>   and is ABSENT — filtered like `.developer`, not rendered blank — when it
+>   does not.
+> - **395-D-B (one source of truth).** The dedicated screen's toggle is
+>   wired to the same `UserSettings.privateCloudEnabled` the routing
+>   predicates read — no second flag. Flipping it on the new screen flips
+>   both predicates (395-A's own proof pattern re-run against the new
+>   surface).
+> - **395-D-C (the card value is pure and honest).** A pure formatter
+>   answers OFF whenever the tier is disabled regardless of quota state, and
+>   surfaces the quota word only when enabled — unit-tested without a view.
+> - **395-D-D (non-regression).** 395-A/B/C stay green untouched; the
+>   Models screen still shows the quota row; the toggle no longer appears on
+>   the Models screen.
+
 ## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
 
 > **The title this entry carried until it was solved, kept verbatim because the
