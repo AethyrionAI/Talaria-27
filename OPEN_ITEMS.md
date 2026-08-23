@@ -874,6 +874,26 @@ gate, #383's finding #1).
 > not fire on this path) becomes the lane's non-regression floor. Bars
 > pre-register in this entry before any code.
 
+> **🎯 BARS 397-D…F — pre-registered 2026-08-23, before any code (the
+> sibling lane, opened the same night the ruling landed):**
+> - **397-D (the point — the dismissal zombie).** A realtime start abandoned
+>   by the user's dismissal, once it RESOLVES, re-issues `endSession()` on
+>   the realtime service — closing the window where the user's end raced an
+>   in-flight start whose connection completed after the teardown. Written
+>   RED first against today's router. **The 397-C pin (`endCalls == 1`) is
+>   superseded by the 2026-08-23 ruling and updated in the same commit** —
+>   its own comment names this lane as the proper fix, so this is the pin
+>   doing its job, not being tidied away.
+> - **397-E (the scope — why the naive fix was refused).** When a NEWER
+>   start has claimed the realtime service, the abandoned start's end does
+>   NOT fire: start #1 in flight → dismissal → start #2 claims realtime →
+>   start #1 resolves ⇒ start #1 adds no end. This bar is GREEN against
+>   today's code by construction, so its teeth are proven by MUTATION: an
+>   unconditional end (owner check dropped) must turn it RED.
+> - **397-F (non-regression).** The abandonment branch still never opens the
+>   local mic (both 139-C arms stay green), and 397-A/B stay green untouched
+>   — the fallback path is not re-entered by this lane.
+
 ## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 396-B BUILT + deployed to BOTH hosts 2026-08-22 and the local pipeline is characterised; the TUNING lane is what remains unstarted.**
 
 **Raised as a thought, not a request** — filed anyway because a perception noted
