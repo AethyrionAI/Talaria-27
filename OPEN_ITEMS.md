@@ -1876,6 +1876,64 @@ invasive and that the retune question is where the design judgement lives.
 > newly-passing cells is the whole point of its design; a build that fixes
 > `accent` and leaves all 170 cells pinned has not met the ratchet's own
 > contract.
+
+> **✅ 2026-08-22 — CALL 1 BUILT. `accentText` 0/88, `accentBrightText` 0/88.**
+> Baseline tightened **170 → 155**, so the ratchet's contract is met by
+> measurement rather than by assertion.
+>
+> **The values are COMPUTED, and the generator ships with them**
+> (`AccentTextVariantGeneratorTests`). It blends each failing hue toward the
+> background's own extreme by binary search, stopping at the first value
+> clearing 4.5:1 — minimal movement, so the result still reads as that theme's
+> accent instead of drifting grey.
+>
+> **It independently reproduced 393-A's numbers**: 23 `accent` cells, 13
+> `accentBright`, and *exactly* the five dark cells this entry names. Two
+> derivations by different methods agreeing is why these numbers can be
+> trusted; the first version of this entry got its dark-theme claim wrong by
+> having only one.
+>
+> **A real flaw in the first generator, worth keeping:** it solved on a
+> continuous blend factor and then rounded to an 8-bit hex literal — and
+> rounding can drop a hairline 4.50 back under the floor. It now searches over
+> the ROUNDED value, so every shipped literal measures 4.50–4.55. Solving on
+> the float and trusting it is the "green that proves nothing" shape one layer
+> down: the generator would have reported 4.50 for a literal that renders 4.49.
+>
+> ### The migration, and why it did not repeat #325's two errors
+>
+> #325 lost ten real text sites to an `Image(`-proximity rule and
+> over-migrated on a regex that matched `.stroke(` but not `.strokeBorder(`.
+> **So this lane used no proximity regex.** A paren-walking pass resolves the
+> ENCLOSING CALL for every occurrence and **refuses to classify what it cannot
+> recognise** — 94 unknowns, then 23, each family then resolved by reading the
+> code:
+>
+> - **`statusPipLabel` settled the largest family.** It hands the *same* colour
+>   to a `StatusPip` and a `MonoLabel` — so the colour is read, and migrating
+>   costs a marginally darker dot.
+> - **`CodeSyntaxHighlighter.color(for:)`** returns `forgeText` two lines from
+>   `accent`; a text-colour function by construction.
+> - **`StatusPip` / `hudGlow` / `CornerBrackets` / `ThemeStarfield`**, and the
+>   orb, texture and glow files entire, stay decorative.
+>
+> **Final: 215 text · 62 decorative · 0 unclassified**, governed throughout by
+> this entry's own asymmetry — over-migrating costs a darker pip, under-
+> migrating leaves real text at 2.18:1.
+>
+> ### 🔴 A NEW FINDING the re-flooring exposed — NOT fixed here
+>
+> With `accent`/`accentBright` re-floored to **3.0** as decoration, they still
+> fail **11** and **10** cells: `retroSciFi × violet` measures **1.24:1** and
+> **1.16:1** — below even the DECORATIVE floor. So on those cells the accent is
+> not merely unreadable as text, it is nearly invisible as a pip, border or
+> fill.
+>
+> **Recorded rather than folded in**, because a passing ratchet is exactly
+> where a finding like this would hide: the cells are still in
+> `knownFailingCells`, so nothing goes red, and the only way anyone learns is
+> if someone writes it down. It is a fifth call on this entry, and it is not
+> elected.
 >
 > ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
