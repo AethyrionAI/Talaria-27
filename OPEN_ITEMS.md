@@ -1791,7 +1791,7 @@ this claims OFFLINE against a live one), **#136** (the black-holed-host outage
 whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
 which is how most users would meet this first).
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 OPEN, deliberately held: the closing bar is Owen's device eyeball of the ramp feel. Result block at the foot.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -2211,6 +2211,40 @@ Marquee ships three of the worst-affected palettes).
 >   FEEL on device (worst themes: `pulpNoir`, `deepField`, `springSprout`,
 >   `winterFrost`); numbers alone do not close call 2. The PR stays open
 >   until his word.
+
+> **✅ 2026-08-23 — BUILT. 393-C2-A..C + 393-P5-A ALL MET; PR #357 OPEN,
+> held for the closing bar (Owen's device eyeball). GATE: PASS 2497 / 14 /
+> Release (count moved +2).**
+> - **The raise:** 58 `dimForeground` cells now measure 4.58–4.65 across 20
+>   themes — generator-derived (`printDimForegroundAndDangerSuggestions`,
+>   new in `AccentTextVariantGeneratorTests`, kept as regenerable tooling
+>   like its call-1/3/4 siblings): minimal blend toward the background's
+>   opposite extreme, 8-bit-snapped, so each dim stays its theme's hue.
+> - **The caps, measured:** `pulpNoir` 2.36→3.75 (muted 3.84) and
+>   `stickerBombToybox` 2.46→4.09 (muted 4.20) — as high as the ramp order
+>   allows; both stay baseline-listed.
+> - **TWO DEVIATIONS from the pre-registered bars, named rather than
+>   glossed:** (1) `deepField` is UNTOUCHED, not merely capped — the bars
+>   assumed all three muted-failing themes would rise, but deepField's ramp
+>   is byte-pinned as pre-theming legacy identity (`DesignThemeTests:75`,
+>   "Do not retune"), and breaking a standing pin is Owen's call at the
+>   eyeball round, not a lane's judgment. Its 3 cells stay at 3.16. (2) The
+>   danger slice turned out to be `autumnHarvest` ONLY — after call 3's
+>   text/decorative split, `casinoLucky7s`' danger already clears the 3.0
+>   decorative floor, so the bar's second theme had nothing to move. The
+>   ruling's intent (no invisible error pip) is met: `danger|autumnHarvest`
+>   2.60 → **3.20**, one theme-level literal, three cells.
+> - **393-C2-A** (ramp pin, `muted > dim`, all 88 cells) mutation-proven:
+>   `witchsBrew`'s two steps swapped → RED naming the theme on 3 cells with
+>   exact ratios. **393-C2-B** RED-first: the baseline was tightened by 61
+>   cells BEFORE the palette moved and the ratchet went RED at exactly 61.
+>   **393-C2-C**: 34/34 across the three palette suites, `DesignThemeTests`
+>   byte-identity included. `terminal`'s amber/violet variant-ramp overrides
+>   were left alone — unreachable cells behind its locked slot (#215).
+> - **Still open on this entry after the eyeball:** the deepField question
+>   (raise it and update the legacy pin, or accept 3.16 as the pinned
+>   default's cost — Owen's call), and the unelected calls: `mutedForeground`
+>   (9/88) and call 4's remaining marginal cells.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
