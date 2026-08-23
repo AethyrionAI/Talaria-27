@@ -216,7 +216,7 @@ struct UplinkSettingsScreen: View {
 
     private var linkColor: Color {
         switch effectiveConnectionState {
-        case .online: Design.Brand.accent
+        case .online: Design.Brand.accentText
         case .offline, .unreachable: Design.Brand.forgeText
         case .notConnected: Design.Colors.mutedForeground
         case .checking: Design.Colors.mutedForeground
@@ -330,7 +330,7 @@ struct UplinkSettingsScreen: View {
                 HStack(spacing: Design.Spacing.xxs) {
                     StatusPip(color: Design.Brand.accent, diameter: 5)
                     MonoLabel("Keychain", size: 9, weight: .medium, tracking: Design.Tracking.mono,
-                              color: Design.Brand.accent)
+                              color: Design.Brand.accentText)
                 }
             }
 
@@ -362,7 +362,7 @@ struct UplinkSettingsScreen: View {
                     .font(Design.Typography.mono(11, weight: .medium))
                     .tracking(Design.Tracking.mono)
             }
-            .foregroundStyle(Design.Brand.accentBright)
+            .foregroundStyle(Design.Brand.accentBrightText)
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.xs)
             .background(Design.Colors.accentTint(0.10), in: Capsule())
@@ -497,10 +497,10 @@ struct UplinkSettingsScreen: View {
                           tracking: Design.Tracking.mono, color: Design.Colors.secondaryForeground)
             }
         case .done(.passed(let latencyMillis)):
-            testRow(color: Design.Brand.accent, showsSpinner: false) {
+            testRow(color: Design.Brand.accentText, showsSpinner: false) {
                 VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
                     MonoLabel("ONLINE · \(latencyMillis) MS", size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                     Text("\(hostDisplay) answered the Sessions API.")
                         .font(Design.Typography.caption)
                         .foregroundStyle(Design.Colors.secondaryForeground)

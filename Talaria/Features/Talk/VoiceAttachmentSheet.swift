@@ -75,7 +75,7 @@ struct VoiceAttachmentSheet: View {
         HStack(spacing: Design.Spacing.sm) {
             Image(systemName: systemImage)
                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
                 .frame(width: Design.Size.iconLarge)
             Text(title)
                 .font(Design.Typography.body)

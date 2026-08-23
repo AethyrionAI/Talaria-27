@@ -48,7 +48,10 @@ enum ThemeContrastMath {
         value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
     }
 
-    private static func relativeLuminance(_ rgb: (r: Double, g: Double, b: Double)) -> Double {
+    /// Widened from `private` for #393 call 1's generator, which needs the
+    /// background's luminance to decide which way to blend. Same file-scoped
+    /// spirit; nothing outside the test target can reach it.
+    static func relativeLuminance(_ rgb: (r: Double, g: Double, b: Double)) -> Double {
         0.2126 * channel(rgb.r) + 0.7152 * channel(rgb.g) + 0.0722 * channel(rgb.b)
     }
 
@@ -119,10 +122,20 @@ struct SemanticForegroundContrastTests {
         Token(name: "mutedForeground", read: \.mutedForeground, isText: true),
         Token(name: "dimForeground", read: \.dimForeground, isText: true),
         Token(name: "coolForeground", read: \.coolForeground, isText: true),
-        // The accent family. `base` and `bright` are #393's subject: both are
-        // rendered as button titles and labels, not only as fills.
-        Token(name: "accent (base)", read: \.base, isText: true),
-        Token(name: "accentBright", read: \.bright, isText: true),
+        // The accent family. **#393 call 1 split it, on #325's `forge`/`forgeText`
+        // precedent:** `base` and `bright` are the DECORATIVE hues now (3.0
+        // floor — fills, strokes, glows, the orb), and the two text variants
+        // below carry the 4.5 floor for anything a user reads.
+        //
+        // The floors moving is not a weakening. Before the split these two were
+        // measured at 4.5 *because they were used as text*, and 23 + 13 cells
+        // failed. After it, text resolves a token that clears 4.5 by
+        // construction, and these keep only the floor their remaining usage
+        // implies.
+        Token(name: "accent (base)", read: \.base, isText: false),
+        Token(name: "accentBright", read: \.bright, isText: false),
+        Token(name: "accentText", read: \.accentText, isText: true),
+        Token(name: "accentBrightText", read: \.accentBrightText, isText: true),
         Token(name: "accentDeep", read: \.deep, isText: false),
         // The warning pair, #325's subject — kept in the sweep so the two
         // lanes read off one instrument.
@@ -295,29 +308,17 @@ struct SemanticForegroundContrastTests {
         "coolForeground|stickerBombToybox|cyan",  // 4.20:1
         "coolForeground|stickerBombToybox|amber",  // 4.20:1
         "coolForeground|stickerBombToybox|violet",  // 4.20:1
-        "accent (base)|paperTape|amber",  // 4.09:1
-        "accent (base)|paperTape|violet",  // 3.85:1
         "accent (base)|winterFrost|cyan",  // 2.23:1
         "accent (base)|winterFrost|amber",  // 1.54:1
-        "accent (base)|winterFrost|violet",  // 4.11:1
         "accent (base)|springSprout|cyan",  // 2.60:1
         "accent (base)|springSprout|amber",  // 1.80:1
         "accent (base)|springSprout|violet",  // 1.40:1
-        "accent (base)|autumnHarvest|amber",  // 4.12:1
-        "accent (base)|retroSciFi|cyan",  // 3.27:1
-        "accent (base)|retroSciFi|amber",  // 3.51:1
         "accent (base)|retroSciFi|violet",  // 1.24:1
-        "accent (base)|graffitiGalaxy|amber",  // 3.50:1
-        "accent (base)|luchaLibre|cyan",  // 4.26:1
         "accent (base)|pulpNoir|amber",  // 2.18:1
-        "accent (base)|casinoLucky7s|violet",  // 3.76:1
-        "accent (base)|cosmicBowling|violet",  // 3.92:1
         "accent (base)|stickerBombToybox|cyan",  // 2.12:1
         "accent (base)|stickerBombToybox|amber",  // 2.09:1
-        "accent (base)|stickerBombToybox|violet",  // 3.91:1
         "accent (base)|comicFunnies|cyan",  // 2.53:1
         "accent (base)|comicFunnies|amber",  // 1.35:1
-        "accent (base)|comicFunnies|violet",  // 3.15:1
         "accentBright|winterFrost|cyan",  // 1.80:1
         "accentBright|winterFrost|amber",  // 1.35:1
         "accentBright|winterFrost|violet",  // 2.79:1
@@ -327,9 +328,6 @@ struct SemanticForegroundContrastTests {
         "accentBright|retroSciFi|cyan",  // 2.59:1
         "accentBright|retroSciFi|amber",  // 2.50:1
         "accentBright|retroSciFi|violet",  // 1.16:1
-        "accentBright|pulpNoir|amber",  // 4.12:1
-        "accentBright|stickerBombToybox|cyan",  // 4.12:1
-        "accentBright|stickerBombToybox|amber",  // 4.06:1
         "accentBright|comicFunnies|amber",  // 2.76:1
         "accentDeep|deepField|cyan",  // 2.90:1
         "accentDeep|deepField|amber",  // 2.61:1

@@ -60,7 +60,7 @@ struct AppearanceDeckPage: View {
                 .tracking(Design.Tracking.display)
                 .foregroundStyle(Design.Colors.foregroundBright)
             MonoLabel(accentLine, size: 11, weight: .medium,
-                      tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
+                      tracking: Design.Tracking.monoWide, color: Design.Brand.accentText)
         }
     }
 

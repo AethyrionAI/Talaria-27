@@ -173,7 +173,7 @@ struct ModelsSettingsScreen: View {
                                 activeModelName: container.chatStore.activeModelName,
                                 brainLabel: container.chatBackendRouter?.activeBrain.monoLabel),
                             statusColor: container.chatStore.activeModelName?.isEmpty == false
-                                ? Design.Brand.accent : Design.Colors.mutedForeground,
+                                ? Design.Brand.accentText : Design.Colors.mutedForeground,
                             chip: SettingsSubsystem.models.chip,
                             accented: container.chatStore.activeModelName?.isEmpty == false
                         )
@@ -187,7 +187,7 @@ struct ModelsSettingsScreen: View {
                         content(model)
                     } else {
                         ProgressView()
-                            .tint(Design.Brand.accent)
+                            .tint(Design.Brand.accentText)
                             .padding(.top, Design.Spacing.xl)
                     }
                 }
@@ -321,7 +321,7 @@ struct ModelsSettingsScreen: View {
                 Spacer()
                 Toggle("", isOn: privateCloudEnabledBinding)
                     .labelsHidden()
-                    .tint(Design.Brand.accent)
+                    .tint(Design.Brand.accentText)
                     .accessibilityLabel("Use Private Cloud Compute")
             }
             Text(settingsStore.settings.privateCloudEnabled
@@ -357,7 +357,7 @@ struct ModelsSettingsScreen: View {
                     container.localChatBackend?.showPrivateCloudLimitIncreaseOptions()
                 }
                 .font(Design.Typography.mono(10, weight: .medium))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
             }
         }
         .padding(.top, Design.Spacing.xs)
@@ -374,7 +374,7 @@ struct ModelsSettingsScreen: View {
             HStack(spacing: Design.Spacing.sm) {
                 Image(systemName: glyph)
                     .font(.system(size: Design.Size.iconSmall))
-                    .foregroundStyle(isActive ? Design.Brand.accent : Design.Colors.mutedForeground)
+                    .foregroundStyle(isActive ? Design.Brand.accentText : Design.Colors.mutedForeground)
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
@@ -390,7 +390,7 @@ struct ModelsSettingsScreen: View {
                 if isActive {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
             .padding(.vertical, Design.Spacing.xs)
@@ -407,13 +407,13 @@ struct ModelsSettingsScreen: View {
             freshnessBar(model)
 
             if model.isLoading {
-                ProgressView().tint(Design.Brand.accent).padding(.top, Design.Spacing.lg)
+                ProgressView().tint(Design.Brand.accentText).padding(.top, Design.Spacing.lg)
             } else if let error = model.errorMessage, model.catalog == nil {
                 errorPanel(error, model)
             } else {
                 if let status = model.statusMessage {
                     MonoLabel(status, size: 9, weight: .medium, tracking: Design.Tracking.mono,
-                              color: Design.Brand.accent)
+                              color: Design.Brand.accentText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if let error = model.errorMessage {
@@ -456,7 +456,7 @@ struct ModelsSettingsScreen: View {
                     Text(model.isRefreshing ? "Refreshing…" : "Refresh")
                         .font(Design.Typography.body(13, weight: .medium))
                 }
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .padding(.horizontal, Design.Spacing.md)
                 .padding(.vertical, Design.Spacing.xs)
                 .background(Design.Colors.accentTint(0.10), in: Capsule())
@@ -480,7 +480,7 @@ struct ModelsSettingsScreen: View {
             HStack(spacing: Design.Spacing.sm) {
                 Image(systemName: "server.rack")
                     .font(.system(size: Design.Size.iconSmall))
-                    .foregroundStyle(model.hostDefaultIsActive ? Design.Brand.accent : Design.Colors.mutedForeground)
+                    .foregroundStyle(model.hostDefaultIsActive ? Design.Brand.accentText : Design.Colors.mutedForeground)
                     .frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Host default")
@@ -497,7 +497,7 @@ struct ModelsSettingsScreen: View {
                 if model.hostDefaultIsActive {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
             .padding(Design.Spacing.sm)
@@ -522,7 +522,7 @@ struct ModelsSettingsScreen: View {
             HStack(spacing: Design.Spacing.xs) {
                 StatusPip(color: isCurrent ? Design.Brand.accent : Design.Colors.dimForeground, diameter: 6)
                 MonoLabel(provider.name, size: 10, weight: .medium, tracking: Design.Tracking.monoWide,
-                          color: isCurrent ? Design.Brand.accentBright : Design.Colors.secondaryForeground)
+                          color: isCurrent ? Design.Brand.accentBrightText : Design.Colors.secondaryForeground)
                 Spacer()
                 MonoLabel("\(provider.models.count)", size: 9, color: Design.Colors.dimForeground)
             }
@@ -556,7 +556,7 @@ struct ModelsSettingsScreen: View {
                 } else if active {
                     Image(systemName: "checkmark")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
             .padding(.vertical, Design.Spacing.xs)

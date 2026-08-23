@@ -213,7 +213,7 @@ private func markdownInlineText(_ text: String, font: Font, color: Color) -> Tex
     ) {
         for run in attributed.runs where run.inlinePresentationIntent?.contains(.code) == true {
             attributed[run.range].font = Design.Typography.mono(14, relativeTo: .body)
-            attributed[run.range].foregroundColor = Design.Brand.accentBright
+            attributed[run.range].foregroundColor = Design.Brand.accentBrightText
         }
         return Text(attributed)
             .font(font)
@@ -430,7 +430,7 @@ struct BlinkingCursor: View {
     var body: some View {
         Text("|")
             .font(Design.Typography.body)
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
             .opacity(isVisible ? 1 : 0)
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)) {

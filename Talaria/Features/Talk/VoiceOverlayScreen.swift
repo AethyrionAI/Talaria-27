@@ -351,13 +351,13 @@ struct VoiceOverlayScreen: View {
             HStack(spacing: Design.Spacing.xs) {
                 ProgressView()
                     .controlSize(.small)
-                    .tint(Design.Brand.accent)
-                MonoLabel("ESTABLISHING LINK", weight: .medium, tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
+                    .tint(Design.Brand.accentText)
+                MonoLabel("ESTABLISHING LINK", weight: .medium, tracking: Design.Tracking.monoWide, color: Design.Brand.accentText)
             }
 
         case (.connected, .listening):
             VStack(spacing: Design.Spacing.sm) {
-                statusPipLabel("LISTENING", color: Design.Brand.accent, blinks: true)
+                statusPipLabel("LISTENING", color: Design.Brand.accentText, blinks: true)
                 // #84 flatline tripwire: connected but no mic signal evidence
                 // — say so instead of listening silently over a dead mic.
                 if let hint = talkStore.micHealthHint {
@@ -372,12 +372,12 @@ struct VoiceOverlayScreen: View {
         case (.connected, .thinking):
             statusPipLabel(
                 (talkStore.statusMessage?.isEmpty == false ? talkStore.statusMessage! : "PROCESSING").uppercased(),
-                color: Design.Brand.accent,
+                color: Design.Brand.accentText,
                 blinks: true
             )
 
         case (.connected, .speaking):
-            statusPipLabel("SPEAKING", color: Design.Brand.accent, blinks: true)
+            statusPipLabel("SPEAKING", color: Design.Brand.accentText, blinks: true)
 
         case (_, .disconnected):
             statusPipLabel("DISCONNECTED", color: Design.Colors.danger, blinks: false)
@@ -403,7 +403,7 @@ struct VoiceOverlayScreen: View {
             Text("OPEN SETTINGS")
                 .font(Design.Typography.mono(11, weight: .medium))
                 .tracking(Design.Tracking.monoWide)
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .padding(.horizontal, Design.Spacing.lg)
                 .padding(.vertical, Design.Spacing.xs)
                 .background(Design.Colors.accentTint(0.1), in: Capsule())

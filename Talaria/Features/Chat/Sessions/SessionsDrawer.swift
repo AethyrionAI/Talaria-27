@@ -787,14 +787,14 @@ struct ConversationListPane: View {
                 Image(systemName: "text.magnifyingglass")
                     .font(.system(size: 12, weight: .medium))
                 MonoLabel(searchEverythingTitle, size: 9, weight: .medium,
-                          tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                          tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9, weight: .medium))
             }
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
             .padding(.leading, Metrics.currentBar + Metrics.textLeading)
             .frame(minHeight: 44)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -830,7 +830,7 @@ struct ConversationListPane: View {
             Label(model.isPinned(item) ? "Unpin" : "Pin",
                   systemImage: model.isPinned(item) ? "pin.slash" : "pin")
         }
-        .tint(Design.Brand.accent)
+        .tint(Design.Brand.accentText)
     }
 
     private func archiveAction(for item: SessionsDrawerModel.SessionSummary) -> some View {
@@ -935,11 +935,11 @@ struct ConversationListPane: View {
                     // at XXL changes nothing VoiceOver hears.
                     MonoLabel(caption, size: 8, weight: .medium,
                               tracking: Design.Tracking.mono,
-                              color: isOn ? Design.Brand.accent : Design.Colors.dimForeground)
+                              color: isOn ? Design.Brand.accentText : Design.Colors.dimForeground)
                         .accessibilityHidden(true)
                 }
             }
-            .foregroundStyle(isOn ? Design.Brand.accent : Design.Colors.secondaryForeground)
+            .foregroundStyle(isOn ? Design.Brand.accentText : Design.Colors.secondaryForeground)
             .frame(maxWidth: .infinity)
             .frame(height: Metrics.rail)
             .contentShape(Rectangle())
@@ -988,7 +988,7 @@ struct ConversationListPane: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear filter")
             } else if horizontalSizeClass == .regular {
-                MonoLabel("⌘K", size: 9, color: Design.Brand.accent)
+                MonoLabel("⌘K", size: 9, color: Design.Brand.accentText)
                     .padding(.horizontal, 6).padding(.vertical, 3)
                     .background(Design.Colors.accentTint(0.08),
                                 in: RoundedRectangle(cornerRadius: Design.CornerRadius.xs))
@@ -1019,7 +1019,7 @@ struct ConversationListPane: View {
                         .tracking(Design.Tracking.button)
                 }
             }
-            .foregroundStyle(Design.Brand.accentBright)
+            .foregroundStyle(Design.Brand.accentBrightText)
             .padding(.horizontal, newCollapsesToIcon ? 0 : Design.Spacing.sm)
             .frame(minWidth: Metrics.newPillCollapsed)
             .frame(height: searchRowHeight)
@@ -1087,7 +1087,7 @@ struct ConversationListPane: View {
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 13))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                     .contentShape(Rectangle())
             }
@@ -1187,7 +1187,7 @@ private struct SessionRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .modifier(TrailingFade())
             MonoLabel(summary.timeLabel, size: 9,
-                      color: summary.isActive ? Design.Brand.accent : Design.Colors.dimForeground)
+                      color: summary.isActive ? Design.Brand.accentText : Design.Colors.dimForeground)
                 .lineLimit(1)
                 .fixedSize()
         }

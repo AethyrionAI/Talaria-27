@@ -57,7 +57,7 @@ struct SessionsSettingsScreen: View {
                             status: SettingsCardValues.sessions(
                                 count: isLoading ? nil : sessions.count,
                                 isPaired: container.pairingStore.isPaired),
-                            statusColor: isLoading ? Design.Colors.mutedForeground : Design.Brand.accent,
+                            statusColor: isLoading ? Design.Colors.mutedForeground : Design.Brand.accentText,
                             chip: SettingsSubsystem.sessions.chip,
                             accented: !isLoading
                         )
@@ -111,7 +111,7 @@ struct SessionsSettingsScreen: View {
         VStack(spacing: Design.Spacing.xs) {
             Text(value)
                 .font(Design.Typography.display(24, weight: .bold, relativeTo: .title))
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
             MonoLabel(label, size: 8, weight: .medium,
@@ -147,7 +147,7 @@ struct SessionsSettingsScreen: View {
                     Spacer()
                     Toggle("", isOn: showEmptySessionsBinding)
                         .labelsHidden()
-                        .tint(Design.Brand.accent)
+                        .tint(Design.Brand.accentText)
                 }
                 Text("Sessions the host reports with no messages are hidden from the sessions drawer. The current session and any pinned session always show.")
                     .font(Design.Typography.caption)
@@ -318,13 +318,13 @@ struct SessionsSettingsScreen: View {
             HStack(spacing: Design.Spacing.sm) {
                 Text("Export Conversations")
                     .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Brand.accentBright)
+                    .foregroundStyle(Design.Brand.accentBrightText)
                 Spacer()
                 if isExporting {
                     ProgressView().controlSize(.mini)
                 } else {
                     MonoLabel(".JSON", size: 9, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                 }
             }
             .padding(.horizontal, Design.Spacing.md)

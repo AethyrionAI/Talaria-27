@@ -1014,7 +1014,7 @@ struct ChatScreen: View {
         HStack(spacing: Design.Spacing.xxs) {
             Image(systemName: brain.glyph)
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
             // #42: the pill reserves its widest label's width (ON-DEVICE) so
             // it can never wrap inside itself and keeps one size across brain
             // switches.
@@ -1122,16 +1122,16 @@ struct ChatScreen: View {
     private func contextColor(_ progress: Double) -> Color {
         if progress > 0.85 { return Design.Colors.danger }
         if progress > 0.65 { return Design.Brand.forgeText }
-        return Design.Brand.accent
+        return Design.Brand.accentText
     }
 
     private var connectionIndicatorColor: Color {
         if isLocalBrainActive {
-            return isLocalBrainReady ? Design.Brand.accent : Design.Brand.forgeText
+            return isLocalBrainReady ? Design.Brand.accentText : Design.Brand.forgeText
         }
         switch effectiveConnectionState {
         case .online:
-            return Design.Brand.accent
+            return Design.Brand.accentText
         case .offline, .unreachable:
             return Design.Brand.forgeText
         case .notConnected:
@@ -1304,7 +1304,7 @@ struct ChatScreen: View {
             HStack(spacing: Design.Spacing.xs) {
                 Image(systemName: "sparkles")
                     .font(.system(size: 11))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                 MonoLabel("WHAT CAN TALARIA DO?", size: 10,
                           tracking: Design.Tracking.monoWide,
                           color: Design.Colors.foregroundBright)
@@ -1350,7 +1350,7 @@ struct ChatScreen: View {
                 router.navigate(to: .connectHost)
             }
             .font(Design.Typography.mono(11, weight: .medium))
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -1440,7 +1440,7 @@ struct ChatScreen: View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
             Image(systemName: "cloud")
                 .font(.system(size: Design.Size.iconSmall))
-                .foregroundStyle(Design.Brand.accent)
+                .foregroundStyle(Design.Brand.accentText)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
                 MonoLabel("CONVERSATION GETTING LONG", size: 11, weight: .medium,
@@ -1471,7 +1471,7 @@ struct ChatScreen: View {
                 container.localChatBackend?.dismissPrivateCloudEscalationOffer()
             }
             .font(Design.Typography.mono(11, weight: .medium))
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -1502,7 +1502,7 @@ struct ChatScreen: View {
                 connectionBannerAction()
             }
             .font(Design.Typography.mono(11, weight: .medium))
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)

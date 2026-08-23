@@ -110,7 +110,7 @@ struct AppIconSettingsScreen: View {
                 if selected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                         .background(Circle().fill(Design.Colors.background))
                         .offset(x: 5, y: 5)
                 }

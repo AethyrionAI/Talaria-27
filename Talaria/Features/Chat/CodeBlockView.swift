@@ -58,7 +58,7 @@ struct CodeBlockView: View {
                         .font(Design.Typography.mono(10, weight: .medium, relativeTo: .caption2))
                         .tracking(Design.Tracking.mono)
                 }
-                .foregroundStyle(didCopy ? Design.Brand.accent : Design.Colors.mutedForeground)
+                .foregroundStyle(didCopy ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 .animation(Design.Motion.quickResponse, value: didCopy)
             }
             .buttonStyle(.plain)

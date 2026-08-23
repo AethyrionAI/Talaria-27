@@ -52,7 +52,7 @@ struct GenUIDebugScreen: View {
                       color: Design.Colors.mutedForeground)
             Text(lastPrompt ?? "—")
                 .font(Design.Typography.body(14))
-                .foregroundStyle(lastPrompt == nil ? Design.Colors.mutedForeground : Design.Brand.accentBright)
+                .foregroundStyle(lastPrompt == nil ? Design.Colors.mutedForeground : Design.Brand.accentBrightText)
                 .fixedSize(horizontal: false, vertical: true)
             MonoLabel("Staged only — v0 sends nothing", size: 8, tracking: Design.Tracking.mono,
                       color: Design.Colors.dimForeground)

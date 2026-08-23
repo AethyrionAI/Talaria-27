@@ -151,7 +151,7 @@ struct FilePreviewSheet<Content: View>: View {
                         ShareLink(item: shareItem) {
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: Design.Size.iconSmall))
-                                .foregroundStyle(Design.Brand.accent)
+                                .foregroundStyle(Design.Brand.accentText)
                         }
                         .accessibilityLabel("Share file \(title)")
                     }
@@ -159,7 +159,7 @@ struct FilePreviewSheet<Content: View>: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.mono(13, weight: .medium))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
         }
@@ -243,7 +243,7 @@ struct FilePreviewUnavailableCard: View {
                             .font(Design.Typography.mono(12, weight: .medium))
                             .tracking(Design.Tracking.mono)
                     }
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                     .padding(.horizontal, Design.Spacing.lg)
                     .padding(.vertical, Design.Spacing.sm)
                     .hudPanel(

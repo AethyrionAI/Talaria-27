@@ -175,7 +175,7 @@ struct TaskSkillsPicker: View {
             mode.usePicker()
         } label: {
             MonoLabel("USE PICKER", size: 8, weight: .medium,
-                      tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                      tracking: Design.Tracking.mono, color: Design.Brand.accentText)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Use the skills picker instead of text")
@@ -190,7 +190,7 @@ struct TaskSkillsPicker: View {
         } label: {
             MonoLabel(isRetrying ? "LOADING HOST LIST…" : "HOST LIST UNAVAILABLE — RETRY",
                       size: 8, weight: .medium, tracking: Design.Tracking.mono,
-                      color: isRetrying ? Design.Colors.dimForeground : Design.Brand.accent)
+                      color: isRetrying ? Design.Colors.dimForeground : Design.Brand.accentText)
         }
         .buttonStyle(.plain)
         .disabled(isRetrying)
@@ -238,7 +238,7 @@ struct TaskSkillsPicker: View {
                     mode.editAsText()
                 } label: {
                     MonoLabel("EDIT LIST AS TEXT", size: 8, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Edit the whole skills list as comma-separated text")
@@ -349,7 +349,7 @@ private struct SkillsPickerSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.body(15, weight: .medium))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
         }
@@ -388,7 +388,7 @@ private struct SkillsPickerSheet: View {
             HStack(alignment: .center, spacing: Design.Spacing.xs) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(isSelected ? Design.Brand.accent : Design.Colors.dimForeground)
+                    .foregroundStyle(isSelected ? Design.Brand.accentText : Design.Colors.dimForeground)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .font(Design.Typography.mono(12))

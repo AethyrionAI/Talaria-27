@@ -24,7 +24,7 @@ struct SubsystemHero: View {
     let chip: String
     let accented: Bool
 
-    private var tint: Color { accented ? Design.Brand.accent : Design.Colors.mutedForeground }
+    private var tint: Color { accented ? Design.Brand.accentText : Design.Colors.mutedForeground }
 
     var body: some View {
         VStack(spacing: Design.Spacing.sm) {

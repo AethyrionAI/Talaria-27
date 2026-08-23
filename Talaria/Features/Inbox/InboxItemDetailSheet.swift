@@ -26,7 +26,7 @@ struct InboxItemDetailSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.body(15, weight: .medium))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
         }
@@ -82,7 +82,7 @@ struct InboxItemDetailSheet: View {
             metadataChip(
                 label: item.status.rawValue.uppercased(),
                 systemImage: "checklist",
-                color: Design.Brand.accent
+                color: Design.Brand.accentText
             )
 
             metadataChip(
@@ -123,7 +123,7 @@ struct InboxItemDetailSheet: View {
         switch item.priority {
         case .high, .urgent: Design.Colors.danger
         case .normal: Design.Brand.forgeText
-        case .low: Design.Brand.accent
+        case .low: Design.Brand.accentText
         }
     }
 

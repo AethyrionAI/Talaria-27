@@ -388,7 +388,7 @@ struct BatteryRunDetailScreen: View {
             Spacer()
             MonoLabel("\(probe.correct)/\(probe.trials)", size: 11, weight: .medium,
                       tracking: Design.Tracking.mono,
-                      color: clean ? Design.Brand.accent : Design.Colors.danger)
+                      color: clean ? Design.Brand.accentText : Design.Colors.danger)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -438,7 +438,7 @@ struct BatteryTrialListScreen: View {
                           tracking: Design.Tracking.mono, color: Design.Colors.foregroundBright)
                 if let route = trial.route {
                     MonoLabel("route=\(route)", size: 9, tracking: Design.Tracking.mono,
-                              color: route == "toolless" ? Design.Brand.accent : Design.Brand.forgeText)
+                              color: route == "toolless" ? Design.Brand.accentText : Design.Brand.forgeText)
                 }
                 Spacer()
                 MonoLabel(String(format: "%.1fs", trial.latencySeconds), size: 9,

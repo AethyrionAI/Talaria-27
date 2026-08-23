@@ -282,6 +282,25 @@ struct ThemeAccentVariant: Equatable, Sendable {
     /// twenty-one that did not.
     var forgeText: Color? = nil
 
+    /// **#393 call 1: the accent TEXT variants, 4.5:1 floor.**
+    ///
+    /// Same shape as `forgeText` above and for the same reason: one hue cannot
+    /// serve both a 3.0 decorative floor and a 4.5 text floor on a light
+    /// background without redesigning the curated palettes — route (a), which
+    /// Owen rejected on 2026-08-18. So `base`/`bright` stay the DECORATIVE
+    /// hues (fills, strokes, glows, the orb) and these carry text.
+    ///
+    /// `nil` means "use `base` / `bright`", which is why most cells need no
+    /// value at all. **Unlike `forgeText`, this is NOT light-themes-only:**
+    /// 393-A measured `base` failing 5 DARK cells too (`autumnHarvest × amber`
+    /// 4.12:1 down to `graffitiGalaxy × amber` 3.50:1). The entry's original
+    /// "dark themes are fine" claim was an aperture error, corrected there.
+    var accentText: Color? = nil
+
+    /// **#393 call 1, the bright slot.** `nil` ⇒ use `bright`. All 13 failing
+    /// cells are light themes; `bright` fails no dark cell.
+    var accentBrightText: Color? = nil
+
     // Environment pieces that follow the accent instead of the theme
     // (Terminal: the whole CRT re-tints to the selected phosphor).
     // `nil` = use the theme-level value.
@@ -388,6 +407,9 @@ struct ThemePalette: Equatable, Sendable {
     /// #325: WARNING TEXT hue (4.5:1 floor). Falls back to `forge` where a
     /// theme declares none, so dark themes resolve exactly as before.
     let forgeText: Color
+    /// #393 call 1 — the accent text variants, resolved with fallback.
+    let accentText: Color
+    let accentBrightText: Color
     let danger: Color
     let dangerBright: Color
 
@@ -458,6 +480,8 @@ struct ThemePalette: Equatable, Sendable {
 
         forge = variant.forge
         forgeText = variant.forgeText ?? variant.forge
+        accentText = variant.accentText ?? variant.base
+        accentBrightText = variant.accentBrightText ?? variant.bright
         danger = definition.danger
         dangerBright = definition.dangerBright
 
@@ -827,7 +851,8 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xEAF6F7),
                 coreShadow: Color(hex: 0x0D3F47),
                 forge: Color(hex: 0xA96A12),
-                forgeText: Color(hex: 0x996010)
+                forgeText: Color(hex: 0x996010),
+                accentText: Color(hex: 0x1C7784)
             ),
             violet: ThemeAccentVariant( // Amber Ink
                 displayName: "Amber · Ink",
@@ -838,7 +863,8 @@ enum ThemePaletteCatalog {
                 coreShadow: Color(hex: 0x543508),
                 // Warning must stay separable from an amber-family accent.
                 forge: Color(hex: 0xB4530F),
-                forgeText: Color(hex: 0xB0510E)
+                forgeText: Color(hex: 0xB0510E),
+                accentText: Color(hex: 0x9A6010)
             )
         ),
         glowScale: 0.15,
@@ -891,7 +917,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0x93D5F7),
                 coreShadow: Color(hex: 0x206284),
                 forge: Color(hex: 0xC0831D),
-                forgeText: Color(hex: 0x986717)
+                forgeText: Color(hex: 0x986717),
+                accentText: Color(hex: 0x277AA3),
+                accentBrightText: Color(hex: 0x417995)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Snow · Winter",
@@ -901,7 +929,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xC1E7F9),
                 coreShadow: Color(hex: 0x4F7586),
                 forge: Color(hex: 0xC0831D),
-                forgeText: Color(hex: 0x986717)
+                forgeText: Color(hex: 0x986717),
+                accentText: Color(hex: 0x51778A),
+                accentBrightText: Color(hex: 0x5B7683)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Berry · Winter",
@@ -911,7 +941,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xE19EAF),
                 coreShadow: Color(hex: 0x6F2B3C),
                 forge: Color(hex: 0xC0831D),
-                forgeText: Color(hex: 0x986717)
+                forgeText: Color(hex: 0x986717),
+                accentText: Color(hex: 0xBE4B67),
+                accentBrightText: Color(hex: 0xA35E70)
             )
         ),
         glowScale: 0.15,
@@ -1031,7 +1063,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xFFAEBF),
                 coreShadow: Color(hex: 0x8C3B4C),
                 forge: Color(hex: 0xC28328),
-                forgeText: Color(hex: 0x9B6820)
+                forgeText: Color(hex: 0x9B6820),
+                accentText: Color(hex: 0xBC4F66),
+                accentBrightText: Color(hex: 0xA75E6D)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Mint · Spring",
@@ -1041,7 +1075,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xA6E7B6),
                 coreShadow: Color(hex: 0x347543),
                 forge: Color(hex: 0xC28328),
-                forgeText: Color(hex: 0x9B6820)
+                forgeText: Color(hex: 0x9B6820),
+                accentText: Color(hex: 0x39814B),
+                accentBrightText: Color(hex: 0x4C7E58)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Butter · Spring",
@@ -1051,7 +1087,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xFFE59B),
                 coreShadow: Color(hex: 0x8C7229),
                 forge: Color(hex: 0xC28328),
-                forgeText: Color(hex: 0x9B6820)
+                forgeText: Color(hex: 0x9B6820),
+                accentText: Color(hex: 0x8A7028),
+                accentBrightText: Color(hex: 0x84723E)
             )
         ),
         glowScale: 0.15,
@@ -1109,7 +1147,8 @@ enum ThemePaletteCatalog {
                 deep: Color(hex: 0x8C3823),
                 coreHighlight: Color(hex: 0xE19F8E),
                 coreShadow: Color(hex: 0x6E2C1C),
-                forge: Color(hex: 0xD49020)
+                forge: Color(hex: 0xD49020),
+                accentText: Color(hex: 0xCB5B3E)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Gourd · Autumn",
@@ -1307,7 +1346,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xFF8B8B),
                 coreShadow: Color(hex: 0x8C1818),
                 forge: Color(hex: 0xD17200),
-                forgeText: Color(hex: 0xA55A00)
+                forgeText: Color(hex: 0xA55A00),
+                accentText: Color(hex: 0xD42525),
+                accentBrightText: Color(hex: 0xBB4747)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Blue · Retro",
@@ -1317,7 +1358,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0x72B6FF),
                 coreShadow: Color(hex: 0x00438C),
                 forge: Color(hex: 0xD17200),
-                forgeText: Color(hex: 0xA55A00)
+                forgeText: Color(hex: 0xA55A00),
+                accentText: Color(hex: 0x006ADD),
+                accentBrightText: Color(hex: 0x2D70B7)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Yellow · Retro",
@@ -1327,7 +1370,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xFFE872),
                 coreShadow: Color(hex: 0x8C7500),
                 forge: Color(hex: 0xD17200),
-                forgeText: Color(hex: 0xA55A00)
+                forgeText: Color(hex: 0xA55A00),
+                accentText: Color(hex: 0x816C00),
+                accentBrightText: Color(hex: 0x7D6D1F)
             )
         ),
         glowScale: 0.15,
@@ -1877,7 +1922,8 @@ enum ThemePaletteCatalog {
                 deep: Color(hex: 0x5B27A5),
                 coreHighlight: Color(hex: 0xBA91F4),
                 coreShadow: Color(hex: 0x481E81),
-                forge: Color(hex: 0xFF9E00)
+                forge: Color(hex: 0xFF9E00),
+                accentText: Color(hex: 0x9555EF)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Citron",
@@ -2171,7 +2217,8 @@ enum ThemePaletteCatalog {
                 deep: Color(hex: 0x2A4AB2),
                 coreHighlight: Color(hex: 0x93ADFF),
                 coreShadow: Color(hex: 0x213A8C),
-                forge: Color(hex: 0xFF9E00)
+                forge: Color(hex: 0xFF9E00),
+                accentText: Color(hex: 0x4471FF)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Pyro Orange",
@@ -2335,7 +2382,9 @@ enum ThemePaletteCatalog {
                 // Warning must stay separable from the mustard accent —
                 // the lineup's darker Suspect chip ink.
                 forge: Color(hex: 0x8F6A1E),
-                forgeText: Color(hex: 0x82601B)
+                forgeText: Color(hex: 0x82601B),
+                accentText: Color(hex: 0x845F1C),
+                accentBrightText: Color(hex: 0x845F1C)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Faded Crimson",
@@ -2417,7 +2466,8 @@ enum ThemePaletteCatalog {
                 deep: Color(hex: 0xB2313C),
                 coreHighlight: Color(hex: 0xFF99A2),
                 coreShadow: Color(hex: 0x8C272F),
-                forge: Color(hex: 0xFF9E00)
+                forge: Color(hex: 0xFF9E00),
+                accentText: Color(hex: 0xFF6976)
             )
         ),
         glowScale: 1.1,
@@ -2488,7 +2538,8 @@ enum ThemePaletteCatalog {
                 deep: Color(hex: 0x5C3B9C),
                 coreHighlight: Color(hex: 0xBAA1ED),
                 coreShadow: Color(hex: 0x482E7B),
-                forge: Color(hex: 0xFF9E00)
+                forge: Color(hex: 0xFF9E00),
+                accentText: Color(hex: 0x8E63E2)
             )
         ),
         glowScale: 1.1,
@@ -2548,7 +2599,9 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xEDF8E9),
                 coreShadow: Color(hex: 0x296912),
                 forge: Color(hex: 0xC96410),
-                forgeText: Color(hex: 0xAC560D)
+                forgeText: Color(hex: 0xAC560D),
+                accentText: Color(hex: 0x327E17),
+                accentBrightText: Color(hex: 0x317E16)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Tangerine",
@@ -2560,7 +2613,9 @@ enum ThemePaletteCatalog {
                 // Warning must stay separable from the tangerine accent —
                 // the lineup's burnt-orange "Rare" chip ink.
                 forge: Color(hex: 0xC96410),
-                forgeText: Color(hex: 0xAC560D)
+                forgeText: Color(hex: 0xAC560D),
+                accentText: Color(hex: 0xA75A1C),
+                accentBrightText: Color(hex: 0xA75A1C)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Grape Pop",
@@ -2570,7 +2625,8 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xF3EEFF),
                 coreShadow: Color(hex: 0x4D2D8C),
                 forge: Color(hex: 0xC96410),
-                forgeText: Color(hex: 0xAC560D)
+                forgeText: Color(hex: 0xAC560D),
+                accentText: Color(hex: 0x814BEA)
             )
         ),
         glowScale: 0.15,
@@ -2704,7 +2760,8 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xE6F6FC),
                 coreShadow: Color(hex: 0x005C7F),
                 forge: Color(hex: 0xA87D00),
-                forgeText: Color(hex: 0x906B00)
+                forgeText: Color(hex: 0x906B00),
+                accentText: Color(hex: 0x007AA9)
             ),
             amber: ThemeAccentVariant(
                 displayName: "Banana Yellow",
@@ -2716,7 +2773,9 @@ enum ThemePaletteCatalog {
                 // Warning must stay separable from the banana accent — the
                 // lineup's dark-gold "Cliffhanger" chip ink.
                 forge: Color(hex: 0xA87D00),
-                forgeText: Color(hex: 0x906B00)
+                forgeText: Color(hex: 0x906B00),
+                accentText: Color(hex: 0x876F21),
+                accentBrightText: Color(hex: 0x876F21)
             ),
             violet: ThemeAccentVariant(
                 displayName: "Pop Magenta",
@@ -2726,7 +2785,8 @@ enum ThemePaletteCatalog {
                 coreHighlight: Color(hex: 0xFFEBF2),
                 coreShadow: Color(hex: 0x8C2145),
                 forge: Color(hex: 0xA87D00),
-                forgeText: Color(hex: 0x906B00)
+                forgeText: Color(hex: 0x906B00),
+                accentText: Color(hex: 0xD03268)
             )
         ),
         glowScale: 0.15,

@@ -89,7 +89,7 @@ struct VoiceMemoRecorderSheet: View {
         case .transcribing:
             VStack(spacing: Design.Spacing.sm) {
                 ProgressView()
-                    .tint(Design.Brand.accent)
+                    .tint(Design.Brand.accentText)
                 MonoLabel(
                     "Transcribing on-device…",
                     size: 10,
@@ -151,7 +151,7 @@ struct VoiceMemoRecorderSheet: View {
                         }
                     Image(systemName: recorder.isRecording ? "stop.fill" : "mic.fill")
                         .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(recorder.isRecording ? Design.Colors.danger : Design.Brand.accent)
+                        .foregroundStyle(recorder.isRecording ? Design.Colors.danger : Design.Brand.accentText)
                 }
             }
             .buttonStyle(.plain)
@@ -217,7 +217,7 @@ struct VoiceMemoRecorderSheet: View {
                 } label: {
                     Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 30))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(player.isPlaying(path: audioPath) ? "Stop playback" : "Play recording")
@@ -306,7 +306,7 @@ struct VoiceMemoRecorderSheet: View {
                 } label: {
                     Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 26))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(player.isPlaying(path: audioPath) ? "Stop playback" : "Play recording")

@@ -69,7 +69,7 @@ struct SettingsChannelsScreen: View {
                 MonoLabel(kickerText, size: 9, weight: .medium,
                           tracking: Design.Tracking.monoXWide, color: Design.Colors.mutedForeground)
                 MonoLabel(counterText, size: 10, weight: .medium,
-                          tracking: Design.Tracking.monoWide, color: Design.Brand.accent)
+                          tracking: Design.Tracking.monoWide, color: Design.Brand.accentText)
                     .accessibilityIdentifier("settings.deck.counter")
             }
             Spacer()
@@ -121,7 +121,7 @@ struct SettingsChannelsScreen: View {
         } label: {
             Image(systemName: "square.grid.2x2")
                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                .foregroundStyle(active ? Design.Brand.accentBright : Design.Colors.mutedForeground)
+                .foregroundStyle(active ? Design.Brand.accentBrightText : Design.Colors.mutedForeground)
                 .frame(width: Design.Size.glassCircleButton, height: Design.Size.glassCircleButton)
                 .background(
                     active ? Design.Colors.accentTint(0.08) : Color.clear,
@@ -284,7 +284,7 @@ struct SettingsChannelsScreen: View {
                         .foregroundStyle(Design.Colors.foregroundBright)
                     Spacer(minLength: Design.Spacing.xs)
                     MonoLabel("UPGRADE", size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                 }
                 Text("Adds server sessions, sensors & desktop models")
                     .font(Design.Typography.caption2)
@@ -489,7 +489,7 @@ private struct SubsystemCard: View {
         VStack(alignment: .leading, spacing: 0) {
             MonoLabel(subsystem.indexLabel, size: 10, weight: .bold,
                       tracking: Design.Tracking.monoXWide,
-                      color: accented ? Design.Brand.accent : Design.Colors.mutedForeground)
+                      color: accented ? Design.Brand.accentText : Design.Colors.mutedForeground)
             Spacer(minLength: Design.Spacing.sm)
             Text(subsystem.title)
                 .font(Design.Typography.display(18, weight: .bold, relativeTo: .headline))
@@ -499,7 +499,7 @@ private struct SubsystemCard: View {
                 .minimumScaleFactor(0.7)
             MonoLabel(value, size: 9, weight: .medium,
                       tracking: Design.Tracking.mono,
-                      color: accented ? Design.Brand.accent : Design.Colors.mutedForeground)
+                      color: accented ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 .lineLimit(1)
                 // #256: long theme names ("CASINO LUCKY 7S · CH 22") were
                 // ellipsizing on device — scale to fit instead.

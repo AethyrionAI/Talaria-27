@@ -234,7 +234,7 @@ struct ChatInputBar: View {
                         .accessibilityLabel("Reply to Hermes")
                         .font(Design.Typography.body)
                         .foregroundStyle(Design.Colors.foreground)
-                        .tint(Design.Brand.accent)
+                        .tint(Design.Brand.accentText)
                         .focused(isFocused)
                         // Lane J (J-4): hardware-keyboard Return sends;
                         // ⇧Return (or any modified Return) falls through and
@@ -351,7 +351,7 @@ struct ChatInputBar: View {
                         } label: {
                             Image(systemName: "waveform")
                                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                                .foregroundStyle(Design.Brand.accentBright)
+                                .foregroundStyle(Design.Brand.accentBrightText)
                                 .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                                 .background {
                                     Circle()
@@ -444,7 +444,7 @@ struct ChatInputBar: View {
                     VStack(spacing: 4) {
                         Image(systemName: attachment.isVoiceMemo ? "waveform" : fileIcon(for: attachment.mimeType))
                             .font(.system(size: 20))
-                            .foregroundStyle(Design.Brand.accent)
+                            .foregroundStyle(Design.Brand.accentText)
                         Text(attachment.fileName)
                             .font(Design.Typography.caption2)
                             .foregroundStyle(Design.Colors.coolForeground)
@@ -468,7 +468,7 @@ struct ChatInputBar: View {
                         .fill(Design.Colors.scrim)
                     ProgressView()
                         .controlSize(.small)
-                        .tint(Design.Brand.accent)
+                        .tint(Design.Brand.accentText)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
@@ -754,7 +754,7 @@ struct ChatInputBar: View {
                 .overlay(alignment: .topTrailing) {
                     Image(systemName: plainSendDoor == .steered ? "arrow.triangle.branch" : "clock.fill")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Design.Brand.accentBright)
+                        .foregroundStyle(Design.Brand.accentBrightText)
                         .padding(2)
                         .background(Circle().fill(Design.Colors.surface))
                         .offset(x: 4, y: -4)
@@ -791,7 +791,7 @@ struct ChatInputBar: View {
                 chip.doorName,
                 size: 9,
                 tracking: Design.Tracking.mono,
-                color: chip.state == .interrupting ? Design.Brand.forgeText : Design.Brand.accentBright
+                color: chip.state == .interrupting ? Design.Brand.forgeText : Design.Brand.accentBrightText
             )
             Text(chip.text)
                 .font(Design.Typography.caption)
@@ -819,14 +819,14 @@ struct ChatInputBar: View {
                     chip.door.displayName,
                     size: 9,
                     tracking: Design.Tracking.mono,
-                    color: chip.isSurfaced ? Design.Brand.forgeText : Design.Brand.accentBright
+                    color: chip.isSurfaced ? Design.Brand.forgeText : Design.Brand.accentBrightText
                 )
                 Spacer()
                 if chip.isSurfaced {
                     Button(action: onChipSendNow) {
                         Image(systemName: "arrow.up.circle")
                             .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                            .foregroundStyle(Design.Brand.accentBright)
+                            .foregroundStyle(Design.Brand.accentBrightText)
                             .frame(width: 30, height: 30)
                             .contentShape(Rectangle())
                     }

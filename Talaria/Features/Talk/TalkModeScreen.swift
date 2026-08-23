@@ -137,7 +137,7 @@ struct TalkModeScreen: View {
 
     private var statusColor: Color {
         switch talkStore.voiceState {
-        case .speaking, .listening, .thinking: Design.Brand.accent
+        case .speaking, .listening, .thinking: Design.Brand.accentText
         case .interrupted: Design.Brand.forgeText
         case .disconnected: Design.Colors.danger
         case .idle: Design.Colors.mutedForeground
@@ -166,7 +166,7 @@ struct TalkModeScreen: View {
                 secondaryButton(
                     systemName: isSpeaking ? "pause.fill" : "waveform",
                     accessibility: isSpeaking ? "Stop speaking" : "Listening",
-                    tint: Design.Brand.accent,
+                    tint: Design.Brand.accentText,
                     accent: true
                 ) {
                     if isSpeaking { talkStore.interruptAssistant() }
@@ -268,7 +268,7 @@ struct TalkModeScreen: View {
             MonoLabel(
                 live ? "LIVE" : "MOCK",
                 tracking: Design.Tracking.mono,
-                color: live ? Design.Brand.accent : Design.Brand.forgeText
+                color: live ? Design.Brand.accentText : Design.Brand.forgeText
             )
         }
         .padding(.horizontal, Design.Spacing.xs)

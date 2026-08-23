@@ -485,7 +485,7 @@ extension View {
 
 /// A small glowing status dot. Cyan = online/secure; amber/red = warning.
 struct StatusPip: View {
-    var color: Color = Design.Brand.accent
+    var color: Color = Design.Brand.accentText
     var diameter: CGFloat = 7
     var blinks: Bool = false
 
@@ -569,7 +569,7 @@ struct GhostButton: View {
                 Text(title)
                     .font(Design.Typography.body(14, weight: .medium))
             }
-            .foregroundStyle(Design.Brand.accentBright)
+            .foregroundStyle(Design.Brand.accentBrightText)
             .frame(maxWidth: .infinity)
             .frame(height: height)
             .background(Design.Colors.accentTint(0.1), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))

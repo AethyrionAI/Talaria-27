@@ -318,7 +318,7 @@ struct MessageBubble: View {
                     Button { onRetry?(message) } label: {
                         Label("Regenerate", systemImage: "arrow.counterclockwise")
                             .font(Design.Typography.caption)
-                            .foregroundStyle(Design.Brand.accent)
+                            .foregroundStyle(Design.Brand.accentText)
                     }
                 }
             }
@@ -372,7 +372,7 @@ struct MessageBubble: View {
         } label: {
             Image(systemName: isSpeakingThisMessage ? "speaker.slash.fill" : "speaker.wave.2")
                 .font(.system(size: Design.Size.iconTiny))
-                .foregroundStyle(isSpeakingThisMessage ? Design.Brand.accent : Design.Colors.mutedForeground)
+                .foregroundStyle(isSpeakingThisMessage ? Design.Brand.accentText : Design.Colors.mutedForeground)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -783,14 +783,14 @@ struct MessageBubble: View {
                     } label: {
                         Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                             .font(.system(size: Design.Size.iconMedium))
-                            .foregroundStyle(Design.Brand.accent)
+                            .foregroundStyle(Design.Brand.accentText)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(player.isPlaying(path: audioPath) ? "Stop voice memo" : "Play voice memo")
                 }
                 Image(systemName: attachmentChipIcon(for: attachment))
                     .font(.system(size: Design.Size.iconSmall))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                 Text(attachment.fileName)
                     .font(Design.Typography.mono(11, relativeTo: .caption))
                     .foregroundStyle(Design.Colors.coolForeground)
@@ -842,7 +842,7 @@ struct MessageBubble: View {
                 HStack(spacing: Design.Spacing.sm) {
                     Image(systemName: "doc.text")
                         .font(.system(size: Design.Size.iconSmall))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(attachment.fileName)
@@ -951,7 +951,7 @@ private struct SelectableTextSheet: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }
                         .font(Design.Typography.mono(13, weight: .medium))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                         // J-4: Esc closes the sheet (hardware keyboards only).
                         .keyboardShortcut(.cancelAction)
                 }

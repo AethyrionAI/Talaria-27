@@ -9,7 +9,7 @@ struct GlassCircleButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                .foregroundStyle(Design.Brand.accentBright)
+                .foregroundStyle(Design.Brand.accentBrightText)
                 .frame(
                     width: Design.Size.glassCircleButton,
                     height: Design.Size.glassCircleButton

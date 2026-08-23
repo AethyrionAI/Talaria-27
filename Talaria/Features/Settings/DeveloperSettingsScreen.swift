@@ -147,12 +147,12 @@ struct DeveloperSettingsScreen: View {
                 Spacer(minLength: Design.Spacing.xs)
                 MonoLabel(endpointLabel(env), size: 9, weight: .medium,
                           tracking: Design.Tracking.mono,
-                          color: selected ? Design.Brand.accent : Design.Colors.mutedForeground)
+                          color: selected ? Design.Brand.accentText : Design.Colors.mutedForeground)
                     .lineLimit(1)
                 if selected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Design.Brand.accent)
+                        .foregroundStyle(Design.Brand.accentText)
                 }
             }
             .padding(.horizontal, Design.Spacing.md)
@@ -237,7 +237,7 @@ struct DeveloperSettingsScreen: View {
             Spacer()
             Toggle("", isOn: isOn)
                 .labelsHidden()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -272,7 +272,7 @@ struct DeveloperSettingsScreen: View {
                     Spacer(minLength: Design.Spacing.xs)
                     MonoLabel(migrationStampCleared ? "CLEARED · RELAUNCH" : "#137 · DEBUG ONLY",
                               size: 9, weight: .medium, tracking: Design.Tracking.mono,
-                              color: migrationStampCleared ? Design.Brand.accent
+                              color: migrationStampCleared ? Design.Brand.accentText
                                                            : Design.Colors.mutedForeground)
                         .lineLimit(1)
                 }
@@ -390,7 +390,7 @@ struct DeveloperSettingsScreen: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(Design.Brand.accent)
+            .tint(Design.Brand.accentText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -564,7 +564,7 @@ struct DeveloperSettingsScreen: View {
             } else if throwawayHarness.isRunning {
                 MonoLabel("Running — long-press the island to expand it. Auto-ends in ≤\(throwawayAutoEndSeconds)s.",
                           size: 9, tracking: Design.Tracking.mono,
-                          color: Design.Brand.accent)
+                          color: Design.Brand.accentText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1090,7 +1090,7 @@ struct DeveloperSettingsScreen: View {
                     BatteryResultsScreen()
                 } label: {
                     MonoLabel("Battery results →", size: 10, weight: .medium,
-                              tracking: Design.Tracking.mono, color: Design.Brand.accent)
+                              tracking: Design.Tracking.mono, color: Design.Brand.accentText)
                 }
                 .buttonStyle(.plain)
             }
@@ -1118,7 +1118,7 @@ struct DeveloperSettingsScreen: View {
                 if forcedTripState == .done {
                     MonoLabel("Tripped — check the chat reply, the #102 Console notice, and that the next send still works.",
                               size: 9, tracking: Design.Tracking.mono,
-                              color: Design.Brand.accent)
+                              color: Design.Brand.accentText)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

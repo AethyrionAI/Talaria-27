@@ -120,7 +120,7 @@ struct AttachmentPickerSheet: View {
             VStack(spacing: Design.Spacing.sm) {
                 Image(systemName: icon)
                     .font(.system(size: Design.Size.iconLarge))
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
                 MonoLabel(
                     label,
                     size: 10,

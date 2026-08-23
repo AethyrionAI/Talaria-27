@@ -19,7 +19,7 @@ struct SlashCommandMenu: View {
                         HStack(spacing: Design.Spacing.sm) {
                             Text(command.displayTitle)
                                 .font(Design.Typography.mono(13, weight: .medium))
-                                .foregroundStyle(Design.Brand.accent)
+                                .foregroundStyle(Design.Brand.accentText)
                                 .frame(width: 110, alignment: .leading)
                                 .lineLimit(1)
 

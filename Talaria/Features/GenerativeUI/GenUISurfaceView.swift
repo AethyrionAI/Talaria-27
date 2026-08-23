@@ -97,7 +97,7 @@ private struct GenUILeafView: View {
 
         case .pip:
             StatusPip(
-                color: toneColor(default: Design.Brand.accent),
+                color: toneColor(default: Design.Brand.accentText),
                 diameter: pipDiameter,
                 blinks: leaf.blinks
             )
@@ -138,7 +138,7 @@ private struct GenUILeafView: View {
         case .bright: Design.Colors.foregroundBright
         case .muted: Design.Colors.mutedForeground
         case .dim: Design.Colors.dimForeground
-        case .accent: Design.Brand.accent
+        case .accent: Design.Brand.accentText
         case .warning: Design.Brand.forgeText
         case .danger: Design.Colors.danger
         }

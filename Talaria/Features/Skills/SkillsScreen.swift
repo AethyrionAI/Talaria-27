@@ -243,7 +243,7 @@ private struct SkillsContent: View {
     private var loadingState: some View {
         VStack(spacing: Design.Spacing.md) {
             ProgressView()
-                .tint(Design.Brand.accent)
+                .tint(Design.Brand.accentText)
             MonoLabel(
                 "FETCHING SKILLS",
                 size: 10,
@@ -285,7 +285,7 @@ private struct SkillsContent: View {
                     .foregroundStyle(Design.Colors.foregroundBright)
             } icon: {
                 Image(systemName: "sparkles")
-                    .foregroundStyle(Design.Brand.accent)
+                    .foregroundStyle(Design.Brand.accentText)
             }
         } description: {
             MonoLabel(

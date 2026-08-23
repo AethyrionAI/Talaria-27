@@ -507,7 +507,7 @@ private struct CodeBoxRow: View {
                     RoundedRectangle(cornerRadius: Design.CornerRadius.sm)
                         .strokeBorder(
                             char != nil ? Design.Colors.strongBorder
-                                : (isActive ? Design.Brand.accent : Design.Colors.divider),
+                                : (isActive ? Design.Brand.accentText : Design.Colors.divider),
                             lineWidth: isActive ? 1.5 : 1
                         )
                 }
@@ -541,7 +541,7 @@ private struct Caret: View {
     var body: some View {
         Text("▍")
             .font(Design.Typography.display(20, weight: .medium, relativeTo: .title2))
-            .foregroundStyle(Design.Brand.accent)
+            .foregroundStyle(Design.Brand.accentText)
             .hudPulse(Design.Motion.caret, from: 1.0, to: 0.0)
     }
 }
