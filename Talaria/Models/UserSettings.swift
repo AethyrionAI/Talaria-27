@@ -330,11 +330,28 @@ enum GridDensity: String, Codable, CaseIterable, Hashable, Sendable {
 }
 
 struct UserSettings: Codable, Hashable, Sendable {
-    static let defaultHermesAPIBaseURL = "http://ojamd:8642"
-    /// Default Talaria models-shim endpoint — OJAMD, the production Hermes host (same
-    /// box as the chat gateway above). The shim exposes the Hermes model list +
-    /// persistent set-default without the privileged dashboard plane. See tools/models-shim/.
-    static let defaultModelsShimBaseURL = "http://ojamd:8765"
+    /// **#384: EMPTY, and that is the shipping product's correct first state.**
+    ///
+    /// This was `http://ojamd:8642` — Owen's personal Windows box — hardcoded
+    /// and NOT debug-gated, so **every fresh install of every build minted a
+    /// profile pointed at it**, including a Release build on a stranger's
+    /// phone. It was also the confirmed cause of #348: the gate's simulator
+    /// runs authenticated against that production host and failed, 85 times.
+    ///
+    /// Empty is not a degraded state to apologise for. Talaria is
+    /// self-contained local-brain-first and Hermes is the optional upgrade
+    /// tier, so **no host is the normal first state** — a hardcoded one was
+    /// quietly contradicting the product's own posture. Onboarding asks.
+    static let defaultHermesAPIBaseURL = ""
+
+    /// **#384: EMPTY. This one pointed at a RETIRED service.**
+    ///
+    /// Was `http://ojamd:8765`, the models shim — stopped and disabled on
+    /// OJAMD (#223 lane 5) and booted on the Mac (#375). A default host for a
+    /// service that no longer runs anywhere, still shipping in the binary.
+    /// Found by tracing #384 rather than by reading its entry, which named
+    /// only the gateway URL.
+    static let defaultModelsShimBaseURL = ""
 
     var userName: String
     var avatarInitials: String

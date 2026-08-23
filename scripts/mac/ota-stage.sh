@@ -34,6 +34,26 @@ SHA=$(git -C "$WORK/src" rev-parse --short HEAD)
 # puts a monotonic build id into every staged binary — BatteryRunStore exports
 # it as `appBuild`, closing the loop.
 BUILDNUM=$(git -C "$WORK/src" rev-list --count HEAD)
+# 2026-08-23: rev-list count ALONE is not monotonic, and this bit for real.
+# A squash-merge collapses N commits into 1, so a feature branch counts HIGHER
+# than the main it merges into: t27-393-accent-text was 2961 while the main
+# that absorbed it was 2958. Staging main after that branch therefore OFFERED A
+# LOWER BUILD than the phone already had — and two different trees (main and
+# the next feature branch) both computed 2958, so the number was not even
+# unique. That defeats the #200D property this line exists for: a run record
+# that can prove which build produced it.
+#
+# Fix: a HIGH-WATER MARK, not the currently-served number. The served value is
+# not the installed one — the phone can hold a build the server has since
+# overwritten, which is exactly how this was found. The mark only ever rises.
+HIGHWATER_FILE="$SERVE/.buildnum-highwater"
+HIGHWATER=$(cat "$HIGHWATER_FILE" 2>/dev/null | tr -cd '0-9')
+if [ -n "$HIGHWATER" ] && [ "$HIGHWATER" -ge "$BUILDNUM" ]; then
+  BUILDNUM=$((HIGHWATER + 1))
+  echo "== build floored to $BUILDNUM (high-water $HIGHWATER >= commit count; squash-merge skew)"
+fi
+mkdir -p "$SERVE"
+echo "$BUILDNUM" > "$HIGHWATER_FILE"
 
 echo "== archive $BRANCH @ $SHA [$CONFIG] build $BUILDNUM (toolchain: $(xcodebuild -version | tr '\n' ' '))"
 xcodebuild archive -project "$WORK/src/Talaria.xcodeproj" -scheme Talaria \

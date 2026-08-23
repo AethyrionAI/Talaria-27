@@ -371,7 +371,7 @@ struct SettingsChannelsScreen: View {
         ChatConnectionPresentation.settingsEffectiveState(
             direct: container.chatStore.directConnectionStatus,
             hostFallback: hostStore.connectionState,
-            hostConfigured: container.profilesStore?.activeProfile?.gatewayBaseURL.isEmpty == false)
+            hostConfigured: container.profilesStore?.activeProfile?.hasGateway == true)
     }
 
     private func cardValue(_ subsystem: SettingsSubsystem) -> String {

@@ -23,7 +23,14 @@ final class BackendProfilesStore {
     /// Seeds for the one-shot migration — the pre-profile app-wide values
     /// that become the first profile's endpoints.
     struct MigrationSeeds {
-        var name: String = "OJAMD"
+        /// **#384: was `"OJAMD"` — Owen's box, as the profile's NAME.** So a
+        /// stranger's fresh install did not merely point at his host, it was
+        /// *called* it. The third personal-host literal this item's trace
+        /// found and its entry never named.
+        ///
+        /// Owen's own install is unaffected: M-2 is one-shot and already ran
+        /// there, so his profile keeps the name it was minted with (384-D).
+        var name: String = "My Hermes"
         var gatewayBaseURL: String
         var relayBaseURL: String?
         var shimBaseURL: String?
