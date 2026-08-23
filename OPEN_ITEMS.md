@@ -4800,6 +4800,84 @@ Logged 2026-07-20 (Session V launch sweep).
 > false** — which is the same discipline #215 and #300 arrived at from their
 > own directions.
 
+> **✅ 2026-08-22 19:56 — THE FORK IS RESOLVED AND THE LOOP IS PROVEN.** Build
+> 2958, `talaria-138-fork.logarchive`. The ordering is the finding:
+>
+> ```
+> 19:56:21.402  speech_started while assistant idle (state=listening)
+> 19:56:22.813  response.created (state=listening)
+> 19:56:23.536  audio.started — assistant playback begins
+> 19:56:25.730  audio.stopped after 0ms
+> 19:56:29.921  speech_started while assistant idle (state=listening)   ← and round again
+> ```
+>
+> **Seven cycles, always the same order: `speech_started` → `response.created`
+> → `audio.started`.** The phantom detection is what CREATES each response.
+> This is not two engines and not two sessions — **it is one session in a
+> feedback loop**: the assistant speaks, the mic hears it, the server's VAD
+> calls that a user turn, `create_response: true` answers it, and that answer
+> feeds the next lap. *"Two of y'all responding"* is the loop overlapping with
+> itself.
+>
+> ### ✅ Fork answer: `audio.started` DOES arrive — the app CAN see playback
+>
+> So reading (b) is dead: the app is not structurally blind, and an app-side
+> gate is not impossible. **But reading (a) was not right either**, and the
+> reason is a defect neither branch anticipated.
+>
+> ### 🔴 ROOT CAUSE of the blind guard — `LiveVoiceSessionService.swift:825`
+>
+> ```swift
+> case "conversation.item.created", "conversation.item.added":
+>     if …role == "assistant"… {
+>         resetAssistantAudioPlaybackTracking()   // ← clears startedAt
+>     }
+> ```
+>
+> A NEW assistant item arrives **while the PREVIOUS response's audio is still
+> playing**, and this zeroes `assistantAudioPlaybackStartedAtUptime`. From that
+> moment the app believes nothing is playing, so
+> `handleServerVADInterruption`'s guard declines and every subsequent echo logs
+> *"assistant idle"* — **which is exactly what we saw, including at 19:56:33.285,
+> 1.47 s INTO a playback that had started at 31.813.** It also explains the
+> otherwise-nonsensical `audio.stopped after 0ms`: tracking had been reset
+> mid-playback, so the accumulator read zero.
+>
+> **Playback state is being driven by the CONVERSATION lifecycle when only the
+> AUDIO BUFFER lifecycle knows the answer.** `output_audio_buffer.started` /
+> `.stopped` / `.cleared` are the authority; item-created is not.
+>
+> ### ⚠️ BUT FIXING THE GUARD ALONE WOULD MAKE IT WORSE, and this is the part
+> worth pausing on
+>
+> `speech_started` comes **from the server** — its VAD ran on audio **we
+> uplinked**, and by the time the app sees the event the response already
+> exists. So an app-side gate on the EVENT cannot prevent the response. And a
+> guard that worked perfectly would convert *"two voices overlapping"* into
+> *"the assistant is cut off constantly"* — trading one symptom for the
+> original complaint.
+>
+> **The echo has to stop reaching the uplink, or stop being scored as speech.**
+> That leaves three, and only the middle one is cheap and reversible:
+>
+> | | effect | cost |
+> |---|---|---|
+> | mute the local track while the assistant plays (+hangover) — #130's shape | kills the loop at source | **kills real barge-in** |
+> | **`server_vad` + raised `threshold` (138-E)** | fewer detections; residue is attenuated, so a threshold plausibly separates it | may also reject a quiet user — measurable |
+> | `create_response: false` | breaks the loop | the assistant stops answering by itself; not a product we want |
+>
+> ### 🎯 BARS 138-J/K — pre-registered before any code
+>
+> - **138-J (playback state follows the AUDIO BUFFER, not the item lifecycle).**
+>   A new assistant `conversation.item.added` must not clear
+>   `assistantAudioPlaybackStartedAtUptime` while playback is active. Written
+>   RED against today's code. **This is worth fixing on its own merits even
+>   though it does not stop the loop** — the guard is load-bearing for real
+>   barge-in too, and it has been silently inoperative.
+> - **138-K (the guard fix ships WITH a detection fix, never alone).** A build
+>   that repairs the guard and nothing else turns overlapping responses into
+>   constant interruption. 138-J does not ship to a device by itself.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
