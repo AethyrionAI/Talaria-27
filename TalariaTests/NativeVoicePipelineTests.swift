@@ -594,19 +594,19 @@ struct NativeVoicePipelineTests {
 
         #expect(native.startCalls == 0,
                 "a timed-out start on an abandoned session must not open the local mic either")
-        // **#397-C — the abandonment path is deliberately NOT swept into
-        // #397's fix.** Exactly ONE end, the explicit `router.endSession()`
-        // above; the fallback branch must not add a second here.
-        //
-        // Why this branch is left alone: `startGeneration` is bumped by a NEW
-        // start as well as by a dismissal, so an unconditional
-        // `realtime.endSession()` on the abandonment path could tear down a
-        // session the NEXT start owns. The fallback branch has no such hazard
-        // (`generation == startGeneration` is checked immediately before it).
-        // Fixing it properly needs a generation-scoped end, which is a design
-        // question rather than a line — filed at #397, not smuggled in here.
-        #expect(realtime.endCalls == 1,
-                "the abandonment path grew a second endSession — #397 was swept in where it does not belong")
+        // **397-D, belt arm (this assertion was the 397-C pin).** Two ends:
+        // the explicit `router.endSession()` above, then the scoped re-issue
+        // once the abandoned start resolves. Until the 2026-08-23 ruling this
+        // pinned `endCalls == 1` — the abandonment path must not grow a
+        // second end — because an UNCONDITIONAL second end could tear down a
+        // session a NEWER start owns. The elected fix ends the session only
+        // when the abandoned start still owns the realtime service (the
+        // scoping half is theAbandonedEndNeverTearsDownTheSessionANewerStartOwns),
+        // so the re-issue is now REQUIRED here: without it, the session this
+        // start minted survives as a live microphone streaming to OpenAI for
+        // a session the app believes it is not in.
+        #expect(realtime.endCalls == 2,
+                "the abandoned start resolved without ending the realtime session it minted (#397 sibling)")
     }
 
     /// **#397-A — a timed-out realtime start must END the realtime session
@@ -655,6 +655,96 @@ struct NativeVoicePipelineTests {
         // strictly worse. The fallback must still happen, and for the same
         // reason it always did.
         #expect(native.startCalls == 1, "the fallback to local voice stopped happening")
+    }
+
+    /// **397-D — the dismissal zombie (#397 sibling, ruled 2026-08-23).**
+    ///
+    /// The user's `endSession()` mid-connect tears down what exists at that
+    /// instant — but the in-flight start it raced can complete a moment later
+    /// and leave the realtime service holding a live session: `start.cancel()`
+    /// cancels a Swift Task, not a peer connection, and the service's own
+    /// #139 guard covers only the bootstrap phase, not the SDP exchange after
+    /// it. Once the abandoned start RESOLVES, the router must re-issue the
+    /// end — scoped to the session that start minted.
+    ///
+    /// `.connected` is deliberate: it is the WORST case (the session really
+    /// did come up), and the abandonment branch runs before the fallback
+    /// decision, so the outcome state cannot excuse it.
+    @MainActor
+    @Test func anAbandonedRealtimeStartEndsTheSessionItMintedOnceItResolves() async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        realtime.startGate = gate
+        realtime.stateAfterStart = .connected
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
+        )
+        // Keep the belt out of this arm — the timeout has its own arm above.
+        router.realtimeStartTimeout = .seconds(600)
+
+        let start = Task { await router.startSession() }
+        let inFlight = await waitUntil("the realtime start to be in flight") { realtime.startCalls == 1 }
+        #expect(inFlight)
+
+        // The user gives up and dismisses, mid-connect…
+        await router.endSession()
+        #expect(realtime.endCalls == 1)
+        // …and the connection completes anyway, after that teardown.
+        gate.open()
+        await start.value
+
+        #expect(realtime.endCalls == 2,
+                "the end that raced an in-flight start must be re-issued once that start resolves — the session it minted is live and nobody is in it")
+        #expect(native.startCalls == 0,
+                "an abandoned session must still never fall back into a live local mic (#139)")
+    }
+
+    /// **397-E — the scope, and the reason the naive fix was refused.**
+    ///
+    /// `startGeneration` is bumped by a NEW start as well as by a dismissal,
+    /// so an UNCONDITIONAL end on the abandonment path would tear down the
+    /// session the NEXT start owns. The end may fire only when the abandoned
+    /// start was the LAST to claim the realtime service.
+    ///
+    /// GREEN against the pre-fix router by construction (which ends nothing
+    /// here) — its teeth are proven by mutation: drop the owner check and
+    /// this goes RED on the second start's session being torn down.
+    @MainActor
+    @Test func theAbandonedEndNeverTearsDownTheSessionANewerStartOwns() async {
+        let realtime = StubVoiceService(engine: .realtime)
+        let gate = StartGate()
+        realtime.startGate = gate
+        realtime.stateAfterStart = .connected
+        let native = StubVoiceService(engine: .native)
+        let router = VoiceEngineRouter(
+            realtime: realtime, native: native,
+            isVoiceHostPaired: { true }, activeBrain: { .hermes }
+        )
+        router.realtimeStartTimeout = .seconds(600)
+
+        let first = Task { await router.startSession() }
+        let inFlight = await waitUntil("the first start to be in flight") { realtime.startCalls == 1 }
+        #expect(inFlight)
+
+        // Dismiss the first start mid-connect…
+        await router.endSession()
+        #expect(realtime.endCalls == 1)
+
+        // …then start again. The second start claims the realtime service
+        // and runs to completion — no gate on it.
+        realtime.startGate = nil
+        await router.startSession()
+        #expect(realtime.startCalls == 2)
+
+        // Only now does the FIRST start resolve, and find itself abandoned.
+        gate.open()
+        await first.value
+
+        #expect(realtime.endCalls == 1,
+                "the abandoned start ended a session it does not own — the second start's live session was torn down")
+        #expect(native.startCalls == 0)
     }
 
     /// **139-A — the core bar.** A start that resolves AFTER the user
