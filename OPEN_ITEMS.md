@@ -779,7 +779,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).**
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).** **⟵ ✅ SIBLING BUILT + MERGED the same night (PR #355, squash `be32b2dc`) — 397-D/E/F all met, mutation-proven; result block at the foot. NOTHING remains owed on this entry.**
 
 **The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
 
@@ -893,6 +893,24 @@ gate, #383's finding #1).
 > - **397-F (non-regression).** The abandonment branch still never opens the
 >   local mic (both 139-C arms stay green), and 397-A/B stay green untouched
 >   — the fallback path is not re-entered by this lane.
+
+> **✅ 2026-08-23 — 397-D/E/F ALL MET. BUILT + MERGED same night (PR #355,
+> squash `be32b2dc`). GATE: PASS 2488 / 14 / Release (count moved +2).**
+> The router now tracks `realtimeStartOwnerGeneration` — set when a start
+> claims the realtime service — and the abandonment branch ends the realtime
+> session only when its own generation still owns it.
+> - **397-D** RED-first on both arms (`endCalls == 2` failing before code,
+>   no-belt and belt); the 397-C pin updated `== 1 → == 2` in the same
+>   commit, under the ruling its own comment anticipated.
+> - **397-E** proven by mutation: the owner check replaced with `if true`
+>   turned exactly that test RED on the second start's torn-down session.
+>   43/43 green after revert.
+> - **Gate note:** the first gate run FAILED with *"the test runner hung
+>   before establishing connection"* — zero unit-test output, XCUITest 14/14,
+>   Release clean — while a cold worktree build ran concurrently. The
+>   documented host-capacity signature ("a RED that is not yours"); the
+>   re-run on an idle host passed clean. Builds were serialized for the rest
+>   of the night on that evidence.
 
 ## 396. 🔉 VOICE IS TOO SENSITIVE — it picks up more than it should, on BOTH engines — **OWEN, 2026-08-22 ~03:1x, from the first working realtime session: *"Its very sensitive, and picked up a lot. I wonder if we can do anything about that as a fine tuning measure for both local and realtime."* FILED per #268 the minute it was raised. **OWEN CHARACTERISED IT THE SAME NIGHT: room/TV noise transcribed word-for-word (threshold), and mutual cut-offs (end-of-turn eagerness) — two DIFFERENT mechanisms, and the threshold one needs `server_vad`, a type #383 hardcoded out of reach. Self-barge-in untested and the negative is contaminated. Owen wants the knobs USER-adjustable. **LOCAL PIPELINE READ 2026-08-22 AM (396-C): the two engines do NOT share a fixable cause — on local, fault 1 has NO knob at all (`SpeechDetector` gates on speech-PRESENCE, and a TV is speech; the obvious `.low` fix is backwards AND the wrong mechanism), and fault 2's author is undecided between our 1.35 s watchdog and Apple's finalizer — a log line that ALREADY SHIPS decides it. No knob moved.** NOT STARTED as a build.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 396-B BUILT + deployed to BOTH hosts 2026-08-22 and the local pipeline is characterised; the TUNING lane is what remains unstarted.**
 
@@ -1262,12 +1280,13 @@ this lane did not pre-register, and it should be read accordingly.
 - **395-C** ✅ the degrade notice names the user-actionable cause and the
   quota cause keeps its own wording — both directions asserted, so the fix
   cannot collapse two states into one message either way.
-- **395-D** ⛔ **NOT DONE, and it is Owen's call:** the toggle currently lives
+- **395-D** ~~⛔ **NOT DONE, and it is Owen's call:** the toggle currently lives
   on the Models screen directly above the usage row, so control and state are
   one surface. Owen's suggestion was a **dedicated PCC tile in Settings**
   ("looks like there's space if we add another square"). Placing that tile is a
   layout decision, and the two rows are built so moving them is a move rather
-  than a rewrite.
+  than a rewrite.~~ **→ RULED AND BUILT 2026-08-23 (PR #356) — see the ruling
+  and result blocks at the foot of this entry.**
 
 **Cross-references:** **#391** (the usage row this sits above, and the
 conversation that produced this ruling), **#72**/**#386** (the tier and its
@@ -1307,6 +1326,34 @@ this toggle does not answer), **#180** (the notice-honesty family).
 > - **395-D-D (non-regression).** 395-A/B/C stay green untouched; the
 >   Models screen still shows the quota row; the toggle no longer appears on
 >   the Models screen.
+
+> **✅ 2026-08-23 — 395-D-A…D ALL MET. BUILT + MERGED same night (PR #356,
+> squash `75e257a7`). GATE: PASS 2493 / 14 / Release (count moved +7).**
+> `.privateCloud` is the tenth `SettingsSubsystem` case, placed between
+> `.about` and `.developer` so `.about` keeps its pinned "08" and a non-PCC
+> device's numbering stays contiguous (the tile is filtered out entirely
+> there — `SettingsSubsystem.cases(privateCloudAvailable:)`, ONE pure list
+> consumed by grid, deck pager, page dots, and counter). The toggle moved to
+> `PrivateCloudSettingsScreen`; `PrivateCloudQuotaRow` is shared by both
+> surfaces and Models keeps it read-only beside the brain picker (#30).
+> - **395-D-A** RED at the stub stage (the unconditional-`allCases` stub IS
+>   the visibility mutation, witnessed RED before the filter existed).
+> - **395-D-B/-D** pinned STRUCTURALLY (#399's source-reading pattern):
+>   `privateCloudEnabled = $0` exists only in the dedicated screen's source;
+>   RED before the move, loud-failing if a source cannot be read.
+> - **395-D-C** mutation-proven: the OFF guard dropped turned the
+>   disabled-reads-OFF test RED on all five quota arms. 47/47 after revert.
+> - **Two consequential fixes found by the lane:** the deck counter was a
+>   hardcoded `"%02d / 09"` over rawValue — with the tile filtered out,
+>   `.developer` would have read "11 / 09"; it now computes position and
+>   total from the visible list. And the pre-existing
+>   `deckOrderIsNineAndStable` count pin was updated deliberately to ten
+>   (renamed, `.about` "08" asserted unchanged, `.privateCloud` "09" added).
+> - **Still view-trust, stated honestly:** the tile's conditional rendering
+>   and the screen's toggle wiring are SwiftUI bodies no unit test reaches —
+>   the pure list, the structural pin, and the predicate suite are the
+>   enforceable perimeter, same limit 395's own bars recorded for
+>   `AppContainer`. A device look at the tile rides Owen's next sitting.
 
 ## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
 
@@ -2133,6 +2180,37 @@ Marquee ships three of the worst-affected palettes).
 >   is left as that theme's aesthetic, explicitly declined for now.
 >
 > Bars pre-register in this entry before the lane writes code.
+
+> **🎯 BARS 393-C2-A…C + 393-P5-A — pre-registered 2026-08-23, before any
+> code (the call-2 + danger-pips lane). One constraint the scoping found,
+> stated up front because it caps the fix:** on the three themes whose
+> `mutedForeground` itself sits below 4.5 (`deepField` 4.12, `pulpNoir`
+> 3.84, `stickerBombToybox` 4.20), a `dimForeground` at 4.5 would INVERT the
+> ramp — dim reading stronger than muted. There, dim rises only to
+> just-under-muted ("toward the floor, capped by the ramp" — the ruling's
+> own word "toward" doing its work); those cells IMPROVE but stay
+> baseline-listed, with new ratios recorded in the result block.
+> `mutedForeground` itself stays untouched — it is not elected.
+> - **393-C2-A (the ramp pin).** Per reachable cell, the de-emphasis order
+>   holds: `ratio(mutedForeground) > ratio(dimForeground)`. Green today by
+>   construction; teeth proven by MUTATION (one theme's two steps swapped →
+>   RED naming the theme).
+> - **393-C2-B (the raise, RED-first via the ratchet).** Every
+>   `dimForeground` cell NOT capped by the constraint above is removed from
+>   `knownFailingCells` BEFORE the palette moves — the suite goes RED on the
+>   tightened baseline, and the retune turns it green at ≥4.5.
+> - **393-C2-C (nothing else moves).** No cell outside `dimForeground` (and
+>   the danger slice below) changes verdict in either direction — the
+>   ratchet's containment plus its improvement-printing hold the perimeter.
+> - **393-P5-A (the danger pips).** `danger` and `dangerBright` on
+>   `autumnHarvest` + `casinoLucky7s` measure ≥3.0 (SC 1.4.11, the
+>   error-pip floor); where the hue survives at ≥4.5 the cell leaves the
+>   baseline too, and the result block records which of the two landings
+>   each cell made.
+> - **CLOSING BAR — Owen's eye.** The merge waits on Owen judging the ramp
+>   FEEL on device (worst themes: `pulpNoir`, `deepField`, `springSprout`,
+>   `winterFrost`); numbers alone do not close call 2. The PR stays open
+>   until his word.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
