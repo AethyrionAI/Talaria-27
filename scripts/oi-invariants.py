@@ -280,7 +280,12 @@ RECONCILED = re.compile(r"HEADER CORRECTED", re.I)
 # is not ("269-A MERGED 2026-08-16; the remainder ... is still unbuilt").
 # So a correction clause may scope an absence, but not assert one over a body
 # that records a build while acknowledging nothing.
-CORRECTION_CLAUSE = re.compile(r"HEADER CORRECTED.*$", re.I)
+# `⟵` is the house marker for a clause APPENDED to a header rather than a
+# rewrite of it — every correction and every late verdict uses it. Keying on
+# the marker rather than on one phrase ("HEADER CORRECTED") means a header
+# updated with "⟵ ✅ BUILT" is recognised too; keying on the phrase alone
+# flagged exactly that shape twice on 2026-08-23.
+CORRECTION_CLAUSE = re.compile(r"⟵.*$", re.I)
 # Build/completion words ONLY. `RAN` and `CLEARED` were in this set for one
 # revision and the mutation test caught them: #340's wrong clause opened with
 # "the artifact was CLEARED 2026-08-22", which is a device chore, not a build,

@@ -496,8 +496,12 @@ struct ChatInputBar: View {
                 }
                 // Local playback of a staged voice memo's audio (#9) — only
                 // while the file actually exists (no dead buttons).
+                // #399: same Talk gate as the bubble's play button — a memo
+                // must not re-categorize the shared session out from under a
+                // live voice session.
                 if let audioPath = attachment.voiceMemoAudioPath,
-                   VoiceMemoPlayer.canPlay(path: audioPath) {
+                   VoiceMemoPlayer.canPlay(path: audioPath),
+                   !talkStore.isSessionActive {
                     Button {
                         VoiceMemoPlayer.shared.togglePlayback(path: audioPath)
                     } label: {

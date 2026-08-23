@@ -191,7 +191,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#223** 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the …
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
-- **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless
+- **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless — **✅ BUILT 2026-08-23**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -15782,7 +15782,7 @@ on **4/10** and the promoted treatment on **0/10**, which is evidence this shape
 is **downstream of tool choice** rather than a separate disease. A lane should
 test that directly before assuming it needs its own words.
 
-## 399. 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — every sibling has one — **FILED 2026-08-23 per #268, found while reading #198B's files. GRADED HONESTLY: a defence-in-depth gap, NOT a demonstrated live bug. NOT STARTED.**
+## 399. 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — every sibling has one — **FILED 2026-08-23 per #268, found while reading #198B's files. GRADED HONESTLY: a defence-in-depth gap, NOT a demonstrated live bug. NOT STARTED.** **⟵ ✅ BUILT + gate-verified 2026-08-23, same night: 399-A answered NULL (no reachable path demonstrated; CarPlay NOT cleared), 399-B and 399-C SHIPPED at BOTH sites, two mutations each proven RED.**
 
 **The pattern, which this codebase applies consistently at three of four
 sites.** Anything that touches the shared `AVAudioSession` refuses to run
@@ -15839,6 +15839,73 @@ keyed on something other than the session itself.
 main-thread hang-RISK warning; this is session ownership. 399-C would be
 natural to land inside #198B's refactor, but is **filed separately so it does
 not die with it** — #198B is stopped and this does not depend on it.
+
+> **✅ 2026-08-23 — BUILT. 399-A answered NULL, 399-B and 399-C shipped, both
+> mutation-proven. Not on the night's elected list** — it was found and filed
+> hours earlier while reading #198B's files, and it is the only item of that
+> night that turned out to be desk work with a premise verified from source
+> rather than from a header.
+>
+> **399-A — NULL, and recorded as null rather than quietly dropped.** No path
+> was demonstrated on which `talkStore.isSessionActive` is true while the play
+> button is hittable: the voice UI is a `fullScreenCover` on MainTabView, and
+> `VoiceOverlayScreen.onDisappear` calls `abandonSession()` after a 500 ms
+> delay. **CarPlay (#19) was NOT cleared** — it runs voice with the phone UI
+> backgrounded by design, and nobody has checked what the chat surface does
+> there. So the gap is closed by the fix below rather than by the reachability
+> argument, which is the order 399-A's own wording required.
+>
+> **399-B — both play buttons now carry the Talk gate** (`MessageBubble`,
+> `ChatInputBar`), matching `MessageBubble:302`'s read-aloud gate three lines
+> away. In practice this changes nothing a user can see, because the button was
+> already unreachable during a session; that is what defence in depth looks
+> like when it lands before the defect does.
+>
+> **399-C — the unconditional deactivation is gone, at BOTH sites.**
+> `VoiceMemoPlayer.stop()` and `VoiceMemoRecorder.finishRecorder()` now release
+> only what the instance activated, guarded by a `didActivateAudioSession` flag
+> and a pure `shouldReleaseAudioSession(didActivate:)` mirroring
+> `SpeechOutputService`'s. The comment that used to justify the old behaviour —
+> *"releasing an inactive session is harmless"* — was the claim #84 falsified,
+> and it is replaced by a note saying so.
+>
+> **The recorder was NOT in 399-C's pre-registered wording and was fixed
+> anyway, deliberately.** Scope added with a reason is not a moved bar: #383-G
+> fixed its reported site and left two siblings for a later grep to find, and
+> the handoff carries that as a standing trap (*"when a premise dies, grep for
+> the PREMISE, not the symptom"*). Every failure path was walked before the
+> change: a start that dies at `AVAudioPlayer(contentsOf:)` or at `record()`
+> still releases, because the flag is set the instant `setActive(true)`
+> returns; only a start that never activated leaves the session alone.
+>
+> ### 🔴 The test hole I found in my own tests, and closed
+>
+> The wiring tests observe an injected `deactivateAudioSession` seam, so they
+> turn RED when the guard is deleted. **They do NOT see the mutation that
+> matters most** — reverting to the ORIGINAL direct
+> `AVAudioSession.sharedInstance().setActive(false, …)`, which bypasses the
+> seam and leaves the suite green while the shared session is really torn down.
+> That is the historical shape, so the suite would have been unable to see the
+> exact defect this item fixed.
+>
+> Closed with a STRUCTURAL test that reads the two sources via `#filePath` and
+> asserts each spells `setActive(false` exactly once — inside the seam's
+> default. Precedent for a test that parses our own source is already in the
+> tree (`score-decline-attribution-test.py` parses
+> `DeclineAttributionScorer.swift` to keep two implementations in sync). It
+> fails loudly if the sources cannot be read, per "no data is not a pass".
+>
+> | mutation | expected catcher | result |
+> |---|---|---|
+> | **M1** guard deleted, seam kept | the three wiring tests | RED |
+> | **M2** seam bypassed by a direct `setActive(false)` | the structural test | RED |
+>
+> **M2 is the one worth remembering.** A seam-based test is only as good as the
+> guarantee that the seam is the only door, and nothing about a seam enforces
+> that by itself. This is the same family as #340's eleven green parsing tests
+> surviving the deletion of the wiring they existed to protect — one level
+> further out.
+
 
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
 
