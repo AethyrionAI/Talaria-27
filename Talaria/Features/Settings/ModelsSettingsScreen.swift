@@ -275,17 +275,15 @@ struct ModelsSettingsScreen: View {
                 }
                 // #30: PCC quota as PERSISTENT status, not an alert — below /
                 // nearing / reached, with the system's upgrade path when the
-                // OS offers one.
-                // #395: the opt-out sits with the tier it governs. It shows
-                // whenever the tier EXISTS on this device — gating it on
-                // `selectableBrains` would make the switch vanish the moment
-                // it was used, leaving no way back.
-                if container.localChatBackend?.isPrivateCloudAvailable == true {
-                    privateCloudToggleRow
-                }
+                // OS offers one. Read-only here: the opt-out TOGGLE moved to
+                // the dedicated Private Cloud tile (#395-D, Owen's 2026-08-23
+                // ruling); this row stays beside the brain picker because
+                // quota state matters exactly where the brain is picked.
                 if settingsStore.settings.privateCloudEnabled,
                    let status = container.localChatBackend?.privateCloudStatus() {
-                    privateCloudQuotaRow(status)
+                    PrivateCloudQuotaRow(status: status) {
+                        container.localChatBackend?.showPrivateCloudLimitIncreaseOptions()
+                    }
                 }
                 MonoLabel(
                     "ROUTING NEXT MESSAGE: \(brainRouter.activeBrain.monoLabel)",
@@ -297,70 +295,6 @@ struct ModelsSettingsScreen: View {
                 .padding(.top, Design.Spacing.xs)
             }
         }
-    }
-
-    /// **#395: the hard opt-out for the Private Cloud tier.**
-    ///
-    /// It sits directly above the usage row rather than on the Privacy screen
-    /// so the control and the state it governs are one surface — if this later
-    /// becomes its own Settings tile (Owen's suggestion, 2026-08-21), that is a
-    /// move of these two rows, not a rewrite.
-    private var privateCloudEnabledBinding: Binding<Bool> {
-        Binding(
-            get: { settingsStore.settings.privateCloudEnabled },
-            set: { settingsStore.settings.privateCloudEnabled = $0 }
-        )
-    }
-
-    private var privateCloudToggleRow: some View {
-        VStack(alignment: .leading, spacing: Design.Spacing.xs) {
-            HStack(spacing: Design.Spacing.sm) {
-                Text("Private Cloud β")
-                    .font(Design.Typography.callout)
-                    .foregroundStyle(Design.Colors.foreground)
-                Spacer()
-                Toggle("", isOn: privateCloudEnabledBinding)
-                    .labelsHidden()
-                    .tint(Design.Brand.accentText)
-                    .accessibilityLabel("Use Private Cloud Compute")
-            }
-            Text(settingsStore.settings.privateCloudEnabled
-                 ? "Larger model, on Apple's servers. Turn off to keep every local turn on this device."
-                 : "Off — nothing is sent to Apple's servers. Local turns run on-device only.")
-                .font(Design.Typography.caption)
-                .foregroundStyle(Design.Colors.secondaryForeground)
-        }
-        .padding(.top, Design.Spacing.xs)
-    }
-
-    private func privateCloudQuotaRow(_ status: LocalChatBackend.PrivateCloudStatus) -> some View {
-        // #391: the label is built by a pure formatter on the status type, so
-        // the today-vs-later branch and the nil reset date are assertable
-        // without a view. This used to be a switch here that discarded the
-        // reset date on every arm but `limitReached`.
-        let label = LocalChatBackend.PrivateCloudStatus.quotaRowLabel(
-            quota: status.quota, resetDate: status.resetDate, now: Date())
-        let color: Color
-        switch status.quota {
-        case .belowLimit(approaching: false): color = Design.Colors.mutedForeground
-        case .belowLimit(approaching: true): color = Design.Brand.forgeText
-        case .limitReached: color = Design.Colors.dangerText
-        // #391: unknown is not good news and not bad news — it is unknown, and
-        // it must not borrow the reassuring muted tone OR the alarming one.
-        case .unknown: color = Design.Colors.dimForeground
-        }
-        return HStack(spacing: Design.Spacing.sm) {
-            MonoLabel(label, size: 8, tracking: Design.Tracking.mono, color: color)
-            Spacer()
-            if status.hasLimitIncreaseSuggestion {
-                Button("Show options") {
-                    container.localChatBackend?.showPrivateCloudLimitIncreaseOptions()
-                }
-                .font(Design.Typography.mono(10, weight: .medium))
-                .foregroundStyle(Design.Brand.accentText)
-            }
-        }
-        .padding(.top, Design.Spacing.xs)
     }
 
     private func brainRow(

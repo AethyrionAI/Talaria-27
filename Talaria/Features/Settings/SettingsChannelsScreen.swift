@@ -99,10 +99,26 @@ struct SettingsChannelsScreen: View {
         }
     }
 
+    /// #395-D: the tile set is conditional (the Private Cloud tile exists
+    /// only where the tier does), so every surface that enumerates tiles —
+    /// the grid, the deck pager, the page dots, and this counter — consumes
+    /// this ONE list and can never disagree about what exists.
+    private var visibleSubsystems: [SettingsSubsystem] {
+        SettingsSubsystem.cases(
+            privateCloudAvailable: container.localChatBackend?.isPrivateCloudAvailable == true)
+    }
+
     private var counterText: String {
         switch mode {
-        case .grid: "09 SUBSYSTEMS"
-        case .deck: String(format: "%02d / 09", deckIndex + 1)
+        case .grid:
+            String(format: "%02d SUBSYSTEMS", visibleSubsystems.count)
+        case .deck:
+            // Position within the VISIBLE deck, not the rawValue — with the
+            // PCC tile filtered out, `.developer`'s rawValue exceeds the page
+            // count and the old `deckIndex + 1` would read "11 / 09".
+            String(format: "%02d / %02d",
+                   (visibleSubsystems.firstIndex { $0.rawValue == deckIndex }.map { $0 + 1 }) ?? 1,
+                   visibleSubsystems.count)
         }
     }
 
@@ -164,7 +180,7 @@ struct SettingsChannelsScreen: View {
                 get: { deckIndex },
                 set: { mode = .deck($0) }
             )) {
-                ForEach(SettingsSubsystem.allCases) { subsystem in
+                ForEach(visibleSubsystems) { subsystem in
                     deckPage(subsystem)
                         .tag(subsystem.rawValue)
                         .accessibilityIdentifier("settings.deck.page.\(String(describing: subsystem))")
@@ -191,13 +207,14 @@ struct SettingsChannelsScreen: View {
                     .padding(.horizontal, Design.Spacing.md)
                     .padding(.vertical, Design.Spacing.sm)
             }
+        case .privateCloud: PrivateCloudSettingsScreen(embedded: true)
         case .developer: DeveloperSettingsScreen(embedded: true)
         }
     }
 
     private var pageDots: some View {
         HStack(spacing: 7) {
-            ForEach(SettingsSubsystem.allCases) { subsystem in
+            ForEach(visibleSubsystems) { subsystem in
                 Button {
                     mode = .deck(subsystem.rawValue)
                 } label: {
@@ -309,7 +326,7 @@ struct SettingsChannelsScreen: View {
 
     private var cardGrid: some View {
         LazyVGrid(columns: gridColumns, spacing: Design.Spacing.sm) {
-            ForEach(SettingsSubsystem.allCases.filter { $0 != .developer }) { subsystem in
+            ForEach(visibleSubsystems.filter { $0 != .developer }) { subsystem in
                 Button { openSubsystem(subsystem) } label: {
                     SubsystemCard(
                         subsystem: subsystem,
@@ -406,6 +423,10 @@ struct SettingsChannelsScreen: View {
             SettingsCardValues.sessions(count: sessionCount, isPaired: pairingStore.isPaired)
         case .about:
             SettingsCardValues.about(isHealthy: aboutIsHealthy)
+        case .privateCloud:
+            SettingsCardValues.privateCloud(
+                enabled: settingsStore.settings.privateCloudEnabled,
+                quota: container.localChatBackend?.privateCloudStatus()?.quota)
         case .developer:
             SettingsCardValues.developer(
                 environmentLabel: settingsStore.settings.environment.displayLabel)
@@ -443,6 +464,9 @@ struct SettingsChannelsScreen: View {
             SettingsCardAccent.sessions(count: sessionCount)
         case .about:
             SettingsCardAccent.about(isHealthy: aboutIsHealthy)
+        case .privateCloud:
+            SettingsCardAccent.privateCloud(
+                enabled: settingsStore.settings.privateCloudEnabled)
         case .developer:
             SettingsCardAccent.developer
         }

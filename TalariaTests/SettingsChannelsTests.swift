@@ -2,12 +2,17 @@ import Testing
 @testable import Talaria
 
 struct SettingsChannelsTests {
-    @Test func deckOrderIsNineAndStable() {
+    /// Was `deckOrderIsNineAndStable` — #395-D added the tenth case,
+    /// deliberately between `.about` and `.developer` so `.about` keeps its
+    /// long-standing "08" and a non-PCC device's visible numbering stays
+    /// contiguous (the tile is filtered out entirely there, never blank).
+    @Test func deckOrderIsTenAndStable() {
         let all = SettingsSubsystem.allCases
-        #expect(all.count == 9)
+        #expect(all.count == 10)
         #expect(all.first == .uplink)
         #expect(all.last == .developer)
         #expect(SettingsSubsystem.about.indexLabel == "08")
+        #expect(SettingsSubsystem.privateCloud.indexLabel == "09")
         #expect(SettingsSubsystem.uplink.a11yID == "settings.card.uplink")
         #expect(SettingsSubsystem.developer.a11yID == "settings.row.developer")
     }
@@ -343,6 +348,63 @@ struct SettingsChannelsTests {
         #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .offline) == true)
         #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .unreachable) == true)
         #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: false, state: .offline) == false)
+    }
+
+    // MARK: - #395-D: the Private Cloud tile
+
+    /// **395-D-A, absent half.** On a device without the tier the tile does
+    /// not exist — filtered out like `.developer` in the list, never rendered
+    /// blank. And the filter removes ONLY that tile: everything else keeps
+    /// its order, so the numbering stays contiguous where PCC never existed.
+    @Test func privateCloudTileIsAbsentWhenTheTierDoesNotExistOnTheDevice() {
+        let visible = SettingsSubsystem.cases(privateCloudAvailable: false)
+        #expect(!visible.contains(.privateCloud))
+        #expect(visible == SettingsSubsystem.allCases.filter { $0 != .privateCloud },
+                "the filter must remove ONLY the Private Cloud tile, preserving order")
+    }
+
+    /// **395-D-A, present half.**
+    @Test func privateCloudTileIsPresentAndOrderedWhenTheTierExists() {
+        #expect(SettingsSubsystem.cases(privateCloudAvailable: true) == SettingsSubsystem.allCases)
+    }
+
+    /// **395-D-C, the OFF half.** The card describes the user's own setting
+    /// first: disabled reads OFF whatever the quota says. A card that showed
+    /// LIMIT REACHED over a tier the user turned off would send them hunting
+    /// for a quota problem they do not have — #180's family.
+    @Test func privateCloudCardValueAnswersOffWheneverDisabledRegardlessOfQuota() {
+        let quotas: [LocalChatBackend.PrivateCloudStatus.Quota?] = [
+            nil, .unknown,
+            .belowLimit(approaching: false), .belowLimit(approaching: true),
+            .limitReached
+        ]
+        for quota in quotas {
+            #expect(SettingsCardValues.privateCloud(enabled: false, quota: quota) == "OFF",
+                    "disabled must read OFF for quota \(String(describing: quota)) — the user's setting outranks quota state")
+        }
+    }
+
+    /// **395-D-C, the enabled half.** Quota words appear only when the tier
+    /// is on — and an unknown or unloaded quota reads plain ON (the setting
+    /// is a fact; the quota claim waits for a measurement, #391's rule).
+    @Test func privateCloudCardValueSurfacesQuotaOnlyWhenEnabled() {
+        #expect(SettingsCardValues.privateCloud(enabled: true, quota: .belowLimit(approaching: false)) == "ON")
+        #expect(SettingsCardValues.privateCloud(enabled: true, quota: nil) == "ON")
+        #expect(SettingsCardValues.privateCloud(enabled: true, quota: .unknown) == "ON")
+        #expect(SettingsCardValues.privateCloud(enabled: true, quota: .belowLimit(approaching: true)) == "NEARING LIMIT")
+        #expect(SettingsCardValues.privateCloud(enabled: true, quota: .limitReached) == "LIMIT REACHED")
+    }
+
+    /// The accent tracks the setting — the card glows when the tier is
+    /// offered, not when quota happens to be healthy.
+    @Test func privateCloudCardAccentTracksTheUsersSetting() {
+        #expect(SettingsCardAccent.privateCloud(enabled: true))
+        #expect(!SettingsCardAccent.privateCloud(enabled: false))
+    }
+
+    /// The tile's identity string follows the default card path.
+    @Test func privateCloudTileIdentityIsStable() {
+        #expect(SettingsSubsystem.privateCloud.a11yID == "settings.card.privateCloud")
     }
 
 }

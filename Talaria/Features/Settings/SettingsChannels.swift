@@ -6,9 +6,20 @@ import SwiftUI
 // access here so the formatters are unit-testable; SettingsChannelsScreen
 // feeds them live values.
 enum SettingsSubsystem: Int, CaseIterable, Identifiable {
-    case uplink, server, models, voice, appearance, privacy, sessions, about, developer
+    // #395-D: `.privateCloud` sits between `.about` and `.developer` so that
+    // on a device WITHOUT the tier (where it is filtered out entirely) the
+    // visible numbering runs 01–08 contiguous — no gap mid-sequence — and
+    // `.about`'s long-pinned "08" is untouched.
+    case uplink, server, models, voice, appearance, privacy, sessions, about, privateCloud, developer
 
     var id: Int { rawValue }
+
+    /// #395-D: the tile exists only where the tier does. The filter is here,
+    /// pure and testable, so the grid, the deck pager, and the page dots all
+    /// consume ONE list and can never disagree about what exists.
+    static func cases(privateCloudAvailable: Bool) -> [SettingsSubsystem] {
+        privateCloudAvailable ? allCases : allCases.filter { $0 != .privateCloud }
+    }
 
     var title: String {
         switch self {
@@ -20,6 +31,7 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
         case .privacy: "PRIVACY"
         case .sessions: "SESSIONS"
         case .about: "ABOUT"
+        case .privateCloud: "PRIVATE CLOUD"
         case .developer: "DEVELOPER"
         }
     }
@@ -34,6 +46,7 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
         case .privacy: "PERMISSIONS"
         case .sessions: "STORAGE & DATA"
         case .about: "DIAGNOSTICS"
+        case .privateCloud: "APPLE COMPUTE"
         case .developer: "INTERNAL TOOLS"
         }
     }
@@ -151,6 +164,20 @@ enum SettingsCardValues {
     }
 
     static func developer(environmentLabel: String) -> String { environmentLabel.uppercased() }
+
+    /// #395-D: the PCC card describes the user's own SETTING first — disabled
+    /// reads OFF whatever the quota says (#180: a LIMIT REACHED over a tier
+    /// the user turned off sends them hunting for a fault they don't have).
+    /// Quota words appear only when the tier is on, and an unknown or
+    /// unloaded quota reads plain ON (#391: no claim without a measurement).
+    static func privateCloud(enabled: Bool, quota: LocalChatBackend.PrivateCloudStatus.Quota?) -> String {
+        guard enabled else { return "OFF" }
+        return switch quota {
+        case .belowLimit(approaching: true): "NEARING LIMIT"
+        case .limitReached: "LIMIT REACHED"
+        case .belowLimit(approaching: false), .unknown, nil: "ON"
+        }
+    }
 }
 
 /// #252R-A — the ACCENT half of the card telemetry, extracted here from
@@ -221,6 +248,11 @@ enum SettingsCardAccent {
     static func sessions(count: Int?) -> Bool { count != nil }
 
     static func about(isHealthy: Bool) -> Bool { isHealthy }
+
+    /// #395-D: glows when the tier is OFFERED — the accent tracks the user's
+    /// setting, not quota health, so it can never disagree with the value's
+    /// OFF/ON split.
+    static func privateCloud(enabled: Bool) -> Bool { enabled }
 
     /// The Developer row is not a subsystem card and never glows.
     static var developer: Bool { false }
