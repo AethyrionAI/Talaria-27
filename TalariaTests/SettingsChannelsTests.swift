@@ -2,19 +2,39 @@ import Testing
 @testable import Talaria
 
 struct SettingsChannelsTests {
-    /// Was `deckOrderIsNineAndStable` — #395-D added the tenth case,
-    /// deliberately between `.about` and `.developer` so `.about` keeps its
-    /// long-standing "08" and a non-PCC device's visible numbering stays
-    /// contiguous (the tile is filtered out entirely there, never blank).
+    /// Was `deckOrderIsNineAndStable` — #395-D added the tenth case, and
+    /// #395-D2 (Owen's positional-08 ruling, 2026-08-23) moved it BEFORE
+    /// `.about` with the numbering made positional, so both device shapes
+    /// stay contiguous — see the test below for the numbers themselves.
     @Test func deckOrderIsTenAndStable() {
         let all = SettingsSubsystem.allCases
         #expect(all.count == 10)
         #expect(all.first == .uplink)
         #expect(all.last == .developer)
-        #expect(SettingsSubsystem.about.indexLabel == "08")
-        #expect(SettingsSubsystem.privateCloud.indexLabel == "09")
+        #expect(all[7] == .privateCloud, "PCC sits immediately before ABOUT (#395-D2)")
+        #expect(all[8] == .about)
         #expect(SettingsSubsystem.uplink.a11yID == "settings.card.uplink")
+        #expect(SettingsSubsystem.privateCloud.a11yID == "settings.card.privateCloud")
         #expect(SettingsSubsystem.developer.a11yID == "settings.row.developer")
+    }
+
+    /// **395-D2-B — positional card numbers, both device shapes, no gaps.**
+    /// The number is computed from the tiles VISIBLE on this device: with
+    /// the PCC tier, Owen's floated 08 PRIVATE CLOUD / 09 ABOUT; without it,
+    /// ABOUT reverts to its classic 08 and nothing skips.
+    @Test func cardNumbersArePositionalAndContiguousOnBothDeviceShapes() {
+        let withPCC = SettingsSubsystem.cases(privateCloudAvailable: true)
+        #expect(SettingsSubsystem.privateCloud.indexLabel(in: withPCC) == "08")
+        #expect(SettingsSubsystem.about.indexLabel(in: withPCC) == "09")
+        #expect(SettingsSubsystem.developer.indexLabel(in: withPCC) == "10")
+
+        let withoutPCC = SettingsSubsystem.cases(privateCloudAvailable: false)
+        #expect(SettingsSubsystem.about.indexLabel(in: withoutPCC) == "08")
+        #expect(SettingsSubsystem.developer.indexLabel(in: withoutPCC) == "09")
+        for (position, subsystem) in withoutPCC.enumerated() {
+            #expect(subsystem.indexLabel(in: withoutPCC) == String(format: "%02d", position + 1),
+                    "numbering must be contiguous with no hole where the filtered tile would have been")
+        }
     }
 
     /// #256-G: "DIRECT" → "CONNECTED" (Owen's verbiage round) — the
