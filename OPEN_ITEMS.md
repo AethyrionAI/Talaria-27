@@ -1857,7 +1857,27 @@ invasive and that the retune question is where the design judgement lives.
 > which is the property 393-A existed to buy.
 > **393-B..E remain open** — they govern a fix, and there is no fix yet.
 >
-> ### ⛔ ROUTE IS STILL OWEN'S CALL, and the survey has changed the question
+> ### ✅ ROUTED 2026-08-22 PM (Owen): BUILD CALL 1 — `accent` / `accentBright` as text
+>
+> The original finding, and the one with the worst numbers: `accent` **18/21**
+> light cells under AA (worst **1.24:1**), `accentBright` **13/21** (worst
+> **1.16:1** — below even the DECORATIVE floor). `forgeText`'s shape applies
+> directly, so this lane follows a proven precedent rather than inventing a
+> pattern.
+>
+> **Calls 2, 3 and 4 are NOT elected and stay open** — `dimForeground` (the
+> largest at 67/88, and the riskiest: a ramp step, so raising it may collapse a
+> six-step ramp into five, which wants Owen's eye rather than a blind build),
+> `danger`/`dangerBright` on the five light themes, and
+> `secondaryForeground`/`coolForeground`'s marginal cells. Recorded explicitly
+> so a later reader does not mistake call 1 shipping for the ITEM closing.
+>
+> **The ratchet's baseline must SHRINK as call 1 lands.** Printing
+> newly-passing cells is the whole point of its design; a build that fixes
+> `accent` and leaves all 170 cells pinned has not met the ratchet's own
+> contract.
+>
+> ### ⛔ THE ROUTE QUESTION AS IT STOOD, and how the survey changed it
 >
 > This is no longer "give the accent a text variant." It is **four separable
 > decisions**, and they do not have the same answer:
