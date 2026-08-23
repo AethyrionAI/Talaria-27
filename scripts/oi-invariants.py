@@ -60,7 +60,12 @@ BRANCH = re.compile(
 # days while sitting in main — and neither phrase contains "NOT MERGED" or
 # "awaiting review". A discriminator that cannot match the text it polices is
 # the archived #300 shape, arriving here instead of in the gate.
-STALE_MERGE = re.compile(r"NOT MERGED|awaiting review|PR open|merge is Owen's review", re.I)
+# 2026-08-23 (Opus-week audit): the house also writes "PR #329 OPEN" — the PR
+# NUMBER between the words — and that spelling sat stale on two corrected
+# headers for 2+ days while this check PASSed. The number is now optional
+# inside the phrase. Same #300 shape, one spelling further out.
+STALE_MERGE = re.compile(
+    r"NOT MERGED|awaiting review|PR(?: #\d+[A-Za-z]?)? open|merge is Owen's review", re.I)
 # This tracker RETRACTS a claim by striking it through and writing the
 # correction beside it — `~~NOT MERGED — awaiting review.~~ **✅ MERGED as …**`
 # is the house idiom (#328, archived #322, #368 all use it). A struck span is

@@ -40,8 +40,8 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 ## What it does
 
 - **On-device chat** — a full local backend on Apple's FoundationModels framework, behind the same client seam as the hosted path: streaming, sessions drawer, persistence, read-aloud. Context-window-aware condensation instead of errors; no data leaves the device
-- **Streaming chat** via the Hermes Sessions API (SSE), with markdown, code blocks, inline images, and agent file downloads
-- **Voice mode** — real-time WebRTC speech-to-speech, server-side voice, continuous mic, mute/barge-in, multimodal image support; falls back to an on-device engine when the relay is unpaired or unreachable
+- **Streaming chat** via the Hermes gateway (SSE), with markdown, code blocks, and inline images; agent-written text files surface in chat via the plugin's artifact mirror
+- **Voice mode** — real-time WebRTC speech-to-speech, server-side voice, continuous mic, mute/barge-in, multimodal image support; bootstraps over the talaria plugin (#383) and falls back to an on-device engine when no voice host is reachable
 - **Inbox / Directives** — your agent pushes to-dos, approvals, reminders, and a daily briefing to the phone; approve or dismiss in place, and the verdict lands back on the host
 - **Phone-aware answers** — your agent asks the phone for location, HealthKit metrics, motion activity, calendar, and weather **at query time** over the talaria plugin; deliberate opt-in with per-sensor grants, and nothing streams in the background (the always-on upload pipeline was retired 2026-08-16, #352)
 - **Model picking, gateway-native** — pick from your full provider roster in Settings → Models; the pick rides every turn as a model lock and pins the live session through the gateway itself (no shim, no restart)
@@ -78,7 +78,7 @@ iPhone (Talaria)
                                          → connector → hermes_mobile MCP
 ```
 
-Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy**: current builds touch it only for the realtime-voice WebRTC bootstrap, and it is on a retirement path (#223) — skip it unless you need server voice today. Agent-file downloads are handled by the plugin's artifact mirror; the relay's download path is superseded. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
+Chat connects **directly** to the Sessions API — server sessions, model selection, and mid-turn steering all ride that one connection. The plugin link rides the same gateway (the `/api/platforms/talaria/events` channel): pairing, query-time phone asks (location, health, motion, calendar, weather — per-sensor opt-in), and the inbox/directives/briefing channel. The relay + connector tier is **legacy and no longer called by current builds at all** — realtime voice, its last surface, moved onto the talaria plugin on 2026-08-22 (#383); the tier remains in-tree only on its retirement path (#223). Agent-file downloads are handled by the plugin's artifact mirror; the relay's download path is superseded. Sensor ingestion is gone outright (2026-08-16, #352): phone data answers query-time asks; nothing streams, nothing queues. The verified SSE event taxonomy and API contract live in [CLEAN_CHAT_PATH.md](CLEAN_CHAT_PATH.md). (Earlier versions used a third service — a models shim on `:8765`; it is retired and current builds never call it.)
 
 ---
 
@@ -90,7 +90,7 @@ Chat connects **directly** to the Sessions API — server sessions, model select
 | Host OS (upgrade tier) | macOS or Windows (Linux untested) |
 | Hermes (upgrade tier) | [hermes-agent](https://github.com/NousResearch/hermes-agent) installed and configured, with the talaria plugin for pairing and phone-aware answers |
 | Network (upgrade tier) | Tailscale (recommended) or other private network access |
-| Relay & connector (legacy tier — optional) | Python 3.11+, uvicorn; only if you still need realtime server voice |
+| Relay & connector (legacy tier — retired) | Python 3.11+, uvicorn; current builds never call it — realtime voice rides the talaria plugin (#383) |
 
 > Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
 
@@ -141,7 +141,7 @@ It prints a QR code and a one-time code. In the app: **Settings → Server → P
 
 ### Legacy tier (optional): relay sidecar + connector
 
-**Skip this unless you need realtime server voice today.** That is the last surface the relay tier still carries; the tier is on a retirement path (#223). Sensor upload is gone app-side (#352), phone queries ride the talaria plugin, the inbox is served over the plugin channel, and agent-file downloads are handled by the plugin's artifact mirror — none of that needs the relay anymore.
+**Current builds never call the relay.** Realtime server voice — the last surface this tier carried — moved onto the talaria plugin on 2026-08-22 (#383); the tier stays on its retirement path (#223) and these instructions remain only for legacy installs. Sensor upload is gone app-side (#352), phone queries ride the talaria plugin, the inbox is served over the plugin channel, and agent-file downloads are handled by the plugin's artifact mirror — none of that needs the relay anymore.
 
 <details>
 <summary>Relay + connector install (legacy)</summary>
@@ -160,7 +160,7 @@ Key environment variables (`.env` in the relay directory):
 |----------|-----|
 | `INTERNAL_API_KEY` | Change it from the default — the relay logs a security warning at startup if you don't |
 | `PUBLIC_BASE_URL` | The URL the phone uses to reach the relay (e.g. `http://your-tailscale-ip:8000/v1`) |
-| `AGENT_FILES_DIR` | Directory the relay is allowed to serve agent-generated files from (enables in-chat downloads) |
+| `AGENT_FILES_DIR` | Directory the relay is allowed to serve agent-generated files from (legacy — the app's in-chat download path was deleted 2026-08-19, #375; the plugin's artifact mirror replaced it) |
 | `GATEWAY_API_KEY` | Your `API_SERVER_KEY` — lets the relay query the gateway on the phone's behalf |
 | `APNS_KEY_PATH` / `APNS_KEY_ID` / `APNS_TEAM_ID` | Legacy remote push (current app builds don't register for push — safe to omit) |
 
@@ -198,7 +198,7 @@ TalariaShare/         Share extension (URLs, images, files, text → Hermes)
 Shared/               Theme palette tables shared between app and widget targets
 TalariaTests/         Unit tests (Swift Testing)
 TalariaUITests/       UI tests (XCTest/XCUITest)
-relay/                HermesMobile relay sidecar (Python/FastAPI; legacy tier — voice bootstrap + file downloads)
+relay/                HermesMobile relay sidecar (Python/FastAPI; legacy tier — retired, not called by current builds)
 connector/            Host-side bridge for the legacy relay tier (relay connection, hermes_mobile MCP tools)
 tools/models-shim/    Legacy model-switching shim (Python; retired — current app builds are gateway-native)
 tools/appicons/       Alternate app icon gallery renderer

@@ -22,7 +22,12 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
 
 - **Chat** talks **directly** to the Hermes API server **Sessions API on `:8642`**
   (Bearer `API_SERVER_KEY`). `POST /api/sessions` → id at **`.session.id`**;
-  `POST /api/sessions/{id}/chat` (sync) → `.message.content`; `/chat/stream` is SSE.
+  ~~`POST /api/sessions/{id}/chat` (sync) → `.message.content`; `/chat/stream` is SSE~~
+  **⟵ SUPERSEDED for TURNS 2026-08-19 (#368): the runs plane (`POST /v1/runs` +
+  `/events` SSE) is the DEFAULT turn transport; `/api/sessions*` survives for
+  create/open/list/messages/fork/model. The sessions turn transport is deleted
+  by #382 (⏰ 2026-08-26). Recorded 2026-08-23 by the Opus-week audit — this
+  bullet described the legacy plane for four days after the flip.**
 - **Sensors** go through the dylan-buck shell + **relay `:8000`** + connector, plus the
   **models shim `:8765`**. Independent of chat.
 - **Two machines, all over Tailscale:**

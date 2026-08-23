@@ -12,7 +12,7 @@ We will acknowledge receipt within 48 hours and work with you on a fix.
 
 ## Deployment model
 
-Talaria is designed for **private-network self-hosting**. The expected deployment puts the Hermes gateway (Sessions API on `:8642`) on a Tailscale tailnet or equivalent private network, reachable only by your own devices. The gateway is the only service current builds require; the legacy relay tier (`:8000`) is optional and needed only for realtime server voice. None of the services are intended to be exposed to the public internet.
+Talaria is designed for **private-network self-hosting**. The expected deployment puts the Hermes gateway (Sessions API on `:8642`) on a Tailscale tailnet or equivalent private network, reachable only by your own devices. The gateway is the only service current builds require — or call at all: realtime voice bootstraps over the talaria plugin as of 2026-08-22 (#383), so the legacy relay tier (`:8000`) is not contacted by current builds. None of the services are intended to be exposed to the public internet.
 
 > **Corrected 2026-08-09.** This section previously named a **third service, a
 > "models shim" on `:8765`, and told self-hosters to deploy and firewall it.
@@ -31,7 +31,7 @@ The phone talks directly to the Hermes gateway's Sessions API on `:8642` with Be
 
 ### Relay
 
-The relay is a legacy tier whose surface has been narrowing steadily. Pairing, the inbox/directives channel, scheduled runs, and phone queries all migrated to the talaria plugin (same gateway process). **Sensor ingestion was retired outright 2026-08-16, #352** — the app no longer captures or uploads sensor data; phone data answers query-time asks over the talaria plugin. The relay's remaining job is the realtime-voice WebRTC bootstrap; agent-file downloads are partially superseded by the plugin's artifact mirror. On the production host the relay has been stopped and disabled since 2026-08-10 (#346).
+The relay is a legacy tier whose surface has been narrowing steadily. Pairing, the inbox/directives channel, scheduled runs, and phone queries all migrated to the talaria plugin (same gateway process). **Sensor ingestion was retired outright 2026-08-16, #352** — the app no longer captures or uploads sensor data; phone data answers query-time asks over the talaria plugin. The realtime-voice WebRTC bootstrap — its last remaining job — moved onto the talaria plugin on 2026-08-22 (#383), and the app-side agent-file download path was deleted outright (#375, superseded by the plugin's artifact mirror); current builds do not contact the relay. On the production host the relay has been stopped and disabled since 2026-08-10 (#346).
 
 > **⚠️ APNs push is UNUSED SURFACE as of 2026-08-09, and that is a security
 > fact worth stating plainly.** The app's entire notification surface was

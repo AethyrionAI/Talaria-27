@@ -779,7 +779,7 @@ text needs Owen's read of the exact wording plus an explicit go — the same gat
 **Cross-references:** **#386** (the policy amendment this exists to protect),
 **#385** (the in-app half), **#72** (the tier that made both necessary).
 
-## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #349), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).** **⟵ ✅ SIBLING BUILT + MERGED the same night (PR #355, squash `be32b2dc`) — 397-D/E/F all met, mutation-proven; result block at the foot. NOTHING remains owed on this entry.**
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED ~~2026-08-23~~ **2026-08-22** (PR #349; date re-corrected by the Opus-week audit — the sweep took GitHub's UTC day, git dates the squash 2026-08-22 20:50 -0500 and the entry's own result block says 08-22), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).** **⟵ ✅ SIBLING BUILT + MERGED the same night (PR #355, squash `be32b2dc`) — 397-D/E/F all met, mutation-proven; result block at the foot. NOTHING remains owed on this entry.**
 
 **The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
 
@@ -5455,6 +5455,15 @@ Logged 2026-07-20 (Session V launch sweep).
 > maximum volume into the same device's microphone, which makes the acoustic
 > branch entirely plausible — but plausible is what the last five were.
 
+> **📎 2026-08-23 (Opus-week audit) — a pinning gap on 138-B, filed for the
+> next lane that touches these files:** `SpeakerRouteOverrideTests` pins the
+> pure `shouldOverrideOutputToSpeaker` decision only; unwiring either of its
+> two call sites (`LiveVoiceSessionService:751`, `:797`) while keeping the
+> function leaves the suite green — the #340 wiring shape. Low severity (a
+> full revert reverts both, and the entry's own mutation claim is scoped
+> honestly to "the one new line"), but a wiring-sensitive assertion is owed
+> whenever this file is next open.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
@@ -6498,8 +6507,8 @@ Logged 2026-07-23.
 > known to support images" where we are certain would be the same #180 sin
 > inverted — encoding a known-false as an unknown.
 
-> **✅ 2026-08-20 — THE FLOOR IS BUILT. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — PR open; merge is Owen's
-> review.** `GATE: PASS` (2356 / 14 / Release clean; control 2346 + exactly
+> **✅ 2026-08-20 — THE FLOOR IS BUILT. PR https://github.com/AethyrionAI/Talaria-27/pull/327 — ~~PR open; merge is Owen's
+> review~~ ✅ MERGED 2026-08-20 as `f02d1c38` (marker corrected 2026-08-23 by the Opus-week audit).** `GATE: PASS` (2356 / 14 / Release clean; control 2346 + exactly
 > the 10 tests this lane adds). Bars A–E scored: **A, B, C, D met; E met by
 > code that already shipped**, with its evidence clause corrected in place.
 
@@ -7761,7 +7770,7 @@ local substitution — cited here to note this is *not* an instance of it).
 > (Owen), so 303-A/B are runnable; #320's shipped indicator is the free
 > instrument for reading the engine off-screen. Queued with #254-D.
 
-## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~ **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the GATE IS BUILT — 302-D…G all met 2026-08-20, each mutation-proven. Device closing bars owed.**
+## 302. 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center voice launch begins on a LOCKED app — **🚨 DETERMINED 2026-08-10 ON DEVICE: THE MICROPHONE IS LIVE BEHIND THE LOCK. 302-A/B FAILED (bar 302-B RED, two independent reproductions; 302-A "passed" by a 470 ms race, not by a gate). The ruled 302-C contract (defer-until-unlock) is VIOLATED. ~~FIX OWED — not built; the fix is a design change and rides Owen's go.~~ → ✅ FIX BUILT 2026-08-20, on the 2026-08-18 ruling. Bars 302-D…G MET, each proven RED by mutation — see the RESULT block below. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION OWED.** ~~FILED 2026-08-09 from #254's device logs, OBSERVED IN PASSING. Whether the microphone is ever LIVE behind the lock is UNDETERMINED and is still the whole question.~~ **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the GATE IS BUILT — 302-D…G all met 2026-08-20, each mutation-proven. Device closing bars owed.**
 
 > **⚖️ 302-C RULED 2026-08-10 (Owen, on the wave-1 close-out): the contract
 > is DEFER-UNTIL-UNLOCK, and it is today's felt flow.** His words: *"Today, if
@@ -8054,7 +8063,7 @@ bars say. **302-G red is the most informative failure available here** — it
 means the gate defers work with the lock switched off, which is a worse defect
 than the one being fixed.
 
-### ✅ RESULT 2026-08-20 — THE GATE IS BUILT. 302-D…G ALL MET, EACH PROVEN RED BY MUTATION.
+### ✅ RESULT 2026-08-20 — THE GATE IS BUILT. 302-D…G ALL MET — ~~EACH PROVEN RED BY MUTATION~~ THREE PROVEN RED BY MUTATION; 302-G, the negative control, is GREEN under every mutation, which is its bar. *(Heading corrected 2026-08-23 by the Opus-week audit: the scorecard below always said so; the heading overstated it.)*
 
 **`AppLockGate` (`Talaria/Services/Support/AppLockGate.swift`) is the one
 consultable state.** `AppLockController.refreshCover()` is its ONLY writer;
@@ -8853,7 +8862,7 @@ landing on a deck page inherits that behaviour as-is.
 
 ---
 
-## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. **PR #329 OPEN** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
+## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
 
 **How it was found.** #302's bar 302-B asked one question — is the *microphone*
 live behind App Lock — and the answer was yes (see #302's RESULT block). Mining
@@ -10841,6 +10850,22 @@ is NOT), **#215** (why a rate needs its denominator), `DeviceActionTools.swift:2
 > **Route (a) eliminated the stale-value failure class**, which is the harm
 > #249's guard exists to bounce and the reason #200S's schema rollback was
 > rejected twice.
+>
+> **⚠️ COUNT CORRECTION 2026-08-23 (Opus-week audit) — the H5 numbers
+> above and below are contradicted by the run's own preserved artifact.**
+> `planning/reports/2026-08-21-340-h5-due-date.json` (runRecord.trials)
+> shows exactly **4** armed no-call trials (3, 5, 6, 9), not 5 — so:
+> calls are **36, not 37**; the union-over-calls control is **16/16, not
+> 15/15**; and Fisher on 4/20 vs 0/20 no-calls is **p = 0.106, not
+> 0.047 — the table's only significant row does not survive.** The block
+> was also internally inconsistent on its own terms (5 no-calls ⇒ 35
+> total, not 37). Scoring came from `score-due-omission.py` over a
+> `log show` archive that was NOT preserved; per the evidence-decay rule
+> a missing log row is not a missing call, so the relay artifact is the
+> stronger record. **The bar VERDICT is unchanged either way — H5 MISSED,
+> the guide was not promoted, and H5′ replaced the bar** — but no future
+> lane may cite the p = 0.047 row; there is no significant no-call
+> contrast in this run.
 >
 > ### 🔴 What is still broken, stated plainly
 >
@@ -19521,3 +19546,12 @@ replaces `talk/readiness`).
 > premise dies, grep for the premise, not for the symptom.** `hasRelay` found
 > the production sites; `refreshReadinessCallCount` found the test ones. Neither
 > search is expensive; neither was run until something failed.
+
+> **📎 2026-08-23 (Opus-week audit) — naming residue the close-out missed,
+> cosmetic:** `LiveVoiceSessionService:286` and `:969` still say "the relay
+> bootstrap request" for what is now a plugin request, and
+> `VoiceState.relayBootstrapReceivedAt` keeps the relay name. (The
+> `RelayVoiceSession`/`RelayCoders` struct-name reuse elsewhere is
+> documented as deliberate — this note covers only the three undocumented
+> spots.) Comment/name-only; rides the next voice code lane rather than a
+> gate of its own.
