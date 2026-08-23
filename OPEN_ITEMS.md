@@ -4922,6 +4922,55 @@ Logged 2026-07-20 (Session V launch sweep).
 > transcript** (which cannot see barge-in) and never from the model's
 > self-report. BEFORE is the 2958 archive: **7 cycles in ~90 s.**
 
+> **❌ 2026-08-22 20:13 — ARM 1 FAILED. `server_vad` @ 0.8 does NOT stop the
+> loop.** Verified on the right host (`active profile → 'Mac Mini'`, gateway
+> online), session minted after the 20:09:57 bounce.
+>
+> ```
+> 20:13:44.685  speech_started, assistant not playing     ← Owen's greeting
+> 20:13:45.989  audio.started
+> 20:13:46.510  speech_started  +  audio.cleared          ← 0.52 s INTO playback = echo
+> 20:13:47.832  audio.started                              ← and round again
+> ```
+>
+> Owen's transcript is the clean illustration: Hermes says *"Good afternoon.
+> How can I assist you today?"*, a USER turn appears reading **"Good
+> afternoon."**, and Hermes answers it.
+>
+> **The session was short (~9 s), so this is not a rate** — but it does not
+> need to be. One unambiguous echo 0.52 s into playback at a threshold of 0.8
+> falsifies "the residue is attenuated enough for a threshold to reject it".
+> Pushing to 0.9 risks rejecting Owen and is a guess on top of a failed guess.
+>
+> ### 🔬 MY OWN INSTRUMENT WAS LYING, and I introduced it
+>
+> The line read *"speech_started while assistant idle — **phantom turn**, no
+> interruption"*. **That branch is also exactly what a legitimate user turn
+> looks like** — and the 20:13 archive opens with one: Owen's own greeting,
+> labelled "phantom" by my line. Echo is distinguished by **arriving DURING
+> playback**, not by this branch. Reworded to report what it saw and nothing
+> more. Baking a conclusion into a log line is how the next reader inherits my
+> error as data.
+>
+> ### 🎯 138-L — THE CONTROL THAT SPLITS THE PROBLEM IN HALF (do this FIRST)
+>
+> **One session with headphones connected.** Nothing acoustic survives
+> headphones, so:
+>
+> | result | meaning | where the work is |
+> |---|---|---|
+> | loop **stops** | genuinely acoustic — speaker → mic | route/volume tradeoff, or half-duplex. Threshold tuning is dead. |
+> | loop **persists** | **NOT acoustic at all** — the assistant's audio is reaching the uplink inside the app | a software loopback; every hypothesis on this entry so far is aimed at the wrong layer |
+>
+> **This should have been the first experiment of the day.** Five mechanisms
+> have been proposed and falsified (AEC convergence, threshold-can't-help, the
+> transcript reading, two engines, threshold-can-help), and **every single one
+> assumed acoustic echo without ever testing that assumption.** The one control
+> that interrogates the shared premise costs a pair of headphones and one
+> session. `forceSpeakerIfNeeded` also deliberately drives the speaker at
+> maximum volume into the same device's microphone, which makes the acoustic
+> branch entirely plausible — but plausible is what the last five were.
+
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)

@@ -1239,7 +1239,14 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             String(format: "%.2f", ProcessInfo.processInfo.systemUptime - $0)
         } ?? "n/a"
         guard voiceState == .speaking || assistantAudioPlaybackStartedAtUptime != nil else {
-            Self.logger.notice("#138 speech_started while assistant idle — phantom turn, no interruption (state=\(self.voiceState.rawValue, privacy: .public))")
+            // Deliberately NOT called "phantom" — that was this line's first
+            // wording and it baked in a conclusion the log cannot support.
+            // speech_started while the assistant is idle is ALSO exactly what a
+            // legitimate user turn looks like, and the 2026-08-22 20:13 archive
+            // opened with one: Owen's own greeting, labelled "phantom" by this
+            // very line. Echo is distinguished by ARRIVING DURING PLAYBACK, not
+            // by this branch — so the branch reports what it saw and nothing more.
+            Self.logger.notice("#138 speech_started, assistant not playing (state=\(self.voiceState.rawValue, privacy: .public))")
             return
         }
         Self.logger.notice("#138 BARGE-IN: assistant audio cancelled \(elapsed, privacy: .public)s into playback (state=\(self.voiceState.rawValue, privacy: .public))")
