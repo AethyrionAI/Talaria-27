@@ -287,7 +287,7 @@ CORRECTION_CLAUSE = re.compile(r"HEADER CORRECTED.*$", re.I)
 # and it exempted the very text this check was narrowed to catch. `\bBUILT\b`
 # deliberately does not match "unbuilt" — no word boundary inside it.
 ACKNOWLEDGES_BUILD = re.compile(
-    r"\b(BUILT|MERGED|SHIPPED|DEPLOYED|FIXED|DONE|MET)\b", re.I
+    r"\b(BUILT|MERGED|SHIPPED|DEPLOYED|FIXED|DONE|MET|CLOSED|MOOT)\b", re.I
 )
 
 

@@ -17061,7 +17061,7 @@ papercut resolves itself when the repo goes PUBLIC at the #269-B
 publication moment. Until then the gh-credentialed one-liner is the
 update path, by design.**
 
-## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.**
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.** **⟵ HEADER CORRECTED AGAIN 2026-08-23: *"the FIX is unrouted and is Owen's call"* is SUPERSEDED — #310 removed the cause on 2026-08-20 (the relay bootstrap is gated on `profile.hasRelay`, and the migration CLEARED both retired relay URLs), so for Owen's own profiles the doomed bootstrap does not run at all. Nothing to BUILD here. The live remnant is **365-C, a device check** — switch both directions, no interstitial, #247 toast still arrives — and 365-A/B survive only for a profile that legitimately HAS a relay.**
 
 **What was observed (build 2808, whoGoesThere):** Server settings →
 select OJAMD → back → a full-screen Talaria connecting/orb screen for
@@ -18316,7 +18316,41 @@ scope: **wholesale, or a permanent dual path?**
 > `ProfileRelaySession.downloadAgentFile`) — gated lane, this week's free
 > bucket.
 
-## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.**
+## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.** **⟵ HEADER CORRECTED 2026-08-23 — ✅ CLOSED AS MOOT: the readout was DELETED by #352 two days BEFORE this item was filed. Nothing to fix; the surface is gone.**
+
+> **✅ 2026-08-23 — CLOSED AS MOOT. The surface this item describes no longer
+> exists, and it was already gone when the item was written.**
+>
+> **The row was real.** `Last Drain` lived in the About page's
+> `// Sensor Pipeline` panel, fed by
+> `SensorUploadService.SensorDiagnostics.lastDrainSummary` / `lastDrainAt` —
+> so the 08-18 naming block's untested guess (*"may still be fed by the legacy
+> relay drain path"*) was **right about the mechanism**. It was wrong about the
+> tense.
+>
+> **#352 deleted it.** `1bb5504c` removed `SensorUploadService` outright, and
+> `af0f88f3` (*"About page — Phone Queries panel replaces the relay-era Sensor
+> Pipeline panel", 352-D*) replaced the whole panel. Today's About page carries
+> `// Phone Queries` — Sensor Sharing plus three query gates — and **no
+> timestamp of any kind**, so there is nothing left that can go stale.
+>
+> **The dates are the finding.** Owen observed the stale drain on **2026-08-16**
+> during #271's phone pass; `af0f88f3` landed **2026-08-16 19:57**; this item
+> was filed **2026-08-18 night**. The fix shipped between the observation and
+> the filing, from a different lane, and neither the filing nor the 08-18
+> naming pass checked the code.
+>
+> **This is #340's stray-artifact shape with the polarity reversed.** There the
+> tracker kept asking for a chore already done outside it; here the tracker
+> **created** work for a surface already deleted inside it. Same root: an entry
+> written from an observation rather than from the tree. Both cost little
+> individually — this one was booked onto a night build list and closed by a
+> grep — but the generalisation is worth the two lines it takes: **an
+> observation ages; check the code before filing from one, and again before
+> building from one.**
+>
+> **Nothing owed.** Ready to move to `OPEN_ITEMS-ARCHIVE.md` verbatim at the
+> next sweep (#261).
 
 > **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check
 > first (not elected): the About content's last-drain readout may still be
@@ -18489,7 +18523,7 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): PARKED
 > post-launch.**
 
-## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.**
+## 381. 🎨 Steer/interrupt is UNREACHABLE while the composer is `busyNoCommit` with the hold slot taken — **FILED 2026-08-18 night per #268, from #357-E's verdict (2026-08-17): with the #306 hold slot occupied the composer offers Stop only — no commit control — so mid-run steering cannot be exercised in exactly that state. A follow-up affordance is Owen's call. NOT STARTED.** **⟵ HEADER CORRECTED 2026-08-23: the call was MADE — Owen RULED *accept the limitation for now, WATCH* on 2026-08-18 ~22:40, with #368's cutover as the re-examination trigger. So this is not an open decision and not buildable work; it is a watch item waiting on #368.**
 
 > **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): ACCEPT the
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which
