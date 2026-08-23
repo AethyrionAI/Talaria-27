@@ -330,6 +330,7 @@ struct SettingsChannelsScreen: View {
                 Button { openSubsystem(subsystem) } label: {
                     SubsystemCard(
                         subsystem: subsystem,
+                        index: subsystem.indexLabel(in: visibleSubsystems),
                         value: cardValue(subsystem),
                         accented: cardIsAccented(subsystem)
                     )
@@ -344,7 +345,7 @@ struct SettingsChannelsScreen: View {
     private var developerRow: some View {
         Button { openSubsystem(.developer) } label: {
             HStack(spacing: Design.Spacing.sm) {
-                MonoLabel(SettingsSubsystem.developer.indexLabel, size: 10, weight: .bold,
+                MonoLabel(SettingsSubsystem.developer.indexLabel(in: visibleSubsystems), size: 10, weight: .bold,
                           tracking: Design.Tracking.monoXWide, color: Design.Colors.mutedForeground)
                 Text("DEVELOPER")
                     .font(Design.Typography.display(13, weight: .bold, relativeTo: .subheadline))
@@ -506,12 +507,15 @@ struct SettingsChannelsScreen: View {
 
 private struct SubsystemCard: View {
     let subsystem: SettingsSubsystem
+    /// #395-D2: positional, supplied by the screen from its visible list —
+    /// the card cannot derive it alone.
+    let index: String
     let value: String
     let accented: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            MonoLabel(subsystem.indexLabel, size: 10, weight: .bold,
+            MonoLabel(index, size: 10, weight: .bold,
                       tracking: Design.Tracking.monoXWide,
                       color: accented ? Design.Brand.accentText : Design.Colors.mutedForeground)
             Spacer(minLength: Design.Spacing.sm)

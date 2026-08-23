@@ -6,11 +6,12 @@ import SwiftUI
 // access here so the formatters are unit-testable; SettingsChannelsScreen
 // feeds them live values.
 enum SettingsSubsystem: Int, CaseIterable, Identifiable {
-    // #395-D: `.privateCloud` sits between `.about` and `.developer` so that
-    // on a device WITHOUT the tier (where it is filtered out entirely) the
-    // visible numbering runs 01–08 contiguous — no gap mid-sequence — and
-    // `.about`'s long-pinned "08" is untouched.
-    case uplink, server, models, voice, appearance, privacy, sessions, about, privateCloud, developer
+    // #395-D2 (Owen's positional-08 ruling): `.privateCloud` sits BEFORE
+    // `.about`, and card numbers are positional — computed from the tiles
+    // visible on this device (`indexLabel(in:)`) — so a device without the
+    // tier shows ABOUT at its classic 08 with no hole, and a device with it
+    // reads 08 PRIVATE CLOUD / 09 ABOUT / 10 DEVELOPER.
+    case uplink, server, models, voice, appearance, privacy, sessions, privateCloud, about, developer
 
     var id: Int { rawValue }
 
@@ -51,7 +52,13 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
         }
     }
 
-    var indexLabel: String { String(format: "%02d", rawValue + 1) }
+    /// #395-D2: the card number is POSITIONAL — computed from the tiles
+    /// visible on this device — so a filtered-out tile leaves no hole. The
+    /// old rawValue-derived property is deliberately GONE: a static number
+    /// beside a conditional tile is a stale source waiting to disagree.
+    func indexLabel(in visible: [SettingsSubsystem]) -> String {
+        String(format: "%02d", (visible.firstIndex(of: self) ?? rawValue) + 1)
+    }
 
     var a11yID: String {
         self == .developer ? "settings.row.developer" : "settings.card.\(String(describing: self))"
