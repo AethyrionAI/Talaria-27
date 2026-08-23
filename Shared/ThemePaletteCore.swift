@@ -666,7 +666,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xFAF3E7),
             secondaryForeground: Color(hex: 0xB8A58F),
             mutedForeground: Color(hex: 0x8F7B66),
-            dimForeground: Color(hex: 0x7D6B5A),
+            dimForeground: Color(hex: 0x867666),
             coolForeground: Color(hex: 0xE3D2BC)
         ),
         surface: Color(hex: 0x1A140E, opacity: 0.6),
@@ -739,7 +739,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xEDFFE8),
             secondaryForeground: Color(hex: 0x7BC96A),
             mutedForeground: Color(hex: 0x55A046),
-            dimForeground: Color(hex: 0x3D7A32),
+            dimForeground: Color(hex: 0x49833F),
             coolForeground: Color(hex: 0xC0EFB4)
         ),
         surface: Color(hex: 0x0A0F0A, opacity: 0.7),
@@ -837,7 +837,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x151515),
             secondaryForeground: Color(hex: 0x5C5C5C),
             mutedForeground: Color(hex: 0x6E6A63),
-            dimForeground: Color(hex: 0x8A8A8A),
+            dimForeground: Color(hex: 0x6C6C6C),
             coolForeground: Color(hex: 0x3E3A34)
         ),
         surface: Color(hex: 0xE8E4DC, opacity: 0.8),
@@ -915,7 +915,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x0D1E29),
             secondaryForeground: Color(hex: 0x4A6578),
             mutedForeground: Color(hex: 0x4A6578),
-            dimForeground: Color(hex: 0x7D96A6),
+            dimForeground: Color(hex: 0x607380),
             coolForeground: Color(hex: 0x4A6578)
         ),
         surface: Color(hex: 0x78D2FF, opacity: 0.18),
@@ -1062,7 +1062,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x241A16),
             secondaryForeground: Color(hex: 0x7A6258),
             mutedForeground: Color(hex: 0x7A6258),
-            dimForeground: Color(hex: 0xA99088),
+            dimForeground: Color(hex: 0x816E68),
             coolForeground: Color(hex: 0x7A6258)
         ),
         surface: Color(hex: 0xFF96AA, opacity: 0.18),
@@ -1153,7 +1153,7 @@ enum ThemePaletteCatalog {
         ),
         borders: .accentTinted(hairline: 0.14, strong: 0.30),
         scrim: Color(hex: 0x000000, opacity: 0.85),
-        danger: Color(hex: 0xA03020),
+        danger: Color(hex: 0xAA4536),
         dangerBright: Color(hex: 0xB3594D),
         dangerText: Color(hex: 0xB9665A),
         dangerBrightText: Color(hex: 0xB9665A),
@@ -1280,7 +1280,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xFFF5F8),
             secondaryForeground: Color(hex: 0xD8B8C8),
             mutedForeground: Color(hex: 0xD8B8C8),
-            dimForeground: Color(hex: 0x906080),
+            dimForeground: Color(hex: 0x976B89),
             coolForeground: Color(hex: 0xD8B8C8)
         ),
         surface: Color(hex: 0xFF6EC7, opacity: 0.08),
@@ -1348,7 +1348,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x160F0D),
             secondaryForeground: Color(hex: 0x5C5048),
             mutedForeground: Color(hex: 0x5C5048),
-            dimForeground: Color(hex: 0x8A7E74),
+            dimForeground: Color(hex: 0x756A62),
             coolForeground: Color(hex: 0x5C5048)
         ),
         surface: Color(hex: 0xFF2D2D, opacity: 0.08),
@@ -1428,7 +1428,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF7F4FF),
             secondaryForeground: Color(hex: 0xC4B8D8),
             mutedForeground: Color(hex: 0xC4B8D8),
-            dimForeground: Color(hex: 0x7A7090),
+            dimForeground: Color(hex: 0x7D7493),
             coolForeground: Color(hex: 0xC4B8D8)
         ),
         surface: Color(hex: 0x8A5CFF, opacity: 0.08),
@@ -1499,7 +1499,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xE8FFE8),
             secondaryForeground: Color(hex: 0x9CB89C),
             mutedForeground: Color(hex: 0x9CB89C),
-            dimForeground: Color(hex: 0x5A7A5A),
+            dimForeground: Color(hex: 0x618061),
             coolForeground: Color(hex: 0x9CB89C)
         ),
         surface: Color(hex: 0x39FF14, opacity: 0.08),
@@ -1568,7 +1568,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF0FFF0),
             secondaryForeground: Color(hex: 0x9CB89C),
             mutedForeground: Color(hex: 0x9CB89C),
-            dimForeground: Color(hex: 0x5A6E5A),
+            dimForeground: Color(hex: 0x6F816F),
             coolForeground: Color(hex: 0x9CB89C)
         ),
         surface: Color(hex: 0x4ADE80, opacity: 0.08),
@@ -1638,7 +1638,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xFFF5F7),
             secondaryForeground: Color(hex: 0xB8B0C8),
             mutedForeground: Color(hex: 0xB8B0C8),
-            dimForeground: Color(hex: 0x6E6680),
+            dimForeground: Color(hex: 0x7E778E),
             coolForeground: Color(hex: 0xB8B0C8)
         ),
         surface: Color(hex: 0xFF69B4, opacity: 0.08),
@@ -1707,7 +1707,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xFFF8F5),
             secondaryForeground: Color(hex: 0xC8B8B0),
             mutedForeground: Color(hex: 0xC8B8B0),
-            dimForeground: Color(hex: 0x806E68),
+            dimForeground: Color(hex: 0x877771),
             coolForeground: Color(hex: 0xC8B8B0)
         ),
         surface: Color(hex: 0xFF9AB4, opacity: 0.08),
@@ -1919,7 +1919,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF8F6FF),
             secondaryForeground: Color(hex: 0xB8B0D8),
             mutedForeground: Color(hex: 0xB8B0D8),
-            dimForeground: Color(hex: 0x786C98),
+            dimForeground: Color(hex: 0x80759E),
             coolForeground: Color(hex: 0xB8B0D8)
         ),
         surface: Color(hex: 0xFF006E, opacity: 0.08),
@@ -2138,7 +2138,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xFFF2E6),
             secondaryForeground: Color(hex: 0xD9B49B),
             mutedForeground: Color(hex: 0xD9B49B),
-            dimForeground: Color(hex: 0x8F6F59),
+            dimForeground: Color(hex: 0x947660),
             coolForeground: Color(hex: 0xD9B49B)
         ),
         surface: Color(hex: 0xFF6A1A, opacity: 0.08),
@@ -2223,7 +2223,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xEEF1FF),
             secondaryForeground: Color(hex: 0x9AA4C8),
             mutedForeground: Color(hex: 0x9AA4C8),
-            dimForeground: Color(hex: 0x5C688C),
+            dimForeground: Color(hex: 0x737D9C),
             coolForeground: Color(hex: 0x9AA4C8)
         ),
         surface: Color(hex: 0x3D6BFF, opacity: 0.08),
@@ -2295,7 +2295,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xEEF3FF),
             secondaryForeground: Color(hex: 0x93A3C4),
             mutedForeground: Color(hex: 0x93A3C4),
-            dimForeground: Color(hex: 0x5A6A8C),
+            dimForeground: Color(hex: 0x6E7D9A),
             coolForeground: Color(hex: 0x93A3C4)
         ),
         surface: Color(hex: 0x6AFF57, opacity: 0.08),
@@ -2371,7 +2371,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x262019),
             secondaryForeground: Color(hex: 0x716450),
             mutedForeground: Color(hex: 0x7D6F58),
-            dimForeground: Color(hex: 0xA2937A),
+            dimForeground: Color(hex: 0x7D715E),
             coolForeground: Color(hex: 0x716450)
         ),
         surface: Color(hex: 0xF9F2DD, opacity: 0.8),
@@ -2453,7 +2453,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF3F0E4),
             secondaryForeground: Color(hex: 0x9DC4AD),
             mutedForeground: Color(hex: 0x9DC4AD),
-            dimForeground: Color(hex: 0x5F8264),
+            dimForeground: Color(hex: 0x8AA38D),
             coolForeground: Color(hex: 0x9DC4AD)
         ),
         surface: Color(hex: 0x4F9DFF, opacity: 0.08),
@@ -2527,7 +2527,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF0EDE4),
             secondaryForeground: Color(hex: 0xA49AA8),
             mutedForeground: Color(hex: 0xA49AA8),
-            dimForeground: Color(hex: 0x6B6272),
+            dimForeground: Color(hex: 0x827B88),
             coolForeground: Color(hex: 0xA49AA8)
         ),
         surface: Color(hex: 0x00B3A4, opacity: 0.08),
@@ -2600,7 +2600,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x26212E),
             secondaryForeground: Color(hex: 0x756D64),
             mutedForeground: Color(hex: 0x7A7268),
-            dimForeground: Color(hex: 0xA39A8D),
+            dimForeground: Color(hex: 0x7B746B),
             coolForeground: Color(hex: 0x756D64)
         ),
         surface: Color(hex: 0xFDFCF8, opacity: 0.8),
@@ -2687,7 +2687,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0xF5F2FF),
             secondaryForeground: Color(hex: 0xA8A3B8),
             mutedForeground: Color(hex: 0xA8A3B8),
-            dimForeground: Color(hex: 0x6B6580),
+            dimForeground: Color(hex: 0x7F7991),
             coolForeground: Color(hex: 0xA8A3B8)
         ),
         surface: Color(hex: 0xFFD828, opacity: 0.08),
@@ -2762,7 +2762,7 @@ enum ThemePaletteCatalog {
             foregroundBright: Color(hex: 0x1F1A24),
             secondaryForeground: Color(hex: 0x6F6678),
             mutedForeground: Color(hex: 0x6F6678),
-            dimForeground: Color(hex: 0xA29AAE),
+            dimForeground: Color(hex: 0x746E7C),
             coolForeground: Color(hex: 0x6F6678)
         ),
         surface: Color(hex: 0xFFFDF6, opacity: 0.8),

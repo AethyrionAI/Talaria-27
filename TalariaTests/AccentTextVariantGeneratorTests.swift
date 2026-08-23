@@ -162,6 +162,55 @@ struct AccentTextVariantGeneratorTests {
         print(lines.joined(separator: "\n"))
     }
 
+    /// **#393 call 2 + the elected danger slice — the generator behind the
+    /// dimForeground raise (ruled 2026-08-23).**
+    ///
+    /// Per theme (the ramp is theme-level; the baseline shows dim identical
+    /// across accent slots everywhere), the target is min(4.6, a step below
+    /// the theme's own mutedForeground ratio) — the ramp cap bars
+    /// 393-C2-A..C pre-register: a dim raised past muted has inverted the
+    /// de-emphasis order, which is worse than the contrast it fixed.
+    ///
+    /// **`deepField` is SKIPPED on purpose:** its ramp is byte-pinned as
+    /// pre-theming legacy identity (`DesignThemeTests`, "Do not retune"),
+    /// and breaking that standing pin is Owen's call at the device-eyeball
+    /// round, not a lane's judgment.
+    @Test func printDimForegroundAndDangerSuggestions() {
+        var lines: [String] = ["=== #393 call 2 — dimForeground suggestions (+ danger|autumnHarvest) ==="]
+        for theme in ThemeID.allCases {
+            guard theme != .deepField else { continue }
+            let accent = theme.lockedAccentSlot ?? .cyan
+            let p = ThemePalette(theme: theme, accent: accent)
+            let bg = p.background
+            let dimRatio = ThemeContrastMath.ratio(p.dimForeground, on: bg)
+            guard dimRatio < 4.5 else { continue }
+            let mutedRatio = ThemeContrastMath.ratio(p.mutedForeground, on: bg)
+            let target = min(4.6, mutedRatio - 0.12)
+            guard let fix = Self.solve(p.dimForeground, on: bg, floor: target) else {
+                lines.append("  ⛔ \(theme.rawValue): UNREACHABLE even at full blend (muted \(mutedRatio))")
+                continue
+            }
+            lines.append(String(
+                format: "  %-22@ dim %.2f → %@ %.2f   (muted %.2f, target %.2f)",
+                theme.rawValue as NSString, dimRatio,
+                fix.hex as NSString, fix.ratio, mutedRatio, target))
+        }
+        // The danger slice is theme-level too: one literal covers the three
+        // accent cells of danger|autumnHarvest (2.60 against the 3.0
+        // decorative floor — an error pip nearly invisible).
+        let autumn = ThemePalette(theme: .autumnHarvest, accent: .cyan)
+        let dangerRatio = ThemeContrastMath.ratio(autumn.danger, on: autumn.background)
+        if dangerRatio < 3.0 {
+            if let fix = Self.solve(autumn.danger, on: autumn.background, floor: 3.2) {
+                lines.append(String(format: "  autumnHarvest danger  %.2f → %@ %.2f",
+                                    dangerRatio, fix.hex as NSString, fix.ratio))
+            } else {
+                lines.append("  ⛔ autumnHarvest danger: UNREACHABLE")
+            }
+        }
+        print(lines.joined(separator: "\n"))
+    }
+
     /// **The check that makes call 4 safe, and the one call 2 would fail.**
     ///
     /// Raising a ramp step narrows its gap to the neighbours. A ramp whose

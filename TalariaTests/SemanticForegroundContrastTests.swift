@@ -210,6 +210,16 @@ struct SemanticForegroundContrastTests {
 
     /// **The measured failure set as of 2026-08-21, before any fix.**
     ///
+    /// **Tightened 2026-08-23 (call 2 + the danger slice, RED-first):** 58
+    /// `dimForeground` cells and the 3 `danger|autumnHarvest` cells were
+    /// removed BEFORE the palette moved, so the retune had a red bar to turn
+    /// green. What remains of `dimForeground` is the ruled residue:
+    /// `deepField` ×3 (ramp byte-pinned as pre-theming legacy identity —
+    /// breaking that pin is Owen's call, not a lane's) and `pulpNoir` ×3 /
+    /// `stickerBombToybox` ×3 (capped just under their own `mutedForeground`
+    /// — 3.75 and 4.09 after the raise — because those themes' muted steps
+    /// sit below 4.5 and a dim at 4.5 would invert the ramp).
+    ///
     /// 170 `token|theme|accent` cells. This is the artifact 393-A required
     /// recorded, in the one place that cannot go stale: a test reads it.
     ///
@@ -238,70 +248,12 @@ struct SemanticForegroundContrastTests {
         "dimForeground|deepField|cyan",  // 3.16:1
         "dimForeground|deepField|amber",  // 3.16:1
         "dimForeground|deepField|violet",  // 3.16:1
-        "dimForeground|solarForge|cyan",  // 3.97:1
-        "dimForeground|solarForge|amber",  // 3.97:1
-        "dimForeground|solarForge|violet",  // 3.97:1
-        "dimForeground|terminal|cyan",  // 4.03:1
-        "dimForeground|paperTape|cyan",  // 3.01:1
-        "dimForeground|paperTape|amber",  // 3.01:1
-        "dimForeground|paperTape|violet",  // 3.01:1
-        "dimForeground|winterFrost|cyan",  // 2.92:1
-        "dimForeground|winterFrost|amber",  // 2.92:1
-        "dimForeground|winterFrost|violet",  // 2.92:1
-        "dimForeground|springSprout|cyan",  // 2.86:1
-        "dimForeground|springSprout|amber",  // 2.86:1
-        "dimForeground|springSprout|violet",  // 2.86:1
-        "dimForeground|bubblegumMecha|cyan",  // 4.01:1
-        "dimForeground|bubblegumMecha|amber",  // 4.01:1
-        "dimForeground|bubblegumMecha|violet",  // 4.01:1
-        "dimForeground|retroSciFi|cyan",  // 3.48:1
-        "dimForeground|retroSciFi|amber",  // 3.48:1
-        "dimForeground|retroSciFi|violet",  // 3.48:1
-        "dimForeground|eventHorizon|cyan",  // 4.38:1
-        "dimForeground|eventHorizon|amber",  // 4.38:1
-        "dimForeground|eventHorizon|violet",  // 4.38:1
-        "dimForeground|glitchGarden|cyan",  // 4.24:1
-        "dimForeground|glitchGarden|amber",  // 4.24:1
-        "dimForeground|glitchGarden|violet",  // 4.24:1
-        "dimForeground|witchsBrew|cyan",  // 3.51:1
-        "dimForeground|witchsBrew|amber",  // 3.51:1
-        "dimForeground|witchsBrew|violet",  // 3.51:1
-        "dimForeground|holoSushi|cyan",  // 3.64:1
-        "dimForeground|holoSushi|amber",  // 3.64:1
-        "dimForeground|holoSushi|violet",  // 3.64:1
-        "dimForeground|lunarDiner|cyan",  // 4.11:1
-        "dimForeground|lunarDiner|amber",  // 4.11:1
-        "dimForeground|lunarDiner|violet",  // 4.11:1
-        "dimForeground|graffitiGalaxy|cyan",  // 4.11:1
-        "dimForeground|graffitiGalaxy|amber",  // 4.11:1
-        "dimForeground|graffitiGalaxy|violet",  // 4.11:1
-        "dimForeground|moltenForge|cyan",  // 4.24:1
-        "dimForeground|moltenForge|amber",  // 4.24:1
-        "dimForeground|moltenForge|violet",  // 4.24:1
-        "dimForeground|luchaLibre|cyan",  // 3.42:1
-        "dimForeground|luchaLibre|amber",  // 3.42:1
-        "dimForeground|luchaLibre|violet",  // 3.42:1
-        "dimForeground|kaijuAttack|cyan",  // 3.52:1
-        "dimForeground|kaijuAttack|amber",  // 3.52:1
-        "dimForeground|kaijuAttack|violet",  // 3.52:1
         "dimForeground|pulpNoir|cyan",  // 2.36:1
         "dimForeground|pulpNoir|amber",  // 2.36:1
         "dimForeground|pulpNoir|violet",  // 2.36:1
-        "dimForeground|casinoLucky7s|cyan",  // 2.91:1
-        "dimForeground|casinoLucky7s|amber",  // 2.91:1
-        "dimForeground|casinoLucky7s|violet",  // 2.91:1
-        "dimForeground|cosmicBowling|cyan",  // 3.25:1
-        "dimForeground|cosmicBowling|amber",  // 3.25:1
-        "dimForeground|cosmicBowling|violet",  // 3.25:1
         "dimForeground|stickerBombToybox|cyan",  // 2.46:1
         "dimForeground|stickerBombToybox|amber",  // 2.46:1
         "dimForeground|stickerBombToybox|violet",  // 2.46:1
-        "dimForeground|comicVillain|cyan",  // 3.46:1
-        "dimForeground|comicVillain|amber",  // 3.46:1
-        "dimForeground|comicVillain|violet",  // 3.46:1
-        "dimForeground|comicFunnies|cyan",  // 2.52:1
-        "dimForeground|comicFunnies|amber",  // 2.52:1
-        "dimForeground|comicFunnies|violet",  // 2.52:1
         "accent (base)|winterFrost|cyan",  // 2.23:1
         "accent (base)|winterFrost|amber",  // 1.54:1
         "accent (base)|springSprout|cyan",  // 2.60:1
@@ -354,10 +306,28 @@ struct SemanticForegroundContrastTests {
         "accentDeep|comicFunnies|cyan",  // 1.66:1
         "accentDeep|comicFunnies|amber",  // 1.15:1
         "accentDeep|comicFunnies|violet",  // 1.94:1
-        "danger|autumnHarvest|cyan",  // 2.60:1
-        "danger|autumnHarvest|amber",  // 2.60:1
-        "danger|autumnHarvest|violet",  // 2.60:1
     ]
+
+    /// **393-C2-A — the de-emphasis order is load-bearing.** `dimForeground`
+    /// marks text MORE de-emphasized than `mutedForeground`, so per cell the
+    /// muted step must read strictly stronger. This is the pin that makes
+    /// call 2's raise safe: without it, "raise dim toward 4.5" on a theme
+    /// whose muted sits below 4.62 silently inverts the ramp — six steps
+    /// rendering as five with two of them swapped. Proven by mutation
+    /// (one theme's two steps swapped → RED naming the theme).
+    @Test func theRampsDeEmphasisOrderHolds() {
+        for (theme, accent) in ThemeContrastCells.reachable {
+            let p = ThemePalette(theme: theme, accent: accent)
+            let muted = ThemeContrastMath.ratio(p.mutedForeground, on: p.background)
+            let dim = ThemeContrastMath.ratio(p.dimForeground, on: p.background)
+            #expect(muted > dim, """
+                \(theme.rawValue)|\(accent.rawValue): mutedForeground \
+                (\(String(format: "%.2f", muted))) must read stronger than \
+                dimForeground (\(String(format: "%.2f", dim))) — the ramp's \
+                de-emphasis order inverted
+                """)
+        }
+    }
 
     /// **393-A. The survey, fenced at its measured size.**
     ///
