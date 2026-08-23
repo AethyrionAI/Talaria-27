@@ -266,6 +266,29 @@ HAS_RESULT = re.compile(
 # The sweep's own correction marker — an entry that has been reconciled says so
 # in its header, and must not re-trip the check forever after.
 RECONCILED = re.compile(r"HEADER CORRECTED", re.I)
+# ...but the exemption is NOT unconditional, and 2026-08-23 is why.
+#
+# The 08-23 sweep appended a clause to #340 claiming route (a) was "genuinely
+# unbuilt" when it had merged two days earlier — and because the exemption was
+# granted by the MARKER'S PRESENCE rather than by what it said, the check the
+# same sweep added could never fire on it. A wrong correction silenced the
+# check permanently, which is worse than no check: the entry then READS as
+# reconciled.
+#
+# The discriminator is what the three CORRECT partial corrections all do and
+# the wrong one did not: they acknowledge what WAS built before scoping what
+# is not ("269-A MERGED 2026-08-16; the remainder ... is still unbuilt").
+# So a correction clause may scope an absence, but not assert one over a body
+# that records a build while acknowledging nothing.
+CORRECTION_CLAUSE = re.compile(r"HEADER CORRECTED.*$", re.I)
+# Build/completion words ONLY. `RAN` and `CLEARED` were in this set for one
+# revision and the mutation test caught them: #340's wrong clause opened with
+# "the artifact was CLEARED 2026-08-22", which is a device chore, not a build,
+# and it exempted the very text this check was narrowed to catch. `\bBUILT\b`
+# deliberately does not match "unbuilt" — no word boundary inside it.
+ACKNOWLEDGES_BUILD = re.compile(
+    r"\b(BUILT|MERGED|SHIPPED|DEPLOYED|FIXED|DONE|MET)\b", re.I
+)
 
 
 def check_headers_claiming_not_started() -> tuple[bool, str, list[str]]:
@@ -288,6 +311,14 @@ def check_headers_claiming_not_started() -> tuple[bool, str, list[str]]:
     entry whose header carries the sweep's `HEADER CORRECTED` marker is
     reconciled and exempt: some items are legitimately part-done, and the
     honest fix there is a corrected header, not a rewritten one.
+
+    **The exemption is CONDITIONAL, and 2026-08-23 is why.** That sweep's own
+    #340 correction claimed the fix was "genuinely unbuilt" when it had merged
+    two days earlier, and the exemption — keyed on the marker's presence —
+    made this check permanently blind to it. A correction clause that claims
+    NOT STARTED must now also acknowledge the build the body records; the
+    three correct partial corrections already did exactly that, so the
+    narrowing costs them nothing.
     """
     text = LIVE.read_text(encoding="utf-8")
     lines = text.splitlines()
@@ -299,13 +330,31 @@ def check_headers_claiming_not_started() -> tuple[bool, str, list[str]]:
     def flush() -> None:
         if current is None:
             return
-        if not NOT_STARTED.search(header_line) or RECONCILED.search(header_line):
+        if not NOT_STARTED.search(header_line):
             return
-        if HAS_RESULT.search("\n".join(body)):
+        if not HAS_RESULT.search("\n".join(body)):
+            return
+        clause_match = CORRECTION_CLAUSE.search(header_line)
+        if clause_match:
+            clause = clause_match.group(0)
+            # A correction that acknowledges the build is doing its job, even
+            # when it also scopes what remains unbuilt. One that claims absence
+            # and acknowledges nothing is the #340 shape.
+            if ACKNOWLEDGES_BUILD.search(clause):
+                return
+            if not NOT_STARTED.search(clause):
+                return
             offenders.append(
-                f"#{current}: header says NOT STARTED but the entry records a result — "
-                f"correct the header, or say why the result does not close it"
+                f"#{current}: the HEADER CORRECTED clause claims NOT STARTED over an "
+                f"entry that records a build, and acknowledges no build itself — this "
+                f"is #340's 2026-08-23 shape, a correction that was itself wrong and "
+                f"exempted the check by existing"
             )
+            return
+        offenders.append(
+            f"#{current}: header says NOT STARTED but the entry records a result — "
+            f"correct the header, or say why the result does not close it"
+        )
 
     for line in lines:
         m = HEADER.match(line)

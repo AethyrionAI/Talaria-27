@@ -9696,7 +9696,39 @@ sibling lesson — a failure that looked device-specific and was really contenti
 **#313** (the sibling lesson — a red that was a proxy problem, not the defect it named),
 `planning/DEVICE-BACKLOG-TRIAGE-2026-08-11.md` (the plan this run validates).
 
-## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the artifact was cleared 2026-08-22 and 340-B/G1 were measured 2026-08-12 — but the route-(a) FIX is genuinely unbuilt, so this header's NOT STARTED is accurate about the fix and only the fix.**
+## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep), AND THE FIRST CORRECTION WAS ITSELF WRONG — REPLACED THE SAME DAY. It read *"the route-(a) FIX is genuinely unbuilt"*. **Route (a) was BUILT + MERGED 2026-08-21** (`DeviceActionParsing.parseBareClock`/`resolveBareClock`, wired into BOTH `performCreate` and the card-edit path; 340-H1..H4 met, wiring suite mutation-proven), and **340-H5 RAN on device the same day** — its bar missed and was retired as unfit, replaced by 340-H5′-A..D. What is actually owed is the **device A/B at n≥40/arm** (340-H5′) plus **340-E**, Owen's call. So this header's NOT STARTED is wrong outright, not "accurate about the fix".**
+
+> **🔴 2026-08-23 — A CORRECTION THAT WAS ITSELF WRONG, AND THE CHECK THAT
+> SHOULD HAVE CAUGHT IT EXEMPTED IT FOR SAYING SO.** The 08-23 stale-header
+> sweep appended a clause to this header claiming route (a) was *"genuinely
+> unbuilt."* It shipped 2026-08-21. The error then propagated: the Sunday
+> night build list booked #340 as *"the fix and the scorer are desk work"* and
+> Owen elected it on that description. It is **device work** — 340-H5′, n≥40
+> per arm — and there was nothing here to build.
+>
+> **The mechanism is worth more than the mistake.** Of the fourteen headers
+> that sweep corrected, **thirteen claimed something WAS built or merged, and
+> one — this one — claimed something was NOT.** A presence claim is settled by
+> a grep or a git check. **An ABSENCE claim can only be settled by reading the
+> whole entry**, and this is the longest entry in the tracker: the `✅ ROUTE
+> (a) BUILT` block sits roughly seven hundred lines below the header, past two
+> falsified candidates and four sets of pre-registered bars. The sweep read
+> enough to be confident and not enough to be right.
+>
+> **And `check_headers_claiming_not_started`, added by that same sweep, could
+> not fire here — because it exempts any header carrying the `HEADER
+> CORRECTED` marker.** The exemption is granted by the marker's PRESENCE, not
+> by whether what it says is true, so **a wrong correction silences the check
+> permanently.** A sweep that writes its own exemption is worse than one with
+> no check at all: the entry now reads as reconciled. The invariant is
+> narrowed in the same commit — a correction clause may no longer claim
+> not-started over a body that records a build — and mutation-verified against
+> this very text.
+>
+> **The rule this earns: an absence claim needs a positive read, not a
+> confident one.** It is the same shape as this project's `cmd | grep || echo
+> "absent"` trap — an empty result reading as a negative — moved from a shell
+> pipeline into prose.
 
 > **🧹 2026-08-22 — THE STRAY ARTIFACT IS GONE, and it was cleared BEFORE anyone
 > asked.** Owen, when handed the delete as a device chore: *"i looked and
