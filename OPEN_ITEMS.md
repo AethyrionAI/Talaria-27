@@ -1353,7 +1353,30 @@ this toggle does not answer), **#180** (the notice-honesty family).
 >   and the screen's toggle wiring are SwiftUI bodies no unit test reaches —
 >   the pure list, the structural pin, and the predicate suite are the
 >   enforceable perimeter, same limit 395's own bars recorded for
->   `AppContainer`. A device look at the tile rides Owen's next sitting.
+>   `AppContainer`. ~~A device look at the tile rides Owen's next sitting.~~
+>   **✅ Device look DONE 2026-08-23 evening on build 2971 — Owen: "PCC tile
+>   in settings is good … gives it a home for any future settings without
+>   clogging up other unrelated tabs." He floated one refinement — PCC as
+>   08 with ABOUT at 09 — routed as a follow-up question the same evening.**
+
+> **⚖️ RULED 2026-08-23 (Owen, follow-up): POSITIONAL 08.** PCC moves
+> before ABOUT, and card numbers are computed from the tiles actually
+> visible on the device rather than baked into the enum — his phone reads
+> 08 PRIVATE CLOUD / 09 ABOUT / 10 DEVELOPER; a non-PCC device reads
+> 08 ABOUT / 09 DEVELOPER. Contiguous everywhere; the static-swap variant
+> (a hole at 08 on non-PCC devices) was shown and not taken.
+>
+> **🎯 BARS 395-D2-A…D — pre-registered before code:**
+> - **395-D2-A (order).** `.privateCloud` sits immediately before `.about`
+>   in `allCases`; the visibility filter still removes only it.
+> - **395-D2-B (positional labels, RED-first).** With the tier present:
+>   privateCloud "08", about "09", developer "10". Without: about "08",
+>   developer "09". No gap in either shape.
+> - **395-D2-C (no stale source).** The rawValue-derived `indexLabel`
+>   property is REMOVED, so nothing can render the old numbering — the
+>   compiler finds every consumer.
+> - **395-D2-D (non-regression).** a11y IDs unchanged; the deck counter
+>   stays positional; the 395-D suites stay green.
 
 ## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
 
@@ -2250,11 +2273,16 @@ Marquee ships three of the worst-affected palettes).
 > (squash `c8341df5`).** Owen installed build 2971 and judged the ramp on
 > device: *"toybox and pulp noir look good"* — the two ramp-capped themes,
 > named specifically, which is exactly the pair the cap was designed around.
-> **Not ruled in the same breath, so still open:** the deepField pinned-dim
-> question (its 3 cells stay at 3.16 under the legacy byte-pin until Owen
-> rules), `mutedForeground` (9/88, unelected), and `retroSciFi`'s
-> decorative accent (explicitly declined at election). Calls 1–5 are
-> otherwise discharged.
+> Calls 1–5 are otherwise discharged.
+
+> **⚖️ RULED 2026-08-23 (Owen, same evening): deepField ACCEPTED at 3.16 —
+> "accept deepField at 3.16, keep the pin."** The legacy byte-pin stands
+> (`DesignThemeTests:75`, "Do not retune"); its 3 cells stay in the
+> baseline as a CHOSEN cost of the pre-theming identity contract, not an
+> unfixed defect. That was the last open ruling from the call-2 lane.
+> **What remains on this entry is only the unelected residue:**
+> `mutedForeground` (9/88) and `retroSciFi`'s decorative accent (declined
+> at election) — both contained by the ratchet, neither routed.
 
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
