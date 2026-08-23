@@ -1378,6 +1378,18 @@ this toggle does not answer), **#180** (the notice-honesty family).
 > - **395-D2-D (non-regression).** a11y IDs unchanged; the deck counter
 >   stays positional; the 395-D suites stay green.
 
+> **✅ 2026-08-23 — 395-D2-A…D ALL MET. BUILT + MERGED the same evening
+> (PR #358, squash `fbfd16c2`). GATE: PASS 2498 / 14 / Release (count
+> moved +1).** `.privateCloud` now precedes `.about`; `indexLabel(in:)`
+> computes the number from the device's visible tiles and the old
+> rawValue property is deleted (the compiler found both consumers —
+> `SubsystemCard` takes its index from the screen, the developer row reads
+> the same way). RED-first on both order and labels, including a contiguity
+> sweep over the filtered shape. **With this, #395 has nothing owed:** the
+> toggle, the tile, its placement, and its numbering are all built, ruled,
+> and device-approved; the only remaining trust boundary is the recorded
+> view-trust limit above, unchanged.
+
 ## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
 
 > **The title this entry carried until it was solved, kept verbatim because the
