@@ -326,7 +326,7 @@ struct ChatInputBar: View {
                         } label: {
                             Image(systemName: speechService.isListening ? "stop.fill" : "mic")
                                 .font(.system(size: Design.Size.iconSmall, weight: .medium))
-                                .foregroundStyle(speechService.isListening ? Design.Colors.danger : Design.Colors.mutedForeground)
+                                .foregroundStyle(speechService.isListening ? Design.Colors.dangerText : Design.Colors.mutedForeground)
                                 .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
                                 .background {
                                     if speechService.isListening {

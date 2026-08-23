@@ -388,7 +388,7 @@ struct BatteryRunDetailScreen: View {
             Spacer()
             MonoLabel("\(probe.correct)/\(probe.trials)", size: 11, weight: .medium,
                       tracking: Design.Tracking.mono,
-                      color: clean ? Design.Brand.accentText : Design.Colors.danger)
+                      color: clean ? Design.Brand.accentText : Design.Colors.dangerText)
         }
         .padding(.horizontal, Design.Spacing.md)
         .padding(.vertical, Design.Spacing.sm)
@@ -454,11 +454,11 @@ struct BatteryTrialListScreen: View {
             if let error = trial.error {
                 Text("ERROR: \(error)")
                     .font(Design.Typography.mono(11, weight: .regular))
-                    .foregroundStyle(Design.Colors.danger)
+                    .foregroundStyle(Design.Colors.dangerText)
                     .textSelection(.enabled)
             } else if trial.timedOut {
                 MonoLabel("TIMEOUT — wedged trial guillotined", size: 10,
-                          tracking: Design.Tracking.mono, color: Design.Colors.danger)
+                          tracking: Design.Tracking.mono, color: Design.Colors.dangerText)
             } else if let text = trial.text {
                 Text(text)
                     .font(Design.Typography.mono(11, weight: .regular))

@@ -344,7 +344,7 @@ struct ModelsSettingsScreen: View {
         switch status.quota {
         case .belowLimit(approaching: false): color = Design.Colors.mutedForeground
         case .belowLimit(approaching: true): color = Design.Brand.forgeText
-        case .limitReached: color = Design.Colors.danger
+        case .limitReached: color = Design.Colors.dangerText
         // #391: unknown is not good news and not bad news — it is unknown, and
         // it must not borrow the reassuring muted tone OR the alarming one.
         case .unknown: color = Design.Colors.dimForeground
@@ -418,7 +418,7 @@ struct ModelsSettingsScreen: View {
                 }
                 if let error = model.errorMessage {
                     MonoLabel(error, size: 9, weight: .medium, tracking: Design.Tracking.mono,
-                              color: Design.Colors.danger)
+                              color: Design.Colors.dangerText)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 hostDefaultRow(model)

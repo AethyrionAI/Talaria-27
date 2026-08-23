@@ -204,7 +204,7 @@ struct TaskDetailScreen: View {
                 Text("Delete Task")
                     .font(Design.Typography.body(14, weight: .medium))
             }
-            .foregroundStyle(Design.Colors.dangerBright)
+            .foregroundStyle(Design.Colors.dangerBrightText)
             .frame(maxWidth: .infinity)
             .frame(height: 48)
             .background(Design.Colors.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: Design.CornerRadius.lg))
@@ -258,7 +258,7 @@ struct TaskDetailScreen: View {
                 }
                 if let error = job.lastError?.trimmingCharacters(in: .whitespacesAndNewlines),
                    !error.isEmpty {
-                    metaTextBlock("Error", error, color: Design.Colors.dangerBright)
+                    metaTextBlock("Error", error, color: Design.Colors.dangerBrightText)
                 }
                 if let deliveryError = job.lastDeliveryError?.trimmingCharacters(in: .whitespacesAndNewlines),
                    !deliveryError.isEmpty {
@@ -268,7 +268,7 @@ struct TaskDetailScreen: View {
                     metaRow("Execution", execution.status ?? "—")
                     if let error = execution.error?.trimmingCharacters(in: .whitespacesAndNewlines),
                        !error.isEmpty {
-                        metaTextBlock("Execution error", error, color: Design.Colors.dangerBright)
+                        metaTextBlock("Execution error", error, color: Design.Colors.dangerBrightText)
                     }
                 }
             }

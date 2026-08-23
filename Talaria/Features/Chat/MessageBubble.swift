@@ -210,7 +210,7 @@ struct MessageBubble: View {
                 Button { onRetry?(message) } label: {
                     Label("Retry", systemImage: "arrow.clockwise")
                         .font(Design.Typography.caption)
-                        .foregroundStyle(Design.Colors.danger)
+                        .foregroundStyle(Design.Colors.dangerText)
                 }
             }
         }

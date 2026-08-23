@@ -65,7 +65,7 @@ struct InboxScreen: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Clear") { confirmingClearAll = true }
                         .font(Design.Typography.mono(12, weight: .medium))
-                        .tint(Design.Colors.danger)
+                        .tint(Design.Colors.dangerText)
                         .accessibilityLabel("Clear all inbox items")
                 }
             }

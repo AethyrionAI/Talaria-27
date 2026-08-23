@@ -1120,7 +1120,7 @@ struct ChatScreen: View {
     }
 
     private func contextColor(_ progress: Double) -> Color {
-        if progress > 0.85 { return Design.Colors.danger }
+        if progress > 0.85 { return Design.Colors.dangerText }
         if progress > 0.65 { return Design.Brand.forgeText }
         return Design.Brand.accentText
     }
@@ -1369,7 +1369,7 @@ struct ChatScreen: View {
         HStack(alignment: .center, spacing: Design.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: Design.Size.iconSmall))
-                .foregroundStyle(Design.Colors.danger)
+                .foregroundStyle(Design.Colors.dangerText)
 
             VStack(alignment: .leading, spacing: Design.Spacing.xxxs) {
                 MonoLabel("COULDN'T OPEN CONVERSATION", size: 11, weight: .medium,

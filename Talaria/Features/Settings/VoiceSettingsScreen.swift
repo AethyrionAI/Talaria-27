@@ -115,7 +115,7 @@ struct VoiceSettingsScreen: View {
         case .connecting: ("CONNECTING", Design.Brand.forgeText, true)
         case .connected:  ("SESSION LIVE", Design.Brand.accentText, false)
         case .blocked:    ("BLOCKED", Design.Brand.forgeText, false)
-        case .failed:     ("ERROR", Design.Colors.danger, false)
+        case .failed:     ("ERROR", Design.Colors.dangerText, false)
         }
     }
 
@@ -130,7 +130,7 @@ struct VoiceSettingsScreen: View {
                                      talkStore.voiceEngine == .native ? Design.Brand.forgeText : Design.Brand.accentText))
                 rowDivider
                 statusRow("Host", boolStatus(readiness.hostOnline, yes: "ONLINE", no: "OFFLINE",
-                                             noColor: Design.Colors.danger))
+                                             noColor: Design.Colors.dangerText))
                 rowDivider
                 statusRow("Configured", boolStatus(readiness.configured, yes: "CONFIGURED", no: "NOT CONFIGURED",
                                                    noColor: Design.Brand.forge))

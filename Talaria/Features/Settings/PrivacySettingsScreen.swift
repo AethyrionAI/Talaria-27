@@ -257,7 +257,7 @@ struct PrivacySettingsScreen: View {
         switch status {
         case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accentText
         case .limited: Design.Brand.forgeText
-        case .denied, .restricted: Design.Colors.danger
+        case .denied, .restricted: Design.Colors.dangerText
         case .notDetermined, .unsupported: Design.Colors.mutedForeground
         }
     }
@@ -605,7 +605,7 @@ struct PrivacySettingsScreen: View {
                     MonoLabel(actionLabel, size: 9, weight: .medium,
                               tracking: Design.Tracking.mono,
                               color: state.action == .revoke
-                                  ? Design.Colors.danger : Design.Colors.accentTint(0.7))
+                                  ? Design.Colors.dangerText : Design.Colors.accentTint(0.7))
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -631,7 +631,7 @@ struct PrivacySettingsScreen: View {
         switch state {
         case .active: Design.Brand.accentText
         case .needsPermission: Design.Brand.forgeText
-        case .blockedByIOS: Design.Colors.danger
+        case .blockedByIOS: Design.Colors.dangerText
         case .off, .unavailable: Design.Colors.mutedForeground
         }
     }

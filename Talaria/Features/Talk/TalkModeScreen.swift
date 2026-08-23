@@ -139,7 +139,7 @@ struct TalkModeScreen: View {
         switch talkStore.voiceState {
         case .speaking, .listening, .thinking: Design.Brand.accentText
         case .interrupted: Design.Brand.forgeText
-        case .disconnected: Design.Colors.danger
+        case .disconnected: Design.Colors.dangerText
         case .idle: Design.Colors.mutedForeground
         }
     }
@@ -153,7 +153,7 @@ struct TalkModeScreen: View {
                 secondaryButton(
                     systemName: talkStore.isMuted ? "mic.slash.fill" : "mic.fill",
                     accessibility: talkStore.isMuted ? "Unmute" : "Mute",
-                    tint: talkStore.isMuted ? Design.Colors.danger : Design.Colors.foreground,
+                    tint: talkStore.isMuted ? Design.Colors.dangerText : Design.Colors.foreground,
                     accent: false
                 ) {
                     Task { await talkStore.toggleMute() }
@@ -247,7 +247,7 @@ struct TalkModeScreen: View {
         } label: {
             Image(systemName: "phone.down.fill")
                 .font(.system(size: Design.Size.iconLarge, weight: .semibold))
-                .foregroundStyle(Design.Colors.dangerBright)
+                .foregroundStyle(Design.Colors.dangerBrightText)
                 .frame(width: Design.Size.iconHero + 8, height: Design.Size.iconHero + 8)
                 .background(Design.Colors.danger.opacity(0.22), in: Circle())
                 .overlay {

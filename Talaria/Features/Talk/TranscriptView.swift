@@ -15,7 +15,7 @@ struct TranscriptView: View {
         switch voiceState {
         case .speaking, .listening, .thinking: Design.Brand.accentText
         case .interrupted: Design.Brand.forgeText
-        case .disconnected: Design.Colors.danger
+        case .disconnected: Design.Colors.dangerText
         case .idle: Design.Colors.mutedForeground
         }
     }

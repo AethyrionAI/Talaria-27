@@ -61,7 +61,7 @@ struct VoiceMemoRecorderSheet: View {
             if let errorMessage {
                 Text(errorMessage)
                     .font(Design.Typography.mono(11, relativeTo: .caption))
-                    .foregroundStyle(Design.Colors.danger)
+                    .foregroundStyle(Design.Colors.dangerText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, Design.Spacing.md)
             }
@@ -151,7 +151,7 @@ struct VoiceMemoRecorderSheet: View {
                         }
                     Image(systemName: recorder.isRecording ? "stop.fill" : "mic.fill")
                         .font(.system(size: 26, weight: .semibold))
-                        .foregroundStyle(recorder.isRecording ? Design.Colors.danger : Design.Brand.accentText)
+                        .foregroundStyle(recorder.isRecording ? Design.Colors.dangerText : Design.Brand.accentText)
                 }
             }
             .buttonStyle(.plain)
@@ -161,7 +161,7 @@ struct VoiceMemoRecorderSheet: View {
                 recorder.isRecording ? "RECORDING — TAP TO STOP" : "TAP TO RECORD",
                 size: 9,
                 tracking: Design.Tracking.mono,
-                color: recorder.isRecording ? Design.Colors.danger : Design.Colors.mutedForeground
+                color: recorder.isRecording ? Design.Colors.dangerText : Design.Colors.mutedForeground
             )
         }
         .padding(.vertical, Design.Spacing.sm)

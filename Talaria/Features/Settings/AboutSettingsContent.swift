@@ -176,8 +176,8 @@ struct AboutSettingsContent: View {
         switch container.chatStore.directConnectionStatus {
         case .connected:    RowStatus(text: "REACHABLE",   color: Design.Brand.accentText,        blinks: false)
         case .connecting:   RowStatus(text: "CHECKING",     color: Design.Brand.forgeText,         blinks: true)
-        case .disconnected: RowStatus(text: "UNREACHABLE",  color: Design.Colors.danger,       blinks: false)
-        case .error:        RowStatus(text: "ERROR",        color: Design.Colors.danger,       blinks: false)
+        case .disconnected: RowStatus(text: "UNREACHABLE",  color: Design.Colors.dangerText,       blinks: false)
+        case .error:        RowStatus(text: "ERROR",        color: Design.Colors.dangerText,       blinks: false)
         }
     }
 
@@ -195,7 +195,7 @@ struct AboutSettingsContent: View {
         case .disconnected, .error:
             if TalariaLinkObservation.legacyRelayReadsAsError(
                 pluginLive: pluginLive, relayReachable: false) {
-                return RowStatus(text: "ERROR", color: Design.Colors.danger, blinks: false)
+                return RowStatus(text: "ERROR", color: Design.Colors.dangerText, blinks: false)
             }
             return RowStatus(text: "OFFLINE", color: Design.Colors.mutedForeground, blinks: false)
         }
@@ -221,7 +221,7 @@ struct AboutSettingsContent: View {
             return RowStatus(text: "CREDENTIAL UNREADABLE", color: Design.Brand.forgeText, blinks: false)
         }
         if container.pairingStore.identityMismatchDetected {
-            return RowStatus(text: "STALE — RE-PAIR", color: Design.Colors.danger, blinks: true)
+            return RowStatus(text: "STALE — RE-PAIR", color: Design.Colors.dangerText, blinks: true)
         }
         guard let userID = sessionStore.state.userID else {
             return RowStatus(text: "—", color: Design.Colors.mutedForeground, blinks: false)
@@ -241,7 +241,7 @@ struct AboutSettingsContent: View {
         case .always, .whenInUse:
             return RowStatus(text: level.displayLabel.uppercased(), color: Design.Brand.accentText, blinks: false)
         case .denied, .restricted:
-            return RowStatus(text: level.displayLabel.uppercased(), color: Design.Colors.danger, blinks: false)
+            return RowStatus(text: level.displayLabel.uppercased(), color: Design.Colors.dangerText, blinks: false)
         case .notDetermined:
             return RowStatus(text: "NOT SET", color: Design.Colors.mutedForeground, blinks: false)
         }
@@ -291,7 +291,7 @@ struct AboutSettingsContent: View {
         case .authorized, .authorizedAlways, .authorizedWhenInUse:
             Design.Brand.accentText
         case .denied, .restricted:
-            Design.Colors.danger
+            Design.Colors.dangerText
         case .limited:
             Design.Brand.forgeText
         case .notDetermined, .unsupported, .none:
@@ -372,7 +372,7 @@ struct AboutSettingsContent: View {
         switch status {
         case .authorized, .authorizedWhenInUse, .authorizedAlways: Design.Brand.accentText
         case .limited: Design.Brand.forgeText
-        case .denied, .restricted, .unsupported: Design.Colors.danger
+        case .denied, .restricted, .unsupported: Design.Colors.dangerText
         case .notDetermined: Design.Colors.mutedForeground
         }
     }
