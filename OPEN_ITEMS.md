@@ -9511,6 +9511,25 @@ sibling lesson — a failure that looked device-specific and was really contenti
 
 ## 340. 🔴 THE TOOL IS CALLED, THE TIME IS DROPPED, AND THE MODEL CLAIMS THE TIME ANYWAY — a dateless reminder that never fires, reported as *"set for 11"* — **AND #338'S GUARD IS BLIND TO IT BY DESIGN. MEASURED IN PRODUCTION 2026-08-12 9:51 PM, discriminator RESOLVED the same minute. NOT STARTED; bars pre-registered below.**
 
+> **🧹 2026-08-22 — THE STRAY ARTIFACT IS GONE, and it was cleared BEFORE anyone
+> asked.** Owen, when handed the delete as a device chore: *"i looked and
+> deleted what I could find before, that was never marked."*
+>
+> **The cleanup is done; the RECORD of it was the thing missing.** It sat on
+> three separate lists as owed device work — the 08-19 week plan, Friday's
+> carryover, and tonight's batch — and each of those would have sent someone to
+> the Reminders app to look for something that had not existed for days.
+>
+> Worth naming because it is a shape, not a one-off: **an action taken outside
+> the tracker is invisible to it, and the tracker will keep asking.** The cost
+> here was trivial. The same gap on a load-bearing step is #383's third defect
+> (an edit made, never deployed, and written up as done) pointing the other
+> way — done, but never written up.
+>
+> **This does NOT close #340.** The artifact is cleaned up; the DEFECT that
+> produced it — a dateless reminder created while the model claims a time — is
+> untouched, and its bars stand unrun.
+
 **The measurement** (production, on-device, guard build, Owen's own device,
 three screenshots):
 
