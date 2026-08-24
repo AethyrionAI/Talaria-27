@@ -9790,6 +9790,55 @@ must be designed with this), **#312** (item (a), which this keeps RED),
 **#180** (honest degradation — a failure affordance on succeeding work is
 squarely this family).
 
+> **🔍 PREMISE CODE-READ 2026-08-24 (the queued §11 item — run from the Mac,
+> not the desk: the code and a live gateway were all it needed). THE DEFECT
+> IS STILL LIVE, BUT ITS PREMISE HAS INVERTED — and three of this entry's
+> claims are now stale.**
+>
+> **What changed under it:** this entry reasons from the sessions plane
+> ("nothing to consult"). #368 made runs the default and **#382 deleted the
+> sessions turn transport entirely** — every turn now has a run id, and
+> `GET /v1/runs/{id}` answers "is it still alive?" directly. **"There is
+> nothing to consult" is FALSE at HEAD.** What survives of the defect is one
+> gap: **the app loses the run id at process death.** `ChatStore.pendingRun`
+> is a plain in-memory `private var` (`ChatStore.swift:464`; 382-A's
+> persistence pin covers the within-process expiration arm, not relaunch),
+> and `finalizeStaleSendsFromCache()` (`:678-728`) still flips every cached
+> `.sending` user row to `.failed` + Retry unconditionally — its own doc
+> comment carries the honest caveat ("the run may in fact have completed
+> server-side") that is this entry's whole defect.
+>
+> **Probed live on the Mac gateway (read-only, 2026-08-24):** `GET /v1/runs`
+> without an id → **405** (POST-only route; no list endpoint), and
+> `/v1/capabilities` advertises `run_status` but nothing list-shaped. **So
+> recovery-by-enumeration is impossible — persisting the run id is the ONLY
+> route to a cold-launch status read.** The session id already survives:
+> `ConversationJournalStore` loads at launch and persists every mutation,
+> which is why trial 2's answer-recovery works today.
+>
+> **Stale claims corrected (close-out rule, in place):**
+> 1. "On that plane there is nothing to consult" — true when written, false
+>    since #368/#382; the blindness is now a lost credential, not a missing
+>    endpoint.
+> 2. 329-C's "interacts with #328's route-2 surface, which is in flight" —
+>    #328's route 1 became PERMANENT when #382 deleted the alternative;
+>    there is no route-2 surface in flight. The interaction constraint is
+>    DISCHARGED.
+> 3. The root-cause paragraph's #328 framing survives only as history — the
+>    shared root was the plane, and the plane is gone.
+>
+> **Fix shape this opens (recorded, NOT elected — 329-C's design question is
+> Owen's, posed before any code per its own text):** persist the pending
+> run's `(runId, sessionId)` beside the journal hop; on cold load, a
+> `.sending` row with a persisted run id consults `GET /v1/runs/{id}`
+> BEFORE classification — alive ⇒ hold + arm the existing reconcile (trial
+> 2's proven path), completed ⇒ reconcile adopts, failed/expired ⇒ `.failed`
+> honestly. Host unreachable ⇒ today's behavior stands (locally-knowable,
+> the airplane arm's logic). **Recommended: this reconcile-first-then-decide
+> arm — it needs no new UI state and 329-B/329-D hold by construction.** The
+> alternatives 329-C names (a distinct "still running" state; a suppressed
+> Retry) remain open for his pick.
+
 ## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any code.**
 
 **What was seen.** On the thread from #312 item (d) — the one that had announced
