@@ -192,8 +192,9 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
 - **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless — **✅ BUILT 2026-08-23**
-- **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a) and the sim LEAPFROGS the device; still no exact twin of 24A5418b until the phone takes beta 7.** 398-A..C unchanged
-- **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **FILED 2026-08-24 on Owen's go; bars 401-A..E pre-registered before the run**
+- **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
+- **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ RUN COMPLETE 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; the ≥2497 count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests). Owed: Owen's promotion word**
+- **#402** 🔬 PCC-on-sim probe — beta 7 marks PCC-on-simulators FIXED; setup recipe first, then availability vs generation separately — **FILED 2026-08-24, elevated by Owen; bars 402-A..D pre-registered**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16545,7 +16546,22 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 >   beta 7.
 > The regression round itself is **#401**.
 
-## 401. 🔁 iOS 27 BETA 7 / XCODE 27 BETA 6 REGRESSION ROUND + SDK AUDIT — the #398 skew moves: the beta 6 Xcode exists and its sim runtime leapfrogs the device — **FILED 2026-08-24 on Owen's go ("start a quick round of regression testing for the new version, and check and see if any new features were added? Or anything to look out for / may have been resolved"). Bars 401-A..E pre-registered below BEFORE the run.**
+> **2026-08-24 PM (hours after the block above): THE FLEET ALIGNED — Owen
+> upgraded `whoGoesThere` to iOS 27 beta 7** (*"Phone was just upgraded to
+> beta 7 so we're good there"*). First device/sim/SDK alignment since beta 5.
+> Consequences:
+> - **#401's dyld adoption freeze is LIFTED** — the device is no longer older
+>   than the SDK (24A5422a). The exact device build string is still
+>   unmeasured (grab it from the next device log pass the way 24A5418b was
+>   grabbed); Owen's word settles the ordinal, not the suffix.
+> - **398-B's re-measure got MORE urgent, not less:** it now lands on the
+>   runtime where Apple fixed FM excessive tool calling (#401 §3), so the old
+>   over-serving rates describe a dead runtime twice over (#343's governor
+>   window, then this). A re-measured rate must carry its runtime per 398-A.
+> - **398-C stands unchanged** — the gate silently advanced to 24A5423a this
+>   very day, which is exactly the behavior 398-C wants named in the output.
+
+## 401. 🔁 iOS 27 BETA 7 / XCODE 27 BETA 6 REGRESSION ROUND + SDK AUDIT — the #398 skew moves: the beta 6 Xcode exists and its sim runtime leapfrogs the device — **FILED 2026-08-24 on Owen's go ("start a quick round of regression testing for the new version, and check and see if any new features were added? Or anything to look out for / may have been resolved"). Bars 401-A..E pre-registered below BEFORE the run.** **⟵ ✅ RUN COMPLETE same day: GATE PASS first-run under beta6 (2482 Swift Testing + 14 XCUITest on VERIFIED 24A5423a, Release clean, 0 compile errors); SDK diff = 6 real interface changes in 280, NONE Talaria-called; FM byte-identical. 401-A's ≥2497 count clause MISSED AS WRITTEN — bar-formation error, measured exactly (net −15 tests deleted by PR #360 after the floor's baseline; result block below). Full evidence: `planning/reports/2026-08-24-beta6-sdk-audit.md`. PROMOTION recommendation surfaced; awaiting Owen's word.**
 
 **Measured on arrival (2026-08-24, on the Mac Mini directly — no MCP caveat):**
 
@@ -16605,7 +16621,95 @@ below names builds, not beta ordinals, where it matters.
 **Deliberately NOT bars this round:** device re-measurement (that stays
 398-B); a beta6-built OTA stage; rebuilding the FM/isolation probe apps
 (follow-up if elected); any adoption of new-in-24A5422a API (blocked by the
-dyld corollary until the phone is on beta 7).
+dyld corollary until the phone is on beta 7). *(⟵ same-day update: the
+adoption freeze LIFTED hours later — phone upgraded to beta 7, see #398's
+2026-08-24 PM block. The PCC-on-sim elective probe was elevated by Owen and
+is now **#402**.)*
+
+### ✅ RESULT — 2026-08-24, same day (full evidence: `planning/reports/2026-08-24-beta6-sdk-audit.md`)
+
+- **401-A: GATE PASS first-run, with one clause MISSED AS WRITTEN.** xcodebuild
+  exit 0 · TEST SUCCEEDED · 2482 Swift Testing + 14/14 XCUITest · Release
+  clean, 0 Swift errors · skips = the CondenserFidelityTests permanent pair
+  only · booted runtime verified **24A5423a** from the device itself
+  (`simctl getenv SIMULATOR_RUNTIME_BUILD_VERSION`), per the bar. **The
+  ≥ 2497 unit floor FAILED (2482), and the miss is recorded, not
+  redefined:** the floor was pinned to #393's 08-23 gate, whose tree
+  predates PR #360's test deletions from the same night. Measured, not
+  argued: `git diff c8341df5..HEAD` over the test targets = −29/+14 `@Test`
+  functions, **net −15, exactly the 2497→2482 delta**, concentrated in the
+  transport-deletion files. 2482 is the complete suite at HEAD; no beta5
+  control run owed. **Lesson: pin a count floor to the HEAD being gated,
+  never to the last gate's number. Correct floor going forward: 2482 + 14
+  at `f5c7a473`.**
+- **401-B: MET.** Full-file sweep, 280 interfaces: 186 byte-identical, 88
+  version-stamp-only, **6 real** (_Concurrency ABI shuffle, UIKit
+  find-replace type fix, CryptoKit pre-GM insecure-cipher REMOVAL,
+  NowPlaying, _DataDetection_SwiftUI availability, VideoToolbox
+  formatting), 0 frameworks added/removed. Method note preserved in the
+  report: the first sweep matched `arm64-apple-ios.swiftinterface` and
+  found ZERO files (slices are `arm64e`) — the impossible total=0 caught
+  the empty-result trap live.
+- **401-C: MET — NO API Talaria calls changed.** FoundationModels
+  byte-identical (whole #324 checklist + `variant`); SwiftUI/SwiftData/
+  EventKit/Speech/AVFAudio/WidgetKit/HealthKit/etc. identical or
+  stamp-only. Repo greps empty on all six real changes. Nothing new to
+  adopt.
+- **401-D: MET (ledger honest).** #301 isolation trap: NOT RE-TESTED
+  (probe gone), @Sendable fixes stay. SwiftData mainContext: NOT
+  RE-TESTED, UNKNOWN stands (beta-7's 178113288 deadlock fix is a
+  different signature), workaround stays. FM sim generation: NOT
+  RE-TESTED; no note claims it fixed; **PCC-on-sim IS claimed fixed →
+  #402.**
+- **401-E: MET.** #398 corrected (twice — premise moved, then fleet
+  aligned), CLAUDE.md corrected in the same commits; promotion
+  RECOMMENDED (beta5 stays as A/B fallback this time), **not executed —
+  Owen's word owed.** Release-note catalog (with the cumulative-page
+  attribution caveat) in the report: FM excessive-tool-calling FIXED (the
+  #215 over-serving configuration), PCC greedy-decoding FIXED, new
+  Dictation model behind a Settings toggle, background-NE entitlement,
+  devicectl JSON v5 deprecations, parallel-test stdout delay (Xcode).
+
+## 402. 🔬 PCC-ON-SIM PROBE — beta 7 claims *"Private Cloud Compute might not work when you use simulators"* is FIXED (Apple id 177684296); if true, the PCC tier becomes sim-testable for the FIRST time — **FILED 2026-08-24 per #268 from #401's release-note finding, elevated by Owen the same hour (*"thats wonderful about pcc testing, that will be incredibly helpful"*). NOT STARTED; bars pre-registered below before any code.**
+
+**Context.** Every PCC observation to date — #388's surface sweep, #391's
+quota finding, #395's off-switch — was device-only, because the PCC tier
+never worked on a simulator. Apple's beta 7 notes mark that resolved. Two
+honest unknowns before anything is "testable": (1) what sim-side setup PCC
+needs (Apple Account sign-in on the sim? Apple Intelligence enabled in sim
+Settings? entitlements on the probe target?) — none of which the release
+note states; (2) whether "might not work … fixed" means *works*, or merely
+*fails differently*. The probe's first job is the setup recipe, its second
+the measurement. Runtime: 24A5423a (the only sim runtime the claim covers).
+
+### 🎯 BARS 402-A…D — pre-registered before any code
+
+- **402-A (setup recipe recorded).** The exact sim configuration that makes
+  PCC reachable — or the named, measured blocker that makes it unreachable —
+  documented step-by-step on 24A5423a: account state, Apple Intelligence
+  toggle state, entitlement requirements. **A dead end is a valid result** if
+  the blocker is specific (an error identity, a Settings surface that does
+  not exist on sim), not "didn't seem to work."
+- **402-B (availability vs generation, separately).** PCC model availability
+  AND an actual `respond()` round-trip each get their own recorded outcome —
+  #324's lesson stands: availability is a catalog question, generation is a
+  different question, and conflating them produced a month of "available but
+  cannot generate" confusion on the on-device tier. On failure, record the
+  error identity **verbatim** (the un-bridged NSError family, 324-W4 — typed
+  casts may be blind; log domain string + code).
+- **402-C (decoding-regime stamp).** Any behavioral PCC observation is
+  stamped with the runtime build and a greedy-decoding note: beta 7 also
+  fixed PCC's always-greedy decoding (#401 §3), so no output comparison
+  against pre-beta-7 PCC transcripts without naming that the sampling regime
+  changed underneath.
+- **402-D (no production code rides the probe).** The probe lives in
+  DEBUG-only instruments or a scratch target; anything app-shipping that
+  falls out of it gets its own item.
+
+**Cross-references:** **#401** (source finding), **#395** (the tier this
+makes testable), **#391/#388** (device-only PCC observations that gain a sim
+control), **#324** (availability-vs-generation discipline; error-identity
+discipline).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

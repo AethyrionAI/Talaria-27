@@ -592,7 +592,10 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   of #324's dyld rule: a beta6-Xcode-built binary referencing new-in-24A5422a
   symbols dies at launch on the phone's older runtime — no new-SDK API
   adoption until the device updates. Regression round + promotion decision:
-  #401.**
+  #401. ⟵ Same day PM: the phone UPDATED to beta 7 (Owen's word; exact build
+  string unmeasured until the next device log pass) — the fleet is ALIGNED
+  for the first time since beta 5 and the adoption freeze is LIFTED. PCC may
+  now be sim-testable (beta 7 fix): probe is #402.**
 - **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
   standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
   pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
