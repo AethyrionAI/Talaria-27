@@ -1273,6 +1273,20 @@ native pipeline), **#1** (voice transcripts).
 > go; until then OJAMD mints with its default and the app's footnote says
 > so, which is the designed degrade.
 
+> **✅ 2026-08-23 late — APP HALF MERGED (PR #361, squash `4ad8e3c1`).
+> GATE: PASS 2482 / 14 / Release (count moved +4 — the wire, roundtrip,
+> readiness, and copy-pin tests exactly).** 396-P-A RED-first (stubbed
+> non-persisting decode), 396-P-B RED-first AND mutation-proven (the
+> `extra` dropped → RED on the missing `tuning` key), 396-P-E both
+> directions. The picker sits between the read-only model block and
+> Read-Aloud; the honest-asymmetry copy is pinned by test. **THE TUNING
+> LANE'S REALTIME HALF IS DONE end-to-end on the Mac profile** (app merged
+> + host deployed); still owed on this entry: Owen's device look at the
+> picker (next OTA carries it), the OJAMD deploy on its own go, 396-D's
+> live before/after quote when a tuned session first runs, and the LOCAL
+> half — which stays deliberately unbuilt behind the fault-2 author
+> measurement (§3 device row 12), per the ruling.
+
 ## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
 
 **Owen, ruling it:** *"Yeah I know it's already available. We've done light
