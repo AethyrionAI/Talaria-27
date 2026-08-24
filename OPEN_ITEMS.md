@@ -1252,6 +1252,27 @@ native pipeline), **#1** (voice transcripts).
 >   plugin DEPLOY rides Owen's per-experiment go (Mac first, then OJAMD,
 >   per #383's precedent) — building and pushing the branch does not.
 
+> **✅ 2026-08-23 ~22:10 — PLUGIN HALF BUILT AND DEPLOYED TO THE MAC on
+> Owen's go ("You can deploy the plugin updates on the mac when you're
+> ready. Permission to bounce the gateway granted").** Plugin main
+> fast-forwarded `fb2e364` → **`e669549`** (196→201 pytest in the work
+> clone; presets quiet `{server_vad, 0.4, 300, 500}` / noisy
+> `{server_vad, 0.75, 400, 900}`, response flags from the same env
+> resolution as the default; envelope plumbing mutation-checked). Live
+> checkout pulled 22:10:23 (reflog), gateway bounced, **listener PID 21918
+> up 22:10:42 — 19 s after the pull, so the process imported the new code
+> (reflog-vs-start-time pin)**; bind won the #264 race first try; clean
+> load (the register() hygiene arm prints only on failure and printed
+> nothing — and per the 08-22 adjacency lesson, nothing else in the log is
+> being attributed to the plugin). Dispatch proven alive both ways:
+> bogus-auth `talk_readiness` → `device_auth_mismatch`, nonsense verb →
+> `unknown_event_type`. **Honest limit:** the readiness `tunings` field is
+> device-auth-gated, so its first LIVE observation (and the footnote
+> disappearing) rides Owen's next Voice-settings visit. **OJAMD: not
+> deployed** — rides a later `hermes plugins update` + bounce on its own
+> go; until then OJAMD mints with its default and the app's footnote says
+> so, which is the designed degrade.
+
 ## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
 
 **Owen, ruling it:** *"Yeah I know it's already available. We've done light
