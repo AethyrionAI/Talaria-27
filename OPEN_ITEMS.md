@@ -18985,7 +18985,7 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which
 > reshapes the composer surface this rides on; re-examine then.
 
-## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). ~~NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.~~ ✅ TRIGGER FIRED EARLY 2026-08-23 on Owen's word and DONE the same night (PR #360, squash `5f50e498`, net −1,219 lines): bars 382-A..E met, two scope corrections recorded, five test files un-defaulted off the deleted plane, restore recipe below. CLOSED; archive move rides the next sweep.**
+## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). ~~NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.~~** **⟵ HEADER CORRECTED 2026-08-23 (same night): ✅ the trigger FIRED EARLY on Owen's word and the deletion is BUILT + MERGED (PR #360, squash `5f50e498`, net −1,219 lines) — bars 382-A..E met, two scope corrections recorded, five test files un-defaulted off the deleted plane, restore recipe in the result block. CLOSED; archive move rides the next sweep.**
 
 **Why it exists.** #368's cutover flips the default to the runs plane but
 deliberately does NOT remove the old path. Owen's 2026-08-19 ruling was
