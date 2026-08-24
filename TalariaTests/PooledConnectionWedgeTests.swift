@@ -349,6 +349,28 @@ struct PooledConnectionWedgeTests {
         #expect(SessionsHermesClient.interactiveRequestTimeout == 20)
         #expect(SessionsHermesClient.streamingRequestTimeout == 300)
     }
+
+    /// **The pin #394's fix never had, added by the 2026-08-23 Opus-week
+    /// audit.** The fix is a view modifier (`.task(id: scenePhase)`) plus a
+    /// guard-at-top — SwiftUI bodies are unreachable from a unit test, and
+    /// reverting either line passed the whole suite. Entry #394 retired its
+    /// automated bar with reasoning and closed on device evidence; this
+    /// structural pin (the #399 pattern) is the cheap floor under that
+    /// decision: the two load-bearing lines must exist in the source.
+    @Test func theScenePhaseRestartWiringIsStillSpelled() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria/Features/Chat/ChatScreen.swift")
+        let source = try #require(
+            try? String(contentsOf: url, encoding: .utf8),
+            "cannot read ChatScreen.swift — this check did not run"
+        )
+        #expect(source.contains(".task(id: scenePhase) { await monitorConnectionStatus() }"),
+                "the health-poll task is no longer scenePhase-keyed — #394's frozen-phase bug can return")
+        #expect(source.contains("ChatHealthPollPolicy.shouldProbe(scenePhase: pollScenePhase)"),
+                "the per-tick live-phase guard is gone from the poll loop (#394)")
+    }
 }
 
 private extension Result where Success == Int, Failure == Error {

@@ -542,6 +542,14 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.approvalMode = approvalMode
     }
 
+    // #400: encode is SYNTHESIZED from this enum — do not write a
+    // hand-written `encode(to:)`. The hand-written one silently omitted
+    // `midTurnSendAction` (found 2026-08-23 by the Opus-week audit): the
+    // user's choice worked all session and reverted on relaunch, and
+    // nothing could notice because every OTHER key was present. A
+    // synthesized encode cannot omit a case. The custom `init(from:)`
+    // below stays — it exists for decode DEFAULTS, which synthesis cannot
+    // express; the asymmetry is deliberate.
     private enum CodingKeys: String, CodingKey {
         case userName
         case avatarInitials
@@ -641,41 +649,7 @@ struct UserSettings: Codable, Hashable, Sendable {
             (try? container.decodeIfPresent(ApprovalMode.self, forKey: .approvalMode)) ?? nil)
     }
 
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(userName, forKey: .userName)
-        try container.encode(avatarInitials, forKey: .avatarInitials)
-        try container.encode(hapticFeedbackEnabled, forKey: .hapticFeedbackEnabled)
-        try container.encode(environment, forKey: .environment)
-        try container.encode(relayConfiguration, forKey: .relayConfiguration)
-        try container.encode(autoConnectOnLaunch, forKey: .autoConnectOnLaunch)
-        try container.encode(healthCollectionEnabled, forKey: .healthCollectionEnabled)
-        try container.encode(locationCollectionEnabled, forKey: .locationCollectionEnabled)
-        try container.encode(sensorStreamingEnabled, forKey: .sensorStreamingEnabled)
-        try container.encode(motionCollectionEnabled, forKey: .motionCollectionEnabled)
-        try container.encode(hermesAPIBaseURL, forKey: .hermesAPIBaseURL)
-        try container.encode(modelsShimBaseURL, forKey: .modelsShimBaseURL)
-        try container.encode(postVoiceTranscriptsToHermes, forKey: .postVoiceTranscriptsToHermes)
-        try container.encode(readAloudAutoPlay, forKey: .readAloudAutoPlay)
-        try container.encodeIfPresent(readAloudVoiceIdentifier, forKey: .readAloudVoiceIdentifier)
-        try container.encode(readAloudRate, forKey: .readAloudRate)
-        try container.encode(composerWritingToolsEnabled, forKey: .composerWritingToolsEnabled)
-        try container.encode(appearanceTheme, forKey: .appearanceTheme)
-        try container.encode(appearanceThemeMode, forKey: .appearanceThemeMode)
-        try container.encode(appearanceAccent, forKey: .appearanceAccent)
-        try container.encode(hudGlowIntensity, forKey: .hudGlowIntensity)
-        try container.encode(gridDensity, forKey: .gridDensity)
-        try container.encode(reduceMotion, forKey: .reduceMotion)
-        try container.encode(verboseLogging, forKey: .verboseLogging)
-        try container.encode(spotlightIndexingEnabled, forKey: .spotlightIndexingEnabled)
-        try container.encode(privateCloudEnabled, forKey: .privateCloudEnabled)
-        try container.encode(showEmptySessions, forKey: .showEmptySessions)
-        try container.encode(appLockEnabled, forKey: .appLockEnabled)
-        try container.encode(appLockGracePeriod, forKey: .appLockGracePeriod)
-        try container.encode(useRunsTransport, forKey: .useRunsTransport)
-        try container.encode(runsCutoverApplied, forKey: .runsCutoverApplied)
-        try container.encode(approvalMode, forKey: .approvalMode)
-    }
+    // #400: no hand-written encode(to:) — see the comment at CodingKeys.
 
     var appLockConfiguration: AppLockConfiguration {
         AppLockConfiguration(isEnabled: appLockEnabled, gracePeriod: appLockGracePeriod)

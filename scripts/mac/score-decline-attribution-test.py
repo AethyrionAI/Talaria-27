@@ -24,9 +24,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-import importlib
-scorer = importlib.import_module("score-decline-attribution".replace("-", "_")) \
-    if False else None  # noqa: E501  (hyphenated module: loaded explicitly below)
 
 import importlib.util
 _spec = importlib.util.spec_from_file_location(
