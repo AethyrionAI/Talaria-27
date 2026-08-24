@@ -9,6 +9,8 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         static let sessionProfileIndex = "hermes.sessionProfileIndex"
         static let sessionUsageIndex = "hermes.sessionUsageIndex"
         static let conversationCache = "hermes.conversationCache"
+        // #329: the pending run's durable record; cleared with the cache.
+        static let pendingRunRecord = "hermes.pendingRunRecord"
         static let conversationJournal = "hermes.conversationJournal"
         static let conversationListState = "hermes.conversationListState"
         static let composeOutboxState = "hermes.composeOutboxState"
@@ -313,6 +315,18 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearConversationCache() {
         defaults.removeObject(forKey: Keys.conversationCache)
+    }
+
+    func loadPendingRunRecord() -> PendingRunRecord? {
+        load(PendingRunRecord.self, key: Keys.pendingRunRecord)
+    }
+
+    func savePendingRunRecord(_ record: PendingRunRecord) {
+        save(record, key: Keys.pendingRunRecord)
+    }
+
+    func clearPendingRunRecord() {
+        defaults.removeObject(forKey: Keys.pendingRunRecord)
     }
 
     func loadConversationJournal() -> ConversationJournal? {

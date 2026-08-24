@@ -460,8 +460,37 @@ final class ChatStore {
         /// filters `_thinking`, so this local copy is the only survivor —
         /// re-attached to the reply when reconcile adopts it.
         let partialReasoning: String?
+        /// #329: set ONLY by the cold-load restore path — the cached user row
+        /// this recovery must settle honestly (`.failed`) if it concludes
+        /// without an adoption. In-process arms leave it nil; their rows are
+        /// settled by the streaming/hold machinery that armed them.
+        var restoredRowID: UUID? = nil
     }
-    private var pendingRun: PendingRun?
+    /// #329: the didSet is the record's single choke point — every arm and
+    /// every settle flows through this assignment, so the durable record
+    /// cannot drift from the in-memory truth the way a scattered edit would.
+    /// Only run-id-carrying pendings persist (a record without an id has no
+    /// status read to consult). A nil assignment clears the record: walk-away
+    /// (`abandonPendingRun`) therefore clears it too, which deliberately
+    /// preserves today's walk-away behavior — this lane changes COLD LAUNCH
+    /// classification only.
+    private var pendingRun: PendingRun? {
+        didSet {
+            if let pending = pendingRun, let runId = pending.runId,
+               let conversationID = conversation?.id {
+                persistence.savePendingRunRecord(PendingRunRecord(
+                    sessionId: pending.sessionId,
+                    runId: runId,
+                    userMessageID: pending.userMessageID,
+                    conversationID: conversationID,
+                    sentAt: pending.sentAt,
+                    partialReasoning: pending.partialReasoning
+                ))
+            } else if pendingRun == nil {
+                persistence.clearPendingRunRecord()
+            }
+        }
+    }
     private var reconcileTask: Task<Void, Never>?
     /// #322: the single detached `GET /v1/runs/{id}` a cancel takes, kept so
     /// a second Stop or a walk-away can cancel it rather than let it land on
@@ -655,7 +684,13 @@ final class ChatStore {
             if let cachedUsage = conversation?.latestUsage {
                 lastTokenUsage = cachedUsage
             }
-            finalizeStaleSendsFromCache()
+            // #329: the pending-run record is read ONCE and feeds both the
+            // scrubber (which must not flip the record's row) and the
+            // restore (which re-arms recovery for it). Reconcile-first:
+            // classification waits for the host's own verdict.
+            let pendingRecord = persistence.loadPendingRunRecord()
+            finalizeStaleSendsFromCache(sparing: pendingRecord)
+            restorePendingRunFromRecordIfPossible(pendingRecord)
             // #306 matrix row 12: no turn survives a relaunch — every
             // still-held entry surfaces, and nothing fires at launch.
             surfaceHeldTurnsAfterColdLoad()
@@ -685,12 +720,18 @@ final class ChatStore {
     /// drawer remains the authoritative view and retry is user-mediated, not
     /// automatic. Also scrubs any cached streaming placeholder (empty Hermes
     /// `.sending` row) that a mid-stream save (e.g. relay polling) let slip in.
-    private func finalizeStaleSendsFromCache() {
+    private func finalizeStaleSendsFromCache(sparing record: PendingRunRecord? = nil) {
         guard var conv = conversation else { return }
         var didChange = false
 
+        // #329: the ONE row a durable run record vouches for is not guessed
+        // at — the restore path consults the run's own status instead. A
+        // record for another conversation vouches for nothing here.
+        let sparedRowID: UUID? = (record?.conversationID == conv.id) ? record?.userMessageID : nil
+
         for i in conv.messages.indices
-        where conv.messages[i].sender == .user && conv.messages[i].status == .sending {
+        where conv.messages[i].sender == .user && conv.messages[i].status == .sending
+            && conv.messages[i].id != sparedRowID {
             conv.messages[i].status = .failed
             didChange = true
         }
@@ -724,6 +765,59 @@ final class ChatStore {
         chatLog.notice("cold load: finalized stale in-flight send state from cache (#56)")
         conversation = conv
         persistence.saveConversationCache(conv)
+    }
+
+    /// #329 (Owen's 329-C ruling: reconcile-first-then-decide). A cold load
+    /// that finds a durable run record for THIS conversation re-arms the
+    /// existing recovery instead of guessing: the row is held `.working`
+    /// (which is also what lets `adoptRecoveredRun`'s settle flip it), the
+    /// pending run is re-minted with `restoredRowID` set, and the reconcile
+    /// loop's own verdicts classify — adoption, the host's failure words, or
+    /// an honest deferred `.failed` when recovery concludes empty.
+    ///
+    /// Refusals, each deliberate: no record (pre-fix caches keep today's
+    /// behavior — nothing pends forever); a record for another conversation
+    /// (adoption into the wrong thread is #307's corruption — the record
+    /// stays for its own thread's load); a record whose row is gone from the
+    /// cache (nothing to classify — clear the orphan).
+    private func restorePendingRunFromRecordIfPossible(_ record: PendingRunRecord?) {
+        guard let record, var conv = conversation, conv.id == record.conversationID else { return }
+        guard let idx = conv.messages.firstIndex(where: {
+            $0.id == record.userMessageID && $0.sender == .user
+                && ($0.status == .sending || $0.status == .working)
+        }) else {
+            persistence.clearPendingRunRecord()
+            return
+        }
+        conv.messages[idx].status = .working
+        conversation = conv
+        persistence.saveConversationCache(conv)
+        pendingRun = PendingRun(
+            sessionId: record.sessionId,
+            runId: record.runId,
+            userMessageID: record.userMessageID,
+            sentAt: record.sentAt,
+            partialReasoning: record.partialReasoning,
+            restoredRowID: record.userMessageID
+        )
+        chatLog.notice("cold load: durable run record found — consulting the run's own status before classifying (#329)")
+        startReconcileLoopIfNeeded()
+    }
+
+    /// #329: the restored row's honest terminal. Recovery concluded without
+    /// an adoption — host-verified failure, a run the host forgot, nothing
+    /// to show, or the budget ran out against an unreachable host — so the
+    /// deferred classification lands now, as `.failed` + Retry (today's
+    /// terminal, arrived at by verdict rather than by guess).
+    private func settleRestoredRowAsFailed(_ rowID: UUID) {
+        guard var conv = conversation,
+              let idx = conv.messages.firstIndex(where: { $0.id == rowID }),
+              conv.messages[idx].status == .working || conv.messages[idx].status == .sending
+        else { return }
+        conv.messages[idx].status = .failed
+        conversation = conv
+        persistence.saveConversationCache(conv)
+        chatLog.notice("cold-load recovery concluded without an answer — restored row settled failed (#329)")
     }
 
     func loadConversation() async {
@@ -3598,6 +3692,15 @@ final class ChatStore {
             // fire gate would block anyway; the user gets the honest chip).
             if !Task.isCancelled, self.pendingRun != nil {
                 self.resolveHeldTurn(after: .reconcileBudgetExpired)
+                // #329: a RESTORED recovery that ends here (budget out, or
+                // `.gone` — the settle paths never ran) lands its deferred
+                // terminal now. Clearing pendingRun is safe for this arm:
+                // cold load already SURFACED every held entry (row 12), and
+                // a surfaced entry never auto-fires.
+                if let restoredRowID = self.pendingRun?.restoredRowID {
+                    self.settleRestoredRowAsFailed(restoredRowID)
+                    self.pendingRun = nil
+                }
             }
             if self.reconcileGeneration == generation {
                 self.reconcileTask = nil
@@ -3749,6 +3852,12 @@ final class ChatStore {
         pendingRun = nil
         pendingMessageSentAt = nil
         onRunResolved?(pending.sessionId)
+        // #329: a restored row whose recovery settled WITHOUT an adoption
+        // gets its deferred honest terminal here (adoption settles it to
+        // `.sent` itself, in adoptRecoveredRun).
+        if !adopted, let restoredRowID = pending.restoredRowID {
+            settleRestoredRowAsFailed(restoredRowID)
+        }
         if adopted, let conversation {
             persistence.saveConversationCache(conversation)
             onConversationChanged?()

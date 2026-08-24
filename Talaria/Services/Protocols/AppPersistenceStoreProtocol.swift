@@ -41,6 +41,12 @@ protocol AppPersistenceStoreProtocol {
     func loadConversationCache() -> Conversation?
     func saveConversationCache(_ conversation: Conversation)
     func clearConversationCache()
+    // #329: the pending run's durable record — survives process death so a
+    // cold launch can consult the run's own status instead of guessing
+    // failure. One slot, like the conversation cache it travels with.
+    func loadPendingRunRecord() -> PendingRunRecord?
+    func savePendingRunRecord(_ record: PendingRunRecord)
+    func clearPendingRunRecord()
     func loadConversationJournal() -> ConversationJournal?
     func saveConversationJournal(_ journal: ConversationJournal)
     func clearConversationJournal()
