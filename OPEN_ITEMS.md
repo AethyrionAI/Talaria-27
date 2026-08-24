@@ -195,7 +195,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
 - **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ CLOSED 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests); PROMOTED to standard toolchain on Owen's word, beta5 kept as A/B fallback; archive move rides the next sweep**
 - **#402** 🔬 PCC-on-sim probe — **✅ PROBED + CLOSED 2026-08-24 evening: real but PARTIAL — metadata plane works on sim (contextSize 32768, quota, entitlement honored), generation still dead on unresolvable `instruct_server_v2.fm_api` with no AI surface to fetch it; on-device tier unchanged; "generation is device-only" stands. Probe preserved in planning/probes/; 👁 re-probe per new runtime**
-- **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **FILED 2026-08-24 evening; bars 403-A..E pre-registered; two-fact gate split, turn plane untouched**
+- **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **✅ BUILT + GATE PASS 2026-08-24 evening (2483/14/Release); mutations m1..m3 RED; deck pins 9→10; PR open, merge is Owen's**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16779,7 +16779,7 @@ met); environment: NO Apple Account signed in, macOS 26.5.2 host.
 - **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
   in any future beta; the one-command recipe above is the whole cost).
 
-## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.**
+## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; MERGE IS OWEN'S — PR open.**
 
 **Design (scoped from source before filing).** One gate becomes two facts:
 `pccGrantConfirmed` keeps its exact meaning and value everywhere — *may this
@@ -16823,6 +16823,53 @@ entitlement honored by modelmanagerd).
 - **403-E (gate + PR).** `lane-gate.sh` green with the unit count MOVED
   above 2482 (new tests must register); PR opened for Owen, not
   self-merged.
+
+### ✅ RESULT — 2026-08-24 evening, same sitting (branch `cc-403-pcc-metadata-carveout`)
+
+- **403-A MET — three mutations, each RED with its named pin, zero compile
+  errors on the evidence runs.** m1 (`isPrivateCloudAvailable` → metadata
+  gate): 3 issues — the availability pin, the `setPreferredTier`/activeTier
+  pin, AND `availableModels` offering `private-cloud-beta` (a turn-plane
+  consumer the bar hadn't even named). m2 (`isPrivateCloudUsable` →
+  metadata gate): exactly 1 issue, its own pin. m3 (`pccGrantConfirmed`
+  hardcoded true): 5 issues — 72-A plus every turn-plane pin plus the
+  picker. **Process note, recorded because it is the #343 shape in
+  miniature: the FIRST m2/m3 runs were INVALID** — the mutation script's
+  `git checkout --` revert ran against an uncommitted working tree, wiped
+  the carve-out itself after m1, and m2/m3's "TEST FAILED" verdicts were
+  COMPILE failures of the mutated-but-baseless file. Caught by `git status`
+  before anything was recorded as met; re-run on the committed base with a
+  compile-error count printed beside every verdict. **A mutation run
+  reverting via git must run on a committed base, and a RED without a
+  compile-error check is not yet evidence.**
+- **403-B MET.** `metadataPlaneLightsOnDebugSimulator` pins
+  `pccMetadataObservable == true`, `isPrivateCloudObservable == true`, and
+  `privateCloudStatus() != nil` from live SDK reads on the gate sim
+  (24A5423a); the settings deck now contains the Private Cloud tile on
+  DEBUG sims.
+- **403-C MET.** Carve-out is `#if DEBUG && targetEnvironment(simulator)`
+  inside the flag initializer; the gate's Release leg built clean (0 Swift
+  errors), so Release resolves the metadata gate to `pccGrantConfirmed`
+  exactly as before.
+- **403-D MET.** PrivateCloudGateTests' header now carries the dated
+  record (07-13 trap → 08-20 non-repro → #402 entitlement-honored) instead
+  of asserting the uncatchable SIGTRAP as current; 72-A unchanged; the
+  dark-surface pins survive as `turnPlaneStaysDarkOnSimulator`.
+- **403-E: gate MET — GATE: PASS, 2483 Swift Testing (moved above 2482 as
+  required) + 14/14 XCUITest + Release clean, skips = the permanent
+  CondenserFidelityTests pair. PR opened for Owen's review; merge is his.**
+- **Collateral the gate caught (the carve-out's honest footprint):**
+  `testSettingsDeckNavigation` pinned the sim deck at 9 pages; the tile's
+  existence makes it 10, and the About-dot pin moved 08→**09** because
+  #395-D2 places `.privateCloud` BEFORE `.about` — a near-miss worth
+  naming: the `title` switch in `SettingsChannels.swift` lists the cases
+  in a DIFFERENT order than the declaration, and pinning ordinals from the
+  switch would have been wrong. Side effect worth having: a DEBUG sim's
+  settings deck now matches a device's, tile for tile.
+- **Deliberately NOT repointed:** the #388 surface-probe instrument's PCC
+  refusal still keys on `pccGrantConfirmed` — its sim refusal exists for
+  DATA HYGIENE (388-C: sim rows must never fold into device data), not
+  safety, and the carve-out does not change what a sim reading is worth.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
