@@ -1450,6 +1450,16 @@ this toggle does not answer), **#180** (the notice-honesty family).
 > - **395-D2-D (non-regression).** a11y IDs unchanged; the deck counter
 >   stays positional; the 395-D suites stay green.
 
+> **⚖️ RULED 2026-08-23 night (Owen, from a device screenshot of the
+> Models picker): the PCC usage readout consolidates INTO the PCC tile —
+> the Models screen's read-only quota row is REMOVED.** This reverses the
+> 395-D scope clause that kept it beside the brain picker (#30's
+> quota-where-you-pick rationale); Owen's screenshot showed the cost — a
+> mono readout crowding the picker for state the dedicated square already
+> carries (screen row + card value). One surface for PCC state, full stop.
+> The structural pin that enforced "Models keeps its quota row" flips to
+> enforce the opposite, with this ruling as its authority.
+
 > **✅ 2026-08-23 — 395-D2-A…D ALL MET. BUILT + MERGED the same evening
 > (PR #358, squash `fbfd16c2`). GATE: PASS 2498 / 14 / Release (count
 > moved +1).** `.privateCloud` now precedes `.about`; `indexLabel(in:)`
