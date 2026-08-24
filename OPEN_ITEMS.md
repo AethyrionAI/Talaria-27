@@ -19026,6 +19026,43 @@ for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
 #368's flip, and permanent once this lands), #322 (its cancel-read stops
 being a no-op at #368, not here).
 
+> **⚖️ TRIGGER FIRED EARLY — 2026-08-23 evening, Owen's word:** *"I'm ok to
+> delete now, you've convinced me. Leaving behind a restore recipe isn't a
+> bad idea though, would ease anxiety about deleting it."* The
+> keep-as-developer-option alternative was weighed and declined on four
+> grounds (the #218 one-tested-path shape; the escape hatch's measured
+> value of zero across its evidence week, with the one apparent rescue
+> exonerated by #356; the legacy mode shipping a dishonest Stop — #328/#180;
+> and the compounding dual-path tax, #368 having already forked the
+> recovery machinery). **His rider: a RESTORE RECIPE is recorded at
+> close-out** — commit pins + file list, a bridge-only procedure per the
+> #309 direction (a restored transport is a temporary migration bridge,
+> never a standing fallback).
+>
+> **🎯 BARS 382-A…E — pre-registered before code:**
+> - **382-A (the ordering trap, RED-first).** The background-expiration arm
+>   of `cancelStreaming(hardStopHost: false)` arms recovery WITH the
+>   cancelled run's id — `cancelledRunID` is captured at the top of the
+>   same function (#322) and is exactly what the arm needs. Shown RED
+>   against today's `runId: nil`. This lands BEFORE any deletion: only
+>   once no run-id-less `PendingRun` can exist is the legacy reconcile
+>   safe to remove.
+> - **382-B (3E-E, structural).** No call site in `Talaria/` submits a
+>   turn on the sessions plane: zero references to `chat/stream` and to
+>   the sync chat POST; `useRunsTransport` absent from the tree;
+>   `/api/sessions*` survives ONLY as create/open/list/messages/fork/
+>   model. Verified by grep at close and pinned in source where cleanly
+>   expressible.
+> - **382-C (recovery non-regression).** The runs-plane recovery suite
+>   stays green, and NO remaining `armPendingRunRecovery` caller passes a
+>   nil run id.
+> - **382-D (settings hygiene).** Persisted JSON still carrying the
+>   retired `useRunsTransport` / `runsCutoverApplied` keys decodes cleanly
+>   (#238's unknown-key shape, pinned by test).
+> - **382-E.** `GATE: PASS`, count moved; CLAUDE.md's chat-path bullet
+>   rewritten in the same close-out (its supersession note currently
+>   promises this deletion).
+
 ## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. **✅ 383-F MET ON OJAMD TOO, 2026-08-22 PM — Owen ran a full realtime conversation against the OJAMD profile (`LINKED · OJAMD · KIMI-K3`, `VOICE · REALTIME`, header `REALTIME VOICE · AUDIO LEAVES THIS PHONE TO YOUR HOST'S PROVIDER`). EVERY BAR MET ON BOTH HOSTS; nothing owed. THE ITEM IS DONE. The session also produced the decontaminated self-barge-in observation that #138 was owed — recorded there, not here.**
 
 **What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
