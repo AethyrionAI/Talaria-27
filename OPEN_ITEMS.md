@@ -195,6 +195,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
 - **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ CLOSED 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests); PROMOTED to standard toolchain on Owen's word, beta5 kept as A/B fallback; archive move rides the next sweep**
 - **#402** 🔬 PCC-on-sim probe — **✅ PROBED + CLOSED 2026-08-24 evening: real but PARTIAL — metadata plane works on sim (contextSize 32768, quota, entitlement honored), generation still dead on unresolvable `instruct_server_v2.fm_api` with no AI surface to fetch it; on-device tier unchanged; "generation is device-only" stands. Probe preserved in planning/probes/; 👁 re-probe per new runtime**
+- **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **FILED 2026-08-24 evening; bars 403-A..E pre-registered; two-fact gate split, turn plane untouched**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16777,6 +16778,51 @@ met); environment: NO Apple Account signed in, macOS 26.5.2 host.
   satisfied by the metadata plane; nothing in it promised sim generation.
 - **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
   in any future beta; the one-command recipe above is the whole cost).
+
+## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.**
+
+**Design (scoped from source before filing).** One gate becomes two facts:
+`pccGrantConfirmed` keeps its exact meaning and value everywhere — *may this
+binary construct PCC to take TURNS* — and a new `pccMetadataObservable`
+(`pccGrantConfirmed`, OR `#if DEBUG` + simulator) gates only the metadata
+plane. Repointed to the new fact: `privateCloudStatus()`,
+`showPrivateCloudLimitIncreaseOptions()`, and a new
+`isPrivateCloudObservable` visibility read consumed by
+`SettingsChannelsScreen` (line 108 today feeds
+`SettingsSubsystem.cases(privateCloudAvailable:)` from the TURN fact, which
+is what keeps the tile nonexistent on sim). NOT repointed — the turn plane:
+`isPrivateCloudAvailable`, `isPrivateCloudUsable`, `setPreferredTier`,
+`activeContextSize`, the session construction at `LocalChatBackend`
+~:1360, and `availableModels()`'s `private-cloud-beta` entry. Safety basis
+is MEASURED, not argued: the 2026-07-13 construction SIGTRAP did not
+reproduce on 2026-08-20 (beta5, unentitled) and #402 re-confirmed on
+24A5423a (construction + all metadata reads clean ×3 runs, simulated
+entitlement honored by modelmanagerd).
+
+### 🎯 BARS 403-A…E
+
+- **403-A (scope pin, mutation-backed).** The carve-out reaches ONLY the
+  metadata plane. Three mutations run and recorded RED: (m1) repoint
+  `isPrivateCloudAvailable` to the metadata gate ⇒ a new
+  `setPreferredTier(privateCloud: true) keeps activeTier == .onDevice on
+  sim` pin goes red; (m2) repoint `isPrivateCloudUsable` ⇒ its stays-dark
+  pin goes red; (m3) hardcode `pccGrantConfirmed = true` ⇒ 72-A goes red.
+- **403-B (the tile lights on sim DEBUG).** On 24A5423a,
+  `privateCloudStatus()` returns non-nil mapped from live SDK reads, and
+  the Private Cloud settings surface is offered
+  (`SettingsSubsystem.cases` includes it via the observable read) — pinned
+  by unit tests that run in the gate.
+- **403-C (Release unchanged).** The carve-out is compiled out of Release;
+  the gate's Release leg proves the build, and Release-sim semantics remain
+  today's (all dark). The #218 corollary is the reason this is a bar.
+- **403-D (#72 prose corrected, pins preserved).** PrivateCloudGateTests'
+  header still asserts the uncatchable 07-13 SIGTRAP as current — falsified
+  2026-08-20 and again by #402. Corrected to the dated record in the same
+  commit; 72-A and the dark-surface pins survive in updated form, none
+  deleted.
+- **403-E (gate + PR).** `lane-gate.sh` green with the unit count MOVED
+  above 2482 (new tests must register); PR opened for Owen, not
+  self-merged.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
