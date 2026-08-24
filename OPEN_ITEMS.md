@@ -195,7 +195,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
 - **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ CLOSED 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests); PROMOTED to standard toolchain on Owen's word, beta5 kept as A/B fallback; archive move rides the next sweep**
 - **#402** 🔬 PCC-on-sim probe — **✅ PROBED + CLOSED 2026-08-24 evening: real but PARTIAL — metadata plane works on sim (contextSize 32768, quota, entitlement honored), generation still dead on unresolvable `instruct_server_v2.fm_api` with no AI surface to fetch it; on-device tier unchanged; "generation is device-only" stands. Probe preserved in planning/probes/; 👁 re-probe per new runtime**
-- **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **✅ BUILT + GATE PASS 2026-08-24 evening (2483/14/Release); mutations m1..m3 RED; deck pins 9→10; PR open, merge is Owen's**
+- **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **✅ MERGED 2026-08-24 evening on Owen's word (PR #363, squash `3a9466ac`; the squash also swallowed the session's five unpushed tracker commits — content verified complete, lesson in memory). CLOSED**
+- **#404** 🎨 rework the PCC quota row (Owen: "sloppy compared to everything else") — **FILED 2026-08-24 evening; bars 404-A..E pre-registered; #391 honesty rules preserved verbatim**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16779,7 +16780,7 @@ met); environment: NO Apple Account signed in, macOS 26.5.2 host.
 - **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
   in any future beta; the one-command recipe above is the whole cost).
 
-## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; MERGE IS OWEN'S — PR open.**
+## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; MERGE IS OWEN'S — PR open.** **⟵ ✅ MERGED the same evening on Owen's word (PR #363, squash `3a9466ac`). One process finding rode the merge: the PR was branched off five UNPUSHED local-main tracker commits, so the squash silently bundled them — content verified complete against local main before reconciling (reset local main to origin), lesson added to the squash-merge memory: push main before branching. CLOSED.**
 
 **Design (scoped from source before filing).** One gate becomes two facts:
 `pccGrantConfirmed` keeps its exact meaning and value everywhere — *may this
@@ -16870,6 +16871,40 @@ entitlement honored by modelmanagerd).
   refusal still keys on `pccGrantConfirmed` — its sim refusal exists for
   DATA HYGIENE (388-C: sim rows must never fold into device data), not
   safety, and the carve-out does not change what a sim reading is worth.
+
+## 404. 🎨 REWORK THE PCC QUOTA ROW — one flat size-8 mono sentence that wraps badly and duplicates the toggle label above it, in an app whose idiom everywhere else is labeled kicker/value fields — **FILED 2026-08-24 evening on Owen's word, from his device screenshot ("the way that we display the information we do get about the pcc account is sloppy compared to everything else. Can we rework it?"). Bars 404-A..E pre-registered BEFORE code.**
+
+**Diagnosis from the screenshot + source.** `PrivateCloudQuotaRow` renders
+`quotaRowLabel`'s whole sentence — `PRIVATE CLOUD β · <STATE> · RESETS <x>` —
+as ONE `MonoLabel(size: 8)`: it wraps mid-field on device (Owen's screenshot
+shows `RESETS` dangling), the `PRIVATE CLOUD β` prefix duplicates the toggle
+label directly above it, and there is no field hierarchy while the design
+system's idiom (top bar, cards, telemetry) is kicker-over-value MonoLabel
+pairs with StatusPips. **What is NOT negotiable: every #391 honesty rule** —
+the RESETS field always present with nil rendering as `—`, unknown status
+rendering as unknown (never reassurance), today-vs-later date forms.
+
+### 🎯 BARS 404-A…E
+
+- **404-A (zero #391 pin churn, single source).** `quotaRowLabel`'s output
+  stays byte-identical — every existing #391 test green UNTOUCHED — and is
+  rebuilt from a new pure `quotaStateText(quota:)` + the existing
+  `resetFieldText`, then applied as the row's explicit ACCESSIBILITY label.
+  One source: the visual fields and the VoiceOver sentence cannot diverge.
+- **404-B (field structure).** The visual row becomes labeled fields —
+  QUOTA (StatusPip, tone per arm: muted / forge / danger / dim, the mapping
+  the old view already used) and RESETS (right-aligned value; `—` stays a
+  rendered value, dim). New tests pin `quotaStateText` per arm incl.
+  unknown ≠ reassurance.
+- **404-C (stale doc corrected).** The component's "shared by the Models
+  screen" comment predates #395's consolidation — one consumer remains;
+  corrected in the same commit, no second copy introduced.
+- **404-D (visual proof, sim-first).** A screenshot of the reworked row ON
+  THE SIMULATOR — #403's carve-out doing the job it was built for, same
+  evening — sent to Owen; **his eyeball is the closing taste bar** (#393's
+  closing-bar shape).
+- **404-E (gate + PR).** Gate green, unit count moved above 2483; PR opened
+  for Owen.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
