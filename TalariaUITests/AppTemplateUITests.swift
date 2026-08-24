@@ -578,8 +578,12 @@ final class TalariaUITests: XCTestCase {
         app.buttons["settings.card.uplink"].tap()
         let counter = app.staticTexts["settings.deck.counter"]
         XCTAssertTrue(counter.waitForExistence(timeout: 10), "deck counter must appear")
-        waitForCounter(counter, toEqual: "01 / 09", timeout: 5)
-        XCTAssertEqual(counter.label, "01 / 09")
+        // #403: the deck is 10 pages on a DEBUG simulator — the Private
+        // Cloud tile exists here now (metadata carve-out), matching what a
+        // device shows. Positional numbering per #395-D2: 08 PRIVATE CLOUD /
+        // 09 ABOUT / 10 DEVELOPER.
+        waitForCounter(counter, toEqual: "01 / 10", timeout: 5)
+        XCTAssertEqual(counter.label, "01 / 10")
         // The deck page's accessibilityIdentifier lands on whatever root
         // view each embedded screen collapses to — UplinkSettingsScreen's
         // is a ScrollView, not a generic "Other" container, and other
@@ -591,16 +595,16 @@ final class TalariaUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["settings.statusStrip"].exists,
                        "the status strip must not render in deck mode (#256)")
         uplinkPage.swipeLeft()
-        waitForCounter(counter, toEqual: "02 / 09", timeout: 5)
-        XCTAssertEqual(counter.label, "02 / 09", "swipe must advance the deck")
+        waitForCounter(counter, toEqual: "02 / 10", timeout: 5)
+        XCTAssertEqual(counter.label, "02 / 10", "swipe must advance the deck")
 
         // Page-dot tap navigation (owed from Tasks 3–8): each dot's
         // accessibilityLabel is "Open <TITLE>", independent of swiping.
         let aboutDot = app.buttons["Open ABOUT"]
         XCTAssertTrue(aboutDot.waitForExistence(timeout: 5), "the About page dot must be reachable")
         aboutDot.tap()
-        waitForCounter(counter, toEqual: "08 / 09", timeout: 5)
-        XCTAssertEqual(counter.label, "08 / 09", "a dot tap must jump straight to its page")
+        waitForCounter(counter, toEqual: "09 / 10", timeout: 5)
+        XCTAssertEqual(counter.label, "09 / 10", "a dot tap must jump straight to its page")
 
         app.buttons["Toggle overview"].tap()
         XCTAssertTrue(app.otherElements["settings.grid"].waitForExistence(timeout: 5),
