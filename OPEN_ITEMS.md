@@ -151,7 +151,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#180** 🎨 UMBRELLA — the app hides its own degradation: one design default + a register ("four instances" is the as-filed count). Lane 180-L SHIPPED 2026-08-09 — bars 180-A..F
 - **#182** 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout
 - **#190** 🔧 Standalone sessions were a single slot; "New" destroyed prior local history — FIXED and merged (PR #151) …
-- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … **→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**
+- **#224** 🎨 Mirror Hermes's three-mode approval model — ours is always-on Manual, theirs is Manual / Smart / Off, and … **✅ BALLOT APPROVED 2026-08-10, all eight cards as recommended — Phase 0 dispatch owed (bars pre-register in the entry); Phases 1–3 hold** … ~~**→ BARS 224-0A..0G PRE-REGISTERED 2026-08-11; Phase 0 READY TO DISPATCH.**~~ **⟵ corrected 2026-08-24: Phase 0 RAN the same day it was ready — ALL SEVEN BARS MET 2026-08-11, MERGED as `5313499b`; the entry's own ✅ result block records it while this line still said dispatch-ready. What remains is Phases 1–3, HOLDING on ruling 1 (Owen's call, not a lane).**
 - **#303** 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins NATIVE even when the brain permits realtime (`init` reads the brain 35 ms before the sticky-default restores it; `startSession`'s re-check guards only the downgrade direction). **MASKED on the host it was found on — cost UNMEASURED**; needs a realtime-configured host. Observed in passing by #254's device run, **not investigated**
 - **#302** 🐛 A voice session STARTS ~650 ms before App Lock evaluates its cover — a Control Center "Talk to Hermes" launch begins on a LOCKED app. Whether the mic is ever LIVE behind the cover is **UNDETERMINED** and is the whole question; it **composes with #272** ~~which leaves the locked interval unbounded~~ (#272 FIXED 2026-08-09, PR #289 — the interval is now held by the Cancel-then-UNLOCK state instead). ~~Observed in passing, **not investigated**~~ **→ 🚨 ANSWERED ON DEVICE 2026-08-10 (§V1, build 2484): THE MIC IS LIVE BEHIND THE LOCK — 302-B RED, mic hot 34.9 s while `cover=locked`, going hot 3.87 s BEFORE the user cancelled; a second unplanned reproduction in the same corpus went hot 820 ms before App Lock even evaluated. 302-A "passed" by a 470 ms Face ID footrace, NOT a gate — there is no gate. Violates the 302-C contract Owen ruled the same morning. ~~FIX OWED, not built~~ → ✅ FIX BUILT 2026-08-20 (Thursday PM lane): `AppLockGate` is one consultable state, both voice doors defer until unlock, bars 302-D…G MET and each proven RED by mutation. ~~DEVICE VERIFICATION STILL OWED~~ → ✅ DEVICE-CONFIRMED 2026-08-20 ON BOTH ARMS: mic COLD behind the cover, and the parked start RESUMES on unlock (a real deferral, not a refusal). Only #124's seven App-Lock regression checks remain. Twin filing #323 carries the non-voice half**
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
@@ -174,7 +174,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
 - **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
-- **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** …
+- **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** … **⟵ corrected 2026-08-24: ✅ BUILT + MERGED 2026-08-10 (PR #299) — 280-A..E met, result transcribed into the entry from the docs commit's message where it had lived unfiled; only 280-F (device, the runbook's #61 card) remains**
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
 - **#273** 🗃️ #261 extended to `dispatch/` and `design/` — the security-mechanics split is a STANDING rule, not a one-file cleanup …
 - **#270** 🪟 #251 SLICE 2C — desktop face v0: the `plugin.js` pane that answers "is it actually installed?" …
@@ -11539,7 +11539,7 @@ carrying a duplicate.**
 > + test is queued as this week's free bucket; (b) then gets its own watch
 > number and this entry closes.
 
-## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.**
+## 280. 📝 A dictated-only thread gets a blank conversation-card title — **FILED 2026-08-07 from #78's lane. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-24: ✅ BUILT + MERGED 2026-08-10 (PR #299, merge `c935ab98`) — bars 280-A..E ALL MET; the result had lived ONLY in a commit message for two weeks (see the block at the foot). 280-F rides the device runbook's #61 card.**
 
 `ChatStore`'s title source uses `first(where: { $0.sender == .user })`, which
 yields empty text when every user turn was dictated. Cosmetic, and NOT a
@@ -11707,6 +11707,34 @@ transcript text?) are a product question, not a mechanical one.
 > be verified in standalone mode"*) is **still true at HEAD** —
 > `LocalChatBackend.sessionInfo` (`:2036-2046`) remains the sole reader of
 > `conversation.title`. Named here so the next lane does not re-derive it.
+
+> **✅ RESULT — filed 2026-08-24, recording work DONE 2026-08-10. The lane
+> built, gated and merged the fix (fix `134cfe23`, docs `6259d8e4`, PR #299,
+> merge `c935ab98`) and wrote its bar-by-bar record into the DOCS COMMIT'S
+> MESSAGE — never into this entry.** For two weeks the header, the index
+> line, and this body all read as if nothing had been built; the entry was
+> one grep away from a re-dispatch (#389's shape, and the free-wins
+> "the lane's last commit updates the body and stops" pattern — here it did
+> not even update the body). Transcribed from `6259d8e4`:
+> - **280-A MET** — `voiceOnlyThreadGetsAGeneratedTitle`: the title leaves
+>   `Conversation.defaultTitle` after `appendVoiceTranscript(postToHermes:
+>   false)`.
+> - **280-B MET** — `voiceOnlyThreadYieldsTheSpokenExchange`: the spoken
+>   pair, not `("", reply)`.
+> - **280-C MET** — `mixedThreadYieldsTheSpokenFirstExchange`, plus a
+>   typed-first control so the rule is "first exchange wins", not "prefer
+>   spoken". Owen ruled 2026-08-10 that this ships as briefed.
+> - **280-D MET** — typed rows unchanged; the `"[N attachment(s)]"`
+>   placeholder still normalizes to `""` (deliberate).
+> - **280-E MET** — `manualTitleSurvivesAVoiceAppend` +
+>   `secondVoiceAppendDoesNotRegenerate`.
+> - **GATE: PASS** — 2033 units in 155 suites (+13 exactly over the 2020
+>   baseline, so the count moved by this lane's additions) + 14 XCUITest +
+>   Release clean.
+> - **280-F OWED ON DEVICE, NOT CLAIMED** — one clause on the existing #61
+>   §F2 row; it is carded on the device runbook (the §02 "Local titles &
+>   previews, incl. a spoken-only session" card). That is ALL that remains
+>   on this entry.
 
 ## 279. 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **✅ FIXED AND MERGED 2026-08-09 as `12ed25b` (branch `claude/t27-279-retry-adoption`, commits `c4411cc` + `13e4049`). Bars 279-A..E MET, `GATE: PASS`. OPEN ONLY for 279-F, the device bar, which is Owen's.** *(Header corrected 2026-08-10 — it still read "FILED … Bars pre-register here before any code" for a full day after the fix merged, and that is what got this lane dispatched a second time. See the RE-DISPATCH note at the end of this entry.)*
 
@@ -16780,7 +16808,7 @@ met); environment: NO Apple Account signed in, macOS 26.5.2 host.
 - **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
   in any future beta; the one-command recipe above is the whole cost).
 
-## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; MERGE IS OWEN'S — PR open.** **⟵ ✅ MERGED the same evening on Owen's word (PR #363, squash `3a9466ac`). One process finding rode the merge: the PR was branched off five UNPUSHED local-main tracker commits, so the squash silently bundled them — content verified complete against local main before reconciling (reset local main to origin), lesson added to the squash-merge memory: push main before branching. CLOSED.**
+## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; ~~MERGE IS OWEN'S — PR open.~~** **⟵ ✅ MERGED the same evening on Owen's word (PR #363, squash `3a9466ac`). One process finding rode the merge: the PR was branched off five UNPUSHED local-main tracker commits, so the squash silently bundled them — content verified complete against local main before reconciling (reset local main to origin), lesson added to the squash-merge memory: push main before branching. CLOSED.**
 
 **Design (scoped from source before filing).** One gate becomes two facts:
 `pccGrantConfirmed` keeps its exact meaning and value everywhere — *may this
