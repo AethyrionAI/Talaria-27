@@ -9325,7 +9325,7 @@ i.e. springSprout's warning amber has to lose **more than half its luminance** t
 > background; the app is the real test. Queued for Owen on the four worst
 > themes plus `paperTape` as a did-it-change-too-much control.
 
-## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.**
+## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.** **⟵ HEADER CORRECTED 2026-08-23 (#382's close-out): ROUTE 1 IS DELIVERED AND NOW PERMANENT. #368 (2026-08-19) made the runs plane the default, where `hardStopActiveRun()` POSTs `/v1/runs/{id}/stop` — a REAL host interrupt, device-proven (`exit_code 130`, #304) — and #382 (2026-08-23, `5f50e498`) deleted the sessions plane, so every remote turn now carries an `activeRunContext` and Stop reaches the host on all of them. 328-A's route probe was answered by the runs migration wholesale. What remains of route 2's honesty arm covers only turns with NO run context (local, idle, a submit that never landed). This entry looks CLOSEABLE — Owen's formal close + archive move ride the next sweep.**
 
 > **✅ 2026-08-19 — ROUTE 1's QUESTION DISSOLVES rather than being answered,
 > and this is #368's cutover doing it (`33108d05`).** Route 1 was "make a
@@ -14370,6 +14370,22 @@ verbatim log lines, the silent-ignore question; duplicate-check summary
 included). **Condition (3) — Owen reads the draft and says go/no-go. Nothing
 has been submitted.**
 
+> **⚠️ 2026-08-23 (#382's close-out) — THE PATH-3 PIN IS RETIRED, and a
+> narrow exposure returns with it.** The app-half immunity's fallback arm
+> (`pinSessionModelIfNeeded` — a bare-created session pinned from the first
+> turn's `runtime` block) is DELETED: its callers died with the sessions
+> turn plane, and the runs wire carries no `runtime` block to pin from — a
+> documented absence, which also means the pin had been unreachable in
+> production since #368's flip (2026-08-19), not just since tonight. **What
+> this re-opens, precisely:** a session created BARE (no profile selection
+> AND an unreachable catalog) stores the host's default — the alias — and
+> nothing replaces it now. The primary defense (resolve-before-create +
+> `wireSafeModelID`, paths 1–2) is UNCHANGED and still test-pinned, so the
+> corner is: catalog-less host + no selection. The create site logs it
+> (`#241: bare create on a catalog-less host…`). The ops rule above (leave
+> the "API server model name" field EMPTY, never rename the profile under
+> live sessions) is therefore load-bearing again for exactly that corner.
+
 ## 236. 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s wait on a hot sim
 
 **FILED 2026-08-03 (midday) from the #235 lane's first gate run.**
@@ -18969,7 +18985,7 @@ CGNAT exception is why this reaches OJAMD at all from the tailnet).
 > limitation for now — WATCH.** Trigger: #368's cutover landing, which
 > reshapes the composer surface this rides on; re-examine then.
 
-## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.**
+## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). ~~NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.~~ ✅ TRIGGER FIRED EARLY 2026-08-23 on Owen's word and DONE the same night (PR #360, squash `5f50e498`, net −1,219 lines): bars 382-A..E met, two scope corrections recorded, five test files un-defaulted off the deleted plane, restore recipe below. CLOSED; archive move rides the next sweep.**
 
 **Why it exists.** #368's cutover flips the default to the runs plane but
 deliberately does NOT remove the old path. Owen's 2026-08-19 ruling was
@@ -19062,6 +19078,68 @@ being a no-op at #368, not here).
 > - **382-E.** `GATE: PASS`, count moved; CLAUDE.md's chat-path bullet
 >   rewritten in the same close-out (its supersession note currently
 >   promises this deletion).
+
+> **✅ 2026-08-23 — DONE. 382-A..E ALL MET (PR #360, squash `5f50e498`).
+> GATE: PASS 2478 / 14 / Release — the count moved −24 and reconciles
+> test-by-test (28 deleted-plane tests out, 4 replacements in).**
+>
+> **What actually came out** (vs the entry's list, which was named from an
+> older HEAD — two corrections):
+> - OUT as listed: `streamTurn` (the whole sessions SSE parser),
+>   `postSyncChat` + `SyncChatResponse`, the `useRunsTransportProvider`
+>   seam and both per-turn reads, `UserSettings.useRunsTransport` + its
+>   `runsCutoverApplied` migration (old blobs decode fine — 382-D pinned),
+>   the Developer row. PLUS one site the list never named and bar 3E-E's
+>   own grep caught: **the transplant PRIMER was the last turn-submitting
+>   sessions call site** — ported to the runs plane (submit + poll, usage
+>   off the status object, nil receipt on a starved poll exactly as the
+>   old drain).
+> - **CORRECTION 1: `reconcileFromServer` STAYS.** `attemptSessionReconcile`
+>   no longer exists by that name, and the machinery behind it serves TWO
+>   consumers the entry mis-credited to the transport: the run-id-less
+>   expiration race (an accepted turn whose POST hadn't returned an id) and
+>   the outbox drain's #240 dedup fetch. Shared infrastructure, not
+>   transport.
+> - **CORRECTION 2: `pinSessionModelIfNeeded` (#241 path 3) DELETED as dead
+>   code.** Its callers died with the plane, and the runs wire carries no
+>   `runtime` block to pin from — a DOCUMENTED absence (+RunsTransport:
+>   "inventing one would be a fabricated attribution"), which means the pin
+>   had been unreachable in production since #368's flip. **The narrow #241
+>   exposure that returns:** a bare create on a catalog-less host keeps the
+>   host's stored default (the alias) un-replaced. Logged at the create
+>   site; pointer appended under archived #241. The primary defense
+>   (resolve-before-create + `wireSafeModelID`) is unchanged and still
+>   pinned.
+>
+> **The deletion's real harvest — the #218 shape measured, not argued:**
+> five test files had been riding the seam's conservative `{ false }`
+> default onto the legacy plane since #368, green while testing a plane
+> production left five days ago. `ArtifactStreamingTests`' two wire tests
+> (Tier-1 reconstruction the runs plane deliberately lacks — the mirror
+> replaced it) and `ReasoningChannelTests`' 13 assembly fixtures:
+> tombstoned with their parser. `SessionModelImmunityTests`' create-body
+> arms, `ContextMeterTests`, `BackendProfileRoutingTests`: fixture-ported
+> to the runs dialect (the M-16 pin now covers the five-request runs
+> family). `StreamLossClassificationTests`' three loss scenarios:
+> re-pinned in `RunsPlaneTransportTests` against the runs driver's actual
+> contract — the accepted-drop arm now carries the run id the sessions
+> plane never had.
+>
+> **382-A deviation, named:** the expiration arm's `cancelledRunID` feed
+> was already IN #368's merged form — the entry's "first move" was stale.
+> The lane pinned it (`pendingRunRunId` + the zero-events test) and proved
+> the pin by mutation: the nil feed went RED on exactly that assertion.
+>
+> **🔐 RESTORE RECIPE (Owen's rider — bridge only, per the #309
+> direction).** The transport's last full form is main @ **`d426971c`**;
+> the deletion is squash **`5f50e498`**. Near the deletion, `git revert
+> 5f50e498` applies cleanly (the squash is self-contained). Later, as
+> neighbours drift, restore by READING the four files at `d426971c`
+> (`SessionsHermesClient.swift`, `UserSettings.swift`,
+> `DeveloperSettingsScreen.swift`, `AppContainer.swift`) rather than
+> reverting. **A restored transport is a temporary migration bridge, never
+> a standing fallback** — any restore gets its own dated tracker note the
+> day it happens, and the un-restore is part of the same note.
 
 ## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. **✅ 383-F MET ON OJAMD TOO, 2026-08-22 PM — Owen ran a full realtime conversation against the OJAMD profile (`LINKED · OJAMD · KIMI-K3`, `VOICE · REALTIME`, header `REALTIME VOICE · AUDIO LEAVES THIS PHONE TO YOUR HOST'S PROVIDER`). EVERY BAR MET ON BOTH HOSTS; nothing owed. THE ITEM IS DONE. The session also produced the decontaminated self-barge-in observation that #138 was owed — recorded there, not here.**
 

@@ -20,14 +20,17 @@ write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
 
 ## Architecture — Clean Chat Path
 
-- **Chat** talks **directly** to the Hermes API server **Sessions API on `:8642`**
-  (Bearer `API_SERVER_KEY`). `POST /api/sessions` → id at **`.session.id`**;
-  ~~`POST /api/sessions/{id}/chat` (sync) → `.message.content`; `/chat/stream` is SSE~~
-  **⟵ SUPERSEDED for TURNS 2026-08-19 (#368): the runs plane (`POST /v1/runs` +
-  `/events` SSE) is the DEFAULT turn transport; `/api/sessions*` survives for
-  create/open/list/messages/fork/model. The sessions turn transport is deleted
-  by #382 (⏰ 2026-08-26). Recorded 2026-08-23 by the Opus-week audit — this
-  bullet described the legacy plane for four days after the flip.**
+- **Chat** talks **directly** to the Hermes API server on **`:8642`** (Bearer
+  `API_SERVER_KEY`). **Turns ride the RUNS plane exclusively** — default since
+  #368 (2026-08-19), and the ONLY transport since #382 deleted the sessions
+  turn transport (2026-08-23, PR #360): `POST /v1/runs` (202 + `run_id`;
+  history rides the body — runs WRITE the session transcript but never READ
+  it) → `GET /v1/runs/{id}/events` (SSE, `data:`-only frames, event name
+  INSIDE the JSON) → `GET /v1/runs/{id}` (status + output + usage; recovery's
+  status read). `/api/sessions*` survives ONLY as create/open/list/messages/
+  fork/model — `POST /api/sessions` → id at **`.session.id`**. There is no
+  `/chat` or `/chat/stream` call site left in the app (structurally pinned);
+  the restore recipe (bridge only, never a fallback) lives in #382's entry.
 - **Sensors** go through the dylan-buck shell + **relay `:8000`** + connector, plus the
   **models shim `:8765`**. Independent of chat.
 - **Two machines, all over Tailscale:**
