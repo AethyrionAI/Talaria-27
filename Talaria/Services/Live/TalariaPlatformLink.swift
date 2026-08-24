@@ -600,8 +600,10 @@ extension TalariaPlatformLink: VoiceBootstrapTransport {
         await voiceVerb("talk_readiness")
     }
 
-    func talkSessionCreate() async -> VoiceVerbOutcome {
-        await voiceVerb("talk_session_create")
+    func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome {
+        // #396: the pick rides every mint — `.normal` included, so host logs
+        // show the choice; an older plugin ignores the unknown field.
+        await voiceVerb("talk_session_create", extra: ["tuning": tuning])
     }
 
     /// Best-effort by construction: the caller fires this while unwinding a

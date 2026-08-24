@@ -3516,6 +3516,19 @@ struct AppStoresTests {
                 "the encode path dropped midTurnSendAction — the user's choice reverts on relaunch (#400)")
     }
 
+    /// **396-P-A — the voice-sensitivity pick survives persistence**, and a
+    /// pre-#396 blob (no key) lands on `.normal`.
+    @Test func settingsRoundtripKeepsTheVoiceSensitivityChoice() throws {
+        var settings = UserSettings()
+        settings.voiceSensitivity = .noisy
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: JSONEncoder().encode(settings))
+        #expect(decoded.voiceSensitivity == .noisy,
+                "the pick reverted across a persistence roundtrip (#396)")
+
+        let legacy = #"{"userName":"Owen"}"#.data(using: .utf8)!
+        #expect(try JSONDecoder().decode(UserSettings.self, from: legacy).voiceSensitivity == .normal)
+    }
+
     @Test @MainActor
     func settingsStoreSanitizesDisallowedReleaseEnvironmentToProduction() async throws {
         let suiteName = "settings-store-release-policy-\(UUID().uuidString)"

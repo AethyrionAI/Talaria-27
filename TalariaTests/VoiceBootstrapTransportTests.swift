@@ -39,8 +39,11 @@ struct VoiceBootstrapTransportTests {
             return readinessPayload.map { .ok($0) } ?? .unreachable
         }
 
-        func talkSessionCreate() async -> VoiceVerbOutcome {
+        private(set) var createTunings: [String] = []
+
+        func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome {
             calls.append("talk_session_create")
+            createTunings.append(tuning)
             if unsupported { return .unsupported }
             return createPayload.map { .ok($0) } ?? .unreachable
         }
@@ -188,6 +191,45 @@ struct VoiceBootstrapTransportTests {
     /// `expiresAt` without. Every one of these must decode or the whole
     /// bootstrap fails as a decoding error, which is indistinguishable from an
     /// unreachable host to the user.
+    /// **396-P-E — the readiness capability, both directions.** A host whose
+    /// plugin advertises `tunings` tells the app the picker binds; one that
+    /// predates it reads UNKNOWN (nil, never empty), and the picker's
+    /// footnote says so instead of implying effect — the hazard-5 honesty
+    /// shape, one verb over.
+    @Test func readinessDecodesTheTuningsCapabilityAndItsAbsenceReadsUnknown() async {
+        let withTunings = Data("""
+        {"ready":true,"hostOnline":true,"configured":true,"blockedReason":null,
+         "selectedModel":"gpt-realtime-1.5","voice":"ballad",
+         "tunings":["quiet","normal","noisy"]}
+        """.utf8)
+        let advertising = StubTransport(readiness: withTunings)
+        let service = LiveVoiceSessionService()
+        service.voiceTransportProvider = { advertising }
+        await service.refreshReadiness()
+        #expect(service.readinessInfo.tunings == ["quiet", "normal", "noisy"])
+
+        let predating = StubTransport(readiness: Self.pluginReadiness)
+        let older = LiveVoiceSessionService()
+        older.voiceTransportProvider = { predating }
+        await older.refreshReadiness()
+        #expect(older.readinessInfo.tunings == nil,
+                "a host that predates tuning must read UNKNOWN, not an empty list")
+    }
+
+    /// **The honest-asymmetry copy is a CONTRACT, pinned** (Owen's ruled
+    /// scope: a control that silently does less on one engine is worse than
+    /// one that says so). The disclaimer must name the local engine's limits
+    /// rather than imply the picker tunes it, and the predates-footnote must
+    /// name the host update as the remedy.
+    @Test func theSensitivityCaptionsStateTheAsymmetryAndTheRemedy() {
+        let disclaimer = VoiceSettingsScreen.sensitivityLocalDisclaimer
+        #expect(disclaimer.contains("On-device voice is not tuned by this picker"))
+        #expect(disclaimer.contains("no knob"))
+        let footnote = VoiceSettingsScreen.sensitivityHostPredatesFootnote
+        #expect(footnote.contains("predates tuning"))
+        #expect(footnote.contains("after the host updates"))
+    }
+
     @Test func everyDateShapeThePluginEmitsDecodes() throws {
         struct Box: Decodable { let d: Date }
         let decoder = RelayCoders.makeDecoder()

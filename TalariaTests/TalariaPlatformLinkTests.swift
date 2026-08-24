@@ -73,6 +73,35 @@ struct TalariaPlatformLinkTests {
         )
     }
 
+    // MARK: - #396: the sensitivity pick rides the mint
+
+    /// **396-P-B — `talk_session_create` carries the user's tuning.** Always
+    /// — `.normal` included — so host logs show the choice, and an old host
+    /// simply ignores the unknown field (the payload is `payload.get()`
+    /// host-side; #383's graceful-degrade shape). Written RED against a
+    /// create body that carries no `tuning` key.
+    @Test func talkSessionCreateCarriesTheTuningField() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains(#""talk_session_create""#) {
+                recorder.record(body)
+                return (200, Data(#"{"voice_session":{"id":"vs-1"}}"#.utf8))
+            }
+            return (200, Data("{}".utf8))
+        }
+
+        _ = await link.talkSessionCreate(tuning: "noisy")
+
+        #expect(recorder.all.count == 1, "the mint must have been observed")
+        #expect(recorder.all.first?.contains(#""tuning":"noisy""#) == true,
+                "the mint body must carry the pick — got: \(recorder.all.first ?? "nil")")
+    }
+
     // MARK: - Pairing
 
     @Test func pairStoresTokenInProfileScopedKeychainSlot() async {

@@ -26,6 +26,10 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         let selectedModel: String?
         let voice: String?
         let voiceContextUpdatedAt: Date?
+        /// #396: the tuning names the host accepts on the mint. Tolerant —
+        /// a plugin that predates tuning simply omits it, and nil is what
+        /// keeps the picker's footnote honest.
+        let tunings: [String]?
     }
 
     private struct TalkSessionResponse: Decodable {
@@ -74,6 +78,11 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     var canStartSession = false { didSet { publishSnapshot() } }
     var latencyMetrics = TalkLatencyMetrics() { didSet { publishSnapshot() } }
     var readinessInfo = TalkReadinessInfo() { didSet { publishSnapshot() } }
+
+    /// #396: the user's coarse sensitivity pick, read at mint time — a
+    /// provider closure so this service keeps no settings dependency (the
+    /// house pattern). AppContainer arms it from `UserSettings`.
+    var voiceTuningProvider: @MainActor () -> String = { VoiceSensitivity.normal.rawValue }
     // #84: flatline tripwire + route visibility — "connected" is a transport
     // claim, not proof the microphone is delivering audio.
     var micHealthHint: String? { didSet { publishSnapshot() } }
@@ -215,7 +224,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 ready: response.ready,
                 selectedModel: response.selectedModel,
                 voice: response.voice,
-                voiceContextUpdatedAt: response.voiceContextUpdatedAt
+                voiceContextUpdatedAt: response.voiceContextUpdatedAt,
+                tunings: response.tunings
             )
             statusMessage = response.ready ? "Hermes talk is ready." : (response.blockedReason ?? "Talk is unavailable.")
             connectionState = response.ready ? .ready : .blocked
@@ -290,7 +300,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
             let prepared = try await prepareWebRTC()
             #endif
 
-            let data = try requireData(await voiceTransport.talkSessionCreate())
+            let data = try requireData(await voiceTransport.talkSessionCreate(tuning: voiceTuningProvider()))
             let response = try Self.decoder.decode(TalkSessionResponse.self, from: data)
             voiceSessionID = response.voiceSession.id
             // #139: the user dismissed while this request was in flight. Do not

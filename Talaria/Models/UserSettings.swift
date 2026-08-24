@@ -440,6 +440,10 @@ struct UserSettings: Codable, Hashable, Sendable {
     // transport, and the week-long escape hatch expired on Owen's word.
     // Old persisted blobs still carrying the keys decode fine (unknown
     // keys are skipped). Restore recipe: OPEN_ITEMS #382.
+    /// #396: the coarse voice-sensitivity pick (quiet/normal/noisy), rides
+    /// every realtime mint as the `tuning` field; vetted values live
+    /// host-side. Local engine deliberately unbound — see `VoiceSensitivity`.
+    var voiceSensitivity: VoiceSensitivity
     /// #224 Phase 0: the on-device confirm gate's approval mode. **GLOBAL,
     /// not per-profile** (Owen's ballot, ruling 2) — the gate governs THIS
     /// PHONE's writes (EventKit, AlarmKit, Reminders), which happen
@@ -484,6 +488,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         midTurnSendAction: MidTurnSendAction = .queue,
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate,
+        voiceSensitivity: VoiceSensitivity = .normal,
         approvalMode: ApprovalMode = .manual
     ) {
         self.userName = userName
@@ -516,6 +521,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.midTurnSendAction = midTurnSendAction
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
+        self.voiceSensitivity = voiceSensitivity
         self.approvalMode = approvalMode
     }
 
@@ -558,6 +564,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         case midTurnSendAction
         case appLockEnabled
         case appLockGracePeriod
+        case voiceSensitivity
         case approvalMode
     }
 
@@ -602,6 +609,7 @@ struct UserSettings: Codable, Hashable, Sendable {
         midTurnSendAction = try container.decodeIfPresent(MidTurnSendAction.self, forKey: .midTurnSendAction) ?? .queue
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
+        voiceSensitivity = try container.decodeIfPresent(VoiceSensitivity.self, forKey: .voiceSensitivity) ?? .normal
         // #224 Phase 0: `try?` for the `appearanceTheme` reason — a mode
         // written by some later build must degrade to the default, never
         // fail the whole settings decode and reset every preference — and
