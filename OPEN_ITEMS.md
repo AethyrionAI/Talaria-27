@@ -202,7 +202,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#339** 🧪 instrument suite as regression gate — routing decision (cadence / subset / what a stochastic regression even is)
 - **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
-- **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — 10-minute Mac-side check owed
+- **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — ~~10-minute Mac-side check owed~~ **⟵ corrected 2026-08-23: the check RAN 2026-08-20 — it was the SIM (no Mac-native build exists), never-paired, seeded by the hardcoded default host filed+fixed as #384; residual is a WATCH that the 401 noise stops post-#384**
 - **#349** 🐛 CTX gauge — fixed + merged (PRs #319/#320); owed: the 60-s reopen check on the next OTA (shared with #367)
 - **#350** 🐛 LINKED·ONLINE honesty — fixed + merged (PR #318); owed: Owen's 30-s cold-launch fixture (evening minute)
 - **#358** 🐛 delivered-but-unrendered — failure class removed, TurnStreamLedger armed; WATCH (trigger unidentified)
@@ -212,19 +212,19 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#365** 🔍 profile-switch ~10 s connecting interstitial — DIAGNOSED 2026-08-19 (splash + relay bootstrap); bars pre-registered, fix unrouted
 - **#367** 🐛 duplicate file chips on reopen — fixed + merged (PR #321); owed: the reopen check (shared with #349)
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — MERGED 2026-08-19 (`33108d05`); runs is the DEFAULT plane; 3E-H's last two device steps owed Friday
-- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — FIXED 2026-08-19 (hold, never unpair), gate PASS; merge is Owen's review
+- **#369** 🐛 token guard destroys the pairing on a bare keychain miss — FIXED 2026-08-19 (hold, never unpair), gate PASS; ~~merge is Owen's review~~ **⟵ corrected 2026-08-23: MERGED 2026-08-19 as `d48fa7ae` (PR #323) — the entry's own header said so while this line still read pending**
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
 - **#371** 🐛 restored ✓ chips on runs nobody stopped — honesty design rides #368
 - **#372** 🔬 #337 successors — decline path · 337-H · **(c) the rollback arm ✅ BUILT + RUN 2026-08-21.** 372-C1 met on device: `blurb-reworded` is byte-identical to control (1852 chars, confirming it measures nothing) while `blurb-rollback` substitutes (1839, reworded gone). 🟡 **The measurement is a NULL — rollback 3/30 vs control 1/30, p=0.612 — neither replicated nor refuted.** 🔴 **And it is underpowered STRUCTURALLY: control's imitation rate is 3.3% where #337-F's was 13.3%, because control now ships the promoted text.** The phenomenon has stopped happening in the control arm — what a working promotion looks like, and what makes it expensive to measure. A powered re-run needs hundreds of trials/arm; whether that is worth device time is a decision for Owen, not a scheduled lane
 - **#373** 🧹 instrument/test hygiene bundle — 🟡 **FIVE TAKEN 2026-08-21 PM**, all sharing one shape (a cheap mistake billed only after an expensive run): `--trials`/`--timeout` validated (`--timeout 30m` made bash's `(( ))` evaluate 0 and report a timeout that never happened); a TYPO'D INSTRUMENT NAME no longer burns the full timeout on an inert launch; `devicectl` exit 142 no longer reads as "no device"; #224's five busy-spins → one bounded helper that ASSERTS instead of falling through silently; #335's conductor now claims its run by set difference. **Plus an unlisted finding: the button-name tripwire was blind to `due-date`/`card-clause`/`refusal-words` — a hand-maintained list cannot detect its own omissions.** Still open: `runColdCalfixBattery`, #342's two invariant checks, and the structural fix for that tripwire
-- **#375** 🧹 retire the MAC's legacy hermes-mobile surface — #346's second half; live config go PENDING confirmation
+- **#375** 🧹 retire the MAC's legacy hermes-mobile surface — #346's second half; ~~live config go PENDING confirmation~~ **⟵ corrected 2026-08-23: EXECUTED 2026-08-18 on Owen's explicit go (config disabled, gateway bounced clean, desktop reader relaunched, service retired) and BOTH app-side deletion halves landed 2026-08-19 (provisioning + the Tier-2 downloader, gates PASS) — nothing remains; formal close rides the next sweep**
 - **#376** 🎨 stale About-page drain readout — exact screen/value naming owed from Owen
 - **#377** 🔧 Private Relay detection row in diagnostics (re-homed from #24e)
 - **#378** 🧭 156c — Memory surface; scope decision first (local files vs Honcho)
 - **#379** 🧭 156e — Projects surface; post-launch candidate
 - **#381** 🎨 steer unreachable while composer is busyNoCommit with the hold slot taken — affordance is Owen's call
-- **#382** 🧹 DELETE the sessions-plane turn transport + the runs switch — #368's deferred half; ⏰ TRIGGER 2026-08-26
-- **#383** 🗣️ re-home the realtime VOICE bootstrap onto the plugin — route (a) ruled 2026-08-19; **realtime voice is bootstrapped against a retired relay TODAY**
+- **#382** 🧹 DELETE the sessions-plane turn transport + the runs switch — #368's deferred half; ~~⏰ TRIGGER 2026-08-26~~ **⟵ corrected 2026-08-23: FIRED EARLY on Owen's delete-now ruling — DELETED + MERGED 2026-08-23 (PR #360, squash `5f50e498`, −1,219 lines); the Tuesday trigger is DEAD; restore recipe in the entry's result block; formal close rides the next sweep**
+- **#383** 🗣️ re-home the realtime VOICE bootstrap onto the plugin — route (a) ruled 2026-08-19; ~~**realtime voice is bootstrapped against a retired relay TODAY**~~ **⟵ corrected 2026-08-23: SHIPPED — the bootstrap rides the plugin's `talk_session_create` family, deployed to BOTH hosts 2026-08-22 (OJAMD on-box, wire-proven with controls); the naming residue was cleaned by #400; formal close rides the next sweep**
 
 > **2026-08-18 night — archive sweep 4:** the six-slice board audit closed
 > **73 items** in one sitting (ballot: `planning/2026-08-18-close-ballot.md`)
@@ -8450,6 +8450,43 @@ pre-register here if it is ever routed.**
 > so post-scrub commits stop re-introducing the BLOCKS-PUBLISH finding.
 > **What #308 still waits on:** the #269-B publication moment itself, which
 > remains outward-facing and needs Owen's explicit per-submission go.
+
+> **🎯 BARS 308-FLOOR-A..E — pre-registered 2026-08-23 (late night), BEFORE
+> any code, for ruling 4's compat-floor plugin lane.** Facts pinned from the
+> live 0.20.5 checkout before writing these: `hermes_cli.__version__` is the
+> in-process version read (`hermes_cli/__init__.py:17`, `"0.20.5"` — register()
+> runs inside the gateway process, so this reads the code actually serving);
+> and the installer's validator (`plugins_cmd.py` `_SUPPORTED_MANIFEST_VERSION
+> = 1`) accepts a declared `manifest_version: 1` and refuses only GREATER —so
+> declaring it is safe today and buys the "run the update command" refusal
+> from any future installer whose schema moved.
+> - **308-FLOOR-A (manifest):** `plugin.yaml` declares `manifest_version: 1`;
+>   a test parses the manifest and asserts the key is the int 1.
+> - **308-FLOOR-B (below-floor arm, RED-first):** with the version read
+>   returning a below-floor value, the load-time check emits a loud named
+>   line (stable grep token `[talaria] COMPATIBILITY FLOOR`) AND registration
+>   still proceeds — fail-soft preserved, per the module's own "register must
+>   never break gateway load" contract.
+> - **308-FLOOR-C (negative controls):** at-floor and above-floor emit NO
+>   floor warning; an unparseable or unreadable version emits a skip line and
+>   never raises.
+> - **308-FLOOR-D (lockstep pin, #399-shape):** CI's hermes-agent clone is
+>   pinned to a full 40-char SHA (not floating HEAD), and a structural test
+>   reads `.github/workflows/ci.yml` + `README.md` and asserts the SAME SHA
+>   appears in both — the README "tested against" claim cannot drift from
+>   what CI actually tests. The test fails loudly if either file is
+>   unreadable.
+> - **308-FLOOR-E (mutations):** deleting the register()-side check call
+>   turns the integration test RED; reverting the CI pin to HEAD (or editing
+>   README's SHA) turns 308-FLOOR-D RED. Both run and recorded.
+> Floor constant: **(0, 20, 3)** — the oldest host version the plugin is
+> LIVE-verified on (OJAMD measured 0.20.3 with the plugin serving, 2026-08-18,
+> #347/#349's wire probes); earlier lines are unmeasured with the plugin, so
+> the floor claims only what was measured. Pin SHA:
+> `503d863fcd2cbfc0be5a6d6c536fae2e98aa4204` — the Mac checkout's HEAD, which
+> is what local pytest (the hermes venv's `-e` install) and the live gateway
+> both run. **Deploy of the resulting plugin commit rides the per-experiment
+> go like any other — building this lane deploys nothing.**
 
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
