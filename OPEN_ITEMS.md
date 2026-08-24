@@ -196,7 +196,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ CLOSED 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests); PROMOTED to standard toolchain on Owen's word, beta5 kept as A/B fallback; archive move rides the next sweep**
 - **#402** 🔬 PCC-on-sim probe — **✅ PROBED + CLOSED 2026-08-24 evening: real but PARTIAL — metadata plane works on sim (contextSize 32768, quota, entitlement honored), generation still dead on unresolvable `instruct_server_v2.fm_api` with no AI surface to fetch it; on-device tier unchanged; "generation is device-only" stands. Probe preserved in planning/probes/; 👁 re-probe per new runtime**
 - **#403** 🔧 DEBUG-sim carve-out: PCC quota tile sim-testable (#402's opened option, Owen-elected) — **✅ MERGED 2026-08-24 evening on Owen's word (PR #363, squash `3a9466ac`; the squash also swallowed the session's five unpushed tracker commits — content verified complete, lesson in memory). CLOSED**
-- **#404** 🎨 rework the PCC quota row (Owen: "sloppy compared to everything else") — **FILED 2026-08-24 evening; bars 404-A..E pre-registered; #391 honesty rules preserved verbatim**
+- **#404** 🎨 rework the PCC quota row (Owen: "sloppy compared to everything else") — **✅ MERGED 2026-08-24 evening (PR #364, `24ff5104`): QUOTA/RESETS fields, #391 pins untouched, gate 2485/14/Release, Owen's eyeball met on the sim screenshot. CLOSED**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16872,7 +16872,7 @@ entitlement honored by modelmanagerd).
   DATA HYGIENE (388-C: sim rows must never fold into device data), not
   safety, and the carve-out does not change what a sim reading is worth.
 
-## 404. 🎨 REWORK THE PCC QUOTA ROW — one flat size-8 mono sentence that wraps badly and duplicates the toggle label above it, in an app whose idiom everywhere else is labeled kicker/value fields — **FILED 2026-08-24 evening on Owen's word, from his device screenshot ("the way that we display the information we do get about the pcc account is sloppy compared to everything else. Can we rework it?"). Bars 404-A..E pre-registered BEFORE code.**
+## 404. 🎨 REWORK THE PCC QUOTA ROW — one flat size-8 mono sentence that wraps badly and duplicates the toggle label above it, in an app whose idiom everywhere else is labeled kicker/value fields — **FILED 2026-08-24 evening on Owen's word, from his device screenshot ("the way that we display the information we do get about the pcc account is sloppy compared to everything else. Can we rework it?"). Bars 404-A..E pre-registered BEFORE code.** **⟵ ✅ BUILT + MERGED the same evening (PR #364, squash `24ff5104`): QUOTA/RESETS kicker-value fields, #391 pins untouched-green, gate 2485/14/Release. 404-D's closing eyeball MET — Owen ordered the merge after seeing the sim screenshot. CLOSED; the row rides the same-evening OTA.**
 
 **Diagnosis from the screenshot + source.** `PrivateCloudQuotaRow` renders
 `quotaRowLabel`'s whole sentence — `PRIVATE CLOUD β · <STATE> · RESETS <x>` —
