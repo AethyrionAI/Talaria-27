@@ -20,7 +20,7 @@ set -euo pipefail
 # (`&`, tracked via $LAUNCH_PID) and is meant to keep running for the life of
 # the app — it isn't a foreground call this script can block on, so it isn't
 # a hang hazard in the same sense.
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
 BUNDLE_ID="org.aethyrion.talaria27"
 DEVICE="" INSTRUMENT="" TRIALS=10 CELLS="" TIMEOUT=1800 OUT_ROOT="$HOME/.talaria-instrument-runs"
 while [[ $# -gt 0 ]]; do case "$1" in

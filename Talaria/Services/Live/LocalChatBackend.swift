@@ -285,9 +285,43 @@ final class LocalChatBackend: HermesClientProtocol {
     static let pccGrantConfirmed: Bool = {
         #if targetEnvironment(simulator)
         // No entitlement in a sim binary ⇒ never construct. See above.
+        // (#402, 2026-08-24: partially superseded on the FACTS — a sim binary
+        // DOES carry the entitlement, in the simulated-entitlements section
+        // `codesign -d --entitlements` cannot see, and modelmanagerd honors
+        // it. The GATE stays false here regardless, because generation on a
+        // sim still fails on an unresolvable asset and `isAvailable` still
+        // reads true — the turn plane must not offer a tier that cannot run.
+        // Metadata reads ride `pccMetadataObservable` below instead.)
         false
         #else
         true
+        #endif
+    }()
+
+    /// **#403: the metadata plane's OWN gate — may this binary construct
+    /// `PrivateCloudComputeLanguageModel` to READ (availability, quota,
+    /// contextSize), as opposed to taking turns.**
+    ///
+    /// On device this is exactly `pccGrantConfirmed`. On a DEBUG simulator
+    /// build it is `true` — the carve-out that makes the quota tile
+    /// sim-testable. The safety basis is measured, not argued: the
+    /// 2026-07-13 construction SIGTRAP did not reproduce on 2026-08-20
+    /// (beta5, unentitled binary), and #402 re-confirmed on runtime 24A5423a
+    /// — construction and every metadata read ran clean, with the simulated
+    /// entitlement honored ("Client … entitled with
+    /// com.apple.developer.private-cloud-compute" in the sim's own log).
+    ///
+    /// **What this gate must never feed: the turn plane.** Generation on a
+    /// sim fails instantly ("assets required for the session are
+    /// unavailable", #402) while `isAvailable` reads true there — so a
+    /// turn-plane site pointed here would offer a tier that cannot run.
+    /// `PrivateCloudGateTests` pins the split with mutation-red tests
+    /// (403-A).
+    static let pccMetadataObservable: Bool = {
+        #if DEBUG && targetEnvironment(simulator)
+        true
+        #else
+        pccGrantConfirmed
         #endif
     }()
 
@@ -296,6 +330,16 @@ final class LocalChatBackend: HermesClientProtocol {
     /// approval reads as unavailable — the on-device path is unaffected.
     var isPrivateCloudAvailable: Bool {
         guard Self.pccGrantConfirmed else { return false }
+        return PrivateCloudComputeLanguageModel().isAvailable
+    }
+
+    /// Whether the Private Cloud SETTINGS surface (tile + screen + quota row)
+    /// should exist for this install — the display plane only. On device this
+    /// equals `isPrivateCloudAvailable`; under the #403 DEBUG-sim carve-out
+    /// it lights so the tile is testable. Never consult this for routing —
+    /// `setPreferredTier` and the router read the turn-plane facts.
+    var isPrivateCloudObservable: Bool {
+        guard Self.pccMetadataObservable else { return false }
         return PrivateCloudComputeLanguageModel().isAvailable
     }
 
@@ -342,7 +386,7 @@ final class LocalChatBackend: HermesClientProtocol {
     }
 
     func privateCloudStatus() -> PrivateCloudStatus? {
-        guard Self.pccGrantConfirmed else { return nil }
+        guard Self.pccMetadataObservable else { return nil }
         let pcc = PrivateCloudComputeLanguageModel()
         guard pcc.isAvailable else { return nil }
         let usage = pcc.quotaUsage
@@ -366,7 +410,7 @@ final class LocalChatBackend: HermesClientProtocol {
 
     /// Presents the system's iCloud+ upgrade path for more PCC access.
     func showPrivateCloudLimitIncreaseOptions() {
-        guard Self.pccGrantConfirmed else { return }
+        guard Self.pccMetadataObservable else { return }
         PrivateCloudComputeLanguageModel().quotaUsage.limitIncreaseSuggestion?.show()
     }
 

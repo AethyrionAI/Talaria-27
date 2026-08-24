@@ -10,7 +10,7 @@ Talaria is a native iOS app built specifically for self-hosters running [Hermes 
 
 - Check [OPEN_ITEMS.md](OPEN_ITEMS.md) — active work items and known issues are tracked there
 - For anything architecture-affecting, open an issue first to align before writing code
-- The iOS app requires Xcode with the **iOS 27 SDK** (Xcode 27 beta — `Xcode-beta5.app` as of 2026-08)
+- The iOS app requires Xcode with the **iOS 27 SDK** (Xcode 27 beta — `Xcode-beta6.app` as of 2026-08-24)
 
 ## Development setup
 
@@ -24,7 +24,7 @@ open Talaria.xcodeproj
 
 # Building from the command line with several Xcodes installed?
 # Point at the beta toolchain first, or iOS 27 APIs fail to resolve:
-export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer
 ```
 
 > ⚠️ The project uses explicit source file listings via XcodeGen. If you add or remove Swift files, run `xcodegen generate` and commit the regenerated `project.pbxproj`.
@@ -68,7 +68,7 @@ It runs the Debug suite **and a Release build**, and reports PASS/FAIL per check
 To run the suite alone:
 
 ```bash
-export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer
+export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer
 xcodebuild test -project Talaria.xcodeproj -scheme Talaria \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
   CODE_SIGNING_ALLOWED=NO

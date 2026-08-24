@@ -16,7 +16,7 @@ are query-time via the talaria plugin, #251 decision 2/#242), and the `hermes_mo
 toolset is disabled on OJAMD (#346). **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Claude writes all code + runs infrastructure (Owen does not
-write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
+write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
 
 ## Architecture — Clean Chat Path
 
@@ -584,16 +584,35 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   runtime it was measured on; a rate without one is now ambiguous. Worst for the
   on-device BRAIN, because #324 established the simulator cannot generate on
   that model at all, so its behaviour has only ever been device-answerable.
-- **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
-  standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
-  pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
-  tests/156 suites Swift Testing + 14 XCUITest + Release build; zero Talaria-affecting SDK
-  changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
+  **⟵ SUPERSEDED 2026-08-24 (#401): Apple shipped Xcode 27 beta 6
+  (`/Applications/Xcode-beta6.app`, 27A5252f, swiftlang 6.4.0.33.1) carrying
+  the iOS-beta-7 SDK (24A5422a) and sim runtime (24A5423a) — so the sim now
+  LEAPFROGS the device (24A5418b) rather than trailing it. Still no exact
+  local twin of the phone's build until it takes iOS 27 beta 7. New corollary
+  of #324's dyld rule: a beta6-Xcode-built binary referencing new-in-24A5422a
+  symbols dies at launch on the phone's older runtime — no new-SDK API
+  adoption until the device updates. Regression round + promotion decision:
+  #401. ⟵ Same day PM: the phone UPDATED to beta 7 (Owen's word; exact build
+  string unmeasured until the next device log pass) — the fleet is ALIGNED
+  for the first time since beta 5 and the adoption freeze is LIFTED. PCC may
+  now be sim-testable (beta 7 fix): probe is #402.**
+- **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
+  6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
+  iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
+  gate green FIRST-RUN under beta6 — 2482 tests/200 suites Swift Testing + 14 XCUITest +
+  Release build on verified sim runtime 24A5423a; SDK diff 6 real changes in 280
+  interfaces, none Talaria-called — full evidence
+  `planning/reports/2026-08-24-beta6-sdk-audit.md`). **Beta5 (27A5237l) STAYS on disk as
+  the A/B fallback — Owen's ruling at promotion**, the first promotion since beta4's that
+  keeps one. *(The prior head of this paragraph — beta5 promoted from beta4 2026-08-11
+  under #324's pre-authorized auto-promote, 2056/156 + 14 —
+  is history, evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`.)*
   Release Xcode still can't build iOS 27.
-  `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
+  `DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` in every shell.
   ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
   2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
-  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remain).
+  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remained —
+  joined by `Xcode-beta6.app` on 2026-08-24).
   There is NO beta4 A/B fallback.** The nearest surviving beta4-vintage artifact is
   the CLT SDK at `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`
   (swiftlang 6.4.0.27.1, matching #324's recorded beta4 compiler) — an interface-only
@@ -602,14 +621,18 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
   were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
   iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
-  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
-  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5390f` for NEW boots,
-  and ALWAYS `match set iphoneos27.0 --default` afterwards — and **iOS 26.5 (23F77)**.
+  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5423a, iOS beta 7 — the
+  DEFAULT match since 2026-08-24)**, **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
+  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5408d` (or
+  `24A5390f`) for NEW boots, and ALWAYS `match set iphoneos27.0 --default` afterwards —
+  and **iOS 26.5 (23F77)**.
   **⚠️ Beta-to-beta dyld hazard (proven #324): a beta5-built binary referencing new-in-beta5
   symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
   (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
-  cannot weak-link between betas of the same version, so adopt new beta5 API only while every
-  target device/sim runtime is on beta5. The pinned sim
+  cannot weak-link between betas of the same version, so adopt new-SDK API only while every
+  target device/sim runtime is at least that vintage. (Fleet state 2026-08-24, #401: the
+  phone took iOS beta 7 the same day beta6 arrived — device, sims and SDK are ALIGNED,
+  so nothing is currently frozen. Probe live before assuming this holds.) The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData for **this** repo is
   `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented
@@ -667,8 +690,8 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     anyway because **>3 booted locks this Mac up**. Recreate a missing member with
     `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
     com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
-    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5408d
-    (beta5)** unless someone set an A/B override, so verify with
+    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5423a
+    (iOS beta 7; was 24A5408d until 2026-08-24)** unless someone set an A/B override, so verify with
     `xcrun simctl runtime match list` when it matters.
   - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
     (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
@@ -898,7 +921,7 @@ Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
 Release build**, because a green Debug suite cannot see a mis-set gate.
 
   ```bash
-  DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
   ```
 
 ## Project history

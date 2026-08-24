@@ -13,7 +13,7 @@ It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay ar
 **only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Codex writes all code + runs infrastructure (Owen does not
-write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta5**.
+write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
 
 ## Architecture — Clean Chat Path
 
@@ -488,16 +488,18 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Build / tooling
 
-- **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
-  standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
-  pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
-  tests/156 suites Swift Testing + 14 XCUITest + Release build; zero Talaria-affecting SDK
-  changes — full evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`, tracker #324).
-  Release Xcode still can't build iOS 27.
-  `DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` in every shell.
+- **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, iOS SDK
+  24A5422a) is the standard toolchain for iOS 27 targets — **promoted from beta5 on
+  2026-08-24 on Owen's word** (#401: gate green first-run, 2482 tests/200 suites Swift
+  Testing + 14 XCUITest + Release on sim runtime 24A5423a; SDK diff 6/280 real changes,
+  none Talaria-called — `planning/reports/2026-08-24-beta6-sdk-audit.md`). **Beta5
+  (27A5237l) stays on disk as the A/B fallback.** (Prior: beta5 promoted from beta4
+  2026-08-11, #324.) Release Xcode still can't build iOS 27.
+  `DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` in every shell.
   ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
   2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
-  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remain).
+  `mdfind`, and `.Trash`; only `Xcode-beta5.app` and release `Xcode.app` remained —
+  joined by `Xcode-beta6.app` on 2026-08-24).
   There is NO beta4 A/B fallback.** The nearest surviving beta4-vintage artifact is
   the CLT SDK at `/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk`
   (swiftlang 6.4.0.27.1, matching #324's recorded beta4 compiler) — an interface-only
@@ -569,8 +571,9 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     anyway because **>3 booted locks this Mac up**. Recreate a missing member with
     `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
     com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
-    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5408d
-    (beta5)** unless someone set an A/B override, so verify with
+    `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5423a
+    (iOS beta 7 since 2026-08-24; previously 24A5408d, beta5)** unless
+    someone set an A/B override, so verify with
     `xcrun simctl runtime match list` when it matters.
   - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
     (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
@@ -775,7 +778,7 @@ Corollary, and it applies to any `#if DEBUG` or gating edit: **verify with a
 Release build**, because a green Debug suite cannot see a mis-set gate.
 
   ```bash
-  DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
+  DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer xcodebuild -project Talaria.xcodeproj -scheme Talaria -configuration Release -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
   ```
 
 ## Project history
