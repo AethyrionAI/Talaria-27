@@ -2344,6 +2344,9 @@ struct AppStoresTests {
         final class SilentStreamingChatClient: HermesClientProtocol {
             var connectionStatus: ConnectionStatus = .connected
             var currentConversation: Conversation?
+            // #382 bar 382-A: the POST captured a run id before the stream
+            // went silent — expiration must feed it into recovery.
+            var activeRunID: String? { "run-zero-events" }
             // #295 review follow-up: this models a Hermes-plane attachment
             // upload (the one shape that can hit zero processed events before
             // expiration) — the gate must see that and still arm recovery.
@@ -2386,6 +2389,10 @@ struct AppStoresTests {
         #expect(
             chatStore.pendingRunSessionId == "zero-event-session",
             "295 carried finding: the activeSessionID fallback must arm recovery when activeStreamRun never got a chance to capture"
+        )
+        #expect(
+            chatStore.pendingRunRunId == "run-zero-events",
+            "382-A: the expiration arm must feed cancelledRunID into recovery — nil strands the pending run on the positional session re-read instead of its own status read"
         )
         #expect(chatStore.hasActiveReconcileLoop, "reconcile loop must be armed")
         #expect(

@@ -2,85 +2,75 @@ import Foundation
 import Testing
 @testable import Talaria
 
-/// #283 armed this switch OFF; **#368 (3E) flipped it ON** and added the
-/// one-time migration that makes the flip actually reach existing installs.
+/// **#382 — the sessions turn transport is DELETED.**
 ///
-/// Bar 3E-A lives here. Its load-bearing half is the SECOND test: the key is
-/// unconditionally encoded (`UserSettings.encode`), so every install that has
-/// ever written settings carries an explicit `false`, and a default flip
-/// alone would move nobody.
+/// This file held the #368 cutover-migration suite (six fixtures pinning the
+/// one-shot `runsCutoverApplied` migration and the Developer switch's
+/// stickiness). #382 deleted the switch, the migration, and the transport
+/// they selected, so those tests were asserting on removed code — the #375
+/// falsified-tests precedent. What replaces them is what the deletion
+/// actually promises:
+///
+/// - **382-D:** old persisted blobs still carrying the retired keys decode
+///   cleanly (#238's unknown-key shape) — a relaunch after the update must
+///   not eat anyone's settings.
+/// - **382-B (structural half):** `useRunsTransport` is absent from the
+///   production tree, and the client spells no sessions-plane turn path.
+///   The behavioral half lives in `RunsPlaneTransportTests.
+///   aStreamedTurnNeverTouchesTheDeletedSessionsChatStream`, which watches
+///   the wire itself.
 struct RunsTransportSwitchTests {
 
-    /// A settings blob as a PRE-CUTOVER build wrote it: `useRunsTransport`
-    /// present and false, `runsCutoverApplied` absent entirely.
-    private func preCutoverBlob(useRunsTransport: Bool = false) throws -> Data {
-        let current = try JSONEncoder().encode(UserSettings())
-        var obj = try #require(JSONSerialization.jsonObject(with: current) as? [String: Any])
-        obj["useRunsTransport"] = useRunsTransport
-        obj.removeValue(forKey: "runsCutoverApplied")
-        return try JSONSerialization.data(withJSONObject: obj)
+    /// **382-D — a pre-deletion blob decodes, keys ignored.** The exact JSON
+    /// an updated install carries: `useRunsTransport` and
+    /// `runsCutoverApplied` present (every pre-#382 install encoded both,
+    /// unconditionally), now unknown to the decoder.
+    @Test func aBlobCarryingTheRetiredTransportKeysStillDecodes() throws {
+        let legacy = """
+        {"userName":"Owen","useRunsTransport":false,"runsCutoverApplied":true,"hapticFeedbackEnabled":false}
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: legacy)
+        #expect(decoded.userName == "Owen")
+        #expect(decoded.hapticFeedbackEnabled == false)
     }
 
-    @Test func aFreshInstallIsOnTheRunsPlane() throws {
-        #expect(UserSettings().useRunsTransport == true)
-        #expect(UserSettings().runsCutoverApplied == true)
-    }
-
-    @Test func aPreCutoverBlobsExplicitFalseIsTheOldDefaultAndIsMigrated() throws {
-        // 3E-A, the half that matters. Mutation that turns this red: decode
-        // `useRunsTransport` with `?? true` and no migration flag — the
-        // stored `false` then wins and the cutover ships as a no-op for
-        // every existing install.
-        let decoded = try JSONDecoder().decode(UserSettings.self, from: preCutoverBlob())
-        #expect(decoded.useRunsTransport == true)
-        #expect(decoded.runsCutoverApplied == true, "the migration must stamp itself as done")
-    }
-
-    @Test func aPreCutoverBlobThatAlreadyOptedInStaysOptedIn() throws {
-        let decoded = try JSONDecoder().decode(UserSettings.self, from: preCutoverBlob(useRunsTransport: true))
-        #expect(decoded.useRunsTransport == true)
-    }
-
-    @Test func aBlobMissingTheKeyEntirelyLandsOnTheRunsPlane() throws {
-        let current = try JSONEncoder().encode(UserSettings())
-        var obj = try #require(JSONSerialization.jsonObject(with: current) as? [String: Any])
-        obj.removeValue(forKey: "useRunsTransport")
-        obj.removeValue(forKey: "runsCutoverApplied")
-        let decoded = try JSONDecoder().decode(
-            UserSettings.self,
-            from: try JSONSerialization.data(withJSONObject: obj)
+    /// **382-B, structural half** (the #399 source-reading pattern): the
+    /// switch must not regrow. `useRunsTransport` appears in `Talaria/`
+    /// source only inside `#382`-tombstone comments, and the client file
+    /// spells no `chat/stream` path. Fails loudly if a source cannot be
+    /// enumerated — a check that cannot run must say so.
+    @Test func theSwitchAndTheSessionsTurnPathAreAbsentFromTheTree() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria")
+        let files = try #require(
+            FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
+                .compactMap { $0 as? URL }
+                .filter { $0.pathExtension == "swift" },
+            "cannot enumerate Talaria/ — this check did not run"
         )
-        #expect(decoded.useRunsTransport == true)
-    }
+        #expect(!files.isEmpty, "cannot enumerate Talaria/ — this check did not run")
 
-    /// The escape hatch Owen's 2026-08-19 ruling kept has to be a REAL
-    /// switch, not a control the migration overrides on every launch — or
-    /// the week of evidence it was kept for cannot be collected.
-    ///
-    /// Mutation that turns this red: force `true` unconditionally in
-    /// `init(from:)` instead of gating on `runsCutoverApplied`.
-    @Test func aPostCutoverOptOutSticksAcrossRelaunch() throws {
-        var settings = try JSONDecoder().decode(UserSettings.self, from: preCutoverBlob())
-        settings.useRunsTransport = false            // the user turns it back off
-        let persisted = try JSONEncoder().encode(settings)
-
-        let reloaded = try JSONDecoder().decode(UserSettings.self, from: persisted)
-        #expect(reloaded.useRunsTransport == false, "the migration must not re-apply over a user's pick")
-
-        // …and a second relaunch does not resurrect it either.
-        let reloadedTwice = try JSONDecoder().decode(
-            UserSettings.self,
-            from: try JSONEncoder().encode(reloaded)
-        )
-        #expect(reloadedTwice.useRunsTransport == false)
-    }
-
-    @Test func roundTripsBothWays() throws {
-        for value in [true, false] {
-            var settings = UserSettings()
-            settings.useRunsTransport = value
-            let decoded = try JSONDecoder().decode(UserSettings.self, from: JSONEncoder().encode(settings))
-            #expect(decoded.useRunsTransport == value)
+        var switchHits: [String] = []
+        var chatStreamHits: [String] = []
+        for file in files {
+            guard let source = try? String(contentsOf: file, encoding: .utf8) else { continue }
+            for (index, line) in source.components(separatedBy: "\n").enumerated() {
+                if line.contains("useRunsTransport"), !line.contains("#382") {
+                    switchHits.append("\(file.lastPathComponent):\(index + 1)")
+                }
+                // The PATH-LITERAL shape only (`…/chat/stream"`): historical
+                // comments legitimately name the deleted route in prose, but
+                // only request-building code spells it inside a string.
+                if line.contains("chat/stream\"") {
+                    chatStreamHits.append("\(file.lastPathComponent):\(index + 1)")
+                }
+            }
         }
+        #expect(switchHits.isEmpty,
+                "useRunsTransport regrew outside a #382 tombstone: \(switchHits)")
+        #expect(chatStreamHits.isEmpty,
+                "a sessions-plane chat/stream spelling regrew: \(chatStreamHits)")
     }
 }

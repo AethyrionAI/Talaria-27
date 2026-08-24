@@ -348,9 +348,7 @@ struct RunsPlaneTransportTests {
             transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
             session: URLSession(configuration: configuration)
         )
-        // Task 5 pins both directions of the dispatch; here it just arms the
-        // runs path so the driver is what runs.
-        client.useRunsTransportProvider = { true }
+        // #382: nothing to arm — the runs driver is the only transport.
         // Task 6: the recovery poll's knobs, shortened suite-wide. Production
         // is 2s/120s — a still-running run would park every loss test on the
         // 10s belt and report a hang instead of an outcome.
@@ -724,6 +722,91 @@ struct RunsPlaneTransportTests {
         // stream takes the catch classification, which in Task 4 yields
         // recovery directly. Task 6 is what puts the bounded poll in front of
         // it; pinning today's absence would just book a failure for that task.
+    }
+
+    /// **The 240-A shape, ported from `StreamLossClassificationTests` when
+    /// #382 deleted the sessions plane those fixtures scripted.** The submit
+    /// was ACCEPTED (202 + run id) and the events stream dies before a single
+    /// frame arrives — fast backgrounding's teardown shape. The run is
+    /// committed server-side, so this must arm RECOVERY (`.interrupted`),
+    /// never the offline compose outbox (`.unreachable`): parking a delivered
+    /// turn re-sends it and Hermes answers twice (#240). Strictly better than
+    /// the sessions-plane original — the run id exists here, so recovery
+    /// rides the status read instead of the positional re-read.
+    ///
+    /// The comment-only body is load-bearing twice: it pads past the
+    /// custom-protocol ~512B flush threshold (below it the late error
+    /// supersedes the response and reads as the PRE-response shape — the
+    /// probed 2026-08-03 trap), and it proves no event frame is needed for
+    /// the accepted classification.
+    @Test @MainActor
+    func anAcceptedSubmitWhoseEventsStreamDiesArmsRecoveryNotParking() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = Self.script(
+            sseBody: Self.runsSSE([]),
+            statusBodies: [Self.runningStatus],
+            failEventsAfterBody: .notConnectedToInternet
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "accepted-drop")
+        let updates = await collect(from: client)
+
+        let interruptions = updates.compactMap { update -> (String, String?)? in
+            if case let .interrupted(sessionId, runId) = update { return (sessionId, runId) }
+            return nil
+        }
+        #expect(interruptions.count == 1, "an accepted turn whose stream died must arm recovery, exactly once")
+        #expect(interruptions.first?.0 == "sess-r")
+        #expect(interruptions.first?.1 == "run-r1", "the accepted run id must ride the recovery arm")
+        #expect(!updates.contains { if case .unreachable = $0 { return true } else { return false } },
+                "parking a delivered turn is a visible dupe plus an armed auto-resend (#240)")
+        #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
+    }
+
+    /// **The pre-response park, ported with the test above.** The submit
+    /// itself never reaches the host — the POST dies at the transport before
+    /// any response — so the turn provably never entered the API and the
+    /// honest classification is `.unreachable` (park in the compose outbox,
+    /// resend on reconnect). No run id exists, so nothing may arm recovery.
+    @Test @MainActor
+    func aSubmitThatNeverReachesTheHostStillParksAsUnreachable() async throws {
+        RunsStubURLProtocol.reset()
+        RunsStubURLProtocol.script = RunsStubURLProtocol.Script(
+            response: { request in
+                guard let url = request.url else { throw URLError(.badURL) }
+                func reply(_ status: Int, _ body: String) throws -> (HTTPURLResponse, Data) {
+                    guard let response = HTTPURLResponse(
+                        url: url, statusCode: status, httpVersion: "HTTP/1.1",
+                        headerFields: ["Content-Type": "application/json"]
+                    ) else { throw URLError(.badServerResponse) }
+                    return (response, Data(body.utf8))
+                }
+                switch url.path {
+                case "/api/sessions":
+                    return try reply(200, #"{"session":{"id":"sess-r"}}"#)
+                case "/api/sessions/sess-r/messages":
+                    return try reply(200, Self.messagesFixture)
+                case "/v1/runs":
+                    // The offline shape: no response at all, ever.
+                    throw URLError(.notConnectedToInternet)
+                default:
+                    throw URLError(.badURL)
+                }
+            },
+            failAfterBody: { _ in nil },
+            hangAfterBody: { _ in false }
+        )
+        defer { RunsStubURLProtocol.reset() }
+
+        let client = makeClient(label: "pre-response")
+        let updates = await collect(from: client)
+
+        #expect(updates.contains { if case .unreachable = $0 { return true } else { return false } },
+                "a turn that never reached the API parks for the outbox, honestly")
+        #expect(!updates.contains { if case .interrupted = $0 { return true } else { return false } },
+                "no run was accepted, so nothing may arm recovery")
+        #expect(!updates.contains { if case .finished = $0 { return true } else { return false } })
     }
 
     /// The clean close: the stream ENDS without a terminal frame (no error to
@@ -1930,95 +2013,22 @@ struct RunsPlaneTransportTests {
         #expect(!updates.contains { if case .failed = $0 { return true } else { return false } })
     }
 
-    // MARK: - Task 5: dual-path dispatch pin (#218 guard)
+    // MARK: - #382 (bar 382-B): the sessions turn plane is DELETED
     //
-    // The switch reads ONCE per turn (`sendStreaming`'s `useRunsTransportProvider()`
-    // check) and routes the WHOLE turn to one plane or the other — never a mix.
-    // These two tests pin both directions of that dispatch so a future edit that
-    // blurs the branches (e.g. a stray runs-plane probe firing while OFF, or a
-    // sessions-plane fallback firing while ON) fails loudly instead of shipping
-    // silently, the #218 shape (an untested branch going stale in production).
-
-    /// The sessions-plane SSE dialect (`event:` + `data:` lines), reusing the
-    /// shape `ArtifactStreamingTests.sse(_:)` pins — NOT the runs dialect's
-    /// single `data:` JSON envelope this file's other fixtures build.
-    private static func sessionsSSE(_ events: [(event: String, data: String)]) -> String {
-        let padding = ": " + String(repeating: "-", count: 600) + "\n\n"
-        return padding + events.map { "event: \($0.event)\ndata: \($0.data)\n\n" }.joined()
-    }
-
-    /// Routes the sessions-plane endpoints a streamed turn touches when the
-    /// switch is OFF: session creation, the sessions `chat/stream`, and the
-    /// history read `/messages` (served defensively — a fresh journal with no
-    /// entries never calls it, but the stub shouldn't 400 if that changes).
-    /// Deliberately has NO `/v1/runs` route: if the OFF path ever touched it,
-    /// the request would still land in the log (recorded before routing) and
-    /// this test's negative assertion would catch it.
-    private static func sessionsScript(sseBody: String) -> RunsStubURLProtocol.Script {
-        RunsStubURLProtocol.Script(
-            response: { request in
-                guard let url = request.url else { throw URLError(.badURL) }
-                func reply(_ status: Int, _ body: String, contentType: String = "application/json") throws -> (HTTPURLResponse, Data) {
-                    guard let response = HTTPURLResponse(
-                        url: url,
-                        statusCode: status,
-                        httpVersion: "HTTP/1.1",
-                        headerFields: ["Content-Type": contentType]
-                    ) else { throw URLError(.badServerResponse) }
-                    return (response, Data(body.utf8))
-                }
-                switch url.path {
-                case "/api/sessions":
-                    return try reply(200, #"{"session":{"id":"sess-off"}}"#)
-                case "/api/sessions/sess-off/messages":
-                    return try reply(200, #"{"session_id":"sess-off","data":[]}"#)
-                case "/api/sessions/sess-off/chat/stream":
-                    return try reply(200, sseBody, contentType: "text/event-stream")
-                default:
-                    throw URLError(.badURL)
-                }
-            },
-            failAfterBody: { _ in nil },
-            hangAfterBody: { _ in false }
-        )
-    }
-
+    /// Was Task 5's dual-path dispatch pin. #382 deleted the sessions-plane
+    /// driver, the seam, and the switch, so the surviving direction is now
+    /// an invariant rather than a branch: a streamed turn touches `/v1/runs`
+    /// and NEVER the sessions `chat/stream` endpoint. Observed at the wire
+    /// (the stub's request log) — a reintroduced legacy fallback fails this
+    /// before any source grep could.
     @Test @MainActor
-    func switchOffUsesSessionsPlaneExclusively() async throws {
-        RunsStubURLProtocol.reset()
-        RunsStubURLProtocol.script = Self.sessionsScript(sseBody: Self.sessionsSSE([
-            (event: "run.started", data: #"{"run_id":"run_off1"}"#),
-            (event: "assistant.delta", data: #"{"delta":"Hi"}"#),
-            (event: "assistant.completed", data: #"{"content":"Hi"}"#),
-            (event: "run.completed", data: #"{"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#),
-            (event: "done", data: #"{}"#),
-        ]))
-        defer { RunsStubURLProtocol.reset() }
-
-        let client = makeClient(label: "switch-off")
-        client.useRunsTransportProvider = { false }
-        let updates = await collect(from: client)
-
-        // The fixture must actually drive the sessions parser to a real
-        // terminal frame — a pin built on a coincidental early exit (e.g. a
-        // 400 that never reached /v1/runs) would prove nothing.
-        #expect(updates.contains { if case .finished = $0 { return true } else { return false } })
-
-        let paths = RunsStubURLProtocol.requests().map(\.path)
-        #expect(paths.contains { $0.contains("/chat/stream") })
-        #expect(!paths.contains { $0.contains("/v1/runs") })
-    }
-
-    @Test @MainActor
-    func switchOnNeverTouchesChatStream() async throws {
+    func aStreamedTurnNeverTouchesTheDeletedSessionsChatStream() async throws {
         RunsStubURLProtocol.reset()
         RunsStubURLProtocol.script = Self.script(sseBody: Self.runsSSE([
             #"{"event":"run.completed","run_id":"run-r1","timestamp":1.0,"output":"ok","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}"#,
         ]))
         defer { RunsStubURLProtocol.reset() }
 
-        // makeClient(label:) already arms the runs provider (`{ true }`) —
-        // the ON direction is the file's default, per its own comment.
         let client = makeClient(label: "switch-on")
         let updates = await collect(from: client)
 

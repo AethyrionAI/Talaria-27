@@ -138,9 +138,9 @@ final class AppContainer {
     /// above, deliberately not a reuse of it (different actor: the host's own
     /// gated action on a `/v1/runs` run, answered over the network). Wired in
     /// makeDefault (`sendAnswer` → the router's routing-lock forward;
-    /// `chatStore.hostApprovals` → this). Reachable only behind the
-    /// `useRunsTransport` Developer switch — **default ON since #368's
-    /// cutover** (O6's "default stays OFF" was 3A-era and is superseded).
+    /// `chatStore.hostApprovals` → this). Always reachable since #382 — the
+    /// runs plane is the only turn transport; the old `useRunsTransport` (#382-deleted)
+    /// Developer switch is gone (O6's "default stays OFF" was 3A-era).
     let hostApprovalStore = HostApprovalStore()
     /// #251-2A: the talaria platform transport — auto-pairs with the ACTIVE
     /// profile's gateway key, drains the plugin's durable outbox into the
@@ -789,10 +789,9 @@ final class AppContainer {
         // persisted pick, from the first turn of the launch.
         sessionsClient.modelSelection = container.activeModelSelection
         // #283 (Phase 3 slice 3A): arm the runs-transport switch from the
-        // Developer screen's persisted setting. Read once per turn by
-        // `SessionsHermesClient`'s sync and streaming dispatch (Task 5, this
-        // same branch) to pick between the sessions plane and `/v1/runs`.
-        sessionsClient.useRunsTransportProvider = { settingsStore.settings.useRunsTransport }
+        // #382: the transport provider seam is gone — `/v1/runs` is the only
+        // turn transport and `SessionsHermesClient` dispatches to it
+        // unconditionally.
         // #156a: Tasks — the cron-jobs surface talks to the same :8642
         // gateway with the same API key as chat; no relay, no new services
         // (#161). Bare test containers skip this (nil store → honest
@@ -910,8 +909,9 @@ final class AppContainer {
         )
         // #224 Phase 0: arm the confirm gate's GLOBAL approval mode from
         // UserSettings — a CLOSURE, not a captured value, so a later settings
-        // write is seen without re-wiring (the `useRunsTransportProvider`
-        // precedent). `.manual` is the only value the settings layer can
+        // write is seen without re-wiring (the provider-closure pattern
+        // #283's transport seam established, since retired by #382).
+        // `.manual` is the only value the settings layer can
         // produce in this build, so this changes no behaviour; it is what
         // makes the key real rather than vestigial, and it is the one
         // production line Phase 1 edits.

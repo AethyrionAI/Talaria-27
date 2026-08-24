@@ -67,6 +67,14 @@ struct ContextMeterTests {
         events.map { "event: \($0.event)\ndata: \($0.data)\n\n" }.joined()
     }
 
+    /// #382: the runs dialect — `data:`-only frames, event name inside the
+    /// JSON, comment-padded past URLSession's custom-protocol ~512B flush
+    /// threshold (the probed 2026-08-03 trap).
+    private static func runsSSE(_ frames: [String]) -> String {
+        let padding = ": " + String(repeating: "-", count: 600) + "\n\n"
+        return padding + frames.map { "data: \($0)\n\n" }.joined() + ": stream closed\n\n"
+    }
+
     /// The wire shape the probe verified: rows carry `token_count` — and it
     /// is null on every one. Fixtures must model that, not a hand-made shape
     /// where decoding `token_count` would appear to work.
@@ -289,19 +297,22 @@ struct ContextMeterTests {
             usageIndex: usageIndex
         )
 
-        let sseBody = Self.sse([
-            (event: "run.started", data: #"{"run_id":"run_1"}"#),
-            (event: "assistant.delta", data: #"{"delta":"The answer."}"#),
-            (event: "assistant.completed", data: #"{"content":"The answer."}"#),
-            (event: "run.completed", data: #"{"usage":{"input_tokens":1234,"output_tokens":56,"total_tokens":1290}}"#),
-            (event: "done", data: #"{}"#),
+        // #382: the streamed turn rides the runs plane — `data:`-only frames
+        // with the event name INSIDE the JSON, and the padding that clears
+        // the custom-protocol ~512B flush threshold.
+        let sseBody = Self.runsSSE([
+            #"{"event":"message.delta","run_id":"run_1","timestamp":1.0,"delta":"The answer."}"#,
+            #"{"event":"run.completed","run_id":"run_1","timestamp":2.0,"output":"The answer.","usage":{"input_tokens":1234,"output_tokens":56,"total_tokens":1290}}"#,
         ])
         MeterStubURLProtocol.requestHandler = { request in
             let path = request.url?.path ?? ""
             if path == "/api/sessions" {
                 return Self.response(for: request, body: #"{"session": {"id": "api_live"}}"#)
             }
-            if path.hasSuffix("/chat/stream") {
+            if path == "/v1/runs" {
+                return Self.response(for: request, body: #"{"run_id": "run_1", "status": "started"}"#)
+            }
+            if path == "/v1/runs/run_1/events" {
                 return Self.response(for: request, body: sseBody, contentType: "text/event-stream")
             }
             return Self.response(for: request, body: #"{"session_id": "api_live", "data": []}"#)
@@ -465,17 +476,22 @@ struct ContextMeterTests {
             usageIndex: usageIndex
         )
 
-        let sseBody = Self.sse([
-            (event: "assistant.completed", data: #"{"content":"The answer."}"#),
-            (event: "run.completed", data: #"{"usage":{"input_tokens":"not-a-number"}}"#),
-            (event: "done", data: #"{}"#),
+        // #382: runs dialect (see the live-usage test above).
+        let sseBody = Self.runsSSE([
+            #"{"event":"run.completed","run_id":"run_bad","timestamp":1.0,"output":"The answer.","usage":{"input_tokens":"not-a-number"}}"#,
         ])
         MeterStubURLProtocol.requestHandler = { request in
             let path = request.url?.path ?? ""
             if path == "/api/sessions" {
                 return Self.response(for: request, body: #"{"session": {"id": "api_bad"}}"#)
             }
-            return Self.response(for: request, body: sseBody, contentType: "text/event-stream")
+            if path == "/v1/runs" {
+                return Self.response(for: request, body: #"{"run_id": "run_bad", "status": "started"}"#)
+            }
+            if path == "/v1/runs/run_bad/events" {
+                return Self.response(for: request, body: sseBody, contentType: "text/event-stream")
+            }
+            return Self.response(for: request, body: #"{"session_id": "api_bad", "data": []}"#)
         }
         defer { MeterStubURLProtocol.requestHandler = nil }
 

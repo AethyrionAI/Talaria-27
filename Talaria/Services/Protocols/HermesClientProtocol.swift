@@ -237,8 +237,9 @@ protocol HermesClientProtocol {
     /// `false` means nothing was sent at all — no run context, no runs plane,
     /// no network call. That distinction was previously invisible: the method
     /// returned `Void` and guard-returned silently, so **every ordinary
-    /// sessions `chat/stream` turn — the default, the one the phone uses —
-    /// had its Stop swallowed here while the UI looked like it obeyed.** Owen
+    /// sessions `chat/stream` turn — the pre-#368 default; the plane #382
+    /// has since deleted — had its Stop swallowed here while the UI looked
+    /// like it obeyed.** Owen
     /// measured it on device (`sleep 90 && echo Done`: the host ran the whole
     /// command and answered on reopen). The caller needs to know so it can
     /// say what is true.

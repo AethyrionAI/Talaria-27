@@ -198,17 +198,8 @@ struct DeveloperSettingsScreen: View {
                     detail: "FULL PANEL · .writingToolsBehavior(.complete)",
                     isOn: writingToolsBinding
                 )
-
-                Rectangle()
-                    .fill(Design.Colors.hairline)
-                    .frame(height: 1)
-                    .padding(.horizontal, Design.Spacing.md)
-
-                flagRow(
-                    "Runs Transport (Phase 3)",
-                    detail: "Default since the #368 cutover · off = legacy sessions plane",
-                    isOn: runsTransportBinding
-                )
+                // #382: the Runs Transport row is gone — the runs plane is
+                // the only turn transport; there is nothing to switch.
             }
             .hudPanel(
                 cornerRadius: Design.CornerRadius.lg,
@@ -504,17 +495,6 @@ struct DeveloperSettingsScreen: View {
         Binding(
             get: { settingsStore.settings.composerWritingToolsEnabled },
             set: { settingsStore.settings.composerWritingToolsEnabled = $0 }
-        )
-    }
-
-    /// #283: no side effect — the client reads this through
-    /// `SessionsHermesClient.useRunsTransportProvider`, armed once at launch.
-    /// #368 (3E): ON is now the default; this row is the one-week escape
-    /// hatch Owen's 2026-08-19 ruling kept, and #382 removes it.
-    private var runsTransportBinding: Binding<Bool> {
-        Binding(
-            get: { settingsStore.settings.useRunsTransport },
-            set: { settingsStore.settings.useRunsTransport = $0 }
         )
     }
 
