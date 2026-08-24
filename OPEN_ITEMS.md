@@ -8488,6 +8488,25 @@ pre-register here if it is ever routed.**
 > both run. **Deploy of the resulting plugin commit rides the per-experiment
 > go like any other — building this lane deploys nothing.**
 
+> **✅ RESULT 2026-08-23 (late night) — 308-FLOOR-A..E ALL MET. Plugin commit
+> `dbf32c9` on plugin main (version 0.5.0 → 0.6.0); DEPLOYED NOWHERE — both
+> hosts' live checkouts stay at `e669549` until a per-experiment go.**
+> RED-first honest: all 7 new tests failed before any code (manifest key
+> absent, `talaria/compat.py` nonexistent, README line missing, CI unpinned).
+> Both 308-FLOOR-E mutations isolate cleanly — deleting the register()-side
+> call reds ONLY `test_register_consults_the_compat_floor` (6 others green);
+> reverting the CI pin to a floating ref reds ONLY the lockstep test. Suite
+> **201 → 208** (the count moved by exactly the additions); `hermes plugins
+> doctor . --ci` passes on the tree (`manifest: talaria 0.6.0`; the
+> `pre_tool_call`/`provides_hooks` WARN is pre-existing, not this lane's).
+> One expected casualty updated: `test_plugin_version_reads_the_yaml`'s
+> literal moved 0.5.0 → 0.6.0 with the bump. **Consequence for the pending
+> OJAMD deploy: the go should take `dbf32c9`, not `e669549` — it contains
+> #396's presets AND the floor, so one desk visit discharges both.** The
+> Mac's next deploy go advances it the same way. **With this, every ruled
+> #308 build is done; the item waits ONLY on the #269-B publication moment
+> (fresh-history publish + pre-publish edits, Owen's explicit go).**
+
 ## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
 
 An approval arriving while the app is backgrounded or closed is currently
