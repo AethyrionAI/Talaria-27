@@ -287,4 +287,29 @@ struct PrivateCloudOptOutTests {
         #expect(pcc.contains("PrivateCloudQuotaRow"),
                 "control and state stay one surface on the dedicated screen (#395's own principle)")
     }
+
+    /// **The AppContainer wiring pin #395's own bars declared missing, added
+    /// by the 2026-08-23 Opus-week audit.** Every predicate test above
+    /// mirrors the gating in its own stub, so reverting `AppContainer` to
+    /// gate one predicate failed nothing — the entry states this limit in so
+    /// many words. Structural floor (the #399 pattern): the container's
+    /// wiring must read `settings.privateCloudEnabled` exactly three times —
+    /// selectable's guard, usable's guard, and disabledByUser's negation.
+    @Test func theContainerGatesAllThreePredicatesOnTheUsersSetting() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria/Stores/AppContainer.swift")
+        let source = try #require(
+            try? String(contentsOf: url, encoding: .utf8),
+            "cannot read AppContainer.swift — this check did not run"
+        )
+        let reads = source.components(separatedBy: "settings.privateCloudEnabled").count - 1
+        #expect(reads == 3, """
+            expected exactly 3 reads of settings.privateCloudEnabled in \
+            AppContainer (selectable guard, usable guard, disabledByUser \
+            negation); found \(reads) — a predicate lost its gate (or a new \
+            reader was added without extending this pin)
+            """)
+    }
 }

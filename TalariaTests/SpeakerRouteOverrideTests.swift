@@ -76,4 +76,29 @@ struct SpeakerRouteOverrideTests {
         #expect(Subject.shouldOverrideOutputToSpeaker(currentOutputPortTypes: []))
         #expect(Subject.shouldOverrideOutputToSpeaker(currentOutputPortTypes: [.builtInMic]))
     }
+
+    /// **The wiring pin the 2026-08-23 Opus-week audit found missing.** The
+    /// tests above pin the pure decision; unwiring either call site while
+    /// keeping the function would have left them green — the #340 wiring
+    /// shape. So the structural invariant is pinned in the source (the #399
+    /// pattern): exactly THREE spellings of the name in
+    /// `LiveVoiceSessionService.swift` — the definition and its two call
+    /// sites (configureAudioSession, and the post-connect re-assert).
+    /// Fails loudly if the source cannot be read.
+    @Test func theSpeakerDecisionIsWiredAtBothCallSites() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()   // TalariaTests/
+            .deletingLastPathComponent()   // repo root
+            .appendingPathComponent("Talaria/Services/Live/LiveVoiceSessionService.swift")
+        let source = try #require(
+            try? String(contentsOf: url, encoding: .utf8),
+            "cannot read LiveVoiceSessionService.swift — this check did not run"
+        )
+        let spellings = source.components(separatedBy: "shouldOverrideOutputToSpeaker").count - 1
+        #expect(spellings == 3, """
+            expected exactly 3 spellings of shouldOverrideOutputToSpeaker \
+            (1 definition + 2 call sites); found \(spellings) — a call site \
+            was unwired (or a new one was added without extending this pin)
+            """)
+    }
 }

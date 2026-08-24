@@ -3493,6 +3493,22 @@ struct AppStoresTests {
         #expect(decoded.hapticFeedbackEnabled == false)
     }
 
+    /// **400-A — the persistence roundtrip keeps the user's mid-turn send
+    /// choice.** Found by the 2026-08-23 Opus-week audit: the hand-written
+    /// `encode(to:)` omitted the key, so `.steer` worked all session and
+    /// silently reverted to `.queue` on relaunch. The fix deleted the
+    /// hand-written encode outright — a synthesized encode is derived from
+    /// CodingKeys and cannot omit a case (400-B) — so this test is the pin
+    /// against any hand-written encode ever returning.
+    @Test func settingsRoundtripKeepsTheMidTurnSendChoice() throws {
+        var settings = UserSettings()
+        settings.midTurnSendAction = .steer
+        let encoded = try JSONEncoder().encode(settings)
+        let decoded = try JSONDecoder().decode(UserSettings.self, from: encoded)
+        #expect(decoded.midTurnSendAction == .steer,
+                "the encode path dropped midTurnSendAction — the user's choice reverts on relaunch (#400)")
+    }
+
     @Test @MainActor
     func settingsStoreSanitizesDisallowedReleaseEnvironmentToProduction() async throws {
         let suiteName = "settings-store-release-policy-\(UUID().uuidString)"

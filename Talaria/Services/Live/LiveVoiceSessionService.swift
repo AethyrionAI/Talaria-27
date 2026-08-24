@@ -283,7 +283,8 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         do {
             #if canImport(WebRTC)
             // Phase 1: Prepare WebRTC (peer connection + SDP offer) in parallel
-            // with the relay bootstrap request. This saves ~200-500ms.
+            // with the host bootstrap request (talaria plugin, #383). This
+            // saves ~200-500ms.
             // Awaited: activation must complete before the WebRTC engine starts.
             try await configureAudioSession()
             let prepared = try await prepareWebRTC()
@@ -308,7 +309,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
                 return
             }
             startedAt = .now
-            latencyMetrics.relayBootstrapReceivedAt = .now
+            latencyMetrics.hostBootstrapReceivedAt = .now
             startTimer()
             #if canImport(WebRTC)
             // Phase 2: Exchange SDP with the ephemeral key from bootstrap
@@ -966,7 +967,7 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
     }
 
     /// Phase 1: Create peer connection, audio track, data channel, and generate SDP offer.
-    /// Can run in parallel with the relay bootstrap request.
+    /// Can run in parallel with the host bootstrap request (talaria plugin, #383).
     private func prepareWebRTC() async throws -> PreparedWebRTC {
         let rtcConfig = RTCConfiguration()
         rtcConfig.sdpSemantics = .unifiedPlan

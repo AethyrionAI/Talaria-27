@@ -129,14 +129,18 @@ struct TranscriptItem: Identifiable, Codable, Hashable, Sendable {
 
 struct TalkLatencyMetrics: Codable, Hashable, Sendable {
     var sessionStartRequestedAt: Date? = nil
-    var relayBootstrapReceivedAt: Date? = nil
+    /// #383 renamed this from `relayBootstrapReceivedAt` (2026-08-23 audit
+    /// residue): the bootstrap rides the talaria plugin, not the relay.
+    /// Field is optional-with-default, so any old serialized key decodes
+    /// harmlessly to nil.
+    var hostBootstrapReceivedAt: Date? = nil
     var realtimeConnectedAt: Date? = nil
     var firstUserFinalizedAt: Date? = nil
     var firstAssistantFinalizedAt: Date? = nil
 
     var bootstrapLatency: TimeInterval? {
-        guard let sessionStartRequestedAt, let relayBootstrapReceivedAt else { return nil }
-        return relayBootstrapReceivedAt.timeIntervalSince(sessionStartRequestedAt)
+        guard let sessionStartRequestedAt, let hostBootstrapReceivedAt else { return nil }
+        return hostBootstrapReceivedAt.timeIntervalSince(sessionStartRequestedAt)
     }
 
     var connectLatency: TimeInterval? {
