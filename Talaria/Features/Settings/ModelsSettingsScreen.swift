@@ -273,18 +273,12 @@ struct ModelsSettingsScreen: View {
                         brainRouter.setPreferredBrain(brain, forConversation: conversationID)
                     }
                 }
-                // #30: PCC quota as PERSISTENT status, not an alert — below /
-                // nearing / reached, with the system's upgrade path when the
-                // OS offers one. Read-only here: the opt-out TOGGLE moved to
-                // the dedicated Private Cloud tile (#395-D, Owen's 2026-08-23
-                // ruling); this row stays beside the brain picker because
-                // quota state matters exactly where the brain is picked.
-                if settingsStore.settings.privateCloudEnabled,
-                   let status = container.localChatBackend?.privateCloudStatus() {
-                    PrivateCloudQuotaRow(status: status) {
-                        container.localChatBackend?.showPrivateCloudLimitIncreaseOptions()
-                    }
-                }
+                // #395 (Owen's 2026-08-23 night ruling, from a screenshot of
+                // this very picker crowded by the readout): ALL PCC state —
+                // toggle, quota, reset — lives on the dedicated Private Cloud
+                // tile in Settings. #30's quota-where-you-pick row was here
+                // and is deliberately gone; the pin in PrivateCloudOptOutTests
+                // keeps it from growing back.
                 MonoLabel(
                     "ROUTING NEXT MESSAGE: \(brainRouter.activeBrain.monoLabel)",
                     size: 8,
