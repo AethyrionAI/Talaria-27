@@ -1416,9 +1416,11 @@ extension SessionsHermesClient {
     /// `markSelfStopped` still fires on that arm.
     /// #328 route 2: returns whether a stop request was actually ISSUED. The
     /// guard below is the whole of #328 — `activeRunContext` exists only for
-    /// `/v1/runs` turns, so an ordinary sessions `chat/stream` turn falls out
-    /// here having sent nothing. It used to do that silently; now the caller
-    /// can tell, and can stop implying a host stop it did not deliver.
+    /// `/v1/runs` turns, so at the time of the finding an ordinary sessions
+    /// `chat/stream` turn fell out here having sent nothing, silently. #382
+    /// deleted that plane; the guard survives for turns with no run context
+    /// (local, idle, or a submit that never landed), and the caller can
+    /// still tell rather than implying a host stop it did not deliver.
     @discardableResult
     func hardStopActiveRun() -> Bool {
         guard let context = activeRunContext else { return false }

@@ -146,6 +146,17 @@ struct SessionModelImmunityTests {
             if path == "/api/sessions" {
                 return Self.response(request, 200, #"{"session": {"id": "api_immunity_1"}}"#)
             }
+            // #382: the turn rides the runs plane — history pre-fetch,
+            // submit, and the status poll that answers it.
+            if path.hasSuffix("/messages") {
+                return Self.response(request, 200, #"{"session_id": "api_immunity_1", "data": []}"#)
+            }
+            if path == "/v1/runs" {
+                return Self.response(request, 202, #"{"run_id": "run_immunity_1", "status": "started"}"#)
+            }
+            if path == "/v1/runs/run_immunity_1" {
+                return Self.response(request, 200, #"{"run_id": "run_immunity_1", "status": "completed", "output": "ok"}"#)
+            }
             return Self.response(request, 200, #"{"message": {"content": "ok"}}"#)
         }
         defer { ImmunityStubURLProtocol.requestHandler = nil }
@@ -266,120 +277,17 @@ struct SessionModelImmunityTests {
         }
     }
 
-    // MARK: - Path 3 — pin after the first turn
-
-    @Test @MainActor
-    func bareCreatedSessionIsPinnedFromTheFirstTurnsRuntimeBlock() async throws {
-        // Neither a pick nor a reachable catalog: the session DID inherit the
-        // alias at creation, so the first turn's resolved model is pinned to
-        // replace it.
-        let client = makeClient("pin-after-turn")
-        client.modelSelection = nil
-        let log = RequestLog()
-
-        ImmunityStubURLProtocol.requestHandler = { request in
-            log.record(request)
-            let path = request.url?.path ?? ""
-            if path == "/api/model/options" {
-                return Self.response(request, 503, #"{"error": "unavailable"}"#)
-            }
-            if path == "/api/sessions" {
-                return Self.response(request, 200, #"{"session": {"id": "api_immunity_1"}}"#)
-            }
-            if path == "/api/sessions/api_immunity_1/model" {
-                return Self.response(request, 200, #"{"object": "hermes.session.model_lock"}"#)
-            }
-            return Self.response(request, 200, """
-                {"message": {"content": "ok"},
-                 "runtime": {"provider": "kimi-coding", "model": "kimi-k3", "route_source": "global"}}
-                """)
-        }
-        defer { ImmunityStubURLProtocol.requestHandler = nil }
-
-        let reply = await client.send(message: "hello", attachments: [], clientMessageID: UUID())
-        #expect(reply.status == .delivered)
-
-        let create = try #require(log.createBody)
-        #expect(create["model"] == nil, "creation degraded to bare, as designed")
-
-        let pin = try #require(
-            log.all.first { $0.method == "POST" && $0.path == "/api/sessions/api_immunity_1/model" },
-            "a bare-created session must be pinned from the first turn's runtime block"
-        )
-        let pinBody = try #require(
-            try JSONSerialization.jsonObject(with: Data(pin.body.utf8)) as? [String: Any]
-        )
-        #expect(pinBody["model"] as? String == "kimi-k3")
-        #expect(pinBody["provider"] as? String == "kimi-coding")
-        #expect(!pin.body.contains("hermes-agent"), "no pin body may carry the alias")
-    }
-
-    @Test @MainActor
-    func aSessionCreatedWithAResolvedModelIsNeverPinned() async throws {
-        // The pin exists only to repair the degraded path. A session that
-        // already stores a real id must not be pinned — pinning is a
-        // CONFIRMED lock and changes turn routing.
-        let client = makeClient("no-pin-when-resolved")
-        client.modelSelection = nil
-        let log = RequestLog()
-
-        ImmunityStubURLProtocol.requestHandler = { request in
-            log.record(request)
-            let path = request.url?.path ?? ""
-            if path == "/api/model/options" {
-                return Self.response(request, 200, ModelOptionsFixture.json)
-            }
-            if path == "/api/sessions" {
-                return Self.response(request, 200, #"{"session": {"id": "api_immunity_1"}}"#)
-            }
-            return Self.response(request, 200, """
-                {"message": {"content": "ok"},
-                 "runtime": {"provider": "kimi-coding", "model": "kimi-k3", "route_source": "global"}}
-                """)
-        }
-        defer { ImmunityStubURLProtocol.requestHandler = nil }
-
-        let reply = await client.send(message: "hello", attachments: [], clientMessageID: UUID())
-        #expect(reply.status == .delivered)
-        #expect(log.createBody?["model"] as? String == "kimi-k3")
-        #expect(
-            !log.all.contains { $0.path.hasSuffix("/model") },
-            "no pin may be issued for a session that was created with a real model id"
-        )
-    }
-
-    @Test @MainActor
-    func aFailedPinNeverBreaksTheTurn() async throws {
-        // The turn already succeeded when the pin runs; a host that refuses it
-        // must cost nothing but a log line.
-        let client = makeClient("pin-fails")
-        client.modelSelection = nil
-        let log = RequestLog()
-
-        ImmunityStubURLProtocol.requestHandler = { request in
-            log.record(request)
-            let path = request.url?.path ?? ""
-            if path == "/api/model/options" {
-                return Self.response(request, 503, #"{"error": "unavailable"}"#)
-            }
-            if path == "/api/sessions" {
-                return Self.response(request, 200, #"{"session": {"id": "api_immunity_1"}}"#)
-            }
-            if path == "/api/sessions/api_immunity_1/model" {
-                // A pre-0.20.0 host has no pin route at all.
-                return Self.response(request, 404, #"{"error": "not found"}"#)
-            }
-            return Self.response(request, 200, """
-                {"message": {"content": "ok"},
-                 "runtime": {"provider": "kimi-coding", "model": "kimi-k3", "route_source": "global"}}
-                """)
-        }
-        defer { ImmunityStubURLProtocol.requestHandler = nil }
-
-        let reply = await client.send(message: "hello", attachments: [], clientMessageID: UUID())
-        #expect(reply.status == .delivered, "a refused pin must not fail the turn")
-        #expect(reply.content == "ok")
-    }
+    // #382 TOMBSTONE — "Path 3: pin after the first turn" (three tests) is
+    // deleted WITH its mechanism. `pinSessionModelIfNeeded`'s callers were
+    // the sessions-plane turn paths (#382-deleted), and the runs wire
+    // carries NO `runtime` block to pin from — a documented absence
+    // (+RunsTransport: "inventing one would be a fabricated attribution"),
+    // not an oversight. #241's PRIMARY defense is untouched and still
+    // pinned above: the create body resolves an explicit, wire-safe model
+    // (selection → catalog default → bare), so the alias cannot ride a
+    // create this client makes. The EXPOSURE that returns with the pin's
+    // death — a bare create on a catalog-less host keeps the host default
+    // unpinned — is recorded under #241/#382 in the tracker, not here.
 
     @Test @MainActor
     func aliasIsRejectedEvenWhenItArrivesAsAPersistedSelection() async throws {

@@ -313,7 +313,6 @@ struct RunsApprovalFlowTests {
             transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
             session: URLSession(configuration: configuration)
         )
-        client.useRunsTransportProvider = { true }
         client.runsPollInterval = .milliseconds(40)
         client.runsPollBudget = .milliseconds(800)
         return client

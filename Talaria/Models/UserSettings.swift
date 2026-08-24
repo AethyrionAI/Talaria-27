@@ -435,30 +435,11 @@ struct UserSettings: Codable, Hashable, Sendable {
     var appLockEnabled: Bool
     /// #124: how long the app may sit backgrounded before return requires auth.
     var appLockGracePeriod: AppLockGracePeriod
-    /// #283 → **#368 (3E): DEFAULT ON as of the cutover.** The runs plane
-    /// (`/v1/runs` + status-poll recovery) is the remote transport;
-    /// `SessionsHermesClient` reads this through a provider closure, not a
-    /// direct settings read.
-    ///
-    /// The switch SURVIVES the cutover deliberately — Owen's 2026-08-19
-    /// ruling on the plan's §5 Q3 was *flip now, delete next week*, so this
-    /// stays as an escape hatch for one week of living on the default. Its
-    /// deletion, and the sessions turn transport's, is filed as **#382**
-    /// with a dated trigger. Do not read its continued existence as a
-    /// permanent dual path: that is exactly the #218 shape, and it is on a
-    /// clock.
-    var useRunsTransport: Bool
-    /// #368 (3E): has the one-time runs cutover been applied to this blob?
-    ///
-    /// **The migration exists because a default flip alone moves nobody.**
-    /// `useRunsTransport` is unconditionally encoded, so EVERY install that
-    /// has ever written settings carries an explicit `false` — the OLD
-    /// default speaking, not a user's choice. On the first decode of a
-    /// pre-cutover blob the stored value is therefore discarded in favour of
-    /// `true`, and this flag is set so it happens exactly once. From then on
-    /// the stored value is authoritative again and a user who turns the
-    /// switch back off keeps it off.
-    var runsCutoverApplied: Bool
+    // #382 (2026-08-23): `useRunsTransport` and its `runsCutoverApplied`
+    // migration flag are DELETED — the runs plane is the only turn
+    // transport, and the week-long escape hatch expired on Owen's word.
+    // Old persisted blobs still carrying the keys decode fine (unknown
+    // keys are skipped). Restore recipe: OPEN_ITEMS #382.
     /// #224 Phase 0: the on-device confirm gate's approval mode. **GLOBAL,
     /// not per-profile** (Owen's ballot, ruling 2) — the gate governs THIS
     /// PHONE's writes (EventKit, AlarmKit, Reminders), which happen
@@ -503,8 +484,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         midTurnSendAction: MidTurnSendAction = .queue,
         appLockEnabled: Bool = false,
         appLockGracePeriod: AppLockGracePeriod = .immediate,
-        useRunsTransport: Bool = true,
-        runsCutoverApplied: Bool = true,
         approvalMode: ApprovalMode = .manual
     ) {
         self.userName = userName
@@ -537,8 +516,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         self.midTurnSendAction = midTurnSendAction
         self.appLockEnabled = appLockEnabled
         self.appLockGracePeriod = appLockGracePeriod
-        self.useRunsTransport = useRunsTransport
-        self.runsCutoverApplied = runsCutoverApplied
         self.approvalMode = approvalMode
     }
 
@@ -581,8 +558,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         case midTurnSendAction
         case appLockEnabled
         case appLockGracePeriod
-        case useRunsTransport
-        case runsCutoverApplied
         case approvalMode
     }
 
@@ -627,19 +602,6 @@ struct UserSettings: Codable, Hashable, Sendable {
         midTurnSendAction = try container.decodeIfPresent(MidTurnSendAction.self, forKey: .midTurnSendAction) ?? .queue
         appLockEnabled = try container.decodeIfPresent(Bool.self, forKey: .appLockEnabled) ?? false
         appLockGracePeriod = try container.decodeIfPresent(AppLockGracePeriod.self, forKey: .appLockGracePeriod) ?? .immediate
-        // #368 (3E): the one-time cutover. A blob written before the
-        // cutover carries `useRunsTransport: false` whatever the user did —
-        // it is the old default, not a preference — so the FIRST decode
-        // after the flip discards it and stamps the migration as done.
-        // Every decode after that respects the stored value, which is what
-        // keeps the surviving escape hatch a real switch.
-        let cutoverApplied = try container.decodeIfPresent(Bool.self, forKey: .runsCutoverApplied) ?? false
-        if cutoverApplied {
-            useRunsTransport = try container.decodeIfPresent(Bool.self, forKey: .useRunsTransport) ?? true
-        } else {
-            useRunsTransport = true
-        }
-        runsCutoverApplied = true
         // #224 Phase 0: `try?` for the `appearanceTheme` reason — a mode
         // written by some later build must degrade to the default, never
         // fail the whole settings decode and reset every preference — and

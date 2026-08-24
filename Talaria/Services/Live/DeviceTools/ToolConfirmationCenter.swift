@@ -49,8 +49,8 @@ final class ToolConfirmationCenter {
     private var continuation: CheckedContinuation<Decision, Never>?
 
     /// #224 Phase 0: the gate's approval mode, read through a provider so
-    /// this class keeps no settings dependency (the
-    /// `SessionsHermesClient.useRunsTransportProvider` precedent). The key is
+    /// this class keeps no settings dependency (the provider-closure
+    /// pattern #283's transport seam established, since retired by #382). The key is
     /// GLOBAL — `UserSettings.approvalMode`, ruling 2 — because the gate
     /// governs THIS PHONE's writes, which happen identically whichever host a
     /// turn came from and happen at all when no host is configured.

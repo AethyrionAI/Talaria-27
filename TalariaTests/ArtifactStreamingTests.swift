@@ -20,53 +20,6 @@ struct ArtifactStreamingTests {
 
     // MARK: - Fixtures
 
-    private final class ArtifactStubURLProtocol: URLProtocol, @unchecked Sendable {
-        nonisolated(unsafe) static var requestHandler: (@Sendable (URLRequest) throws -> (HTTPURLResponse, Data))?
-
-        override class func canInit(with request: URLRequest) -> Bool { true }
-        override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-        override func startLoading() {
-            guard let handler = Self.requestHandler else {
-                client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
-                return
-            }
-            do {
-                let (response, data) = try handler(request)
-                client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-                client?.urlProtocol(self, didLoad: data)
-                client?.urlProtocolDidFinishLoading(self)
-            } catch {
-                client?.urlProtocol(self, didFailWithError: error)
-            }
-        }
-
-        override func stopLoading() {}
-    }
-
-    private static func response(
-        for request: URLRequest,
-        body: String,
-        contentType: String = "application/json"
-    ) -> (HTTPURLResponse, Data) {
-        let response = HTTPURLResponse(
-            url: request.url!,
-            statusCode: 200,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": contentType]
-        )!
-        return (response, Data(body.utf8))
-    }
-
-    /// Serializes `(event, data)` pairs into an SSE body, with a leading
-    /// comment line of padding. The comment is skipped by the parse loop
-    /// (`line.hasPrefix(":")`) and exists only so a short fixture body can't
-    /// sit under a transport flush threshold.
-    private static func sse(_ events: [(event: String, data: String)]) -> String {
-        let padding = ": " + String(repeating: "-", count: 600) + "\n\n"
-        return padding + events.map { "event: \($0.event)\ndata: \($0.data)\n\n" }.joined()
-    }
-
     @MainActor
     private func makePersistence(_ label: String) -> UserDefaultsAppPersistenceStore {
         let suiteName = "artifact-stream-\(label)-\(UUID().uuidString)"
@@ -76,31 +29,6 @@ struct ArtifactStreamingTests {
     }
 
     @MainActor
-    private func makeClient(persistence: UserDefaultsAppPersistenceStore) -> SessionsHermesClient {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [ArtifactStubURLProtocol.self]
-        return SessionsHermesClient(
-            baseURLProvider: { "http://ojamd:8642" },
-            apiKeyProvider: { "key-test" },
-            journal: ConversationJournalStore(persistence: persistence),
-            transplanter: ContextTransplanter(intelligence: LocalIntelligenceService()),
-            session: URLSession(configuration: configuration),
-            usageIndex: nil
-        )
-    }
-
-    private static func installHandler(sseBody: String) {
-        ArtifactStubURLProtocol.requestHandler = { request in
-            let path = request.url?.path ?? ""
-            if path == "/api/sessions" {
-                return response(for: request, body: #"{"session": {"id": "api_artifact"}}"#)
-            }
-            if path.hasSuffix("/chat/stream") {
-                return response(for: request, body: sseBody, contentType: "text/event-stream")
-            }
-            return response(for: request, body: #"{"session_id": "api_artifact", "data": []}"#)
-        }
-    }
 
     private func removeStaged(_ attachments: [MessageAttachment]) {
         for attachment in attachments {
@@ -109,130 +37,19 @@ struct ArtifactStreamingTests {
             }
         }
     }
-
-    private static func artifactIndices(_ updates: [StreamingUpdate]) -> [Int] {
-        updates.indices.filter {
-            if case .artifactProduced = updates[$0] { return true }
-            return false
-        }
-    }
-
-    private static func finishedIndex(_ updates: [StreamingUpdate]) -> Int? {
-        updates.firstIndex {
-            if case .finished = $0 { return true }
-            return false
-        }
-    }
-
-    private static func attachment(at index: Int, in updates: [StreamingUpdate]) -> MessageAttachment? {
-        guard case .artifactProduced(let file) = updates[index] else { return nil }
-        return file
-    }
-
-    // MARK: - Wire: the artifact arrives before the turn finishes
-
-    @Test @MainActor
-    func streamedWriteYieldsTheArtifactBeforeTheTurnFinishes() async throws {
-        let persistence = makePersistence("before-finish")
-        let client = makeClient(persistence: persistence)
-        Self.installHandler(sseBody: Self.sse([
-            (event: "run.started", data: #"{"run_id":"run_258"}"#),
-            (event: "assistant.delta", data: #"{"delta":"Writing it now."}"#),
-            (
-                event: "tool.started",
-                data: ##"{"tool_name":"write_file","args":{"path":"O:\\Hermes\\out.md","content":"# Report"},"preview":"O:\\Hermes\\out.md"}"##
-            ),
-            (event: "tool.completed", data: #"{}"#),
-            (event: "assistant.delta", data: #"{"delta":" Done."}"#),
-            (event: "assistant.completed", data: #"{"content":"Writing it now. Done."}"#),
-            (event: "run.completed", data: #"{"usage":{"input_tokens":10,"output_tokens":2,"total_tokens":12}}"#),
-            (event: "done", data: #"{}"#),
-        ]))
-        defer { ArtifactStubURLProtocol.requestHandler = nil }
-
-        var updates: [StreamingUpdate] = []
-        for await update in client.sendStreaming(message: "Write it", attachments: [], clientMessageID: UUID()) {
-            updates.append(update)
-        }
-
-        let artifactPositions = Self.artifactIndices(updates)
-        #expect(artifactPositions.count == 1)
-        let artifactIndex = try #require(artifactPositions.first)
-        let finishedIndex = try #require(Self.finishedIndex(updates))
-        // The whole point of the lane: the chip is deliverable mid-turn.
-        #expect(artifactIndex < finishedIndex)
-
-        let streamed = try #require(Self.attachment(at: artifactIndex, in: updates))
-        defer { removeStaged([streamed]) }
-        #expect(streamed.fileName == "out.md")
-        let stagedPath = try #require(streamed.localStoragePath)
-        #expect(FileManager.default.contents(atPath: stagedPath) == Data("# Report".utf8))
-
-        guard case .finished(let message, _, _) = updates[finishedIndex] else {
-            Issue.record("Expected a finished update")
-            return
-        }
-        // Bar 258-A on the wire: `run.completed` still owns the final list,
-        // and it is the SAME attachment — not a second reconstruction.
-        #expect(message.attachments.count == 1)
-        #expect(message.attachments.first?.id == streamed.id)
-    }
-
-    @Test @MainActor
-    func twoWritesToTheSamePathStreamTwoDistinctArtifacts() async throws {
-        // Two genuine writes are two events. They keep their own staged bytes
-        // and their own identities, in write order — collapsing them would
-        // throw away the first version and misreport the turn. This is exactly
-        // what `run.completed` already did before the lane; streaming it early
-        // changes nothing about the count.
-        let persistence = makePersistence("same-path-twice")
-        let client = makeClient(persistence: persistence)
-        Self.installHandler(sseBody: Self.sse([
-            (event: "run.started", data: #"{"run_id":"run_258b"}"#),
-            (
-                event: "tool.started",
-                data: ##"{"tool_name":"write_file","args":{"path":"O:\\Hermes\\notes.md","content":"draft one"}}"##
-            ),
-            (
-                event: "tool.started",
-                data: ##"{"tool_name":"write_file","args":{"path":"O:\\Hermes\\notes.md","content":"draft two"}}"##
-            ),
-            (event: "assistant.completed", data: #"{"content":"Revised."}"#),
-            (event: "run.completed", data: #"{}"#),
-            (event: "done", data: #"{}"#),
-        ]))
-        defer { ArtifactStubURLProtocol.requestHandler = nil }
-
-        var updates: [StreamingUpdate] = []
-        for await update in client.sendStreaming(message: "Draft it twice", attachments: [], clientMessageID: UUID()) {
-            updates.append(update)
-        }
-
-        let artifactPositions = Self.artifactIndices(updates)
-        #expect(artifactPositions.count == 2)
-        let streamed = artifactPositions.compactMap { Self.attachment(at: $0, in: updates) }
-        defer { removeStaged(streamed) }
-        guard streamed.count == 2 else {
-            Issue.record("Expected two streamed artifacts, got \(streamed.count)")
-            return
-        }
-        #expect(streamed.map(\.fileName) == ["notes.md", "notes.md"])
-        #expect(streamed[0].id != streamed[1].id)
-        #expect(streamed[0].localStoragePath != streamed[1].localStoragePath)
-        let firstPath = try #require(streamed[0].localStoragePath)
-        let secondPath = try #require(streamed[1].localStoragePath)
-        #expect(FileManager.default.contents(atPath: firstPath) == Data("draft one".utf8))
-        #expect(FileManager.default.contents(atPath: secondPath) == Data("draft two".utf8))
-
-        let finishedIndex = try #require(Self.finishedIndex(updates))
-        guard case .finished(let message, _, _) = updates[finishedIndex] else {
-            Issue.record("Expected a finished update")
-            return
-        }
-        // Two chips, not four — the streamed pair IS the final pair.
-        #expect(message.attachments.count == 2)
-        #expect(message.attachments.map(\.id) == streamed.map(\.id))
-    }
+    // #382 TOMBSTONE: the two WIRE tests that led this file
+    // (streamedWriteYieldsTheArtifactBeforeTheTurnFinishes,
+    // twoWritesToTheSamePathStreamTwoDistinctArtifacts) drove the
+    // sessions-plane SSE parser's Tier-1 reconstruction — write_file args
+    // lifted off `tool.started` frames. They stayed green after #368's
+    // cutover only because their bare test client rode the transport seam's
+    // conservative `{ false }` default onto the legacy plane; #382 deleted
+    // the plane, the parser, and the default. On the runs plane the stream
+    // deliberately carries no args — the plugin's artifact MIRROR delivers
+    // the bytes instead, pinned by
+    // `mirrorItemChipsTheRunsPlaneWriteWithoutAPointer` (+RunsTransport
+    // tests, #375). The store-half tests below are transport-independent
+    // and unchanged.
 
     // MARK: - Store: the placeholder renders it mid-turn, once
 

@@ -471,8 +471,8 @@ struct ApprovalModeScaffoldTests {
         #expect(roundTripped.approvalMode == .manual)
     }
 
-    /// The gate reads the mode through a provider (the
-    /// `useRunsTransportProvider` precedent) and behaves exactly as it did
+    /// The gate reads the mode through a provider (the provider-closure
+    /// pattern #283's transport seam established) and behaves exactly as it did
     /// before #224: a card, every time.
     @Test func theGateStagesACardUnderTheOnlyReachableMode() async {
         let center = ToolConfirmationCenter()

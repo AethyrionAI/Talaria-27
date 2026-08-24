@@ -171,8 +171,19 @@ struct BackendProfileRoutingTests {
         let log = RequestLog()
         RoutingStubURLProtocol.requestHandler = { request in
             log.record(request)
-            if request.url?.path == "/api/sessions" {
+            let path = request.url?.path ?? ""
+            if path == "/api/sessions" {
                 return Self.jsonResponse(for: request, body: #"{"session": {"id": "api_new"}}"#)
+            }
+            // #382: the turn rides the runs plane.
+            if path.hasSuffix("/messages") {
+                return Self.jsonResponse(for: request, body: #"{"session_id": "api_new", "data": []}"#)
+            }
+            if path == "/v1/runs" {
+                return Self.jsonResponse(for: request, body: #"{"run_id": "run_route_1", "status": "started"}"#)
+            }
+            if path == "/v1/runs/run_route_1" {
+                return Self.jsonResponse(for: request, body: #"{"run_id": "run_route_1", "status": "completed", "output": "ok"}"#)
             }
             return Self.jsonResponse(for: request, body: #"{"message": {"content": "ok"}}"#)
         }
@@ -183,11 +194,12 @@ struct BackendProfileRoutingTests {
 
         #expect(reply.status == .delivered)
         let requests = log.all
-        // #241: creates are preceded by one catalog probe, so the override
-        // path is catalog + create + chat — and the allSatisfy rows below are
-        // now also the proof that the PROBE honours the override profile
-        // (host + key), which is the M-16 property this test exists to pin.
-        #expect(requests.count == 3)
+        // #241: creates are preceded by one catalog probe. #382: the runs
+        // turn's family is catalog + create + history + submit + one status
+        // poll — and the allSatisfy rows below are the proof that EVERY one
+        // of them honours the override profile (host + key), which is the
+        // M-16 property this test exists to pin.
+        #expect(requests.count == 5)
         #expect(requests.allSatisfy { $0.host == "macmini" })
         #expect(requests.allSatisfy { $0.authorization == "Bearer key-mac" })
         #expect(client.pendingNewSessionProfileID == nil)

@@ -555,6 +555,12 @@ final class ChatStore {
     /// completion watcher needs to be told about (#38).
     var pendingRunSessionId: String? { pendingRun?.sessionId }
 
+    /// Run id of the run awaiting reconcile, if any. // harness-visible
+    /// (#382 bar 382-A: pins that the background-expiration arm feeds
+    /// `cancelledRunID` into recovery — a nil here strands the pending run
+    /// on the positional session re-read instead of its own status read.)
+    var pendingRunRunId: String? { pendingRun?.runId }
+
     /// #235 F3 — Owen's placement rule, pure so it truth-tables: a recovered
     /// reply below later exchanges is where nobody is looking; move it to the
     /// tail and stamp WHICH question it answers so it cannot masquerade as a
@@ -1745,8 +1751,10 @@ final class ChatStore {
         // #328 route 2 (Owen's ruling: "Try to stop it, be honest"). We still
         // try — this call is unchanged. What changed is that we now READ the
         // answer: `hardStopActiveRun()` guard-returns without sending anything
-        // whenever there is no `activeRunContext`, which is EVERY ordinary
-        // sessions `chat/stream` turn (the default, the one the phone uses).
+        // whenever there is no `activeRunContext` — which, at the time of the
+        // finding, was EVERY ordinary sessions `chat/stream` turn (the
+        // pre-#368 default; #382 deleted that plane, so every remote turn now
+        // carries a run context and the guard covers only local/idle states).
         // That was invisible before, and it is why Owen's `sleep 90 && echo
         // Done` kept running on the host and answered on reopen.
         //
@@ -2148,9 +2156,10 @@ final class ChatStore {
     ///
     /// Owen's ruling was *"Try to stop it, be honest."* The trying is
     /// unchanged (`hardStopActiveRun()` is still called on every explicit
-    /// Stop). This is the honesty: when that call issued **nothing** — which
-    /// is every ordinary sessions `chat/stream` turn, because
-    /// `activeRunContext` exists only for `/v1/runs` turns — the transcript
+    /// Stop). This is the honesty: when that call issued **nothing** — every
+    /// sessions `chat/stream` turn at the time (`activeRunContext` exists
+    /// only for `/v1/runs` turns; #382 has since deleted the sessions plane,
+    /// so this arm now covers only turns with no run context) — the transcript
     /// says so, rather than letting a freed composer imply a host that
     /// stopped. Owen measured the gap on device: the host ran his whole
     /// `sleep 90 && echo Done` and the answer was waiting when he reopened
