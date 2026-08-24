@@ -1215,6 +1215,43 @@ native pipeline), **#1** (voice transcripts).
 > line decides) is still the device row and still gates how the local half
 > binds. Bars pre-register here before the lane writes code.
 
+> **🎯 BARS 396-P-A…F — pre-registered 2026-08-23 late, before code (the
+> coarse-picker lane; design mapped the same evening).** The shape: a
+> `VoiceSensitivity` enum (`quiet`/`normal`/`noisy`, raw values persisted,
+> default `.normal`), a three-segment row on `VoiceSettingsScreen` (the
+> `GridDensity`/`AppLockGracePeriod` house pattern), the pick riding the
+> `talk_session_create` payload as a `tuning` field (the `voiceVerb(extra:)`
+> seam, `talk_session_end`'s precedent), and VETTED preset dicts resolved
+> HOST-SIDE in the plugin (the app never composes `turn_detection`).
+> **LOCAL BINDS NOTHING this lane** — the ruling's honest asymmetry: the
+> picker's caption states that on the local engine (at most) end-of-turn
+> responds and room-noise has no knob; both local values stay compile-time
+> constants until the fault-2 author is measured (the device row).
+> - **396-P-A (persistence).** The pick survives an encode→decode roundtrip
+>   (raw values pinned; absent key → `.normal`). Encode is synthesized
+>   (#400) — one CodingKeys case + one decode line is the whole persistence.
+> - **396-P-B (the wire, RED-first).** `talkSessionCreate` carries
+>   `"tuning": <raw>` — always, `.normal` included, so host logs show the
+>   choice. Written RED against today's no-extra call; the protocol, the
+>   `UnavailableVoiceTransport` stub, and the test fake widen in lockstep.
+> - **396-P-C (host: sanitize + the default preserved).** Only the three
+>   names are accepted; absent, junk, or non-string → the env-resolved
+>   default, and `"normal"` ≡ absent BYTE-IDENTICALLY — extending 396-D's
+>   no-default-moved contract, pinned by extending its existing test.
+> - **396-P-D (host: presets are type-valid and vetted).** `quiet`/`noisy`
+>   emit `server_vad`-scoped keys only (the type-scoped invariant), values
+>   pinned by test and quoted in the result block per 396-D's
+>   before/after requirement.
+> - **396-P-E (capability honesty).** Readiness gains `"tunings":
+>   ["quiet","normal","noisy"]`; the app decodes it into
+>   `TalkReadinessInfo` (optional — nil means the host predates tuning, and
+>   the picker's footnote SAYS so instead of implying effect; an old host
+>   ignores the unknown payload field, so the session still mints — the
+>   #383 hazard-5 honesty shape, no new failure mode).
+> - **396-P-F.** Gates both repos (app lane-gate; plugin pytest). The
+>   plugin DEPLOY rides Owen's per-experiment go (Mac first, then OJAMD,
+>   per #383's precedent) — building and pushing the branch does not.
+
 ## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
 
 **Owen, ruling it:** *"Yeah I know it's already available. We've done light
