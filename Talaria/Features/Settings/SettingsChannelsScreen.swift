@@ -104,8 +104,11 @@ struct SettingsChannelsScreen: View {
     /// the grid, the deck pager, the page dots, and this counter — consumes
     /// this ONE list and can never disagree about what exists.
     private var visibleSubsystems: [SettingsSubsystem] {
+        // #403: the DISPLAY plane reads the observable fact, not the turn
+        // fact — on a DEBUG simulator the tile exists (quota testable) while
+        // routing stays dark; on device the two facts are identical.
         SettingsSubsystem.cases(
-            privateCloudAvailable: container.localChatBackend?.isPrivateCloudAvailable == true)
+            privateCloudAvailable: container.localChatBackend?.isPrivateCloudObservable == true)
     }
 
     private var counterText: String {
