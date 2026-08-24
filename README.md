@@ -92,7 +92,7 @@ Chat connects **directly** to the Sessions API — server sessions, model select
 | Network (upgrade tier) | Tailscale (recommended) or other private network access |
 | Relay & connector (legacy tier — retired) | Python 3.11+, uvicorn; current builds never call it — realtime voice rides the talaria plugin (#383) |
 
-> Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
+> Building from the command line with multiple Xcode versions installed? Point at the beta toolchain first, e.g. `export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` (adjust for your install name). "Cannot find in scope" errors on iOS 27 APIs almost always mean the stable SDK is being used by mistake.
 
 ---
 

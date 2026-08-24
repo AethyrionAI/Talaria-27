@@ -222,3 +222,13 @@ the gate passed first-run, and the device is already on the matching iOS beta 7 
 the same day), so builds, sims, and the phone would all sit on one vintage. **Owen
 decides** — #324's "auto-promote if green" was a per-instance pre-bed authorization and
 does not carry; no promotion edits are made in this commit.
+
+**⟵ EXECUTED same day on Owen's word** (*"Yes, promote it, keep beta5 as the fallback for
+now"*): CLAUDE.md + AGENTS.md toolchain sections, `lane-gate.sh` / `ota-stage.sh` /
+`run-instrument.sh` `DEVELOPER_DIR` defaults, README, CONTRIBUTING, and
+MAINTAINER_NOTES' test posture (2482 tests / 200 suites + 14 XCUITest) all point at
+beta6; beta5 stays on disk as the A/B fallback. Deliberately untouched:
+`run-sweep.sh` (its 24A5408d precondition is #343-era comparability armor — the next
+sweep owner moves that pin knowingly or the preflight rightly refuses), historical
+planning/dispatch docs (per #324's precedent), and `score-eras.py` (era labels are its
+subject matter).

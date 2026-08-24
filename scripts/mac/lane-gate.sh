@@ -81,7 +81,7 @@ fi
 # shellcheck source=./lane-gate-classify.sh
 . "$GATE_CLASSIFY_LIB"
 
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
+DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
 export DEVELOPER_DIR
 SIM_NAME="${TALARIA_SIM_NAME:-iPhone 17 Pro Max}"
 LOGDIR="${TALARIA_GATE_LOGDIR:-$(mktemp -d -t talaria-gate)}"
