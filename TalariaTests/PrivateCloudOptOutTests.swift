@@ -263,7 +263,7 @@ struct PrivateCloudOptOutTests {
     ///
     /// Fails loudly if a source cannot be read: a check that cannot run must
     /// say so rather than print a pass it did not earn.
-    @Test func theToggleLivesOnlyOnTheDedicatedScreenAndModelsKeepsTheQuotaRow() throws {
+    @Test func allPCCStateLivesOnlyOnTheDedicatedScreen() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()   // TalariaTests/
             .deletingLastPathComponent()   // repo root
@@ -282,8 +282,12 @@ struct PrivateCloudOptOutTests {
                 "the toggle's binding write must not remain on the Models screen (#395-D)")
         #expect(pcc.contains("privateCloudEnabled = $0"),
                 "the dedicated screen must write the SAME UserSettings key — one source of truth, no second flag")
-        #expect(models.contains("PrivateCloudQuotaRow"),
-                "the Models screen keeps its quota row beside the brain picker (#30)")
+        // Owen's 2026-08-23 night ruling (from a device screenshot of the
+        // crowded picker): PCC state lives on the PCC square ALONE. This
+        // assertion previously enforced the opposite — the #30
+        // quota-where-you-pick row — and flips with the ruling as authority.
+        #expect(!models.contains("PrivateCloudQuotaRow"),
+                "PCC usage moved into the PCC tile — the Models screen must not grow its readout back")
         #expect(pcc.contains("PrivateCloudQuotaRow"),
                 "control and state stay one surface on the dedicated screen (#395's own principle)")
     }
