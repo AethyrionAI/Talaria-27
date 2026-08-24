@@ -192,6 +192,8 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
 - **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless — **✅ BUILT 2026-08-23**
+- **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a) and the sim LEAPFROGS the device; still no exact twin of 24A5418b until the phone takes beta 7.** 398-A..C unchanged
+- **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **FILED 2026-08-24 on Owen's go; bars 401-A..E pre-registered before the run**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16457,7 +16459,7 @@ Deleting it fixes the bug and eliminates the class in one move.
 > suspected (the sim was shut down; the re-run on fresh CC-lane-3 passed
 > clean, 2502/14/Release).
 
-## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
+## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.** **⟵ PREMISE MOVED 2026-08-24 (#401): Apple SHIPPED the beta 6 Xcode (27A5252f) carrying the iOS-beta-7 SDK/runtime (24A5422a / 24A5423a) — the "no beta 6 Xcode" clause is dead, and the sim now LEAPFROGS the device instead of trailing it. Dated block at the foot; bars 398-A..C unchanged.**
 
 **What was measured, not inferred:**
 
@@ -16520,6 +16522,90 @@ behaviour, and behaviour is what a battery measures.
 finding that makes this a measurement problem), **#343** (the first
 contamination window), **#215** (armed-cell rule — a rate measured in a
 configuration the system never enters), **#388** (the beta5 surface sweep).
+
+> **2026-08-24 — THE PREMISE MOVED: Apple shipped Xcode 27 beta 6 (#401's
+> arrival measurement, Mac Mini, direct — no MCP).** Owen installed it as
+> `/Applications/Xcode-beta6.app`: build **27A5252f**, swiftlang
+> **6.4.0.33.1**, iOS SDK **24A5422a**, and a new iOS 27.0 sim runtime
+> **24A5423a** already on disk (Ready) — the *iOS beta 7* vintage, released
+> alongside it. What this changes and does not change:
+> - **The "no beta 6 Xcode exists" clause is DEAD.** The table above is
+>   historical as of today.
+> - **The skew is not closed — it FLIPPED.** The sim (24A5423a) now leapfrogs
+>   the device (24A5418b, beta 6): there is *still* no exact local twin of the
+>   build the phone runs, and won't be unless/until the phone takes iOS 27
+>   beta 7, at which point the fleet aligns for the first time since beta 5.
+> - **398-B (re-measure on device) and 398-C (gate names its runtime) are
+>   UNCHANGED** — if anything 398-C matters more now that the gate's runtime
+>   will silently advance to 24A5423a via `runtime match`.
+> - **New dyld corollary (the #324 rule, third arrow):** the beta 6 Xcode's
+>   SDK is *beta-7-vintage* (24A5422a), so a beta6-Xcode-built binary that
+>   references new-in-this-SDK symbols would strong-link and die at launch on
+>   the phone's OLDER 24A5418b. No new-SDK API adoption until the device is on
+>   beta 7.
+> The regression round itself is **#401**.
+
+## 401. 🔁 iOS 27 BETA 7 / XCODE 27 BETA 6 REGRESSION ROUND + SDK AUDIT — the #398 skew moves: the beta 6 Xcode exists and its sim runtime leapfrogs the device — **FILED 2026-08-24 on Owen's go ("start a quick round of regression testing for the new version, and check and see if any new features were added? Or anything to look out for / may have been resolved"). Bars 401-A..E pre-registered below BEFORE the run.**
+
+**Measured on arrival (2026-08-24, on the Mac Mini directly — no MCP caveat):**
+
+| | beta5 (current std) | beta6 (new) |
+|---|---|---|
+| Xcode build | 27A5237l | **27A5252f** |
+| swiftlang | 6.4.0.30.4 | **6.4.0.33.1** (clang-2100.3.33.1) |
+| iOS SDK build (device + sim) | 24A5408c | **24A5422a** |
+| iOS 27.0 sim runtime | 24A5408d | **24A5423a** (Ready; `runtime match` already chooses it for new boots — no user override set) |
+| device `whoGoesThere` | 24A5418b (iOS beta 6) | unchanged until Owen updates |
+
+First-launch/license already complete (`xcodebuild -checkFirstLaunchStatus`
+exit 0 — no sudo owed). Runtimes on disk: 24A5423a + 24A5408d (beta5) +
+24A5390f (beta4) + iOS 26.5 23F77, 30.3 GB total. CC-lane pool intact
+(1/2/3, all Shutdown), bound to the generic `iOS-27-0` identifier — so a
+gate run boots them on **24A5423a** by default. Naming care: Apple's
+"Xcode 27 beta 6" ships the **iOS 27 beta 7** SDK and runtime; the phone's
+24A5418b is *iOS* beta 6. The two "beta 6"s are different axes — every claim
+below names builds, not beta ordinals, where it matters.
+
+### 🎯 BARS 401-A…E — pre-registered before the run
+
+- **401-A (gate).** `scripts/mac/lane-gate.sh` (full: Debug suite + Release
+  build) green under `DEVELOPER_DIR=…/Xcode-beta6.app/…` on a CC-lane sim
+  whose booted runtime is **VERIFIED 24A5423a from the booted device itself**,
+  not inferred from match policy. Positive markers per the gate's own rules;
+  unit count **≥ 2497** and XCUITest **≥ 14** (the 2026-08-23 gate floor,
+  #393's run — NOT #324's stale 2056). Load discipline: no concurrent builds
+  alongside the suite (the #324 run-1 flake class).
+- **401-B (SDK diff).** Swiftinterface-level diff beta5→beta6 over the same
+  16-framework set as #324 plus the overlay set (incl.
+  `_Vision_FoundationModels`), **sorted set-diff first** on mass-reordered
+  interfaces; every new-feature claim grounded in interface text, none from
+  recall (WWDC26 postdates the model cutoff). Report lands as
+  `planning/reports/2026-08-24-beta6-sdk-audit.md`.
+- **401-C (Talaria-called surface verdict).** An explicit yes/no on whether
+  ANY API Talaria calls changed — the #324 FM checklist (ToolCallingMode,
+  DynamicProfile, tokenCount, LanguageModel protocol, LanguageModelError
+  arms, @Generable, UnavailableReason, PCC accessors) **plus
+  `SystemLanguageModel.variant`, which the app has adopted since #324**, plus
+  the SwiftUI/SwiftData/EventKit/Speech/AVFoundation surfaces the app
+  touches.
+- **401-D (known-trap ledger).** The three standing runtime items each get an
+  honest status against 24A5423a: **#301-family isolation trap**, **SwiftData
+  `mainContext` (324-W1)**, **FM sim generation**. Each is marked RE-TESTED
+  (with evidence) or NOT RE-TESTED THIS ROUND — #324's probe apps were
+  session-scratchpad artifacts and are gone, so rebuilding them is a scoped
+  follow-up, not smuggled into a "quick round." **No "probably fixed"
+  verdict exists.** A trap not re-tested keeps its workaround unconditionally.
+- **401-E (close-out).** Docs falsified by the arrival corrected in the same
+  commits as the verdicts: #398's entry (done in this commit, dated block
+  above), CLAUDE.md's #398/toolchain paragraphs, and a **promotion
+  RECOMMENDATION surfaced to Owen rather than auto-executed** — #324's
+  "auto-promote if green" was a per-instance pre-bed authorization, and no
+  such authorization exists for beta6.
+
+**Deliberately NOT bars this round:** device re-measurement (that stays
+398-B); a beta6-built OTA stage; rebuilding the FM/isolation probe apps
+(follow-up if elected); any adoption of new-in-24A5422a API (blocked by the
+dyld corollary until the phone is on beta 7).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

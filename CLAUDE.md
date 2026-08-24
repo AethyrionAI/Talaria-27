@@ -584,6 +584,15 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   runtime it was measured on; a rate without one is now ambiguous. Worst for the
   on-device BRAIN, because #324 established the simulator cannot generate on
   that model at all, so its behaviour has only ever been device-answerable.
+  **⟵ SUPERSEDED 2026-08-24 (#401): Apple shipped Xcode 27 beta 6
+  (`/Applications/Xcode-beta6.app`, 27A5252f, swiftlang 6.4.0.33.1) carrying
+  the iOS-beta-7 SDK (24A5422a) and sim runtime (24A5423a) — so the sim now
+  LEAPFROGS the device (24A5418b) rather than trailing it. Still no exact
+  local twin of the phone's build until it takes iOS 27 beta 7. New corollary
+  of #324's dyld rule: a beta6-Xcode-built binary referencing new-in-24A5422a
+  symbols dies at launch on the phone's older runtime — no new-SDK API
+  adoption until the device updates. Regression round + promotion decision:
+  #401.**
 - **Xcode-beta5** (`/Applications/Xcode-beta5.app`, Xcode 27.0 build 27A5237l) is the
   standard toolchain for iOS 27 targets — **promoted from beta4 on 2026-08-11** under Owen's
   pre-authorized "auto-promote if green" (overnight audit: gate green under beta5, 2056
