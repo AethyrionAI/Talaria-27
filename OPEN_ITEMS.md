@@ -1273,6 +1273,23 @@ native pipeline), **#1** (voice transcripts).
 > go; until then OJAMD mints with its default and the app's footnote says
 > so, which is the designed degrade.
 
+> **📊 2026-08-23 ~22:50 — THE FIRST LIVE TUNED SESSION, Owen's own
+> report, MAC PROFILE (so the preset was genuinely bound):** on **noisy**,
+> *"it picked me and the tv up, but.. the tv is rather loud. At least it
+> got me."* Reading: the preset did its job (reliable capture, no early
+> turn-ends) and its structural ceiling is confirmed — `server_vad`'s
+> threshold is an AMPLITUDE gate, and a loud TV clears any threshold that
+> still hears the user; loudness cannot discriminate speakers (the same
+> "a TV is speech" mechanism as the local engine's fault 1, one level up).
+> The candidate discriminators are OS Voice Isolation mic mode
+> (user-togglable in Control Center during a session — worth one try) or
+> product shapes (push-to-talk). This also discharges "Owen's device look
+> at the picker." The formal 396-D four-field quote still rides the
+> runbook's 396-D card. **Side catch, #138-adjacent:** the live
+> `~/.hermes/.env` measures ZERO `TALARIA_VOICE_*` lines (2026-08-23) —
+> 138-E's arm-1 was reverted but the revert was never recorded; recorded
+> here so #138-L's precondition reads CLEAN.**
+
 > **✅ 2026-08-23 late — APP HALF MERGED (PR #361, squash `4ad8e3c1`).
 > GATE: PASS 2482 / 14 / Release (count moved +4 — the wire, roundtrip,
 > readiness, and copy-pin tests exactly).** 396-P-A RED-first (stubbed
@@ -1450,6 +1467,12 @@ this toggle does not answer), **#180** (the notice-honesty family).
 > - **395-D2-D (non-regression).** a11y IDs unchanged; the deck counter
 >   stays positional; the 395-D suites stay green.
 
+> **✅ DONE the same hour (PR #362, squash `3349f9c0`; GATE PASS 2482/14/
+> Release, no count delta — a row deletion plus a flipped pin). The
+> structural pin now FORBIDS the Models readout returning, RED-proven
+> against the pre-removal screen; the test renamed
+> `allPCCStateLivesOnlyOnTheDedicatedScreen`.**
+>
 > **⚖️ RULED 2026-08-23 night (Owen, from a device screenshot of the
 > Models picker): the PCC usage readout consolidates INTO the PCC tile —
 > the Models screen's read-only quota row is REMOVED.** This reverses the
