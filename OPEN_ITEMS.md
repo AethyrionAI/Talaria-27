@@ -9839,6 +9839,19 @@ squarely this family).
 > alternatives 329-C names (a distinct "still running" state; a suppressed
 > Retry) remain open for his pick.
 
+> **⚖️ 329-C RULED 2026-08-24 (Owen, same evening as the code-read):
+> RECONCILE-FIRST-THEN-DECIDE.** The contract, fixed before code: the
+> pending run's `(runId, sessionId)` persists; on cold load a `.sending`
+> row with a persisted record is NOT flipped to `.failed` — the app
+> consults `GET /v1/runs/{id}` first. Alive or completed ⇒ hold the row and
+> arm the existing reconcile (trial 2's proven path adopts the answer);
+> failed/expired ⇒ `.failed` honestly; **host unreachable ⇒ today's
+> behavior stands** (`.failed` + Retry — locally-knowable, the airplane
+> arm's own logic). A row with NO persisted record (pre-fix caches, cleared
+> state) also keeps today's behavior — the fix must not strand old caches
+> pending forever. Bars 329-A..F stand as pre-registered; the lane opens on
+> this ruling.
+
 ## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any code.**
 
 **What was seen.** On the thread from #312 item (d) — the one that had announced
