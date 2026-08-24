@@ -194,7 +194,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#399** 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — defence-in-depth gap, reachability checked and NOT demonstrated; the unconditional `setActive(false)` in `VoiceMemoPlayer.stop()` is the half that matters regardless — **✅ BUILT 2026-08-23**
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
 - **#401** 🔁 iOS 27 beta 7 / Xcode 27 beta 6 regression round + SDK audit — **✅ CLOSED 2026-08-24: GATE PASS first-run (2482+14 on verified 24A5423a, Release clean); 6/280 interfaces really changed, NONE Talaria-called; count clause missed-as-written (bar-formation error, measured: PR #360 deleted net 15 tests); PROMOTED to standard toolchain on Owen's word, beta5 kept as A/B fallback; archive move rides the next sweep**
-- **#402** 🔬 PCC-on-sim probe — beta 7 marks PCC-on-simulators FIXED; setup recipe first, then availability vs generation separately — **FILED 2026-08-24, elevated by Owen; bars 402-A..D pre-registered**
+- **#402** 🔬 PCC-on-sim probe — **✅ PROBED + CLOSED 2026-08-24 evening: real but PARTIAL — metadata plane works on sim (contextSize 32768, quota, entitlement honored), generation still dead on unresolvable `instruct_server_v2.fm_api` with no AI surface to fetch it; on-device tier unchanged; "generation is device-only" stands. Probe preserved in planning/probes/; 👁 re-probe per new runtime**
 - **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
@@ -16670,7 +16670,7 @@ is now **#402**.)*
   Dictation model behind a Settings toggle, background-NE entitlement,
   devicectl JSON v5 deprecations, parallel-test stdout delay (Xcode).
 
-## 402. 🔬 PCC-ON-SIM PROBE — beta 7 claims *"Private Cloud Compute might not work when you use simulators"* is FIXED (Apple id 177684296); if true, the PCC tier becomes sim-testable for the FIRST time — **FILED 2026-08-24 per #268 from #401's release-note finding, elevated by Owen the same hour (*"thats wonderful about pcc testing, that will be incredibly helpful"*). NOT STARTED; bars pre-registered below before any code.**
+## 402. 🔬 PCC-ON-SIM PROBE — beta 7 claims *"Private Cloud Compute might not work when you use simulators"* is FIXED (Apple id 177684296); if true, the PCC tier becomes sim-testable for the FIRST time — **FILED 2026-08-24 per #268 from #401's release-note finding, elevated by Owen the same hour (*"thats wonderful about pcc testing, that will be incredibly helpful"*). NOT STARTED; bars pre-registered below before any code.** **⟵ ✅ PROBED + CLOSED the same evening, all four bars met: the fix is REAL BUT PARTIAL — PCC's METADATA plane now fully works on sim (contextSize 32768, quota, 24 languages; simulated entitlement honored by modelmanagerd) but GENERATION still fails instantly on one unresolvable asset (`instruct_server_v2.fm_api`), the sim exposes NO Apple Intelligence surface to fetch it, and the on-device control arm keeps its beta5 failure signature — #324's "generation is device-only" STANDS for both tiers on 24A5423a. Probe preserved: `planning/probes/402-pcc-sim-probe.swift`; 👁 WATCH: one-command re-probe per new runtime. Result block below.**
 
 **Context.** Every PCC observation to date — #388's surface sweep, #391's
 quota finding, #395's off-switch — was device-only, because the PCC tier
@@ -16710,6 +16710,73 @@ the measurement. Runtime: 24A5423a (the only sim runtime the claim covers).
 makes testable), **#391/#388** (device-only PCC observations that gain a sim
 control), **#324** (availability-vs-generation discipline; error-identity
 discipline).
+
+### ✅ RESULT — 2026-08-24 evening, probed same day (probe source preserved: `planning/probes/402-pcc-sim-probe.swift`)
+
+**Verdict in one line: the fix is REAL BUT PARTIAL from Talaria's seat — the
+PCC metadata plane now fully works on the sim, but GENERATION still fails on
+one unresolvable asset, and the sim offers no surface that could fetch it.**
+All measurements on CC-lane-1, runtime **24A5423a** stamped in-process (402-C
+met); environment: NO Apple Account signed in, macOS 26.5.2 host.
+
+- **402-A MET — the recipe is "nothing", and the blocker is named and
+  measured.** Out of the box, zero setup: `availability=available`,
+  `isAvailable=true`, `quotaUsage=belowLimit(isApproachingLimit: false,
+  resetDate: nil)` (#391's inert shape), **`contextSize=32768`** (a real
+  value — first time any FM tier returned one on a sim),
+  `supportedLanguages.count=24`. **Entitlement half SETTLED:** a normally
+  signed `xcodebuild test` sim binary carries
+  `com.apple.developer.private-cloud-compute` in the **simulated-entitlements
+  section** (`__TEXT,__entitlements`, 0x269 bytes — `codesign -d
+  --entitlements` shows an EMPTY dict because it reads the signature; the
+  section is what the sim runtime consults), and modelmanagerd honored it in
+  so many words: `Client 74755 entitled with
+  com.apple.developer.private-cloud-compute`. **The dead end:** sim Settings
+  exposes **no Apple Intelligence surface at all** — the row is plain "Siri",
+  and the full pane (both screens checked) has no AI toggle and no model
+  download. Untried variable: Apple Account sign-in on the sim (Owen-manual
+  if ever wanted; with no AI surface it is unlikely to matter). Host-side
+  FM asset store (`/System/Library/AssetsV2/
+  com_apple_MobileAsset_UAF_FM_GenerativeModels`) exists but is unreadable
+  without sudo — recorded as UNMEASURED, not absent.
+- **402-B MET — both halves, separately, with the mechanism.**
+  Availability: affirmative (and still structurally unable to say "not
+  entitled" — though entitlement was in fact honored here). Generation:
+  `respond()` **fails in <0.1 s with no network attempt** —
+  `domain=FoundationModels.SystemLanguageModel.Error code=0 "The assets
+  required for the session are unavailable"` (note: a SYSTEM-model error
+  domain thrown by the PCC path; none of the typed PCC.Error arms fire; no
+  underlying NSError chain). **Mechanism from the sim log:** the session
+  requests asset bundles `com.apple.fm.language.instruct_server_v2.fm_api`
+  + `instruct_300m.safety?language=en`; the **safety model loads and
+  executes** — `instruct_300m` is a NonAssetBackedResource running via
+  **"host-inference"**, a sim-bridging path that did not exist in beta5's
+  story — then both sessions are cancelled ~50 ms later because
+  `instruct_server_v2.fm_api` cannot resolve. Instructions are not the
+  variable: a no-instructions arm fails identically.
+- **On-device control arm (bonus, posture unchanged):**
+  `SystemLanguageModel.default` on the same sim: available, variant "AFM 3
+  Core", `contextSize=0`, respond throws the **beta5-signature un-bridged
+  `FoundationModels.LanguageModelError code=-1`**. So the 300m
+  host-inference machinery serves only the safety ancillary today — **#324's
+  "generation is device-only" stands on 24A5423a for BOTH tiers.**
+- **402-D MET:** scratch test file deleted from the target after the runs
+  (pbxproj regenerated byte-identical); source preserved at
+  `planning/probes/402-pcc-sim-probe.swift` so the next runtime's re-probe
+  is a copy + `xcodegen generate` + one command, not a rebuild —
+  the #324→#401 dead-probe lesson applied:
+  ```bash
+  cp planning/probes/402-pcc-sim-probe.swift TalariaTests/PCCSimProbeTests.swift && xcodegen generate && DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer xcodebuild test -project Talaria.xcodeproj -scheme Talaria -destination 'platform=iOS Simulator,id=79402942-3DD4-4187-9710-044C784840FE' -only-testing:TalariaTests/PCCSimProbeTests
+  ```
+- **What this changes for the app: nothing today, one option opened.**
+  `pccGrantConfirmed` stays compile-time false on sim and every reason it
+  exists still holds. What the fix DOES enable is sim-side testing of the
+  PCC **metadata** surfaces (quota tile honesty, availability plumbing) via
+  a DEBUG-sim carve-out — **not elected here; that would be its own item.**
+  Apple's release note is not contradicted: "might not work — fixed" is
+  satisfied by the metadata plane; nothing in it promised sim generation.
+- **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
+  in any future beta; the one-command recipe above is the whole cost).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
