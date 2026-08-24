@@ -16906,6 +16906,32 @@ rendering as unknown (never reassurance), today-vs-later date forms.
 - **404-E (gate + PR).** Gate green, unit count moved above 2483; PR opened
   for Owen.
 
+### ✅ RESULT — 2026-08-24 evening, same sitting (branch `cc-404-quota-row`)
+
+- **404-A MET.** `quotaRowLabel` output byte-identical — every #391 pin ran
+  UNTOUCHED and green — now assembled from the new pure
+  `quotaStateText(quota:)` + the existing `resetFieldText`, and applied as
+  the fields block's explicit accessibility label (`children: .ignore` on
+  the fields only; the SHOW OPTIONS button keeps its own element).
+- **404-B MET.** The row is now two kicker/value fields — QUOTA
+  (StatusPip + state, tone mapping preserved: muted / forge / danger / dim)
+  and RESETS (right-aligned; nil renders as a DIM `—`, still a value, no
+  longer a dangling wrap) — under a hairline that separates control from
+  telemetry. New tests: `quotaStateText` per arm (unknown ≠ reassurance)
+  and the single-source structural pin (`quotaRowLabel` contains both
+  field formatters' output on every arm).
+- **404-C MET.** The component's stale "shared by the Models screen" doc
+  corrected (the #395/#362 consolidation left this screen the only
+  consumer); no second copy introduced.
+- **404-D: screenshot half MET** — the reworked row screenshotted LIVE ON
+  THE SIMULATOR (CC-lane-1, 24A5423a) and sent to Owen: `QUOTA ● BELOW
+  DAILY LIMIT / RESETS —` from real SDK reads, #403's carve-out doing on
+  its first evening exactly the job it was built for. **Owen's eyeball
+  remains the closing taste bar.**
+- **404-E: gate MET — GATE: PASS, 2485 Swift Testing (moved above 2483 by
+  exactly the two new pins) + 14/14 XCUITest + Release clean. PR open;
+  merge is Owen's.**
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims

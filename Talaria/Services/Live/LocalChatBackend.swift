@@ -2716,15 +2716,22 @@ extension LocalChatBackend.PrivateCloudStatus {
         now: Date,
         calendar: Calendar = .current
     ) -> String {
-        let state: String
+        // #404: assembled from the SAME field formatters the visual row
+        // renders, so the VoiceOver sentence and the on-screen fields can
+        // never disagree. Output is byte-identical to the pre-#404 form —
+        // the #391 pins run against it unchanged.
+        "PRIVATE CLOUD β · \(quotaStateText(quota)) · RESETS \(resetFieldText(resetDate, now: now, calendar: calendar))"
+    }
+
+    /// The QUOTA field's value, one arm per SDK fact (#391: an unrecognised
+    /// status says so — it does not say "you're fine").
+    static func quotaStateText(_ quota: Quota) -> String {
         switch quota {
-        case .belowLimit(approaching: false): state = "BELOW DAILY LIMIT"
-        case .belowLimit(approaching: true): state = "NEARING DAILY LIMIT"
-        case .limitReached: state = "DAILY LIMIT REACHED"
-        // #391: an unrecognised status says so. It does not say "you're fine".
-        case .unknown: state = "STATUS —"
+        case .belowLimit(approaching: false): "BELOW DAILY LIMIT"
+        case .belowLimit(approaching: true): "NEARING DAILY LIMIT"
+        case .limitReached: "DAILY LIMIT REACHED"
+        case .unknown: "STATUS —"
         }
-        return "PRIVATE CLOUD β · \(state) · RESETS \(resetFieldText(resetDate, now: now, calendar: calendar))"
     }
 
     /// `—` for nil; a bare time when the reset falls today (the common case,
