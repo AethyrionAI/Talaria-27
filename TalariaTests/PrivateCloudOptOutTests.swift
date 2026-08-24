@@ -199,6 +199,36 @@ struct PrivateCloudOptOutTests {
         #expect(!label.contains("BELOW DAILY LIMIT"))
     }
 
+    // MARK: #404 — the row's fields and its sentence share one source
+
+    /// The QUOTA field's value per arm — including that unknown stays
+    /// unknown (#391's rule, now pinned at the field formatter the view
+    /// actually renders).
+    @Test func quotaStateTextCoversEveryArmWithoutReassurance() {
+        typealias S = LocalChatBackend.PrivateCloudStatus
+        #expect(S.quotaStateText(.belowLimit(approaching: false)) == "BELOW DAILY LIMIT")
+        #expect(S.quotaStateText(.belowLimit(approaching: true)) == "NEARING DAILY LIMIT")
+        #expect(S.quotaStateText(.limitReached) == "DAILY LIMIT REACHED")
+        #expect(S.quotaStateText(.unknown) == "STATUS —")
+    }
+
+    /// #404's structural promise: the accessibility sentence is ASSEMBLED
+    /// from the same field formatters the visual row renders. If someone
+    /// reintroduces a second copy of either field's text, an arm here goes
+    /// red rather than the two surfaces quietly diverging.
+    @Test func theAccessibilitySentenceIsBuiltFromTheVisibleFields() {
+        typealias S = LocalChatBackend.PrivateCloudStatus
+        let arms: [S.Quota] = [
+            .belowLimit(approaching: false), .belowLimit(approaching: true),
+            .limitReached, .unknown,
+        ]
+        for quota in arms {
+            let sentence = S.quotaRowLabel(quota: quota, resetDate: nil, now: Self.reference)
+            #expect(sentence.contains(S.quotaStateText(quota)))
+            #expect(sentence.contains("RESETS \(S.resetFieldText(nil, now: Self.reference))"))
+        }
+    }
+
     // MARK: The MAPPING, not just the formatting
 
     /// **#391's defect was in the plumbing, so the plumbing is what this

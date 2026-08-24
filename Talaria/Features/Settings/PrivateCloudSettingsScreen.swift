@@ -99,36 +99,72 @@ struct PrivateCloudSettingsScreen: View {
     }
 }
 
-/// **#391's honest quota row, shared** by the Models screen (read-only state
-/// beside the brain picker, #30) and the dedicated Private Cloud screen
-/// (#395-D) — one component, so the two surfaces can never disagree about
-/// what the quota says.
+/// **#391's honest quota row.** (Its one-time second consumer — the Models
+/// screen readout — was consolidated away by #395/#362; this screen is the
+/// only surface, doc corrected by #404.)
+///
+/// #404 reshaped the single wrapped sentence into the design system's
+/// kicker/value telemetry fields. The sentence itself survives,
+/// byte-identical, as this row's ACCESSIBILITY label — assembled from the
+/// same field formatters the fields render, so what VoiceOver hears and
+/// what the screen shows can never disagree.
 struct PrivateCloudQuotaRow: View {
     let status: LocalChatBackend.PrivateCloudStatus
     var showOptions: (() -> Void)?
 
     var body: some View {
-        // #391: the label is built by a pure formatter on the status type, so
-        // the today-vs-later branch and the nil reset date are assertable
-        // without a view.
-        let label = LocalChatBackend.PrivateCloudStatus.quotaRowLabel(
-            quota: status.quota, resetDate: status.resetDate, now: Date())
-        let color: Color = switch status.quota {
-        case .belowLimit(approaching: false): Design.Colors.mutedForeground
-        case .belowLimit(approaching: true): Design.Brand.forgeText
-        case .limitReached: Design.Colors.dangerText
+        // #391: every value comes from a pure formatter on the status type —
+        // the today-vs-later branch and the nil reset date stay assertable
+        // without a view, and `RESETS —` remains a rendered value (the
+        // absence IS the information), just dimmed now instead of dangling.
+        let state = LocalChatBackend.PrivateCloudStatus.quotaStateText(status.quota)
+        let resets = LocalChatBackend.PrivateCloudStatus.resetFieldText(status.resetDate, now: Date())
         // #391: unknown is not good news and not bad news — it is unknown,
         // and it must not borrow the reassuring muted tone OR the alarming
         // one.
+        let tone: Color = switch status.quota {
+        case .belowLimit(approaching: false): Design.Colors.mutedForeground
+        case .belowLimit(approaching: true): Design.Brand.forgeText
+        case .limitReached: Design.Colors.dangerText
         case .unknown: Design.Colors.dimForeground
         }
-        HStack(spacing: Design.Spacing.sm) {
-            MonoLabel(label, size: 8, tracking: Design.Tracking.mono, color: color)
-            Spacer()
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            Rectangle()
+                .fill(Design.Colors.hairline)
+                .frame(height: 1)
+                .accessibilityHidden(true)
+            HStack(alignment: .top, spacing: Design.Spacing.md) {
+                VStack(alignment: .leading, spacing: Design.Spacing.xxs) {
+                    MonoLabel("QUOTA", size: 8, tracking: Design.Tracking.monoXWide,
+                              color: Design.Colors.dimForeground)
+                    HStack(spacing: Design.Spacing.xs) {
+                        StatusPip(color: tone, diameter: 5)
+                        MonoLabel(state, size: 10, weight: .medium,
+                                  tracking: Design.Tracking.mono, color: tone)
+                    }
+                }
+                Spacer(minLength: Design.Spacing.sm)
+                VStack(alignment: .trailing, spacing: Design.Spacing.xxs) {
+                    MonoLabel("RESETS", size: 8, tracking: Design.Tracking.monoXWide,
+                              color: Design.Colors.dimForeground)
+                    MonoLabel(resets, size: 10, weight: .medium,
+                              tracking: Design.Tracking.mono,
+                              color: status.resetDate == nil
+                                  ? Design.Colors.dimForeground
+                                  : Design.Colors.foreground)
+                }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(LocalChatBackend.PrivateCloudStatus.quotaRowLabel(
+                quota: status.quota, resetDate: status.resetDate, now: Date()))
             if status.hasLimitIncreaseSuggestion, let showOptions {
-                Button("Show options", action: showOptions)
-                    .font(Design.Typography.mono(10, weight: .medium))
-                    .foregroundStyle(Design.Brand.accentText)
+                Button(action: showOptions) {
+                    MonoLabel("SHOW OPTIONS", size: 9, weight: .medium,
+                              tracking: Design.Tracking.monoWide,
+                              color: Design.Brand.accentText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Show options")
             }
         }
         .padding(.top, Design.Spacing.xs)
