@@ -37,8 +37,11 @@ protocol VoiceBootstrapTransport: AnyObject {
     /// May a realtime session start?
     func talkReadiness() async -> VoiceVerbOutcome
 
-    /// Mint one — `{voiceSession, bootstrap}` as bare JSON.
-    func talkSessionCreate() async -> VoiceVerbOutcome
+    /// Mint one — `{voiceSession, bootstrap}` as bare JSON. `tuning` is the
+    /// user's coarse sensitivity pick (#396: `quiet`/`normal`/`noisy`),
+    /// resolved to vetted `turn_detection` values HOST-side; an older plugin
+    /// ignores the unknown field and mints with its default.
+    func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome
 
     /// Release one.
     ///
@@ -62,7 +65,7 @@ protocol VoiceBootstrapTransport: AnyObject {
 @MainActor
 final class UnavailableVoiceTransport: VoiceBootstrapTransport {
     func talkReadiness() async -> VoiceVerbOutcome { .unreachable }
-    func talkSessionCreate() async -> VoiceVerbOutcome { .unreachable }
+    func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome { .unreachable }
     @discardableResult
     func talkSessionEnd(voiceSessionID: String) async -> Bool { false }
 }

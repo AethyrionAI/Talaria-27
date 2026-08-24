@@ -52,6 +52,7 @@ struct VoiceSettingsScreen: View {
                     }
                     statusSection
                     modelSection
+                    sensitivitySection
                     readAloudSection
                     transcriptsSection
                     latencySection
@@ -184,6 +185,81 @@ struct VoiceSettingsScreen: View {
     }
 
     // MARK: Read-aloud (#2) — local TTS, the one voice surface iOS controls
+
+    // MARK: - #396: coarse sensitivity (Owen's ruled scope — the honest
+    // asymmetry is the caption's job, not the control's silence)
+
+    private var sensitivitySection: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+            groupLabel("// Sensitivity")
+            VStack(alignment: .leading, spacing: Design.Spacing.sm) {
+                HStack(spacing: Design.Spacing.xxs) {
+                    ForEach(VoiceSensitivity.allCases, id: \.self) { pick in
+                        sensitivitySegment(pick)
+                    }
+                }
+                .padding(Design.Spacing.xxs)
+                .background(Design.Colors.background.opacity(0.5),
+                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                .overlay {
+                    RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                        .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+                }
+                Text(Self.sensitivityRealtimeCaption)
+                    .font(Design.Typography.caption)
+                    .foregroundStyle(Design.Colors.secondaryForeground)
+                Text(Self.sensitivityLocalDisclaimer)
+                    .font(Design.Typography.caption2)
+                    .foregroundStyle(Design.Colors.dimForeground)
+                if hostPredatesTuning {
+                    Text(Self.sensitivityHostPredatesFootnote)
+                        .font(Design.Typography.caption2)
+                        .foregroundStyle(Design.Brand.forgeText)
+                }
+            }
+            .padding(Design.Spacing.md)
+            .hudPanel(
+                cornerRadius: Design.CornerRadius.lg,
+                borderColor: Design.Colors.accentTint(0.12),
+                fill: Design.Colors.background.opacity(0.5),
+                innerGlow: false
+            )
+        }
+    }
+
+    /// The host advertised no tunings AND we have actually heard from a host
+    /// (nil readiness on a hostless install is unknown, not "predates").
+    private var hostPredatesTuning: Bool {
+        readiness.ready != nil && readiness.tunings == nil
+    }
+
+    // #396: pinned copy — the honest-asymmetry contract lives in these
+    // strings, and a test asserts the local disclaimer names the local
+    // engine's limits rather than implying the picker tunes it.
+    static let sensitivityRealtimeCaption =
+        "Applies to realtime sessions at the next start — three vetted voice-detection presets, resolved on your host."
+    static let sensitivityLocalDisclaimer =
+        "On-device voice is not tuned by this picker: room-noise pickup has no knob there, and only end-of-turn timing could ever respond."
+    static let sensitivityHostPredatesFootnote =
+        "This host's plugin predates tuning — the pick takes effect after the host updates its talaria plugin."
+
+    private func sensitivitySegment(_ pick: VoiceSensitivity) -> some View {
+        let active = settingsStore.settings.voiceSensitivity == pick
+        return Button {
+            settingsStore.settings.voiceSensitivity = pick
+        } label: {
+            Text(pick.displayLabel)
+                .font(Design.Typography.display(10, weight: .semibold, relativeTo: .caption2))
+                .tracking(Design.Tracking.button)
+                .foregroundStyle(active ? Design.Colors.background : Design.Colors.secondaryForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Design.Spacing.sm)
+                .background(active ? Design.Brand.accent : Color.clear,
+                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+    }
 
     private var readAloudSection: some View {
         VStack(alignment: .leading, spacing: Design.Spacing.sm) {

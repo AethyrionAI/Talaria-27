@@ -997,6 +997,11 @@ final class AppContainer {
         // not keep it alive, and resolved per call so a re-bound link (profile
         // switch) is picked up without re-wiring.
         liveRealtimeVoice?.voiceTransportProvider = { [weak container] in container?.talariaPlatformLink }
+        // #396: the sensitivity pick, read live at mint time (a closure, not
+        // a captured value — the provider-closure house pattern).
+        liveRealtimeVoice?.voiceTuningProvider = { [weak settingsStore] in
+            (settingsStore?.settings.voiceSensitivity ?? .normal).rawValue
+        }
 
         // Foreground-only by design (spec §2.1): the plugin's durable outbox
         // is what makes closed-app time safe, so there is nothing to hold a

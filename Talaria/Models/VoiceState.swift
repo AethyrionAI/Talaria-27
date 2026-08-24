@@ -154,6 +154,27 @@ struct TalkLatencyMetrics: Codable, Hashable, Sendable {
     }
 }
 
+/// #396: the coarse voice-sensitivity pick — three vetted presets, resolved
+/// to concrete `turn_detection` values HOST-side (the app never composes the
+/// block). Raw values are persisted in the settings blob — never rename.
+/// **The honest asymmetry (Owen's ruled scope):** this binds real knobs on
+/// the REALTIME engine only; on the local engine room-noise has no knob and
+/// only end-of-turn timing could ever respond, and the picker's caption says
+/// so rather than implying effect.
+enum VoiceSensitivity: String, Codable, CaseIterable, Sendable {
+    case quiet
+    case normal
+    case noisy
+
+    var displayLabel: String {
+        switch self {
+        case .quiet: "QUIET"
+        case .normal: "NORMAL"
+        case .noisy: "NOISY"
+        }
+    }
+}
+
 /// Read-only detail from the voice readiness probe — the talaria plugin's
 /// `talk_readiness` verb since #383, the relay's `talk/readiness` before it.
 /// All fields are
@@ -167,6 +188,10 @@ struct TalkReadinessInfo: Hashable, Sendable {
     var selectedModel: String? = nil
     var voice: String? = nil
     var voiceContextUpdatedAt: Date? = nil
+    /// #396: the tuning names the host's plugin accepts on the mint. nil =
+    /// the host predates tuning (UNKNOWN, never empty) — the picker's
+    /// footnote states that instead of implying effect.
+    var tunings: [String]? = nil
 }
 
 struct TalkSessionSnapshot: Hashable, Sendable {
