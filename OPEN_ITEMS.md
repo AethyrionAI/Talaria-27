@@ -208,14 +208,14 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#340** 🔴 the due date is OMITTED by the model — both prose fixes falsified 08-15; **ROUTE (a) APP-SIDE RULED by Owen 2026-08-18 ~22:15 post-refresher** *(this line read "route decision pending Owen's refresher" until 2026-08-21 — the ruling landed in the entry and never reached the board, #317)*. 🟡 **BUILT 2026-08-21 AM: `parseBareClock`/`resolveBareClock` ship in BOTH the tool path and — a defect nobody had noticed — the CARD-EDIT path, where typing a plain `18:00` into the Due field was rejected outright. The GUIDE change is held behind cell `armed-bareclock` (Owen, 2026-08-21) because 340-G's guide arm bought its omission win at a flagged cost in tool calls, so the TOOL path stays inert until 340-H5 runs; the card-edit fix is not inert. Four-bucket scorer re-denominated on TRIALS, not calls — `no-call` was structurally invisible before. Wiring mutation: deleting the `performCreate` line reds 2 tests and leaves all 11 parsing tests GREEN.** 🛑 **340-H5 RAN 2026-08-21 AND IS MISSED — the guide is NOT promoted** (union rose 75%→85%). **But the bar was badly formed and is retired:** a `no-call` trial is neither omitted nor wrong-value, so it LOWERS the union — the control's 5 no-calls depressed its number and the treatment was penalised for calling more reliably. Over CALLS the union FELL; two denominators, opposite verdicts, which is 340-F1's ambiguity committed one level up by the same lane that fixed it. **✅ Route (a) VERIFIED on device though:** 3 bare clocks sent, all `16:30` at 17:08, all resolved to TOMORROW correctly, and `already-past` is 0/37 across both arms where 340-G had every value stale. 🔴 **Still broken: the model sent a time 3/20 — omission is 85% and the founding defect is UNSOLVED.** Bars **340-H5′-A..D** reformulated (`correct`/trials primary, `wrong-value` guard, both denominators reported, n≥40 — tonight was ~2x underpowered). 340-E still owed
 - **#344** 🐛 impersonation-marker reach — RULED leave-as-specified 08-18; WATCH (rate >~1/20, or the shape on a completion claim)
 - **#348** 🐛 a Mac Talaria build has never authenticated to OJAMD — ~~10-minute Mac-side check owed~~ **⟵ corrected 2026-08-23: the check RAN 2026-08-20 — it was the SIM (no Mac-native build exists), never-paired, seeded by the hardcoded default host filed+fixed as #384; residual is a WATCH that the 401 noise stops post-#384**
-- **#349** 🐛 CTX gauge — fixed + merged (PRs #319/#320); owed: the 60-s reopen check on the next OTA (shared with #367)
+- **#349** 🐛 CTX gauge — **✅ CLOSED 2026-08-24: the owed reopen check PASSED on device (build 2998, Owen: "ctx looks fine")**
 - **#350** 🐛 LINKED·ONLINE honesty — fixed + merged (PR #318); owed: Owen's 30-s cold-launch fixture (evening minute)
 - **#358** 🐛 delivered-but-unrendered — failure class removed, TurnStreamLedger armed; WATCH (trigger unidentified)
 - **#359** 🐛 compose fusion — one occurrence, mechanism unknown; WATCH on recurrence (2026-08-18)
 - **#360** 🔧 dictation range-finalization — merged (PR #311); owed: device dictation pass (1-s finish grace)
 - **#363** 🔧 outbox hygiene — 0.4.0+ deployed both hosts; WATCH ~2026-08-25 (first natural nonzero sweep)
 - **#365** 🔍 profile-switch ~10 s connecting interstitial — DIAGNOSED 2026-08-19 (splash + relay bootstrap); bars pre-registered, fix unrouted
-- **#367** 🐛 duplicate file chips on reopen — fixed + merged (PR #321); owed: the reopen check (shared with #349)
+- **#367** 🐛 duplicate file chips on reopen — **✅ CLOSED 2026-08-24: the shared reopen check PASSED on device (build 2998, no duplicate chips)**
 - **#368** 🔧 Phase 3 slice 3E — the runs-transport CUTOVER — MERGED 2026-08-19 (`33108d05`); runs is the DEFAULT plane; 3E-H's last two device steps owed Friday
 - **#369** 🐛 token guard destroys the pairing on a bare keychain miss — FIXED 2026-08-19 (hold, never unpair), gate PASS; ~~merge is Owen's review~~ **⟵ corrected 2026-08-23: MERGED 2026-08-19 as `d48fa7ae` (PR #323) — the entry's own header said so while this line still read pending**
 - **#370** 🧹 calendar reap under-deletes (42 created / 25 reaped) — measure the residue first; Owen glances at mid-Aug events
@@ -17509,7 +17509,15 @@ mapping tests via behavior-preserving stubs before the logic landed
 > never LINKED · ONLINE; red banner only after a measured fail). A weekday-
 > evening minute, not a Saturday bar.
 
-## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; ~~PR open, merge is Owen's review.~~ **MERGED 2026-08-18 as `0e545b57` (PR #319) plus `a3da88e2` (PR #320, the two device-found follow-ups); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19. OWED: the 60-second `Ojamd-fix.md` reopen check, on Friday's device minutes (closes #367 too).**
+## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; ~~PR open, merge is Owen's review.~~ **MERGED 2026-08-18 as `0e545b57` (PR #319) plus `a3da88e2` (PR #320, the two device-found follow-ups); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19. OWED: the 60-second `Ojamd-fix.md` reopen check, on Friday's device minutes (closes #367 too).** **⟵ ✅ THE OWED CHECK PASSED 2026-08-24 evening — CLOSED.**
+
+> **2026-08-24 evening — the owed reopen check RAN AND PASSED (Owen, on
+> device).** Build 2998 (`ab4b5413`, the first beta6-Xcode OTA) installed on
+> `whoGoesThere` (iOS 27 beta 7); Owen ran the ~60-second reopen check the
+> same minutes: *"reopen check passed on both - ctx looks fine."* The CTX
+> gauge survived the reopen honestly, and the shared half discharges #367 in
+> the same breath (no duplicate chips). Nothing remains owed on this entry —
+> **CLOSED**; archive move rides the next sweep.
 
 **The measurement, from two consecutive turns in one thread (screenshots):**
 
@@ -18231,7 +18239,13 @@ which is the honest scope for a one-line gate change.
 > splash claim follows from the mechanism, and 365-C is what would observe
 > it on the device.
 
-## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.**
+## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.** **⟵ ✅ THE OWED CHECK PASSED 2026-08-24 evening — CLOSED.**
+
+> **2026-08-24 evening — the shared reopen check RAN AND PASSED (Owen, on
+> device, build 2998 / `ab4b5413` / iOS 27 beta 7):** *"reopen check passed
+> on both"* — one write, one chip, no duplicate on reopen. Same pass
+> discharges #349's half. Nothing remains owed — **CLOSED**; archive move
+> rides the next sweep.
 
 **The mechanism (from tonight's evidence; code-verified when the lane
 opens):** a refetched turn SPLITS into stored rows — the tool-call row
