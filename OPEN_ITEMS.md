@@ -5462,7 +5462,10 @@ Logged 2026-07-20 (Session V launch sweep).
 > function leaves the suite green — the #340 wiring shape. Low severity (a
 > full revert reverts both, and the entry's own mutation claim is scoped
 > honestly to "the one new line"), but a wiring-sensitive assertion is owed
-> whenever this file is next open.
+> whenever this file is next open. **→ ✅ TAKEN the same evening (PR #359):
+> a structural call-site pin (`theSpeakerDecisionIsWiredAtBothCallSites`,
+> exactly-3 spellings) landed in `SpeakerRouteOverrideTests`, RED-proven by
+> unwiring a site.**
 
 ---
 
@@ -16240,7 +16243,7 @@ not die with it** — #198B is stopped and this does not depend on it.
 > further out.
 
 
-## 400. 🐛 `midTurnSendAction` DECODES BUT IS NEVER ENCODED — the user's mid-turn send-behavior choice silently reverts to `.queue` on relaunch — **FOUND 2026-08-23 by the Opus-week audit (cluster A, in passing, while verifying #368's decoder edits). PROVEN FROM SOURCE, then re-verified by hand: `UserSettings.swift:573` has the CodingKeys case, `:619` decodes it, and the hand-written `encode(to:)` (`:644`, 32 keys) never writes it. Introduced `d60e6642` (#357 3C era). A systematic CodingKeys-vs-encode diff confirms it is the ONLY omitted key (`customRelayBaseURL` flagged beside it was a false positive — nested `RelayConfiguration`'s encode is synthesized from its own CodingKeys). Bars below, pre-registered before code.**
+## 400. 🐛 `midTurnSendAction` DECODES BUT IS NEVER ENCODED — the user's mid-turn send-behavior choice silently reverts to `.queue` on relaunch — **FOUND 2026-08-23 by the Opus-week audit (cluster A, in passing, while verifying #368's decoder edits). PROVEN FROM SOURCE, then re-verified by hand: `UserSettings.swift:573` has the CodingKeys case, `:619` decodes it, and the hand-written `encode(to:)` (`:644`, 32 keys) never writes it. Introduced `d60e6642` (#357 3C era). A systematic CodingKeys-vs-encode diff confirms it is the ONLY omitted key (`customRelayBaseURL` flagged beside it was a false positive — nested `RelayConfiguration`'s encode is synthesized from its own CodingKeys). Bars below, pre-registered before code.** **⟵ ✅ FIXED + MERGED the same evening (PR #359, squash `f1b393ac`): the hand-written encode is DELETED and encode is synthesized from CodingKeys. 400-A/B both met — result block below. CLOSED; nothing owed.**
 
 **The elected fix is structural, not additive.** Every other CodingKeys case
 is already encoded and no decode-only legacy key exists in the enum (the
@@ -16257,6 +16260,25 @@ Deleting it fixes the bug and eliminates the class in one move.
 >   is synthesized from CodingKeys, so the next added key cannot repeat
 >   this silently. Falsifier: any hand-written `encode(to:)` returning to
 >   `UserSettings`; a comment at the CodingKeys enum says why it must not.
+
+> **✅ 2026-08-23 — 400-A/B MET; MERGED as PR #359 (`f1b393ac`). GATE: PASS
+> 2502 / 14 / Release (count moved +4 — this lane's four new tests
+> exactly).** 400-A written first and RED on today's encode
+> (`decoded.midTurnSendAction == .steer` failing); GREEN by deleting the
+> hand-written `encode(to:)` — the custom `init(from:)` stays for decode
+> defaults, and the asymmetry is documented at CodingKeys. The same lane
+> carried the audit's other elected fixes: three structural wiring pins
+> (#138-B call sites, #394's scenePhase task + guard, #395's three
+> predicate gates — one combined mutation run unwired all three sites and
+> produced exactly three REDs, each on its own site), the #383
+> `relayBootstrapReceivedAt` → `hostBootstrapReceivedAt` rename plus its
+> two comments, and the scorer-test dead stanza. **Gate note:** the first
+> run died with "test runner hung before establishing connection" on an
+> IDLE host — CC-lane-2, after a full gate plus a dozen targeted suites in
+> one evening — so the contention story from earlier tonight does not
+> cover it; recorded as the #219 launch-flake family with sim-state rot
+> suspected (the sim was shut down; the re-run on fresh CC-lane-3 passed
+> clean, 2502/14/Release).
 
 ## 398. 🚨 THE DEVICE IS ON A RUNTIME WE CANNOT REPRODUCE — `whoGoesThere` runs **24A5418b** while every simulator we own is beta5 (`24A5408d`) or beta4, and **no Xcode beta 6 exists** — **MEASURED 2026-08-22 from the device's own `callservicesd` BuildVersion in `talaria-138-fork.logarchive`. Raised by Owen as a worry ("we based everything on beta 2 stuff and not what it's evolved to"); the measurement made it sharper than the worry. NOT STARTED.**
 
@@ -19572,4 +19594,6 @@ replaces `talk/readiness`).
 > `RelayVoiceSession`/`RelayCoders` struct-name reuse elsewhere is
 > documented as deliberate — this note covers only the three undocumented
 > spots.) Comment/name-only; rides the next voice code lane rather than a
-> gate of its own.
+> gate of its own. **→ ✅ TAKEN the same evening (PR #359): field renamed
+> `hostBootstrapReceivedAt` (optional-with-default, old key decodes
+> harmlessly) and both comments corrected.**

@@ -76,6 +76,16 @@ Counts: **FALSIFIED 1** (minor, self-inconsistent heading) ·
    → all corrected (CLAUDE.md gets a supersession note; #382's lane will
    rewrite the section properly).
 
+> **SECOND WAVE APPLIED the same evening (Owen: "Fix the things found in
+> the audit") — PR #359, squash `f1b393ac`, filed as #400.** The latent
+> `midTurnSendAction` bug is fixed structurally (hand-written `encode(to:)`
+> deleted; synthesized encode cannot omit a key; 400-A RED-first), the
+> three unpinned wirings below (#138-B, #394, #395) got structural
+> source-pins each RED-proven by unwiring its site, the #383 naming residue
+> is renamed/corrected, and the scorer-test dead stanza is gone. The items
+> below stand as the audit recorded them; their "filed, not fixed" status
+> is superseded by that lane.
+
 ## Findings filed, not fixed (notes added to their entries)
 
 - **#138-B pinning is pure-function-only** — `SpeakerRouteOverrideTests`
