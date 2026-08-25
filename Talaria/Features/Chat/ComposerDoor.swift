@@ -65,6 +65,24 @@ enum ComposerDoor: String, CaseIterable, Hashable, Sendable {
         doors.append(.interrupted)
         return doors
     }
+
+    /// #381: the doors `.busyNoCommit` may still offer through its menu.
+    /// The resolver above already knows a taken hold slot closes only the
+    /// QUEUE door (`occupiedHoldRemovesTheQueueDoorOnly` pins it) — this
+    /// helper is the view-side gate the `.busyNoCommit` arm never had.
+    /// Empty unless the draft is sendable and not slash-mode: an empty
+    /// draft has nothing to steer WITH, and a slash draft is refused at
+    /// dispatch anyway (`ChatScreen` hard-guards the prefix). `.queued` is
+    /// filtered defensively — a state named no-commit must never offer the
+    /// queue door even if a future resolver change lets one through.
+    static func busyAuxiliaryDoors(
+        explicitDoors: [ComposerDoor],
+        canSend: Bool,
+        isSlashMode: Bool
+    ) -> [ComposerDoor] {
+        guard canSend, !isSlashMode else { return [] }
+        return explicitDoors.filter { $0 != .queued }
+    }
 }
 
 /// #357-E/G/H: the control-free status strip for a live steer or interrupt

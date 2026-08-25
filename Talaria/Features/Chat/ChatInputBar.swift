@@ -652,9 +652,32 @@ struct ChatInputBar: View {
                 stopButton
             }
         case .busyNoCommit:
-            // #315: nothing this draft can commit while a run is live — Stop
-            // and nothing else. Note what is NOT here: the plain Send arrow.
+            // #315: nothing this draft can COMMIT while a run is live — the
+            // plain Send arrow stays absent. #381: but a sendable non-slash
+            // draft can still STEER the running turn (the resolver always
+            // said so; this arm never asked) — a Menu carries the same door
+            // items as the queue control's long-press, keyed on the
+            // resolver's answer so row 3's empty case stays closed.
             HStack(spacing: Design.Spacing.xs) {
+                if !busyAuxiliaryDoors.isEmpty {
+                    Menu {
+                        explicitDoorMenuItems(busyAuxiliaryDoors)
+                    } label: {
+                        Image(systemName: "arrow.triangle.branch")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(Design.Colors.foregroundBright)
+                            .frame(width: 38, height: 38)
+                            .background(Design.Colors.accentTint(0.12), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+                            .overlay {
+                                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                                    .strokeBorder(Design.Colors.accentTint(0.6), lineWidth: 1)
+                            }
+                            .frame(width: Design.Size.minTapTarget, height: Design.Size.minTapTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .hoverEffect(.highlight)
+                    .accessibilityLabel("Message options while a turn is running")
+                }
                 stopButton
             }
         case .send:
@@ -747,6 +770,35 @@ struct ChatInputBar: View {
         )
     }
 
+    /// #381: the doors `.busyNoCommit` may still offer — the view-side gate
+    /// over the resolver's answer (empty draft and slash drafts get nothing).
+    private var busyAuxiliaryDoors: [ComposerDoor] {
+        ComposerDoor.busyAuxiliaryDoors(
+            explicitDoors: availableExplicitDoors,
+            canSend: canSend,
+            isSlashMode: isSlashMode
+        )
+    }
+
+    /// #381: ONE menu body for both the queue-commit context menu and the
+    /// busy-state `Menu` — shared so the two sites cannot drift and the
+    /// entry copy stays the pinned verbatim (#306-J: never "sent").
+    @ViewBuilder
+    private func explicitDoorMenuItems(_ doors: [ComposerDoor]) -> some View {
+        ForEach(doors, id: \.self) { door in
+            Button { handleExplicitDoor(door) } label: {
+                switch door {
+                case .queued:
+                    Label("Queue — after this turn", systemImage: "clock")
+                case .steered:
+                    Label("Steer the running turn", systemImage: "arrow.triangle.branch")
+                case .interrupted:
+                    Label("Stop & send as a new message", systemImage: "stop.circle")
+                }
+            }
+        }
+    }
+
     /// #306: the queue-commit control — the send arrow wearing the door's
     /// badge. Committing HOLDS the message against this thread (or, when
     /// Owen's setting picks steer, submits it against the running turn); the
@@ -777,18 +829,7 @@ struct ChatInputBar: View {
         .hoverEffect(.highlight)
         .accessibilityLabel(plainSendDoor == .steered ? "Steer the running turn" : "Queue message")
         .contextMenu {
-            ForEach(availableExplicitDoors, id: \.self) { door in
-                Button { handleExplicitDoor(door) } label: {
-                    switch door {
-                    case .queued:
-                        Label("Queue — after this turn", systemImage: "clock")
-                    case .steered:
-                        Label("Steer the running turn", systemImage: "arrow.triangle.branch")
-                    case .interrupted:
-                        Label("Stop & send as a new message", systemImage: "stop.circle")
-                    }
-                }
-            }
+            explicitDoorMenuItems(availableExplicitDoors)
         }
         .transition(.scale.combined(with: .opacity))
     }
