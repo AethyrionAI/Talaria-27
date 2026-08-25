@@ -86,6 +86,16 @@ green, tracker close-out in the same PR. Stage an OTA after merges land
   structural-pin greps count COMMENTS too (reword comments, keep pins
   dumb) · CC-lane pool only, TALARIA_SIM_NAME always · beta6 is the
   toolchain (`DEVELOPER_DIR=/Applications/Xcode-beta6.app/...`).
+- **Three more, from the 08-25 evening lanes:** a commit subject starting
+  with `#` gets EATEN by `git rebase --continue`'s comment cleanup
+  (repair with `--amend --cleanup=verbatim`; house "#NNN:" subjects are
+  exposed) · the session scratchpad is SHARED across parallel agents —
+  lane-prefix every scratch filename (`pr-body.md` got clobbered) ·
+  `gh pr merge --delete-branch` from a worktree always fails the LOCAL
+  delete (merge still lands; delete the remote branch explicitly, prune
+  the local one after) · deletion bars pin "zero NON-COMMENT references,"
+  never "zero grep hits," when tombstones are also required (309-DEL-A's
+  bar-formation error, adjudicated in the entry).
 
 ## Owen's standing state (do not re-ask)
 

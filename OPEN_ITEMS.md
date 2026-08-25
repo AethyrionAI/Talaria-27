@@ -7696,6 +7696,13 @@ queue producers inherit whatever this decides.
 >   — and a tombstone that cannot name the type is one a future grep can
 >   never find. Kept the name and recorded the choice here rather than
 >   quietly reinterpreting a pre-registered bar. Owen's to overrule.
+>   *(Orchestrator adjudication, same day: the lane's reading is ACCEPTED —
+>   bar A's intent was zero CODE references, and a tombstone that cannot
+>   name what it buries defeats bar B's purpose. The bar-formation error
+>   was A's "zero hits" phrasing, mine, recorded as such; the three
+>   comment-prose hits are the correct end state. Standing for future
+>   deletion bars: pin "zero non-comment references," never "zero grep
+>   hits," when tombstones are also required.)*
 > - **309-DEL-B — MET.** Three dispositions above, each also written at the
 >   test's own site and in the PR body. No silent deletion.
 > - **309-DEL-C — MET.** `xcodegen generate` run twice; `project.pbxproj`
