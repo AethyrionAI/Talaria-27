@@ -773,7 +773,7 @@ native pipeline), **#1** (voice transcripts).
 > half — which stays deliberately unbuilt behind the fault-2 author
 > measurement (§3 device row 12), per the ruling.
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's.**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's. ⟵ ⚖️ BOTH RULED 2026-08-25 (AskUserQuestion): `mutedForeground` FIX ELECTED — ramp ORDER pinned by test, merge waits on Owen's device eyeball (call 2's own precedent); `retroSciFi`'s decorative accent KEEP AS AESTHETIC — a STANDING ACCEPTED STATE, recorded so it stops resurfacing on ballots. After the muted lane merges and the eyeball lands, nothing remains on this entry.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -7564,6 +7564,18 @@ queue producers inherit whatever this decides.
 > enrollment + auth family STAY on the relay as its mechanism, or
 > re-home to the gateway/talaria plugin? #310 (the old gate) is closed —
 > the family is unblocked but undispositioned.
+>
+> **⚖️ RULED 2026-08-25 (Owen, in-chat, after the layered retired-vs-not
+> explanation — "design the plugin-native pairing handshake. Thank you so
+> much for explaining that"):** two rulings —
+> 1. **`LiveHermesClient` DELETION ELECTED** (production-dead, test-only
+>    construction; port/tombstone its tests, structural check, gate).
+> 2. **DESIGN-DOC-FIRST for the pairing+auth family:** a plugin-native
+>    pairing handshake design (what moves to the gateway/talaria plugin,
+>    what the handshake becomes for a NEW device, migration for existing
+>    pairings, and what the relay client family's deletion then looks
+>    like). Owen rules on the DOC; no code before that ruling. The doc is
+>    Fable-tier work and lands in `planning/`.
 
 The counted inventory (live app, read at HEAD): **pairing + auth** (9 paths —
 `device/register`, `device/provisioning`, `auth/refresh`, `auth/revoke`,
@@ -8430,6 +8442,13 @@ host, because on that plane there is nothing to consult.
 >   open — the exact pattern `AgentAttachmentSidecar` already uses —
 >   plus 330-C's one-site predicate convergence. The deliberate
 >   non-merge at `openSession` stays (it is pinned).
+>
+> **⚖️ RULED 2026-08-25 (Owen, AskUserQuestion): the MEASUREMENT LANE is
+> ELECTED** — unit reproduction first (sim; confirms or kills candidate ①
+> before any device time), then the verbose-gated `/usage` command + seam
+> breadcrumbs as one small PR; the six-step device script rides the next
+> OTA as a runbook card. The fix lane (receipts sidecar + 330-C
+> convergence) waits for 330-A's answer.
 > - **⚠️ #382 close-out misses found in passing:** two comments still
 >   claim the primer stays on the SESSIONS plane
 >   (`SessionsHermesClient+RunsTransport.swift:454-456`,
@@ -10071,6 +10090,15 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 >   route-the-other-way ruling makes a router change in-scope (and then
 >   the real unmeasured risk is OFFER-TAIL DECAY across turns, which no
 >   existing single-turn row can see).
+
+> **⚖️ RULED 2026-08-25 (Owen, AskUserQuestion): ARMED IS SAFE** — #206's
+> read adopted as product behavior. The lane: correct the four mislabelled
+> `expected:` rows, add experiments E1/E2 to the instrument (⚠️ BEFORE
+> #339's first beta-7 subset run), pin the no-op suffix (E4), and land the
+> doc-debt close-out (the retracted rationale in
+> `+IntentRouting.swift:169-177` rewritten on the latency basis #206
+> actually kept, plus the test's stale rationale) — no router change.
+> E1/E2 are device rows and ride the runbook.
 
 **The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
 n=5, production router probed directly — these are router-classification rates, not armed
@@ -14991,7 +15019,15 @@ stable per-image; a split ⇒ sampling noise. Either result is worth one
 line here; the noise verdict would also change #408's route calculus
 (bare Retry becomes occasionally useful).
 
-**Candidate routes, for Owen's pick:**
+**⚖️ RULED 2026-08-25 (Owen, AskUserQuestion, with n=4 in hand): route
+(a) AUTO-DEGRADE ONCE.** Catch `.guardrailViolation` on an image-carrying
+on-device turn, retry ONCE with the images demoted to the honest OCR
+placeholder, and say so in the reply surface; a text-only guardrail
+decline stays a plain error. Bars pre-register at lane-open; the device
+check joins the runbook.
+
+**Candidate routes, for Owen's pick (superseded by the ruling above —
+kept for the record):**
 - **(a) auto-degrade once (recommended):** catch `.guardrailViolation` on an
   image-carrying on-device turn, retry ONCE with the images degraded to the
   honest OCR placeholder (the pre-#390 shape), and say so in the reply
@@ -15037,6 +15073,12 @@ noticing its three un-cut refusal turns did the same for a different
 reason — archive pointer owed when a lane touches it), #343 (the
 turn-reset discipline that makes production safe), #338 (the honesty guard —
 NOT a catcher here by design: these claims follow a refusal, not a tool run).
+
+> **⚖️ RULED 2026-08-25, the filing's same hour (Owen, AskUserQuestion):
+> REWORD NOW.** The refusal string gains an explicit do-NOT-claim clause
+> ("the action was refused — do not claim it happened"); the next device
+> `refusal-words` run is the verification (runbook). Cheap insurance
+> against any future ≥5-same-tool-call turn shape.
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
