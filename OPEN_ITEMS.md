@@ -9965,6 +9965,30 @@ routinely-red or routinely-ignored gate is worse than none.
 > sequencer pattern but pins `osVersion` to 24A5408d and needs that moved
 > before it drives this subset.
 
+> **🎯 BARS 339-SEQ-A..D — pre-registered 2026-08-25 before code: the
+> SEQUENCER (`scripts/mac/preota-subset.sh`), the ruled subset's one-command
+> form. Scripts-only lane; proven by its own fixture self-test
+> (`preota-subset-test.sh`, the lane-gate-classify precedent), RED first.**
+> - **339-SEQ-A:** `--dry-run` prints the five ruled invocations EXACTLY —
+>   `due-date --trials 20 --cells armed` · `decline --trials 10` ·
+>   `long-context-probe --trials 10` (NO `--cells`) · `pcc-surface
+>   --trials 3` · `refusal-words --trials 10` — in the ruled order, and
+>   launches nothing. (`card-clause` stays OUT pending its defaultCells
+>   trim + join decision, named in a comment.)
+> - **339-SEQ-B:** runtime discipline WITHOUT a dead pin (the run-sweep
+>   trap — its beta5 gate can never pass again): an `osVersion` CHANGE vs
+>   the previous artifact prints a loud RE-BASELINE marker and the run
+>   CONTINUES (the entry's own caveat: the first beta7 run re-baselines);
+>   an operator-set `TALARIA_EXPECTED_OS` that mismatches exits 3 BEFORE
+>   any instrument launches.
+> - **339-SEQ-C:** sequencing honesty via a stubbed runner — a failing
+>   member records FAILED and the remaining members still run; the summary
+>   line's ok/failed counts reconcile with the stub's script.
+> - **339-SEQ-D:** `run-sweep.sh` changes ONLY its rotted `DEVELOPER_DIR`
+>   default (beta5 → beta6, the standard toolchain) and gains the same
+>   `TALARIA_EXPECTED_OS` override on its pin (historical default
+>   unchanged); everything else byte-identical.
+
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
 
 **The measurement** (artifact `run-20260812-214629-F6C46C82`, spiral battery, 120
