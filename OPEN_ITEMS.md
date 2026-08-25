@@ -10117,7 +10117,24 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > actually kept, plus the test's stale rationale) — no router change.
 > E1/E2 are device rows and ride the runbook.
 
-**The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
+> **📐 BARS PRE-REGISTERED 2026-08-25 (lane-open, before code):**
+> - **334-A:** the four mislabelled `expected:` rows corrected to ARMED
+>   per the ruling — the lane NAMES the four in its result block, and
+>   where a unit test pins those rows, the flip is witnessed RED→GREEN.
+> - **334-B:** E1 rows (the 2×2 {offer, no-offer} × {short, long} #206
+>   said was owed) and E2 rows (non-anaphoric words-only over an offer
+>   tail) added to the long-context grid. ⚠️ MERGES BEFORE the first
+>   beta-7 #339 subset run (band count moves); the runbook subset card
+>   gains a note that the count moved and a re-baseline is expected.
+> - **334-C:** E4 — a pure unit pin on the no-op suffix, RED-first.
+> - **334-D:** doc debt closed: `+IntentRouting.swift:169-177` rewritten
+>   on the latency basis #206 actually kept (the retracted "everything at
+>   ≤590 chars was perfect" story gone), and the stale rationale at
+>   `DeviceToolBeltTests.swift:2538-2540` rewritten; a repo grep shows no
+>   surviving retracted-rationale text.
+> - **334-E:** NO router behavior change — production logic byte-identical
+>   except comments (stated structurally in the PR); gate green; suite
+>   count moves by exactly the tests added.
 n=5, production router probed directly — these are router-classification rates, not armed
 cells; #215's unrouted caveat does not apply):
 
@@ -15042,6 +15059,27 @@ on-device turn, retry ONCE with the images demoted to the honest OCR
 placeholder, and say so in the reply surface; a text-only guardrail
 decline stays a plain error. Bars pre-register at lane-open; the device
 check joins the runbook.
+
+> **📐 BARS PRE-REGISTERED 2026-08-25 (lane-open, before code):**
+> - **408-A:** `.guardrailViolation` on an image-carrying ON-DEVICE turn
+>   triggers exactly ONE retry with the images demoted via
+>   `composeTurnInput(… imageInputEnabled: false)` — the SAME compose
+>   path as #390's compose-time fallback, no second compose
+>   implementation. Pinned RED-first: the retry's input carries the OCR
+>   placeholder and zero image attachments.
+> - **408-B:** one retry only — a guardrail decline on the DEGRADED
+>   retry surfaces as a plain error (no loop); pinned.
+> - **408-C:** a guardrail decline on a TEXT-only turn is unchanged —
+>   plain error, no retry; pinned.
+> - **408-D:** the reply surface says what happened (the on-device
+>   safety layer declined the image; the answer used text read from it)
+>   — exact copy recorded in the result block; PCC turns untouched.
+> - **408-E:** every #390 pin byte-untouched (the `makeTurnPrompt` door
+>   pin, replay seams, capability/caption pins); gate green; suite count
+>   moves by exactly the tests added.
+> - Device card (runbook): re-send the declined laundromat photo on the
+>   on-device tier — expect an OCR-grounded answer plus the note. The
+>   408-P same-photo-twice probe stays its own card line.
 
 **Candidate routes, for Owen's pick (superseded by the ruling above —
 kept for the record):**
