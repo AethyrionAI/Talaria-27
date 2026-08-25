@@ -393,18 +393,41 @@ final class TalariaUITests: XCTestCase {
             setupCodeField.typeText(String(character))
         }
 
+        // #405: on the beta7 sim runtime (24A5423a) the reformatter's
+        // keystroke loss documented above got frequent enough to red about
+        // one full-suite run in fourteen, rotating among this helper's
+        // callers — and the branch-point control proved it pre-existing, not
+        // any lane's. One verified repair pass: read the field back and type
+        // a cleanly-truncated tail. Anything messier (a mid-string drop)
+        // still fails, now with both field values in the message, so the
+        // next occurrence is measured rather than blind.
+        let expectedDigits = setupCode.replacingOccurrences(of: "-", with: "")
+        let typedDigits = (setupCodeField.value as? String ?? "")
+            .replacingOccurrences(of: "-", with: "")
+        if typedDigits != expectedDigits,
+           typedDigits.count < expectedDigits.count,
+           expectedDigits.hasPrefix(typedDigits) {
+            for character in expectedDigits.dropFirst(typedDigits.count) {
+                setupCodeField.typeText(String(character))
+            }
+        }
+
         // The GlowButton is titled "Pair Device" but carries an explicit
         // "Connect Hermes" accessibility label. It stays disabled until the
         // code is complete AND the relay URL validates — wait for enablement
         // so a dropped keystroke fails HERE, not as a downstream timeout.
         let pairButton = app.buttons["Connect Hermes"]
         XCTAssertTrue(pairButton.waitForExistence(timeout: 5))
-        let enableDeadline = Date(timeIntervalSinceNow: 5)
+        let enableDeadline = Date(timeIntervalSinceNow: 10)
         while !pairButton.isEnabled, Date() < enableDeadline {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
         }
         XCTAssertTrue(pairButton.isEnabled,
-                      "pair button should enable once the full code is present and the relay URL validates")
+                      """
+                      pair button should enable once the full code is present and the relay URL validates \
+                      (#405 diagnostics — code field: '\(setupCodeField.value as? String ?? "?")', \
+                      relay field: '\(relayField.value as? String ?? "?")')
+                      """)
         pairButton.tap()
 
         // #137: a successful pair pops straight back to chat — no
