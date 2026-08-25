@@ -34,21 +34,83 @@ struct AttachmentCapabilityCopyTests {
     /// (#173 route (b), parked) fails this immediately.
     @Test
     func hermesImageTurnCarriesNoCaptionUntilCapabilityIsKnowable() {
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) == nil)
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true, imageInputEnabled: false) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false, imageInputEnabled: false) == nil)
+        // #390: real image input on a HERMES turn changes nothing — the
+        // 2026-08-20 no-discrimination ruling is about the missing signal
+        // from the host, which the local arm's existence does not supply.
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true, imageInputEnabled: true) == nil)
     }
 
     // MARK: - 173-B: on-device says something STRONGER, and DIFFERENT
+    // (#390 re-cut: the blind string survives for the blind case only —
+    // `imageInputEnabled: false` is no-vision-capability, not a stale claim.)
 
     @Test
     func onDeviceImageTurnSaysItCannotSeeImages() throws {
-        let caption = AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true)
+        let caption = AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true, imageInputEnabled: false)
         let text = try #require(caption)
         #expect(text == AttachmentCapabilityCopy.onDeviceCannotSeeImages)
         // DEFINITE here — we know (device-confirmed 2026-08-02), so hedging
         // would be #180's sin inverted: a known-false encoded as an unknown.
         #expect(text.localizedCaseInsensitiveContains("can't see"))
         #expect(!text.localizedCaseInsensitiveContains("known"))
+    }
+
+    // MARK: - #390: the sighted turns, tier-honest (bars 390-C)
+
+    /// The sighted on-device turn: the picture rides as model input and is
+    /// processed on the phone. The string must name WHERE (the phone) and
+    /// must not be the blind string.
+    @Test
+    func onDeviceSightedTurnSaysTheImageIsReadOnThePhone() throws {
+        let caption = AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true, imageInputEnabled: true)
+        let text = try #require(caption)
+        #expect(text == AttachmentCapabilityCopy.onDeviceReadsImagesOnDevice)
+        #expect(text.localizedCaseInsensitiveContains("iPhone"))
+        #expect(text != AttachmentCapabilityCopy.onDeviceCannotSeeImages)
+        // The recommended-against affirmative stays out until 390-E's proof
+        // has lived on device: no "never leaves" promise in the caption.
+        #expect(!text.localizedCaseInsensitiveContains("never leaves"))
+    }
+
+    /// #390-F interim: the PCC arm ships disabled, so a PCC image turn is
+    /// an OCR turn — and it says so in ITS OWN words. The un-fold is the
+    /// bar: the old code sent `.privateCloud` into the nil-caption Hermes
+    /// arm (a silent blind turn), and the entry's "folded into on-device"
+    /// description was the comment's story, not the code's.
+    @Test
+    func privateCloudArmOffCarriesItsOwnHonestOCRCaption() throws {
+        let caption = AttachmentCapabilityCopy.caption(for: .privateCloud, carriesImageAttachment: true, imageInputEnabled: false)
+        let text = try #require(caption)
+        #expect(text == AttachmentCapabilityCopy.privateCloudCannotSeeImagesYet)
+        #expect(text.localizedCaseInsensitiveContains("Private Cloud"))
+        #expect(text != AttachmentCapabilityCopy.onDeviceCannotSeeImages)
+    }
+
+    /// The sighted PCC turn — pinned NOW, rendered only after the 390-F
+    /// flip. The string must name Apple: where the picture goes is the one
+    /// fact this caption exists to disclose.
+    @Test
+    func privateCloudSightedTurnSaysTheImageGoesToApple() throws {
+        let caption = AttachmentCapabilityCopy.caption(for: .privateCloud, carriesImageAttachment: true, imageInputEnabled: true)
+        let text = try #require(caption)
+        #expect(text == AttachmentCapabilityCopy.privateCloudSendsImagesToApple)
+        #expect(text.localizedCaseInsensitiveContains("Apple"))
+    }
+
+    /// 173-B's inequality, extended across the #390 matrix: every rendered
+    /// caption is distinct — one shared string across tiers or sighted
+    /// states would satisfy each wording test while failing the ruling.
+    @Test
+    func theFourLocalCaptionsAreAllDistinct() {
+        let all = [
+            AttachmentCapabilityCopy.onDeviceCannotSeeImages,
+            AttachmentCapabilityCopy.onDeviceReadsImagesOnDevice,
+            AttachmentCapabilityCopy.privateCloudCannotSeeImagesYet,
+            AttachmentCapabilityCopy.privateCloudSendsImagesToApple,
+        ]
+        #expect(Set(all).count == all.count)
     }
 
     /// **173-B's inequality bar, now trivially satisfied and kept as a
@@ -61,8 +123,8 @@ struct AttachmentCapabilityCopyTests {
     /// establish for a remote host.
     @Test
     func theOnDeviceCaptionIsNeverReusedForAHost() throws {
-        let local = try #require(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true))
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true) != local)
+        let local = try #require(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true, imageInputEnabled: false))
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: true, imageInputEnabled: false) != local)
     }
 
     // MARK: - 173-D: the negative control
@@ -72,8 +134,12 @@ struct AttachmentCapabilityCopyTests {
     /// voice-memo turn.
     @Test
     func aTurnWithNoImageCarriesNoCaption() {
-        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: false) == nil)
-        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: false, imageInputEnabled: false) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .hermesHost, carriesImageAttachment: false, imageInputEnabled: false) == nil)
+        // #390: the negative control covers the new axis too — a sighted
+        // tier with nothing staged still owes nothing.
+        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: false, imageInputEnabled: true) == nil)
+        #expect(AttachmentCapabilityCopy.caption(for: .privateCloud, carriesImageAttachment: false, imageInputEnabled: true) == nil)
     }
 
     // MARK: - 173-E: #380's rider — the query-time sensor copy

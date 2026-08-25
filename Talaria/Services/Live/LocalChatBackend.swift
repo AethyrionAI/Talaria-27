@@ -1,5 +1,6 @@
 import Foundation
 import FoundationModels
+import ImageIO
 import UIKit
 import os
 
@@ -501,7 +502,15 @@ final class LocalChatBackend: HermesClientProtocol {
             connectionStatus = .error
             return Message(sender: .system, content: Self.unavailabilityMessage(for: reason), status: .failed)
         }
-        let prompt = Self.composePrompt(message: message, attachments: attachments)
+        // #390: composed ONCE, before the retry loop — every retry leg
+        // re-assembles the same Prompt from it, so a condense/tool retry
+        // keeps its images. Token-fit (`nextPrompt`) reads the TEXT side;
+        // image cost is invisible to the counter either way.
+        let turnInput = Self.composeTurnInput(
+            message: message, attachments: attachments,
+            imageInputEnabled: turnImageInputEnabled()
+        )
+        let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
@@ -541,7 +550,7 @@ final class LocalChatBackend: HermesClientProtocol {
         var didToolPhaseCutRetry = false
         while true {
             do {
-                let response = try await liveSession.respond(to: Prompt(prompt), options: effectiveGenerationOptions())
+                let response = try await liveSession.respond(to: Self.makeTurnPrompt(turnInput), options: effectiveGenerationOptions())
                 connectionStatus = .connected
                 let usage = currentTokenUsage()
                 // #102: the sync path has no stream to break, but a capped
@@ -698,7 +707,12 @@ final class LocalChatBackend: HermesClientProtocol {
         }
         #endif
 
-        let prompt = Self.composePrompt(message: message, attachments: attachments)
+        // #390: composed ONCE, before the retry loop — see `send`.
+        let turnInput = Self.composeTurnInput(
+            message: message, attachments: attachments,
+            imageInputEnabled: turnImageInputEnabled()
+        )
+        let prompt = turnInput.promptText
         var liveSession = await preparedSession(nextPrompt: prompt, attachments: attachments, excludingClientMessageID: clientMessageID)
         appendUserMessage(message: message, attachments: attachments, clientMessageID: clientMessageID)
 
@@ -740,7 +754,7 @@ final class LocalChatBackend: HermesClientProtocol {
                 var emittedReasoning = ""
                 var didTripRepetitionBreaker = false
                 var repetitionBreaker = RepetitionBreaker()
-                let stream = liveSession.streamResponse(to: Prompt(prompt), options: effectiveGenerationOptions())
+                let stream = liveSession.streamResponse(to: Self.makeTurnPrompt(turnInput), options: effectiveGenerationOptions())
                 for try await snapshot in stream {
                     if Task.isCancelled { break }
                     latestFull = snapshot.content
@@ -2013,10 +2027,13 @@ final class LocalChatBackend: HermesClientProtocol {
         return false
     }
 
-    /// The single prompt string for one turn: the user's message plus text
-    /// attachments inlined through the shared delimiter surface
-    /// (`AttachmentInlining`, #8/#43). Images have no on-device representation
-    /// — they become an honest in-prompt note, never fabricated content.
+    /// The TEXT side of one turn: the user's message plus text attachments
+    /// inlined through the shared delimiter surface (`AttachmentInlining`,
+    /// #8/#43). #390: an image reaching THIS function is a blind one by
+    /// construction — `composeTurnInput` already lifted every decodable
+    /// image the arm allows into real model input — so the placeholder is
+    /// honest again: it describes only turns where the model truly cannot
+    /// see the picture, on either tier.
     nonisolated static func composePrompt(message: String, attachments: [PendingAttachment]) -> String {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !attachments.isEmpty else { return trimmed }
@@ -2031,12 +2048,96 @@ final class LocalChatBackend: HermesClientProtocol {
                     content: String(decoding: attachment.data, as: UTF8.self)
                 ))
             case .image:
-                sections.append("[Attached image \"\(attachment.fileName)\" — the on-device model cannot view images. If the image matters to the request, say honestly that you can't see it.]")
+                sections.append("[Attached image \"\(attachment.fileName)\" — this model can't view the picture, only text read from it. If the picture itself matters to the request, say honestly that you can't see it.]")
             case .file:
                 sections.append("[Attachment \"\(attachment.fileName)\" (\(attachment.mimeType)) has no on-device representation and was not delivered.]")
             }
         }
         return sections.joined(separator: "\n\n")
+    }
+
+    // MARK: - #390: true image input (current turn only)
+
+    /// One current-turn image bound for the model as REAL input.
+    struct TurnImage {
+        let label: String
+        let cgImage: CGImage
+    }
+
+    /// A composed turn: the text prompt (message + inlined/degraded
+    /// attachments) plus the images that ride as model input. Images appear
+    /// on EXACTLY ONE side — as a `TurnImage` when the arm is enabled and
+    /// the bytes decode, else as the honest placeholder inside `promptText`
+    /// (390-B's fallback, which is also the ONLY route for history images).
+    struct ComposedTurnInput {
+        let promptText: String
+        let images: [TurnImage]
+    }
+
+    /// ⛔ #390-F: the PCC image arm ships DISABLED — flipping this is the
+    /// policy-publish PR (privacy edit live on Owen's go + caption switch),
+    /// never a drive-by. Pinned by `ImageInputCompositionTests`.
+    nonisolated static let pccImageInputEnabled = false
+
+    /// Whether images ride as REAL model input for the given tier: the
+    /// runtime capability read (#388's probe surface) AND, for PCC, the
+    /// 390-F arm gate. One function so the compose path and the input
+    /// bar's caption can never disagree about what this turn does.
+    nonisolated static func imageInputCapability(forPrivateCloud: Bool) -> Bool {
+        if forPrivateCloud {
+            guard pccImageInputEnabled else { return false }
+            return PrivateCloudComputeLanguageModel().capabilities.contains(.vision)
+        }
+        return SystemLanguageModel.default.capabilities.contains(.vision)
+    }
+
+    func turnImageInputEnabled() -> Bool {
+        Self.imageInputCapability(forPrivateCloud: activeTier == .privateCloud)
+    }
+
+    nonisolated static func decodeAttachedImage(_ data: Data) -> CGImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        return CGImageSourceCreateImageAtIndex(source, 0, nil)
+    }
+
+    /// Partitions the turn: each `.image` attachment rides as a `TurnImage`
+    /// when the arm is enabled AND its bytes decode; everything else —
+    /// files, undecodable images, the disabled-arm case — flows through
+    /// `composePrompt`'s text handling, where images get the honest
+    /// placeholder (390-B). CURRENT-TURN attachments only, by signature:
+    /// nothing here reads history, which is what keeps 390-A's rule true
+    /// at the source rather than by filtering.
+    nonisolated static func composeTurnInput(
+        message: String,
+        attachments: [PendingAttachment],
+        imageInputEnabled: Bool
+    ) -> ComposedTurnInput {
+        var images: [TurnImage] = []
+        var textBound: [PendingAttachment] = []
+        for attachment in attachments {
+            if attachment.kind == .image, imageInputEnabled,
+               let decoded = decodeAttachedImage(attachment.data) {
+                images.append(TurnImage(label: attachment.fileName, cgImage: decoded))
+            } else {
+                textBound.append(attachment)
+            }
+        }
+        return ComposedTurnInput(
+            promptText: composePrompt(message: message, attachments: textBound),
+            images: images
+        )
+    }
+
+    /// The ONE door from a decoded image to the model (pinned by
+    /// `ImageInputCompositionTests` — a second construction site is a
+    /// second door the seam tests cannot see). Text-only turns assemble
+    /// byte-identically to the pre-#390 `Prompt(prompt)` path.
+    nonisolated static func makeTurnPrompt(_ input: ComposedTurnInput) -> Prompt {
+        guard !input.images.isEmpty else { return Prompt(input.promptText) }
+        return Prompt {
+            input.promptText
+            input.images.map { Attachment($0.cgImage).label($0.label).promptRepresentation }
+        }
     }
 
     /// Index where the verbatim tail starts: the newest turns that fit half
