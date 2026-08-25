@@ -542,6 +542,7 @@
 		E2F678F47EA23186FFF960F9 /* RelaySetupCodePayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70B13DA0CB2A5F95326C66C3 /* RelaySetupCodePayload.swift */; };
 		E3345C451D6B5D47ED928C9C /* ShareInboxCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F07190DC863BEEC78D8676BB /* ShareInboxCore.swift */; };
 		E3DA756A2AB06C9A31D6C098 /* ControlHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 95FD288A6B4D5EDE15F442C8 /* ControlHandoff.swift */; };
+		E3DC0A4D2F09FD9F1A0F2914 /* SettingsSearchIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0231D23F746D41D7AA70E230 /* SettingsSearchIndex.swift */; };
 		E41A27EF2277F8FF8AE441EC /* MockSessionBootstrapService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB23EEE4091D1A2F309E9B3C /* MockSessionBootstrapService.swift */; };
 		E41A33A79D56C233A0AE4229 /* DeveloperSettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4BC51686A9E81353B562BC7 /* DeveloperSettingsScreen.swift */; };
 		E439FDB038C23E457B6E0C25 /* CancelFinalStatusReadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE34654BFF9D21890F314ED4 /* CancelFinalStatusReadTests.swift */; };
@@ -665,6 +666,7 @@
 
 /* Begin PBXFileReference section */
 		01DFC9988C6A9D20E2DE8048 /* ChatTurnBodyEncodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatTurnBodyEncodingTests.swift; sourceTree = "<group>"; };
+		0231D23F746D41D7AA70E230 /* SettingsSearchIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSearchIndex.swift; sourceTree = "<group>"; };
 		0346C9293584A751B2DF7E9E /* ChakraPetch-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "ChakraPetch-Medium.ttf"; sourceTree = "<group>"; };
 		036CD989156BAB4FE1A35157 /* AttachmentInliningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentInliningTests.swift; sourceTree = "<group>"; };
 		04601E35A47260A48E58E587 /* Icon-NeonArcade@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-NeonArcade@3x.png"; sourceTree = "<group>"; };
@@ -2020,6 +2022,7 @@
 				112DEA8A0B96068758BC3EC4 /* SettingsChannels.swift */,
 				08FD65B8CCE83D816E84A5D5 /* SettingsChannelsScreen.swift */,
 				25935CD9A0AD28B30B6FFBE1 /* SettingsScreenHeader.swift */,
+				0231D23F746D41D7AA70E230 /* SettingsSearchIndex.swift */,
 				61E8C06E456A6825E0B020C3 /* SettingsSectionView.swift */,
 				8C9D8DBBA9993CD9C037B997 /* SubsystemHero.swift */,
 				827F37EE72AFCBAF188EBF43 /* ThemeChannels.swift */,
@@ -2768,6 +2771,7 @@
 				370B398864795F2AD103EC77 /* SettingsChannels.swift in Sources */,
 				CADC8BA5700D563EA1F326F4 /* SettingsChannelsScreen.swift in Sources */,
 				F0D7B45CD46C5059C16EAD54 /* SettingsScreenHeader.swift in Sources */,
+				E3DC0A4D2F09FD9F1A0F2914 /* SettingsSearchIndex.swift in Sources */,
 				9E7BD9196926A1DC9732B4AC /* SettingsSectionView.swift in Sources */,
 				051B582BC2F877D6AA89BD3E /* SettingsStore.swift in Sources */,
 				0E42E08F03B060FA8756D35C /* SetupCodeScannerView.swift in Sources */,

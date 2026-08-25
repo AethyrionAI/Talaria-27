@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Talaria
 
@@ -427,4 +428,90 @@ struct SettingsChannelsTests {
         #expect(SettingsSubsystem.privateCloud.a11yID == "settings.card.privateCloud")
     }
 
+}
+
+/// #318 — Settings SEARCH (Claude Design 1b), bars A..D. The index is pure
+/// and data-driven; these pin coverage, the filing's own example queries,
+/// availability honesty, and the single navigation door.
+struct SettingsSearchTests {
+
+    private let allVisible = SettingsSubsystem.cases(privateCloudAvailable: true)
+
+    // MARK: 318-A — coverage
+
+    /// Every subsystem is findable by its own title. A future case added
+    /// without index entries goes RED here, which is the bar's point.
+    @Test func everySubsystemIsFindableByItsOwnTitle() {
+        for subsystem in SettingsSubsystem.allCases {
+            let hits = SettingsSearchIndex.matches(query: subsystem.title, visible: allVisible)
+            #expect(
+                hits.contains { $0.subsystem == subsystem },
+                "\(subsystem) is not findable by its own title \"\(subsystem.title)\""
+            )
+        }
+    }
+
+    // MARK: 318-B — the filing's own promises
+
+    @Test func theFilingsOwnExampleQueriesLand() {
+        let haptics = SettingsSearchIndex.matches(query: "haptics", visible: allVisible)
+        #expect(haptics.first?.subsystem == .appearance, "\"haptics\" must land on APPEARANCE (the Tuning sheet's toggle)")
+        #expect(haptics.first?.detail?.contains("Tuning") == true, "the haptics row owes the nested path")
+        let verbose = SettingsSearchIndex.matches(query: "verbose", visible: allVisible)
+        #expect(verbose.first?.subsystem == .developer, "\"verbose\" must land on DEVELOPER")
+    }
+
+    @Test func garbageAndEmptyQueriesMatchNothing() {
+        #expect(SettingsSearchIndex.matches(query: "xyzzy-no-such-setting", visible: allVisible).isEmpty)
+        #expect(SettingsSearchIndex.matches(query: "", visible: allVisible).isEmpty)
+        #expect(SettingsSearchIndex.matches(query: "   ", visible: allVisible).isEmpty)
+    }
+
+    @Test func matchingIsCaseInsensitiveOverTitlesAndKeywords() {
+        #expect(SettingsSearchIndex.matches(query: "HaPtIcS", visible: allVisible).first?.subsystem == .appearance)
+        // "face id" is a KEYWORD on the App Lock entry, not a title.
+        #expect(
+            SettingsSearchIndex.matches(query: "FACE ID", visible: allVisible)
+                .contains { $0.subsystem == .privacy },
+            "keyword matching must reach App Lock via \"face id\""
+        )
+    }
+
+    // MARK: 318-C — availability through the one list
+
+    @Test func availabilityFiltersThroughTheSameListAsTheGrid() {
+        let withoutTier = SettingsSubsystem.cases(privateCloudAvailable: false)
+        #expect(
+            !SettingsSearchIndex.matches(query: "private cloud", visible: withoutTier)
+                .contains { $0.subsystem == .privateCloud },
+            "a device without the PCC tier must not be offered a PCC result (#395-D's one-list rule)"
+        )
+        #expect(
+            SettingsSearchIndex.matches(query: "private cloud", visible: allVisible)
+                .contains { $0.subsystem == .privateCloud },
+            "a device WITH the tier must find it"
+        )
+    }
+
+    // MARK: 318-D — the single navigation door (structural, #399-shape)
+
+    @Test func searchResultTapsRouteOnlyThroughOpenSubsystem() throws {
+        let path = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Talaria/Features/Settings/SettingsChannelsScreen.swift")
+        let source = try #require(
+            try? String(contentsOf: path, encoding: .utf8),
+            "SettingsChannelsScreen.swift unreadable — this pin must fail loudly, not vacuously"
+        )
+        guard let region = source.range(of: "var searchResultsList") else {
+            Issue.record("the search results view is gone — re-point this pin at its successor")
+            return
+        }
+        let body = String(source[region.upperBound...].prefix(1400))
+        #expect(
+            body.contains("openSubsystem("),
+            "search result taps must route through openSubsystem — the deck's one navigation door"
+        )
+    }
 }

@@ -20,6 +20,8 @@ struct SettingsChannelsScreen: View {
     enum Mode: Equatable { case grid, deck(Int) }
     @State private var mode: Mode = .grid
     @State private var sessionCount: Int?
+    // #318: the search draft — local state, matched against the pure index.
+    @State private var searchQuery = ""
 
     var body: some View {
         ZStack {
@@ -240,14 +242,120 @@ struct SettingsChannelsScreen: View {
         ScrollView {
             VStack(spacing: Design.Spacing.md) {
                 statusStrip
-                if !pairingStore.isPaired { upgradeBanner }
-                cardGrid
-                developerRow
+                searchField
+                if isSearching {
+                    searchResultsList
+                } else {
+                    if !pairingStore.isPaired { upgradeBanner }
+                    cardGrid
+                    developerRow
+                }
                 footer
             }
             .padding(.horizontal, Design.Spacing.md)
             .padding(.vertical, Design.Spacing.sm)
         }
+    }
+
+    // MARK: #318 Settings search (Claude Design 1b — layered onto the 1c grid)
+
+    private var isSearching: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var searchResults: [SettingsSearchEntry] {
+        SettingsSearchIndex.matches(query: searchQuery, visible: visibleSubsystems)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: Design.Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: Design.Size.iconTiny, weight: .medium))
+                .foregroundStyle(Design.Colors.mutedForeground)
+            TextField("Search settings", text: $searchQuery)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .font(Design.Typography.mono(13, weight: .regular))
+                .foregroundStyle(Design.Colors.foregroundBright)
+                .accessibilityLabel("Search settings")
+                .accessibilityIdentifier("settings.search.field")
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: Design.Size.iconTiny))
+                        .foregroundStyle(Design.Colors.mutedForeground)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .background(Design.Colors.surface.opacity(0.6),
+                    in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+        .overlay {
+            RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+        }
+    }
+
+    /// #318: result taps route through `openSubsystem` — the deck's ONE
+    /// navigation door, pinned by `SettingsSearchTests`. The query clears on
+    /// tap so backing out of the deck lands on the grid, not a stale list.
+    private var searchResultsList: some View {
+        VStack(spacing: Design.Spacing.xs) {
+            if searchResults.isEmpty {
+                MonoLabel("NO MATCHES", size: 10, weight: .medium,
+                          tracking: Design.Tracking.monoWide,
+                          color: Design.Colors.mutedForeground)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Design.Spacing.xl)
+            } else {
+                ForEach(searchResults) { entry in
+                    Button {
+                        searchQuery = ""
+                        openSubsystem(entry.subsystem)
+                    } label: {
+                        searchResultRow(entry)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(entry.title), in \(entry.subsystem.title)")
+                }
+            }
+        }
+    }
+
+    private func searchResultRow(_ entry: SettingsSearchEntry) -> some View {
+        HStack(spacing: Design.Spacing.sm) {
+            MonoLabel(entry.subsystem.indexLabel(in: visibleSubsystems),
+                      size: 10, weight: .bold,
+                      tracking: Design.Tracking.mono,
+                      color: Design.Brand.accentText)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.title)
+                    .font(Design.Typography.body(14, weight: .medium))
+                    .foregroundStyle(Design.Colors.foregroundBright)
+                MonoLabel((entry.detail ?? entry.subsystem.title).uppercased(),
+                          size: 9, weight: .medium,
+                          tracking: Design.Tracking.mono,
+                          color: Design.Colors.mutedForeground)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.system(size: Design.Size.iconTiny, weight: .medium))
+                .foregroundStyle(Design.Colors.dimForeground)
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .background(Design.Colors.surface.opacity(0.6),
+                    in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+        .overlay {
+            RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: Design.CornerRadius.md))
     }
 
     // MARK: #256 status strip (grid view only — at-a-glance LINK · HOST · MODEL,
