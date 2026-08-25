@@ -15011,7 +15011,7 @@ into the base snapshot vs block typing while dictating) is a product call.
 > 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
 > 10-second device look rides the runbook. **Remaining: that look only.**
 
-## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. NOT STARTED; measure first.**
+## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. Measured structurally 08-24; Owen ruled COMMIT-TIME 2026-08-25; ✅ BUILT + GATED the same day — bars 406-A..E met (result block below).**
 
 `AppContainer.swift`'s `onRelayConfigurationChanged` calls
 `refreshUnpairedRelayContext()` on every settings-relay write, and the
