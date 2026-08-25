@@ -133,7 +133,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
-- **#140** 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
+- **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ **re-scoped 2026-08-25 (as-filed premise discharged): docs/ missed #383+#390 — stale relay-voice/download claims, beta5 toolchain line, the screens.html hardware-captures meta leftover, and NO public vision story. Elected on the 08-25 ballot; draft merges only on Owen's read (outward-facing)**
 - **#148** 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation …
 - **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
@@ -4384,6 +4384,32 @@ Logged 2026-07-20 (Session V launch sweep).
 ---
 
 ## 140. 🔧 README + GitHub Pages refresh — stale wedge narrative + pre-freemium positioning (pre-launch)
+
+> **🔬 PREMISE RE-CHECKED 2026-08-25 (Owen's applicability rider on the
+> election ballot) — the AS-FILED complaint is DISCHARGED, and a NEW,
+> NARROWER staleness window is live.** The wedge narrative and pre-freemium
+> positioning were fixed across 07-20 / the 08-04 redesign / the 08-09
+> ruling / the 08-18 #355 sweep; no pricing claims exist anywhere. What IS
+> stale at HEAD: **docs/ was last touched 08-18/19, so it missed #383 and
+> #390.** The elected lane (Owen picked #140 on the 08-25 ballot) is:
+> 1. docs/index.html + setup.html + screens.html: every "relay carries
+>    realtime voice" / "relay's last surfaces = voice + agent-file
+>    downloads" claim is FALSE since #383 (08-22) and #375 — re-cut to the
+>    plugin-bootstrap reality README:81 already states; relay framing
+>    "optional/legacy" → retired/not-called.
+> 2. docs/setup.html:178: `Xcode-beta5.app` → beta6 (README moved 08-24).
+> 3. docs/screens.html:7 meta description still claims "real captures …
+>    running on hardware" — the 08-04 commit's own message says the page
+>    stopped claiming that; the meta tag was missed.
+> 4. README + docs gain the #390 VISION story (absent from both public
+>    surfaces; privacy-relevant — on-device images never leave the phone,
+>    PCC disclosure already live in privacy.html).
+> **Deliberately NOT in this lane:** the screenshot batch (rides P-4,
+> unchanged) and device rows R15/R16 (already runbook-carded). **⛔
+> OUTWARD-FACING: docs/ is the live Pages root — the draft lands on a
+> branch and MERGES ONLY on Owen's read of the exact text** (the
+> no-external-submissions rule; his ballot pick elected the draft, not the
+> publish).
 
 > **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the copy
 > questions, decided:**
