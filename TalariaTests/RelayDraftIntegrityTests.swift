@@ -91,4 +91,84 @@ struct RelayDraftIntegrityTests {
             "the pairing screen stores drafts through the canonicalizing init (#405's scramble) — found \(occurrences) construction(s)"
         )
     }
+
+    // MARK: - #406 — commit-time refresh (the WHEN, where #405 pinned the HOW)
+
+    /// #406: per-keystroke edits stay in a LOCAL draft. The old binding
+    /// wrote the profile + settings on every keystroke, and the settings
+    /// write fired `refreshUnpairedRelayContext()` — a session clear plus
+    /// ~2 doomed HTTP attempts per character against `http:`, `http:/`, …
+    /// Restoring a store-writing binding on the relay field turns this RED.
+    @Test func pairingRelayFieldBindsTheLocalDraftNotTheStores() throws {
+        let source = try Self.pairingScreenSource()
+        #expect(
+            source.contains("text: $relayURLDraft"),
+            "the relay field must bind the local draft, not a store-backed binding"
+        )
+        #expect(
+            !source.contains("customRelayURLBinding"),
+            "the per-keystroke store-writing binding is back — #406's request burst returns with it"
+        )
+    }
+
+    /// #406: the pair attempt is a commit moment, and the ORDER is the bar —
+    /// the redeem must see the committed URL, so the commit sits between the
+    /// validation guard and `pairingStore.pair`.
+    @Test func pairAttemptCommitsTheDraftBeforeRedeeming() throws {
+        let source = try Self.pairingScreenSource()
+        guard let funcRange = source.range(of: "func completePairing") else {
+            Issue.record("completePairing is gone — re-point this pin at the pair path's successor")
+            return
+        }
+        let body = String(source[funcRange.upperBound...].prefix(1200))
+        guard let commitRange = body.range(of: "commitRelayDraft()") else {
+            Issue.record("the pair attempt never commits the relay draft — the redeem reads a stale store")
+            return
+        }
+        guard let pairRange = body.range(of: "pairingStore.pair(") else {
+            Issue.record("pairingStore.pair not found near completePairing — re-point this pin")
+            return
+        }
+        #expect(
+            commitRange.lowerBound < pairRange.lowerBound,
+            "the commit must land BEFORE the redeem, or pairing runs against the pre-draft URL"
+        )
+    }
+
+    /// #406: screen dismissal is the other commit moment, and again the
+    /// ORDER is the bar — the commit resolves the target profile through
+    /// `pairingTargetProfileID`, so it must run BEFORE that id is cleared.
+    /// Deleting the dismissal commit (or reordering it after the clear)
+    /// turns this RED.
+    @Test func screenDismissalCommitsTheDraftBeforeClearingThePairTarget() throws {
+        let source = try Self.pairingScreenSource()
+        guard let disappearRange = source.range(of: ".onDisappear") else {
+            Issue.record("the screen's onDisappear is gone — re-point this pin at the dismissal path")
+            return
+        }
+        let block = String(source[disappearRange.upperBound...].prefix(400))
+        guard let commitRange = block.range(of: "commitRelayDraft()") else {
+            Issue.record("dismissal never commits the relay draft — a typed-but-unpaired URL is lost")
+            return
+        }
+        guard let clearRange = block.range(of: "pairingTargetProfileID = nil") else {
+            Issue.record("the pair-target clear moved out of onDisappear — re-point this pin")
+            return
+        }
+        #expect(
+            commitRange.lowerBound < clearRange.lowerBound,
+            "the commit must run BEFORE the target id clears, or it writes the wrong profile's slot"
+        )
+    }
+
+    private static func pairingScreenSource() throws -> String {
+        let screenPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("Talaria/Features/Onboarding/ConnectHermesScreen.swift")
+        return try #require(
+            try? String(contentsOf: screenPath, encoding: .utf8),
+            "ConnectHermesScreen.swift unreadable — these pins must fail loudly, not vacuously"
+        )
+    }
 }

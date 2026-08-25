@@ -7,6 +7,12 @@ struct ConnectHermesScreen: View {
     @Environment(TabRouter.self) private var router
 
     @State private var setupCode = ""
+    // #406: keystrokes edit THIS, not the stores. Every store write from
+    // this field fires AppContainer's relay-config hook — a session clear
+    // plus a forced bootstrap + inbox load while unpaired — so a per-
+    // keystroke write burns ~2 doomed HTTP attempts per character against
+    // hosts like "http://1". Commits happen at pair attempt and dismissal.
+    @State private var relayURLDraft = ""
     @State private var isScannerPresented = false
     @State private var isManualEntryVisible = false
     @State private var localErrorMessage: String?
@@ -50,9 +56,15 @@ struct ConnectHermesScreen: View {
                 setupCode = formatted
             }
         }
+        .onAppear {
+            relayURLDraft = currentRelayURL
+        }
         // Lane M (M-12): a per-profile pair target must not outlive the
         // pairing flow — leaving the screen clears it (success already did).
         .onDisappear {
+            // #406: commit BEFORE the target id clears — the commit resolves
+            // its destination profile through pairingTargetProfileID.
+            commitRelayDraft()
             pairingStore.pairingTargetProfileID = nil
         }
     }
@@ -116,7 +128,7 @@ struct ConnectHermesScreen: View {
                     color: Design.Colors.secondaryForeground
                 )
 
-                TextField("https://your-relay.example.com/v1", text: customRelayURLBinding)
+                TextField("https://your-relay.example.com/v1", text: $relayURLDraft)
                     .textInputAutocapitalization(.never)
                     .keyboardType(.URL)
                     .autocorrectionDisabled()
@@ -279,9 +291,11 @@ struct ConnectHermesScreen: View {
         pairingStore.lastErrorMessage ?? localErrorMessage
     }
 
-    /// The relay URL this pairing will redeem against — the TARGET profile's
+    /// The STORED relay URL for this pairing's target — the TARGET profile's
     /// endpoint (Lane M), falling back to the legacy settings field only in
-    /// profile-less constructions.
+    /// profile-less constructions. #406: this seeds the draft on appear;
+    /// live edits read `relayURLDraft`, and the stores are written only at
+    /// the commit moments (pair attempt, QR, dismissal).
     private var currentRelayURL: String {
         // #310: behaviour preserved deliberately. A target profile that
         // exists but carries NO relay resolves to "" (→ "Enter your relay
@@ -295,7 +309,9 @@ struct ConnectHermesScreen: View {
     }
 
     private var relayValidationMessage: String? {
-        let trimmed = currentRelayURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        // #406: validation and the pair button's enablement read the DRAFT —
+        // the stores may lag it until a commit moment, by design.
+        let trimmed = relayURLDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "Enter your relay URL." }
         guard RelayConfiguration.normalizeBaseURL(trimmed) != nil else {
             return "Relay URL must be an absolute http(s) URL ending with /v1."
@@ -332,11 +348,13 @@ struct ConnectHermesScreen: View {
         }
     }
 
-    private var customRelayURLBinding: Binding<String> {
-        Binding(
-            get: { currentRelayURL },
-            set: { setRelayURL($0) }
-        )
+    /// #406: the single door from the draft to the stores. Writing the
+    /// stores fires AppContainer's relay-config hook (session clear +
+    /// forced bootstrap + inbox load while unpaired), so this runs only at
+    /// commit moments — never per keystroke. `SettingsStore`'s didSet
+    /// no-ops on unchanged values, so committing an untouched draft is free.
+    private func commitRelayDraft() {
+        setRelayURL(relayURLDraft)
     }
 
     /// Parse a QR code value — either a JSON payload `{"code":"...","relay":"..."}` or a plain pairing code.
@@ -346,9 +364,11 @@ struct ConnectHermesScreen: View {
         if let data = value.data(using: .utf8),
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let code = json["code"] as? String {
-            // Auto-fill relay URL from QR if present
+            // Auto-fill relay URL from QR if present. #406: into the DRAFT —
+            // the commit rides completePairing below, so a failed pair still
+            // shows the scanned URL in the field rather than losing it.
             if let relay = json["relay"] as? String, !relay.isEmpty {
-                setRelayURL(relay)
+                relayURLDraft = relay
             }
             Task { await completePairing(using: code) }
             return
@@ -363,6 +383,8 @@ struct ConnectHermesScreen: View {
             localErrorMessage = relayValidationMessage
             return
         }
+        // #406: the redeem reads the stores, not the draft — commit first.
+        commitRelayDraft()
         let didPair = await pairingStore.pair(using: rawCode)
         if didPair {
             localErrorMessage = nil
