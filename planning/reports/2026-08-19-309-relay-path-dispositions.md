@@ -85,6 +85,25 @@ three test fixtures. **Verify before acting** — this is a grep at one HEAD,
 and a lane must re-check rather than inherit the claim (the #279/#184 shape:
 a premise read from a header rather than from code).
 
+> **✅ EXECUTED 2026-08-25 (#309 ruling 1). The re-check this paragraph asked
+> for was done — from code, not from this table — and it held.**
+> `LiveHermesClient.swift` is deleted, so rows **13, 14, 15 and 20** are now
+> DONE rather than dispositioned. Two things the next Phase 4 lane should
+> read here rather than rediscover:
+> - **The file/line citations in rows 13–15 above are dead.** The class is
+>   gone; the fixture lines had already drifted (`2679, 2736, 3428` here vs
+>   `2742, 2799, 3402` at the deletion lane's open) — the COUNT was the only
+>   durable part of the claim, and it held at three.
+> - **Row 20 (`GET jobs/{id}/events`) is not in this table** — it was added to
+>   the register on 2026-08-20, after this report was accepted, and it lived
+>   in the same file. It went out with the same deletion. The register in
+>   `OPEN_ITEMS.md` #309 carries the full 20-path count; this report's
+>   sixteen is the 2026-08-19 snapshot.
+>
+> **Left standing deliberately:** `RelayAPIClient.streamEvents` (`:205`), the
+> SSE primitive row 20 rode. It survives with **zero callers** — deleting it
+> is relay-client surface, not this lane's scope.
+
 ### 2. Voice is the only path that needs a new home built (11–12)
 
 Owen's direction rules out the relay as voice's destination, and the entry

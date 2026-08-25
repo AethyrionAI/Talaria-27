@@ -342,7 +342,6 @@
 		8B508E7A766BA1845471E896 /* InstrumentLaunchIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 283AFEF437BA53A54B089815 /* InstrumentLaunchIntent.swift */; };
 		8BBA368CFD24A594700ED99A /* SlashCommandMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77A5740AD793BC1A65482BD0 /* SlashCommandMenu.swift */; };
 		8BCF79F4CA1B51BD1DEED39F /* ThemeArtDirectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51C80FDDAEBBFCAA3904612 /* ThemeArtDirectionTests.swift */; };
-		8C8D94059457F50E70610674 /* LiveHermesClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */; };
 		8CABE7AB3DC344FB246093BF /* IconPreview-HoloSushi.png in Resources */ = {isa = PBXBuildFile; fileRef = E06543331C4A1E0CE4075576 /* IconPreview-HoloSushi.png */; };
 		8D7597AF4487AFEFC668381D /* Icon-ComicFunnies@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = FEF08683A65A3385BA613B20 /* Icon-ComicFunnies@3x.png */; };
 		8DA89AE7FDD5ACC9ABA61DC9 /* ActionBatteryCellSelectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB63E347076CFA99D21DF2A2 /* ActionBatteryCellSelectionTests.swift */; };
@@ -1104,7 +1103,6 @@
 		BC30A26DCB3F128D9BDF9C69 /* Talaria 27.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Talaria 27.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC3A6DB863992287B1727373 /* Icon-WinterFrost@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WinterFrost@3x.png"; sourceTree = "<group>"; };
 		BCA3528874C96917E5C1B304 /* PermissionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCard.swift; sourceTree = "<group>"; };
-		BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveHermesClient.swift; sourceTree = "<group>"; };
 		BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFileFetchTests.swift; sourceTree = "<group>"; };
 		BE01F06F2E1E1EF5A76FA7C5 /* SpotlightEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightEntities.swift; sourceTree = "<group>"; };
 		BE9FB9404BF9F249895C14D2 /* SettingsChannelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChannelsTests.swift; sourceTree = "<group>"; };
@@ -1308,7 +1306,6 @@
 				103907FEC8F3C3BF7577104D /* InstrumentRegistry.swift */,
 				22C0A3ECA6B5F3701064D4B3 /* LiveActivityService.swift */,
 				F04C12A5058B9C64D4E33D9F /* LiveHealthService.swift */,
-				BD3E4BCD2A1FA88D1087F9E3 /* LiveHermesClient.swift */,
 				92D54EA83CEDB4EBFEA38099 /* LiveHermesHostService.swift */,
 				9C033B79367C600767758EB0 /* LiveLocationService.swift */,
 				E14FEA341D9CF0849A0D856D /* LiveMediaService.swift */,
@@ -2683,7 +2680,6 @@
 				41B9C9136AFF98393B883660 /* LiveActivityService.swift in Sources */,
 				858337452B25F5B1F1806AEE /* LiveCameraOverlay.swift in Sources */,
 				925B611D3BE1A1DCA0208FDB /* LiveHealthService.swift in Sources */,
-				8C8D94059457F50E70610674 /* LiveHermesClient.swift in Sources */,
 				05C40D41387A70CBD82325B1 /* LiveHermesHostService.swift in Sources */,
 				1A35C21F5B8D36B6AF411E1F /* LiveLocationService.swift in Sources */,
 				32D98E155C0F29EE37794A3C /* LiveMediaService.swift in Sources */,
