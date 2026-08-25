@@ -6534,6 +6534,25 @@ scored here.
 >   plugin deploys, so the predates path is the FIRST-BUILT path, not an
 >   afterthought.
 
+
+> **✅ RESULT 2026-08-25 (small hours) — 224-APP-A..F ALL MET; the app half
+> is BUILT.** `HostApprovalModeState` (three-valued, response-driven,
+> UNKNOWN the default branch), `approvalMode(setting:)` on the envelope
+> transport (wire-pinned: the read omits the mode key, the set carries it —
+> mutation witnessed with the corrected `()` selector after the
+> zero-tests-match trap fired once and was caught), and the APPROVALS panel
+> on ServerSettingsScreen after the plugin-link row — disabled until the
+> host answers, landing always on the REPORTED mode, host-predates footnote
+> pinned. The on-device `ApprovalMode` enum untouched (its Phase-0 pins ran
+> green in the gate). GATE: PASS **2526/207** + 14 XCUITest + Release
+> (+11/+2 over the trio's 2515, exact). **Expected state until the plugin
+> deploys: BOTH hosts show the predates footnote — that is the picker being
+> honest, not broken. After deploy, the Mac should report `off` (its live
+> config, measured) — a built-in first verification.**
+> **What remains on #224:** the deploys (brief staged / Mac go) · the device
+> look (runbook) · then Owen's Phases-1–3 reassessment with a working
+> switch in hand.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
