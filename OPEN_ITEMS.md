@@ -187,7 +187,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
-- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity
+- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + GATED 2026-08-25** (awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release); 198B-A (zero fault lines) rides the next staged build's runbook card
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 - **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. ✅ **CLOSED AS REFUTED 2026-08-21: 0/30 blamed a contact, with EVERY trial reaching a decline (30/30 vs the 2026-08-12 run's 10/30 — the old failure was #232's GOVERNOR cutting 14 trials, and #343's fix is hereby confirmed on a second instrument). 27/30 correctly attributed the decline to the user; the 'proceed anyway' worry is 1/30, also refuted. 🔴 BUT a SIBLING misattribution was found and spawned as #392 — 2/30 blame the CALENDAR for the user's decline ("your calendar didn't accept the request"), calendar-only, remind/alarm 0/20.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
@@ -14704,6 +14704,48 @@ once per device session.
 > condition is also met (evening device time is hours away). LANE OPENS
 > NOW; 198B-A rides the next staged build's runbook card, annotated with
 > the build boundary per the ruling.
+
+> **✅ BUILT + GATED 2026-08-25, the un-park's same day — 198B-B/C/D MET;
+> 198B-A rides the next staged build's runbook card (the device half, as
+> ruled).** GATE: PASS **2547** Swift Testing (+4 exact: the
+> `VoiceMemoTransitionTests` suite) + 14 XCUITest + Release.
+> - **The ruled design, built as recommended:** every memo-service session
+>   transition rides `AudioSessionOffMain` and is AWAITED at its call site
+>   — never `Task { }`'d on a path that can reactivate — so one toggle's
+>   stop-then-start is deactivate THEN activate by construction (hazard ①
+>   answered). `isTransitioning` guards on `togglePlayback` and
+>   `startRecording` restore the tap atomicity the awaits removed (hazard
+>   ②/#128); `stop()`/`discard()` are unguarded ON PURPOSE — a dismissal
+>   must never be dropped — with idempotent effects (#399's flag).
+> - **One design ADDITION beyond the recommendation, forced by hazard ②'s
+>   own logic:** `discard()` landing inside `startRecording()`'s await
+>   window is real (cancel mid-prompt/mid-activation), and drop-semantics
+>   there would leak a live recorder. Closed with the #397 GENERATION
+>   pattern: `finishRecorder()` bumps the generation; the start re-checks
+>   after every suspension and backs out, releasing exactly what it
+>   activated. Tested with a parked activation seam
+>   (`discardDuringAStartTransitionEndsTheStartCleanly` — events exactly
+>   `[activate, deactivate]`).
+> - **Two new seams with structural pins (the #399 shape):**
+>   `activateForPlayback`/`activateForRecording` (`setActive(true` spelled
+>   exactly once per file, in the seam default — the pin caught its own
+>   first red: two COMMENT spellings, reworded) and
+>   `requestRecordPermission` (the TCC ladder seamed so unit tests cannot
+>   hang on a mic prompt — the gate's founding hang class; the real ladder
+>   is the default, `AVAudioApplication.requestRecordPermission` spelled
+>   once).
+> - **Bars falsified as they prescribe:** 198B-B shown RED against the
+>   exact fire-and-forget shape it forbids (only the ordering test red);
+>   198B-C shown RED against the unguarded version (2 activations, only
+>   the re-entrancy test red). The five #399 pins survive re-signatured
+>   (async drives, assertions unchanged). 198B-D: `SpeechOutputService`
+>   UNTOUCHED (its comment now records this lane's considered-and-declined
+>   pass — hazard ③); its suite green in the gate.
+> - Callers: four Button sites + the sheet's dismissal/finish/discard
+>   flows wrap in Tasks; the delegate completion awaits `stop()`.
+> - **198B-A (device):** a memo record→play→stop session emits ZERO
+>   `AVAudioSession_iOS.mm:978` lines at `oslogSeverity: all` — carded in
+>   the runbook against the next staged build.
 
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
