@@ -784,7 +784,7 @@ struct MessageBubble: View {
                    !talkStore.isSessionActive {
                     let player = VoiceMemoPlayer.shared
                     Button {
-                        player.togglePlayback(path: audioPath)
+                        Task { await player.togglePlayback(path: audioPath) }
                     } label: {
                         Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                             .font(.system(size: Design.Size.iconMedium))
