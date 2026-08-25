@@ -9720,7 +9720,7 @@ that would carry it), **#225** (the runaway this would have to stop),
 **#180** (honest degradation), **#327** (the other thing that window Stop does
 not do), **#223** (the plane-consolidation arc this argues into).
 
-## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. NOT STARTED; bars pre-register here before any code.**
+## 329. 🐛 A COLD LAUNCH classifies a still-running turn as FAILED and offers RETRY — tapping it duplicates the turn, because the host never stopped — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (a)). MEASURED TWICE, with a control. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ HEADER CORRECTED 2026-08-24: premise code-read inverted the mechanism (the plane is gone, only the run id was lost), Owen ruled 329-C RECONCILE-FIRST the same evening, and the fix is ✅ BUILT + GATED that night — 329-A..E MET (result block at the foot); only 329-F (device, rides the NEXT staged OTA) remains.**
 
 **What was run, and it was run twice with the second trial as a control.** Owen
 asked a question on a Hermes thread, then **force-quit the app** while the turn
