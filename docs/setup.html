@@ -81,8 +81,8 @@ a:hover { color: #CDF8FB; }
         <div style="font-size:14px;line-height:1.55;color:#7C93A6;text-wrap:pretty">Tailscale recommended, or any private network the phone can reach the host over.</div>
       </div>
       <div style="background:#04070C;padding:22px 22px 24px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#54E6F0;margin-bottom:10px">RELAY · OPTIONAL</div>
-        <div style="font-size:14px;line-height:1.55;color:#7C93A6;text-wrap:pretty">Python 3.11+ and uvicorn. Only needed for realtime server voice — skip it if you don't need that today.</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#54E6F0;margin-bottom:10px">RELAY · RETIRED</div>
+        <div style="font-size:14px;line-height:1.55;color:#7C93A6;text-wrap:pretty">Not needed — current builds don't call the relay at all. The sidecar ships in the repo for history and rollback only.</div>
       </div>
     </div>
   </div>
@@ -123,8 +123,8 @@ a:hover { color: #CDF8FB; }
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.16em;color:#FFC14D;border:1px solid rgba(255,193,77,.34);background:rgba(255,193,77,.07);padding:5px 10px;border-radius:5px;display:inline-block">HOST · OPTIONAL</div>
       </div>
       <div style="flex:1 1 420px;min-width:0">
-        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Legacy tier: the relay sidecar <em style="font-style:italic;color:#FFC14D">(optional)</em></h2>
-        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">Skip this unless you need realtime server voice or agent-file downloads — the last two surfaces the relay tier still carries, and it's on a retirement path. Pairing, phone asks, and the inbox ride the talaria plugin now, and sensor ingestion is gone outright (phone data answers query-time asks; nothing streams). A Dockerfile, docker-compose.yml and fly.toml are included if you'd rather run it containerised.</p>
+        <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(28px,3.6vw,40px);line-height:1.26;color:#EAF6F8;margin-bottom:16px">Legacy tier: the relay sidecar <em style="font-style:italic;color:#FFC14D">(retired)</em></h2>
+        <p style="font-size:16.5px;line-height:1.68;color:#7C93A6;max-width:660px;margin-bottom:24px;text-wrap:pretty">Skip this — current builds don't call the relay at all. Realtime voice bootstraps through the talaria plugin (2026-08), agent-written files arrive over the plugin's artifact mirror, pairing, phone asks and the inbox moved earlier, and sensor ingestion is gone outright (phone data answers query-time asks; nothing streams). The sidecar and its Dockerfile, docker-compose.yml and fly.toml remain in the repo for history.</p>
         <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">cd relay
 pip install -e .
 uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
@@ -139,7 +139,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000</pre>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px 24px;padding:14px 20px;border-bottom:1px solid rgba(84,230,240,.14)">
             <span style="flex:0 1 210px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#54E6F0">AGENT_FILES_DIR</span>
-            <span style="flex:2 1 300px;font-size:14px;line-height:1.55;color:#7C93A6;text-wrap:pretty">Directory the relay may serve agent-generated files from. Enables in-chat downloads.</span>
+            <span style="flex:2 1 300px;font-size:14px;line-height:1.55;color:#7C93A6;text-wrap:pretty">Directory the relay may serve agent-generated files from. Superseded — the plugin's artifact mirror delivers written files now; current builds don't fetch from the relay.</span>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:6px 24px;padding:14px 20px">
             <span style="flex:0 1 210px;font-family:'JetBrains Mono',monospace;font-size:12.5px;color:#54E6F0">GATEWAY_API_KEY</span>
@@ -175,7 +175,7 @@ hermes-mobile setup</pre>
         <pre style="font-family:'JetBrains Mono',monospace;font-size:13px;line-height:2;color:#CDF8FB;background:rgba(4,6,10,.85);border:1px solid rgba(84,230,240,.14);border-radius:10px;padding:22px 26px;overflow-x:auto;margin-bottom:24px">xcodegen generate
 open Talaria.xcodeproj</pre>
         <div style="border-left:2px solid #FFC14D;background:rgba(255,193,77,.05);padding:14px 18px;border-radius:0 8px 8px 0;max-width:760px">
-          <p style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.75;color:#E0C4A0"><span style="color:#FFC14D;font-weight:700">HEADS UP &nbsp;</span>Building from the command line with several Xcodes installed? Point at the beta toolchain first — export DEVELOPER_DIR=/Applications/Xcode-beta5.app/Contents/Developer. "Cannot find in scope" on iOS 27 APIs almost always means the stable SDK is being used by mistake.</p>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.75;color:#E0C4A0"><span style="color:#FFC14D;font-weight:700">HEADS UP &nbsp;</span>Building from the command line with several Xcodes installed? Point at the beta toolchain first — export DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer. "Cannot find in scope" on iOS 27 APIs almost always means the stable SDK is being used by mistake.</p>
         </div>
       </div>
     </div>
