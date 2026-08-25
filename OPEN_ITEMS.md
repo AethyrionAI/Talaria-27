@@ -15244,9 +15244,17 @@ first on-device sighted success, proving the on-device arm works when the
 guardrail admits the image.** Reading: the safety model's verdict looks
 STABLE and IMAGE-SPECIFIC (plausibly the close-up clothes against the glass
 in the declined shot), not sampling noise — which makes bare Retry useless
-for a tripped image and strengthens routes (a)/(b) over (c). Pending
-confirmation from Owen whether the two sends were truly different photos
-(the screenshots say yes; the record should say it in his words).
+for a tripped image and strengthens routes (a)/(b) over (c).
+**⚠ Owen's confirmation (same hour): AMBIGUOUS — his library holds two
+near-duplicate photos side by side; he *thought* he picked the same one
+twice but cannot be sure.** The screenshot thumbnails differ (barcode
+sticker + brighter framing on the pass), which leans "different photos" /
+stable classification — but the record cannot claim it. **The
+discriminating probe, whenever convenient (1 min, device):** send ONE
+chosen photo twice in a row on-device. Two declines (or two passes) ⇒
+stable per-image; a split ⇒ sampling noise. Either result is worth one
+line here; the noise verdict would also change #408's route calculus
+(bare Retry becomes occasionally useful).
 
 **Candidate routes, for Owen's pick:**
 - **(a) auto-degrade once (recommended):** catch `.guardrailViolation` on an
