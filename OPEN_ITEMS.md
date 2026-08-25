@@ -7980,6 +7980,40 @@ landing on a deck page inherits that behaviour as-is.
 **Cross-references:** **#252** (closed parent, archives next sweep), **#256**
 (archived; the strip this search would sit near).
 
+> **🎯 BARS 318-A..E — pre-registered 2026-08-25 at lane-open (elected on
+> the 08-25 ballot; premise re-verified live the same day — no search
+> exists in Settings at HEAD). Design, from the full leaf inventory
+> extracted today: a PURE, data-driven `SettingsSearchIndex` (the theme
+> catalog's shape) of entries {title, keywords, subsystem, detail-path};
+> the grid gains a HUD-style search field — a non-empty query replaces the
+> grid with a results list, a result tap routes through the EXISTING
+> `openSubsystem` seam to the owning deck page (the inherited
+> deck-behaviour-as-is constraint), a cleared query restores the grid, and
+> nested targets carry an honest detail path (e.g. "haptics" lands on
+> APPEARANCE with "Appearance → Tuning" printed on the row).**
+> - **318-A (coverage, RED first):** every `SettingsSubsystem` case is
+>   findable by its own title, enforced by iterating `allCases` against
+>   the index — a future subsystem added without entries goes RED.
+> - **318-B (the filing's own promises):** "haptics" → `.appearance`
+>   (detail naming Tuning) and "verbose" → `.developer` — the entry's two
+>   example queries, verified against the real toggles
+>   (`hapticFeedbackEnabled`, verbose logging); a garbage query returns
+>   nothing (the honest empty state renders NO MATCHES).
+> - **318-C (availability honesty):** results filter through the SAME
+>   `SettingsSubsystem.cases(privateCloudAvailable:)` list as the grid —
+>   with the tier absent no `.privateCloud` result can surface (#395-D's
+>   one-list rule); DEBUG-only rows (instruments, overrides) live inside
+>   `#if DEBUG` in the catalog, so a Release build cannot offer them by
+>   construction.
+> - **318-D (wiring):** a result tap calls `openSubsystem` — pinned
+>   structurally (#399-shape) so the search cannot grow its own second
+>   navigation door.
+> - **318-E:** GATE: PASS; the affordance's device look is a runbook card
+>   (Owen's eye — this is a 🎨 item).
+> Mutations planned: a subsystem's entries deleted → only A red; the
+> haptics keyword dropped → only B red; the availability filter bypassed →
+> only C red; the tap unwired → only D red.
+
 ---
 
 ## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
