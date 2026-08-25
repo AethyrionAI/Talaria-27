@@ -7579,7 +7579,17 @@ queue producers inherit whatever this decides.
 >    like). Owen rules on the DOC; no code before that ruling. The doc is
 >    Fable-tier work and lands in `planning/`.
 
-> **📐 BARS PRE-REGISTERED 2026-08-25 (the LiveHermesClient deletion
+> **📄 THE DESIGN DOC IS DELIVERED — 2026-08-25, same day (Fable):
+> `planning/2026-08-25-309-plugin-native-pairing-design.md`.** One-line
+> shape: pairing a new device IS acquiring {gateway URL, API key} into a
+> profile — the plugin's `pair` verb + the app's `ensurePaired` already
+> close the rest of the loop — so the doc is an acquisition UX (typed +
+> QR via a proposed `hermes talaria pair-qr`), a sweep-verified deletion
+> map (§5, incl. the #411 lifecycle-gate finding and the voice
+> `ClientError` extraction precondition), migration = none by
+> construction (§4), the Connect Host screen (§6, reusing #406's draft
+> pattern), and four proposed lanes A–D (§7). **FIVE QUESTIONS FOR OWEN
+> at the foot — the ruling gate before any code.**
 > lane's open — ruling 1 above; the design doc is a separate deliverable):**
 > - **309-DEL-A:** `LiveHermesClient.swift` deleted; `grep -rn
 >   LiveHermesClient` across `Talaria/ TalariaTests/ TalariaUITests/
