@@ -164,7 +164,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
 - **#328** 🐛 On the DEFAULT plane **Stop does not stop the agent** — `hardStopActiveRun()` guard-returns on any sessions `chat/stream` turn and no stop is sent; the host ran a full `sleep 90` after the user stopped it and answered on reopen. **MEASURED on device 2026-08-11.** Not a regression — the plane's pre-existing shape, made visible by #321. **Its fix would invalidate #321 ruling (a)'s deciding fact, so the two are coupled.** Owen's call between reaching the host (may need #283) and saying what is true; bars 328-A..E pre-registered
-- **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered
+- **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered **⟵ 2026-08-24: premise code-read inverted the mechanism (#382 killed the plane; only the run id was lost), Owen ruled 329-C reconcile-first, and the fix is ✅ BUILT + GATED the same night — 329-A..E met, only 329-F (device, next OTA) remains**
+- **#405** 🔴 a hand-typed relay URL was SCRAMBLED BY THE APP — normalization falsely valid on the mid-draft `http://`, two per-keystroke canonicalizing doors — **✅ FOUND (four red gates, control-proven pre-existing) + FIXED + PINNED 2026-08-24 night; class sweep: zero further scramblers**
+- **#406** 🔬 every pairing-field keystroke fires clearSession + forced bootstrap + inbox load against the half-typed URL — filed from #405's sweep; measure the burst first
+- **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E. **→ MEASURED 9-FOR-9 on 2026-08-15 (drive-by, during #338-C's run): every one of nine staged cards carried `DUE` EMPTY, so on the BARE-HOUR shape the defect is effectively deterministic, not occasional (P=0.002 if the rate were even 0.5). All nine declined — no residue. Scope is one prompt shape and licenses nothing wider. **→ 340-A EXTENDED BY PHRASING at 2:57 PM AND THE OMISSION IS CONDITIONAL: "at 4pm" (time only) OMITS, "tomorrow at 4" (day-bearing) is CORRECT, "in 20 minutes" (relative) produces a WRONG value already six hours in the past. THE MODEL WILL NOT RESOLVE "TODAY" FROM A BARE TIME though it knows the date. That makes the GUIDE STRING the leading fix over #200S's optionality — and warns that the rollback arm may convert omissions into WRONG values, so the A/B must score four buckets, not a binary. Across 15 calls the model sent exactly ONE correct due date.** Discriminator handed to 340-A with NO mechanism elected: the model demonstrably HAS the time (it rendered `Time: 6:00` in prose and reasoned that "9 AM has passed"), so the time is absent only from the staged card's `DUE` field** **→ ✅ 340-C ANSWERED THE SAME AFTERNOON from the device log via #249's own instrument: THE MODEL OMITS THE ARGUMENT — 10 of 11 `createReminder` calls sent `due raw=""`, and all 9 card-staging turns did. NOT a parse failure; the session's own "the app silently degrades an unparseable time" hypothesis is REFUTED (the parser never saw a string). The single counterexample sent `2026-08-15T09:00` perfectly formatted, so the model is capable. CANDIDATE CAUSE NAMED NOT ELECTED — **#200S** made `due` optional (guide: *"or empty for no due date"*) to cure a stall, and was validated on whether a tool call happened, never on argument correctness; its pinned rollback `ReminderCreateToolRequiredFields` is ALREADY a selectable battery cell, so the A/B is built and only the SCORER needs changing. ~~**340-B still owed** (needs one APPROVED turn — every card today was declined)~~ **⟵ corrected 2026-08-23: 340-B MET 2026-08-15 2:41 PM — one approved turn, the within-turn witness (prose "4:00 PM", argument `due raw=""`, card DUE empty, reply "Done!"); the entry's own dated block records it**
@@ -9852,6 +9855,53 @@ squarely this family).
 > pending forever. Bars 329-A..F stand as pre-registered; the lane opens on
 > this ruling.
 
+> **✅ RESULT 2026-08-24 (night) — BUILT on the ruling, RED-first, all
+> sim-side bars MET; GATE: PASS 2498 Swift Testing / 202 suites + 14
+> XCUITest / Release clean** (baseline 2485 + 13 exactly: 8
+> `ColdLaunchRunRecoveryTests` + 5 `RelayDraftIntegrityTests` — the second
+> five belong to **#405**, a pre-existing input-scrambling defect this
+> lane's gate EXPOSED, control-proven at the branch point and fixed on the
+> same branch; its story is its own entry).
+> - **329-A — met as its structural negation, said plainly per the bar's own
+>   instruction:** the RED run reproduced the classification half (6 tests
+>   red at HEAD: row flipped `.failed`, no status read, no record). The
+>   affirmative DUPLICATE (tap Retry, original also lands) is not
+>   sim-reproduced — under the fix the row is never `.failed` while the run
+>   may be alive, so no Retry affordance exists to tap; the duplicate's
+>   precondition is removed rather than its sequence replayed. The
+>   affirmative arm remains 329-F's device check.
+> - **329-B — met.** The airplane/queued arm is untouched:
+>   `queuedRowScrubIsUntouchedByThePresenceOfARecord` pins #90's scrub
+>   running beside a held record, and the existing outbox/terminal suites
+>   (`MessageQueueTerminalsTests`, `AppStoresTests`) ran green mid-lane (237
+>   tests / 5 suites) and in the gate.
+> - **329-C — built EXACTLY as ruled.** `PendingRunRecord` persists
+>   `(runId, sessionId, userMessageID, conversationID, sentAt,
+>   partialReasoning)`; the choke point is a `didSet` on
+>   `ChatStore.pendingRun` (every arm and settle flows through one
+>   assignment — the record cannot drift from the in-memory truth). Cold
+>   load consults the run's own status; four verdict arms tested: alive ⇒
+>   held `.working` then adoption (`.sent`, exactly one reply); host-said-
+>   failed ⇒ honest `.failed` + the host's words as a system row; gone ⇒
+>   deferred `.failed` when recovery concludes; unreachable ⇒ held for the
+>   budget, then today's terminal. No-record caches and foreign-conversation
+>   records keep today's behavior bit-for-bit (both were GREEN controls in
+>   the RED run).
+> - **329-D — met.** The #237 dedup suites (`ChatStorePersistenceTests`,
+>   `RunStatusRecoveryTests`, adoption idempotence) re-ran green with the
+>   fix in; adoption stays keyed on `stableRecoveredRunMessageID`, so a
+>   racing second pass merges rather than duplicating.
+> - **329-E — met.** Gate above; the count moved by exactly the additions.
+> - **329-F — OWED ON DEVICE, NOT CLAIMED:** force-quit mid-turn, relaunch,
+>   one answer. **Rides the NEXT staged OTA — build 2998 does not carry
+>   this fix**; the runbook card lands when that build stages (its §06
+>   OBSERVE card's #329 half describes 2998's pre-fix behavior, correctly).
+> - **Wiring mutations, three, each isolating:** unwiring the restore hook
+>   reds the whole restore family and nothing else; removing the scrubber's
+>   spare reds the alive arm at load; removing the didSet persist reds only
+>   the record-lifecycle test.
+> **What remains on this entry: 329-F alone.**
+
 ## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any code.**
 
 **What was seen.** On the thread from #312 item (d) — the one that had announced
@@ -16961,6 +17011,96 @@ entitlement honored by modelmanagerd).
   refusal still keys on `pccGrantConfirmed` — its sim refusal exists for
   DATA HYGIENE (388-C: sim rows must never fold into device data), not
   safety, and the carve-out does not change what a sim reading is worth.
+
+## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. NOT STARTED; bars pre-register here before any code.**
+
+`ChatInputBar.swift:946-953` recomputes the composer text from an immutable
+`dictationBaseText` snapshot captured when dictation starts (`:917`); the
+merge writes the binding at `:394/:397/:896/:917/:940`. Idempotent per tick
+(not accumulative), but any characters the user TYPES mid-dictation predate
+nothing — the next tick's recompute simply omits them. Low severity: typing
+while dictating is an edge posture, and the loss is bounded by one dictation
+session. Filed rather than fixed because the right design (merge typed text
+into the base snapshot vs block typing while dictating) is a product call.
+
+## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. NOT STARTED; measure first.**
+
+`AppContainer.swift`'s `onRelayConfigurationChanged` calls
+`refreshUnpairedRelayContext()` on every settings-relay write, and the
+pairing screen writes per keystroke (#405's path — the scramble half is
+FIXED; this volume half is not). While unpaired — exactly the onboarding
+posture — each keystroke's refresh does a session clear + forced
+registration + forced inbox load against `http:`, `http:/`, `http://1`, …
+Cost is unmeasured (the requests presumably fail fast against a nonsense
+URL); the honest first bar is measuring the burst (count + wall time per
+keystroke) before electing a debounce or a commit-time refresh. Related:
+#405 (the same hook's other half), #365 (profile-switch interstitial — the
+same refresh machinery on a different trigger).
+
+## 405. 🔴 A HAND-TYPED RELAY URL WAS SCRAMBLED BY THE APP — normalization is FALSELY VALID on the mid-draft `http://`, so a per-keystroke mirror rewrote the field to `http:/v1` under the user's cursor — **FOUND 2026-08-24 night as four consecutive red gates on #329's lane (rotating XCUITest victims at one shared assertion); control-proven PRE-EXISTING at the branch point; then MEASURED by planted diagnostics and finally read FROM SOURCE. ✅ FIXED the same night, both doors, five pins each witnessed RED. The lane's own gate is the closing evidence.**
+
+**The mechanism, from source — TWO canonicalizing doors on one field:**
+1. **Synchronous:** `ConnectHermesScreen.setRelayURL` stored every keystroke
+   through `RelayConfiguration(customRelayBaseURL:)`, whose init
+   canonicalizes.
+2. **Asynchronous — the one that bites:** `SettingsStore.settings`' didSet
+   fires `onRelayConfigurationChanged`, whose Lane-M mirror wrote
+   `activeBaseURLString ?? raw` onto the ACTIVE profile — and the pairing
+   field's getter reads the profile. The mirror's own comment claimed
+   "normalized when valid; the raw text while mid-edit" — **the assumption
+   has a hole exactly at the double slash:** `normalizeBaseURL("http://")`
+   strips both trailing slashes to `http:`, hits the empty-path rule, and
+   returns **`http:/v1`** — a "valid" wrong URL minted from a half-typed
+   draft. The field re-reads it, the cursor sits after it, and the user's
+   remaining keystrokes append: **`http:/v1127.0.0.1:8000/v1`**, measured
+   byte-identical across four gate runs.
+
+**Why it surfaced now:** the mid-typing re-read needs the async hop to land
+between keystrokes; on the 24A5423a (beta 7) sim runtime it lands reliably —
+the failure went from occasional to deterministic the day #401 promoted the
+runtime. **User-facing severity is real:** anyone hand-typing a relay URL on
+the pairing screen hits the same rewrite; QR pairing bypasses it, which is
+why it hid.
+
+**The investigation, recorded because its shape is the lesson:**
+- Gate red #1: one XCUITest, assertion text present → treated real per the
+  gate's advice. Isolation re-run: PASS (the classic flake shape — but not
+  re-rolled blindly).
+- Gate red #2: a DIFFERENT test at the SAME shared helper line. Full-suite
+  run on a fresh sim: red again. **Branch-point control (the memory rule:
+  control BEFORE explanation): red WITHOUT the lane's commit** — pre-existing
+  proven, my-diff attribution killed.
+- Diagnostics planted (both field values in the failure message): code field
+  PERFECT, relay field scrambled — the long-blamed setup-code reformatter
+  exonerated in one capture, and the scramble found to be byte-identical =
+  deterministic, not a race. A slash-settle pause changed nothing (killed
+  the coalescing theory); a per-char retype REPRODUCED it (killed the burst
+  theory); the sim's persisted defaults held no poison (killed the
+  stale-state theory). **Then the source read found door 2 in the didSet
+  handler — and an independent class sweep (subagent, on Owen's
+  "use subagents") converged on the same site and verdict.**
+
+**FIXED, both doors:** `setRelayURL` assigns `customRelayBaseURL` directly
+(the init's canonicalization is BY DESIGN for whole values — defaultValue,
+migration — and keeps it); the mirror copies the RAW text (raw-to-raw also
+means the two records literally cannot drift, which was the mirror's whole
+point). Consumers normalize on READ (`activeBaseURLString`), where the
+normalization always belonged. **Pins (`RelayDraftIntegrityTests`, 5):** two
+characterizations (the init rewrite; the false-valid hole itself) and two
+structural #399-shape pins (screen must not construct the canonicalizing
+init; the mirror must copy raw — each witnessed RED first, and the mirror
+pin caught its own first draft flagging a comment, the #400 lane's shape,
+reworded). Plus the UI helper keeps per-char typing, a truncation repair
+pass, and the value diagnostics — any future input-path regression fails
+MEASURED, not blind. Both previously-failing UI tests pass post-fix.
+
+**Class sweep (read-only, whole app):** zero further scramblers.
+`RelayConfiguration.init` is the codebase's ONLY String-normalizing init and
+now has no per-keystroke caller; the setup-code dash formatter is the
+STABLE-FORMATTER contrast (fixed-point per keystroke, correct);
+`ServerSettingsScreen`'s draft pattern is the correct shape (normalize only
+at save). Two adjacent findings filed, not fixed: **#406** (the same hook's
+per-keystroke bootstrap burst) and **#407** (typing during live dictation).
 
 ## 404. 🎨 REWORK THE PCC QUOTA ROW — one flat size-8 mono sentence that wraps badly and duplicates the toggle label above it, in an app whose idiom everywhere else is labeled kicker/value fields — **FILED 2026-08-24 evening on Owen's word, from his device screenshot ("the way that we display the information we do get about the pcc account is sloppy compared to everything else. Can we rework it?"). Bars 404-A..E pre-registered BEFORE code.** **⟵ ✅ BUILT + MERGED the same evening (PR #364, squash `24ff5104`): QUOTA/RESETS kicker-value fields, #391 pins untouched-green, gate 2485/14/Release. 404-D's closing eyeball MET — Owen ordered the merge after seeing the sim screenshot. CLOSED; the row rides the same-evening OTA.**
 
