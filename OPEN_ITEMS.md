@@ -6365,6 +6365,35 @@ scored here.
 > dashboard-only) predates? Probe result reassesses the ballot; probes are
 > free, no go needed.
 
+
+> **🔍 RE-PROBE RAN 2026-08-24 night, same hour as the ruling — read-only,
+> Mac gateway 0.20.5 + upstream source at `503d863f`. THE EASIER WAY
+> HALF-EXISTS, and the missing half is small:**
+> 1. **Upstream now owns persistent mode selection: `/approvals
+>    [manual|smart|off]`** — a gateway slash command
+>    (`gateway/slash_commands.py` `_handle_approvals_command` →
+>    `hermes_cli/approval_mode.py`, persisting `approvals.mode` through the
+>    canonical config chokepoint; admin-gated per source, unconfigured
+>    policies unrestricted). A session-scoped `/yolo` bypass toggle exists
+>    beside it. This is exactly what the 2026-08-09 verification found
+>    dashboard-only — it moved.
+> 2. **But the runs plane does NOT enter the slash pipeline** — wire-proven
+>    tonight: a `/approvals` turn POSTed to `/v1/runs` went to the MODEL
+>    (3+ minutes of agentic chewing; a slash intercept returns its canned
+>    "Approval mode: …" string instantly). Probe run stopped cleanly via
+>    `/stop`. The phone cannot reach the command as a turn today.
+> 3. `/v1/capabilities` grew an `admin_config_rw` flag — hardcoded FALSE
+>    (a deliberate this-plane-has-no-config-RW declaration, not a toggle).
+>    No door there.
+> **Reassessment shape for Owen (his "then reassess"):** the balloted
+> Phases 1–3 app machinery may now be oversized. A one-verb addition to OUR
+> plugin (`set_approval_mode` → `run_approval_mode_command`, the same
+> admin-gated chokepoint) would give the phone a sanctioned 3-mode picker
+> riding upstream's own semantics — the app side shrinks to a picker row +
+> a state read. Alternatives: keep holding, or the original phases. The
+> plugin-verb route is recommended; deploy would ride a per-experiment go
+> like any plugin change.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
