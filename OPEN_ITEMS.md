@@ -160,7 +160,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); **the refusal wording is the lever, offline-testable against artifacts already on this Mac**
-- **#410** 🔧 unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabels itself "#403"); main's AGENTS.md carries falsified text — land the sync script, regenerate from CURRENT CLAUDE.md, prune the worktree
+- **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. ~~Mechanism UNKNOWN~~ **⟵ INVESTIGATED 2026-08-25: candidates RANKED — the lead (openSession's wholesale replace drops system rows + usage; the 9→7 count drop and the vanished totals are ONE event) predicts the observed card row-for-row and is SIM-CONFIRMABLE before any device time; measurement lane designed and electable.** Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E. **→ MEASURED 9-FOR-9 on 2026-08-15 (drive-by, during #338-C's run): every one of nine staged cards carried `DUE` EMPTY, so on the BARE-HOUR shape the defect is effectively deterministic, not occasional (P=0.002 if the rate were even 0.5). All nine declined — no residue. Scope is one prompt shape and licenses nothing wider. **→ 340-A EXTENDED BY PHRASING at 2:57 PM AND THE OMISSION IS CONDITIONAL: "at 4pm" (time only) OMITS, "tomorrow at 4" (day-bearing) is CORRECT, "in 20 minutes" (relative) produces a WRONG value already six hours in the past. THE MODEL WILL NOT RESOLVE "TODAY" FROM A BARE TIME though it knows the date. That makes the GUIDE STRING the leading fix over #200S's optionality — and warns that the rollback arm may convert omissions into WRONG values, so the A/B must score four buckets, not a binary. Across 15 calls the model sent exactly ONE correct due date.** Discriminator handed to 340-A with NO mechanism elected: the model demonstrably HAS the time (it rendered `Time: 6:00` in prose and reasoned that "9 AM has passed"), so the time is absent only from the staged card's `DUE` field** **→ ✅ 340-C ANSWERED THE SAME AFTERNOON from the device log via #249's own instrument: THE MODEL OMITS THE ARGUMENT — 10 of 11 `createReminder` calls sent `due raw=""`, and all 9 card-staging turns did. NOT a parse failure; the session's own "the app silently degrades an unparseable time" hypothesis is REFUTED (the parser never saw a string). The single counterexample sent `2026-08-15T09:00` perfectly formatted, so the model is capable. CANDIDATE CAUSE NAMED NOT ELECTED — **#200S** made `due` optional (guide: *"or empty for no due date"*) to cure a stall, and was validated on whether a tool call happened, never on argument correctness; its pinned rollback `ReminderCreateToolRequiredFields` is ALREADY a selectable battery cell, so the A/B is built and only the SCORER needs changing. ~~**340-B still owed** (needs one APPROVED turn — every card today was declined)~~ **⟵ corrected 2026-08-23: 340-B MET 2026-08-15 2:41 PM — one approved turn, the within-turn witness (prose "4:00 PM", argument `due raw=""`, card DUE empty, reply "Done!"); the entry's own dated block records it**
@@ -15118,7 +15118,7 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 >   name the leaked cell but re-running it needs the device model —
 >   offline re-run is optional evidence, not a bar.
 
-## 410. 🔧 UNLANDED AGENTS.md RESYNC RECOVERED FROM A STALE WORKTREE — a completed regeneration + its sync script never reached main, and the commit MISLABELS itself "#403" — **FILED 2026-08-25 per #268 (orchestration-setup finding, this session). Main's `AGENTS.md` carries text CLAUDE.md falsified weeks ago; the fix already exists as commit `831b7620` on branch `claude/serene-hofstadter-f044dd`.**
+## 410. ✅ UNLANDED AGENTS.md RESYNC RECOVERED FROM A STALE WORKTREE — a completed regeneration + its sync script never reached main, and the commit MISLABELS itself "#403" — **FILED 2026-08-25 per #268 (orchestration-setup finding, this session). Main's `AGENTS.md` carried text CLAUDE.md falsified weeks ago; the fix existed as commit `831b7620` on branch `claude/serene-hofstadter-f044dd`. → ✅ LANDED 2026-08-25 (this docs+script PR, chore lane #410): script extracted from `831b7620` byte-for-byte, `AGENTS.md` regenerated fresh from CURRENT CLAUDE.md (not cherry-picked), two consecutive regens byte-identical, no path/URL/code-block corruption, worktree + branch pruned. PR number + squash SHA recorded in the dated block below once merged. 403-D (standing sync mechanism) stays open for Owen.**
 
 **What was found:** worktree `.claude/worktrees/adoring-ellis-b5e8fd` holds
 branch `claude/serene-hofstadter-f044dd` @ `831b7620` (2026-08-24 16:14),
@@ -15147,6 +15147,41 @@ Note left un-adjudicated for Owen (as the stray commit itself flagged,
 "403-D awaits Owen"): whether the regen becomes a STANDING mechanism
 (e.g. a check that AGENTS.md is never hand-edited) — the landing itself
 does not need that answer.
+
+**✅ RESULT — 2026-08-25, chore lane #410 (isolated worktree
+`.claude/worktrees/agent-afe5bf7425a28d3c0`):**
+
+- **Script recovered byte-for-byte:** `git show 831b7620:scripts/agents-md-sync.sh
+  > scripts/agents-md-sync.sh` (44 lines, unmodified — read carefully first;
+  nothing about it was broken against current CLAUDE.md so no edit was made).
+  It protects `Documents/Claude/Talaria` (any suffix — the sed match is a
+  substring, so this repo's own `Documents/Claude/Talaria-27` worktree path
+  is covered too) before the blanket `Claude`→`Codex` swap, then restores it.
+- **Regenerated fresh, not cherry-picked:** ran the script against CURRENT
+  CLAUDE.md (939 lines, moved since the 08-24 branch — #402 and the 08-25
+  sections are in it). Ran it a **second time and `cmp`'d — byte-identical**;
+  the script's own `--check` mode also reports `IN SYNC`.
+- **Verification (per the entry's own bars):** CLAUDE.md carries exactly
+  **three** literal "Claude" occurrences total — the header line, the "Owen
+  directs / Claude writes" line, and the protected old-checkout path — so the
+  transform's blast radius is small and fully inspectable. Full `diff
+  CLAUDE.md AGENTS.md` is **5 lines, all expected**: the `# CLAUDE.md` /
+  `# AGENTS.md` title, the two `Claude`→`Codex` prose swaps, and two
+  self-referential `CLAUDE.md`→`AGENTS.md` mentions in the close-out-rule
+  section. The protected path (`~/Documents/Claude/Talaria`, the OLD
+  checkout) survives **literally unchanged** in AGENTS.md. **Zero**
+  `claude.ai`, `claude-code`, or `.claude/` occurrences exist anywhere in
+  CLAUDE.md (grepped before and after — nothing to corrupt, nothing
+  corrupted). Header reads `Guidance for Codex working in this repo` — one
+  name, not doubled. `/v1/runs` appears **12** times in AGENTS.md (runs-plane
+  architecture section intact). Section structure: **13** `## ` headings in
+  both files, heading text identical line-for-line (`diff` clean), overall
+  line count identical (939 = 939).
+- **Standing-mechanism question (403-D) left open for Owen**, exactly as the
+  recovered commit itself flagged — this lane only lands the script + a
+  fresh regen, it does not wire `--check` into the gate or any procedure.
+- **Worktree + branch pruned post-merge** from the main checkout path (see
+  below for the exact outcome).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
