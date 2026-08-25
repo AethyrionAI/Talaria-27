@@ -43,6 +43,13 @@ protocol VoiceBootstrapTransport: AnyObject {
     /// ignores the unknown field and mints with its default.
     func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome
 
+    /// #224: the host's persistent approval mode — READ with nil, SET with
+    /// `manual`/`smart`/`off`. Rides the same envelope the talk family does;
+    /// an old plugin answers `unknown_event_type` → `.unsupported`, which is
+    /// the picker's host-predates state. Not voice — this protocol is simply
+    /// where the app's one generic envelope-verb seam lives today.
+    func approvalMode(setting mode: String?) async -> VoiceVerbOutcome
+
     /// Release one.
     ///
     /// **This is #383's compensation path** (383-C, Owen's ruling: compensate
@@ -66,6 +73,7 @@ protocol VoiceBootstrapTransport: AnyObject {
 final class UnavailableVoiceTransport: VoiceBootstrapTransport {
     func talkReadiness() async -> VoiceVerbOutcome { .unreachable }
     func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome { .unreachable }
+    func approvalMode(setting mode: String?) async -> VoiceVerbOutcome { .unreachable }
     @discardableResult
     func talkSessionEnd(voiceSessionID: String) async -> Bool { false }
 }

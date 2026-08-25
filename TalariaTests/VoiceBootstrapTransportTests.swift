@@ -54,6 +54,15 @@ struct VoiceBootstrapTransportTests {
             endedSessionIDs.append(voiceSessionID)
             return true
         }
+
+        private(set) var approvalModeSets: [String?] = []
+
+        func approvalMode(setting mode: String?) async -> VoiceVerbOutcome {
+            calls.append("approval_mode")
+            approvalModeSets.append(mode)
+            if unsupported { return .unsupported }
+            return readinessPayload.map { .ok($0) } ?? .unreachable
+        }
     }
 
     /// **BARE JSON — the contract change this lane turns on.**

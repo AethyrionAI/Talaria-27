@@ -600,6 +600,13 @@ extension TalariaPlatformLink: VoiceBootstrapTransport {
         await voiceVerb("talk_readiness")
     }
 
+    /// #224: read (nil) or persist the host's approval mode through the
+    /// plugin's `approval_mode` verb — upstream's own `/approvals`
+    /// chokepoint behind the pairing's device auth.
+    func approvalMode(setting mode: String?) async -> VoiceVerbOutcome {
+        await voiceVerb("approval_mode", extra: mode.map { ["mode": $0] } ?? [:])
+    }
+
     func talkSessionCreate(tuning: String) async -> VoiceVerbOutcome {
         // #396: the pick rides every mint — `.normal` included, so host logs
         // show the choice; an older plugin ignores the unknown field.
