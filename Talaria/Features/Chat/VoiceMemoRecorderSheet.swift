@@ -74,9 +74,14 @@ struct VoiceMemoRecorderSheet: View {
             // Swiping the sheet away mid-flow must not leak a live recorder,
             // a playing preview, or an orphaned un-attached recording; only an
             // attached memo's audio survives (it belongs to the attachment).
-            player.stop()
-            if !didAttach {
-                recorder.discard()
+            // #198B: discard is never dropped — if a start transition is in
+            // flight it ends via the recorder's generation bump.
+            let shouldDiscard = !didAttach
+            Task {
+                await player.stop()
+                if shouldDiscard {
+                    await recorder.discard()
+                }
             }
         }
     }
@@ -183,11 +188,12 @@ struct VoiceMemoRecorderSheet: View {
     }
 
     private func finishRecording() {
-        guard let recording = recorder.stopRecording() else { return }
-        // Provenance header carries when the memo STARTED, not when it stopped.
-        let recordedAt = Date().addingTimeInterval(-recording.duration)
-        phase = .transcribing
         Task {
+            guard let recording = await recorder.stopRecording() else { return }
+            // Provenance header carries when the memo STARTED, not when it
+            // stopped.
+            let recordedAt = Date().addingTimeInterval(-recording.duration)
+            phase = .transcribing
             do {
                 let transcript = try await VoiceMemoTranscriber.transcribe(url: recording.url)
                 phase = .review(
@@ -213,7 +219,7 @@ struct VoiceMemoRecorderSheet: View {
         VStack(spacing: Design.Spacing.sm) {
             HStack(spacing: Design.Spacing.sm) {
                 Button {
-                    player.togglePlayback(path: audioPath)
+                    Task { await player.togglePlayback(path: audioPath) }
                 } label: {
                     Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 30))
@@ -256,12 +262,14 @@ struct VoiceMemoRecorderSheet: View {
 
             HStack(spacing: Design.Spacing.sm) {
                 GhostButton(title: "Discard", systemImage: "trash", height: 44) {
-                    player.stop()
-                    recorder.discard()
+                    Task {
+                        await player.stop()
+                        await recorder.discard()
+                    }
                     phase = .idle
                 }
                 GlowButton(title: "Attach", systemImage: "paperclip", height: 44) {
-                    player.stop()
+                    Task { await player.stop() }
                     didAttach = true
                     onComplete(
                         PendingAttachment.voiceMemo(
@@ -302,7 +310,7 @@ struct VoiceMemoRecorderSheet: View {
 
             HStack(spacing: Design.Spacing.sm) {
                 Button {
-                    player.togglePlayback(path: audioPath)
+                    Task { await player.togglePlayback(path: audioPath) }
                 } label: {
                     Image(systemName: player.isPlaying(path: audioPath) ? "stop.circle.fill" : "play.circle.fill")
                         .font(.system(size: 26))
@@ -312,12 +320,14 @@ struct VoiceMemoRecorderSheet: View {
                 .accessibilityLabel(player.isPlaying(path: audioPath) ? "Stop playback" : "Play recording")
 
                 GhostButton(title: "Discard", systemImage: "trash", height: 44) {
-                    player.stop()
-                    recorder.discard()
+                    Task {
+                        await player.stop()
+                        await recorder.discard()
+                    }
                     phase = .idle
                 }
                 GlowButton(title: "Retry", systemImage: "arrow.clockwise", height: 44) {
-                    player.stop()
+                    Task { await player.stop() }
                     retryTranscription(audioPath: audioPath, duration: duration, recordedAt: recordedAt)
                 }
             }

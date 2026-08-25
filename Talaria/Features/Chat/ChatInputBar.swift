@@ -511,7 +511,7 @@ struct ChatInputBar: View {
                    VoiceMemoPlayer.canPlay(path: audioPath),
                    !talkStore.isSessionActive {
                     Button {
-                        VoiceMemoPlayer.shared.togglePlayback(path: audioPath)
+                        Task { await VoiceMemoPlayer.shared.togglePlayback(path: audioPath) }
                     } label: {
                         Label(
                             VoiceMemoPlayer.shared.isPlaying(path: audioPath) ? "Stop playback" : "Play memo",

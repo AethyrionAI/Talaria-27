@@ -148,13 +148,13 @@ struct VoiceMemoAudioSessionGuardTests {
     /// shared session. **Restore the unconditional
     /// `setActive(false, .notifyOthersOnDeactivation)` and this goes RED** —
     /// which is the whole point of driving `stop()` instead of the predicate.
-    @Test func playerStopDoesNotDeactivateASessionItNeverActivated() {
+    @Test func playerStopDoesNotDeactivateASessionItNeverActivated() async {
         let player = VoiceMemoPlayer()
         var deactivations = 0
         player.deactivateAudioSession = { deactivations += 1 }
 
-        player.stop()
-        player.stop()   // idempotent: still nothing to release
+        await player.stop()
+        await player.stop()   // idempotent: still nothing to release
 
         #expect(deactivations == 0)
         #expect(player.playingPath == nil)
@@ -163,12 +163,12 @@ struct VoiceMemoAudioSessionGuardTests {
     /// The recorder's sibling site. `discard()` reaches `finishRecorder()`
     /// unconditionally, so a discard with no recording in flight is the exact
     /// shape that used to fire a stray deactivation.
-    @Test func recorderDiscardDoesNotDeactivateASessionItNeverActivated() {
+    @Test func recorderDiscardDoesNotDeactivateASessionItNeverActivated() async {
         let recorder = VoiceMemoRecorder()
         var deactivations = 0
         recorder.deactivateAudioSession = { deactivations += 1 }
 
-        recorder.discard()
+        await recorder.discard()
 
         #expect(deactivations == 0)
         #expect(recorder.isRecording == false)
@@ -177,12 +177,12 @@ struct VoiceMemoAudioSessionGuardTests {
     /// `stopRecording()` returns nil with nothing in flight and must also stay
     /// silent — it guards on `isRecording` before reaching `finishRecorder()`,
     /// and this pins that it keeps doing so.
-    @Test func recorderStopWithNothingInFlightIsASessionNoOp() {
+    @Test func recorderStopWithNothingInFlightIsASessionNoOp() async {
         let recorder = VoiceMemoRecorder()
         var deactivations = 0
         recorder.deactivateAudioSession = { deactivations += 1 }
 
-        #expect(recorder.stopRecording() == nil)
+        #expect(await recorder.stopRecording() == nil)
         #expect(deactivations == 0)
     }
 
@@ -230,5 +230,165 @@ struct VoiceMemoAudioSessionGuardTests {
     @Test func theGuardStillReleasesWhatTheInstanceDidActivate() {
         #expect(VoiceMemoPlayer.shouldReleaseAudioSession(didActivate: true))
         #expect(VoiceMemoRecorder.shouldReleaseAudioSession(didActivate: true))
+    }
+}
+
+/// **#198B — the memo transitions are async, AWAITED, and single-flight.**
+///
+/// The sync spelling logged the `AVAudioSession_iOS.mm:978` main-thread
+/// fault; the entry's hazard ① rules the cheap fix out — a `Task { }`'d
+/// deactivation on a path that reactivates leaves teardown and setup
+/// UNORDERED on the one shared session — and hazard ② says the awaits that
+/// fix the ordering make double-taps interleave (#128's device crash). So:
+/// every transition awaited (ordering by construction), one `isTransitioning`
+/// guard per user-facing entry (atomicity restored), and the recorder's
+/// discard-during-start window closed with the #397 generation pattern.
+///
+/// Bars 198B-B/C prescribe their own falsification shape: each was shown RED
+/// against the exact mutation it forbids (fire-and-forget deactivation;
+/// guard removed) — recorded in the entry's result block.
+@MainActor
+struct VoiceMemoTransitionTests {
+
+    /// A tiny REAL playable file (8 kHz mono 16-bit WAV, ~50 ms of silence),
+    /// generated so the fixture cannot rot out of the target — the ordering
+    /// test needs a toggle that genuinely reaches the playing state.
+    private static func makeWAVFile() throws -> String {
+        let sampleRate: UInt32 = 8000
+        let sampleCount = 400
+        let dataSize = UInt32(sampleCount * 2)
+        var wav = Data()
+        wav.append(contentsOf: Array("RIFF".utf8))
+        withUnsafeBytes(of: (36 + dataSize).littleEndian) { wav.append(contentsOf: $0) }
+        wav.append(contentsOf: Array("WAVEfmt ".utf8))
+        withUnsafeBytes(of: UInt32(16).littleEndian) { wav.append(contentsOf: $0) }
+        withUnsafeBytes(of: UInt16(1).littleEndian) { wav.append(contentsOf: $0) }   // PCM
+        withUnsafeBytes(of: UInt16(1).littleEndian) { wav.append(contentsOf: $0) }   // mono
+        withUnsafeBytes(of: sampleRate.littleEndian) { wav.append(contentsOf: $0) }
+        withUnsafeBytes(of: (sampleRate * 2).littleEndian) { wav.append(contentsOf: $0) } // byte rate
+        withUnsafeBytes(of: UInt16(2).littleEndian) { wav.append(contentsOf: $0) }   // block align
+        withUnsafeBytes(of: UInt16(16).littleEndian) { wav.append(contentsOf: $0) }  // bits
+        wav.append(contentsOf: Array("data".utf8))
+        withUnsafeBytes(of: dataSize.littleEndian) { wav.append(contentsOf: $0) }
+        wav.append(Data(count: sampleCount * 2))
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("198b-\(UUID().uuidString).wav")
+        try wav.write(to: url)
+        return url.path
+    }
+
+    // MARK: - 198B-B: ordering
+
+    /// One toggle that switches memos performs `deactivate` THEN `activate`,
+    /// strictly ordered — the awaited design's whole claim. Shown RED against
+    /// hazard ①'s fire-and-forget shape (the deactivation wrapped in an
+    /// unawaited `Task`), where the order inverts or interleaves.
+    @Test func switchingMemosOrdersDeactivateBeforeActivate() async throws {
+        let player = VoiceMemoPlayer()
+        var events: [String] = []
+        player.activateForPlayback = { events.append("activate") }
+        player.deactivateAudioSession = { events.append("deactivate") }
+        let first = try Self.makeWAVFile()
+        let second = try Self.makeWAVFile()
+
+        await player.togglePlayback(path: first)
+        #expect(events == ["activate"])
+        #expect(player.playingPath == first)
+
+        await player.togglePlayback(path: second)
+        #expect(events == ["activate", "deactivate", "activate"])
+        #expect(player.playingPath == second)
+
+        await player.stop()
+        #expect(events == ["activate", "deactivate", "activate", "deactivate"])
+    }
+
+    // MARK: - 198B-C: re-entrancy
+
+    /// Two toggles issued without awaiting between them produce EXACTLY ONE
+    /// activation — the `isTransitioning` guard restores the atomicity the
+    /// awaits removed. The injected activation suspends so the second tap
+    /// genuinely lands mid-transition. Shown RED against the unguarded
+    /// version, where both taps run and the count reads 2.
+    @Test func twoUnawaitedTogglesProduceExactlyOneActivation() async throws {
+        let player = VoiceMemoPlayer()
+        var activations = 0
+        player.activateForPlayback = {
+            activations += 1
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        player.deactivateAudioSession = {}
+        let path = try Self.makeWAVFile()
+
+        async let firstTap: Void = player.togglePlayback(path: path)
+        async let secondTap: Void = player.togglePlayback(path: path)
+        _ = await (firstTap, secondTap)
+
+        #expect(activations == 1)
+        await player.stop()
+    }
+
+    // MARK: - the recorder's discard-during-start window (#397 pattern)
+
+    /// A `discard()` landing INSIDE `startRecording()`'s activation await
+    /// must end that start: the start backs out, releases what it activated,
+    /// and nothing records. The activation seam parks on a stream until the
+    /// test releases it, so the window is held open deterministically.
+    @Test func discardDuringAStartTransitionEndsTheStartCleanly() async throws {
+        let recorder = VoiceMemoRecorder()
+        var events: [String] = []
+        let (gate, release) = AsyncStream.makeStream(of: Void.self)
+        recorder.requestRecordPermission = { true }
+        recorder.activateForRecording = {
+            events.append("activate")
+            for await _ in gate { break }
+        }
+        recorder.deactivateAudioSession = { events.append("deactivate") }
+
+        let start = Task { try await recorder.startRecording() }
+        // Let the start reach and park on the activation seam.
+        while events.isEmpty { await Task.yield() }
+
+        await recorder.discard()
+        release.yield(())
+        release.finish()
+        _ = try? await start.value
+
+        // The start released the session it activated, exactly once, AFTER
+        // the discard moved the generation on — and nothing is recording.
+        #expect(events == ["activate", "deactivate"])
+        #expect(recorder.isRecording == false)
+        #expect(recorder.fileURL == nil)
+    }
+
+    // MARK: - structural: the transition spellings live only in their seams
+
+    /// The #399 structural pin's sibling for the ACTIVATION half: each
+    /// service spells `setActive(true` exactly once — inside its activation
+    /// seam's default — and the recorder spells the TCC request exactly once,
+    /// inside its permission seam's default. A second spelling of either is a
+    /// path the ordering guard and the tests cannot see.
+    @Test func activationAndPermissionAreSpelledOnlyInsideTheirSeams() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+
+        for name in ["VoiceMemoPlayer", "VoiceMemoRecorder"] {
+            let url = root.appendingPathComponent("Talaria/Services/Live/\(name).swift")
+            let source = try #require(
+                try? String(contentsOf: url, encoding: .utf8),
+                "cannot read \(name).swift at \(url.path) — this check did not run"
+            )
+            let activations = source.components(separatedBy: "setActive(true").count - 1
+            #expect(activations == 1, "\(name) spells `setActive(true` \(activations) time(s); expected exactly 1 (the activation seam's default)")
+        }
+
+        let recorderURL = root.appendingPathComponent("Talaria/Services/Live/VoiceMemoRecorder.swift")
+        let recorderSource = try #require(
+            try? String(contentsOf: recorderURL, encoding: .utf8),
+            "cannot read VoiceMemoRecorder.swift — this check did not run"
+        )
+        let prompts = recorderSource.components(separatedBy: "AVAudioApplication.requestRecordPermission").count - 1
+        #expect(prompts == 1, "the TCC request is spelled \(prompts) time(s); expected exactly 1 (the permission seam's default)")
     }
 }

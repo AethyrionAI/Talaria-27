@@ -241,6 +241,13 @@ final class SpeechOutputService: NSObject {
     /// sessions never reach these calls anyway (the native pipeline's
     /// instance has `managesAudioSession == false`; the shared instance is
     /// gated off while Talk is active).
+    ///
+    /// #198B (2026-08-25) CONSIDERED AND DECLINED moving these when it moved
+    /// the memo player's and recorder's — this comment's reasons held on a
+    /// fresh read: `speak` cannot await, so an async activation here would
+    /// reintroduce exactly the ordering hazard that lane exists to remove.
+    /// These three sites staying synchronous is a recorded decision, not a
+    /// missed one.
     private func configurePlaybackAudioSession() {
         guard managesAudioSession else { return }
         let session = AVAudioSession.sharedInstance()

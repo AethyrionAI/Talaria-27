@@ -26,7 +26,7 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
 
     private var player: AVAudioPlayer?
 
-    /// **#399/#84 — true only between a successful `setActive(true)` here and
+    /// **#399/#84 — true only between a successful activation here and
     /// our own release.** The voice engines share the ONE `AVAudioSession`, so
     /// a `stop()` that deactivates a session this instance never activated
     /// tears down whatever else owns it. That is the 2026-07-16 flatline (#84)
@@ -35,6 +35,13 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
     /// under a comment asserting *"releasing an inactive session is
     /// harmless."* **That sentence is the claim #84 falsified.**
     @ObservationIgnored private var didActivateAudioSession = false
+
+    /// #198B: single-flight for the user-facing transition. `togglePlayback`
+    /// now suspends (session calls run off-main, awaited), and an await is
+    /// where a second tap can interleave — #128's device-crash class. A tap
+    /// during a transition is DROPPED, restoring the run-to-completion the
+    /// synchronous version had.
+    @ObservationIgnored private var isTransitioning = false
 
     /// harness-visible (#216): the deactivation effect, injectable so a test
     /// can drive `stop()` itself and observe whether the guard let the call
@@ -45,8 +52,26 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
     /// call in `stop()` is deleted — the fix vanishes and the bars applaud.
     /// #340 measured that shape: eleven green parsing tests survived removing
     /// the `performCreate` wiring they existed to protect.
-    @ObservationIgnored var deactivateAudioSession: () -> Void = {
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    ///
+    /// #198B: async, and AWAITED at every call site — a deactivation that a
+    /// path can follow with an activation must complete first, or the two
+    /// race on the one shared session (the entry's hazard ①). Off-main via
+    /// `AudioSessionOffMain`, which is the item's point: the sync spelling
+    /// logged the `AVAudioSession_iOS.mm:978` main-thread fault.
+    @ObservationIgnored var deactivateAudioSession: () async -> Void = {
+        try? await AudioSessionOffMain.setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    /// #198B: the activation half, seamed for the same reason — the ordering
+    /// bar (deactivate THEN activate on one toggle) needs both effects
+    /// observable, and #399 proved seam-observed wiring is the half that
+    /// catches a deleted fix. Category + activation ride one off-main hop so
+    /// their relative order is preserved inside the closure.
+    @ObservationIgnored var activateForPlayback: () async throws -> Void = {
+        try await AudioSessionOffMain.run { session in
+            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        }
     }
 
     func isPlaying(path: String) -> Bool {
@@ -62,55 +87,69 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
 
     /// Starts playback of `path`, stopping any other memo. Tapping the one
     /// already playing stops it.
-    func togglePlayback(path: String) {
+    ///
+    /// #198B: async — every session transition is AWAITED, so the stop's
+    /// deactivation completes before the start's activation by construction
+    /// (never `Task { }` a deactivation on a path that can reactivate). The
+    /// `isTransitioning` guard restores the tap atomicity the awaits remove.
+    func togglePlayback(path: String) async {
+        guard !isTransitioning else { return }
+        isTransitioning = true
+        defer { isTransitioning = false }
         if playingPath == path {
-            stop()
+            await stopTransition()
             return
         }
-        stop()
+        await stopTransition()
 
         let url = URL(fileURLWithPath: path)
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try await activateForPlayback()
             didActivateAudioSession = true
             let player = try AVAudioPlayer(contentsOf: url)
             player.delegate = self
             guard player.play() else {
                 Self.logger.error("Voice memo playback: play() returned false")
-                releaseAudioSessionIfOwned()
+                await releaseAudioSessionIfOwned()
                 return
             }
             self.player = player
             playingPath = path
         } catch {
             Self.logger.error("Voice memo playback failed: \(error.localizedDescription, privacy: .public)")
-            stop()
+            await stopTransition()
         }
     }
 
-    func stop() {
+    /// #198B: unguarded on purpose — the delegate's natural-completion stop
+    /// must never be dropped, and every effect inside is idempotent (the
+    /// #399 flag makes a second release a no-op), so interleaving with a
+    /// guarded toggle at an await is safe.
+    func stop() async {
+        await stopTransition()
+    }
+
+    private func stopTransition() async {
         // #399: release only what this instance activated. A failed start is
-        // still covered — the flag is set the moment `setActive(true)`
+        // still covered — the flag is set the moment the activation
         // succeeds, so a start that dies at `AVAudioPlayer(contentsOf:)` or at
         // `play()` still releases; only a start that never activated at all
         // leaves the session alone, which is the whole point.
         player?.stop()
         player = nil
-        releaseAudioSessionIfOwned()
+        await releaseAudioSessionIfOwned()
         playingPath = nil
     }
 
     /// The #84 release, guarded. Returns whether the deactivation ran, so a
     /// test can assert on the decision as well as the effect.
     @discardableResult
-    private func releaseAudioSessionIfOwned() -> Bool {
+    private func releaseAudioSessionIfOwned() async -> Bool {
         guard Self.shouldReleaseAudioSession(didActivate: didActivateAudioSession) else {
             return false
         }
         didActivateAudioSession = false
-        deactivateAudioSession()
+        await deactivateAudioSession()
         return true
     }
 
@@ -129,7 +168,7 @@ final class VoiceMemoPlayer: NSObject, AVAudioPlayerDelegate {
     /// Delegate callbacks arrive off the main actor; hop back to clear state.
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
         Task { @MainActor in
-            self.stop()
+            await self.stop()
         }
     }
 }
