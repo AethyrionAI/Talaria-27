@@ -1488,6 +1488,44 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > ship gate stands unchanged — the PCC arm does not ship in a staged build
 > until the edit is published. Wording is settled; the build lane opens now.
 
+> **🔬 LANE-OPEN READS — 2026-08-25, pre-code (SDK grepped, seams verified
+> at HEAD `54d7f55d`):**
+> - **SDK (beta6 interface, grepped not recalled):**
+>   `Attachment<ImageAttachmentContent>` inits from
+>   CGImage/CIImage/CVPixelBuffer/imageURL (+ optional orientation),
+>   `.label(_:)`, conforms to `PromptRepresentable`; `Prompt` composes
+>   mixed text + attachments via `PromptBuilder` or an array wrap
+>   (`Array: PromptRepresentable`, `Prompt: PromptRepresentable`). All
+>   plain `@available(iOS 27.0)` — fleet aligned on b7 (#401), no dyld
+>   freeze applies.
+> - **390-A/E's seam VERIFIED at HEAD:** `rebuildSession(attachments:)`
+>   uses its attachments ONLY for the `hasImage` gate (belt +
+>   instructions), never the transcript; `transcriptEntries` builds
+>   `Transcript.TextSegment` exclusively; `appendUserMessage` persists
+>   `displayContent`, never `composePrompt` output. Replay is text-only by
+>   construction TODAY — the lane's job is pinning that so images cannot
+>   leak into it. Escalation (`setPreferredTier` → `session = nil` →
+>   rebuild) rides the same replay, so 390-E falls out of the same pins.
+> - **Production vision check:** `model.capabilities.contains(.vision)`
+>   (synchronous; #388's probe surface), per-tier.
+> - **STAGED-ARM consequence of today's reserve-the-publish ruling
+>   (390-F refinement, pre-registered):** the PCC image arm ships
+>   DISABLED behind a test-pinned build gate. While disabled, a PCC image
+>   turn keeps the OCR path and an OCR-honest caption — the "image sent
+>   to Apple with your request" string is written and test-pinned NOW but
+>   renders only when the arm enables. The flip is ONE later PR: policy
+>   publish (Owen's explicit go) + gate flip + caption switch, atomically.
+>   The ON-DEVICE arm ships in this lane.
+> - **390-B sharpened:** `readImageText` is not merely fallback — under
+>   390-A's current-turn-only rule it is the ONLY access to HISTORY
+>   images, so it survives on two grounds (decode/capability failure on
+>   the current turn; every image from earlier turns).
+> - **Instrument (the #324 constraint):** the sim cannot generate, so sim
+>   tests pin COMPOSITION, not generation — prompt assembly goes through a
+>   testable piece representation (text/image) with a thin `Prompt`
+>   assembler, and image decode is isolated and tested against real and
+>   garbage bytes. Generation is the device runbook card (390-G).
+
 ## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built and the probe RAN on device 2026-08-21; it spawned #390 and #391.**
 
 **The premise is earned, not cautious.** Hours before this was filed, #72's
