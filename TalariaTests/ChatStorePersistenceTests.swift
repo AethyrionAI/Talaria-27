@@ -1568,7 +1568,11 @@ struct ChatStorePersistenceTests {
         // because without it 173-C could pass while measuring an uncaptioned
         // turn and prove nothing about the bar it exists for.
         #expect(AttachmentCapabilityCopy.carriesImage(staged, isImage: { $0.kind == .image }))
-        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true) != nil)
+        // #390 re-cut: the blind arm still raises the caption; the sighted
+        // arm raises a different one — 173-C's floor (attachments always go
+        // on the wire) is caption-independent, so either captioned state
+        // satisfies the precondition. Pinned on the blind arm.
+        #expect(AttachmentCapabilityCopy.caption(for: .onDevice, carriesImageAttachment: true, imageInputEnabled: false) != nil)
 
         _ = await store.sendMessage("look at these", attachments: staged)
 

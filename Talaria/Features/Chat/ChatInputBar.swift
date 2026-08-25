@@ -569,20 +569,45 @@ struct ChatInputBar: View {
     ///
     /// Resolved from the ROUTER's `activeBrain` rather than from whether a
     /// host is merely configured: what matters is where this turn will
-    /// actually go. `.privateCloud` folds into `.onDevice` because #30 routes
-    /// it through the local backend that owns the PCC session — so its image
-    /// story is the local one, not the host's.
+    /// actually go.
     private var visionCaption: String? {
-        guard AttachmentCapabilityCopy.carriesImage(
-            pendingAttachments, isImage: { $0.kind == .image }
-        ) else { return nil }
-        // A nil router means nothing has resolved a brain yet. Default to
-        // the HERMES wording, which is the honest one for an unknown: it
-        // claims nothing, where the on-device string asserts a definite
-        // blindness we would not have established.
-        let destination: AttachmentCapabilityCopy.Destination =
-            container.chatBackendRouter?.activeBrain == .onDevice ? .onDevice : .hermesHost
-        return AttachmentCapabilityCopy.caption(for: destination, carriesImageAttachment: true)
+        let brain = container.chatBackendRouter?.activeBrain
+        return Self.visionCaption(
+            activeBrain: brain,
+            carriesImage: AttachmentCapabilityCopy.carriesImage(
+                pendingAttachments, isImage: { $0.kind == .image }
+            ),
+            imageInputEnabled: LocalChatBackend.imageInputCapability(
+                forPrivateCloud: brain == .privateCloud
+            )
+        )
+    }
+
+    /// #390: the pure caption rule, static so tests pin the brain →
+    /// destination mapping directly (a fold here is invisible to the copy
+    /// tests — the 08-24 read found `.privateCloud` silently falling into
+    /// the nil-caption Hermes arm this way).
+    ///
+    /// A nil brain means nothing has resolved yet. Default to the HERMES
+    /// wording, which is the honest one for an unknown: it claims nothing,
+    /// where the local strings assert states we would not have established.
+    static func visionCaption(
+        activeBrain: ChatBackendRouter.Brain?,
+        carriesImage: Bool,
+        imageInputEnabled: Bool
+    ) -> String? {
+        guard carriesImage else { return nil }
+        let destination: AttachmentCapabilityCopy.Destination
+        switch activeBrain {
+        case .onDevice: destination = .onDevice
+        case .privateCloud: destination = .privateCloud
+        case .hermes, nil: destination = .hermesHost
+        }
+        return AttachmentCapabilityCopy.caption(
+            for: destination,
+            carriesImageAttachment: true,
+            imageInputEnabled: imageInputEnabled
+        )
     }
 
     /// Deliberately the same visual weight as `untransmittableHint` — this is

@@ -1364,7 +1364,7 @@ this), **#180** (honest degradation), **#340** (a confident sentence about a
 non-existent artifact), **#343** (the governor fix that made the denominator
 real), **#372(c)** (tonight's lesson on base rates and power).
 
-## 390. 🔬 `.vision` IS TRUE ON BOTH TIERS — so #173's caption decision was made about a model that HAS vision, and the OCR path is now a CHOICE with a privacy dimension — **SPAWNED BY #388-A 2026-08-21 per its scope rule. NOT STARTED; this is the filing, not a lane.**
+## 390. 🔬 `.vision` IS TRUE ON BOTH TIERS — so #173's caption decision was made about a model that HAS vision, and the OCR path is now a CHOICE with a privacy dimension — **SPAWNED BY #388-A 2026-08-21 per its scope rule. RULED 08-24 (true vision both tiers, OCR fallback); ✅ BUILT + GATED 2026-08-25 — bars 390-A..F met, 390-G's behavioral half is the device runbook card; the PCC arm's flip PR (policy publish + gate flip, Owen's go received the same day) is the remaining step (result blocks below).**
 
 **What #388-A measured on device:** `LanguageModelCapabilities.contains(.vision)`
 is **true for `SystemLanguageModel.default` AND for
@@ -1525,6 +1525,66 @@ gate should follow), **#386** (the published policy that describes the tiers),
 >   testable piece representation (text/image) with a thin `Prompt`
 >   assembler, and image decode is isolated and tested against real and
 >   garbage bytes. Generation is the device runbook card (390-G).
+
+> **✅ BUILT + GATED 2026-08-25 — bars 390-A..F MET; 390-G's gate half met,
+> its behavioral half rides the next OTA's runbook card.** GATE: PASS
+> **2543** Swift Testing (+14 exact over #406's 2529: 10
+> `ImageInputCompositionTests` + 4 new caption tests) + 14 XCUITest +
+> Release; only the known-permanent CondenserFidelityTests skips.
+> - **390-A/E — and a finding STRONGER than the bar:**
+>   `Transcript.ImageAttachment` has **no public initializer** on this SDK
+>   (beta6 interface, grepped) — replayed history PHYSICALLY CANNOT carry
+>   an image into a rebuilt session; a `Prompt` is the only entrance, and
+>   `makeTurnPrompt` is the single pinned door fed only by the current
+>   turn's `composeTurnInput`. Pinned three ways: by signature (compose
+>   reads only the incoming attachments), behaviorally (segment scan over
+>   image-bearing history — all `.text`), structurally (the replay builder
+>   greps clean). Escalation rides the same rebuild, so 390-E falls out of
+>   the same pins.
+> - **390-B:** OCR fallback proven — undecodable bytes and the disabled
+>   arm both degrade to the re-cut honest placeholder; `readImageText`
+>   untouched (it is also the ONLY access to history images, by 390-A).
+> - **390-C:** captions tier-honest, four distinct pinned strings; the
+>   composePrompt placeholder re-worded tier-neutral (it now serves only
+>   truly-blind turns). Re-cut pins, all deliberate and named:
+>   `AttachmentCapabilityCopyTests` (blind-arm pin re-signatured + 5 new),
+>   `ChatStorePersistenceTests` 173-C precondition,
+>   `LocalChatBackendTests.composePromptReplacesImagesWithHonestNote`.
+> - **🔴 STALE CLAIM IN THIS ENTRY CORRECTED (close-out): the 08-24 note
+>   "the PCC tier is FOLDED into the on-device caption today" described
+>   the CODE COMMENT, not the code.** The inline ternary sent
+>   `.privateCloud` to the nil-caption Hermes arm — a PCC image turn
+>   showed NO caption at all, #173's sin on the highest-stakes tier. The
+>   mapping is now a testable static (`ChatInputBar.visionCaption`),
+>   mutation-proven against re-folding.
+> - **390-D:** #385 identity pins green, untouched.
+> - **Evidence chain:** RED-first 21 ran / 9 red, each for its
+>   pre-registered reason → GREEN 63/63 → **five mutations, each
+>   isolating:** fallback silently drops undecodable images → only the
+>   fallback pin red; `pccImageInputEnabled` flipped → only its pin red;
+>   `AttachmentSegment` referenced in the replay builder → only the
+>   structural seam pin red (the BEHAVIORAL pin's mutation is
+>   SDK-impossible — no public init — recorded as by-construction
+>   guarantee, the pin stays as a future-SDK tripwire); a second
+>   `Attachment(cgImage)` door → only the door pin red; PCC re-folded in
+>   the input bar → only the un-fold pin red.
+> - **Scope notes:** belt offering (`ImageTextTool` on image turns) and
+>   the instructions' `hasImageTools` axis deliberately unchanged; image
+>   token cost is invisible to the text-based context-fit counter (a
+>   device observation item if overflow behavior shifts); decode passes no
+>   orientation (staging already normalizes at downscale).
+
+> **⚖️ SAME-DAY RULINGS (Owen, 2026-08-25, in-chat):** (1) *"if something
+> is pinned due to the runbook, just edit the runbook. Don't hold anything
+> for my testing, it should stack"* — work stacks, the runbook adapts to
+> the newest build (filed as standing memory; un-parks #198B). (2) *"For
+> the PCC privacy, go ahead and update what needs to be updated"* — **the
+> policy-publish go.** The 390-F flip PR is therefore AUTHORIZED: apply
+> the approved sentence to `docs/privacy.html` + revise the effective date
+> (its own Changes clause requires it) + flip `pccImageInputEnabled` +
+> re-cut its pin and the interim PCC string — one atomic PR, policy live
+> at merge, the flipped arm reaching devices only via the OTA staged
+> after.
 
 ## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built and the probe RAN on device 2026-08-21; it spawned #390 and #391.**
 

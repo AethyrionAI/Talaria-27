@@ -322,6 +322,11 @@ struct LocalChatBackendTests {
         #expect(prompt.contains("===== END FILE: notes.md"))
     }
 
+    /// #390 re-cut (deliberate, named in the entry): an image reaching
+    /// `composePrompt` is a BLIND one by construction now — the sighted
+    /// path lifts it into real input before this function runs — so the
+    /// placeholder wording dropped its "on-device model" attribution
+    /// (it also serves PCC-arm-off turns) and stays a true statement.
     @Test func composePromptReplacesImagesWithHonestNote() {
         let image = PendingAttachment(
             kind: .image,
@@ -333,7 +338,7 @@ struct LocalChatBackendTests {
         )
         let prompt = LocalChatBackend.composePrompt(message: "What's in this?", attachments: [image])
         #expect(prompt.contains("photo.jpg"))
-        #expect(prompt.contains("cannot view images"))
+        #expect(prompt.contains("can't view the picture"))
         // Never inline image bytes into an on-device text prompt.
         #expect(!prompt.contains("base64"))
     }

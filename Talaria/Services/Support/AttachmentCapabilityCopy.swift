@@ -59,11 +59,13 @@ enum AttachmentCapabilityCopy {
 
     /// Which backend the turn is bound for. Mirrors `ChatBackendRouter.Brain`
     /// rather than importing it, so the rule stays free of the router's
-    /// lifecycle — `privateCloud` maps to `.onDevice` at the call site, since
-    /// #30 routes it through the local backend that owns the PCC session.
+    /// lifecycle. #390: `privateCloud` is its own case — its image story
+    /// differs from on-device on exactly the axis the caption exists for
+    /// (where the picture goes), so folding it away would be #173's sin.
     enum Destination: Sendable {
         case hermesHost
         case onDevice
+        case privateCloud
     }
 
     /// The caption for a turn, or nil when none is owed.
@@ -71,9 +73,14 @@ enum AttachmentCapabilityCopy {
     /// `nil` for a turn carrying no image (bar 173-D): a text or document
     /// attachment says nothing about vision, and a caption shown
     /// unconditionally would satisfy 173-A and 173-B while being noise.
+    ///
+    /// #390: `imageInputEnabled` is whether THIS tier attaches the picture
+    /// itself as model input on this turn (capability AND the 390-F arm
+    /// gate). The caller computes it; this rule only routes wording.
     static func caption(
         for destination: Destination,
-        carriesImageAttachment: Bool
+        carriesImageAttachment: Bool,
+        imageInputEnabled: Bool
     ) -> String? {
         guard carriesImageAttachment else { return nil }
         switch destination {
@@ -83,13 +90,35 @@ enum AttachmentCapabilityCopy {
             // here needs a new one.
             return nil
         case .onDevice:
-            return onDeviceCannotSeeImages
+            return imageInputEnabled ? onDeviceReadsImagesOnDevice : onDeviceCannotSeeImages
+        case .privateCloud:
+            return imageInputEnabled ? privateCloudSendsImagesToApple : privateCloudCannotSeeImagesYet
         }
     }
 
     /// **DEFINITE.** We know, so we say we know.
     static let onDeviceCannotSeeImages =
         "The on-device model can't see images — it will read text found in them, not the picture."
+
+    /// #390 — the sighted on-device turn: the picture rides as real model
+    /// input and is processed on the phone. Factual, no "never leaves"
+    /// promise — that stronger claim stays out until 390-E's seam proof
+    /// has lived on a device build (the entry's recommended-against note).
+    static let onDeviceReadsImagesOnDevice =
+        "Images are read on your iPhone by the on-device model."
+
+    /// #390-F interim — the PCC image arm ships disabled until the privacy
+    /// policy's image edit is published, so a PCC image turn is still an
+    /// OCR turn. Tier-named so the un-fold is real (the old code sent PCC
+    /// to the nil-caption Hermes arm — a silent blind turn, #173's sin).
+    static let privateCloudCannotSeeImagesYet =
+        "The Private Cloud model can't see images in this build — it will read text found in them, not the picture."
+
+    /// #390 — the sighted PCC turn, rendered only once the 390-F arm
+    /// enables (policy published on Owen's go). Written and pinned NOW so
+    /// the flip PR is a gate flip, not a copywriting session.
+    static let privateCloudSendsImagesToApple =
+        "Images are sent to Apple's Private Cloud Compute with your request."
 
     /// Does this set of staged attachments contain an image?
     ///
