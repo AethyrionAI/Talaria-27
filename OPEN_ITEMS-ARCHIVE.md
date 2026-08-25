@@ -33986,3 +33986,4260 @@ accepted limitation) when the host sitting scopes Phase 3's later slices.
 
 > **✅ CLOSED 2026-08-18 night — Owen's formal close on the ruling above.
 > Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 305. 📝 Approvals that OUTLIVE the screen — a producer for `InboxItemType.approval` + a push path — **FILED 2026-08-09, NOT BUILT (named per #268 the day #304's scope ruling named it; dispatch §5). The dispatch proposed #299 — consumed; reassigned here. NO LANE, NO BARS — bars pre-register here if routed.**
+
+An approval arriving while the app is backgrounded or closed is currently
+answerable only by reopening the app inside the host's ~300s window; otherwise
+the host denies by timeout. **That is a real user cost and it deserves a filing
+rather than a shrug** — but it is genuinely separate from #304: it depends on the
+platform link, on #238's notification cuts, and on a product decision about
+whether a dangerous host command should be approvable from a lock screen at all.
+`InboxItemType.approval` exists with no producer
+(`Talaria/Models/InboxItemType.swift:4`; the only constructions are demo data and
+one test — unchanged since #224 §F7). **Do not build it inside #304, and do not
+silently drop it.**
+
+> **2026-08-09 (#304 review round 2, controller's ruling): the VOICE surface's
+> answer path is explicitly THIS item's scope too.** A voice turn's
+> `approval.request` lands in the voice pipeline's own stream consumer; #304
+> round 2 ruled that surface down to the honest refusal (it cannot show or
+> answer; the host denies on its own window) after the cross-store raise was
+> falsified — the only route from Talk to chat is ending the session, whose
+> teardown destroys the turn (and destroyed the raised card) before the chat
+> is reachable. Any real voice-reachable answer surface — like any
+> approval that outlives its screen — is designed here, with scoped teardown
+> as part of that design, not bolted onto #304.
+
+> **2026-08-18 ~22:40 — RULED (Owen, recommendations batch): decision
+> DEFERRED until 3E (#368) lands.** The runs plane changes what an approval
+> push even is; re-put the question after the cutover.
+
+
+> **⚖️ RULED 2026-08-24 night (Owen, interactive decision pass): ACCEPT
+> TIMEOUT-DENY; CLOSE.** Deny-by-timeout while the app is away is the
+> designed safe behavior — a dangerous host command should NOT be
+> approvable from a lock screen, and the reopen-within-the-window path
+> remains for the user who is present. `InboxItemType.approval` stays as
+> scaffold (demo data + one test, harmless). If a future push path (#251's
+> plugin family) makes a nudge-notification cheap, that is a NEW filing
+> with its own number, not this one reopening.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 328. 🐛 On the DEFAULT plane, Stop does not stop the agent — it stops your VIEW of it; the host runs on, and `hardStopActiveRun()` guard-returns without sending anything — **FILED 2026-08-11 from Owen's device sitting. MEASURED end-to-end, then code-read at `746b783`. Squarely #180's honest-degradation family: a control that reports success for work it did not stop. 🟡 **ROUTE 2 SHIPPED 2026-08-11** on `t27-327-328-stop-honesty` (bars 328-R2-A..E all MET; `GATE: PASS`, 2123 tests / 161 suites; one commit with #327; ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**) — the app no longer implies a host stop it never sent. 🔴 **THE ITEM STAYS OPEN: route 1 — actually reaching the host — is UNTOUCHED and still gated on 328-A's route probe, which nobody has run.** The host still runs, still spends tokens, and still answers on reopen; route 2 made that legible, not false.** **⟵ HEADER CORRECTED 2026-08-23 (#382's close-out): ROUTE 1 IS DELIVERED AND NOW PERMANENT. #368 (2026-08-19) made the runs plane the default, where `hardStopActiveRun()` POSTs `/v1/runs/{id}/stop` — a REAL host interrupt, device-proven (`exit_code 130`, #304) — and #382 (2026-08-23, `5f50e498`) deleted the sessions plane, so every remote turn now carries an `activeRunContext` and Stop reaches the host on all of them. 328-A's route probe was answered by the runs migration wholesale. What remains of route 2's honesty arm covers only turns with NO run context (local, idle, a submit that never landed). This entry looks CLOSEABLE — Owen's formal close + archive move ride the next sweep.**
+
+> **✅ 2026-08-19 — ROUTE 1's QUESTION DISSOLVES rather than being answered,
+> and this is #368's cutover doing it (`33108d05`).** Route 1 was "make a
+> SESSIONS-plane Stop actually reach the host", gated on bar 328-A's route
+> probe that nobody ever ran. **After the cutover no ordinary turn is on the
+> sessions plane**, so every default Stop is a runs Stop and really does
+> `POST /v1/runs/{id}/stop`. There is nothing left for 328-A to unblock, and
+> it should not be run: it would be answering a question about a path the
+> product no longer takes.
+>
+> **🔴 THE ITEM DOES NOT CLOSE YET, and the reason is precise.** #368 kept
+> the Developer switch for one week (Owen's flip-now-delete-next-week
+> ruling), so a user CAN still turn the swallowed-Stop plane back on. The
+> honest state is: **route 1 is moot on the default path today, and moot
+> outright when #382 lands** (⏰ 2026-08-26) and the sessions turn transport
+> is deleted. **Close this at #382, not before** — and close it as
+> *dissolved*, never as *fixed*: nobody made a sessions Stop reach the host,
+> the sessions turn stopped existing.
+
+**Measured, not inferred.** Owen ran `sleep 90 && echo Done` on the `HERMES`
+profile (KIMI-K3, ordinary sessions `chat/stream`), lost the stream, and pressed
+Stop in the reconcile window. The composer freed (#321 working). Ninety seconds
+later, nothing. He reopened the thread and **the completion was sitting there** —
+the agent had run the whole command and answered. His words: *"going back into
+the thread, I get the completion message to the sleep 90."*
+
+**The mechanism, one line.**
+
+```swift
+func hardStopActiveRun() {
+    guard let context = activeRunContext else { return }   // ← the whole story
+```
+
+`activeRunContext` is set **only for turns taken on the `/v1/runs` transport**
+(#283 slice 3A, behind a Developer switch). Every ordinary sessions
+`chat/stream` turn — the default, the one the phone uses — has none, so the
+guard returns and **no stop request is ever sent to the host.** `cancelStreaming`
+still does its local work (task cancellation, routing lock, Live Activity,
+speech, `pendingRun`), which is why the UI looks like it obeyed.
+
+**This is not a regression and #321 did not cause it.** It is the pre-existing
+shape of the sessions plane, made visible by #321 putting a Stop control in
+front of the reconcile window for the first time. #304 proved
+`POST /v1/runs/{id}/stop` is a REAL hard interrupt, device-proven, host logging
+`exit_code 130` / `interrupted_by_user` — **that capability exists only on the
+plane we are not using by default.**
+
+**Why it matters beyond tidiness.** Owen's own ruling on #321 was *"Stop means
+STOP"*, and one extra tap was accepted as the price of that. On the default
+plane the guarantee is not delivered: the host keeps computing, keeps spending
+tokens against a paid provider, and keeps any side effects its tools were mid-way
+through. A user who stops a runaway (#225's 64-call spiral is the shape) has not
+stopped it.
+
+**⚠️ THE COUPLING THAT MUST NOT BE MISSED — this defect is currently holding up
+another ruling.** #321's ruling (a) rests on the deciding fact that abandoning
+the window does not burn a host-side answer, and that fact is TRUE TODAY ONLY
+BECAUSE the host is never stopped. Owen's `Done` arrived for exactly this
+reason. **Fixing #328 makes that answer stop arriving.** The two cannot be
+decided separately, and #321's entry now carries the same warning.
+
+**⚖️ OWEN'S CALL, and it is a genuine product question, not a bug triage:**
+1. **Make Stop reach the host on the sessions plane** — if the plane offers any
+   interrupt at all. Requires a route probe first: there is no known stop
+   endpoint for `chat/stream` in the 37-route table, so this may be
+   **impossible without #283's transport**, which would make it a reason to
+   accelerate that rollout rather than a fix in itself.
+2. **Say what is true instead.** Stop keeps its local meaning and the UI stops
+   implying more — the honest-degradation answer, cheap, and it makes the
+   limitation legible where the user meets it.
+3. **Both**, sequenced: (2) now, (1) with #283.
+
+> **✅ OWEN'S RULING 2026-08-11 — ROUTE 3, both, sequenced.** *"Yeah, 3 seems
+> best. Try to stop it, be honest."* So: the honest surface lands first and does
+> not wait on anything, and the reach-the-host half is sequenced behind 328-A's
+> probe and, if the plane cannot carry it, behind #283's transport. **The lane
+> is ungated for route 2 and gated for route 1 on the probe's answer.**
+> 328-C stands: if route 1 is ever taken, #321's ruling (a) is RE-PUT to him
+> with the coupling in view, never inherited.
+
+**BARS — pre-registered 2026-08-11, before any code, and deliberately thin
+because the shape depends on the ruling above.**
+- **328-A — the route question answered by PROBE, not by reading.** Does
+  `:8642` expose any interrupt for a `chat/stream` turn? Probe live against a
+  real session; a negative is a finding and settles route 1's feasibility.
+  (Read `_http_route_table()` first — never claim a `:8642` route from a
+  `web_server.py` grep.)
+- **328-B — RED witnessed for whichever route is chosen.** For (1): a stopped
+  sessions turn leaves the host NOT completing. For (2): the surface stops
+  claiming a host stop, pinned in a test rather than by eye.
+- **328-C — #321's ruling (a) is RE-PUT to Owen in the same lane if route 1 is
+  taken**, with the coupling in view. It is not inherited.
+- **328-D — the runs plane is untouched.** #304's real hard stop and its
+  device-proven behaviour re-run green.
+- **328-E — `GATE: PASS`**, count moved.
+
+---
+
+**ROUTE 2's OWN BARS — pre-registered 2026-08-11 by the `t27-327-328-stop-honesty`
+lane, BEFORE any route-2 code, because 328-B above is deliberately thin and a
+thin bar is not a contract. Route 1 is NOT in this lane: it stays gated on
+328-A's probe and this lane must not read as closing it.**
+
+- **328-R2-A — the outcome becomes legible at the seam, and it is the OUTCOME
+  that is read, never a build flag.** `hardStopActiveRun()` returns `Void` and
+  guard-returns silently today, so no caller can tell a delivered stop from a
+  swallowed one. It must answer whether a stop request was ISSUED: `false` on
+  an ordinary sessions `chat/stream` turn (no `activeRunContext`), `true` when
+  a run was in flight and the POST went out. Pinned in a test on both arms.
+  **`true` means "we asked", not "the host stopped"** — the POST is
+  fire-and-forget and a transport failure deliberately marks nothing — and the
+  code must say so where it is declared, or the next reader will over-read it.
+- **328-R2-B — RED witnessed.** With no host stop issued, a user Stop on a
+  server-recoverable turn must leave an honest statement in the transcript
+  that the agent may still be running. The test asserting it must FAIL against
+  `f7c493d`, where no such surface exists.
+- **328-R2-C — and it must NOT appear where the Stop is real or where nothing
+  is left running.** Three negative arms, each pinned rather than argued:
+  (i) a run whose stop WAS issued (the `/v1/runs` plane, #304's device-proven
+  hard interrupt) gets **no caveat** — the dispatch's own constraint, and the
+  bar that keeps this from becoming an apology attached to every Stop;
+  (ii) a turn on a plane with no host still generating (the on-device brain,
+  `currentRunIsServerRecoverable == false`) gets none — cancelling really did
+  stop everything; (iii) the continued-send EXPIRATION (`hardStopHost: false`,
+  the system revoking a background budget) gets none — it is not a user Stop
+  and #295 deliberately leaves the host alone there.
+- **328-R2-D — #322's single-read contract is not weakened.** `cancelledRunID`
+  and `turnIsServerRecoverable` are still captured BEFORE `hardStopActiveRun()`
+  clears `activeRunContext` and before `abandonActiveRun()` releases the
+  router's lock. `CancelFinalStatusReadTests` re-runs green by name.
+- **328-R2-E — route 1 is untouched and still open.** No host route is added,
+  probed or claimed by this lane; #304's runs-plane stop and its bars re-run
+  green (that is 328-D, re-run here rather than restated).
+
+---
+
+> **✅ ROUTE 2 SHIPPED 2026-08-11 on `t27-327-328-stop-honesty` — bars
+> 328-R2-A..E ALL MET. 🔴 THE ITEM STAYS OPEN: route 1 is untouched and still
+> gated on 328-A's route probe, which nobody has run.** Shipped in one commit
+> with #327. ~~NOT MERGED — awaiting review.~~ **✅ MERGED 2026-08-11 as `916d36b` ("Merge #327 + #328 route 2"). That text stood FOUR DAYS after the merge and was caught 2026-08-15 by a branch-tidy sweep, not by anyone reading the entry — the shape that re-dispatched #279 a day after it merged.**
+>
+> **What changed, in one sentence:** `hardStopActiveRun()` now returns whether
+> it actually ISSUED a stop, and when it did not — which is every ordinary
+> sessions `chat/stream` turn — the transcript says so instead of letting a
+> freed composer imply a host that stopped.
+>
+> - **328-R2-A MET.** `@discardableResult func hardStopActiveRun() -> Bool`
+>   across the protocol, its default, and all three forwarders
+>   (`SessionsHermesClient+RunsTransport`, `ChatBackendRouter`,
+>   `ResilientHermesClient`). `theStopSeamReportsWhetherItActuallyIssuedAHostStop`
+>   pins both arms. **Honest note on this bar's RED: there isn't one, and there
+>   could not be** — at `f7c493d` the method returned `Void`, so a test
+>   asserting its value would not compile. This bar adds a capability rather
+>   than fixing a defect; its evidence is the two-arm test plus the four bars
+>   below that consume it. **The `true`-means-"we asked" caveat is documented at
+>   the protocol requirement, at the default, and at the runs implementation's
+>   `return true`** — the bar required that, because the POST is fire-and-forget
+>   and its `catch` deliberately marks nothing.
+> - **328-R2-B MET, RED witnessed on both Stop paths.** Verbatim at `f7c493d`:
+>   ```
+>   ✘ aStopThatNeverReachedTheHostSaysSo() recorded an issue at
+>     MessageQueueTerminalsTests.swift:1293:9: Expectation failed: notice?.sender == .system
+>   ✘ aWindowStopThatNeverReachedTheHostSaysSoToo() recorded an issue at
+>     MessageQueueTerminalsTests.swift:1313:9: Expectation failed:
+>     store.conversation?.messages.last?.content == ChatStore.hostKeepsRunningAfterStopNotice
+>   ```
+>   The surface is a `.system` row carrying
+>   `ChatStore.hostKeepsRunningAfterStopNotice` — a constant, so the store that
+>   writes it and the tests that assert it cannot drift (#296's `stoppedByUser`
+>   precedent): *"Stopped here. This connection can't interrupt a turn the host
+>   is already running, so the agent may still be working — its reply will
+>   appear in this thread if it lands."* Three clauses, no fourth: what Stop
+>   did, what it did not, what follows.
+> - **328-R2-C MET — all three negative arms GREEN, and green at `f7c493d`
+>   too**, which is what makes them controls rather than echoes of the fix.
+>   `theHonestNoticeStaysAwayWhereTheStopIsRealOrNothingIsRunning`: (i) a stop
+>   that WAS issued (`hostStopIsIssuable = true`, the `/v1/runs` shape) gets no
+>   caveat — #304's device-proven hard interrupt keeps its clean story;
+>   (ii) `currentRunIsServerRecoverable == false` (the on-device brain) gets
+>   none; (iii) `cancelStreaming(hardStopHost: false)`, the continued-send
+>   expiration, gets none.
+> - **328-R2-D MET.** `cancelledRunID` and `turnIsServerRecoverable` are still
+>   captured above the call; the new read stores into a local and changes no
+>   ordering. `CancelFinalStatusReadTests` re-ran green by name — including
+>   its read-before-clear pin (*"the run id must be captured BEFORE
+>   hardStopActiveRun() clears it"*).
+> - **328-R2-E MET.** No host route was added, probed, or claimed. The runs
+>   plane's stop is byte-unchanged apart from returning `true` after the POST
+>   is dispatched; `RunsPlaneTransportTests` and `ChatBackendRouterTests` re-ran
+>   green (that is 328-D, re-run rather than restated).
+>
+> **THE GATE (covers #327's 327-E and this item's 328-E).**
+> `TALARIA_SIM_NAME=CC-327-iPhone-Air scripts/mac/lane-gate.sh` on
+> `CC-327-iPhone-Air` (iOS 27.0 24A5408d, Xcode-beta5 27A5237l), verbatim:
+> ```
+>   PASS  Test run reported TEST SUCCEEDED
+>   PASS  Swift Testing tests run — 2123
+>   PASS  XCUITest tests run — 14
+>   PASS  Release build succeeded
+>   PASS  no Swift compile errors in Release
+> GATE: PASS
+> ```
+> **Unit count MOVED 2116 → 2123** (seven new tests, all added to the existing
+> `MessageQueueTerminalsTests`, so the suite count stays **161**) — so this is
+> not a stale `.xctest` reporting an old number. Targeted green re-run of the
+> four suites this change could regress —
+> `MessageQueueTerminalsTests`, `CancelFinalStatusReadTests`,
+> `ToolActivityStateTests`, `ChatBackendRouterTests` —
+> `✔ Test run with 74 tests in 4 suites passed after 5.399 seconds.`
+>
+> **⚠️ WHAT ROUTE 2 DOES NOT DO, stated here so no reader mistakes this for a
+> close.** The host still runs. Owen's `sleep 90 && echo Done` would still
+> complete, still spend tokens, and still answer on reopen — the app is now
+> honest about that rather than fixed. **#321's ruling (a) is therefore still
+> safe and still uninherited:** its deciding fact (abandoning the window does
+> not burn a host-side answer) remains TRUE precisely because the host is never
+> stopped, so 328-C's requirement to RE-PUT that ruling to Owen is **not
+> triggered by this lane** and stands for whoever takes route 1.
+
+**Cross-references:** **#321** (surfaced it; its deciding fact is coupled to
+this), **#304** (the real hard stop, runs plane only), **#283** (the transport
+that would carry it), **#225** (the runaway this would have to stop),
+**#180** (honest degradation), **#327** (the other thing that window Stop does
+not do), **#223** (the plane-consolidation arc this argues into).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 348. 🐛 A Talaria build ON THE MAC has never once authenticated to OJAMD — 85 × 401 on `/v1/models`, zero successes, since at least 2026-08-11 and still firing — **FILED 2026-08-15 from OJAMD's own access log, found incidentally while scoring #271's bars. Routed to a Mac session; the OJAMD half is DONE (this entry is the evidence).** **⚠️ RENUMBERED FROM #319 ON 2026-08-15, the day it landed:** the OJAMD lane filed this as #319 while **archived** #319 (XcodeGen's wrong product name) already held that number — a collision spanning BOTH files, which #261's rules make one sequence. Missed by my own post-merge check, which ran `uniq -d` over the live board ALONE; caught minutes later by `scripts/oi-invariants.py` on its first run. The archived item keeps #319 — it is closed, referenced 12 times, and cited in CLAUDE.md.
+
+**The signature, from OJAMD's `agent.log` (the host's own access log, not a
+client's account of itself):**
+
+```
+2026-08-15 15:45:10 WARNING gateway.platforms.api_server: API server rejected invalid API key:
+  remote='100.79.222.100' method='GET' path='/v1/models'
+  user_agent='Talaria%2027/1 CFNetwork/3896.100.1.2.1 Darwin/25.5.0'
+2026-08-15 15:45:10 aiohttp.access: ... "GET /v1/models HTTP/1.1" 401 599
+```
+
+**Tally over the whole log** (from `100.79.222.100` = the Mac Mini):
+
+| Path | Status | Count |
+|---|---|---|
+| `/v1/models` | **401** | **85** |
+| `/api/platforms/talaria/events` | 401 | 1 |
+| `/api/sessions` | 401 | 1 |
+| `/health` | 200 | 5 |
+| `/api/sessions` + `/chat` | 200 / 201 | 11 |
+| `/v1/toolsets`, `/v1/skills`, `/v1/capabilities` | 200 | 6 |
+
+**Zero 200s on `/v1/models` from that IP, ever.** On 2026-08-15 alone: **6 ×
+401, 0 × 200**, the last pair at 16:00:53 / 16:01:07 — i.e. it is still
+happening now. The 401s arrive in **pairs ~14s apart**, which reads as a
+client-side retry, at irregular intervals across 08-11 → 08-15 (plausibly on
+app foreground).
+
+**Ruled out already, so the Mac lane does not re-walk them:**
+- **Not SSH.** These are HTTP requests to `:8642` rejected by
+  `gateway.platforms.api_server` for a Bearer key. Owen's "if it was ssh
+  that's expected, I don't allow it" does not apply.
+- **Not OJAMD-side, and not a key rotation.** Other clients from the SAME IP
+  authenticate fine against the same gateway in the same window
+  (`Python-urllib` on `/health`, and a session-creating client doing real
+  chats). The key OJAMD expects is valid and working.
+- **Not the phone.** `Darwin/25.5.0` is macOS; the paired iPhone reports
+  `Darwin/27.0.0`. This is a **Mac-native Talaria 27 build** (Designed-for-iPad
+  / Catalyst / sim — undetermined, and worth pinning first).
+- **Not a #271 side effect.** It predates today's work by four days and
+  survived every gateway restart, the plugin disable/enable cycle, and the
+  `hermes_mobile` retirement unchanged.
+
+**Open questions for the Mac session (in checking order):**
+1. **Which build is it?** Pin the target and its bundle before theorising —
+   `Darwin/25.5.0` narrows it to something running as macOS, not iOS.
+2. **Is the OJAMD profile's key EMPTY or WRONG?** A 401 does not distinguish
+   them, and the two have different causes (profile created without a key vs.
+   a stale paste).
+3. **Why `/v1/models` specifically?** That is the catalog fetch. If the same
+   build's chat path works, the key is reaching one call site and not the
+   other — which is a code question, not a config one. Note the single
+   `401 /api/platforms/talaria/events`: the plugin pairing endpoint failed
+   auth from the same build once, which argues the credential is bad
+   generally rather than one call site being unwired.
+4. Does it compose with **#285 / #288** (profile atomicity, orphan rows)? A
+   build repeatedly failing auth against a second host is adjacent to that
+   family, though nothing here proves a link.
+
+**Impact, stated honestly: LOW and not urgent.** OJAMD rejects them cleanly,
+nothing is degraded on the production host, and no user-facing behaviour on
+the phone is implicated. What it costs is (a) that build cannot read OJAMD's
+model catalog at all, and (b) five days of log noise in the file everyone
+greps while scoring device bars. **Filed because it is real and reproducible,
+not because it is burning.**
+
+**Handoff:** `dispatch/MAC-T27-319-talaria-mac-401.md`.
+
+
+> **✅ 2026-08-20 — THE MAC-SIDE CHECK IS DONE. All three open questions
+> answered, and the cause is one hardcoded line that is bigger than this item
+> — filed as #384.**
+>
+> **Q1 — which build? THE iOS SIMULATOR.** No Mac-native Talaria exists:
+> `/Applications` and `~/Applications` carry no Talaria bundle, and `mdfind`
+> finds none, which eliminates the Catalyst and Designed-for-iPad candidates
+> the entry listed. A simulator process shares the HOST kernel, so its
+> `CFNetwork` user agent reports the Mac's `Darwin/25.5.0` — which is exactly
+> why this read as "a Mac-native build" and not as the sim. The one live
+> Talaria bundle on this Mac is in `CoreSimulator/Devices/…`.
+>
+> **Q2 — EMPTY, not wrong.** The sim install has **never paired**:
+> `hermes.pairedRelayConfiguration` is absent from its prefs entirely, and no
+> gateway key was ever entered. So the Bearer is empty, not stale. The two
+> causes the entry said a 401 cannot distinguish are distinguished here by
+> the absence of that key, not by the status code.
+>
+> **Q3 — why `/v1/models` specifically?** It is the launch-time catalog
+> fetch, and on a never-paired install it is essentially the ONLY OJAMD call
+> that build makes. The chat 200s in OJAMD's log come from other clients, as
+> this entry already established. The `~14 s` pairing is the client's own
+> retry.
+>
+> **Reproduced end-to-end from this Mac, not inferred:** `ojamd` resolves by
+> MagicDNS to `100.110.102.59` (CGNAT, so inside #166b's ATS exception),
+> `GET /health` → **200**, and `GET /v1/models` with a deliberately wrong
+> Bearer → **401**. That is the logged signature exactly.
+>
+> **THE CAUSE:** `UserSettings.defaultHermesAPIBaseURL = "http://ojamd:8642"`
+> (`UserSettings.swift:333`) — hardcoded and **not** DEBUG-gated. Every fresh
+> install seeds a profile pointing at OJAMD, so every sim launch fetches the
+> catalog against a host it has no credential for. 85 × 401 across 08-11 →
+> 08-15 is simply the gate-run count for that window.
+>
+> **Impact confirmed LOW for this item, and the entry's own assessment
+> stands** — it is test-infrastructure noise against a host that rejects it
+> cleanly. **But the line that causes it is not low-impact**, because it also
+> ships in Release: see **#384**.
+>
+> **One small product observation, recorded not built:** the app fetches the
+> model catalog for a profile it holds no credential for. Declining to make a
+> call it cannot authenticate is the same capability-gating shape #310 just
+> established for the relay plane. Not filed as its own item — it would be a
+> line inside #384's fix.
+
+> **🔴 2026-08-22 — THE SOURCE IS IDENTIFIED, AND IT REFRAMES THIS ENTRY: IT IS
+> THE TEST SUITE, NOT A USER.** Found by the OJAMD deploy session, which read
+> four fresh rejections in that box's gateway log and flagged them as a
+> Mac-side defect without knowing this item existed.
+>
+> ```
+> 15:08:09  WARNING  API server rejected invalid API key:
+>           remote='100.79.222.100' method='GET' path='/v1/models'
+>           user_agent='Talaria%2027/1 CFNetwork/3896.100.1.2.1 Darwin/25.5.0'
+> 15:08:23  ·  15:29:15  ·  15:29:29   (same shape)
+> ```
+>
+> **Both clusters fall inside gate runs on this Mac**, matched against the
+> lane's own logs: gate 1's test run spanned ~15:02–15:08:45, gate 2's
+> ~15:22–15:30. Two rejections per cluster, ~21 minutes apart — the cadence of
+> two gate invocations, not of a user.
+>
+> **`Darwin/25.5.0` is the discriminator.** That is this Mac's kernel. A
+> simulator app reports the HOST kernel; a real device reports its own. So the
+> caller is the **simulator under test**, and the mechanism is #384's
+> hardcoded `defaultHermesAPIBaseURL = "http://ojamd:8642"`
+> (`UserSettings.swift:333`): a fresh simulator container has no stored
+> profile, decodes the default, and points a build under test at the
+> **production** host.
+>
+> **Why that changes the item.** This is filed as *"a Talaria build has never
+> authenticated to OJAMD"*, which reads as a user-facing auth failure. It is
+> better described as **CI writing 401s into a production log** — and the
+> original "85 × 401 since 2026-08-11" count is very likely mostly gate runs,
+> since that window is dense with them. The fix is still #384's (stop
+> hardcoding a real host as the default), but the JUSTIFICATION strengthens:
+> it is not only untidy, it means every gate run on this machine authenticates
+> against Owen's live box and fails.
+>
+> ### ⚠️ AND AN ANOMALY THAT TOUCHES CLAUDE.md's ATS PARAGRAPH — unresolved
+>
+> `project.yml` carries **exactly one** ATS exception: `NSExceptionDomains`
+> keyed by the CIDR `100.64.0.0/10`. There is **no exception for the hostname
+> `ojamd`**, and CLAUDE.md states plainly that MagicDNS names *"have no
+> exception and are ATS-blocked app-wide"* (#166b).
+>
+> **Yet these requests arrive.** Either
+> **(a)** the undocumented CIDR-as-domain-key form matches the RESOLVED
+> address rather than the URL's host string — which would mean tailnet
+> hostnames are permitted after all, and CLAUDE.md's claim needs narrowing —
+> or **(b)** something other than the app emits that user agent, which the UA
+> itself argues against.
+>
+> **Not resolved here, and deliberately not guessed**: #166b's own history is
+> that a plausible ATS claim propagated into three documents before live probes
+> killed it. The settling experiment is one arm in the app test host —
+> `URLSession` GET to `http://ojamd:8642/health` — where a `-1022` says (b) and
+> a real response says (a). That belongs to whoever takes #384.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 349. 🐛 THE CTX GAUGE IS A SPEND METER WEARING A CAPACITY LABEL — on a tool-using turn it reads `promptTokens`, which is the SUM of billed input across every internal model call, and reports it as context occupancy — **MEASURED IN PRODUCTION 2026-08-15 (deepseek-v4-flash, whoGoesThere). FIXED PER OWEN'S RULING 2026-08-18 ("try to fix, remove if you can't" — it CAN be honest): the gauge now reads occupancy from the last TOOLLESS turn only and goes ABSENT on tool turns (349-B's wire probe found NO occupancy-distinct field on 0.20.3, so toolless promptTokens is the only truthful numerator that exists). Bars discharged per the dated block below; ~~PR open, merge is Owen's review.~~ **MERGED 2026-08-18 as `0e545b57` (PR #319) plus `a3da88e2` (PR #320, the two device-found follow-ups); the header carried an open-PR claim for four days after the merge — corrected 2026-08-19. OWED: the 60-second `Ojamd-fix.md` reopen check, on Friday's device minutes (closes #367 too).** **⟵ ✅ THE OWED CHECK PASSED 2026-08-24 evening — CLOSED.**
+
+> **2026-08-24 evening — the owed reopen check RAN AND PASSED (Owen, on
+> device).** Build 2998 (`ab4b5413`, the first beta6-Xcode OTA) installed on
+> `whoGoesThere` (iOS 27 beta 7); Owen ran the ~60-second reopen check the
+> same minutes: *"reopen check passed on both - ctx looks fine."* The CTX
+> gauge survived the reopen honestly, and the shared half discharges #367 in
+> the same breath (no duplicate chips). Nothing remains owed on this entry —
+> **CLOSED**; archive move rides the next sweep.
+
+**The measurement, from two consecutive turns in one thread (screenshots):**
+
+| turn | reported INPUT | CTX gauge | messages in thread |
+|---|---|---|---|
+| *"What does the MobileDL folder hold?"* (1 tool call) | 101,493 | **79%** | 2 |
+| *"List 20 coffee shops near me"* (4+ tool calls) | 287,738 | **100%** | 2 |
+
+**The window is pinned by arithmetic, not assumed:** 101,493 / 0.79 = **128,472 ≈ 128K**, which is `deepseek-v4-flash`'s window. Turn 2's 287,738 exceeds it, so `contextProgress`'s `min(…, 1.0)` clamps to 100%.
+
+**🔴 BUT 287,738 CANNOT BE CONTEXT DEPTH, AND THAT IS THE WHOLE DEFECT.** A 128K model cannot hold 287K tokens; the turn **succeeded**, returning a full 20-item list. What that number actually is: the **cumulative billed input across every internal model call within the turn** — `skill_view`, two `terminal` calls, then `web_search`, each re-sending the conversation. Roughly four round-trips at ~70K each. The context was never more than ~half full.
+
+**The chain, all at HEAD:**
+- `ChatScreen.contextProgress` (`:806`) = `currentContextTokens / effectiveContextWindow`
+- `ChatStore.currentContextTokens` (`:166`) = `lastTokenUsage?.promptTokens`
+- `effectiveContextWindow` = `resolvedContextWindow(fallbackModelName:)` — correct, and not the problem
+
+**⚠️ THE CODEBASE ALREADY ARTICULATES THE EXACT DISTINCTION THIS VIOLATES, ONE FIELD AWAY.** `SessionUsageTotals`' own comment (`ChatStore.swift:169-172`):
+
+> *"Input tokens sum across turns on purpose — each turn re-reads the context, so **the sum is the billed amount, not the context size**."*
+
+That reasoning was applied to session totals and **not** to the gauge. So the bug is not an oversight about token semantics — it is the same insight failing to reach the adjacent consumer.
+
+**Why it hid for so long:** on a turn with **zero or one** tool call, `promptTokens` ≈ context depth and the gauge is approximately right. It only diverges on **agentic** turns, and it diverges *upward*, so it fails in the direction that looks like a scary-but-plausible number rather than an obviously broken one.
+
+**⛔ DO NOT "FIX" THIS BY DELETING THE GAUGE.** That was the first instinct on the night and it treats the symptom: the gauge is the only surface that could warn of a genuine context ceiling, and #25's whole lesson was that an unknown numerator must read as ABSENT rather than as a wrong number — deleting it generalises "sometimes wrong" into "never known."
+
+> **BARS — PRE-REGISTERED 2026-08-15, before any code:**
+>
+> - **349-A (reproduce the divergence, with the denominator named).** On one thread, a no-tool turn and a ≥3-tool turn. Record `promptTokens`, the resolved window, the rendered CTX%, and whether the turn SUCCEEDED. **A turn that succeeds while the gauge reads 100% is the defect**; the bar is scored on that pair, never on the percentage alone.
+> - **349-B (identify a truthful numerator).** Establish whether the host exposes per-turn context OCCUPANCY distinct from billed input — e.g. the final call's prompt tokens rather than the turn's sum, or a `contextSize`-relative field on `run.completed`. **If no such field exists, that is the finding**, and the honest options become relabelling the gauge or hiding it on multi-call turns — decided, not defaulted to.
+> - **349-C (no false GREEN).** Whatever replaces it must not read LOW on a genuinely near-full context. Over-reporting is the current bug; under-reporting is worse, because it removes the warning at the moment it matters.
+> - **349-D (the #25 invariant holds).** An unknown numerator still renders the gauge ABSENT, never `CTX 0%`.
+> - **No bar on the slash-command alternative** — a `/context` command is a different surface and a separate decision; it does not discharge this item.
+
+**Cross-references:** **#25** (the gauge's absent-not-zero rule), **#122** (the session cost/usage surface these numbers also feed), **#46** (session running totals, where the billed-vs-context distinction IS correctly stated), **#191** (the display pill, deliberately not the gauge's key), `ChatScreen.swift:806`, `ChatStore.swift:166`.
+
+
+**2026-08-18 ~09:45 — OWEN'S RULING (in-chat): TRY TO FIX FIRST — re-key
+the gauge to an honest metric; REMOVE only if it cannot be made honest
+("i've been leaning towards remove but you keep convincing me to keep it.
+Try to fix, remove if you can't"). Lane queued this session behind
+#354/#350.**
+
+**2026-08-18 ~13:45 — WIRE PROBE + BUILD (Owen's ruling applied: fix,
+not remove). Branch `349-ctx-gauge`; PR open.**
+
+**349-B's probe, run live on the Mac gateway (0.20.3, session
+`api_1787076366_1a70c892` — residue, delete at will):**
+- Toolless turn ("reply BANANA"): `input_tokens` **23,370** — the true
+  depth of a fresh thread (system + memory), honest occupancy.
+- Three-tool turn (three `terminal` calls): `input_tokens` **46,953** on
+  a thread whose real depth was ~23.5K — the SUM of per-call re-reads,
+  ~2×, reproducing the filing's divergence ON THE WIRE (its production
+  arm hit 287K on a 128K window at 4+ calls).
+- **The usage object carries ONLY `input_tokens`/`output_tokens`/
+  `total_tokens` + `runtime` — no per-call breakdown, no final-call
+  field, no occupancy field. Stored rows have `token_count: null` on
+  every message. `/v1/capabilities` advertises nothing context-shaped.
+  349-B's finding: NO truthful per-turn occupancy field exists on this
+  host.** So per the pre-registered bar, the honest option is ELECTED,
+  not defaulted: render occupancy only when the number IS occupancy.
+
+**Design:** `Conversation.contextOccupancyTokens` — the last
+usage-carrying hermes message's `promptTokens` IFF that message has no
+tool activities; otherwise nil. No stale carry-forward: an older
+toolless reading would UNDERSTATE current depth (349-C's worse
+direction — the false-low that removes the warning when it matters).
+`ChatStore.currentContextTokens` delegates; `lastTokenUsage` (receipt
+card, session totals) is untouched — those correctly show billed spend.
+
+**Verdicts:**
+- **349-A — MET (wire + production).** The divergence pair is recorded
+  with the denominator named: the filing's device pair (101K/79% and
+  287K/100%-clamped on a SUCCEEDING turn, window pinned by arithmetic at
+  128K) + today's wire pair above. The turn succeeding while the gauge
+  reads 100% was the defect; both records carry it.
+- **349-B — MET (the finding).** No occupancy field exists (probe above).
+- **349-C — MET.** A rendered value is always the latest turn's own
+  measured depth; tool turns render ABSENT, and absent cannot read low.
+  The no-carry-forward rule is pinned
+  (`gaugeNumeratorNeverCarriesAStaleReadingForward`).
+- **349-D — MET.** nil flows through ChatScreen's existing absent
+  machinery (both consumer sites guard nil; no `CTX 0%` path exists).
+  Suite: `ConversationCardInputTests` 10 → 15, RED observed on both
+  positive tests against a nil stub before the logic landed.
+- **The #46 comment's insight now reaches its adjacent consumer** — the
+  gauge is capacity, the totals are spend, and each is labeled by what
+  it measures.
+
+**2026-08-18 ~14:10 — DESIGN AMENDED BY THE GATE (recorded honestly): the
+first cut read the numerator from message rows only, and the full suite
+caught two LEGITIMATE store-level feeds it severed** — the #322 cancel
+final-status read (the stopped run's numbers land on `lastTokenUsage`
+with no message row) and the cached-metadata restore
+(`conversation.latestUsage`). Both had pins
+(`aSuccessfulReadPutsTheStoppedRunsOwnNumbersOnTheGauge`,
+`chatStoreLoadsLatestUsageFromConversationMetadata`) and both went RED —
+the suite doing exactly its job. Reworked:
+`Conversation.contextOccupancyTokens(for:)` gates the PASSED store-level
+usage on the latest hermes message's tool activities — every #322/#25
+channel keeps feeding the gauge, and a tool-using turn (settled OR
+mid-stream) renders it absent. A toolless streaming tail keeps the prior
+honest value (the existing #25 mid-stream rule, now pinned:
+`gaugeNumeratorSurvivesAToollessStreamingTail`). All three affected
+suites green (AppStores, CancelFinalStatusRead, ConversationCardInput
+10 → 15).
+
+**2026-08-18 ~14:40 — GATE, stated honestly (the #354 shape again):** the
+contiguous `lane-gate.sh` run on an ERASED CC-lane-1 reported **Swift
+Testing PASS at 2336** (count MOVED from 2331 by exactly this lane's +5)
+and **Release PASS**, failing only on
+`MessageIdentityUITests.testQueuedChipCancelRemovesHeldMessageWithNothingPosted`
+— the #236 family, on a diff that touches one read-only computed property
+nowhere near the send/queue path, and a test that failed once earlier
+today on #354's entirely different diff and passed #350's gate in
+between. The suite then ran **2/2 in isolation** and the **full XCUITest
+bundle 14/14** on the same commit. Every gate component is green on
+`349-ctx-gauge` HEAD. **#236 occurrence 5, recorded here to avoid a
+cross-PR edit of that entry (its occ-3+4 note rides PR #317; consolidate
+at merge): an ERASED-sim occurrence — the sim-state aggravator alone no
+longer explains this suite's rate. Today's tally: ~2 of 5 bundle-context
+runs across THREE different diffs. If the rate holds, the suite's budget
+premise deserves its own lane.**
+
+
+**2026-08-18 ~18:00 — TWO POST-MERGE DEFECTS FOUND BY OWEN'S OJAMD DEVICE
+PASS (the evening rollout verification), both fixed on branch
+`349-refetch-hole`:**
+1. **The refetch hole.** Live, the gauge correctly hid on the tool turn
+   (Owen's screenshot has no CTX badge — the merged fix working). On
+   REOPEN it came back reading **68% with the summed 87K**: a refetched
+   turn SPLITS into rows — the tool-call row carries the activities, the
+   prose tail carries none — and the merged gate only checked the last
+   message. Fix: TURN-scoped gate (any tool activity since the last
+   user-authored message hides the gauge); RED observed first on the
+   exact split-row shape from the device
+   (`gaugeNumeratorAbsentWhenARefetchedTurnSplitsAcrossRows`).
+2. **The denominator.** deepseek-v4-flash resolved through the fallback
+   table's blanket `deepseek → 128_000` — a V3-era number; 87,111/128,000
+   is exactly the observed 68%. **The host catalog carries NO context
+   field** (schema probed live: `/api/model/options` models are bare id
+   strings), so the table is load-bearing. deepseek-v4 is a **1M** family
+   (verified against DeepSeek's own docs, HF, OpenRouter, and the V4
+   paper) — `deepseek-v4 → 1_000_000` added ahead of the generic arm.
+   Real occupancy on Owen's turn: ~9% — and hidden anyway once the
+   turn-scope fix lands, since it was a tool turn.
+Owen's pass also confirmed the OJAMD chip renders on reopen (attribution
+between mirror-hold-attach and #364 reconstruction pending the outbox-row
+timing query, box-side). **The LIVE-attach behavior DIFFERS BY HOST (Owen,
+same evening): on the Mac the preview appears live, mid-thread — the 3D
+pass's created=delivered-same-second shape — while OJAMD's first test
+needed leave-and-return.** Two candidate stories, discriminated cheaply:
+a SECOND write turn on the warmed link (live chip ⇒ warmup race, no bug)
+vs the outbox-row timing query (delivered-during-turn ⇒ app-side attach
+miss on OJAMD; delivered-at-reopen ⇒ the HUB wake/drain not firing
+host-side on Windows). Awaiting Owen's retest.
+
+> **2026-08-18 night — merge-recording (the entry was blind to both merges)
+> + one falsification written back:** PR #319 merged `0e545b57` (rode build
+> 2808); the two post-merge device-found fixes (refetch hole; deepseek-v4 1M
+> window) merged as PR #320 `a3da88e2`, GATE: PASS contiguous 2353/14/
+> Release (recorded in the PR body). The "awaiting Owen's retest"
+> discriminator above is FALSIFIED — #366 measured the real cause (the
+> mirror NEVER ENQUEUED on OJAMD; multi-device fail-close), and 0.5.0's live
+> chip overtook the proposed fixture. **OWED: one 60-second reopen of the
+> `Ojamd-fix.md` thread on the next OTA (carrying #320 + #321) → no CTX 68%.
+> The same check closes #367.**
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 365. 🔍 Profile switch presented a ~10 s full-screen "connecting" logo before landing — the #247 switch design is non-blocking, so where did an interstitial come from? — **FILED 2026-08-18 evening from Owen's OJAMD rollout verification ("The switch to ojamd after I selected it and hit back is when I got the loading screen… seems odd"). ~~NOT STARTED — observation only; no diagnosis attempted yet.~~ **DIAGNOSED 2026-08-19 AM (cold-launch `LaunchSplashView` via `handleActiveProfileChanged`; the ~10 s is `bootstrap()` against the retired relay plus its recovery ladder) — bars 365-A/B/C pre-registered; the FIX is unrouted and is Owen's call. Header corrected 2026-08-19 evening: it still read NOT STARTED half a day after the diagnosis landed in the body.** **⟵ HEADER CORRECTED AGAIN 2026-08-23: *"the FIX is unrouted and is Owen's call"* is SUPERSEDED — #310 removed the cause on 2026-08-20 (the relay bootstrap is gated on `profile.hasRelay`, and the migration CLEARED both retired relay URLs), so for Owen's own profiles the doomed bootstrap does not run at all. Nothing to BUILD here. The live remnant is **365-C, a device check** — switch both directions, no interstitial, #247 toast still arrives — and 365-A/B survive only for a profile that legitimately HAS a relay.**
+
+**What was observed (build 2808, whoGoesThere):** Server settings →
+select OJAMD → back → a full-screen Talaria connecting/orb screen for
+~10 s before the chat UI returned. The #247 profile-switch design is
+deliberately NON-blocking — verdicts land as a toast (~5 s) while the UI
+stays usable — and no recorded design presents an interstitial on switch.
+
+**Honest unknowns, recorded before anyone anchors:** whether this is NEW
+on 2808 or long-standing-but-newly-noticed (Owen has switched profiles
+many times this month); whether it is the cold-launch splash machinery
+(#136's local-state-ready gate) re-presenting on a switch, a blocking
+await in the switch path (session/catalog refresh against the new host?),
+or something else. #350 changed connection PRESENTATION states today but
+touched nothing full-screen — not assumed innocent, not assumed guilty.
+
+**When it opens:** reproduce on a switch back to Mac (is it
+direction-agnostic?), read `handleActiveProfileChanged`'s await chain
+against what the root view gates on, and check whether the ~10 s tracks
+the #247 probe window or the OJAMD session-list fetch.
+
+**Cross-refs:** #247 (the non-blocking switch design), #350 (today's
+presentation change, for elimination), #136 (the splash's
+local-state-ready gate).
+
+
+> **✅ 2026-08-19 AM — DIAGNOSED FROM CODE AT HEAD `f48add84`. Mechanism
+> pinned; it is neither new on 2808 nor #350's doing, and it is not the #247
+> verdict path. It is #136's own carve-out, which names this exact case in a
+> comment.**
+
+**The interstitial is `LaunchSplashView`** (`AppRootView.swift:22-23`), the
+cold-launch splash — presented over `MainTabView`, which is why it reads as
+full-screen rather than as a connection state.
+
+**The chain, four lines, all cited:**
+
+1. `AppRootView.shouldShowSplash` (`:51`) ORs in
+   `container.shouldShowLaunchSplash`.
+2. `AppContainer.shouldShowLaunchSplash` (`AppContainer.swift:220`) returns
+   `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`.
+3. `handleActiveProfileChanged` (`:2146`) calls `cancelBackgroundBootstrap()`
+   as its second statement, which sets `backgroundBootstrapTask = nil`
+   (`:1378`).
+4. The same handler then `await sessionStore.bootstrap()` (`:2236`), and
+   `bootstrap()` sets `isBootstrapping = true` for its whole duration
+   (`AppSessionStore.swift:103`, cleared by `defer` at `:108`).
+
+So during a profile switch both conjuncts are true and the splash is shown,
+for exactly as long as `bootstrap()` takes.
+
+**This is DELIBERATE, and #136 says so in the code being read:** the comment
+directly above the return names *"profile-switch re-home"* as one of the
+bootstraps that **keep today's splash**, in contrast with the launch
+background task, which must not hold it. So no regression happened — the
+behaviour has been there since #136, and Owen noticed it now because the
+duration grew.
+
+**Why ~10 s — and this is the part that makes #365 more than cosmetic.**
+`bootstrap()` runs against the **RELAY**, not the gateway:
+`bootstrapService` is `LiveSessionBootstrapService`, built on
+`RelayAPIClient`, and it calls `POST device/register`
+(`LiveSessionBootstrapService.swift:110`) and `GET session` (`:132`). **Both
+hosts' relays are now retired** — OJAMD's since 2026-08-10 (#346), the Mac's
+since 2026-08-18 (#375) — so those calls cannot succeed. Worse, the `catch`
+runs a recovery ladder before giving up: `attemptRefreshAndReload`
+(`:131`), then `recoverSessionByReRegistering` (`:138`) — each another
+doomed round trip. Three-plus sequential failures against a dead endpoint is
+a ~10 s shape.
+
+**Direction-agnostic, and newly so:** Owen saw it switching TO OJAMD, whose
+relay had been down since 08-10. Since last night the Mac's is down too, so
+the stall should now reproduce in **both** directions. That is a cheap
+falsifiable prediction for the next device sitting — if a switch to the Mac
+is fast, this diagnosis is wrong.
+
+**Cross-filed:** this is the concrete cost of #309's paths 1–4 still being
+on the blocking UI path — recorded in this morning's disposition brief,
+`planning/reports/2026-08-19-309-relay-path-dispositions.md` §3.
+
+**⚠️ THE SIM REPRO THE WEEK PLAN ASKED FOR WAS NOT RUN, AND THE REASON IS
+ITSELF THE FINDING.** The stall only occurs on a path guarded by
+`pairingStore.isPaired && await sessionStore.currentAccessToken() != nil`
+(`AppContainer.swift:2235`) — i.e. only a PAIRED profile reaches
+`bootstrap()` at all. Pairing is minted by the relay
+(`POST phone-pairing/redeem`, #309 path 6), and **both relays are retired**,
+so a fresh simulator cannot be brought into the state that reproduces this.
+The repro survives only where a pairing already exists on disk — Owen's
+phone. So the device check (365-C) is not a nicer version of the sim repro;
+it is the only version. Recorded rather than quietly skipped.
+
+**Bars, pre-registered here before any fix code:**
+
+- **365-A (symptom, unit).** A profile switch presents no launch splash:
+  `shouldShowLaunchSplash` is false while a switch-driven bootstrap is in
+  flight, and STILL TRUE for the two cases #136 deliberately kept (a paired
+  cold launch before `isInitialized`, and an unpaired forced
+  re-registration). The second half is the bar that stops the fix from
+  being "delete the gate".
+- **365-B (no new silence).** With the splash suppressed, the switch still
+  reports itself — #247's verdict toast is the surface, and it must be
+  reachable during the window the splash used to cover.
+- **365-C (device, Owen).** A switch in BOTH directions lands without an
+  interstitial, and the #247 toast still arrives.
+
+**⚠️ Route not taken, and why it is recorded rather than done:** the real
+cause is that a profile switch calls a relay bootstrap at all. Fixing THAT
+is #309 path 1–4 + #310, not this item — and #365 must not quietly become
+the relay-decommission lane. The bars above treat the symptom on purpose,
+which is the honest scope for a one-line gate change.
+
+> **✅ 2026-08-20 — THE ROUTE NOT TAKEN WAS TAKEN, by the other item.**
+> #310's lane gates the relay block in `handleActiveProfileChanged` on
+> `profile.hasRelay`, and its migration clears both hosts' retired relay
+> URLs — so for Owen's two profiles the doomed bootstrap this item measured
+> **does not run at all**, rather than running faster or running behind a
+> suppressed splash. The paragraph above predicted exactly this ("fixing
+> THAT is #309 path 1–4 + #310") and is now discharged rather than
+> falsified.
+>
+> **What that leaves #365 as, stated so a later session does not re-open a
+> closed question:** its three bars were written for a SYMPTOM fix (suppress
+> the interstitial) that is no longer the cheapest correct thing to do. 365-A
+> and 365-B still describe real invariants — the splash must survive for the
+> two cases #136 deliberately kept, and the switch must still report itself
+> through #247's toast — but nothing in this item needs building for Owen's
+> own install any more. **365-C (the device check) is the live remnant**, and
+> it is now a check on #310's build rather than on a #365 fix: a switch in
+> both directions, no interstitial, #247 toast still arrives.
+>
+> ⚠️ **The symptom fix is NOT dead in general.** A profile that legitimately
+> HAS a relay still takes the old path, splash and all — #310 changed which
+> profiles reach it, not what happens when they do. If a relay-bearing
+> profile ever stalls this way again, 365-A/B are still the bars.
+>
+> Measurement caveat carried from #310's own scorecard: the bar there could
+> not read `shouldShowLaunchSplash` directly (a second, unrelated clause —
+> `isPaired && !isInitialized` — is true throughout the launch harness), so
+> what is proven in unit tests is that the switch never BOOTSTRAPS. The
+> splash claim follows from the mechanism, and 365-C is what would observe
+> it on the device.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 367. 🐛 Duplicate file chips on reopen — the turn-split refetch gives #364's reconstruction and the #277 sidecar replay each their OWN row to decorate, so one write renders two chips — **FILED 2026-08-18 ~19:30 from Owen's OJAMD reopen (screenshot: two `Ojamd-fix.md, MD · 81 bytes` chips, one on the tool-call row, one above the prose tail). App-side; first reproducible tonight because a LIVE mirror attach + reopen never coexisted before 0.5.0. The Mac presumably reproduces on any live-attached thread's reopen. **BUILT + MERGED 2026-08-18 as `8f6f9c42` (PR #321), gate PASS; the header carried no merge state at all until this 2026-08-19 correction. OWED: the shared `Ojamd-fix.md` reopen check with #349, on Friday's device minutes.** **⟵ ✅ THE OWED CHECK PASSED 2026-08-24 evening — CLOSED.**
+
+> **2026-08-24 evening — the shared reopen check RAN AND PASSED (Owen, on
+> device, build 2998 / `ab4b5413` / iOS 27 beta 7):** *"reopen check passed
+> on both"* — one write, one chip, no duplicate on reopen. Same pass
+> discharges #349's half. Nothing remains owed — **CLOSED**; archive move
+> rides the next sweep.
+
+**The mechanism (from tonight's evidence; code-verified when the lane
+opens):** a refetched turn SPLITS into stored rows — the tool-call row
+and the prose tail (the same split that broke #349's gauge gate this
+afternoon; the split-row shape is now a CLASS, two hits in one day). On
+reopen: #364's stored-args reconstruction builds a chip on the TOOL-CALL
+row (deterministic id keyed session:row:path), while the sidecar record
+from the live mirror attach replays its chip onto the PROSE row its
+streamed anchor reconciled to. #364-B's same-file skip dedupes per ROW —
+each source found a chip-free row, so both landed. One file, one turn,
+two chips.
+
+**Fix direction (design confirmed against code before bars):** the
+sidecar replay's same-file skip becomes TURN-scoped — before replaying a
+chip for file F onto row R, skip if ANY row in R's turn span (back to the
+previous user-authored row) already carries an attachment for F. Scoped
+to the turn, not the conversation: the same path written in two different
+turns is two honest chips. Reconstruction stays primary on refetch
+(#364-B's established precedence); the sidecar defers more broadly.
+
+**Cross-refs:** #364 (reconstruction + the per-row crossing guards),
+#277 (the sidecar), #366 (whose live attach exposed this), #362 (the
+correlator — uninvolved on reopen, its item long acked), #349's follow-up
+(the sibling split-row defect, PR #320).
+
+**2026-08-18 ~19:45 — BUILT (branch `367-turn-split-dedup`); mechanism
+CODE-CONFIRMED at the predicted line:** `replaying`'s same-file skip
+checked only the anchor row's attachments — the prose row the record
+claims is chip-free because reconstruction decorated the tool-call
+sibling. Fix: the skip scans the TURN SPAN (the contiguous
+non-user-authored run around the anchor; `MessageSender.isUserAuthored`
+bounds it), so one write renders one chip per turn while the same path
+written in another turn still replays. RED observed first on the exact
+device shape (`sidecarReplaySkipsAChipASiblingRowOfTheTurnCarries` —
+two chips under the old guard); the cross-turn scope guard
+(`sidecarReplayStillReplaysTheSameFileAcrossTurns`) passed before AND
+after, pinning the boundary. Suite: StoredArgsReconstructionTests
+14 → 16; AgentFileChipPersistence + ArtifactMirrorCorrelator green
+untouched. Gate + PR next; the OTA after Owen's merge carries this plus
+PR #320's CTX fixes in one build.
+
+> **2026-08-18 night — lane completion (the body stopped at "Gate + PR
+> next"):** GATE: PASS contiguous on an erased CC-lane-1 — Swift Testing
+> **2355 (+2 exact)**, XCUITest 14/14, Release clean — and **PR #321 MERGED
+> `8f6f9c42`**. **OWED: the shared reopen check with #349 on the next OTA —
+> exactly ONE chip on the `Ojamd-fix.md` thread.**
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 369. 🐛 `initialize()`'s token guard DESTROYS the pairing on a bare keychain miss — **FILED 2026-08-18 night from #354's routed residue; Owen RULED FILE + FIX the same evening. BUILT 2026-08-19 evening on `369-launch-token-guard`: bars 369-A..F pre-registered before code and ALL MET, RED-first and mutation-checked, `GATE: PASS` (2375 Swift Testing / 14 XCUITest / Release clean). ✅ MERGED 2026-08-19 as `d48fa7ae` (PR #323).**
+
+- The mechanism (#354's diagnosis, log-pinned): pairing record present + empty
+  token keychain slot → `initialize: ABORT — no access token, clearing pairing`
+  → `handlePairingRemoved`. A destructive answer to possibly-transient state
+  (locked keychain, first-unlock race) — and the only launch-path reset trigger.
+- Fix direction: a keychain miss reads as LOCKED/UNAVAILABLE (hold + retry,
+  surface honestly per #180), never as UNPAIRED. Cross-ref #46/#15 for the
+  keychain-availability lessons.
+
+> **2026-08-19 evening — LANE OPEN (Owen's routing tonight: Wednesday's device
+> minutes ride to Friday, "let's move forward in the meantime"). MECHANISM
+> RE-READ AT HEAD; DESIGN ELECTED; BARS PRE-REGISTERED BEFORE CODE.**
+>
+> **The guard at HEAD** (`AppContainer.swift:1318-1321`, unchanged since the
+> filing):
+>
+> ```swift
+> guard await sessionStore.currentAccessToken() != nil else {
+>     containerLog.warning("initialize: ABORT — no access token, clearing pairing")
+>     await pairingStore.clearLocalPairing()
+>     return
+> }
+> ```
+>
+> **Three findings from the code read, each of which changes the fix's shape.**
+>
+> 1. **The destructive arm is an OUTLIER, not a policy.** The same condition is
+>    guarded in three sibling paths — `runForegroundActivation:1571`,
+>    `handleSystemLaunch:1658`, `handleBackgroundRefresh:1686` — and every one
+>    of them logs `BLOCKED` and returns. **Only the launch path destroys.** So
+>    the fix is making one guard behave like its own three siblings, which is a
+>    far smaller claim than inventing a policy.
+> 2. **`retrieve` cannot tell ABSENT from LOCKED, by construction** — so the
+>    guard cannot be repaired by inspecting the cause.
+>    `KeychainSecureStore.retrieveSync` (`:54-67`) collapses every
+>    non-`errSecSuccess` OSStatus into `nil`: `errSecItemNotFound`,
+>    `errSecInteractionNotAllowed` (locked) and `errSecMissingEntitlement` are
+>    one identical reading upstream. **Consequence: the launch path must be
+>    non-destructive for ALL causes**, not for a distinguished subset.
+> 3. **🔴 THE OBVIOUS FIX SHIPS A WORSE BUG — "just don't clear" STRANDS THE
+>    LAUNCH SPLASH FOR THE PROCESS'S WHOLE LIFE.** `shouldShowLaunchSplash` is
+>    `pairingStore.isPaired && !isInitialized` (`:220-221`) — the exact pair
+>    #365 is about. A hold that returns before `isInitialized = true` leaves a
+>    paired install on the full-screen splash forever, and nothing retries it:
+>    `initialize()` has exactly ONE caller in the tree (`AppEntry.swift:126`).
+>    Found by reading, before shipping it.
+>
+> **Design elected.** The unreadable-credential launch becomes a HOLD that is
+> non-destructive, honest, and retried:
+> - the pairing is **never** cleared on this path;
+> - the **local critical path still runs** — it is credential-free by design
+>   (#136: "degraded is the DEFAULT launch posture"; the steps are
+>   `reloadCapabilities` → `loadConversationIfNeeded` → `reconcileLiveActivities`
+>   → `updateWidgetData` → `drainShareInbox`), so holding it hostage to a relay
+>   token is what strands the splash and silently skips the share drain;
+> - only the **relay-backed half** (`startBackgroundBootstrap`) is deferred;
+> - the hold is **named in state** and **retried** on the existing
+>   `refreshCredentialState` hooks (`protectedDataDidBecomeAvailable` +
+>   `didBecomeActive`, wired at `:1103-1113`) — hooks that already exist for
+>   exactly this pre-unlock case;
+> - it is **surfaced** (#180/#25) rather than rendering as healthy.
+>
+> **Rejected alternative, recorded:** clear the pairing only when protected data
+> IS available (a "distinguish the cause" fix). Rejected on finding 2 — the
+> reading is indistinguishable for the other causes, and #46/#15's history is
+> precisely that a self-heal firing on an unreadable credential set orphans a
+> healthy pairing.
+>
+> **Scope, fixed before code, and #309 governs it:** paths 1–4 of #309's table —
+> the relay auth chain that MINTS this access token — are dispositioned
+> **DELETE**. So this lane invests NOTHING in that chain: no refresh-on-miss, no
+> widened `SecureStoreProtocol`, no new relay call. **A corollary for whoever
+> executes that deletion: once the access-token slot is gone, an unchanged guard
+> reads nil on EVERY launch and unpairs every user, every time.**
+>
+> **Corroboration that this is not theoretical:** the project's own recorded
+> simulator behaviour — a `CODE_SIGNING_ALLOWED=NO` build silently loses
+> keychain writes and the app then **self-un-pairs** — is this exact path
+> firing. #354's phase-C reproduction (pairing seeded, token slot empty →
+> `ABORT — no access token, clearing pairing` → `handlePairingRemoved`) is the
+> log-pinned instance.
+>
+> **BARS (369-A..F) — written before any code, per #215.**
+>
+> - **369-A (the destruction is gone; unit):** a paired install whose
+>   access-token slot is EMPTY finishes `initialize()` with the pairing intact —
+>   `isPaired` still true, `pairedRelayConfiguration` preserved. **Mutation
+>   control: restoring `clearLocalPairing()` must turn this RED.**
+> - **369-B (the hold does not strand the splash; unit):** the same launch ends
+>   `isInitialized == true` and `shouldShowLaunchSplash == false`, with the hold
+>   flag SET and the relay-backed half NOT started (scored on the bootstrap
+>   double's call counters, held across a bounded window — a negative assertion
+>   that must survive the async spawn, not just precede it).
+> - **369-C (the hold is retried, not permanent; unit):** with the token
+>   readable again, the retry entry point clears the hold and starts the
+>   relay-backed half exactly once. This pins the failure mode a bare
+>   "don't clear" fix would ship.
+> - **369-D (surfaced, not silent; #180/#25):** the About identity row reads the
+>   hold as a named warning instead of a healthy identity. **Honest limit,
+>   declared in advance:** `RowStatus` is a private view type with no test
+>   surface anywhere in the tree, so the ROW itself is code-read; what is
+>   test-covered is the container state it reads.
+> - **369-E (nothing smuggled; #368's 3E-J discipline):** the three sibling
+>   guards keep their existing non-destructive behaviour, no new relay call
+>   appears on any launch path, and `LaunchInitStep`'s critical-path order is
+>   unchanged.
+> - **369-F (gate):** `scripts/mac/lane-gate.sh` PASS — Debug suite + Release
+>   build, with the test count MOVED from the 2372 baseline.
+>
+> **No device bar.** The instrument is the simulator (#354's phase-C seeding);
+> this is a keychain-state question, not a hardware one.
+
+
+> **✅ 2026-08-19 evening — BUILT on `369-launch-token-guard`, `GATE: PASS`.
+> Bars 369-A..F ALL MET (369-D with the limit it declared in advance).**
+> Commits: `f0be1c27` (bars, written before any code) · `34a9495f` (the fix
+> and its tests).
+>
+> **The gate:** Debug suite **2375 Swift Testing / 14 XCUITest** plus the
+> **Release build**. The count MOVED from the 2372 baseline by **exactly +3**,
+> this lane's three tests — so this is not `test-without-building` re-running
+> a stale `.xctest`. Two skips, both the known-permanent
+> `CondenserFidelityTests` pair; no new skip introduced.
+>
+> **What changed:**
+> - `initialize()`'s nil-token arm no longer calls `clearLocalPairing()`. It
+>   takes a **HOLD**: the pairing is preserved, the local critical path runs,
+>   and only `startBackgroundBootstrap()` is deferred.
+> - `retryCredentialHoldIfNeeded()` resumes the deferred half, wired into the
+>   `protectedDataDidBecomeAvailable` + `didBecomeActive` hooks that already
+>   existed for the sibling pre-unlock case (`AppContainer.swift:1090-1096`).
+>   Idempotent, so both hooks firing on one unlock start one bootstrap.
+> - `credentialsUnreadableHold` is cleared at BOTH pairing-lifecycle reset
+>   sites, so a hold cannot outlive the launch that took it.
+> - About's identity row reads **`CREDENTIAL UNREADABLE`** (forge, not danger).
+>
+> **SCORECARD**
+>
+> | bar | verdict | evidence |
+> |---|---|---|
+> | 369-A destruction gone | **MET** | `anUnreadableAccessTokenAtLaunchNeverDestroysThePairing` — and it was seen RED first, failing on `isPaired == false`: the defect reproduced in a test before any fix existed |
+> | 369-B hold without stranding the splash | **MET** | `anUnreadableAccessTokenHoldsTheRelayHalfWithoutStrandingTheSplash` — splash drops, hold named, relay half absent across a bounded window |
+> | 369-C hold is retried | **MET** | `theCredentialHoldIsRetriedOnceTheTokenBecomesReadable` — clears on a readable token, runs the deferred half, and a second retry does not double-run it |
+> | 369-D surfaced, not silent | **MET, at the limit declared in advance** | the container state is test-covered; the About ROW is code-read, because `RowStatus` is a private view type with no test surface anywhere in the tree — the limit was written into the bar BEFORE the build, not discovered at scoring time |
+> | 369-E nothing smuggled | **MET** | the three sibling guards are untouched, no new relay call appears on any launch path, `LaunchInitStep` is unchanged (diff-verified) |
+> | 369-F gate | **MET** | above |
+>
+> **🔬 MUTATION-CHECKED, and one bar needed it specifically.** In the RED run,
+> 369-B's *"the relay half must not run"* assertion **passed for the wrong
+> reason** — the old code had already cleared the pairing and returned, so no
+> bootstrap could start either way. A green assertion that cannot fail is not
+> evidence, so the fix was deliberately mutated (`startBackgroundBootstrap()`
+> made unconditional) and 369-B went **RED on exactly that line**
+> (`AppStoresTests.swift:5101`), then the mutation was reverted. 369-A and
+> 369-C were witnessed RED directly.
+>
+> **A self-correction recorded because it is the SAME error class this lane
+> exists to fix.** The About row's first draft read
+> `LOCKED — WAITING FOR UNLOCK`. That names a **cause** — and finding 2 of
+> this entry's own pre-registration says the nil cannot distinguish locked
+> from absent from unentitled. Caught in review before the gate; the row now
+> names the observation only. Writing the rule down did not stop me from
+> breaking it one screen later.
+>
+> **🔎 CORROBORATION FOUND MID-BUILD — the defect has already cost this
+> project a class.** `UITestSecureStore`'s docstring (#135) records this exact
+> guard un-pairing the app *"milliseconds after a successful pair"* on
+> unsigned sim builds, because `CODE_SIGNING_ALLOWED=NO` makes the simulator
+> keychain reject every write. An entire test-only class exists to route
+> around this behaviour. **The workaround stays** — it also buys
+> relaunch-durable tokens across the UITest harness — but the reason it was
+> written is now fixed at the root, and the sim's self-un-pairing was never a
+> simulator quirk: it was this guard, doing what it was written to do.
+>
+> **What this lane deliberately does NOT do:**
+> - **No widening of `SecureStoreProtocol`** to carry the OSStatus. It would
+>   make the cause knowable, and #309 dispositions this whole credential chain
+>   (paths 1–4) **DELETE** — so the investment dies with the thing it informs.
+> - **No refresh-on-miss.** That is a relay call, on a plane being retired
+>   (Owen's 2026-08-18 direction ruling: adapt forward, never fall back).
+> - **No retro-repair** of installs already unpaired by this guard. They
+>   re-paired at the time; there is nothing left to recover.
+> - **The first guard (`isPaired`) is untouched**, so a gateway-only install
+>   still skips `initialize()` entirely. That is a separate question from this
+>   defect and it is NOT filed here as fixed — see the note below.
+>
+> **⚠️ ONE THING FOUND WHILE READING — checked before it was written down,
+> and it is SMALLER than it first looked.** `initialize()`'s FIRST guard is
+> `pairingStore.isPaired`, and `isPaired` means "has a paired **relay**
+> configuration" — the record is written by exactly one path, the relay
+> redeem (`PairingStore.swift:145`, #309 path 6). So on a gateway-only or
+> local-brain install the whole local critical path is skipped at launch,
+> which reads at first like a second instance of this lane's own shape: local
+> work gated on a retired plane's credential.
+>
+> **It mostly is not, and the check is why that can be said:** every step in
+> that list has an independent driver — `drainShareInbox` from the
+> scene-activate path (`AppEntry.swift:172`), `loadConversationIfNeeded` from
+> `ChatScreen`/`AskHermesIntent`, and `reloadCapabilities` /
+> `reconcileLiveActivities` / `updateWidgetData` from 23 other call sites.
+> What is left is a **timing** question (these land on activation or on view
+> rather than at launch) rather than a lost-work one, and it is **unmeasured**.
+> Recorded here rather than fixed or filed as a defect; it belongs with
+> #309's execution, when the `isPaired` gate is revisited anyway.
+
+> **📬 2026-08-19 — PR https://github.com/AethyrionAI/Talaria-27/pull/323
+> ✅ MERGED 2026-08-19 as `d48fa7ae`.** The pending-review marker that stood
+> here was cleared 2026-08-20, flagged by `scripts/oi-invariants.py` — the
+> checker built during #375's board sweep, going RED on real debt the first
+> morning it existed, on a marker a human reading the entry would have
+> skimmed past (the #328 shape, where the same words stood four days).
+>
+> **⚠️ Clearing it re-tripped the check THREE times, and each cause is
+> worth more than the fix was.**
+>
+> **(1) A strikethrough that spans two lines is not a strikethrough.** The
+> first correction used the house retraction idiom (`~~…~~` plus the
+> correction beside it), which `oi-invariants.py` explicitly strips — so it
+> should have passed. It did not, because `STRUCK` is deliberately
+> **single-line** (no `DOTALL`) and the span had been wrapped across two
+> lines. The script's own comment predicts this: an unbalanced span "can only
+> produce a FALSE ALARM, never a missed one." **Keep a `~~…~~` retraction on
+> ONE line.**
+>
+> **(2) The phrase lives in more places than the one the checker prints.**
+> `STALE_MERGE` matches FOUR alternatives — this tracker's several standard
+> ways of saying a PR has not landed, which is the #349/#350/#367 lesson the
+> checker was built from. Both entries carried one in their **headers** and
+> one in a ✉ line that reads as ordinary prose. **Grep the whole entry for
+> every alternative in the pattern**; the failure output names one offender,
+> never all of them.
+>
+> **(3) 🔴 AND THE CORRECTION NOTE ITSELF TRIPPED IT, by quoting the
+> pattern it was explaining.** Writing *“the entry said ‹phrase›”* puts
+> ‹phrase› back in the file, and a grep cannot tell a claim from a quotation
+> of one. That is #375's recorded lesson — *“a checker keyed on prose can be
+> defeated by prose about the prose”* — arriving a second time, at the hands
+> of someone who had read it that morning. **This block is therefore written
+> with NO literal instance of any matched phrase**, which is the only form
+> that survives its own subject. Body = `handoffs/PR-BODY-369.md`
+> (gitignored). ⚠️ **PR #323 and TRACKER #323 are different things** — tracker
+> #323 is the App Lock lane, and both will appear in this week's notes
+> (CLAUDE.md's standing disambiguation rule).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 375. 🧹 Retire the MAC's legacy hermes-mobile surface — #346's second half, live-verified tonight — **FILED 2026-08-18 night from the board-audit's process check: `config.yaml` still registers `mcp_servers.hermes_mobile` (two `hermes-mobile-mcp` stdio children spawned this same evening — gateway + desktop backend readers), `~/.hermes-mobile/bin/hermes-mobile-service.py` running since 08-11, and dead app-side code pointed at the retired tier (`ProvisioningService.swift`; `ProfileRelaySession.downloadAgentFile`). The tool-shadowing defect #346 MEASURED on OJAMD is live on the Mac.**
+
+- Plan, in #346's proven shape: disable the MCP server in `config.yaml` →
+  parent-first gateway bounce → desktop-app relaunch (three readers, per
+  process) → verify zero `hermes-mobile-mcp` children; retire the service;
+  delete the dead app code in its own gated PR.
+- 🔐 Live-install change — **Owen's per-experiment go requested 2026-08-18
+  (ballot §3-21); his reply's numbering was ambiguous between this and the
+  doorbell ruling, so the go is treated as PENDING until confirmed in his own
+  words.** The app-side dead-code deletion needs no go and can ride any lane.
+
+> **✅ EXECUTED 2026-08-18 ~22:32–22:36 — Owen's explicit go in his own words
+> ("We can take care of that now, just use subagent opus 5 to do it"); Opus 5
+> subagent, backup-first, nothing denied.** Evidence, condensed from the
+> agent's report:
+> - **Config:** exactly one line — `mcp_servers.hermes_mobile.enabled:
+>   true → false` (`config.yaml:715`); PyYAML re-parse clean; backup
+>   `~/.hermes/retired-supervision-20260818/config.yaml.pre-375`
+>   (sha1-verified byte-identical).
+> - **Gateway bounce** via `launchctl kickstart -k gui/501/ai.hermes.gateway`
+>   (launchd-native, honors ExitTimeOut): listener 64661 → **75604**, bound
+>   FIRST TRY (no Errno-48 race this time), `/health` 200. All three
+>   platforms reconnected.
+> - **Verified:** `/v1/toolsets` = 29 toolsets, **no `hermes_mobile`**, the
+>   substring `mobile` absent from the payload; `talaria` toolset enabled +
+>   configured (`talaria_phone_query`); plugin list reads
+>   `enabled git 0.5.0 talaria`. **Positive control:** both config readers
+>   respawned their OTHER three MCP children (`xc_build`/`xc_launch`/
+>   `hindsight`) — the absence is the edit, not a discovery failure.
+> - **Desktop app** (the second reader) quit + relaunched: backend came back
+>   with no legacy child. **The service** (`hermes-mobile-service.py`, up
+>   since Aug 11 with BOTH its logs 0 bytes since Jul 14 — silent supervision
+>   for a month) was LaunchAgent `ai.hermes.mobile.connector`
+>   (KeepAlive+RunAtLoad): `launchctl bootout`, plist moved into the
+>   retired-supervision dir, no respawn at 35 s or 101 s.
+> - **After:** zero `hermes-mobile` processes on the box. `~/.hermes-mobile/`
+>   and the repo `connector/` untouched on disk (deletion stays its own
+>   Owen-gated step). Repo clean at `099f8c70`.
+>
+> **REMAINING on this item:** the app-side dead-code deletion PR
+> (`ProvisioningService.swift`, `ProfileRelaySession.downloadAgentFile`) —
+> gated lane, no live-install go needed.
+
+> **✅ 2026-08-19 evening — HALF OF THAT REMAINDER IS DONE, and the other half
+> turned out not to be what this entry called it.** Branch
+> `375-relay-deadcode-deletion`, `GATE: PASS` (Swift Testing **2372 → 2365**,
+> exactly the 7 tests deleted — the count moved by the deletion and nothing
+> else; XCUITest 14; Release clean).
+>
+> **DELETED (#309 path 5, ruled):** `ProvisioningService.swift` + its suite,
+> the container property, the construction block, the post-pair auto-fill hook
+> (`stampTokenRefresh` stays), and **Server settings' "Refresh Provisioning"
+> button** — user-visible, and named here rather than buried: it called
+> `device/provisioning` on a retired relay, so it could only ever report an
+> error.
+>
+> **🔴 NOT DELETED, because this entry's own description of it is wrong:
+> `ProfileRelaySession.downloadAgentFile` is NOT dead code.** It backs #21
+> Tier 2's fetchable agent-file bubbles, and **two live paths still mint
+> them**: `SessionsHermesClient:1878-1886` (a `write_file`/`create_file` whose
+> args carry NO `content` falls through to `.fetchableAgentFile` — the
+> args-carry-content case is the Tier 1 bubble) and `:1988`'s announcement
+> scan (any `MobileDL/…` path named in prose). Both produce a **tappable**
+> bubble (`ChatStore.fetchAgentFile:2288`) whose only retrieval route is the
+> relay — so with both relays retired the affordance does not merely sit
+> unused, **it promises a download it cannot perform**.
+>
+> The transport half of "dead" was right; the reachability half was not. The
+> options were put to Owen rather than chosen here: **(a)** delete the
+> downloader AND stop minting fetchable bubbles (honest today, app-side, costs
+> visibility of files whose bytes never rode the tool args); **(b)** adapt
+> onto the plugin as an on-demand fetch verb — the standing adapt-forward
+> direction, a real build with a host-side half, wanting its own number the
+> way voice got #383; **(c)** leave it and let the bubbles keep lying.
+> Recommended: **(a) now, (b) filed.** **AWAITING OWEN'S PICK.**
+
+> **✅ 2026-08-19 evening — THE DOWNLOAD HALF IS DELETED TOO, on Owen's
+> ruling. Option (a): "we never implemented the download thing… I called that
+> as unneeded."** `GATE: PASS` — Swift Testing **2343** / XCUITest 14 / Release clean. The count is fully accounted for: 2372 − 7 (the provisioning suite) − 22 (the Tier-2 tests) = 2343 exactly, which is what says the deletion landed rather than a stale `.xctest` re-running. Both halves of this
+> item's remaining scope are now done, and the entry's "dead code" description
+> is corrected above rather than quietly inherited.
+>
+> **The ruling in his words, and the record beside it.** Owen's memory was
+> that the download was never built. The tree says otherwise — PR #99,
+> 2026-07-16, plus a relay route built, deployed and smoke-tested. **Both are
+> true in the way that matters:** #21's header still read *"dual-host device
+> pass owed"*, that pass was never run, and its fixture (`probe-t21.pdf`) is
+> still sitting untouched in the Mac's MobileDL. The feature shipped into a
+> state where he would never have seen a "TAP TO DOWNLOAD" chip in normal use.
+> A capability nobody ever exercised and its owner does not want is a deletion,
+> not a migration.
+>
+> **DELETED, in one commit so nothing is left half-wired:** both mint paths
+> (`parseWrittenFile`'s content-less fallthrough, and the MobileDL
+> announcement scan with its three call sites across BOTH transports),
+> `MessageAttachment.fetchableAgentFile`, the fetchable chip and its
+> `TAP TO DOWNLOAD` subtitle, `ChatStore`'s downloader/fetch/state trio,
+> `AppContainer`'s downloader closure, `ProfileRelaySession.downloadAgentFile`,
+> and `RelayAPIClient.downloadFile` + `FileDownloadError`.
+>
+> **Tier 1 is untouched** — a write whose args carry the text still stages
+> locally, previews and shares. That is the path Owen actually uses and this
+> diff does not go near it.
+>
+> **An attachment with NO local bytes now renders NOTHING.** Minting is gone;
+> the rows it already wrote into persisted conversations are not. A chip that
+> can neither preview nor fetch is a promise rather than a file, so the guard
+> covers the legacy rows a deletion cannot reach — and their Codable contract
+> stays under test, because they still have to decode.
+>
+> **🔴 THE FULL GATE CAUGHT WHAT THE SCOPING MISSED, and it was one step from
+> a silent regression.** Two `RunsPlaneTransportTests` went red. The first was
+> the old behaviour written down. **The second was the finding: the prose-swept
+> pointer was not only a download promise — it was the anchor the artifact
+> mirror UPGRADES.** On the runs plane `tool.started` carries no `args`, so the
+> mirror is the only Tier-1 source, and the correlator's **pass 1** upgraded
+> that pointer in place. Deleting the pointer removes that anchor **on the
+> plane #368 made the default this morning.**
+>
+> So the question the deletion actually raised — *with no pointer, does a
+> mirrored file still get a chip?* — was put to the code rather than reasoned
+> about: **it does, via pass 2**, which matches the mirror item against the
+> turn's WRITE ACTIVITY. The test now pins that and the anchor offset it lands
+> on; the runs-plane suite passed **38/38**. Had pass 2 not existed, option (a)
+> would have silently removed the chips that DO work, and the targeted suites
+> that ran green before the gate would not have said a word.
+>
+> **Close-out (#317): three places whose text this falsifies are corrected in
+> the same commit** — #21's archived entry (append-only pointer block per #317
+> ruling (a): its Tier 2 half is gone and its owed dual-host device pass is
+> moot), #309's table (which never listed `device/files` at all), and
+> CLAUDE.md's agent-files paragraph.
+
+> **📱 2026-08-19 20:16 — DEVICE-CONFIRMED ON BUILD 2865 (merged main
+> `6d3512b1`), Owen's smoke test. Both PRs merged; the OTA installed clean.**
+> Prompt: *"Write a file called smoke-test.md and include a haiku about video
+> games"* on the Mac host (GPT-5.6-LUNA). Result: a `WRITE_FILE` pill and a
+> chip reading **`smoke-test.md · MD · 90 bytes`** with its preview
+> affordance — a Tier 1 chip with real bytes, an hour after the deletion.
+>
+> **Why this is the evidence that mattered, and not just a green screen.**
+> The runs plane is the DEFAULT since #368 landed this morning, and on that
+> plane `tool.started` carries no `args` — so a chip with real bytes cannot
+> have been reconstructed from the stream. It came from the artifact mirror,
+> which is the one path the deletion made load-bearing when it removed the
+> pointer the correlator used to upgrade. **The gate raised that question at
+> 19:30 and the phone answered it at 20:16.**
+>
+> **Two honest limits on the reading:** the screenshot cannot distinguish
+> correlator pass 2 from any other mirror route, so "the mirror produced it"
+> is the claim, not "pass 2 produced it"; and the file landed at
+> `/Users/owenjones/smoke-test.md`, OUTSIDE MobileDL, which the deleted Tier 2
+> would have refused anyway — so this run exercises the surviving path, not
+> the deleted one. Nothing can exercise the deleted one now, by design.
+>
+> Incidental, worth recording because it is #349's fix in production: the
+> usage row on that tool turn reads `IN 46.6K · OUT 125 · ~$0.0095` with **no
+> CTX percentage** — absent on a tool turn, exactly as the fix specifies.
+
+> **📬 2026-08-19 — PR RAISED for the provisioning half:
+> https://github.com/AethyrionAI/Talaria-27/pull/324 ✅ MERGED 2026-08-19 as
+> `6d3512b1`.** The pending-review marker was cleared 2026-08-20, flagged by
+> `scripts/oi-invariants.py` alongside #369's — see that entry for why the
+> phrase was deleted rather than struck through.
+> ⚠️ **PR #324 is not tracker #324** (the beta5 SDK audit).
+>
+> **TWO MORE LEGACY PIECES FOUND IN THE SWEEP, deliberately untouched
+> (outside tonight's scope, recorded per #268):** the Mac still runs
+> LaunchAgent-supervised **`org.aethyrion.talaria-relay`** (uvicorn `:8000`,
+> up since Aug 11) and **`com.aethyrion.talaria.modelsshim`** (`shim.py`
+> `:8765`, ditto — CLAUDE.md's "the Mac never stopped its own" line, still
+> true). Routing: the **SHIM is provably dead** (`ModelsShimClient` gone from
+> the tree, model path gateway-only since #223 L5) — same bootout treatment,
+> needs its own go; the **RELAY WAITS FOR #309's ruling** (relay-hosted VOICE
+> is exactly the open question — do not retire the Mac relay before Thursday
+> answers it).
+>
+> **Also flagged for CLAUDE.md (corrected in the same commit):** the Mac's
+> fresh-bounced gateway serves **Hermes 0.20.4**; OJAMD measured **0.20.3**
+> on 08-18 (#349 wire probe). Version notes rot in days — probe live.
+
+> **✅ SECOND HALF EXECUTED 2026-08-18 ~22:45 — the Mac SHIM and DEV RELAY
+> retired too, on Owen's go ("shim and dev relay can go as well, via
+> subagent"), with his direction ruling recorded at #309 (adapt forward,
+> never fall back).** Evidence, condensed from the agent's report:
+> - Both were `RunAtLoad`+`KeepAlive` LaunchAgents (so `bootout` was the
+>   correct verb — a kill would have respawned): `com.aethyrion.talaria.
+>   modelsshim` (shim.py `:8765`, PID 87376) and `org.aethyrion.talaria-relay`
+>   (uvicorn `:8000`, PID 87367), both up since Aug 11 15:32.
+> - **Zero live clients at retirement** — LISTEN only on both ports; the
+>   relay's recent log traffic was one unpaired localhost client collecting
+>   401s. No host WS live.
+> - Plists copied (byte-verified) AND moved `.retired` into
+>   `~/.hermes/retired-supervision-20260818/` — same pattern as the
+>   connector. Bootouts exit 0, clean uvicorn shutdown logged, **no respawn
+>   at 45 s / 2.5 min, both ports free, both labels gone.**
+> - **Collateral clean:** gateway untouched (`:8642` 200, PID 75604
+>   unchanged), `com.talaria.ota-http` intact, `relay/hermes_mobile.db` +
+>   all logs untouched, repo clean.
+> - **Restore recipes are in the agent report and are two commands each**
+>   (`mv` the `.retired` plist back + `launchctl bootstrap gui/501 …`);
+>   the relay's pairing DB is untouched, so a restore comes back with
+>   pairings intact — the two-second fallback if Saturday's voice checks
+>   surface a relay-riding bootstrap. Per the #309 direction ruling, any
+>   such restore is a MIGRATION BRIDGE, not a home.
+>
+> **The Mac now matches OJAMD: the legacy tier's supervision is fully
+> retired on both hosts. THIS ENTRY'S ONLY REMAINING SCOPE is the app-side
+> dead-code deletion PR** (`ProvisioningService.swift`,
+> `ProfileRelaySession.downloadAgentFile`) — gated lane, this week's free
+> bucket.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 376. 🎨 The About/status surface shows a STALE drain readout while the plugin is connected — **FILED 2026-08-18 night per #268, from Owen's 2026-08-16 observation during #271's phone pass, verbatim: "The drain must not be updated on the about page." SURFACE NAMED 2026-08-18 ~22:45 (Owen): Settings → About, the LAST-DRAIN TIMESTAMP — it lagged while the plugin showed connected. NOT STARTED, now actionable.** **⟵ HEADER CORRECTED 2026-08-23 — ✅ CLOSED AS MOOT: the readout was DELETED by #352 two days BEFORE this item was filed. Nothing to fix; the surface is gone.**
+
+> **✅ 2026-08-23 — CLOSED AS MOOT. The surface this item describes no longer
+> exists, and it was already gone when the item was written.**
+>
+> **The row was real.** `Last Drain` lived in the About page's
+> `// Sensor Pipeline` panel, fed by
+> `SensorUploadService.SensorDiagnostics.lastDrainSummary` / `lastDrainAt` —
+> so the 08-18 naming block's untested guess (*"may still be fed by the legacy
+> relay drain path"*) was **right about the mechanism**. It was wrong about the
+> tense.
+>
+> **#352 deleted it.** `1bb5504c` removed `SensorUploadService` outright, and
+> `af0f88f3` (*"About page — Phone Queries panel replaces the relay-era Sensor
+> Pipeline panel", 352-D*) replaced the whole panel. Today's About page carries
+> `// Phone Queries` — Sensor Sharing plus three query gates — and **no
+> timestamp of any kind**, so there is nothing left that can go stale.
+>
+> **The dates are the finding.** Owen observed the stale drain on **2026-08-16**
+> during #271's phone pass; `af0f88f3` landed **2026-08-16 19:57**; this item
+> was filed **2026-08-18 night**. The fix shipped between the observation and
+> the filing, from a different lane, and neither the filing nor the 08-18
+> naming pass checked the code.
+>
+> **This is #340's stray-artifact shape with the polarity reversed.** There the
+> tracker kept asking for a chore already done outside it; here the tracker
+> **created** work for a surface already deleted inside it. Same root: an entry
+> written from an observation rather than from the tree. Both cost little
+> individually — this one was booked onto a night build list and closed by a
+> grep — but the generalisation is worth the two lines it takes: **an
+> observation ages; check the code before filing from one, and again before
+> building from one.**
+>
+> **Nothing owed.** Ready to move to `OPEN_ITEMS-ARCHIVE.md` verbatim at the
+> next sweep (#261).
+
+> **2026-08-18 ~22:45 — naming received.** The candidate mechanism to check
+> first (not elected): the About content's last-drain readout may still be
+> fed by the legacy relay drain path, which the plugin tier (#251) no longer
+> drives — the same derived-vs-asserted family as #350. Small diagnosis +
+> fix; free-bucket candidate once #368/#302 land.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 382. 🧹 DELETE the sessions-plane turn transport and the runs switch — #368's deferred second half, on a one-week clock — **FILED 2026-08-19 the minute Owen ruled it (per #268: a routing decision gets a number the day it is made). ~~NOT STARTED. ⏰ TRIGGER: 2026-08-26, or sooner on Owen's word.~~** **⟵ HEADER CORRECTED 2026-08-23 (same night): ✅ the trigger FIRED EARLY on Owen's word and the deletion is BUILT + MERGED (PR #360, squash `5f50e498`, net −1,219 lines) — bars 382-A..E met, two scope corrections recorded, five test files un-defaulted off the deleted plane, restore recipe in the result block. CLOSED; archive move rides the next sweep.**
+
+**Why it exists.** #368's cutover flips the default to the runs plane but
+deliberately does NOT remove the old path. Owen's 2026-08-19 ruling was
+*flip now, delete next week* — the middle option between the plan's
+recommended wholesale delete and keeping a permanent dual path. This item is
+the thing that stops "next week" becoming "never".
+
+**⚠️ The cost this item is holding, said plainly.** Between #368 landing and
+this item closing, the tree carries TWO turn transports and only one of them
+runs by default. That is the **#218 shape** — two paths, one tested — which
+cost two days the last time it went unnoticed. It is being accepted
+knowingly, for one week, to buy evidence; it is not a state to settle into.
+
+**Scope, inherited verbatim from #368's bar 3E-E (pre-registered
+2026-08-19 BEFORE any code, and explicitly conditional on this ruling — so
+it is a bar moving house, not a bar written after the fact):**
+
+> **3E-E (deletion, structural).** No call site in `Talaria/` submits a turn
+> on the sessions plane: `grep` proves zero references to `chat/stream` and
+> zero to `POST /api/sessions/{id}/chat`, and `useRunsTransport` is absent
+> from the tree. `/api/sessions*` survives ONLY as create/open/list/
+> messages/fork/model. Falsifier: any surviving turn-submitting sessions
+> call site.
+
+**What comes out** (named from HEAD `f48add84` so the lane can check rather
+than rediscover): `SessionsHermesClient.streamTurn` and `postSyncChat`, the
+`useRunsTransportProvider` seam and both per-turn reads (`:311`, `:374`),
+`UserSettings.useRunsTransport` **and its `runsCutoverApplied` migration
+flag** (which exists only to serve the switch), the Developer row
+(`DeveloperSettingsScreen.swift:207`), and — once no run-id-less `PendingRun`
+can exist — `ChatStore.attemptSessionReconcile` with `reconcileFromServer()`
+behind it.
+
+**One thing that must NOT come out with it, and it is easy to miss:** the
+background-expiration arm in `cancelStreaming(hardStopHost: false)` still
+arms recovery with `runId: nil` (`ChatStore.swift`, the `armPendingRunRecovery`
+call whose comment reads *"`runId` has no channel here at all"*). **That
+comment is now stale** — `cancelledRunID` is captured at the top of the same
+function (#322's read-before-clear) and is exactly the id that arm needs. So
+the lane's first move is to feed it in; only THEN is the run-id-less pending
+run genuinely unreachable and the legacy reconcile safe to delete. Deleting
+in the other order strands the expiration path with no recovery at all.
+
+**The evidence the week is for.** What would make this item pause rather
+than proceed: a real host-side runs failure the escape hatch demonstrably
+rescued. Note that the ONE historical instance (2026-08-16, the toggle
+flipped off and chat returned) was **later exonerated** — #356 pinned the
+cause to a stopped/mid-update OJAMD reached through the M-5 birth hop, not
+to the transport. So the bar for pausing is a NEW instance, not a re-telling
+of that one.
+
+**Cross-refs:** #368 (parent; the cutover), #218 (the shape being accepted
+for a week), #356 (the exonerated near-miss), #328 route 1 (delivered by
+#368's flip, and permanent once this lands), #322 (its cancel-read stops
+being a no-op at #368, not here).
+
+> **⚖️ TRIGGER FIRED EARLY — 2026-08-23 evening, Owen's word:** *"I'm ok to
+> delete now, you've convinced me. Leaving behind a restore recipe isn't a
+> bad idea though, would ease anxiety about deleting it."* The
+> keep-as-developer-option alternative was weighed and declined on four
+> grounds (the #218 one-tested-path shape; the escape hatch's measured
+> value of zero across its evidence week, with the one apparent rescue
+> exonerated by #356; the legacy mode shipping a dishonest Stop — #328/#180;
+> and the compounding dual-path tax, #368 having already forked the
+> recovery machinery). **His rider: a RESTORE RECIPE is recorded at
+> close-out** — commit pins + file list, a bridge-only procedure per the
+> #309 direction (a restored transport is a temporary migration bridge,
+> never a standing fallback).
+>
+> **🎯 BARS 382-A…E — pre-registered before code:**
+> - **382-A (the ordering trap, RED-first).** The background-expiration arm
+>   of `cancelStreaming(hardStopHost: false)` arms recovery WITH the
+>   cancelled run's id — `cancelledRunID` is captured at the top of the
+>   same function (#322) and is exactly what the arm needs. Shown RED
+>   against today's `runId: nil`. This lands BEFORE any deletion: only
+>   once no run-id-less `PendingRun` can exist is the legacy reconcile
+>   safe to remove.
+> - **382-B (3E-E, structural).** No call site in `Talaria/` submits a
+>   turn on the sessions plane: zero references to `chat/stream` and to
+>   the sync chat POST; `useRunsTransport` absent from the tree;
+>   `/api/sessions*` survives ONLY as create/open/list/messages/fork/
+>   model. Verified by grep at close and pinned in source where cleanly
+>   expressible.
+> - **382-C (recovery non-regression).** The runs-plane recovery suite
+>   stays green, and NO remaining `armPendingRunRecovery` caller passes a
+>   nil run id.
+> - **382-D (settings hygiene).** Persisted JSON still carrying the
+>   retired `useRunsTransport` / `runsCutoverApplied` keys decodes cleanly
+>   (#238's unknown-key shape, pinned by test).
+> - **382-E.** `GATE: PASS`, count moved; CLAUDE.md's chat-path bullet
+>   rewritten in the same close-out (its supersession note currently
+>   promises this deletion).
+
+> **✅ 2026-08-23 — DONE. 382-A..E ALL MET (PR #360, squash `5f50e498`).
+> GATE: PASS 2478 / 14 / Release — the count moved −24 and reconciles
+> test-by-test (28 deleted-plane tests out, 4 replacements in).**
+>
+> **What actually came out** (vs the entry's list, which was named from an
+> older HEAD — two corrections):
+> - OUT as listed: `streamTurn` (the whole sessions SSE parser),
+>   `postSyncChat` + `SyncChatResponse`, the `useRunsTransportProvider`
+>   seam and both per-turn reads, `UserSettings.useRunsTransport` + its
+>   `runsCutoverApplied` migration (old blobs decode fine — 382-D pinned),
+>   the Developer row. PLUS one site the list never named and bar 3E-E's
+>   own grep caught: **the transplant PRIMER was the last turn-submitting
+>   sessions call site** — ported to the runs plane (submit + poll, usage
+>   off the status object, nil receipt on a starved poll exactly as the
+>   old drain).
+> - **CORRECTION 1: `reconcileFromServer` STAYS.** `attemptSessionReconcile`
+>   no longer exists by that name, and the machinery behind it serves TWO
+>   consumers the entry mis-credited to the transport: the run-id-less
+>   expiration race (an accepted turn whose POST hadn't returned an id) and
+>   the outbox drain's #240 dedup fetch. Shared infrastructure, not
+>   transport.
+> - **CORRECTION 2: `pinSessionModelIfNeeded` (#241 path 3) DELETED as dead
+>   code.** Its callers died with the plane, and the runs wire carries no
+>   `runtime` block to pin from — a DOCUMENTED absence (+RunsTransport:
+>   "inventing one would be a fabricated attribution"), which means the pin
+>   had been unreachable in production since #368's flip. **The narrow #241
+>   exposure that returns:** a bare create on a catalog-less host keeps the
+>   host's stored default (the alias) un-replaced. Logged at the create
+>   site; pointer appended under archived #241. The primary defense
+>   (resolve-before-create + `wireSafeModelID`) is unchanged and still
+>   pinned.
+>
+> **The deletion's real harvest — the #218 shape measured, not argued:**
+> five test files had been riding the seam's conservative `{ false }`
+> default onto the legacy plane since #368, green while testing a plane
+> production left five days ago. `ArtifactStreamingTests`' two wire tests
+> (Tier-1 reconstruction the runs plane deliberately lacks — the mirror
+> replaced it) and `ReasoningChannelTests`' 13 assembly fixtures:
+> tombstoned with their parser. `SessionModelImmunityTests`' create-body
+> arms, `ContextMeterTests`, `BackendProfileRoutingTests`: fixture-ported
+> to the runs dialect (the M-16 pin now covers the five-request runs
+> family). `StreamLossClassificationTests`' three loss scenarios:
+> re-pinned in `RunsPlaneTransportTests` against the runs driver's actual
+> contract — the accepted-drop arm now carries the run id the sessions
+> plane never had.
+>
+> **382-A deviation, named:** the expiration arm's `cancelledRunID` feed
+> was already IN #368's merged form — the entry's "first move" was stale.
+> The lane pinned it (`pendingRunRunId` + the zero-events test) and proved
+> the pin by mutation: the nil feed went RED on exactly that assertion.
+>
+> **🔐 RESTORE RECIPE (Owen's rider — bridge only, per the #309
+> direction).** The transport's last full form is main @ **`d426971c`**;
+> the deletion is squash **`5f50e498`**. Near the deletion, `git revert
+> 5f50e498` applies cleanly (the squash is self-contained). Later, as
+> neighbours drift, restore by READING the four files at `d426971c`
+> (`SessionsHermesClient.swift`, `UserSettings.swift`,
+> `DeveloperSettingsScreen.swift`, `AppContainer.swift`) rather than
+> reverting. **A restored transport is a temporary migration bridge, never
+> a standing fallback** — any restore gets its own dated tracker note the
+> day it happens, and the un-restore is part of the same note.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 383. 🗣️ RE-HOME the realtime VOICE bootstrap onto the talaria plugin — the only #309 path that needs a new home BUILT rather than re-pointed — **FILED 2026-08-19 the minute Owen elected route (a) (per #268; the brief explicitly recommended this get its own number rather than stay a sub-bullet). **2026-08-22: OWEN GRANTED THE LIVE-INSTALL GO (Mac first, then OJAMD), ruled COMPENSATE on the orphan hazard, and asked for the `talk_turn_append` question to be investigated rather than pre-decided. Bars 383-A..F now pre-registered below. **PLUGIN HALF BUILT + DEPLOYED TO THE MAC 2026-08-22, live-probed; 383-A/E met. **APP HALF MERGED 2026-08-22 (PRs #344-#347). Voice SELECTS realtime on device; the last defect (an undashed session uuid) is fixed and deployed but UNVERIFIED end-to-end — **✅ 383-F MET 2026-08-22: realtime voice VERIFIED end-to-end on the Mac. ✅ OJAMD DEPLOYED 2026-08-22 PM — `talaria-plugin` @ `fb2e364` on BOTH hosts, both WIRE-PROVEN (bogus-token dispatch probe, with a nonsense-verb control). ~86 s downtime, Discord back. **✅ 383-F MET ON OJAMD TOO, 2026-08-22 PM — Owen ran a full realtime conversation against the OJAMD profile (`LINKED · OJAMD · KIMI-K3`, `VOICE · REALTIME`, header `REALTIME VOICE · AUDIO LEAVES THIS PHONE TO YOUR HOST'S PROVIDER`). EVERY BAR MET ON BOTH HOSTS; nothing owed. THE ITEM IS DONE. The session also produced the decontaminated self-barge-in observation that #138 was owed — recorded there, not here.**
+
+**What moves.** ~~#309 paths 11 and 12~~ **FOUR paths, not two — corrected
+2026-08-20 (see the block at the foot of this entry).** The app's entire
+realtime voice bootstrap:
+
+- `GET talk/readiness` (`LiveVoiceSessionService.swift:192`) — may a realtime
+  session start?
+- `POST talk/session` (`:278`) — mint one.
+- `POST talk/session/{id}/end` (`:708`) — release it.
+- `POST talk/session/{id}/turns` (`:729`) — persist a turn.
+
+Both speak to the **relay**, which is retired on both hosts (#346 OJAMD
+2026-08-10, #375 Mac 2026-08-18). **So realtime voice is, as of last night,
+bootstrapped against nothing.** That is the present-tense state this item
+exists to fix — not a future tidy-up.
+
+**The ruled route: (a) the PLUGIN.** The app asks the host to mint the
+session over the talaria platform link; the provider key stays host-side.
+
+**Route (b) was REJECTED, and the reason is the load-bearing part of the
+ruling:** minting the realtime session directly from the phone would put a
+PROVIDER CREDENTIAL ON THE DEVICE. That is a security posture change nobody
+asked for, and it is cheaper to reject now than to unwind after it ships.
+Do not re-propose (b) as a shortcut when the plugin work turns out to be
+bigger than expected — raise it with Owen as a decision instead.
+
+**What makes it buildable at all:** the realtime key is now present on
+**both** hosts (#254-D/#303, recorded runnable in the 2026-08-18 week plan).
+Before that, (a) had nowhere to read a key from on OJAMD.
+
+**⚠️ The platform link does not currently carry voice.** #309's own
+inventory says so in as many words: *"a `POST /api/platforms/talaria/events`
+plugin does not currently carry voice."* So this is a plugin-side build plus
+an app-side client swap, not a URL change — which is exactly why it is
+numbered separately from the twelve DELETE rows and the two plain re-points.
+
+**Live-install gate:** the plugin half needs a deploy and a gateway bounce on
+each host, so it rides Owen's **per-experiment go** under the standing rule
+(#251/3C/3D precedent: per-slice, named in this entry when granted). Nothing
+deploys before that.
+
+**⛔ And the no-hardening rule bites here in its post-retirement form**
+(Owen, 2026-08-18): if this build stalls, the fix is NOT "bring the relay
+back up and leave voice on it." A restored relay is a migration bridge, not
+a home. The restore recipes in #375's evidence block are two commands each
+and exist for exactly that bounded purpose.
+
+**Bars — pre-register in this entry BEFORE any code** (#215 convention).
+
+> **✅ 2026-08-20 — DESIGN PASS DONE:
+> `planning/2026-08-20-383-voice-plugin-design.md`. Still no bars, and no
+> deploy — the plugin half's live-install go has NOT been requested.**
+>
+> **The finding that makes this smaller than it looked: it is VERBS, not
+> routes.** `TalariaPlatformLink` speaks ONE endpoint with the verb in the
+> body (`:31`), and host-side `envelope.py:113-119` dispatches from a plain
+> dict of five. The plugin half is **four new entries in that dict** — no new
+> route, no new auth surface, no gateway change, and nothing `hermes update`
+> can overwrite (the plugin lives outside `hermes-agent`).
+>
+> **Feasibility CONFIRMED rather than assumed:** `OPENAI_API_KEY` is present
+> in `~/.hermes/.env`, and the plugin runs in the gateway process — so a
+> handler can mint the ephemeral `clientSecret` with a key that never leaves
+> the host. That is precisely the property route (b) was rejected to protect.
+>
+> **What gets SIMPLER, and it is the strongest argument for (a) beyond
+> security:** voice today authenticates with **relay access tokens** — a
+> second credential family with the #15/#94 refresh ladder behind it. On the
+> plugin it uses the **device token** the app already holds and already
+> re-pairs on 401. **Voice stops being a second auth plane.**
+>
+> **🔴 THE ONE GENUINELY NEW RISK, where bars should be hardest:** the link is
+> epoch-superseded (#285) — `stop()` abandons in-flight work at its next
+> checkpoint. A voice bootstrap abandoned mid-flight leaves a **minted
+> host-side session with no client**: #288's orphan-row shape, but holding a
+> PROVIDER session that costs money until it expires. Voice verbs must either
+> be exempt from supersession or carry a compensating end.
+>
+> **Two questions for Owen in the doc's §8**, both recommendations rather
+> than open choices: (1) compensate rather than exempt, because a leaked
+> provider session costs money and the cleanup's failure mode is bounded by
+> the session's own expiry; (2) **`talk_turn_append` may not deserve porting
+> at all** — #1's `postVoiceTranscriptsToHermes` already posts voice
+> transcripts as normal Sessions-API text turns, so this may be a second path
+> to the same end. Investigate before porting; if it duplicates #1, accept
+> the loss the way #309 path 16 did.
+>
+> Sequencing is plugin-half → app-half → delete the relay rows, each
+> independently revertable, with step 1 deploying nothing user-visible.
+None are written yet, deliberately: the plugin-side shape is undesigned, and
+writing bars against a guess is how a lane gets bars it can pass without
+proving anything. First move is a design pass, not a build.
+
+
+> **✅ 2026-08-22 — OWEN RULED ALL THREE §8 QUESTIONS. LIVE-INSTALL GO GRANTED
+> (named here, per the standing rule). Bars written below, before any code.**
+>
+> ### The ruling
+>
+> 1. **Live-install go: GRANTED — "Mac first, then OJAMD."** The plugin half
+>    may deploy to the **Mac** and bounce the Mac gateway; **OJAMD only after
+>    the Mac works end to end.** This is the per-experiment go the standing
+>    rule requires, recorded in this entry as #251/3C/3D's precedent demands.
+>    It covers the four voice verbs and nothing else.
+> 2. **Hazard 1: COMPENSATE**, not exempt. Voice verbs stay superseded like
+>    everything else; an abandoned bootstrap fires a compensating end.
+> 3. **`talk_turn_append`: INVESTIGATE AND REPORT BACK** — Owen explicitly
+>    declined to pre-decide. Result below; **the port/drop call is still his.**
+>
+> ### 🔴 `talk_turn_append` — the investigation, and it found a reason the
+> design doc did not have
+>
+> Three findings, in ascending order of weight:
+>
+> 1. **The app never reads voice turns back.** `talk/session/{id}/turns`
+>    appears exactly once in the tree — the POST at
+>    `LiveVoiceSessionService.swift:729`. There is no GET, and
+>    `VoiceTurnPersistResponse` is decoded only to be discarded. Porting it
+>    would build a host-side store **nothing in the app consumes.**
+> 2. **#1 already covers the need it was built for.** The transcript is
+>    composed **entirely on-device** from the TalkStore snapshot
+>    (`ChatStore.appendVoiceTranscript`) and — when the user allows it —
+>    posted to the Sessions API as a normal text turn, which is what actually
+>    gives the agent voice context on the next exchange. That is the same end
+>    by a path that already works and does not touch the relay.
+> 3. **🔴 IT BYPASSES THE USER'S OWN PRIVACY TOGGLE, and this is the finding
+>    that should decide it.** `persistFinalTurn` is gated on nothing but a
+>    non-empty string and a live session id — **not** on
+>    `UserSettings.postVoiceTranscriptsToHermes`. #1's path IS gated on it
+>    (`ContentView.swift:76`). So today, a user who has turned "post voice
+>    transcripts to Hermes" **off** still has every realtime turn shipped
+>    host-side, one at a time, by this verb.
+>
+>    **Porting it would faithfully rebuild that.** It would carry a
+>    toggle-bypassing transcript path onto the plugin — the plane #386's
+>    published privacy policy describes — and it would do so *on purpose*,
+>    which is worse than inheriting it by accident. The honest options are
+>    drop it, or port it **gated on the toggle**, which makes it a behaviour
+>    CHANGE rather than a port and needs saying out loud.
+>
+> **Recommendation: DROP**, and accept the loss the way #309 path 16 did.
+> Nothing reads it, #1 covers the need, and its current behaviour contradicts
+> a setting the user can see. **Owen's call.**
+>
+> ### 🎯 BARS 383-A..F — pre-registered, design done, no code written
+>
+> - **383-A (step 1 is invisible).** With the plugin half deployed to the Mac
+>   and the gateway bounced, the app — still on the relay path — behaves
+>   **identically**: voice is still broken in exactly the way it is broken
+>   today. A step-1 deploy that changes app behaviour means the halves are
+>   coupled and the sequencing claim was false.
+> - **383-B (no provider credential reaches the device).** After the app half,
+>   `grep -ri "OPENAI\|sk-" Talaria/ Shared/` yields nothing, and the app's
+>   only voice credential is the device token it already holds. **This is the
+>   property route (b) was rejected to protect; it gets a bar, not a comment.**
+> - **383-C (compensation is DEMONSTRATED, never assumed).** A bootstrap
+>   abandoned mid-flight — supersession fired between mint and use — must
+>   leave **no** live host-side provider session. Shown by actually abandoning
+>   one and then proving the session is gone, not by reading the cleanup code.
+>   **#288's orphan-row shape is the precedent, and it is the one hazard here
+>   that costs real money.**
+> - **383-D (voice stops being a second auth plane).** Zero relay
+>   access-token use on the voice path afterwards — the #15/#94 refresh ladder
+>   is not merely unused but unreachable from voice.
+> - **383-E (verify the LISTENER after every bounce, not the process).**
+>   #264's rule, and the 2026-08-09 headless-gateway incident is why: after
+>   each gateway restart, `lsof -nP -iTCP:8642 -sTCP:LISTEN` before anything
+>   is called done. A bounce that leaves the box headless must be caught by
+>   the procedure, not by Owen noticing chat is down.
+> - **383-F (OJAMD is gated on the Mac succeeding END TO END).** Not "the Mac
+>   deploy didn't error" — an actual realtime voice session, started and ended
+>   from the phone against the Mac. Owen's ruling is "Mac first, then OJAMD";
+>   this bar is what makes "then" mean something.
+
+
+> **✅ 2026-08-22 00:25 — PLUGIN HALF BUILT AND DEPLOYED TO THE MAC. Live-probed
+> on the running gateway. 383-A and 383-E met; app half next.**
+>
+> ### 🔴 The design doc was WRONG about the handlers, and it mattered
+>
+> §1 said "four new entries in that dict **plus their handlers**", treating the
+> handlers as a port. **The relay never minted anything** — it delegated via
+> `send_connector_rpc(method="talk.session.create")`, so the minting logic lived
+> in the CONNECTOR, not the relay. Reading the relay alone would have produced a
+> handler that forwards to a process that no longer exists.
+>
+> What the connector actually does, now ported:
+> - mints against **`https://api.openai.com/v1/realtime/client_secrets`** — not
+>   `/v1/realtime/sessions`, which is what recall would have supplied. **Read,
+>   not remembered**, and this is exactly the class of thing that costs a day
+>   when guessed.
+> - iterates a **model fallback list** (`gpt-realtime-1.5` → `gpt-realtime`),
+>   because the first can 400 on an account that lacks it and a bootstrap that
+>   died on the first refusal would strand the user with no explanation.
+>
+> ### 🔴 Hazard 1's PREMISE was falsified — Owen ruled on reasoning that was wrong
+>
+> The doc (and the question put to Owen) said an abandoned bootstrap leaves a
+> **provider session that costs money**. It does not. `_rpc_talk_session_end`
+> never touches OpenAI — it pops a local dict — and the relay's `end` only
+> marked its own DB row. **The host mints an ephemeral secret; the realtime
+> session is phone ↔ OpenAI.** An abandoned bootstrap leaks a short-lived
+> unused credential that expires on its own.
+>
+> **COMPENSATE remains the right call**, for credential hygiene rather than
+> billing, and Owen was told the moment it was found. **383-C's bar text
+> ("the one hazard here that costs real money") is corrected by this block.**
+>
+> ### What shipped
+>
+> `talaria/voice.py` + three dispatch entries. `talk_turn_append` deliberately
+> absent (the investigation above). **Memory-only prompt per Owen's ruling** —
+> and one omission that is a FIX: the connector's prompt described a
+> `hermes_delegate` tool the session has never carried (#85 turned MCP
+> advertising off), i.e. it instructed the model to reach for something absent.
+> Replaced with an explicit statement of its own limits.
+>
+> ### Verification — live, on the running gateway
+>
+> Gateway bounced **75820 → 95278**, listener verified up, `/health` 200. No
+> Errno 48 headless case (**383-E met**; the 2026-08-09 incident is why that is
+> a bar and not a habit).
+>
+> Dispatch probe against the LIVE endpoint — a *known* verb with bad device auth
+> answers `device_auth_mismatch`, an unknown one answers `unknown_event_type`,
+> so registration is provable without a device token:
+>
+> ```
+> drain               → device_auth_mismatch   (existing verb, unchanged)
+> talk_readiness      → device_auth_mismatch   ← registered
+> talk_session_create → device_auth_mismatch   ← registered
+> talk_session_end    → device_auth_mismatch   ← registered
+> talk_turn_append    → unknown_event_type     (deliberately not built)
+> bogus_verb          → unknown_event_type     (control)
+> ```
+>
+> **383-A met:** `drain` answers identically, so chat and sensors are
+> undisturbed, and the app — still on the dead relay path — sees no change.
+> Voice remains broken exactly as it was; that is what makes step 1 revertable.
+>
+> **Tests:** 17 new, full plugin suite **187 passed**. The 2 failures in
+> `test_storage_concurrency.py` are **PRE-EXISTING** — verified by stashing the
+> diff and reproducing them on clean HEAD rather than assuming.
+>
+> Plugin commit `4aa69c7` (the plugin is its own repo, outside `hermes-agent`,
+> so `hermes update` cannot overwrite it).
+>
+> **Next: the app half** — swap `LiveVoiceSessionService`'s `RelayAPIClient` for
+> the platform link. **383-F gates OJAMD on end-to-end voice working on the
+> Mac**, which needs the app half plus a device build.
+
+
+> **🟡 2026-08-22 02:5x — APP HALF MERGED, MAC PLUGIN DEPLOYED AND CORRECTED.
+> Voice now SELECTS realtime on device. The last known defect is fixed but
+> UNVERIFIED end-to-end — that is the single open question when this resumes.**
+>
+> ### What shipped (PRs #344, #345, #346, #347; plugin `4aa69c7` + `b609ec9`)
+>
+> - `VoiceBootstrapTransport` + the link's three verbs; `LiveVoiceSessionService`
+>   swapped off `RelayAPIClient`. **`accessTokenProvider`,
+>   `accessTokenRefresher` and `performAuthorizedRequest` existed ONLY for the
+>   four voice calls, so voice genuinely stopped being a second auth plane**
+>   rather than merely changing transport.
+> - `persistFinalTurn` removed with the dropped `talk_turn_append`.
+> - **Hazard 5 handled:** the envelope answers **HTTP 200 with the error in the
+>   BODY**, so an un-updated host reached the app as a *decode* failure.
+>   `VoiceVerbOutcome` (`ok`/`unsupported`/`unreachable`) now names it.
+>
+> ### 🔴 THREE DEFECTS, and the pattern is the same one all night
+>
+> **1. The ROUTING GATE still read relay pairing.** `VoiceEngineRouter` gated
+> realtime on `isRelayPaired()`; the relay is retired, so that is permanently
+> false and voice fell to the local pipeline no matter how healthy the plugin
+> was. **Found on device.** Renamed `isVoiceHostPaired`, pointed at the link.
+>
+> **Why 2,455 green tests could not catch it: every router test passes
+> `isRelayPaired: { true }`.** Four sites assert `activeEngine == .realtime` —
+> all under a stub that always says yes. The defect was in `AppContainer`'s
+> WIRING, which has no unit-test harness. **A stub that always answers yes
+> cannot fail the way production failed.**
+>
+> **2. The failure path had NO LOG.** A failed realtime start set
+> `blockedReason`, fell back, and the reason lived on screen for a flash. Third
+> instance tonight of *the failure path is the path with no instrument* (#394's
+> poll loop; the 200-with-an-error-body; this). Now logged — and it immediately
+> paid for itself:
+>
+> ```
+> realtime start FAILED — DecodingError.dataCorrupted
+> Path: voiceSession.id — Attempted to decode UUID from invalid UUID string.
+> ```
+>
+> **3. 🔴 EDITED IS NOT DEPLOYED.** That UUID bug — `uuid4().hex` where the app
+> decodes a Swift `UUID`, which rejects an undashed string — was **caught hours
+> earlier** while reading the app's decode targets, and fixed in the file. It
+> was never committed and the gateway was never bounced. The listener had been
+> up since 00:25:11; the file changed at 00:35. **Every `talk_session_create`
+> in between served the broken id, while the record said "fixed host-side".**
+> Same family as CLAUDE.md's *stopped ≠ disabled*: a host-side edit is not a
+> host-side change until the process that reads it restarts.
+>
+> ### ⚠️ The bounce went HEADLESS again — #264's hazard, second occurrence
+>
+> Deploying the fix required a gateway restart, and launchd respawned faster
+> than the old process released `:8642`: the new gateway came up **alive with
+> MCP children and no listener**, i.e. chat down. `gateway_state.json` named it
+> exactly — `api_server state: fatal, error_code: api_server_port_in_use` —
+> which is #264's ops upgrade working as designed. A second restart fixed it.
+> **Listener 18557 @ 02:51:37, health 200, all three verbs registered.**
+>
+> **And the process lesson:** a waiter was armed on a listener that was never
+> coming back, and seven minutes passed with chat down before Owen asked. The
+> rule already exists ("budget a verify-and-maybe-restart-again step") — it was
+> followed once and then waited on instead of re-checked.
+>
+> ### ✅ VERIFIED host-side, against the real provider
+>
+> - the key resolves on the Mac; the mint succeeds (`gpt-realtime-1.5`);
+> - **`/v1/realtime/calls` ACCEPTS the plugin's ephemeral secret** with that
+>   model — a deliberately malformed offer was refused `invalid_offer`, an
+>   SDP-content error, not auth;
+> - every date shape the plugin emits decodes with the app's real decoder,
+>   including the `+00:00` offsets Python writes and the relay never sent (one
+>   create response carries BOTH a fractional and a non-fractional stamp).
+>
+> ### ⛔ THE OPEN QUESTION — one device attempt answers it
+>
+> **Build 2944 is on the phone and is already correct; the bug was host-side.**
+> The corrected plugin is live. **Nobody has started a voice session since.**
+> Mac Mini profile + Hermes brain → does it connect?
+>
+> - **If yes:** 383-F is met and OJAMD's deploy is unblocked (Owen's go already
+>   covers it — Mac first, then OJAMD).
+> - **If no:** `realtime start FAILED` now carries the real error;
+>   `sudo /usr/bin/log collect --device-udid 00008150-000E794C3C47801C --start "<time>" --output ~/Desktop/v.logarchive`.
+>
+> **Still owed after that:** step 3 of the sequencing — delete #309's relay
+> voice rows — and Owen's ruling on `talk_turn_append` (investigated, dropped,
+> recommendation was DROP).
+
+
+> **✅ 2026-08-22 ~03:0x — 383-F MET. REALTIME VOICE WORKS END TO END ON THE
+> MAC, over the plugin.** Owen, on build 2944, Mac Mini profile: the header
+> read the realtime banner (*"audio leaves this phone to your host's provider —
+> fixed for this session"*) and **the reply was the realtime voice, not the
+> local pipeline.**
+>
+> That closes the re-home on the Mac. The chain now runs: app → platform link →
+> `talk_session_create` → plugin mints an ephemeral secret host-side → phone
+> exchanges SDP with OpenAI directly. **The provider key never left the host**,
+> which is the property route (b) was rejected to protect (383-B).
+>
+> **What it took after the app half merged:** three defects the device found and
+> a green gate could not — a routing gate still reading retired relay pairing, a
+> failure path with no log, and a host-side fix that was edited but never
+> deployed. All three recorded in the block above.
+>
+> ### ⛔ NEXT: OJAMD, and it needs Owen at the keyboard
+>
+> Owen's go already covers it (*"Mac first, then OJAMD"*) and the Mac gate is
+> now met — but **OJAMD's gateway is NOT launchd-supervised.** It is a user
+> process started by `Hermes_Gateway.vbs` from the Startup folder, so loading a
+> new plugin there needs a hand relaunch (`wscript.exe "<that path>"`), and a
+> bounce takes **Discord down with chat** (#S6: 4 of 5 platforms connected).
+> Tonight's headless-bounce recurrence on the Mac — where launchd *does*
+> respawn — is the argument for not attempting OJAMD unattended.
+>
+> **Still owed:** step 3 of the sequencing (delete #309's relay voice rows), and
+> Owen's ruling on `talk_turn_append` (investigated; recommendation DROP).
+
+
+**Cross-refs:** #309 (parent inventory; paths 11–12), #251 (the plugin
+venture), #375 (the retirement that made this urgent), #254-D/#303 (the
+realtime key on both hosts), #138 (realtime self-barge-in — a live voice
+defect this must not regress), #303 (the engine-pin race — its cold-launch
+arm reads a realtime *permission*, so it has an interest in whatever
+replaces `talk/readiness`).
+
+> **⏩ 2026-08-20 AM — PULLED FORWARD TO THIS WEEK (Owen), and the reason is a
+> scheduling collision rather than a re-prioritisation.** Saturday's device
+> day carries item 8, *"#220 / #198A engine-pinned voice re-checks (two real
+> calls, engine line quoted)"*. Those bars pin an ENGINE — and with both
+> relays retired the realtime engine cannot bootstrap at all, so any realtime
+> arm of them is **unrunnable as scheduled**. Owen was given three options
+> (flag it and rule later · re-scope Saturday to native/local only · build
+> #383 now) and elected to build.
+>
+> **What that means for the week:** this stops being "the #309 row that needs
+> a design" and becomes build work competing with #310 and the free bucket
+> for the same no-device mornings. It is a plugin-side build plus an app-side
+> client swap, and the plugin half still rides Owen's per-experiment
+> live-install go — **which has NOT been granted yet.** The design pass can
+> run today without it; nothing deploys until he grants it in his own words.
+>
+> **The bars are still deliberately unwritten** (see above). Pulling the item
+> forward changes its schedule, not the rule that a design pass precedes
+> them.
+
+> **🔴 2026-08-20 — THE INVENTORY WAS SHORT BY TWO PATHS, and it is the same
+> failure as `GET /v1/device/files` was last night: found by executing the
+> table, not by re-reading it.** `git grep -nE 'path: "' --
+> 'Talaria/Services/Live/LiveVoiceSessionService.swift'` returns **four**
+> relay paths, and #309's table lists two:
+>
+> | path | site | in #309's table? |
+> |---|---|---|
+> | `GET talk/readiness` | `:192` | ✅ path 11 |
+> | `POST talk/session` | `:278` | ✅ path 12 |
+> | `POST talk/session/{id}/end` | `:708` | ❌ **missing** |
+> | `POST talk/session/{id}/turns` | `:729` | ❌ **missing** |
+>
+> **Read #309's count as NINETEEN paths, not seventeen.** The two new rows
+> are ADAPT → plugin alongside 11–12; they are the same subsystem and cannot
+> be dispositioned separately (a minted session that cannot be ended leaks
+> host-side, and a turn that cannot be persisted silently drops transcript).
+>
+> **Why the miss is structural rather than careless, and what fixes it:**
+> both escaped paths are *interpolated* — `"talk/session/\(id)/end"` — so a
+> grep for a literal path string cannot see them, and #309's inventory was
+> assembled from literals. The durable fix is to grep the CALL SHAPE
+> (`path: "`) rather than the path text. Recorded here so the #309 register
+> inherits the method and not just the two rows.
+>
+> **What the design must actually replace, read from the wire contract
+> (`LiveVoiceSessionService.swift:32-57`):** `POST talk/session` returns
+> `{voiceSession: {id, status, model, voice, startedAt, …}, bootstrap:
+> {clientSecret, expiresAt, session: {id}, model, voice}}`. **`clientSecret`
+> is the whole point** — an EPHEMERAL realtime credential minted host-side.
+> That is the one property the relay was buying and the reason route (b) (a
+> phone-held provider key) was rejected: the plugin must mint the same
+> short-lived secret, not hand over the long-lived key. Any design that
+> cannot produce an ephemeral secret has not solved this item.
+
+
+> **🔴 2026-08-22 AM — A FOURTH DEFECT, and it is FINDING #1 AT A SECOND SITE
+> the lane never swept for.** Found by executing this item's own step 3
+> (correcting #309's voice rows) rather than by a device report.
+>
+> `AppContainer.handleActiveProfileChanged` (`:2352`) still gates the voice
+> readiness probe on the RELAY:
+>
+> ```swift
+> if profile.hasRelay {
+>     await talkStore.refreshReadiness()
+> } else {
+>     talkStore.markRelayUnavailable()
+> }
+> ```
+>
+> **#310's migration CLEARED `relayBaseURL` on every profile**, so
+> `hasRelay` is now false everywhere and this else-branch is the only branch
+> that runs. `markRelayUnavailable()` (`TalkStore:127`) sets
+> `connectionState = .blocked`, `canStartSession = false`, and the message
+> **"Realtime voice needs a relay, and this profile doesn't have one."** —
+> a sentence naming a component retired on both hosts, describing a
+> requirement this very item deleted.
+>
+> **Why it survived last night's device pass:** `VoiceSettingsScreen` and
+> `TalkModeScreen` both carry `.task { await talkStore.refreshReadiness() }`,
+> which re-probes and overwrites the blocked state. Owen reached voice
+> through those screens, so the profile-switch path's verdict was replaced
+> before he could see it. **The bug is real and the test that would catch it
+> is not a device test.**
+>
+> **The lesson, and it is the same one twice in twelve hours:** finding #1
+> was *"the routing gate still read relay pairing"*, fixed at
+> `isVoiceHostPaired` — and the lane never asked **where else** the old
+> premise was encoded. One `grep hasRelay` would have found this. **A fix
+> applied at the site that was reported is not a fix applied to the defect.**
+>
+> **The sweep, done now rather than assumed** — five `hasRelay` gates outside
+> `BackendProfile` itself, and only one is wrong:
+>
+> | site | gates | verdict |
+> |---|---|---|
+> | `AppContainer:530` | the relay-fed stores' capability predicate | ✅ correct — genuinely relay plane |
+> | `AppContainer:1199` | relay session re-bootstrap after unpair | ✅ correct |
+> | `AppContainer:2035` | the relay app-state POST | ✅ correct |
+> | `AppContainer:2344` | `refreshCommandCatalog` (#309 path 16) | ✅ correct |
+> | **`AppContainer:2352`** | **the VOICE readiness probe** | 🔴 **WRONG — voice left the relay plane in this item** |
+>
+> ### 🎯 BARS 383-G…J — pre-registered before any code
+>
+> - **383-G.** On a profile with no relay URL, the profile-switch path
+>   REFRESHES readiness instead of declaring realtime unavailable. Written
+>   RED against today's code first — a bar that passes before the fix is not
+>   a bar.
+> - **383-H.** No user-visible string tells anyone realtime voice "needs a
+>   relay". That requirement no longer exists.
+> - **383-I (the bar that stops the fix from becoming "always refresh").**
+>   #310's bar 310-E must not regress: a profile that genuinely cannot
+>   bootstrap voice still SAYS so, rather than showing the PREVIOUS profile's
+>   readiness. The honest-unavailable state has to survive — it just has to
+>   come from asking rather than from assuming.
+> - **383-J.** The sweep above is recorded, so the next reader knows the
+>   bound was measured and not guessed.
+>
+> ### 🔴 Severity is worse than "a stale message" — the button was DISABLED
+>
+> `markRelayUnavailable()` set `canStartSession = false`, and the Voice
+> settings hero gates START VOICE SESSION on exactly that. So after a profile
+> switch the app **refused to start a voice session it was fully capable of
+> running** — `VoiceEngineRouter` routes to the native engine when no voice
+> host is reachable (`unpairedDeviceRoutesStraightToNativeEngine`, pinned),
+> and local voice needs no host at all.
+>
+> The user-visible shape: switch profiles → START VOICE greys out, reason
+> given as *"Realtime voice needs a relay"* → reopening the Voice or Talk
+> screen silently fixes it. **A capability the device already had, refused on
+> the strength of a field #310 emptied.**
+>
+> ### ✅ RESULT 2026-08-22 AM — 383-G/H/I/J MET, mutation-verified RED first
+>
+> Both new tests were run against the **pre-fix production code** (the fix
+> reverted, the tests kept) before being run against the fix:
+>
+> | test | pre-fix | post-fix |
+> |---|---|---|
+> | `aProfileWithNoRelayStillAsksTheVoiceHostRatherThanDeclaringItDead` | ❌ **4 issues** — counter 0, blocked-not-ready, `canStartSession` false, `blockedReason` non-nil | ✅ |
+> | `aSwitchNeverLeavesThePreviousProfilesReadinessOnScreen` | ❌ **2 issues** — counter 0, and the message named the relay | ✅ |
+>
+> **The second row is the one worth reading.** Its other four assertions —
+> blocked, `!canStartSession`, and all three readiness fields nil — **PASSED
+> against the buggy build**, because `markRelayUnavailable()` produced a state
+> byte-identical to a blocked refresh. Only the call counter and the string
+> check discriminate. That was written into the test's own comment *before*
+> the mutation ran, from the fixture's 2026-08-20 doc note recording the same
+> trap. **A bar that cannot fail is not evidence — and here five-sixths of one
+> could not.**
+>
+> **383-H** verified by grep: no user-visible string says "needs a relay"; the
+> only surviving occurrences are the two comments explaining the deletion.
+> `markRelayUnavailable()` itself is deleted — it had no other caller.
+>
+> ### 🔴 AND THE GATE FOUND A THIRD PIN THE TARGETED RUN COULD NOT SEE
+>
+> The first gate run failed on **`relaylessProfileActivationIssuesNoRelayRequests`
+> (310-C)**, asserting `refreshReadinessCallCount == 0` — a THIRD test encoding
+> the dead premise, in the same file, that the two-test `-only-testing` run was
+> structurally blind to.
+>
+> **310-C's claim is untouched and still true:** a relay-less activation issues
+> zero RELAY requests, carried entirely by `counter.count == 0` on the counting
+> relay client. Only the readiness line changed sides — readiness is not a relay
+> request any more — and it is now `== 1` with the reason stated in place.
+>
+> Its positive control (`relayBearingProfileActivationStillUsesTheRelayPlane`)
+> keeps its readiness assertion but **no longer discriminates**, because
+> readiness is asked on both planes now. Said in the test rather than left for
+> a reader to discover, so nobody mistakes it for evidence the relay branch ran.
+>
+> **Then the sweep that should have come first:** all four
+> `refreshReadinessCallCount` assertions in the tree are now accounted for
+> (310-C, its control, and the two new tests). **This is the second time in one
+> lane that fixing the reported site left a sibling standing** — and the gate,
+> not the lane, is what caught it both times. The generalisable form: **when a
+> premise dies, grep for the premise, not for the symptom.** `hasRelay` found
+> the production sites; `refreshReadinessCallCount` found the test ones. Neither
+> search is expensive; neither was run until something failed.
+
+> **📎 2026-08-23 (Opus-week audit) — naming residue the close-out missed,
+> cosmetic:** `LiveVoiceSessionService:286` and `:969` still say "the relay
+> bootstrap request" for what is now a plugin request, and
+> `VoiceState.relayBootstrapReceivedAt` keeps the relay name. (The
+> `RelayVoiceSession`/`RelayCoders` struct-name reuse elsewhere is
+> documented as deliberate — this note covers only the three undocumented
+> spots.) Comment/name-only; rides the next voice code lane rather than a
+> gate of its own. **→ ✅ TAKEN the same evening (PR #359): field renamed
+> `hostBootstrapReceivedAt` (optional-with-default, old key decodes
+> harmlessly) and both comments corrected.**
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 384. 🚨 EVERY fresh install seeds a profile pointing at OJAMD — `defaultHermesAPIBaseURL` is Owen's personal production host, hardcoded and NOT debug-gated — **FILED 2026-08-20 per #268, found while answering #348's Mac-side question. The line is the CAUSE of #348's 85 × 401. NOT STARTED; bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED 2026-08-23 (PR #352); 384-A/B/C/D met.**
+
+`UserSettings.swift:333`:
+
+```swift
+static let defaultHermesAPIBaseURL = "http://ojamd:8642"
+static let defaultModelsShimBaseURL = "http://ojamd:8765"
+```
+
+Neither is `#if DEBUG`. Both flow into `BackendProfilesStore`'s M-2 migration
+seeds, so **the first launch of any install — including a Release build on a
+stranger's phone — mints a profile named for and pointed at Owen's Windows
+box.**
+
+**Why this is filed as its own item rather than inside #348.** #348's impact
+is genuinely low: sim noise against a host that rejects it cleanly. This is
+the same line seen from the shipping side, and there it is a launch blocker:
+
+1. **It contradicts the zero-setup story outright.** #251/#269's goal is
+   "install Hermes, paste one key", and #310 (this week) made a gateway-only
+   profile expressible for the first time. A new user instead gets a profile
+   named **OJAMD** aimed at a host they cannot resolve — the opposite of the
+   product's own onboarding narrative.
+2. **`ojamd` does not resolve off this tailnet**, so a new user's first launch
+   fetches a catalog that cannot answer. Failure mode is a hang or an error on
+   a screen that should be inviting.
+3. **It is a personal hostname in a shipping binary.** Not a secret — no key
+   ships — but it names the owner's private infrastructure in every copy.
+4. **The shim URL is worse than wrong, it is RETIRED** (#223 Lane 5; the shim
+   is stopped and disabled on both hosts). The default points at a service
+   that no longer exists anywhere.
+
+> **⚠️ THIS WAS KNOWN AND ITS CHARACTER HAS INVERTED — the archived entry is
+> now falsified.** An archived item flagged this before TestFlight: *"The
+> in-code default is the **stale** `http://ojamd:8642` (the old Windows box,
+> **which did not respond**)"*, with *"Decision needed before TestFlight"*.
+> That decision was never made, and **the premise it rested on is now false**:
+> OJAMD is the live production host. A default that was stale-and-silent is
+> now live-and-personal, which is a different problem with a different
+> urgency. Per #261's archive carve-out an append-only pointer goes beneath
+> that entry rather than editing it.
+
+**Scope when routed (not chosen here):** the honest end state is almost
+certainly **no default host at all** — an unconfigured install has no profile,
+or a profile with an empty gateway URL, which #310 has just made expressible.
+Options include shipping empty, `#if DEBUG`-gating the current values so dev
+builds keep their convenience, or an onboarding-supplied value. **Owen
+routes**, and the choice interacts with #269's installer story.
+
+**Cross-refs:** #348 (the 401s this causes), #310 (made the empty-profile end
+state expressible), #251/#269 (the zero-setup goal this contradicts), #223
+Lane 5 (why the shim default is retired, not merely wrong), #166b (ATS — the
+CGNAT exception is why this reaches OJAMD at all from the tailnet).
+
+
+> **✅ ROUTED 2026-08-22 PM (Owen): SHIP NO DEFAULT HOST AT ALL.** Not the
+> debug-gate — a fresh install starts with no host and onboarding asks. His
+> reasoning matches the item's: debug-gating fixes the shipping-binary and
+> stranger's-install problems but **not #348**, because the gate builds Debug,
+> so simulator runs would keep authenticating against Owen's production box.
+>
+> **And it is the LAUNCH POSTURE, which makes it the correct default rather
+> than merely the safest.** Talaria is self-contained local-brain-first; Hermes
+> is the optional upgrade tier. A fresh install with no host is not a degraded
+> state to be apologised for — **it is the shipping product's normal first
+> state**, and hardcoding a host was quietly contradicting that.
+>
+> ### What the trace found — THREE personal-host literals, not one
+>
+> | site | value | note |
+> |---|---|---|
+> | `UserSettings.defaultHermesAPIBaseURL` | `http://ojamd:8642` | the filed one |
+> | `UserSettings.defaultModelsShimBaseURL` | `http://ojamd:8765` | **a second, for a service that is RETIRED** (#223 lane 5) |
+> | `BackendProfilesStore.MigrationSeeds.name` | `"OJAMD"` | the profile's NAME — so a stranger's install is *called* OJAMD too |
+> | `UplinkSettingsScreen:307` | `TextField("http://ojamd:8642", …)` | placeholder text, cosmetic but same leak |
+>
+> The seed path: `UserSettings` defaults → `AppContainer:377` → M-2's
+> `MigrationSeeds` → the minted profile. **Only the first was filed**; the
+> other three were found by executing the trace rather than re-reading the
+> entry — the same method that found #309's escaped voice paths.
+>
+> ### 🎯 BARS 384-A…D — pre-registered before any code
+>
+> - **384-A (no personal host survives in the binary).** No `ojamd` literal in
+>   any shipping default, placeholder, or seed name. Verified by grep over the
+>   app target, not by reading the diff.
+> - **384-B (an empty host degrades HONESTLY, and this is the risk).** A fresh
+>   install with no host must reach a usable local-brain app and a clear "add
+>   your host" path — **not** a chat screen that looks broken. Shipping an
+>   empty default without a route to fill it would be worse than today's state.
+>   The codebase already anticipates this (`hostConfigured:
+>   !gatewayBaseURL.isEmpty` at three sites), which is evidence it was designed
+>   for, not proof it works.
+> - **384-C (one spelling of the gateway gate).** Those three sites spell the
+>   test by hand. #310 created `hasRelay` precisely because *"a gate with two
+>   spellings is a gate with a hole"* — the gateway plane has no equivalent and
+>   should get one in this lane, with the hand-spelled sites migrated onto it.
+> - **384-D (Owen's own install is untouched).** The M-2 migration is one-shot
+>   and already ran on his device; his profile keeps its name and URL. A change
+>   that silently renames or clears an existing profile has broken a working
+>   install to fix a fresh-install problem. Pin it with a test over a persisted
+>   blob.
+
+> **✅ 2026-08-23 — BUILT. 384-A/B/C/D met; 5 tests.**
+>
+> **384-A:** the only `ojamd` strings left in the app target are two comments
+> recording what the values *were*. **Six sites changed, not three** — the two
+> `UserSettings` defaults, the profile NAME seed, the `TextField` placeholder,
+> **a user-visible help line** (*"e.g. http://ojamd:8642"*), and three doc
+> examples. The help line is the one worth noting: it was rendered copy, not a
+> comment, and a diff-reading pass would have called this item done without it.
+>
+> **384-C:** `hasGateway` / `resolvedGatewayBaseURL` added, mirroring #310's
+> `hasRelay`, and two of the three hand-spelled sites migrated onto it.
+> **The third is left alone, deliberately:** `UplinkSettingsScreen:245`
+> derives a `String` from the profile rather than holding one, so `hasGateway`
+> does not apply — forcing it there would be contrived. Recorded rather than
+> quietly skipped.
+>
+> **384-D** is pinned over a persisted JSON blob rather than a constructed
+> value, because the decoder is where a "helpful" default would actually get
+> applied. An existing `OJAMD` profile keeps its name and host.
+>
+> ### 🐛 AND STAGING THE OTA EXPOSED AN UNRELATED DEFECT IN OUR OWN TOOLING
+>
+> `ota-stage.sh` numbers builds with `git rev-list --count HEAD`. **That is not
+> monotonic across a squash-merge**, and it bit immediately:
+>
+> | tree | count |
+> |---|---|
+> | `t27-393-accent-text` (staged as build **2960**, installed on the phone) | 2961 |
+> | `main` after squash-merging it | **2958** |
+> | `t27-393-danger-text` | **2958** — *the same number as main* |
+>
+> So staging `main` **offered the phone a LOWER build than it already had**,
+> and two different trees computed the same id. Both defeat the #200D property
+> the line exists for: a run record that can prove which build produced it.
+>
+> **Fixed with a HIGH-WATER MARK rather than the served number** — and the
+> distinction is the whole point. The served value is not the installed one;
+> the phone can hold a build the server has since overwritten, which is exactly
+> how this was found. The mark only ever rises, and a fresh `serve_root` falls
+> through to the plain count. Seeded at 2960, the build Owen actually holds.
+>
+> Filed here rather than as its own item because it was found and fixed in one
+> step, and it belongs to the same trace.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 385. 🐛 On the PCC tier the assistant TELLS THE USER ITS CONVERSATION NEVER LEAVES THE DEVICE — and that is false — **FOUND ON DEVICE 2026-08-20, the first hour PCC ever ran (#72's 72-D pass). MEASURED, not inferred: the model said it in a screenshot and the shipping instruction string says it verbatim. NOT STARTED; bars pre-register here before any code. ⛔ This gates SHIPPING the PCC tier, not #72's plumbing.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 385-A…D ALL MET 2026-08-20, two mutations isolating cleanly.**
+
+**What Owen saw.** He selected Private Cloud β, asked *"Private cloud compute.
+The new backend you're on,"* and the assistant answered:
+
+> *"I'm running directly on your iPhone using Apple's on-device foundation
+> model, so there's no backend involved."*
+
+**The model was not confabulating. It was repeating our own instructions.**
+`LocalChatBackend.instructionsText` (`LocalChatBackend.swift:2301`) opens every
+session with:
+
+> *"You are Hermes, the user's personal assistant, running entirely on their
+> iPhone with Apple's on-device foundation model. **The conversation is private
+> and never leaves the device.**"*
+
+**`instructionsText` takes no tier parameter.** `hasTools`, `hasImageTools`,
+`includeToollessLic2Clause`, `includeToollessHonestyClauseV2`,
+`includeToollessCapabilityIndex` — every axis is parameterised except the one
+that changes where the compute happens. So the PCC tier inherits the on-device
+identity whole.
+
+**Both clauses are false on PCC**, and the second one is the serious one:
+1. It is NOT running entirely on the iPhone — it is running on Apple's Private
+   Cloud Compute.
+2. The conversation DOES leave the device.
+
+**Confirmed that PCC really was active, so this is not a mis-labelled
+on-device turn.** Same log: `local tier → private-cloud-beta`,
+`sendStreaming routed to private-cloud-beta`, `run finished on
+private-cloud-beta [stream-ended]` — and decisively
+`session budget: … of window **32768**`, which
+`LocalChatBackend+Preflight.swift:577` names in so many words as *"PCC's 32K
+when that tier is active"* against #210's 8,192 on-device ceiling. The turn
+went to PCC and the assistant denied it.
+
+**Why this is worse than an ordinary copy bug.** This is **#180's shape aimed
+at the one claim PCC users care about.** A user asking "where does my data go"
+is asking a privacy question, and the app answers it confidently and wrongly.
+Talaria's whole posture (#251/#269) is that the local brain is the private
+floor; the PCC tier is a *different* privacy story — a good one, but not the
+same one — and telling the user it is identical misrepresents data handling.
+That is the kind of statement that should never appear in shipping copy, an
+App Store privacy answer, or a model's mouth.
+
+**#323's own structural note applies here almost word for word:** *"claims
+beyond what the mechanism can do (in copy, in the privacy policy, or in App
+Store material) would overstate what the mechanism can do."* This one is
+already in the model's mouth.
+
+**Scope — what this item is NOT.** It is not a defect in #72's gate,
+entitlement or routing: all three are working, which is exactly how this was
+found. It is not a claim that PCC is insecure — Apple's PCC is a strong
+privacy story and the honest description is a *good* one. The defect is that
+we do not tell it.
+
+**Open for the fix lane (design, and some of it Owen's):**
+(a) does `instructionsText` take a tier, or does the PCC session get its own
+identity preamble; (b) what the honest PCC sentence actually says — "runs on
+Apple's Private Cloud Compute; Apple cannot read it and it is not stored" is
+accurate but is *copy*, and copy that describes a privacy guarantee is Owen's
+call, not a lane's; (c) whether the on-device tier's sentence should also
+soften now that a sibling tier exists; (d) whether the escalation banner and
+the Models screen need the same treatment — they say *"Larger context, same
+privacy"*, which is a defensible summary but is the same claim in shorter form.
+
+> **⚖️ RULED 2026-08-20 (Owen, same evening as the finding).**
+>
+> **(1) The PCC identity line NAMES THE TIER BUT DOES NOT VOUCH FOR IT.**
+> Chosen text: *"You are Hermes, the user's personal assistant, running on
+> Apple's Private Cloud Compute rather than on the device itself. If the user
+> asks where their data goes, say plainly that this tier sends the request to
+> Apple's servers for processing, and point them to Apple's Private Cloud
+> Compute documentation rather than characterising the guarantees yourself."*
+>
+> **The reasoning is the interesting part.** The rejected alternative stated
+> Apple's guarantees outright ("not stored, not accessible to Apple"), which
+> is more useful to a user who asks — and is **a second-order version of the
+> defect being fixed**: the app asserting, in the assistant's voice, a
+> privacy property it cannot itself verify. We got here by saying something
+> true-of-one-tier as though it were true everywhere; replacing it with
+> something true-of-Apple-as-far-as-we-know would repeat the shape at one
+> remove. Naming the tier is ours to assert. Vouching for it is not.
+>
+> **(2) The escalation banner is REWRITTEN to name PCC**, dropping *"same
+> privacy"*. It is the same claim in shorter form, in our own voice, shown at
+> exactly the moment the user is asked to opt in — the worst possible place
+> for it.
+>
+> **Explicitly NOT chosen: stripping the location clause from both tiers.**
+> The on-device sentence is TRUE on the on-device tier and it is useful; the
+> fix is to stop generalising it, not to go quiet. That distinction is what
+> bar 385-B exists to hold.
+
+### 🎯 BARS 385-A…D — pre-registered before any code
+
+- **385-A — a PCC session is never told it runs on-device.** The instruction
+  text built for `.privateCloud` must contain neither *"entirely on their
+  iPhone"* nor *"never leaves the device"*, and must name Private Cloud
+  Compute. Mutation: revert the tier-awareness ⇒ red.
+- **385-B — the ON-DEVICE instructions are BYTE-IDENTICAL to what shipped.**
+  The negative control, and the bar that encodes Owen's explicit rejection of
+  the strip-it-from-both option. **Without it, 385-A is satisfied by deleting
+  the sentence everywhere** — which would trade a false claim for a silence,
+  and lose a statement that is true and load-bearing on the free tier.
+- **385-C — the two tiers' identity lines are DIFFERENT STRINGS.** #173-B's
+  inequality shape, and it is here for the same reason: one shared
+  tier-neutral sentence satisfies A and B's prose while failing the ruling,
+  and it is exactly what a later "simplify the duplication" lane reaches for
+  first.
+- **385-D — the escalation banner names PCC and does not claim equal
+  privacy.** Pinned as a string test, because #173-E proved that copy nothing
+  asserts can be silently un-shipped by a later edit — and this copy is the
+  one shown at the opt-in moment.
+
+**Pre-registered response.** A–D green ⇒ the false claim is gone from both the
+model's mouth and the opt-in prompt, and the PCC tier is shippable on this
+axis. **385-B red is the most informative failure here** — it would mean the
+lane fixed the lie by deleting the truth.
+
+### ✅ RESULT 2026-08-20 — 385-A…D ALL MET, and the two mutations isolate cleanly.
+
+Fixed the same evening it was found, on Owen's ruling.
+`LocalChatBackend.identitySentence(for:)` now carries both tiers;
+`instructionsText` and `productionToollessInstructions` take a `tier`
+parameter defaulted to `.onDevice`, and `effectiveInstructionsText` passes
+`activeTier` on **all three** production branches. Six tests in
+`TalariaTests/PrivateCloudIdentityTests.swift`.
+
+**The compile error caught a trap worth recording.**
+`effectiveInstructionsText` has a separate **DEBUG** branch calling a
+different `instructionsText(for:shape:)` overload. Threading the tier through
+only the release path would have left every debug build — **which is exactly
+what the PCC session that exposed this was** — telling the lie the release
+build no longer tells. Six inner call sites in
+`LocalChatBackend+Harnesses.swift` needed it too. A fix verified only in
+Release would have looked complete and been half-done.
+
+**Two mutations, and they isolate different halves:**
+
+| mutation | result |
+|---|---|
+| **1 — undo the tier-awareness** (both tiers get the on-device sentence) | 385-A's three tests RED (8 assertions), 385-C RED, **385-B and 385-D green** |
+| **2 — soften the ON-DEVICE sentence, leave PCC correct** | **exactly ONE test red: 385-B.** All three 385-A tests, 385-C and 385-D green |
+
+**Mutation 2 is the one that justifies 385-B's existence.** It models a lane
+that "fixes" #385 by deleting the location claim everywhere — the option Owen
+explicitly rejected — and that lane passes **every other bar in the file**.
+Only the byte-identical golden string catches it. **A bar set that only tests
+that the bad thing is gone would have scored that build green**; this one also
+tests that the true thing survived, which is what the ruling was actually
+about.
+
+**What shipped, exactly:**
+- **on-device** (unchanged, to the byte): *"…running entirely on their iPhone
+  with Apple's on-device foundation model. The conversation is private and
+  never leaves the device."*
+- **PCC**: *"…running on Apple's Private Cloud Compute rather than on the
+  device itself. If the user asks where their data goes, say plainly that this
+  tier sends the request to Apple's servers for processing, and point them to
+  Apple's Private Cloud Compute documentation rather than characterising the
+  guarantees yourself."*
+- **banner**: *"Continue on Private Cloud β? Larger context, and it runs on
+  Apple's Private Cloud Compute — labeled beta."* (was *"…same privacy…"*)
+
+**Scope note — this does NOT close the PCC-honesty question.** The published
+privacy policy still carries the same claim and is filed as **#386**, which is
+outward-facing and gated on Owen's read of the exact words. #385 covers what
+the assistant says and what the opt-in prompt says; those are the two surfaces
+a lane may change on a ruling.
+
+**Not verified on device.** These are string-level bars on a pure function.
+The device evidence that started this — the model's own answer — should be
+re-asked on the next PCC sitting: select Private Cloud β and ask *"where does
+this run?"* A green string test proves the instruction changed; it does not
+prove the model now answers well.
+
+**Cross-references:** **#72** (the tier, which works — this was found by its
+first device pass), **#180** (confident-wrong-answer discipline, the shape
+this is), **#173** (the never-claim floor for attachments — same family: do
+not assert a capability or property we cannot stand behind), **#323**
+(structural note on not overstating a privacy mechanism), **#4.8/#210**
+(context-window plumbing, which is what proved the tier was genuinely active).
+
+> **✅ 2026-08-21 17:38 — VERIFIED ON DEVICE. The re-ask #330 left owed is
+> answered, and the fix behaves as RULED rather than merely as coded.**
+>
+> Private Cloud β selected, fresh session, prompt *"Where does this run?"* —
+> the same question shape that produced the defect. Verbatim reply:
+>
+> > *"This request goes to Apple's servers for processing. For details, see
+> > Apple's Private Cloud Compute documentation."*
+>
+> **Both halves of Owen's ruling are met, and the second is the one that could
+> not be checked by a string test.** It NAMES the tier (the lie is gone), and
+> it POINTS TO Apple's documentation instead of characterising the guarantees
+> — which is the rejected alternative, the one that would have had the app
+> assert, in the assistant's voice, a privacy property it cannot itself
+> verify. A reply reciting *"not stored, not accessible to Apple"* would have
+> passed every bar in `PrivateCloudIdentityTests` and still been wrong.
+>
+> **What this closes and what it does not.** 385-A..D were string bars on a
+> pure function: they proved the INSTRUCTION changed. This proves the MODEL
+> now answers well, which is a different claim and the one #330 explicitly
+> deferred — *"they prove the instruction changed; they do not prove the model
+> now answers well."* That deferral is discharged.
+>
+> **Contrast, for the record.** Same question, same tier, 2026-08-20:
+> *"I'm running directly on your iPhone using Apple's on-device foundation
+> model, so there's no backend involved."*
+>
+> **Observed but NOT filed:** the reply then volunteered an unprompted
+> inventory of reachable device capabilities (health, location, weather,
+> nearby places, calendar, reminders, alarms). It is accurate and harmless —
+> tools do execute on the PCC tier (#388-A's `.toolCalling`, plus the 07:12
+> `readImageText` turn) — and answering more than was asked is #214's
+> over-serving family at its most benign. Recorded so a later reader does not
+> mistake it for a new finding; not filed, per #215's rule against filing
+> noise.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 386. 📝 The PUBLISHED privacy policy still says the assistant runs entirely on the iPhone — PCC has now shipped in the build and the policy has not caught up — **NAMED BY OWEN 2026-08-20 ("We'll need to update our privacy policy too to include PCC"), filed the same hour per #268. NOT STARTED. ⛔ OUTWARD-FACING: the exact text needs Owen's read and explicit go before it is published — this is not a lane's copy edit.** **⟵ HEADER CORRECTED 2026-08-23 (decision pass): ✅ PUBLISHED 2026-08-20 as PR #331 — Owen read and approved the exact wording; `PrivacyInfo.xcprivacy` checked (no change); the entry's own closing block says nothing blocking remains, with the watch obligation moved to #387. The 08-23 stale-header sweep missed this header, and the same night's handoff §3 still listed it as an owed decision — the sweep's own class, caught by reading the newest dated block.**
+
+**Why this is separate from #385 rather than part of it.** #385 fixes what the
+*assistant* says and what the *opt-in banner* says — both in-app, both ours to
+change on a ruling. This is a **published document on the Pages site**
+(`docs/privacy.html`, the web root per the repo's own layout), which a user or
+App Review relies on. Different artifact, different blast radius, different
+approval requirement.
+
+**What the live policy currently claims** (read 2026-08-20, verbatim from the
+shipping file):
+- *"The only parties that ever handle your data are Apple's on-device
+  frameworks and the services you yourself configure."* (`:37-38`)
+- *"the assistant runs entirely on your iPhone using Apple's on-device
+  foundation model"*
+- *"Voice conversations and dictation. Default processing is on-device."*
+
+**On the PCC tier the first two are the same claim #385 just removed from the
+model's mouth** — and this is the version a regulator, a reviewer, or a
+cautious user would actually read.
+
+**✅ ONE THING THE POLICY GOT RIGHT IN ADVANCE, and it is the cheapest part of
+the fix.** `:102-104` already lists Apple as a party covering *"on-device
+models, Speech, WeatherKit, HealthKit, and **(if it ships)** Private Cloud
+Compute"*. Whoever wrote that anticipated this exactly. **The condition is now
+met — PCC shipped in the build on 2026-08-20 — so the hedge is what is stale,
+not the structure.** Dropping three words is most of that bullet's work.
+
+**What needs deciding (Owen's, not a lane's):**
+(a) the "only parties" sentence — PCC *is* Apple, so it is arguably already
+covered, but "on-device frameworks" is doing load-bearing work in that
+sentence and PCC is not on-device; (b) whether the policy describes PCC's
+guarantees or points at Apple's documentation — **#385's ruling says point,
+don't vouch, and the same logic applies with more force in a legal document**;
+(c) whether the on-device sentences get a "by default" qualifier or a separate
+PCC section; (d) whether `PrivacyInfo.xcprivacy` (all three targets) needs any
+change at all — PCC is an Apple framework and probably requires nothing new,
+but *probably* is not an answer and this should be checked rather than assumed.
+
+> **⚖️ RULED 2026-08-20 (Owen, minutes after filing):** *"definitely check the
+> live one and make sure we build on it, instead of just rewrite it."*
+> **`docs/privacy.html` is the BASE. The fix is an amendment, not a
+> replacement.** A rewrite would silently drop commitments the live document
+> already makes — and a privacy policy is a document people may have relied on,
+> so removing a promise is a substantive act even when it looks like tidying.
+
+**✅ The draft question is CHECKED, and it answers itself** *(correcting this
+entry's own "UNCHECKED" line, written an hour earlier)*.
+`planning/privacy-policy-DRAFT-2026-08-10.html` carries an HTML comment in its
+own header: *"THIS DRAFT IS SUPERSEDED BY docs/privacy.html (staged,
+UNCOMMITTED). Edit there, not here."* It also records the four resolutions
+that closed it out — data-practice claims confirmed and verified against the
+tree, developer of record (James Jones, Owen's call over "Aethyrion"), and the
+contact address.
+
+**So the live file is authoritative and has been maintained since** — last
+touched by `f48add84` ("correct stale sensor-pipeline, relay, and shim
+references"), i.e. it already survived one accuracy sweep. Structure is
+identical across both (same twelve headings); the draft's extra 27 lines are
+its resolution comment. **Do not diff the draft in as though it were newer.**
+
+> **⚖️ RULED 2026-08-20 (Owen, providing the sources): QUOTE APPLE, don't
+> paraphrase them.** *"I think we need to quote apple on some of what they have
+> listed as of today at least."*
+>
+> **This REFINES #385's ruling rather than contradicting it, and the
+> distinction is the whole point.** #385 says the assistant must not
+> *characterise* PCC's guarantees — because the app asserting a privacy
+> property in its own voice is a claim we cannot back. **A quotation with
+> attribution is not an assertion in our voice; it is a report of Apple's.**
+> The reader can see whose promise it is, and can follow the link and check.
+> That is strictly more honest than either paraphrasing Apple (which launders
+> their claim into ours) or staying silent (which tells a user nothing about
+> where their data goes).
+>
+> **The two sources Owen supplied, and which one to lead with:**
+> - **`https://www.apple.com/privacy/`** — the better citation for a privacy
+>   policy. It is Apple's own privacy document, and its PCC section is
+>   procedural rather than promotional: the data required is sent to Apple
+>   silicon servers and no other data is sent; the request is processed and is
+>   never stored or accessible to Apple; the response returns to you only. It
+>   also states the promise is verifiable by independent experts.
+> - **`https://www.apple.com/apple-intelligence/`** — the product page, with
+>   the same claims in marketing register ("never stored", "used only for your
+>   requests", "verifiable privacy promise"). Usable, but the privacy page is
+>   the one a reviewer would expect to see cited.
+>
+> **🔴 A HAZARD THIS CREATES, and it is the same shape as everything else this
+> lane has hit: A QUOTE IS A SNAPSHOT THAT CAN GO STALE.** Apple's pages say
+> this **as of 2026-08-20** — Owen's own phrasing, *"as of today at least,"*
+> already anticipates it. If Apple revises that wording, our policy keeps
+> reporting the old text and we have quietly moved from "accurately quoting
+> Apple" to "misquoting Apple in a legal document." **That is a NEW way to be
+> wrong that we do not have today**, and it is worth accepting deliberately
+> rather than by accident.
+>
+> Three mitigations, cheapest first, for the drafting lane to choose between:
+> (1) **date the quotation in the text** ("as published at apple.com/privacy on
+> 2026-08-20") so a stale quote is self-evidently a snapshot rather than a
+> current claim; (2) **lead with the link and quote sparingly** — the fewer
+> words we hold, the less can rot; (3) file a periodic re-check. **(1) and (2)
+> together are the recommendation** — they cost nothing and they make the
+> failure mode legible instead of silent.
+>
+> **Keep the quotation SHORT and clearly attributed** — enough to convey the
+> guarantee, not a wholesale reproduction of Apple's page. Short-and-linked is
+> both better practice and less to keep true.
+>
+> **Not changing #385's in-app text.** The model's instruction still says point
+> at Apple's documentation rather than characterise the guarantees. A chat
+> assistant reciting a vendor's privacy paragraph is a worse answer than a
+> pointer, and the policy is where a citation belongs. Raised here so the
+> decision is visible rather than assumed — reopen it if Owen wants the
+> assistant quoting too.
+
+> **✅ PUBLISHED 2026-08-20 — PR #331 merged.** Owen read the wording and
+> approved it (*"I read privacy, it looks good"*). A PR rather than a direct
+> commit, deliberately: a privacy policy benefits from an auditable trail of
+> when the text changed and who approved it. Live file now says **"The three
+> ways Talaria works"** and carries the PCC section, the dated Apple quotations,
+> and the Voice correction.
+>
+> **The Voice correction was not on the original six-point list** — it came from
+> reading the section rather than from the diff. Voice routes its turn through
+> the ACTIVE BRAIN (`NativeVoicePipelineService` takes `backendProvider:
+> chatBackendRouter`), so with Private Cloud β selected a user's transcribed
+> speech goes to Apple's servers exactly as a typed message would. The policy
+> described on-device speech recognition and then said nothing about where the
+> resulting turn was ANSWERED. **A checklist built from grep would have missed
+> it.**
+>
+> **✅ Question (d) — `PrivacyInfo.xcprivacy` — CHECKED, and the answer is NO
+> CHANGE, with the reasoning shown rather than asserted.** The manifest
+> declares `NSPrivacyTracking false`, an **empty** `NSPrivacyCollectedDataTypes`,
+> and one `NSPrivacyAccessedAPITypes` entry (UserDefaults, reasons CA92.1 /
+> 1C8F.1). PCC touches none of it on the manifest's own definitions: the
+> collected-data list is about what THIS APP collects and links to a user — we
+> collect nothing and run no servers — and the required-reason API list is a
+> closed set (file timestamp, boot time, disk space, active keyboard,
+> UserDefaults) that PCC is not a member of.
+> - **Stated limit:** that is reasoning from the manifest's categories, not a
+>   quotation of Apple guidance about PCC and privacy manifests specifically.
+>   Confident, not authoritative.
+> - **⚠️ And the manifest is NOT the same artifact as the App Store privacy
+>   "nutrition label"**, which is filled in App Store Connect at submission and
+>   does not exist yet. If any PCC-shaped question needs answering, it is there
+>   — not here. Recorded so the two do not get conflated at submission time.
+>
+> **What remains open on this entry:** nothing blocking. The ongoing obligation
+> — watching Apple's pages, because we now hold a dated snapshot of them — moved
+> to **#387**, where it belongs, since it never completes.
+
+**⛔ Publication gate.** The standing rule is that outward-facing text gets
+Owen's read of the *exact* wording plus an explicit go — a "we should update
+the policy" instruction does not cover the moment of publishing. A lane may
+draft; it may not push.
+
+**Cross-references:** **#385** (the in-app half, fixed the same evening — this
+is its published sibling), **#72** (the tier that made both stale), **#323**
+(the structural note that started this: claims beyond what the mechanism
+delivers must not appear "in copy, in the privacy policy, or in App Store
+material" — that sentence named this file eleven days before it mattered).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): FIXED + MERGED 2026-08-21 as `df6b987b` (PR #335), 389-A/B/C all met.**
+
+**The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
+order:
+
+1. `pollUntil { SharedWidgetDataStore.read().lastMessagePreview contains marker }`
+2. `#expect(harness.hostService.fetchCallCount > 0, "the activation never reached the host fetch, so nothing was actually blocked")`
+
+Step 2 is a **guard against passing for the wrong reason**, and it is the
+right thing to want. But it is asserted at an instant, and nothing in the
+production code guarantees that instant has arrived.
+
+**The proof is in production's own deliberate ordering.** `#145 Part B` hoists
+the UI writes to the FRONT of the chain — `AppContainer.swift:1633`,
+`reconcileLiveActivities()` then `updateWidgetData()`, with a comment
+explaining that sitting behind ~8 network awaits is what made the app look
+broken. Between that write and `await hostStore.refresh()` (`:1651`) sit
+**two suspension points**:
+
+```
+1647  await chatStore.reconcilePendingRuns()
+1649  await permissionsStore.reloadCapabilities()
+1651  await hostStore.refresh()      ← the fetch step 2 asserts on
+```
+
+The activation runs as a `Task { @MainActor }`; `pollUntil` sleeps 10 ms
+between checks on the SAME actor. So the poller can resume, observe the
+widget write, and assert — while the activation is still parked at 1647 or
+1649 with `fetchCallCount == 0`. **The test requires the activation to win a
+race the code never promised it would win**, and the faster the widget write
+lands relative to those two awaits, the likelier the test is to lose.
+
+**Status: LATENT, not firing.** `main` is green (measured 2026-08-21, control
+run: `GATE: PASS`, 2392 / 14). It fired once, under #388's first draft, whose
+`dlopen` of three system frameworks into the test host perturbed suite timing;
+that perturbation is fixed at #388 and this test went quiet again. **The race
+did not go away — the thing that exposed it did.**
+
+**⚠️ Why this is filed rather than fixed in passing.** Two reasons, and the
+second is the load-bearing one. First, it is not #388's defect and burying an
+unrelated fix inside that lane would make both harder to read later. Second
+and worse: during #388's diagnosis this exact analysis was **correct AND was
+the wrong answer** — a true structural race plus a real perturbation reads
+precisely like an exonerating explanation, and only a control run on clean
+`main` separated them. A fix applied on the strength of the argument alone
+would have shipped the perturbation too.
+
+### 🎯 BARS 389-A..C — pre-registered before any code
+
+- **389-A (the fix is a WAIT, not a longer timeout).** Step 2 becomes a poll
+  with its own deadline. **Raising `pollUntil`'s timeout is NOT a fix** — it
+  changes how often the race is lost, not whether it exists, and it is the
+  change most likely to be reached for.
+- **389-B (the guard's MEANING survives).** The assertion exists to prove the
+  chain was genuinely blocked, so a fix that simply deletes it, or that waits
+  with no failure when the fetch never comes, has removed the pin rather than
+  repaired it. The test must still FAIL on a build where `hostStore.refresh()`
+  returns instantly.
+- **389-C (demonstrated RED before green).** Reproduce the failure
+  deterministically first — e.g. by making the fixture's `reconcilePendingRuns`
+  / `reloadCapabilities` suspend — and record the red. **A timing fix whose
+  bug was never reproduced on demand is a guess**, and this entry exists
+  because a plausible guess was already made once here.
+
+> **✅ 2026-08-21 PM — 389-A/B/C ALL MET, and the fix is not the one the entry
+> was most at risk of getting.**
+>
+> **389-C first, as the bar demanded.** The race is now a deterministic FACT
+> rather than a flake: `PermissionsStore.reloadCapabilities()` awaits
+> `healthService.refreshAuthorizationStatus()`, and that call sits between the
+> hoisted widget write and `hostStore.refresh()`. A `GatedHealthService`
+> injected into the launch harness holds it open, so the activation is
+> **provably** parked in that gap — the widget snapshot is written and the
+> fetch cannot have happened. No timing luck involved.
+>
+> **389-A: the assertion POLLS; the timeout was NOT raised.** A longer timeout
+> changes how often the race is lost, not whether it exists, and it is the
+> change a reader reaches for first — which is why the bar named it in advance.
+>
+> **389-B: the guard keeps its meaning.** It still fails on a build where the
+> chain never reaches the fetch; it just fails for that reason instead of for a
+> schedule.
+>
+> **The mutation, and it is what makes the new test more than a repro.**
+> Removing #145 Part B's hoist — putting `reconcileLiveActivities()` /
+> `updateWidgetData()` back BEHIND the network chain, i.e. re-introducing the
+> regression that made the app look broken for minutes after an outage —
+> turns the new test RED at `wroteWhileParked`. So it is a permanent POSITIVE
+> pin on Part B's actual property (*visible state refreshes before the network
+> is touched*), which the old test could only ever assert sideways. That is
+> why it is a new test rather than an edit to the old one.
+>
+> **Provenance:** filed this morning while gating #388, whose first draft
+> `dlopen`'d three frameworks into the test host and perturbed suite timing
+> enough to expose this. The perturbation was fixed there; the race was
+> latent on `main` before it and would have outlived it.
+
+> **🔴 2026-08-22 — THE RESULT ABOVE WAS FILED UNDER #372, AND THAT IS ITS OWN
+> FINDING.** The block was complete, correct, dated, and **~14,500 lines from
+> home**, wedged between two of #372's blocks. This entry's header still said
+> *NOT STARTED*, so the two halves were each internally consistent and pointed
+> in opposite directions.
+>
+> **Cost, measured rather than imagined:** a session on 2026-08-22 read this
+> entry, saw unfinished work with pre-registered bars, and started rebuilding
+> it — stopping only because it read the CODE before writing any, and found
+> `theWidgetWriteLandsBeforeTheHostFetchIsEvenReached` already there. **The
+> tracker discipline did not catch this; the habit of reading source first
+> did.** (Memory: *squash-merge blinds ancestry* — verify a lane's premise in
+> the code at HEAD, never from the entry header alone. It paid for itself here.)
+>
+> **This is a THIRD kind of tracker defect**, and `oi-invariants.py` had no
+> check for it. Its existing three hunt STALENESS (a claim that has since gone
+> false) and ALLOCATION (one number, two items). This text was never stale and
+> the number never collided — it was in the wrong PLACE. Location is a
+> different failure, and nothing mechanical could see it.
+>
+> **✅ Closed structurally, not just repaired.** `check_bar_results_live_under_
+> their_own_item` now flags any line carrying a verdict marker, a `NNN-X` bar
+> reference, and a MET/MISSED word while sitting under a different item. It is
+> deliberately narrow — entries cite each other's bars in prose constantly
+> (#383 cites 310-E, #392 cites #372(c)) and cross-references are not what it
+> hunts. **Verified to FAIL**, per #218's rule that an unfired check is not
+> evidence: run against the pre-move file it reports
+> *"line 16663: a #389 bar verdict sits under #372"* and exits 1. Run over the
+> whole live board after the move, it finds **no other misfile**.
+
+**Cross-references:** **#388** (the lane that exposed it, and the `dlopen`
+perturbation that did the exposing), **#145** (Part B, the property this test
+pins — the hoist is CORRECT and must not be touched to make the test easier),
+**#219** (XCUITest runner dies mid-bundle — appeared in the same red run and
+is a DIFFERENT, unexplained signal), **#215** (measuring a configuration the
+system never enters; this is its test-side cousin).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 391. 🔴 THE MODELS SCREEN TELLS THE USER "BELOW DAILY LIMIT" FROM A VALUE NOTHING MEASURED — quota tracking is INERT on this seed and the row states a status anyway — **MEASURED ON DEVICE 2026-08-21 (#388-B). SPAWNED BY #388 per its scope rule. **SHIPPED 2026-08-21 on Owen's fourth route — and the fix found a PLUMBING bug this entry never suspected: the reset date was discarded on the below-limit path. 391-A/B SUPERSEDED by the ruling, see below.**
+
+**The measurement** (`planning/reports/2026-08-21-388-pcc-surface.json`, plus
+Owen's `log collect`):
+
+```
+17:03:39.499  [org.aethyrion.talaria:LocalChatBackend] surface: [quota] statuses=belowLimit|belowLimit|belowLimit … resetDate=—
+17:03:39.732  E  [com.apple.FoundationModels:QuotaTracker] Usage limit status tracker delegate is nil, skipping fetch.
+```
+
+`quotaUsage` returned `belowLimit` three times with **no reset date and no
+limit-increase suggestion**, while the system logged — **7 times, at ERROR
+severity** — that it skipped the fetch because the tracker's delegate is nil.
+**The tri-state never leaves `belowLimit` because nothing is fetching to move
+it.** It is a default, not a reading.
+
+**What the user sees.** `ModelsSettingsScreen.privateCloudQuotaRow` renders
+**`PRIVATE CLOUD β · BELOW DAILY LIMIT`** in that state — a definite,
+reassuring claim about remaining capacity, derived from a value the OS did not
+compute.
+
+**🔴 This violates the project's own stated convention**, which is why it is
+filed 🔴 rather than as a nicety: *"Real data only in UI — show `—` where a
+value isn't knowable; no mocked toggles."* The row is #180's family exactly —
+a surface reporting a state it did not observe. It is the same shape as #328's
+Stop (a control reporting success for work it did not do) and #340's *"I've set
+a reminder … at 11"* (a claim about an artifact that cannot fire).
+
+**⚠️ Two things this entry does NOT claim.** First, that a METER is buildable —
+it is not, and #388 established why: `QuotaUsage` exposes `status` +
+`limitIncreaseSuggestion?` + `resetDate?` and **no number at all**. Second,
+that the row is useless in principle — on a seed where the tracker IS wired,
+this row is exactly right. **The defect is stating a status when the app cannot
+tell whether one was measured.**
+
+### 🎯 BARS 391-A..D — pre-registered before any code
+
+- **391-A (the app must be able to tell "unmeasured" from "below limit").**
+  Today it cannot: both arrive as `.belowLimit(approaching: false)`. The
+  discriminator has to come from something the SDK actually varies — the
+  candidate named by the measurement is **`resetDate == nil` AND
+  `limitIncreaseSuggestion == nil` on a tier that reports `.available`** — and
+  it must be **verified against a wired seed before being trusted**, because a
+  heuristic that fires on a healthy device is worse than the current row.
+- **391-B (an unknown state renders as UNKNOWN, never as good news).** `—` or
+  omission, per the convention. **Silence is acceptable; optimism is not.** The
+  failure this forecloses is a user planning around capacity the app never
+  confirmed.
+- **391-C (the `limitReached` path is untouched).** That arm carries real
+  information when it fires and no evidence says it is broken; this lane must
+  not trade a false-positive fix for a false-negative one.
+- **391-D (no polling, no meter, no alert).** #30's ruling that quota is
+  PERSISTENT STATUS rather than an alert stands, and #388 proved no number
+  exists to display. This is a copy-and-nil-handling change, not a feature.
+
+
+> **✅ 2026-08-21 — OWEN RULED A FOURTH ROUTE, AND IT IS BETTER THAN THE THREE
+> THAT WERE OFFERED. Shipped. Two of this entry's own bars are SUPERSEDED by
+> the ruling rather than met — recorded as a route change, not as a pass.**
+>
+> ### The ruling
+>
+> Three routes were put to him: suppress the reassuring arm, guess whether the
+> value was measured, or leave it. **He took none of them:**
+>
+> > *"So we may want to use the data that we have available. … Print what it
+> > shows. If it's nil, it's nil. Same with the optional reset date. But when
+> > it starts showing a number, it'll already be there. That reset date is
+> > handy. And if the user goes into settings down the line, and sees that they
+> > have no PCC left, and it resets tomorrow, it'll encourage them to return to
+> > the app."*
+>
+> **Stop narrating a status; display the fields.** An absent value renders `—`
+> rather than being smoothed away or guessed at, and the row is already correct
+> the day the OS starts populating it. It needs no discriminator, hides
+> nothing, and — unlike the suppress route — keeps the surface that becomes
+> useful later.
+>
+> ### 🔴 The defect was in the PLUMBING, and this entry did not know that
+>
+> This entry was filed as "the row states a status nothing measured". True, and
+> incomplete. Reading the code for the fix turned up a second, concrete bug the
+> measurement could not have seen:
+>
+> **`privateCloudStatus()` read `usage.resetDate` ONLY inside the
+> limit-reached branch.** On the far more common below-limit path, a reset date
+> the OS *had supplied* was discarded before anything could render it. So the
+> single field Owen most wanted was not merely unshown — it was thrown away at
+> the source. That is not a copy problem and no amount of rewording the label
+> would have found it.
+>
+> ### What shipped
+>
+> - **`resetDate` is carried on every arm**, and `limitReached(resetDate:)`
+>   lost its associated value so there is exactly one home for it.
+> - **A new `.unknown` quota arm.** The `else` branch used to coerce an
+>   unrecognised `QuotaUsage.Status` into `.belowLimit(approaching: false)` —
+>   an unnameable status rendered to the user as good news. It now renders
+>   `STATUS —` in `dimForeground`, borrowing neither the reassuring tone nor
+>   the alarming one. **This arm involves no guessing:** it fires only when the
+>   SDK reports a case this build cannot name, which *is* unknown.
+> - **The row is fields, not a sentence:**
+>   `PRIVATE CLOUD β · BELOW DAILY LIMIT · RESETS —`. The RESETS field is
+>   always present so its absence is visible; a row that omitted it could not
+>   tell the user the app was never given a date. A reset on another day
+>   carries the date, because "resets at 9:00" is useless if the turnover is
+>   tomorrow — the case Owen named.
+> - **A pure `make(...)` seam.** `privateCloudStatus()` extracts the OS's four
+>   facts and a pure function maps them, so the mapping is assertable without a
+>   `PrivateCloudComputeLanguageModel`. **This was added because the first
+>   draft of the tests was hollow:** they drove the label formatter with an
+>   explicit date and would have stayed green through the very bug above — it
+>   was never the formatter that dropped the value. Mutation-verified:
+>   reintroducing `resetDate: isLimitReached ? resetDate : nil` turns
+>   `theResetDateSurvivesTheMappingOnTheBelowLimitArm` RED with
+>   *"the below-limit arm discarded the OS's reset date"*, and nothing else.
+>
+> ### ⚠️ Bars — two SUPERSEDED, and that is a route change, not a pass
+>
+> - **391-A ⛔ NOT BUILT, deliberately.** It required a discriminator between
+>   "measured" and "never measured", *verified against a wired seed first*. No
+>   such seed exists, and its own text says a heuristic that fires on a healthy
+>   device is worse than the current row. **Owen's route removes the need for
+>   it**, which is why this is superseded rather than outstanding.
+> - **391-B ⚠️ PARTIALLY met, and the gap is stated rather than glossed.** An
+>   *unnameable* status now renders as unknown. But the case this entry was
+>   FILED for — the tracker inert, `.belowLimit` returned as a default —
+>   still renders "BELOW DAILY LIMIT", now beside an honest `RESETS —`. **The
+>   app still cannot tell that state from a real one**, and under Owen's route
+>   it is not trying to; it is showing what it has and letting the missing
+>   field be visible. A reader should not take 391-B as satisfied.
+> - **391-C ✅** the `limitReached` path is untouched in meaning.
+> - **391-D ✅** no polling, no meter, no alert — this is copy and nil
+>   handling. **The enable/disable toggle Owen raised in the same breath is a
+>   FEATURE and went to its own entry, #395**, rather than being stretched into
+>   this one.
+>
+> **Cross-references added:** **#395** (the opt-out, spawned from this
+> discussion).
+
+**Cross-references:** **#388-B** (the measurement and the log correlation),
+**#30** (the row's original design), **#180** (honest degradation — the family),
+**#328** (a control reporting success it did not achieve), **#72** (the tier).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 394. ✅ THE CHAT NEVER NOTICED THE NETWORK — the health poll read a `scenePhase` **frozen at task-start**, so its foreground gate never reopened and the periodic probe never ran (2 probes in 85 minutes) — **FOUND FROM OWEN'S DEVICE PASS 2026-08-21. THREE MECHANISMS DIED BEFORE THE RIGHT ONE, AND ONLY THE THIRD WAS KILLED BY EVIDENCE RATHER THAN BY ARGUMENT. FIXED AND DEVICE-VERIFIED THE SAME NIGHT — offline < 30 s, recovery ~15–20 s, hands off. CLOSED.**
+
+> **The title this entry carried until it was solved, kept verbatim because the
+> whole value of the item is the distance between it and the header above.** It
+> named a mechanism that is real, reproducible, and NOT the cause:
+>
+> > ## 394. 🔴 AFTER A NETWORK DROP THE CHAT NEVER RECOVERS FOR THE SAME HOST — a dead pooled connection in the client's PRIVATE URLSession, while `URLSession.shared` reaches the identical host fine — **MEASURED ON DEVICE 2026-08-21 (Owen, during #325's pass). ~~Mechanism identified from source.~~ **MECHANISM REPRODUCED 2026-08-21 AND HALF-REFUTED: the pooled dead socket is real and proven, but SELF-HEALS on the next probe, so it cannot explain the durable offline — see 394-A below.** 394-A MET; no fix written.** **🔴 SUPERSEDED SAME NIGHT BY DEVICE MEASUREMENT: the pooled socket is NOT the cause — the periodic health probe DOES NOT RUN (2 probes in 85 minutes, 0 during 6.5 foregrounded minutes with the network dead). One mechanism explains both directions. **CAUSE FOUND AND FIXED THE SAME NIGHT: the loop read a `scenePhase` FROZEN at task-start, so its foreground gate never reopened. `.task(id: scenePhase)`. **DEVICE-VERIFIED 2026-08-21, BOTH DIRECTIONS HANDS-OFF: offline < 30 s, recovery ~15–20 s. CLOSED.**
+
+
+**The observation** (Owen, verbatim sequence): airplane mode ON, then OFF.
+Base URL `http://ojamd:8642`, a host that was up the entire time.
+
+1. Back online — the chat still showed **OFFLINE**, and kept showing it.
+2. **Settings → Uplink → Test Connection on that same host: PASSED.**
+3. Back to chat — **still OFFLINE.**
+4. Switched the server to the Mac Mini (`100.79.222.100`) — **instantly online.**
+5. ojamd was, and remains, perfectly reachable.
+
+### The mechanism, from source rather than inferred
+
+**Two different `URLSession`s, against the same host, disagreeing:**
+
+| path | session | result |
+|---|---|---|
+| **Test Connection** | `URLSession.shared` (`UplinkSettingsScreen.swift:422`) | ✅ passed |
+| **the chat's health probe** | the client's PRIVATE session (`SessionsHermesClient.swift:1608`) | ❌ error |
+
+The private session is not an accident — **#145 Part A created it deliberately**
+because `URLSession.shared`'s `timeoutIntervalForResource` is 7 days. That fix
+is correct and must stay.
+
+But a `URLSession` keeps a **connection pool**, and a pooled socket that died
+during the network transition is reused by the next request. So:
+
+- the chat's `refreshDirectHealth()` DOES re-probe (on appear and every ~10 s,
+  `ChatStore.swift:2773`) — **it was running the whole time** and kept reusing
+  the dead connection;
+- `hermesClient.connect()` has **no latch** (`SessionsHermesClient.swift:260`):
+  it sets `.connecting`, issues a fresh `/v1/models`, and reports what it gets.
+  The state machine is honest; the transport under it is not;
+- `URLSession.shared` has a DIFFERENT pool, which is why an independent probe
+  of the identical host succeeded;
+- switching hosts created a NEW pool entry, which is why that fixed it — and is
+  why it LOOKED like stale UI state.
+
+**🔴 The UI was never lying.** It faithfully reported a connection that really
+was failing. This is not #180's family and not #350's — the staleness is one
+layer below the state machine, in the socket pool. **Anyone reading the symptom
+would file this against the presentation layer and fix nothing.**
+
+### 🔴 Severity: this is the airplane-mode / tunnel / lift case
+
+Every user hits it. Come back into signal and the app is durably offline with a
+host that is fine, with **no user-visible way to recover** short of changing
+servers or force-quitting — neither of which anyone would guess. Owen only
+diagnosed it because he had a second host to switch to.
+
+### 🎯 BARS 394-A..D — pre-registered before any code
+
+- **394-A (reproduce it deterministically FIRST).** Airplane mode ON → OFF with
+  the app foregrounded, one host, and the chat must reach a state a fresh probe
+  contradicts. **Recorded before any fix**, per 325-D's precedent. A transport
+  bug fixed without a reproduction is a guess, and this one already survived
+  one wrong hypothesis (ATS/MagicDNS, built on a misread of which host
+  `100.79.222.100` was — it is the Mac Mini, not OJAMD).
+- **394-B (the #145 Part A session survives).** The private session exists
+  because `.shared` has a 7-day resource timeout. **A fix that reverts to
+  `.shared` re-opens #145 and is refused.** The candidate shapes are
+  invalidating the session on a transition, or configuring the pool to not
+  reuse across one — not abandoning the session.
+- **394-C (recovery is AUTOMATIC and bounded).** The user does nothing. After
+  connectivity returns, the chat reports ONLINE within a stated number of
+  seconds, asserted in the test rather than left to "eventually".
+- **394-D (the two paths must AGREE).** A test that probes the same host
+  through both the client session and a fresh one and requires the same
+  verdict. **The disagreement IS the bug**, and pinning it stops a later change
+  re-introducing a second transport with its own pool.
+
+**Candidate mechanism NOT elected:** an `NWPathMonitor`-driven session
+invalidation is the obvious shape, and the app currently has **no network-path
+observer at all** (verified — zero `NWPathMonitor` references). Whether the fix
+is path-driven or simply refuses connection reuse after an error is a design
+question for the lane.
+
+
+> **⚠️ 2026-08-21 — 394-A ANSWERED, AND IT HALF-REFUTES THIS ENTRY'S OWN
+> MECHANISM. The pooled dead socket is REAL and now proven. It is NOT
+> sufficient: it self-heals on the very next probe, so it cannot be what kept
+> the chat offline.**
+>
+> ### The reproduction (`PooledConnectionWedgeTests`, ~6 s, no device)
+>
+> A real HTTP/1.1 listener on loopback whose live connections can be
+> **poisoned** — after poisoning, an already-established connection accepts
+> bytes, answers nothing and is never closed, while brand-new connections are
+> served normally. That models a vanishing interface; **cancelling the
+> connection would send RST, which `URLSession` handles correctly**, so it
+> would have modelled the wrong outage.
+>
+> **A `URLProtocol` stub could not have done this.** This target has a dozen of
+> them and every one intercepts *above* the connection pool — no socket, no
+> reuse, so a stub can fake the failure's shape and never touch the mechanism.
+>
+> **Result — the disagreement reproduces exactly:**
+>
+> | leg | outcome | connections accepted |
+> |---|---|---|
+> | baseline through the chat-plane session | **200** | 1 |
+> | *(poison the live socket)* | — | 1 |
+> | same session, same host | **fails (timeout)** | **1** |
+> | **fresh session, same host** | **200** | 2 |
+>
+> **The load-bearing number is the connection count, not the failure.** Any
+> wedged request can be made to fail; what this entry claimed is that the
+> failing request **reused the pooled connection**. `connections == 1` on the
+> failing leg proves it did. That is the mechanism, confirmed.
+>
+> ### 🔴 And then the durability leg refuted the rest of it
+>
+> Three consecutive probes on the SAME wedged session after the transition:
+>
+> ```
+> probe 1: still wedged (URLError -1001 timeout), connections=1
+> probe 2: RECOVERED (HTTP 200),                  connections=2
+> probe 3: RECOVERED (HTTP 200),                  connections=2
+> ```
+>
+> **`URLSession` evicts the dead connection after its first timeout and opens a
+> fresh one.** The wedge lasts exactly one request. The chat re-probes on a
+> timer, so the pooled socket **cannot** explain a chat that stayed OFFLINE
+> across repeated probes. **A fix that only invalidates the session on a
+> transition would therefore be fixing something that already fixes itself.**
+>
+> This is precisely what 394-A was written to catch, and it is the second
+> hypothesis this item has burned — the first being ATS/MagicDNS, discarded
+> after a misread of which host an IP belonged to. **Bar earned its keep.**
+>
+> ### 🎯 The leading explanation now, stated as arithmetic rather than as a
+> mechanism — NOT yet measured end to end
+>
+> Recovery may be real but slow enough to read as "never". From the shipping
+> constants, both verified in source today:
+>
+> - `SessionsHermesClient.interactiveRequestTimeout` = **20 s** — a wedged
+>   probe does not fail fast, it fails after twenty seconds;
+> - `ChatHealthPollPolicy.steadyInterval` = **30 s**, entered after
+>   `steadyAfterUnchangedProbes` = 3 identical probes — and a phone in airplane
+>   mode fails fast and repeatedly, so the loop is **already relaxed to 30 s by
+>   the time connectivity returns**;
+> - the wedged probe leaves the status UNCHANGED (offline → offline), so the
+>   cadence does **not** snap back to 10 s.
+>
+> **30 s wait + 20 s wedged probe + 30 s wait ⇒ up to ~80 s before the first
+> probe that can succeed.** Every reported fact fits: Owen's *"after about 30 s
+> it still thought it was offline"* lands inside that window; Test Connection
+> passed because it is `URLSession.shared` with a **5 s** budget and its own
+> pool; switching hosts was instant because that is a status CHANGE, which
+> resets the cadence and re-probes immediately.
+>
+> **⚠️ Stated as a hypothesis, not a finding.** It is consistent with
+> everything observed and with the numbers in the code, and it is exactly the
+> kind of story that has already been wrong twice on this item. **It needs one
+> cheap device observation to settle: airplane mode ON → OFF, then leave the
+> chat screen alone and TIME it, up to three minutes, without touching
+> Settings.** If it recovers around 80 s the defect is the BOUND and 394-C is
+> already the right bar; if it never recovers, something not yet identified is
+> holding it and the pooled socket was a red herring twice over.
+>
+> ### Bars
+>
+> **394-A ✅ met** — reproduced deterministically before any fix, and the
+> reproduction falsified half the thing it was reproducing, which is what a
+> reproduction is for. **394-B/C/D untouched — no fix was written**, and
+> deliberately so: the measured self-healing means the obvious fix (invalidate
+> the session on a path transition) would address a condition that resolves
+> itself in one probe. **394-C is now the load-bearing bar**, and its wording
+> already anticipated this: recovery must be *bounded and asserted in seconds*,
+> not left to "eventually".
+
+
+> **🔴 2026-08-21 LATE — MEASURED ON DEVICE, AND IT REFUTES THE POOLED-SOCKET
+> MECHANISM OUTRIGHT. THE HEALTH PROBE DOES NOT RUN. Third hypothesis on this
+> item, and the first one killed by measurement rather than by argument.**
+>
+> ### How the test was supposed to go, and what actually happened
+>
+> The instruction was: airplane ON, wait for OFFLINE, airplane OFF, time the
+> recovery. **The precondition never held.** Owen, verbatim: *"Airplane mode,
+> waiting — been 90s. Still no banner for offline… 2m and counting. 3 —
+> nothing. 4mins — still nothing. I'm gonna stop here right before 5m."* Then:
+> **"If I do nothing, no banner. If I send a message, the banner appears."**
+>
+> So the app never went offline **at all** with the network dead. The question
+> stopped being "why doesn't it recover" and became "why doesn't it notice".
+>
+> ### The measurement (`~/Desktop/talaria-394.logarchive`, 20:45–22:10)
+>
+> Window **21:00:40 → 21:07:10**, app foregrounded and `scenePhase == .active`
+> throughout (no transitions between 21:00:34 and 21:07:14), network dead:
+>
+> | endpoint | connection attempts |
+> |---|---|
+> | `/api/platforms/talaria/events` | **47** |
+> | **`/v1/models`** (the health probe) | **0** |
+>
+> **The app was networking hard the whole time.** The platform link retried
+> forty-seven times. The probe that drives the offline banner attempted
+> nothing.
+>
+> **Across the ENTIRE 85-minute archive there are exactly TWO `/v1/models`
+> connection starts, both at the same instant — 21:11:08.759 — immediately
+> after an app foreground transition.** Roughly 64 of those 85 minutes were
+> foregrounded, and about 54 of them were foregrounded *and online*. At the
+> steady 30 s cadence that is on the order of **130 probes expected, 2
+> observed**, and both of those are the activation probe, not the timer.
+>
+> **And zero `Sessions API /v1/models failed` lines anywhere in the archive** —
+> `connect()` logs that on every failed probe, subsystem confirmed
+> `org.aethyrion.talaria`/`SessionsHermesClient`. So this is not a probe that
+> ran and failed to propagate. **Nothing ran.**
+>
+> ### 🔴 What this refutes
+>
+> - **The pooled dead socket is NOT the cause.** No connection was reused
+>   because none was attempted. The `PooledConnectionWedgeTests` reproduction
+>   remains correct about `URLSession` — a poisoned pooled connection does wedge
+>   one request, and does self-heal on the next — but it is **not this bug**.
+>   Two mechanisms have now been disproved on this item (ATS/MagicDNS, then the
+>   pool) and this is the first time evidence rather than re-reading did it.
+> - **The `.checking`-renders-as-nothing theory is not needed either.** It was a
+>   sound reading of the banner rule and it explained the symptom; it just
+>   isn't what happened, because the status was never recomputed at all.
+>
+> ### ✅ What ONE mechanism now explains, in both directions
+>
+> If the periodic probe does not run, `directConnectionStatus` only changes on
+> activation and on a send:
+>
+> | observation | explanation |
+> |---|---|
+> | network dies, no OFFLINE banner | status never recomputed; keeps its last value (`.connected`) |
+> | send a message → banner appears | `send()` is a different path; it fails and sets `.error` |
+> | network returns, still OFFLINE (the original #394) | `.error` is never cleared, because nothing re-probes |
+> | Test Connection PASSES meanwhile | separate path, `URLSession.shared`, 5 s budget — never touches `directConnectionStatus` |
+> | switching hosts fixes it instantly | a state change that re-enters the resolution path |
+> | it eventually recovered at 21:11 | an app background→foreground cycle, which is the ONLY thing in the archive that ever probed |
+>
+> **The original report and tonight's inverse are the same defect**, and it is
+> not a transport bug at all — it is that **the thing which is supposed to
+> notice is not running.**
+>
+> ### ⚠️ NOT yet established — do not skip this before fixing
+>
+> **WHY the loop is silent is unmeasured**, and this item has now paid three
+> times for reasoning ahead of evidence. Candidates, none elected:
+> `monitorConnectionStatus()`'s `.task` being cancelled or never started (a
+> `.task` dies with its view — Owen navigated to Settings during the original
+> episode); `refreshDirectHealth`'s `guard !isStreaming` early-returning; the
+> tick being awaited somewhere that never returns.
+>
+> **One confound to close first:** a `.task` is cancelled when its view goes
+> away, so if the chat screen was not the visible screen for parts of the
+> archive, some of that silence is correct behaviour. It does **not** explain
+> 21:00:40–21:07:10, when Owen was watching the chat screen for a banner and
+> the probe attempted nothing — but a follow-up should pin screen visibility
+> rather than infer it.
+>
+> **The cheapest next step is instrumentation, not a fix:** one log line per
+> tick in `monitorConnectionStatus()` naming the interval and the
+> `shouldProbe` verdict, plus one in `refreshDirectHealth` naming which branch
+> it took. That turns "the loop is silent" into "the loop stopped HERE", and it
+> costs one build.
+>
+> ### Bars
+>
+> **394-A ✅ MET, twice over and in opposite directions.** The bar demanded a
+> reproduction before any fix precisely because a transport bug fixed without
+> one is a guess. It first produced a clean reproduction that half-refuted its
+> own mechanism, and then a device measurement that refuted the rest. **No fix
+> has been written, which is the bar working.** 394-B is moot (no session
+> change is contemplated). **394-C is now the target**: recovery must be
+> automatic and bounded — and the reason it is not is that nothing is checking.
+> 394-D still stands and is now more interesting, since the two paths disagreed
+> because only one of them was ever consulted.
+
+
+> **✅ 2026-08-21 LATE — CAUSE FOUND AND FIXED. The loop was never dead: it woke
+> every ten seconds and declined every time, because it was reading a
+> `scenePhase` FROZEN AT TASK-START. Six log lines, after three wrong theories
+> built from reading code.**
+>
+> ### The proof — both values, one process, ten seconds apart
+>
+> A temporary `.onChange(of: scenePhase)` logged the LIVE phase beside the
+> loop's own:
+>
+> ```
+> 22:34:54.623  scene-phase: LIVE = inactive
+> 22:34:54.629  health-poll: LOOP START status=connected
+> 22:34:55.082  scene-phase: LIVE = active          ← SwiftUI goes active
+> 22:35:05.264  health-poll: wake #1  phase=inactive  ← the loop still reads inactive
+> 22:35:05.264  health-poll: skip #1 — phase not active
+> ```
+>
+> Fourteen consecutive ticks read `inactive` while the app was demonstrably
+> foreground and interactive (screenshot taken mid-run), including 47 s after
+> the Simulator was explicitly fronted.
+>
+> ### The mechanism
+>
+> `monitorConnectionStatus()` is an **async method on a View STRUCT**. The
+> `.task` closure captures `self` **by value**, and `@Environment(\.scenePhase)`
+> resolves out of that captured copy — which SwiftUI never updates. It captured
+> `.inactive` (the phase during first appearance) and returned `.inactive` for
+> the life of the view, so `ChatHealthPollPolicy.shouldProbe` returned false on
+> every tick, forever.
+>
+> **The per-tick check is what hid it.** Reading the code, it looks like the
+> phase is consulted fresh every ten seconds. It was re-reading one frozen
+> value ten seconds apart.
+>
+> ### 🔴 The bitter part: #175's own fix caused this
+>
+> #175 added the foreground-only rule to stop the poll running while
+> backgrounded — its comment records that it *"used to be a flat 10s loop that
+> ran while backgrounded too."* **The wasteful version worked.** The fix that
+> made it polite made it silent, and nothing noticed for weeks because **a
+> health probe that never runs is indistinguishable from a healthy
+> connection.** Same family as #218 (a promoted clause read by production while
+> declared under `#if DEBUG`) and #300 (a classifier that could not tell a real
+> failure from a flake): the failure mode of a correctness fix is usually
+> silence, not noise.
+>
+> ### The fix
+>
+> **`.task(id: scenePhase) { await monitorConnectionStatus() }`.** Keying the
+> task on the phase restarts it whenever the phase changes, so every run
+> captures a value that is correct for its whole lifetime. The per-tick check
+> becomes a single guard at the top — **now correct where per-tick was not** —
+> and the foreground-only rule becomes STRUCTURAL: a backgrounded app cancels
+> the task rather than running a loop that wakes only to decline.
+>
+> Rejected alternatives, both of which work and both of which leave the trap in
+> place for the next person: routing the phase through `@State`, and reading
+> `UIApplication.shared.applicationState` inside the loop.
+>
+> ### ⚠️ What is VERIFIED and what is NOT — read before trusting this
+>
+> - ✅ **The defect**, beyond doubt: LIVE `active` vs loop `inactive`, 14 ticks,
+>   with a screenshot proving the app was foreground.
+> - ✅ **The gate now opens**: post-fix the sim logs `LOOP START phase=active`
+>   where pre-fix every tick logged `skip — phase not active`. A behavioural
+>   change at exactly the point of failure.
+> - ⛔ **NOT verified: probe cadence end to end.** The simulator blocked both
+>   routes — the per-tick line is verbose-gated and `AppContainer` resets that
+>   flag from `UserSettings` at launch, and the sim has no host configured so
+>   probes make no network request to count. A clean background→foreground
+>   transition could not be driven from `simctl` either, so the task RESTART
+>   was not observed.
+> - The code after the guard is unchanged and was already shipping — it was
+>   simply never reached — so the residual risk is low. **Low risk is not
+>   measured**, and this item has already punished three confident inferences.
+>   **Device verification is owed** and is trivial there: a configured host
+>   makes a working probe observable as a status change, with no reliance on
+>   our own logging.
+>
+> ### Instrumentation kept, deliberately
+>
+> `LOOP START` / `LOOP EXIT` stay **always-on** — two lines per foreground
+> transition. They are the only thing that would have made this visible without
+> a special build, and their cost is nil. Per-tick lines are verbose-gated.
+> **The lesson is that this loop had no liveness signal at all**, which is why
+> a month of silence read as health.
+>
+> ### Bars
+>
+> **394-A ✅** — the reproduction requirement is what produced this. It killed
+> its own first mechanism (the pooled socket self-heals) and then the device
+> log killed the rest. **394-C ✅ in mechanism, ⛔ unverified on device** —
+> recovery is automatic again because the probe runs again, but the bound is
+> not yet measured. **394-B** moot: no session change. **394-D** — the two
+> paths disagreed because only one of them was ever consulted; a test pinning
+> their agreement is still owed.
+
+
+> **✅ 2026-08-21 23:5x — DEVICE-VERIFIED, BOTH DIRECTIONS, HANDS OFF. Build
+> 2933 (`main` @ `9709668a`), Owen on the chat screen throughout.**
+>
+> | transition | result |
+> |---|---|
+> | airplane **ON** → OFFLINE banner | **< 30 s** *(before the fix: never — five minutes, nothing)* |
+> | airplane **OFF** → back ONLINE | **~15–20 s**, untouched |
+>
+> ### 🔴 The first transition is the load-bearing one, and it is what the
+> simulator could not give
+>
+> **Owen sent nothing.** No message, no Settings visit, no background/foreground
+> cycle. **Nothing but a periodic probe could have detected the loss** — so the
+> banner appearing at all proves the timer loop is probing again. That is the
+> cadence measurement this lane recorded as UNVERIFIED four hours earlier, and
+> it is now closed by the only instrument that could close it.
+>
+> `< 30 s` is the right shape for a 10 s interval plus a probe that must fail
+> first; `~15–20 s` for recovery matches a 10 s interval plus a fast success.
+> **The ~80 s arithmetic this entry once proposed was wrong** — it was built on
+> the assumption that probes were running and merely slow. They were not
+> running at all.
+>
+> ### Bars — final
+>
+> - **394-A ✅** The reproduction requirement is what produced every real result
+>   here. It killed its own first mechanism, and the device log killed the
+>   second. **Three mechanisms died on this item and the bar caught all three
+>   before any of them reached a fix.**
+> - **394-B** — moot. No session change was contemplated; #145 Part A's private
+>   session is untouched.
+> - **394-C ✅ DEVICE-VERIFIED.** Recovery is automatic and bounded, and the
+>   bound is now measured rather than asserted: **~15–20 s**, hands off.
+> - **394-D ⛔ RETIRED, ITS PREMISE FALSIFIED.** It required a test pinning that
+>   the client session and a fresh session return the same verdict, on the
+>   reasoning that *"the disagreement IS the bug."* **It was not.** The two
+>   paths disagreed because **only one of them was ever consulted** — Test
+>   Connection probed and the chat did not. A test pinning their agreement
+>   would pin something that was never broken, and would have passed
+>   throughout the defect's entire life. **Building it would have bought
+>   nothing and implied coverage that did not exist.**
+>
+> **STATUS: ✅ CLOSED** — moves to `OPEN_ITEMS-ARCHIVE.md` verbatim at the next
+> sweep, per #261.
+
+**Cross-references:** **#145 Part A** (why the private session exists — do not
+undo it), **#350** (the INVERSE defect: claiming ONLINE against a dead host;
+this claims OFFLINE against a live one), **#136** (the black-holed-host outage
+whose 60 s timeouts shaped this stack), **#384** (the hardcoded `ojamd` default,
+which is how most users would meet this first).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 395. 🟡 THE PRIVATE CLOUD TIER HAS NO OFF SWITCH — the picker chooses WHO answers the next turn, and nothing chooses whether the tier is offered at all — **OWEN'S RULING 2026-08-21, SPAWNED FROM #391'S ROUTE DISCUSSION. BUILT THE SAME NIGHT; bars recorded below with the deviation named.**
+
+**Owen, ruling it:** *"Yeah I know it's already available. We've done light
+testing. The picker works. But what if we don't want it. What if we're out of
+quota and using it makes the app weird. Lots of things. Privacy, etc. That's why
+I considered the enable/disable toggle."*
+
+**The distinction, because I got it wrong first.** My initial reading was that
+this duplicated an existing control — `ChatBackendRouter.selectableBrains`
+already appends `.privateCloud` whenever the tier is live, so PCC has always
+been pickable. **That is a different control.** The picker answers *who handles
+the next turn*; nothing answered *may this app use Apple's servers at all*.
+There was no way to say no.
+
+### What shipped
+
+- **`UserSettings.privateCloudEnabled`, default ON.** The asymmetry against
+  `spotlightIndexingEnabled` (opt-IN) is deliberate and documented at the
+  property: Spotlight indexing starts sending data somewhere new, so it must be
+  opted into; **PCC already shipped enabled (#72/#386), so defaulting this OFF
+  would silently withdraw a capability users already have.** An absent JSON key
+  decodes to `true`, pinned by a test that feeds it settings JSON predating the
+  key.
+- **BOTH router predicates are gated**, not just the picker one —
+  `isPrivateCloudSelectable` *and* `isPrivateCloudUsable`.
+- **The fallback notice names the cause.** A pinned PCC conversation already
+  degraded to on-device with *"unavailable or over its daily limit"*; reporting
+  a user's own setting that way is #180's family exactly, and would send
+  someone hunting for a network fault they do not have. It now reads
+  *"Private Cloud β is turned off in Settings — continuing on-device."*
+  and logs `pcc-disabled-by-user`.
+- **The toggle shows whenever the tier EXISTS on the device**, not when it is
+  selectable — gating its visibility on `selectableBrains` would make the switch
+  vanish the moment it was used, with no way back.
+
+### 🔴 The test that exists because the first version of these tests was hollow
+
+The suite's first draft set both predicates from one expression, and its comment
+claimed it "mirrors the wiring rather than assuming it." **It assumed it** —
+every test would have passed whether the container gated one predicate or both.
+
+`gatingOnlyThePickerWouldLeaveAutomaticRoutingIntact` now constructs the
+HALF-gated arrangement and **asserts the broken behaviour**: picker entry
+hidden, pinned conversation still routing to `.privateCloud`. That is the
+demonstration the double gate exists for, and it says so in its own failure
+message so a future reader does not delete it as backwards.
+
+**⚠️ What is still NOT pinned, stated rather than glossed:** `AppContainer`'s
+wiring itself has no unit-test harness, so the suite documents *why* both
+predicates are gated but cannot enforce that they *are*. A regression there
+would be caught by nothing in this suite.
+
+### ⚠️ Bars, and the deviation named
+
+**These were recorded after the implementation, not before it** — Owen ruled and
+the build followed inside the same exchange. #215's discipline governs
+MEASUREMENT bars, and nothing here is measured; but the honest statement is that
+this lane did not pre-register, and it should be read accordingly.
+
+- **395-A** ✅ off means off on both predicates, proven by the half-gated
+  demonstration above.
+- **395-B** ✅ an install predating the key keeps the tier.
+- **395-C** ✅ the degrade notice names the user-actionable cause and the
+  quota cause keeps its own wording — both directions asserted, so the fix
+  cannot collapse two states into one message either way.
+- **395-D** ~~⛔ **NOT DONE, and it is Owen's call:** the toggle currently lives
+  on the Models screen directly above the usage row, so control and state are
+  one surface. Owen's suggestion was a **dedicated PCC tile in Settings**
+  ("looks like there's space if we add another square"). Placing that tile is a
+  layout decision, and the two rows are built so moving them is a move rather
+  than a rewrite.~~ **→ RULED AND BUILT 2026-08-23 (PR #356) — see the ruling
+  and result blocks at the foot of this entry.**
+
+**Cross-references:** **#391** (the usage row this sits above, and the
+conversation that produced this ruling), **#72**/**#386** (the tier and its
+published privacy policy — a user-facing opt-out is consistent with it, and
+#386's text is unaffected because the policy describes what happens WHEN the
+tier is used), **#390** (the still-unrouted tier-aware vision question, which
+this toggle does not answer), **#180** (the notice-honesty family).
+
+> **⚖️ 395-D RULED 2026-08-23 (Owen, decision pass): the DEDICATED SETTINGS
+> TILE.** The toggle and its row pair move from the Models screen to a PCC
+> square in Settings — the rows were built so this is a move, not a rewrite.
+> The Models screen keeps the usage row. Bars for the move pre-register here
+> when the lane opens.
+
+> **🎯 BARS 395-D-A…D — pre-registered 2026-08-23, before any code (the
+> tile lane, opened the same night). Scope, stated precisely because the
+> ruling's two sentences pull in different directions:** the TOGGLE moves to
+> a dedicated PCC screen behind a new Settings tile; the PCC screen shows
+> the quota row too (control and state one surface, #395's own principle);
+> and the Models screen KEEPS its quota row beside the brain picker (#30
+> wanted quota visible where the brain is picked — that is the "Models
+> screen keeps the usage row" clause of the approved option). What leaves
+> the Models screen is the toggle; what is duplicated is state, never
+> control.
+> - **395-D-A (the tile exists, conditionally).** A `.privateCloud` tile
+>   appears in the Settings grid/deck when the tier exists on the device,
+>   and is ABSENT — filtered like `.developer`, not rendered blank — when it
+>   does not.
+> - **395-D-B (one source of truth).** The dedicated screen's toggle is
+>   wired to the same `UserSettings.privateCloudEnabled` the routing
+>   predicates read — no second flag. Flipping it on the new screen flips
+>   both predicates (395-A's own proof pattern re-run against the new
+>   surface).
+> - **395-D-C (the card value is pure and honest).** A pure formatter
+>   answers OFF whenever the tier is disabled regardless of quota state, and
+>   surfaces the quota word only when enabled — unit-tested without a view.
+> - **395-D-D (non-regression).** 395-A/B/C stay green untouched; the
+>   Models screen still shows the quota row; the toggle no longer appears on
+>   the Models screen.
+
+> **✅ 2026-08-23 — 395-D-A…D ALL MET. BUILT + MERGED same night (PR #356,
+> squash `75e257a7`). GATE: PASS 2493 / 14 / Release (count moved +7).**
+> `.privateCloud` is the tenth `SettingsSubsystem` case, placed between
+> `.about` and `.developer` so `.about` keeps its pinned "08" and a non-PCC
+> device's numbering stays contiguous (the tile is filtered out entirely
+> there — `SettingsSubsystem.cases(privateCloudAvailable:)`, ONE pure list
+> consumed by grid, deck pager, page dots, and counter). The toggle moved to
+> `PrivateCloudSettingsScreen`; `PrivateCloudQuotaRow` is shared by both
+> surfaces and Models keeps it read-only beside the brain picker (#30).
+> - **395-D-A** RED at the stub stage (the unconditional-`allCases` stub IS
+>   the visibility mutation, witnessed RED before the filter existed).
+> - **395-D-B/-D** pinned STRUCTURALLY (#399's source-reading pattern):
+>   `privateCloudEnabled = $0` exists only in the dedicated screen's source;
+>   RED before the move, loud-failing if a source cannot be read.
+> - **395-D-C** mutation-proven: the OFF guard dropped turned the
+>   disabled-reads-OFF test RED on all five quota arms. 47/47 after revert.
+> - **Two consequential fixes found by the lane:** the deck counter was a
+>   hardcoded `"%02d / 09"` over rawValue — with the tile filtered out,
+>   `.developer` would have read "11 / 09"; it now computes position and
+>   total from the visible list. And the pre-existing
+>   `deckOrderIsNineAndStable` count pin was updated deliberately to ten
+>   (renamed, `.about` "08" asserted unchanged, `.privateCloud` "09" added).
+> - **Still view-trust, stated honestly:** the tile's conditional rendering
+>   and the screen's toggle wiring are SwiftUI bodies no unit test reaches —
+>   the pure list, the structural pin, and the predicate suite are the
+>   enforceable perimeter, same limit 395's own bars recorded for
+>   `AppContainer`. ~~A device look at the tile rides Owen's next sitting.~~
+>   **✅ Device look DONE 2026-08-23 evening on build 2971 — Owen: "PCC tile
+>   in settings is good … gives it a home for any future settings without
+>   clogging up other unrelated tabs." He floated one refinement — PCC as
+>   08 with ABOUT at 09 — routed as a follow-up question the same evening.**
+
+> **⚖️ RULED 2026-08-23 (Owen, follow-up): POSITIONAL 08.** PCC moves
+> before ABOUT, and card numbers are computed from the tiles actually
+> visible on the device rather than baked into the enum — his phone reads
+> 08 PRIVATE CLOUD / 09 ABOUT / 10 DEVELOPER; a non-PCC device reads
+> 08 ABOUT / 09 DEVELOPER. Contiguous everywhere; the static-swap variant
+> (a hole at 08 on non-PCC devices) was shown and not taken.
+>
+> **🎯 BARS 395-D2-A…D — pre-registered before code:**
+> - **395-D2-A (order).** `.privateCloud` sits immediately before `.about`
+>   in `allCases`; the visibility filter still removes only it.
+> - **395-D2-B (positional labels, RED-first).** With the tier present:
+>   privateCloud "08", about "09", developer "10". Without: about "08",
+>   developer "09". No gap in either shape.
+> - **395-D2-C (no stale source).** The rawValue-derived `indexLabel`
+>   property is REMOVED, so nothing can render the old numbering — the
+>   compiler finds every consumer.
+> - **395-D2-D (non-regression).** a11y IDs unchanged; the deck counter
+>   stays positional; the 395-D suites stay green.
+
+> **✅ DONE the same hour (PR #362, squash `3349f9c0`; GATE PASS 2482/14/
+> Release, no count delta — a row deletion plus a flipped pin). The
+> structural pin now FORBIDS the Models readout returning, RED-proven
+> against the pre-removal screen; the test renamed
+> `allPCCStateLivesOnlyOnTheDedicatedScreen`.**
+>
+> **⚖️ RULED 2026-08-23 night (Owen, from a device screenshot of the
+> Models picker): the PCC usage readout consolidates INTO the PCC tile —
+> the Models screen's read-only quota row is REMOVED.** This reverses the
+> 395-D scope clause that kept it beside the brain picker (#30's
+> quota-where-you-pick rationale); Owen's screenshot showed the cost — a
+> mono readout crowding the picker for state the dedicated square already
+> carries (screen row + card value). One surface for PCC state, full stop.
+> The structural pin that enforced "Models keeps its quota row" flips to
+> enforce the opposite, with this ruling as its authority.
+
+> **✅ 2026-08-23 — 395-D2-A…D ALL MET. BUILT + MERGED the same evening
+> (PR #358, squash `fbfd16c2`). GATE: PASS 2498 / 14 / Release (count
+> moved +1).** `.privateCloud` now precedes `.about`; `indexLabel(in:)`
+> computes the number from the device's visible tiles and the old
+> rawValue property is deleted (the compiler found both consumers —
+> `SubsystemCard` takes its index from the screen, the developer row reads
+> the same way). RED-first on both order and labels, including a contiguity
+> sweep over the filtered shape. **With this, #395 has nothing owed:** the
+> toggle, the tile, its placement, and its numbering are all built, ruled,
+> and device-approved; the only remaining trust boundary is the recorded
+> view-trust limit above, unchanged.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 397. 🐛 THE REALTIME→NATIVE FALLBACK NEVER ENDS THE REALTIME SESSION — a timed-out start can leave BOTH engines live — **FOUND 2026-08-22 while chasing #138, PROVEN FROM SOURCE, and NOT the cause of #138 (the log refutes that). Filed on its own merits per #268. NOT STARTED; bars pre-registered below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): BUILT + MERGED ~~2026-08-23~~ **2026-08-22** (PR #349; date re-corrected by the Opus-week audit — the sweep took GitHub's UTC day, git dates the squash 2026-08-22 20:50 -0500 and the entry's own result block says 08-22), mutation-verified.** **⟵ 2026-08-23 decision pass: that covers the FALLBACK path only — the #139 abandonment-branch sibling is now ELECTED (generation-scoped end, Owen's ruling; dated block at the foot of the entry).** **⟵ ✅ SIBLING BUILT + MERGED the same night (PR #355, squash `be32b2dc`) — 397-D/E/F all met, mutation-proven; result block at the foot. NOTHING remains owed on this entry.**
+
+**The site.** `VoiceEngineRouter.startSession()` (`:318-329`):
+
+```swift
+if Self.shouldFallBackToNative(connectionState:blockedReason:timedOut:) {
+    Self.logger.notice("Realtime start \(cause) — falling back to local voice for this session (#247)")
+    setActive(.native)
+    await native.startSession()          // ← the realtime session is never ended
+}
+```
+
+**`start.cancel()` cancels a Swift Task; it does not tear down a peer
+connection.** #247 B1's belt cancels the start at 12 s, which aborts the
+in-flight bootstrap *request* — but if the WebRTC connection has already been
+established, or establishes moments later, `LiveVoiceSessionService` still owns
+a live `peerConnection`, `audioTrack` and data channel. The router then starts
+the native engine beside it.
+
+**The predicted symptom is exactly what #138 looks like** — two voices, each
+answering, each hearing the other — which is why this looked like #138's cause.
+**It is not:** the 2026-08-22 archive shows no `falling back to local voice`
+line in the affected session. **A true bug reached while chasing a different
+one.** Recorded that way deliberately; #388's diagnosis went wrong by the same
+route, and the correction is to file it rather than to let it wear the other
+item's evidence.
+
+**Severity is privacy, not just audio.** A realtime session left running is a
+live microphone streaming to OpenAI for a session the app believes it is not
+in. That is #139's zombie-session shape, and #139 exists because it happened.
+
+> **⚠️ A SECOND, RELATED PATH — flagged, deliberately NOT fixed with the first.**
+> The `#139` abandonment branch (`:314-317`) also returns without ending the
+> realtime session:
+> ```swift
+> if generation != startGeneration { …notice("abandoned mid-connect…"); return }
+> ```
+> **But the naive fix is unsafe here and the reason matters:** `startGeneration`
+> is bumped by a NEW start as well as by a dismissal, so an unconditional
+> `realtime.endSession()` on this path could tear down a session the *next*
+> start owns. The fallback path has no such hazard (`generation ==
+> startGeneration` there, so it provably owns the session). **Fix the safe one;
+> the other needs a generation-scoped end, which is a design question rather
+> than a line.**
+
+### 🎯 BARS 397-A…C — pre-registered before any code
+
+- **397-A (the fallback ends what it abandons).** A router whose realtime start
+  times out calls `endSession()` on the realtime service **before**
+  `startSession()` on the native one. Written RED first against today's code.
+- **397-B (#247's belt survives).** The fallback still happens, and still
+  happens for the same reasons — a build that stops falling back has traded a
+  rare double-session for a dead voice feature, which is strictly worse.
+- **397-C (the #139 path is NOT swept in with it).** The abandonment branch is
+  left alone until a generation-scoped end is designed. A test pins that the
+  fallback fix does not fire on the abandonment path, so the two cannot be
+  conflated by a later reader.
+
+> **✅ 2026-08-22 — 397-A/B/C MET, mutation-verified.** `await
+> realtime.endSession()` now precedes `setActive(.native)` in the fallback
+> branch, which is safe there specifically because `generation ==
+> startGeneration` is checked immediately before it — that branch provably owns
+> the session.
+>
+> **Mutation:** removing the one line turns
+> `aTimedOutRealtimeStartEndsThatSessionBeforeOpeningTheLocalMic` RED on
+> `realtime.endCalls == 1`. 397-B rides the same test (`native.startCalls == 1`
+> — #247's belt must still fire), and 397-C is pinned inside the pre-existing
+> abandonment test as `realtime.endCalls == 1`, i.e. exactly the one explicit
+> end and no second one smuggled in.
+>
+> **⚠️ A HARNESS FAILURE WAS NEARLY SCORED AS THE MUTATION'S RED.** The first
+> mutation run reported `** TEST FAILED **` — but with
+> `NSPOSIXErrorDomain Code=3`, *"did not return a process handle nor launch
+> error"*: the test host never launched. Load average was **33** from a gate,
+> an OTA archive and a test run overlapping. That is CLAUDE.md's documented
+> host-capacity signature, and it is the inverse of the usual trap — **a RED
+> that is not yours**. Taking it at face value would have "verified" a mutation
+> that never ran a single assertion. Re-run on an idle host, it failed on the
+> intended line.
+
+**Cross-references:** **#138** (found here, and refuted as its cause),
+**#247** (B1, the belt this rides), **#139** (zombie session — the related
+path, and the reason severity is privacy), **#310** (the router's other stale
+gate, #383's finding #1).
+
+> **⚖️ RULED 2026-08-23 (Owen, decision pass): BUILD the generation-scoped
+> end for the abandonment branch.** Chosen over accept-and-watch. The design
+> constraint is the one this entry already names: `startGeneration` is bumped
+> by a NEW start as well as by a dismissal, so the end must be scoped to the
+> session the abandoned start itself minted — an unconditional `endSession()`
+> can tear down the next start's session. 397-C's pin (the fallback fix must
+> not fire on this path) becomes the lane's non-regression floor. Bars
+> pre-register in this entry before any code.
+
+> **🎯 BARS 397-D…F — pre-registered 2026-08-23, before any code (the
+> sibling lane, opened the same night the ruling landed):**
+> - **397-D (the point — the dismissal zombie).** A realtime start abandoned
+>   by the user's dismissal, once it RESOLVES, re-issues `endSession()` on
+>   the realtime service — closing the window where the user's end raced an
+>   in-flight start whose connection completed after the teardown. Written
+>   RED first against today's router. **The 397-C pin (`endCalls == 1`) is
+>   superseded by the 2026-08-23 ruling and updated in the same commit** —
+>   its own comment names this lane as the proper fix, so this is the pin
+>   doing its job, not being tidied away.
+> - **397-E (the scope — why the naive fix was refused).** When a NEWER
+>   start has claimed the realtime service, the abandoned start's end does
+>   NOT fire: start #1 in flight → dismissal → start #2 claims realtime →
+>   start #1 resolves ⇒ start #1 adds no end. This bar is GREEN against
+>   today's code by construction, so its teeth are proven by MUTATION: an
+>   unconditional end (owner check dropped) must turn it RED.
+> - **397-F (non-regression).** The abandonment branch still never opens the
+>   local mic (both 139-C arms stay green), and 397-A/B stay green untouched
+>   — the fallback path is not re-entered by this lane.
+
+> **✅ 2026-08-23 — 397-D/E/F ALL MET. BUILT + MERGED same night (PR #355,
+> squash `be32b2dc`). GATE: PASS 2488 / 14 / Release (count moved +2).**
+> The router now tracks `realtimeStartOwnerGeneration` — set when a start
+> claims the realtime service — and the abandonment branch ends the realtime
+> session only when its own generation still owns it.
+> - **397-D** RED-first on both arms (`endCalls == 2` failing before code,
+>   no-belt and belt); the 397-C pin updated `== 1 → == 2` in the same
+>   commit, under the ruling its own comment anticipated.
+> - **397-E** proven by mutation: the owner check replaced with `if true`
+>   turned exactly that test RED on the second start's torn-down session.
+>   43/43 green after revert.
+> - **Gate note:** the first gate run FAILED with *"the test runner hung
+>   before establishing connection"* — zero unit-test output, XCUITest 14/14,
+>   Release clean — while a cold worktree build ran concurrently. The
+>   documented host-capacity signature ("a RED that is not yours"); the
+>   re-run on an idle host passed clean. Builds were serialized for the rest
+>   of the night on that evidence.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 399. 🐛 The memo PLAY buttons are the one audio surface with NO Talk gate — every sibling has one — **FILED 2026-08-23 per #268, found while reading #198B's files. GRADED HONESTLY: a defence-in-depth gap, NOT a demonstrated live bug. NOT STARTED.** **⟵ ✅ BUILT + gate-verified 2026-08-23, same night: 399-A answered NULL (no reachable path demonstrated; CarPlay NOT cleared), 399-B and 399-C SHIPPED at BOTH sites, two mutations each proven RED.**
+
+**The pattern, which this codebase applies consistently at three of four
+sites.** Anything that touches the shared `AVAudioSession` refuses to run
+while a Talk session owns it:
+
+| surface | gate |
+|---|---|
+| memo **recording** | `VoiceMemoRecorderSheet:53` — `if talkStore.isSessionActive` → honest refusal notice |
+| **read-aloud** toggle | `MessageBubble:302` — `&& !talkStore.isSessionActive` → hidden |
+| read-aloud **service** | `SpeechOutputService.isBlocked` + `managesAudioSession` (#84/#106) |
+| memo **playback** | **none** |
+
+`VoiceMemoPlayer.togglePlayback` re-categorizes the shared session to
+`.playback` and calls `setActive(true)` (`:52-53`), and `stop()` calls
+`setActive(false, .notifyOthersOnDeactivation)` **unconditionally** (`:74`)
+with the comment *"releasing an inactive session is harmless."* **That
+sentence is the exact claim #84 falsified** — read-aloud deactivating a
+session it had never activated is what killed the live mic dozens of times a
+minute on 2026-07-16, and it is why `SpeechOutputService` grew the
+`didActivateAudioSession` gate. The player has no equivalent.
+
+**⚠️ WHY THIS IS FILED AS A GAP AND NOT AS A BUG — the reachability was
+checked, not assumed.** During a session the voice UI is a `fullScreenCover`
+on MainTabView, so the chat bubbles carrying the play button are **not
+reachable**; and `VoiceOverlayScreen.onDisappear` calls `abandonSession()`
+after a 500 ms delay (`:126-132`), so dismissal closes the window it opens.
+**No path to the button during a live session was demonstrated.** The
+candidate worth a look is **CarPlay (#19)**, which by design runs voice with
+the phone UI backgrounded — the one configuration where a live session and an
+interactive chat could plausibly coexist. That is a question, not a claim.
+
+**So the honest statement is: three of four audio surfaces are defended by an
+explicit gate, the fourth is defended only by a presentation accident.** #397
+is the standing proof that presentation accidents in this area do not hold —
+a timed-out start left a live mic streaming precisely because a teardown was
+keyed on something other than the session itself.
+
+**BARS — pre-registered before any code:**
+- **399-A.** Establish reachability first, from source: name a path on which
+  `talkStore.isSessionActive` is true while `MessageBubble`/`ChatInputBar` is
+  hittable, or record that none was found. **A null result closes this as
+  defence-in-depth and the fix ships on that basis, not on a claimed defect.**
+- **399-B.** The fix is the sibling pattern, not a new mechanism: gate both
+  play buttons on `!talkStore.isSessionActive`, matching `MessageBubble:302`
+  three lines away.
+- **399-C.** `VoiceMemoPlayer.stop()` gains the #84 guard — never deactivate a
+  session this instance did not activate — pinned by a unit test in
+  `SpeechOutputService.shouldReleaseAudioSession`'s shape. **This is the half
+  that matters even if 399-A comes back null**, because it removes the
+  unconditional deactivation rather than merely hiding the button that reaches
+  it.
+
+**Relationship to #198B:** same files, different defect. #198B is a
+main-thread hang-RISK warning; this is session ownership. 399-C would be
+natural to land inside #198B's refactor, but is **filed separately so it does
+not die with it** — #198B is stopped and this does not depend on it.
+
+> **✅ 2026-08-23 — BUILT. 399-A answered NULL, 399-B and 399-C shipped, both
+> mutation-proven. Not on the night's elected list** — it was found and filed
+> hours earlier while reading #198B's files, and it is the only item of that
+> night that turned out to be desk work with a premise verified from source
+> rather than from a header.
+>
+> **399-A — NULL, and recorded as null rather than quietly dropped.** No path
+> was demonstrated on which `talkStore.isSessionActive` is true while the play
+> button is hittable: the voice UI is a `fullScreenCover` on MainTabView, and
+> `VoiceOverlayScreen.onDisappear` calls `abandonSession()` after a 500 ms
+> delay. **CarPlay (#19) was NOT cleared** — it runs voice with the phone UI
+> backgrounded by design, and nobody has checked what the chat surface does
+> there. So the gap is closed by the fix below rather than by the reachability
+> argument, which is the order 399-A's own wording required.
+>
+> **399-B — both play buttons now carry the Talk gate** (`MessageBubble`,
+> `ChatInputBar`), matching `MessageBubble:302`'s read-aloud gate three lines
+> away. In practice this changes nothing a user can see, because the button was
+> already unreachable during a session; that is what defence in depth looks
+> like when it lands before the defect does.
+>
+> **399-C — the unconditional deactivation is gone, at BOTH sites.**
+> `VoiceMemoPlayer.stop()` and `VoiceMemoRecorder.finishRecorder()` now release
+> only what the instance activated, guarded by a `didActivateAudioSession` flag
+> and a pure `shouldReleaseAudioSession(didActivate:)` mirroring
+> `SpeechOutputService`'s. The comment that used to justify the old behaviour —
+> *"releasing an inactive session is harmless"* — was the claim #84 falsified,
+> and it is replaced by a note saying so.
+>
+> **The recorder was NOT in 399-C's pre-registered wording and was fixed
+> anyway, deliberately.** Scope added with a reason is not a moved bar: #383-G
+> fixed its reported site and left two siblings for a later grep to find, and
+> the handoff carries that as a standing trap (*"when a premise dies, grep for
+> the PREMISE, not the symptom"*). Every failure path was walked before the
+> change: a start that dies at `AVAudioPlayer(contentsOf:)` or at `record()`
+> still releases, because the flag is set the instant `setActive(true)`
+> returns; only a start that never activated leaves the session alone.
+>
+> ### 🔴 The test hole I found in my own tests, and closed
+>
+> The wiring tests observe an injected `deactivateAudioSession` seam, so they
+> turn RED when the guard is deleted. **They do NOT see the mutation that
+> matters most** — reverting to the ORIGINAL direct
+> `AVAudioSession.sharedInstance().setActive(false, …)`, which bypasses the
+> seam and leaves the suite green while the shared session is really torn down.
+> That is the historical shape, so the suite would have been unable to see the
+> exact defect this item fixed.
+>
+> Closed with a STRUCTURAL test that reads the two sources via `#filePath` and
+> asserts each spells `setActive(false` exactly once — inside the seam's
+> default. Precedent for a test that parses our own source is already in the
+> tree (`score-decline-attribution-test.py` parses
+> `DeclineAttributionScorer.swift` to keep two implementations in sync). It
+> fails loudly if the sources cannot be read, per "no data is not a pass".
+>
+> | mutation | expected catcher | result |
+> |---|---|---|
+> | **M1** guard deleted, seam kept | the three wiring tests | RED |
+> | **M2** seam bypassed by a direct `setActive(false)` | the structural test | RED |
+>
+> **M2 is the one worth remembering.** A seam-based test is only as good as the
+> guarantee that the seam is the only door, and nothing about a seam enforces
+> that by itself. This is the same family as #340's eleven green parsing tests
+> surviving the deletion of the wiring they existed to protect — one level
+> further out.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 400. 🐛 `midTurnSendAction` DECODES BUT IS NEVER ENCODED — the user's mid-turn send-behavior choice silently reverts to `.queue` on relaunch — **FOUND 2026-08-23 by the Opus-week audit (cluster A, in passing, while verifying #368's decoder edits). PROVEN FROM SOURCE, then re-verified by hand: `UserSettings.swift:573` has the CodingKeys case, `:619` decodes it, and the hand-written `encode(to:)` (`:644`, 32 keys) never writes it. Introduced `d60e6642` (#357 3C era). A systematic CodingKeys-vs-encode diff confirms it is the ONLY omitted key (`customRelayBaseURL` flagged beside it was a false positive — nested `RelayConfiguration`'s encode is synthesized from its own CodingKeys). Bars below, pre-registered before code.** **⟵ ✅ FIXED + MERGED the same evening (PR #359, squash `f1b393ac`): the hand-written encode is DELETED and encode is synthesized from CodingKeys. 400-A/B both met — result block below. CLOSED; nothing owed.**
+
+**The elected fix is structural, not additive.** Every other CodingKeys case
+is already encoded and no decode-only legacy key exists in the enum (the
+diff proves both), so the hand-written `encode(to:)` earns nothing — it
+exists only because `init(from:)` is hand-written for decode defaults, and
+a synthesized encode is derived from CodingKeys and **cannot omit a case**.
+Deleting it fixes the bug and eliminates the class in one move.
+
+> **🎯 BARS 400-A/B — pre-registered 2026-08-23, before code:**
+> - **400-A (the roundtrip).** Encode→decode of settings carrying a
+>   non-default `midTurnSendAction` preserves it. Written RED first against
+>   today's encode.
+> - **400-B (the class).** The hand-written `encode(to:)` is GONE — encode
+>   is synthesized from CodingKeys, so the next added key cannot repeat
+>   this silently. Falsifier: any hand-written `encode(to:)` returning to
+>   `UserSettings`; a comment at the CodingKeys enum says why it must not.
+
+> **✅ 2026-08-23 — 400-A/B MET; MERGED as PR #359 (`f1b393ac`). GATE: PASS
+> 2502 / 14 / Release (count moved +4 — this lane's four new tests
+> exactly).** 400-A written first and RED on today's encode
+> (`decoded.midTurnSendAction == .steer` failing); GREEN by deleting the
+> hand-written `encode(to:)` — the custom `init(from:)` stays for decode
+> defaults, and the asymmetry is documented at CodingKeys. The same lane
+> carried the audit's other elected fixes: three structural wiring pins
+> (#138-B call sites, #394's scenePhase task + guard, #395's three
+> predicate gates — one combined mutation run unwired all three sites and
+> produced exactly three REDs, each on its own site), the #383
+> `relayBootstrapReceivedAt` → `hostBootstrapReceivedAt` rename plus its
+> two comments, and the scorer-test dead stanza. **Gate note:** the first
+> run died with "test runner hung before establishing connection" on an
+> IDLE host — CC-lane-2, after a full gate plus a dozen targeted suites in
+> one evening — so the contention story from earlier tonight does not
+> cover it; recorded as the #219 launch-flake family with sim-state rot
+> suspected (the sim was shut down; the re-run on fresh CC-lane-3 passed
+> clean, 2502/14/Release).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 401. 🔁 iOS 27 BETA 7 / XCODE 27 BETA 6 REGRESSION ROUND + SDK AUDIT — the #398 skew moves: the beta 6 Xcode exists and its sim runtime leapfrogs the device — **FILED 2026-08-24 on Owen's go ("start a quick round of regression testing for the new version, and check and see if any new features were added? Or anything to look out for / may have been resolved"). Bars 401-A..E pre-registered below BEFORE the run.** **⟵ ✅ RUN COMPLETE same day: GATE PASS first-run under beta6 (2482 Swift Testing + 14 XCUITest on VERIFIED 24A5423a, Release clean, 0 compile errors); SDK diff = 6 real interface changes in 280, NONE Talaria-called; FM byte-identical. 401-A's ≥2497 count clause MISSED AS WRITTEN — bar-formation error, measured exactly (net −15 tests deleted by PR #360 after the floor's baseline; result block below). Full evidence: `planning/reports/2026-08-24-beta6-sdk-audit.md`. PROMOTION recommendation surfaced; awaiting Owen's word.** **⟵ ✅ PROMOTED same day on Owen's word ("Yes, promote it, keep beta5 as the fallback for now"): CLAUDE.md/AGENTS.md toolchain sections, lane-gate.sh + ota-stage.sh + run-instrument.sh DEVELOPER_DIR defaults, README, CONTRIBUTING, MAINTAINER_NOTES posture (2482/200 + 14) all moved to beta6; beta5 KEPT as A/B fallback; run-sweep.sh's 24A5408d era-pin deliberately untouched (#343 comparability armor). EVERY BAR DISCHARGED — 401-A's count clause stands recorded as missed-as-written. CLOSED; archive move rides the next sweep.**
+
+**Measured on arrival (2026-08-24, on the Mac Mini directly — no MCP caveat):**
+
+| | beta5 (current std) | beta6 (new) |
+|---|---|---|
+| Xcode build | 27A5237l | **27A5252f** |
+| swiftlang | 6.4.0.30.4 | **6.4.0.33.1** (clang-2100.3.33.1) |
+| iOS SDK build (device + sim) | 24A5408c | **24A5422a** |
+| iOS 27.0 sim runtime | 24A5408d | **24A5423a** (Ready; `runtime match` already chooses it for new boots — no user override set) |
+| device `whoGoesThere` | 24A5418b (iOS beta 6) | unchanged until Owen updates |
+
+First-launch/license already complete (`xcodebuild -checkFirstLaunchStatus`
+exit 0 — no sudo owed). Runtimes on disk: 24A5423a + 24A5408d (beta5) +
+24A5390f (beta4) + iOS 26.5 23F77, 30.3 GB total. CC-lane pool intact
+(1/2/3, all Shutdown), bound to the generic `iOS-27-0` identifier — so a
+gate run boots them on **24A5423a** by default. Naming care: Apple's
+"Xcode 27 beta 6" ships the **iOS 27 beta 7** SDK and runtime; the phone's
+24A5418b is *iOS* beta 6. The two "beta 6"s are different axes — every claim
+below names builds, not beta ordinals, where it matters.
+
+### 🎯 BARS 401-A…E — pre-registered before the run
+
+- **401-A (gate).** `scripts/mac/lane-gate.sh` (full: Debug suite + Release
+  build) green under `DEVELOPER_DIR=…/Xcode-beta6.app/…` on a CC-lane sim
+  whose booted runtime is **VERIFIED 24A5423a from the booted device itself**,
+  not inferred from match policy. Positive markers per the gate's own rules;
+  unit count **≥ 2497** and XCUITest **≥ 14** (the 2026-08-23 gate floor,
+  #393's run — NOT #324's stale 2056). Load discipline: no concurrent builds
+  alongside the suite (the #324 run-1 flake class).
+- **401-B (SDK diff).** Swiftinterface-level diff beta5→beta6 over the same
+  16-framework set as #324 plus the overlay set (incl.
+  `_Vision_FoundationModels`), **sorted set-diff first** on mass-reordered
+  interfaces; every new-feature claim grounded in interface text, none from
+  recall (WWDC26 postdates the model cutoff). Report lands as
+  `planning/reports/2026-08-24-beta6-sdk-audit.md`.
+- **401-C (Talaria-called surface verdict).** An explicit yes/no on whether
+  ANY API Talaria calls changed — the #324 FM checklist (ToolCallingMode,
+  DynamicProfile, tokenCount, LanguageModel protocol, LanguageModelError
+  arms, @Generable, UnavailableReason, PCC accessors) **plus
+  `SystemLanguageModel.variant`, which the app has adopted since #324**, plus
+  the SwiftUI/SwiftData/EventKit/Speech/AVFoundation surfaces the app
+  touches.
+- **401-D (known-trap ledger).** The three standing runtime items each get an
+  honest status against 24A5423a: **#301-family isolation trap**, **SwiftData
+  `mainContext` (324-W1)**, **FM sim generation**. Each is marked RE-TESTED
+  (with evidence) or NOT RE-TESTED THIS ROUND — #324's probe apps were
+  session-scratchpad artifacts and are gone, so rebuilding them is a scoped
+  follow-up, not smuggled into a "quick round." **No "probably fixed"
+  verdict exists.** A trap not re-tested keeps its workaround unconditionally.
+- **401-E (close-out).** Docs falsified by the arrival corrected in the same
+  commits as the verdicts: #398's entry (done in this commit, dated block
+  above), CLAUDE.md's #398/toolchain paragraphs, and a **promotion
+  RECOMMENDATION surfaced to Owen rather than auto-executed** — #324's
+  "auto-promote if green" was a per-instance pre-bed authorization, and no
+  such authorization exists for beta6.
+
+**Deliberately NOT bars this round:** device re-measurement (that stays
+398-B); a beta6-built OTA stage; rebuilding the FM/isolation probe apps
+(follow-up if elected); any adoption of new-in-24A5422a API (blocked by the
+dyld corollary until the phone is on beta 7). *(⟵ same-day update: the
+adoption freeze LIFTED hours later — phone upgraded to beta 7, see #398's
+2026-08-24 PM block. The PCC-on-sim elective probe was elevated by Owen and
+is now **#402**.)*
+
+### ✅ RESULT — 2026-08-24, same day (full evidence: `planning/reports/2026-08-24-beta6-sdk-audit.md`)
+
+- **401-A: GATE PASS first-run, with one clause MISSED AS WRITTEN.** xcodebuild
+  exit 0 · TEST SUCCEEDED · 2482 Swift Testing + 14/14 XCUITest · Release
+  clean, 0 Swift errors · skips = the CondenserFidelityTests permanent pair
+  only · booted runtime verified **24A5423a** from the device itself
+  (`simctl getenv SIMULATOR_RUNTIME_BUILD_VERSION`), per the bar. **The
+  ≥ 2497 unit floor FAILED (2482), and the miss is recorded, not
+  redefined:** the floor was pinned to #393's 08-23 gate, whose tree
+  predates PR #360's test deletions from the same night. Measured, not
+  argued: `git diff c8341df5..HEAD` over the test targets = −29/+14 `@Test`
+  functions, **net −15, exactly the 2497→2482 delta**, concentrated in the
+  transport-deletion files. 2482 is the complete suite at HEAD; no beta5
+  control run owed. **Lesson: pin a count floor to the HEAD being gated,
+  never to the last gate's number. Correct floor going forward: 2482 + 14
+  at `f5c7a473`.**
+- **401-B: MET.** Full-file sweep, 280 interfaces: 186 byte-identical, 88
+  version-stamp-only, **6 real** (_Concurrency ABI shuffle, UIKit
+  find-replace type fix, CryptoKit pre-GM insecure-cipher REMOVAL,
+  NowPlaying, _DataDetection_SwiftUI availability, VideoToolbox
+  formatting), 0 frameworks added/removed. Method note preserved in the
+  report: the first sweep matched `arm64-apple-ios.swiftinterface` and
+  found ZERO files (slices are `arm64e`) — the impossible total=0 caught
+  the empty-result trap live.
+- **401-C: MET — NO API Talaria calls changed.** FoundationModels
+  byte-identical (whole #324 checklist + `variant`); SwiftUI/SwiftData/
+  EventKit/Speech/AVFAudio/WidgetKit/HealthKit/etc. identical or
+  stamp-only. Repo greps empty on all six real changes. Nothing new to
+  adopt.
+- **401-D: MET (ledger honest).** #301 isolation trap: NOT RE-TESTED
+  (probe gone), @Sendable fixes stay. SwiftData mainContext: NOT
+  RE-TESTED, UNKNOWN stands (beta-7's 178113288 deadlock fix is a
+  different signature), workaround stays. FM sim generation: NOT
+  RE-TESTED; no note claims it fixed; **PCC-on-sim IS claimed fixed →
+  #402.**
+- **401-E: MET.** #398 corrected (twice — premise moved, then fleet
+  aligned), CLAUDE.md corrected in the same commits; promotion
+  RECOMMENDED (beta5 stays as A/B fallback this time), **not executed —
+  Owen's word owed.** Release-note catalog (with the cumulative-page
+  attribution caveat) in the report: FM excessive-tool-calling FIXED (the
+  #215 over-serving configuration), PCC greedy-decoding FIXED, new
+  Dictation model behind a Settings toggle, background-NE entitlement,
+  devicectl JSON v5 deprecations, parallel-test stdout delay (Xcode).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 402. 🔬 PCC-ON-SIM PROBE — beta 7 claims *"Private Cloud Compute might not work when you use simulators"* is FIXED (Apple id 177684296); if true, the PCC tier becomes sim-testable for the FIRST time — **FILED 2026-08-24 per #268 from #401's release-note finding, elevated by Owen the same hour (*"thats wonderful about pcc testing, that will be incredibly helpful"*). NOT STARTED; bars pre-registered below before any code.** **⟵ ✅ PROBED + CLOSED the same evening, all four bars met: the fix is REAL BUT PARTIAL — PCC's METADATA plane now fully works on sim (contextSize 32768, quota, 24 languages; simulated entitlement honored by modelmanagerd) but GENERATION still fails instantly on one unresolvable asset (`instruct_server_v2.fm_api`), the sim exposes NO Apple Intelligence surface to fetch it, and the on-device control arm keeps its beta5 failure signature — #324's "generation is device-only" STANDS for both tiers on 24A5423a. Probe preserved: `planning/probes/402-pcc-sim-probe.swift`; 👁 WATCH: one-command re-probe per new runtime. Result block below.**
+
+**Context.** Every PCC observation to date — #388's surface sweep, #391's
+quota finding, #395's off-switch — was device-only, because the PCC tier
+never worked on a simulator. Apple's beta 7 notes mark that resolved. Two
+honest unknowns before anything is "testable": (1) what sim-side setup PCC
+needs (Apple Account sign-in on the sim? Apple Intelligence enabled in sim
+Settings? entitlements on the probe target?) — none of which the release
+note states; (2) whether "might not work … fixed" means *works*, or merely
+*fails differently*. The probe's first job is the setup recipe, its second
+the measurement. Runtime: 24A5423a (the only sim runtime the claim covers).
+
+### 🎯 BARS 402-A…D — pre-registered before any code
+
+- **402-A (setup recipe recorded).** The exact sim configuration that makes
+  PCC reachable — or the named, measured blocker that makes it unreachable —
+  documented step-by-step on 24A5423a: account state, Apple Intelligence
+  toggle state, entitlement requirements. **A dead end is a valid result** if
+  the blocker is specific (an error identity, a Settings surface that does
+  not exist on sim), not "didn't seem to work."
+- **402-B (availability vs generation, separately).** PCC model availability
+  AND an actual `respond()` round-trip each get their own recorded outcome —
+  #324's lesson stands: availability is a catalog question, generation is a
+  different question, and conflating them produced a month of "available but
+  cannot generate" confusion on the on-device tier. On failure, record the
+  error identity **verbatim** (the un-bridged NSError family, 324-W4 — typed
+  casts may be blind; log domain string + code).
+- **402-C (decoding-regime stamp).** Any behavioral PCC observation is
+  stamped with the runtime build and a greedy-decoding note: beta 7 also
+  fixed PCC's always-greedy decoding (#401 §3), so no output comparison
+  against pre-beta-7 PCC transcripts without naming that the sampling regime
+  changed underneath.
+- **402-D (no production code rides the probe).** The probe lives in
+  DEBUG-only instruments or a scratch target; anything app-shipping that
+  falls out of it gets its own item.
+
+**Cross-references:** **#401** (source finding), **#395** (the tier this
+makes testable), **#391/#388** (device-only PCC observations that gain a sim
+control), **#324** (availability-vs-generation discipline; error-identity
+discipline).
+
+### ✅ RESULT — 2026-08-24 evening, probed same day (probe source preserved: `planning/probes/402-pcc-sim-probe.swift`)
+
+**Verdict in one line: the fix is REAL BUT PARTIAL from Talaria's seat — the
+PCC metadata plane now fully works on the sim, but GENERATION still fails on
+one unresolvable asset, and the sim offers no surface that could fetch it.**
+All measurements on CC-lane-1, runtime **24A5423a** stamped in-process (402-C
+met); environment: NO Apple Account signed in, macOS 26.5.2 host.
+
+- **402-A MET — the recipe is "nothing", and the blocker is named and
+  measured.** Out of the box, zero setup: `availability=available`,
+  `isAvailable=true`, `quotaUsage=belowLimit(isApproachingLimit: false,
+  resetDate: nil)` (#391's inert shape), **`contextSize=32768`** (a real
+  value — first time any FM tier returned one on a sim),
+  `supportedLanguages.count=24`. **Entitlement half SETTLED:** a normally
+  signed `xcodebuild test` sim binary carries
+  `com.apple.developer.private-cloud-compute` in the **simulated-entitlements
+  section** (`__TEXT,__entitlements`, 0x269 bytes — `codesign -d
+  --entitlements` shows an EMPTY dict because it reads the signature; the
+  section is what the sim runtime consults), and modelmanagerd honored it in
+  so many words: `Client 74755 entitled with
+  com.apple.developer.private-cloud-compute`. **The dead end:** sim Settings
+  exposes **no Apple Intelligence surface at all** — the row is plain "Siri",
+  and the full pane (both screens checked) has no AI toggle and no model
+  download. Untried variable: Apple Account sign-in on the sim (Owen-manual
+  if ever wanted; with no AI surface it is unlikely to matter). Host-side
+  FM asset store (`/System/Library/AssetsV2/
+  com_apple_MobileAsset_UAF_FM_GenerativeModels`) exists but is unreadable
+  without sudo — recorded as UNMEASURED, not absent.
+- **402-B MET — both halves, separately, with the mechanism.**
+  Availability: affirmative (and still structurally unable to say "not
+  entitled" — though entitlement was in fact honored here). Generation:
+  `respond()` **fails in <0.1 s with no network attempt** —
+  `domain=FoundationModels.SystemLanguageModel.Error code=0 "The assets
+  required for the session are unavailable"` (note: a SYSTEM-model error
+  domain thrown by the PCC path; none of the typed PCC.Error arms fire; no
+  underlying NSError chain). **Mechanism from the sim log:** the session
+  requests asset bundles `com.apple.fm.language.instruct_server_v2.fm_api`
+  + `instruct_300m.safety?language=en`; the **safety model loads and
+  executes** — `instruct_300m` is a NonAssetBackedResource running via
+  **"host-inference"**, a sim-bridging path that did not exist in beta5's
+  story — then both sessions are cancelled ~50 ms later because
+  `instruct_server_v2.fm_api` cannot resolve. Instructions are not the
+  variable: a no-instructions arm fails identically.
+- **On-device control arm (bonus, posture unchanged):**
+  `SystemLanguageModel.default` on the same sim: available, variant "AFM 3
+  Core", `contextSize=0`, respond throws the **beta5-signature un-bridged
+  `FoundationModels.LanguageModelError code=-1`**. So the 300m
+  host-inference machinery serves only the safety ancillary today — **#324's
+  "generation is device-only" stands on 24A5423a for BOTH tiers.**
+- **402-D MET:** scratch test file deleted from the target after the runs
+  (pbxproj regenerated byte-identical); source preserved at
+  `planning/probes/402-pcc-sim-probe.swift` so the next runtime's re-probe
+  is a copy + `xcodegen generate` + one command, not a rebuild —
+  the #324→#401 dead-probe lesson applied:
+  ```bash
+  cp planning/probes/402-pcc-sim-probe.swift TalariaTests/PCCSimProbeTests.swift && xcodegen generate && DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer xcodebuild test -project Talaria.xcodeproj -scheme Talaria -destination 'platform=iOS Simulator,id=79402942-3DD4-4187-9710-044C784840FE' -only-testing:TalariaTests/PCCSimProbeTests
+  ```
+- **What this changes for the app: nothing today, one option opened.**
+  `pccGrantConfirmed` stays compile-time false on sim and every reason it
+  exists still holds. What the fix DOES enable is sim-side testing of the
+  PCC **metadata** surfaces (quota tile honesty, availability plumbing) via
+  a DEBUG-sim carve-out — **not elected here; that would be its own item.**
+  Apple's release note is not contradicted: "might not work — fixed" is
+  satisfied by the metadata plane; nothing in it promised sim generation.
+- **👁 WATCH rider: re-probe per new sim runtime** (the asset could appear
+  in any future beta; the one-command recipe above is the whole cost).
+
+
+> **📌 2026-08-24 (pre-archive pointer):** the 👁 re-probe-per-new-runtime
+> watch does not die with the archive move — it rides every future
+> toolchain/runtime promotion round (the #401 shape), alongside #74's
+> CarPlay re-check. The probe is one command:
+> `planning/probes/402-pcc-sim-probe.swift`.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 403. 🔧 DEBUG-SIM CARVE-OUT: the PCC quota tile becomes sim-testable — the option #402 opened, elected by Owen — **FILED 2026-08-24 evening on Owen's word ("Lets do the debug carve-out so the quota tile is sim-testable"). Bars 403-A..E pre-registered below BEFORE code.** **⟵ ✅ BUILT + GATE PASS the same sitting (2483/14/Release on 24A5423a): two-fact gate split, three mutations RED (with an invalidated-first-run process note worth reading), deck UI pins moved 9→10. Result block below; ~~MERGE IS OWEN'S — PR open.~~** **⟵ ✅ MERGED the same evening on Owen's word (PR #363, squash `3a9466ac`). One process finding rode the merge: the PR was branched off five UNPUSHED local-main tracker commits, so the squash silently bundled them — content verified complete against local main before reconciling (reset local main to origin), lesson added to the squash-merge memory: push main before branching. CLOSED.**
+
+**Design (scoped from source before filing).** One gate becomes two facts:
+`pccGrantConfirmed` keeps its exact meaning and value everywhere — *may this
+binary construct PCC to take TURNS* — and a new `pccMetadataObservable`
+(`pccGrantConfirmed`, OR `#if DEBUG` + simulator) gates only the metadata
+plane. Repointed to the new fact: `privateCloudStatus()`,
+`showPrivateCloudLimitIncreaseOptions()`, and a new
+`isPrivateCloudObservable` visibility read consumed by
+`SettingsChannelsScreen` (line 108 today feeds
+`SettingsSubsystem.cases(privateCloudAvailable:)` from the TURN fact, which
+is what keeps the tile nonexistent on sim). NOT repointed — the turn plane:
+`isPrivateCloudAvailable`, `isPrivateCloudUsable`, `setPreferredTier`,
+`activeContextSize`, the session construction at `LocalChatBackend`
+~:1360, and `availableModels()`'s `private-cloud-beta` entry. Safety basis
+is MEASURED, not argued: the 2026-07-13 construction SIGTRAP did not
+reproduce on 2026-08-20 (beta5, unentitled) and #402 re-confirmed on
+24A5423a (construction + all metadata reads clean ×3 runs, simulated
+entitlement honored by modelmanagerd).
+
+### 🎯 BARS 403-A…E
+
+- **403-A (scope pin, mutation-backed).** The carve-out reaches ONLY the
+  metadata plane. Three mutations run and recorded RED: (m1) repoint
+  `isPrivateCloudAvailable` to the metadata gate ⇒ a new
+  `setPreferredTier(privateCloud: true) keeps activeTier == .onDevice on
+  sim` pin goes red; (m2) repoint `isPrivateCloudUsable` ⇒ its stays-dark
+  pin goes red; (m3) hardcode `pccGrantConfirmed = true` ⇒ 72-A goes red.
+- **403-B (the tile lights on sim DEBUG).** On 24A5423a,
+  `privateCloudStatus()` returns non-nil mapped from live SDK reads, and
+  the Private Cloud settings surface is offered
+  (`SettingsSubsystem.cases` includes it via the observable read) — pinned
+  by unit tests that run in the gate.
+- **403-C (Release unchanged).** The carve-out is compiled out of Release;
+  the gate's Release leg proves the build, and Release-sim semantics remain
+  today's (all dark). The #218 corollary is the reason this is a bar.
+- **403-D (#72 prose corrected, pins preserved).** PrivateCloudGateTests'
+  header still asserts the uncatchable 07-13 SIGTRAP as current — falsified
+  2026-08-20 and again by #402. Corrected to the dated record in the same
+  commit; 72-A and the dark-surface pins survive in updated form, none
+  deleted.
+- **403-E (gate + PR).** `lane-gate.sh` green with the unit count MOVED
+  above 2482 (new tests must register); PR opened for Owen, not
+  self-merged.
+
+### ✅ RESULT — 2026-08-24 evening, same sitting (branch `cc-403-pcc-metadata-carveout`)
+
+- **403-A MET — three mutations, each RED with its named pin, zero compile
+  errors on the evidence runs.** m1 (`isPrivateCloudAvailable` → metadata
+  gate): 3 issues — the availability pin, the `setPreferredTier`/activeTier
+  pin, AND `availableModels` offering `private-cloud-beta` (a turn-plane
+  consumer the bar hadn't even named). m2 (`isPrivateCloudUsable` →
+  metadata gate): exactly 1 issue, its own pin. m3 (`pccGrantConfirmed`
+  hardcoded true): 5 issues — 72-A plus every turn-plane pin plus the
+  picker. **Process note, recorded because it is the #343 shape in
+  miniature: the FIRST m2/m3 runs were INVALID** — the mutation script's
+  `git checkout --` revert ran against an uncommitted working tree, wiped
+  the carve-out itself after m1, and m2/m3's "TEST FAILED" verdicts were
+  COMPILE failures of the mutated-but-baseless file. Caught by `git status`
+  before anything was recorded as met; re-run on the committed base with a
+  compile-error count printed beside every verdict. **A mutation run
+  reverting via git must run on a committed base, and a RED without a
+  compile-error check is not yet evidence.**
+- **403-B MET.** `metadataPlaneLightsOnDebugSimulator` pins
+  `pccMetadataObservable == true`, `isPrivateCloudObservable == true`, and
+  `privateCloudStatus() != nil` from live SDK reads on the gate sim
+  (24A5423a); the settings deck now contains the Private Cloud tile on
+  DEBUG sims.
+- **403-C MET.** Carve-out is `#if DEBUG && targetEnvironment(simulator)`
+  inside the flag initializer; the gate's Release leg built clean (0 Swift
+  errors), so Release resolves the metadata gate to `pccGrantConfirmed`
+  exactly as before.
+- **403-D MET.** PrivateCloudGateTests' header now carries the dated
+  record (07-13 trap → 08-20 non-repro → #402 entitlement-honored) instead
+  of asserting the uncatchable SIGTRAP as current; 72-A unchanged; the
+  dark-surface pins survive as `turnPlaneStaysDarkOnSimulator`.
+- **403-E: gate MET — GATE: PASS, 2483 Swift Testing (moved above 2482 as
+  required) + 14/14 XCUITest + Release clean, skips = the permanent
+  CondenserFidelityTests pair. PR opened for Owen's review; merge is his.**
+- **Collateral the gate caught (the carve-out's honest footprint):**
+  `testSettingsDeckNavigation` pinned the sim deck at 9 pages; the tile's
+  existence makes it 10, and the About-dot pin moved 08→**09** because
+  #395-D2 places `.privateCloud` BEFORE `.about` — a near-miss worth
+  naming: the `title` switch in `SettingsChannels.swift` lists the cases
+  in a DIFFERENT order than the declaration, and pinning ordinals from the
+  switch would have been wrong. Side effect worth having: a DEBUG sim's
+  settings deck now matches a device's, tile for tile.
+- **Deliberately NOT repointed:** the #388 surface-probe instrument's PCC
+  refusal still keys on `pccGrantConfirmed` — its sim refusal exists for
+  DATA HYGIENE (388-C: sim rows must never fold into device data), not
+  safety, and the carve-out does not change what a sim reading is worth.
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 404. 🎨 REWORK THE PCC QUOTA ROW — one flat size-8 mono sentence that wraps badly and duplicates the toggle label above it, in an app whose idiom everywhere else is labeled kicker/value fields — **FILED 2026-08-24 evening on Owen's word, from his device screenshot ("the way that we display the information we do get about the pcc account is sloppy compared to everything else. Can we rework it?"). Bars 404-A..E pre-registered BEFORE code.** **⟵ ✅ BUILT + MERGED the same evening (PR #364, squash `24ff5104`): QUOTA/RESETS kicker-value fields, #391 pins untouched-green, gate 2485/14/Release. 404-D's closing eyeball MET — Owen ordered the merge after seeing the sim screenshot. CLOSED; the row rides the same-evening OTA.**
+
+**Diagnosis from the screenshot + source.** `PrivateCloudQuotaRow` renders
+`quotaRowLabel`'s whole sentence — `PRIVATE CLOUD β · <STATE> · RESETS <x>` —
+as ONE `MonoLabel(size: 8)`: it wraps mid-field on device (Owen's screenshot
+shows `RESETS` dangling), the `PRIVATE CLOUD β` prefix duplicates the toggle
+label directly above it, and there is no field hierarchy while the design
+system's idiom (top bar, cards, telemetry) is kicker-over-value MonoLabel
+pairs with StatusPips. **What is NOT negotiable: every #391 honesty rule** —
+the RESETS field always present with nil rendering as `—`, unknown status
+rendering as unknown (never reassurance), today-vs-later date forms.
+
+### 🎯 BARS 404-A…E
+
+- **404-A (zero #391 pin churn, single source).** `quotaRowLabel`'s output
+  stays byte-identical — every existing #391 test green UNTOUCHED — and is
+  rebuilt from a new pure `quotaStateText(quota:)` + the existing
+  `resetFieldText`, then applied as the row's explicit ACCESSIBILITY label.
+  One source: the visual fields and the VoiceOver sentence cannot diverge.
+- **404-B (field structure).** The visual row becomes labeled fields —
+  QUOTA (StatusPip, tone per arm: muted / forge / danger / dim, the mapping
+  the old view already used) and RESETS (right-aligned value; `—` stays a
+  rendered value, dim). New tests pin `quotaStateText` per arm incl.
+  unknown ≠ reassurance.
+- **404-C (stale doc corrected).** The component's "shared by the Models
+  screen" comment predates #395's consolidation — one consumer remains;
+  corrected in the same commit, no second copy introduced.
+- **404-D (visual proof, sim-first).** A screenshot of the reworked row ON
+  THE SIMULATOR — #403's carve-out doing the job it was built for, same
+  evening — sent to Owen; **his eyeball is the closing taste bar** (#393's
+  closing-bar shape).
+- **404-E (gate + PR).** Gate green, unit count moved above 2483; PR opened
+  for Owen.
+
+### ✅ RESULT — 2026-08-24 evening, same sitting (branch `cc-404-quota-row`)
+
+- **404-A MET.** `quotaRowLabel` output byte-identical — every #391 pin ran
+  UNTOUCHED and green — now assembled from the new pure
+  `quotaStateText(quota:)` + the existing `resetFieldText`, and applied as
+  the fields block's explicit accessibility label (`children: .ignore` on
+  the fields only; the SHOW OPTIONS button keeps its own element).
+- **404-B MET.** The row is now two kicker/value fields — QUOTA
+  (StatusPip + state, tone mapping preserved: muted / forge / danger / dim)
+  and RESETS (right-aligned; nil renders as a DIM `—`, still a value, no
+  longer a dangling wrap) — under a hairline that separates control from
+  telemetry. New tests: `quotaStateText` per arm (unknown ≠ reassurance)
+  and the single-source structural pin (`quotaRowLabel` contains both
+  field formatters' output on every arm).
+- **404-C MET.** The component's stale "shared by the Models screen" doc
+  corrected (the #395/#362 consolidation left this screen the only
+  consumer); no second copy introduced.
+- **404-D: screenshot half MET** — the reworked row screenshotted LIVE ON
+  THE SIMULATOR (CC-lane-1, 24A5423a) and sent to Owen: `QUOTA ● BELOW
+  DAILY LIMIT / RESETS —` from real SDK reads, #403's carve-out doing on
+  its first evening exactly the job it was built for. **Owen's eyeball
+  remains the closing taste bar.**
+- **404-E: gate MET — GATE: PASS, 2485 Swift Testing (moved above 2483 by
+  exactly the two new pins) + 14/14 XCUITest + Release clean. PR open;
+  merge is Owen's.**
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 405. 🔴 A HAND-TYPED RELAY URL WAS SCRAMBLED BY THE APP — normalization is FALSELY VALID on the mid-draft `http://`, so a per-keystroke mirror rewrote the field to `http:/v1` under the user's cursor — **FOUND 2026-08-24 night as four consecutive red gates on #329's lane (rotating XCUITest victims at one shared assertion); control-proven PRE-EXISTING at the branch point; then MEASURED by planted diagnostics and finally read FROM SOURCE. ✅ FIXED the same night, both doors, five pins each witnessed RED. The lane's own gate is the closing evidence.**
+
+**The mechanism, from source — TWO canonicalizing doors on one field:**
+1. **Synchronous:** `ConnectHermesScreen.setRelayURL` stored every keystroke
+   through `RelayConfiguration(customRelayBaseURL:)`, whose init
+   canonicalizes.
+2. **Asynchronous — the one that bites:** `SettingsStore.settings`' didSet
+   fires `onRelayConfigurationChanged`, whose Lane-M mirror wrote
+   `activeBaseURLString ?? raw` onto the ACTIVE profile — and the pairing
+   field's getter reads the profile. The mirror's own comment claimed
+   "normalized when valid; the raw text while mid-edit" — **the assumption
+   has a hole exactly at the double slash:** `normalizeBaseURL("http://")`
+   strips both trailing slashes to `http:`, hits the empty-path rule, and
+   returns **`http:/v1`** — a "valid" wrong URL minted from a half-typed
+   draft. The field re-reads it, the cursor sits after it, and the user's
+   remaining keystrokes append: **`http:/v1127.0.0.1:8000/v1`**, measured
+   byte-identical across four gate runs.
+
+**Why it surfaced now:** the mid-typing re-read needs the async hop to land
+between keystrokes; on the 24A5423a (beta 7) sim runtime it lands reliably —
+the failure went from occasional to deterministic the day #401 promoted the
+runtime. **User-facing severity is real:** anyone hand-typing a relay URL on
+the pairing screen hits the same rewrite; QR pairing bypasses it, which is
+why it hid.
+
+**The investigation, recorded because its shape is the lesson:**
+- Gate red #1: one XCUITest, assertion text present → treated real per the
+  gate's advice. Isolation re-run: PASS (the classic flake shape — but not
+  re-rolled blindly).
+- Gate red #2: a DIFFERENT test at the SAME shared helper line. Full-suite
+  run on a fresh sim: red again. **Branch-point control (the memory rule:
+  control BEFORE explanation): red WITHOUT the lane's commit** — pre-existing
+  proven, my-diff attribution killed.
+- Diagnostics planted (both field values in the failure message): code field
+  PERFECT, relay field scrambled — the long-blamed setup-code reformatter
+  exonerated in one capture, and the scramble found to be byte-identical =
+  deterministic, not a race. A slash-settle pause changed nothing (killed
+  the coalescing theory); a per-char retype REPRODUCED it (killed the burst
+  theory); the sim's persisted defaults held no poison (killed the
+  stale-state theory). **Then the source read found door 2 in the didSet
+  handler — and an independent class sweep (subagent, on Owen's
+  "use subagents") converged on the same site and verdict.**
+
+**FIXED, both doors:** `setRelayURL` assigns `customRelayBaseURL` directly
+(the init's canonicalization is BY DESIGN for whole values — defaultValue,
+migration — and keeps it); the mirror copies the RAW text (raw-to-raw also
+means the two records literally cannot drift, which was the mirror's whole
+point). Consumers normalize on READ (`activeBaseURLString`), where the
+normalization always belonged. **Pins (`RelayDraftIntegrityTests`, 5):** two
+characterizations (the init rewrite; the false-valid hole itself) and two
+structural #399-shape pins (screen must not construct the canonicalizing
+init; the mirror must copy raw — each witnessed RED first, and the mirror
+pin caught its own first draft flagging a comment, the #400 lane's shape,
+reworded). Plus the UI helper keeps per-char typing, a truncation repair
+pass, and the value diagnostics — any future input-path regression fails
+MEASURED, not blind. Both previously-failing UI tests pass post-fix.
+
+**Class sweep (read-only, whole app):** zero further scramblers.
+`RelayConfiguration.init` is the codebase's ONLY String-normalizing init and
+now has no per-keystroke caller; the setup-code dash formatter is the
+STABLE-FORMATTER contrast (fixed-point per keystroke, correct);
+`ServerSettingsScreen`'s draft pattern is the correct shape (normalize only
+at save). Two adjacent findings filed, not fixed: **#406** (the same hook's
+per-keystroke bootstrap burst) and **#407** (typing during live dictation).
+
+> **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
