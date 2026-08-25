@@ -15084,6 +15084,34 @@ same refresh machinery on a different trigger).
 > - **406-E:** GATE: PASS (units + XCUITest + Release), count delta
 >   reconciled test-by-test.
 
+> **✅ BUILT + GATED 2026-08-25, the ruling's same day — bars 406-A..E ALL
+> MET.** The pairing relay field now edits `@State relayURLDraft`;
+> validation and pair-button enablement read the draft; the stores are
+> written only by `commitRelayDraft()` at the three commit moments —
+> `completePairing` (before the redeem), QR auto-fill (via the draft, so a
+> failed pair keeps the scanned URL visible), and `.onDisappear` before
+> `pairingTargetProfileID` clears. Evidence, in order:
+> - **RED first:** all three new pins failed on the pre-fix source for
+>   exactly the pre-registered reasons (no draft binding; no commit at
+>   pair; no commit at dismissal) while the five #405 pins stayed green —
+>   8 tests ran, 3 red.
+> - **GREEN:** 8/8 after the minimal draft implementation.
+> - **Both mutations isolate:** restoring the store-writing
+>   `customRelayURLBinding` reddened ONLY the binding pin (406-A's
+>   mutation); deleting the dismissal commit reddened ONLY the ordering
+>   pin (406-B's). Final green re-confirmed 8/8 after restore.
+> - **406-C:** the XCUITest pairing helper passed UNCHANGED in the gate —
+>   per-char typing, enablement wait, pair; enablement now proves the
+>   draft feeds validation. 406-D: all five #405 pins green, byte-
+>   untouched. **406-E: GATE PASS 2529 Swift Testing (+3 exact over
+>   PR #367's 2526 — the three new pins) + 14 XCUITest + Release**, only
+>   the known-permanent CondenserFidelityTests skips.
+> - What did NOT change, on purpose: `setRelayURL`'s body (#405's raw-
+>   storage rules), AppContainer's hook and `refreshUnpairedRelayContext`
+>   (they now simply fire once per commit — `SettingsStore.didSet` already
+>   no-ops on unchanged values, so an untouched draft commits free), and
+>   the settings screen's own draft pattern (the norm pairing just joined).
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
