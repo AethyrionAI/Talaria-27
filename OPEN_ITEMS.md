@@ -184,10 +184,10 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#241** 🔭 HERMES CORE — **REOPENED 2026-08-09 as TRACK-UPSTREAM. My "by design" call was WRONG: upstream calls it a Bug, 4 independent filings, maintainer-reviewed fix PR #72739 open. Watch it. Half two stays ours in #180. Nothing to submit (filed 4×).**
 - **#236** 🔧 MessageIdentityUITests flaked AGAIN — the #195 family's second variant: reply rendered a hair past the 20s …
 - **#223** 🎨 CONSOLIDATION TARGET: retire the shim, shrink the relay — the phone speaks gateway for everything the …
-- **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK …
+- **#222** 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK … **⟵ "unused" DIED 2026-08-25: #390 built the attach path this entry asked about (both local tiers, OCR fallback kept, PR #369+#370) — the device step is the runbook's 390-G VISION card. Looks closeable into #390; formal close rides the next sweep**
 - **#220** 🔍 ENGINE-AMBIGUITY AUDIT of past voice verdicts. **#128's mystery SOLVED from source 2026-08-01 (and this …
 - **#398** 🚨 the device is on a runtime we cannot reproduce — **premise MOVED 2026-08-24 (#401): the beta 6 Xcode EXISTS now (27A5252f, iOS-beta-7 SDK/runtime 24A5422a/24A5423a)**; **⟵ same day PM: FLEET ALIGNED — Owen upgraded the phone to beta 7**, first alignment since beta 5; 398-A..C unchanged and 398-B now lands on the runtime where Apple fixed FM excessive tool calling
-- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + GATED 2026-08-25** (awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release); 198B-A (zero fault lines) rides the next staged build's runbook card
+- **#198B** 🐛 A synchronous `AVAudioSession` call runs on the MAIN THREAD, at `fault` severity — **un-parked and ✅ BUILT + MERGED 2026-08-25 (PR #371, squash `02c45440`)** — awaited off-main transitions + guards + the #397 generation close; 198B-B/C/D met, both prescribed mutations isolating, gate 2547(+4)/14/Release; **only 198B-A remains** (zero fault lines on device — the runbook card targets build 3022)
 - **#198A** ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 - **#219** 🎲 XCUITest runner dies mid-bundle: four tests fail with NO assertion text. NOT #164.
 - **#199A** false decline-attribution: the model blames a CONTACT for the USER's decline — **RE-MEASURED 2026-08-12 (decline battery, n=10, phone): the shape did NOT reproduce — 10/10 declines attributed to the USER, zero contact-blaming. But the bar's second clause FAILS — declines were reached on only 10 of 30 action prompts (calendar 4/10) because #232's governor cut 14, so calendar misattribution is 0-of-4, not 0-of-10. ✅ **CLOSED AS REFUTED 2026-08-21: 0/30 blamed a contact, with EVERY trial reaching a decline (30/30 vs the 2026-08-12 run's 10/30 — the old failure was #232's GOVERNOR cutting 14 trials, and #343's fix is hereby confirmed on a second instrument). 27/30 correctly attributed the decline to the user; the 'proceed anyway' worry is 1/30, also refuted. 🔴 BUT a SIBLING misattribution was found and spawned as #392 — 2/30 blame the CALENDAR for the user's decline ("your calendar didn't accept the request"), calendar-only, remind/alarm 0/20.** Two n≤2 observations recorded in the entry, not filed as defects: one row blames "the system"; two offer to **proceed anyway** after a decline
@@ -14135,6 +14135,16 @@ conversation. Owen routes each lane.
 
 ## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
 
+> **⟵ SUPERSEDED IN THE GOOD DIRECTION 2026-08-25: "unused" is no longer
+> true.** #390 (Owen's 08-24 ruling, built 08-25, PRs #369+#370) attaches
+> images as REAL model input on both local tiers via
+> `Attachment(cgImage)`-in-`Prompt`, with this entry's OCR path kept as the
+> fallback and the only access to history images. The "choice described as
+> a limitation" comment family was re-cut tier-honest in the same lane
+> (390-C). The device step this entry parked opportunistically is now the
+> runbook's 390-G VISION card. **This entry looks closeable into #390 —
+> Owen's formal close rides the next sweep.**
+
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **DEVICE ARM: OPPORTUNISTIC.** Rides whatever corded sitting has slack —
 > no dedicated run, no named row. (Not runnable on sim or the test host,
@@ -14746,6 +14756,9 @@ once per device session.
 > - **198B-A (device):** a memo record→play→stop session emits ZERO
 >   `AVAudioSession_iOS.mm:978` lines at `oslogSeverity: all` — carded in
 >   the runbook against the next staged build.
+> **MERGED 2026-08-25 — PR #371, squash `02c45440`; lane branch deleted
+> both sides. Build 3022 staged from this merge; the runbook's 198B-A card
+> targets it. Only 198B-A (device) remains on this item.**
 
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
