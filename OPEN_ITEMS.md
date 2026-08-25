@@ -158,15 +158,16 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered **⟵ 2026-08-24: premise code-read inverted the mechanism (#382 killed the plane; only the run id was lost), Owen ruled 329-C reconcile-first, and the fix is ✅ BUILT + GATED the same night — 329-A..E met, only 329-F (device, next OTA) remains**
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
-- **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=1, Owen's laundromat photo: PCC described it, on-device declined it); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
-- **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
+- **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
+- **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); **the refusal wording is the lever, offline-testable against artifacts already on this Mac**
+- **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. ~~Mechanism UNKNOWN~~ **⟵ INVESTIGATED 2026-08-25: candidates RANKED — the lead (openSession's wholesale replace drops system rows + usage; the 9→7 count drop and the vanished totals are ONE event) predicts the observed card row-for-row and is SIM-CONFIRMABLE before any device time; measurement lane designed and electable.** Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E. **→ MEASURED 9-FOR-9 on 2026-08-15 (drive-by, during #338-C's run): every one of nine staged cards carried `DUE` EMPTY, so on the BARE-HOUR shape the defect is effectively deterministic, not occasional (P=0.002 if the rate were even 0.5). All nine declined — no residue. Scope is one prompt shape and licenses nothing wider. **→ 340-A EXTENDED BY PHRASING at 2:57 PM AND THE OMISSION IS CONDITIONAL: "at 4pm" (time only) OMITS, "tomorrow at 4" (day-bearing) is CORRECT, "in 20 minutes" (relative) produces a WRONG value already six hours in the past. THE MODEL WILL NOT RESOLVE "TODAY" FROM A BARE TIME though it knows the date. That makes the GUIDE STRING the leading fix over #200S's optionality — and warns that the rollback arm may convert omissions into WRONG values, so the A/B must score four buckets, not a binary. Across 15 calls the model sent exactly ONE correct due date.** Discriminator handed to 340-A with NO mechanism elected: the model demonstrably HAS the time (it rendered `Time: 6:00` in prose and reasoned that "9 AM has passed"), so the time is absent only from the staged card's `DUE` field** **→ ✅ 340-C ANSWERED THE SAME AFTERNOON from the device log via #249's own instrument: THE MODEL OMITS THE ARGUMENT — 10 of 11 `createReminder` calls sent `due raw=""`, and all 9 card-staging turns did. NOT a parse failure; the session's own "the app silently degrades an unparseable time" hypothesis is REFUTED (the parser never saw a string). The single counterexample sent `2026-08-15T09:00` perfectly formatted, so the model is capable. CANDIDATE CAUSE NAMED NOT ELECTED — **#200S** made `due` optional (guide: *"or empty for no due date"*) to cure a stall, and was validated on whether a tool call happened, never on argument correctness; its pinned rollback `ReminderCreateToolRequiredFields` is ALREADY a selectable battery cell, so the A/B is built and only the SCORER needs changing. ~~**340-B still owed** (needs one APPROVED turn — every card today was declined)~~ **⟵ corrected 2026-08-23: 340-B MET 2026-08-15 2:41 PM — one approved turn, the within-turn witness (prose "4:00 PM", argument `due raw=""`, card DUE empty, reply "Done!"); the entry's own dated block records it**
 - **#350** 🐛 **THE DRAWER AND THE SETTINGS STRIP ASSERT "LINKED · ONLINE" AGAINST A HOST THAT IS NOT THERE** — pointed at a closed port (`http://ojamd:12399`, verified refused from the Mac) and **cold-launched**, the drawer footer read `HERMES HOST / LINKED · ONLINE` with a green pip and the settings grid's status strip read `LINKED · OJAMD · DEEPSEEK-V4-FLASH`. Held for 20+ s of dwell; no probe, no decay, no re-verify. **MEASURED 2026-08-16 on `whoGoesThere` via iPhone Mirroring, incidentally, while setting up Group 4's standalone block.** The same screen's **Test Connection button is honest** — it actively probes and returns `ONLINE · 23 MS` on the real port, so the app HAS a truthful signal and these two surfaces do not consult it. **#180's honest-degradation family, and #342's "derived state survives, asserted state rots" in a UI surface rather than a doc.** ~~Bars pre-register before any fix~~ **⟵ INDEX LINE STALE UNTIL 2026-08-25 (the entry's own header knew): ✅ BUILT + MERGED 2026-08-18 (PR #318, `3d2e2992`) — both surfaces measured-only, honest CHECKING pre-probe, test-pinned; re-verified at HEAD 2026-08-25 (#382/#329/#264 untouched it). Only 350-D's 30-second device visual remains (runbook card §01)**
 - **#344** 🐛 **THE GUARD'S IMPERSONATION TIER ONLY SEES THE MARKER IN LABEL POSITION** — *"Here's the confirmation card:"* wears the app's own affordance as prose with no card behind it, and is NOT caught, because `labelPositionBody` drops leading non-letters only so the marker must BEGIN the sentence. **MEASURED 3 TIMES IN 14 SAME-SHAPE PRODUCTION TURNS on 2026-08-15 (2/13 while hunting 338-C, plus a third in the #340 approve turn at 2:41 PM, whose impersonated card read "Time: 4:00 PM" while the tool call it produced carried `due raw=""`). FILED, NOT FIXED, and deliberately not called a bug: neither turn claims a COMPLETED action, so by the letter of the spec silence is right and 338-A's zero-false-positives-on-offers bar argues for it. The gap is between #338's STATED SCOPE (which scopes imitated cards in explicitly) and the tier's REACH. Owen's call between leave-it / widen-anywhere / widen-only-before-a-field-list; bars 344-A..D pre-registered, recommendation is ADOPT #337-F-2b's REWORDING FIRST and re-measure — verified, not assumed, because #337-F's 0/90 was scored by the BROAD detector that matches these shapes. **→ A NATURAL EXPERIMENT the same afternoon isolates the gap exactly: four impersonations, one build, one session — the three opening "Here's the confirmation…" were MISSED and the one opening "Confirmation Card:" FIRED. Sentence position is the whole difference. And since the one that fired was ALSO an offer, the three misses are not "correctly silent on offers" — they are the same harm escaping on syntax**
 - **#339** 🧪 **THE INSTRUMENT SUITE AS A REGRESSION GATE** — Owen's routing tonight: *"we may want to run through them as regression testing."* Newly possible because #333 made every instrument one command with a machine-readable artifact; **19 of 48 are unattended-eligible today**. Tonight four runs surfaced #334/#336/#337 that 2,181 green unit tests could not see. **NO LANE YET** — open questions are cadence, which subset, and what a "regression" even means for a stochastic rate (a band and an n, never an equality assert; #215 governs comparability)
-- **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). Mechanism deliberately NOT elected; bars 336-A..E pre-registered, and 336-A is "name the artifacts" before anything is scored**
-- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. Mechanism deliberately not guessed; two shapes (length-dependent vs length-independent) must not be collapsed. Bars pre-register in the entry before any fix lane**
+- **#336** 🔴 **THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — CONFIRMED IN PRODUCTION 2026-08-12 (Owen's hand-run, first try, on-device, no harness).** — 3/120 armed trials claim a completed action with **no recorded tool call** (2 remind, 1 alarm; no error, no denial flag), and for reminders the arithmetic is exact (4 calls → 4 artifacts reaped), so those claims wrote nothing. **SEPARATELY and pointing the other way: 12 artifacts reaped vs 10 recorded calls** (one alarm + one event above the recorder, the event unclaimed by anyone) — which would mean battery `toolCalls` counts are FLOORS, not counts, across the #200-series. **MEASURED 2026-08-12 on the phone (#225's attended run). ⟵ FORENSICS COMPLETE 2026-08-25: both discrepancies RESOLVED from the preserved bytes — the two orphan artifacts are the #200V warm-up's alarm+event (closed-recorder window, NOT a lossy recorder; determination locked two ways), and the 3 claims' trigger is the governor's same-tool-repeat refusal string (replicated 6/6 → spawned #409). Remaining here: 336-C as ruled; the production hand-run fabrication's trigger stays unnamed**
+- **#334** 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips **5/5 → 0/5** between ctxlen 575 and 4,073 (capped AND uncapped agree); `'Say that again more briefly'` misroutes at BOTH 551 and 4,073. **MEASURED 2026-08-12 on the iPad — the #333 runner's first scored probe (#205E's run; that entry's A/C/D met, B falsified into this item). Accept path flat to 4k chars. ~~Mechanism deliberately not guessed~~ **⟵ INVESTIGATED 2026-08-25: the mechanism was published in archived #206 (2026-07-30) and this entry never cited it — "ends with an OFFER ⇒ armed" predicts 8/8 rows; length falsified three ways; a RETRACTED rationale still lives in the router's code comment (doc debt). The open question is Owen's PRODUCT call: should a words-only turn after an offer route armed?****
 - **#293** 🐛 Adversarial-audit residue — four MINOR findings kept together because none justifies its own lane
 - **#280** 📝 A dictated-only thread gets a blank conversation-card title — **the entry's STATED MECHANISM IS FALSIFIED and its suggested fix is a NO-OP** (the generator is never invoked on the voice path, and its `.hermes` guard would reject the thread anyway); Owen ruled 2026-08-09 for a GENERATED on-device title; **bars 280-A..F pre-registered 2026-08-10, anchors re-verified at `c4a1ca9`** … **⟵ corrected 2026-08-24: ✅ BUILT + MERGED 2026-08-10 (PR #299) — 280-A..E met, result transcribed into the entry from the docs commit's message where it had lived unfiled; only 280-F (device, the runbook's #61 card) remains**
 - **#279** 🐛 `retryMessage` removes the failed row without adopting — a retry can duplicate the user turn — **FIXED AND MERGED 2026-08-09 as `12ed25b`; bars 279-A..E MET (pre-fix user-row count 2 → 1), `GATE: PASS`. Stays open ONLY for 279-F (device, Owen).** …
@@ -772,7 +773,7 @@ native pipeline), **#1** (voice transcripts).
 > half — which stays deliberately unbuilt behind the fault-2 author
 > measurement (§3 device row 12), per the ruling.
 
-## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).**
+## 393. 🔴 THE ACCENT TOKENS ARE ILLEGIBLE AS TEXT ON LIGHT THEMES — `accent` bottoms out at **1.24:1** and `accentBright` at **1.16:1**, and one of the casualties is the theme picker that would let you escape — **FOUND BY OWEN USING THE APP 2026-08-21, then measured. Same class as #325, different tokens, WORSE numbers. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): calls 1, 3 and 4 BUILT + MERGED 2026-08-22/23 (PRs #350, #351) — every text token now 0/88. Call 2 (`dimForeground`) and the fifth, decorative-floor call remain unelected.** **⟵ 2026-08-23 decision pass: call 2 is now ELECTED (build; ramp ordering pinned; Owen eyeballs on device before merge) and the fifth call is ELECTED danger-pips-only — ruling block at the foot of the entry.** **⟵ ✅ BUILT the same night — bars 393-C2-A..C + 393-P5-A all met, GATE PASS 2497/14/Release. PR #357 held for the closing bar, then ✅ CLOSING BAR MET + MERGED (squash `c8341df5`): Owen eyeballed the ramp on device (build 2971) — "toybox and pulp noir look good", the two ramp-capped themes named specifically. Result block at the foot. ~~What remains open on this entry: the deepField pinned-dim question, and the unelected residue (mutedForeground 9/88; retroSciFi's decorative accent).~~** **⟵ HEADER CORRECTED 2026-08-25 (orchestrated premise re-check): the deepField question was RESOLVED 2026-08-23 — Owen accepted 3.16, pin kept (the entry's own final ⚖️ block records it; this header missed the correction). What ACTUALLY remains: `mutedForeground` (9/88 — re-verified true at HEAD, palette byte-unchanged since the measurement) and `retroSciFi`'s decorative accent (same 1.24:1/1.16:1 literals, declined at election). Two decisions, both Owen's.**
 
 **How it was found, which matters.** #325 shipped that evening and Owen ran the
 device pass. Testing warning text on the light themes, he reported: *"Winter
@@ -6751,7 +6752,7 @@ scored here.
 > look (runbook) · then Owen's Phases-1–3 reassessment with a working
 > switch in hand.
 
-## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
+## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
 
@@ -7538,6 +7539,31 @@ that #306's mid-turn queue kept v1 text-only for the same reason, so both
 queue producers inherit whatever this decides.
 
 ## 309. 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **FILED 2026-08-09 (Owen routed the filing; found by `dispatch/FABLE-T27-223-251-reconciliation.md` §1.3/NEW-1 — "the largest unfiled gap found"). GATES #251 Phase 4 / #223's relay decommission alongside #271 and #310.**
+
+> **📏 2026-08-25 — THE REGISTER RE-DERIVED AT HEAD (Sonnet agent; full
+> report in the session transcript). Sweep 5's "five services with live
+> relay call sites" framing — which lived only in a commit message and a
+> handoff, never in this entry (a close-out gap, now fixed by this
+> block) — was WRONG BY TWO:**
+> - **Genuinely live relay HTTP (THREE services, the pairing+auth
+>   family):** `LivePairingService` (`phone-pairing/redeem` — the real
+>   pairing handshake), `LiveHermesHostService` (hosts/current,
+>   enrollment-codes, revoke), `LiveSessionBootstrapService`
+>   (device/register, session, auth/refresh, auth/revoke — on the COLD
+>   LAUNCH hot path, plus the dormant-profile sweep).
+> - **`LiveVoiceSessionService` is a FALSE POSITIVE** — fully re-homed by
+>   #383; its greps are a shared error-enum name-match, its own doc
+>   comment says "nothing here speaks to the relay any more."
+> - **`LiveHermesClient` is PRODUCTION-DEAD** — constructed only in
+>   tests; the real chat client is `SessionsHermesClient`. High-
+>   confidence DELETION candidate (its relay path was already
+>   dispositioned DELETE in this entry's 08-20 block).
+> - `device/provisioning` greps to ZERO hits anywhere — possibly already
+>   gone; one-line confirmation owed before assuming.
+> **The real remaining decision (Owen's):** does the pairing + host-
+> enrollment + auth family STAY on the relay as its mechanism, or
+> re-home to the gateway/talaria plugin? #310 (the old gate) is closed —
+> the family is unblocked but undispositioned.
 
 The counted inventory (live app, read at HEAD): **pairing + auth** (9 paths —
 `device/register`, `device/provisioning`, `auth/refresh`, `auth/revoke`,
@@ -8366,7 +8392,50 @@ host, because on that plane there is nothing to consult.
 >   the record-lifecycle test.
 > **What remains on this entry: 329-F alone.**
 
-## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any code.**
+## 330. 🐛 The status card's whole SESSION block VANISHES on a transplanted thread — no priming row, no metered turns, and **#122's cost surface with it** — **FILED 2026-08-11 from Owen's Group 7 device pass (#312 item (f)). MEASURED with a discriminator that rules out clipping. ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): premise LIVE at HEAD, candidates RANKED with a lead that predicts the observed card row-for-row, and a SIM-TESTABLE confirmation exists — measurement lane electable (below).**
+
+> **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
+> report in the session transcript).** Premise NOT mooted by #368/#382 —
+> the transplant primer moved to the runs plane but the ChatStore-level
+> shape is byte-for-byte the 08-11 problem. Verified at HEAD:
+> - **Lead candidate ① (rank 1): `ChatStore.openSession` wholesale-
+>   replaces the message array with the server transcript** — which drops
+>   every `system` row (`mapStoredMessage`'s `default: return nil`) and
+>   carries NO usage/turnDuration/servingModel/isContextPriming on any
+>   row. Predicts Owen's observed card row-for-row, INCLUDING the 9→7
+>   message drop and the fresh SESSION id — **the vanished totals and
+>   the count drop are ONE event.** The "receipts render normally"
+>   observation is the entry's weakest (the quoted numbers are identical
+>   to the LAST TURN row, which survives via a different channel —
+>   `SessionUsageIndex`); 330-A must settle it, not assume it.
+> - Candidate ② (merge-path carry miss on a transplanted thread) is a
+>   possible CONTRIBUTOR but cannot zero `primingHops` alone; candidate
+>   ③ (`.voiceHermes` predicate divergence at `MessageBubble.swift:312`)
+>   is cheap to falsify and kept. **Entry candidates 1, 3 and the
+>   persistence-loss theory are FALSIFIED at HEAD** (same array, one
+>   body evaluation; the notice IS a message row, test-pinned; the flag
+>   round-trips, test-pinned).
+> - **SIM-CONFIRMABLE TODAY:** a unit reproduction against
+>   `ChatStore.openSession` with a server-shaped double (the drawer's own
+>   call — production reaches it exactly this way) either confirms ① or
+>   kills it BEFORE any device minutes. Full sim end-to-end also possible
+>   (Hermes-path, not FM; tailnet IP + real signing per the sim-verify
+>   rules).
+> - **Measurement lane designed (no fix in it):** a verbose-gated
+>   `/usage` slash command (⚠️ NOT `#if DEBUG` — ota-stage builds
+>   Release, #218's shape; and NOT copying `/history`'s sender filter,
+>   which is itself blind to the missing system row) + three seam
+>   breadcrumbs + a six-step device script. **Fix shape already visible
+>   if ① confirms:** a session-id-keyed receipts SIDECAR replayed at
+>   open — the exact pattern `AgentAttachmentSidecar` already uses —
+>   plus 330-C's one-site predicate convergence. The deliberate
+>   non-merge at `openSession` stays (it is pinned).
+> - **⚠️ #382 close-out misses found in passing:** two comments still
+>   claim the primer stays on the SESSIONS plane
+>   (`SessionsHermesClient+RunsTransport.swift:454-456`,
+>   `SessionsHermesClient.swift:884-885`) — both falsified by
+>   `postPrimingTurn` posting to `runsPath`. Correct in whatever lane
+>   touches these files next.
 
 **What was seen.** On the thread from #312 item (d) — the one that had announced
 `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` twenty minutes
@@ -9799,7 +9868,40 @@ routinely-red or routinely-ignored gate is worse than none.
 > beta5/6-era; `pcc-surface` makes the transition legible). Carded in the
 > runbook §05.
 
-## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
+## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. ⟵ 2026-08-25 (Opus forensics on the preserved bytes): BOTH discrepancies RESOLVED — the reap surplus is a closed-recorder window with the two orphans NAMED (determination, not a fit), and the 3 claims have a named, REPLICATED trigger. New finding spawned as #409. Dated block below.**
+
+> **🔬 2026-08-25 — 336-A FORENSICS COMPLETE from the preserved record
+> (Opus agent; three byte-identical copies verified, incl.
+> `planning/reports/2026-08-12-333-runner-witnesses/225-spiral-artifact.json`;
+> full report in the session transcript).**
+> - **The reap surplus (b) is DETERMINED: the two orphan artifacts are
+>   the #200V WARM-UP's `scheduleAlarm` ("6:30") and
+>   `createCalendarEvent` ("Lunch with Sam") — admitted BEFORE `beginRun`
+>   opened the recorder.** The count is LOCKED from two independent
+>   directions (the same-tool-repeat cap arithmetic on t8/t4/t5 AND the
+>   per-turn budget landing its 12th call exactly on the row that
+>   refused next). The warm-up remind trial provably OFFERED instead of
+>   calling. Non-battery residue is EXCLUDED (unmarked artifacts are
+>   un-reapable). **Correction to this entry's own fear: the recorder
+>   never dropped a call — it was CLOSED. "battery `toolCalls` are
+>   FLOORS" survives with a narrower, checkable mechanism (the warm-up
+>   window), not a lossy recorder.**
+> - **336-A's literal bar (identifier-by-identifier reconciliation) was
+>   never satisfiable post hoc** — the record carries no artifact
+>   identifiers; Owen's 2026-08-18 retirement of the re-run is
+>   vindicated, and this determination completes what the bar was
+>   actually asking.
+> - **The 3 claims (a) have a NAMED, REPLICATED trigger: each sits
+>   exactly where the governor's `same-tool-repeat` STRING REFUSAL
+>   fired** (input-token deltas confirm a tool entry + refusal text in
+>   context). Replicated in `run-20260813-195020-D761EA0A` — **6/6
+>   string-refusals across two runs/two instruments answered with a
+>   false completion claim, while the 9 phase-CUT turns were 9/9
+>   honest.** Production-unreachable in normal turns (`beginTurn()` per
+>   turn; the turn-reset cell logged 0 refusals in 30). **NOT the same
+>   defect as Owen's 08-12 hand-run fabrication** (fresh chat, no
+>   refusal, no call — trigger still unnamed). Spawned as **#409** per
+>   #268. What remains here: 336-C as ruled.
 
 **The measurement** (artifact `run-20260812-214629-F6C46C82`, spiral battery, 120
 trials, `endedCleanly: true`, auto-accept armed, Owen present):
@@ -9926,7 +10028,49 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > recorder-integrity test, RED-witnessed); 336-A and 336-E are retired by
 > the election.
 
-## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). Mechanism UNKNOWN and deliberately not guessed. NOT STARTED; bars pre-register here before any fix lane.**
+## 334. 🐛 WORDS-ONLY turns over a LONG offer-tail context route ARMED — `'Write another one'` flips 5/5→0/5 between ctxlen 575 and 4,073; `'Say that again more briefly'` misroutes at BOTH 551 and 4,073 — **MEASURED 2026-08-12 on the iPad (the #333 runner's first scored probe, n=5/band, errors=0). ~~Mechanism UNKNOWN and deliberately not guessed.~~ ⟵ 2026-08-25 (Opus investigation): the mechanism was NEVER unknown — archived #206 named, measured, and published it 2026-07-30, and this entry never cited it. This is a REPLICATION of #206's offer-tail finding, not a mystery. Product question below awaits Owen; bars pre-register when a route is picked.**
+
+> **🔬 2026-08-25 — MECHANISM INVESTIGATION (Opus agent, read-only; full
+> report in the session transcript). Headline: "context ends with an
+> OFFER ⇒ routes armed" predicts all 8 grid rows with ZERO free
+> parameters — archived #206 (closed 2026-08-01) reported the SAME
+> six-row table from run `48D4BD4B`, named this mechanism in as many
+> words, and RETRACTED length as the cause. This entry's cross-references
+> never cite #206 (the archive-blindness family).** Verified at HEAD:
+> - **Two structural facts the grid hides:** the "551-char" cell was
+>   never shortened (`suffix(560)` of a 551-char string is a NO-OP), and
+>   the "capped 4,073" cell's real ctxlen is 801 with the offer intact —
+>   `routerContextTail` keeps the tail BY DESIGN, so "capped and uncapped
+>   agree" was never evidence about length.
+> - **Falsified:** sheer length (three independent ways, incl. #206's own
+>   retraction) · guided-gen budget/truncation/fail-safe contamination
+>   (errors=0 on all 22 bands). **Live sub-hypotheses:** offer-tail
+>   salience (the promoted ctx-a FEATURE seen from its cost side —
+>   #202D's 6/6 accept fix is the same mechanism) vs anaphora ("write
+>   another ONE" resolving to the reminder) — separable by experiment E2.
+> - **🔴 LIVE DOC DEBT:** `LocalChatBackend+IntentRouting.swift:169-177`
+>   still carries #206's RETRACTED rationale verbatim ("everything at
+>   ≤590 chars was perfect" — falsified by the 551 row in the run that
+>   retracted it), and `DeviceToolBeltTests.swift:2538-2540` pins the cap
+>   under the same withdrawn story. This stale comment is the likely
+>   reason this lane re-derived "length" as a candidate.
+> - **PCC does not reach the router** (`SystemLanguageModel.default`
+>   unconditionally — tier-blind), and the router is unchanged since the
+>   measurement.
+> - **Experiments designed:** E1 the 2×2 {offer, no-offer}×{short, long}
+>   #206 said was owed (~1 min device) · E2 non-anaphoric words-only over
+>   an offer tail (separates the sub-hypotheses, ~30 s) · E4 a pure unit
+>   pin on the no-op suffix. ⚠️ add rows BEFORE #339's first beta-7
+>   re-baseline run or the band count moves mid-series.
+> - **THE PRODUCT QUESTION (Owen's, pre-registered by #206 and never
+>   answered):** after the assistant OFFERS an action, should a
+>   words-only "write another one" route ARMED? #206's read: armed is
+>   the SAFE answer — which would make four of this entry's six
+>   "failures" mislabelled `expected:` rows, and reduce the lane to
+>   label corrections + E1/E2 + the close-out debts. Only a
+>   route-the-other-way ruling makes a router change in-scope (and then
+>   the real unmeasured risk is OFFER-TAIL DECAY across turns, which no
+>   existing single-turn row can see).
 
 **The measurement** (artifact `20260812T200237Z-long-context-probe`, `long-context-probe`
 n=5, production router probed directly — these are router-classification rates, not armed
@@ -14863,6 +15007,36 @@ line here; the noise verdict would also change #408's route calculus
 via host-inference" — the layer that fired), #212 (error messages must name
 the true cause — the current message DOES; this item is about the dead end,
 not the wording).
+
+## 409. 🔴 THE GOVERNOR'S `same-tool-repeat` REFUSAL STRING IS ANSWERED WITH A FALSE COMPLETION CLAIM — 6/6 across two runs and two instruments, while the phase-CUT path is 9/9 honest — **FILED 2026-08-25 per #268, from the 336-A forensics (Opus agent, full report in the session transcript). INSTRUMENT-REACHABLE, essentially PRODUCTION-UNREACHABLE today; the refusal WORDING is the named lever. NOT STARTED; offline-testable first.**
+
+The mechanism, determined from `run-20260812-214629-F6C46C82` (three claim
+rows, input-token deltas proving a tool entry + refusal text in context) and
+replicated in `run-20260813-195020-D761EA0A` (three more, verbatim refusals
+recorded): when `ToolCallGovernor` refuses a call with the same-tool-repeat
+STRING (the model receives text telling it to "answer the user with what you
+have, and say plainly what you could not find out"), the model asserts the
+write happened — *"I've set the alarm for 6:30 AM."* — 6/6. When the
+governor's phase-cut THROWS instead (toolless retry), the turn is honest —
+9/9. **The refusal wording is the discriminating variable and it is testable
+OFFLINE against the two artifacts already on this Mac** before any device
+time: reword the refusal string (e.g., explicitly "do NOT claim the action
+happened — it was refused") and re-run the leaked cell.
+
+**Why production is safe today:** production calls `beginTurn()` per turn, so
+a real conversation essentially never reaches call #5 of one tool in one
+turn (#337-D's turn-reset cell: 0 refusals in 30 trials). The exposure is
+instrument runs and any future turn shape that chains ≥5 same-tool calls.
+**Deliberately NOT merged with:** Owen's 2026-08-12 hand-run fabrication
+(#336's (a) production case — fresh chat, no refusal, no call; trigger still
+unnamed) — different shape, do not collapse.
+
+**Related:** #336 (the forensics that named this), #337 (its 337-D results
+block attributes the leaked cell's dishonesty to declined turns without
+noticing its three un-cut refusal turns did the same for a different
+reason — archive pointer owed when a lane touches it), #343 (the
+turn-reset discipline that makes production safe), #338 (the honesty guard —
+NOT a catcher here by design: these claims follow a refusal, not a tool run).
 
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 

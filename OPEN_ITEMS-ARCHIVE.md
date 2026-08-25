@@ -12580,6 +12580,17 @@ on that basis, honestly re-stated.
 **Owed, if it ever matters:** a properly built row set that varies ends-in-an-offer
 independently of length, with `expected` labels argued rather than assumed.
 
+> **📌 2026-08-25 POINTER (append-only, #317 carve-out): it mattered, and
+> the connection was missed for 13 days.** Live item **#334** (filed
+> 2026-08-12 from an iPad replication of this entry's exact six-row table,
+> run `48D4BD4B`'s numbers row-for-row) re-derived "mechanism unknown"
+> without citing this entry — the offer-tail mechanism named above
+> predicts all 8 of #334's rows with zero free parameters, and this
+> entry's "owed" row set is #334's experiment E1. The retracted length
+> rationale ALSO still lives verbatim in
+> `LocalChatBackend+IntentRouting.swift:169-177` at HEAD (doc debt filed
+> under #334). The archive-blindness class, in its purest recorded form.
+
 ## 199. ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
 
 > **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 199` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.
