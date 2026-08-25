@@ -14806,6 +14806,26 @@ into the base snapshot vs block typing while dictating) is a product call.
 > alternative was presented and not elected. Small lane; bars pre-register
 > here before code.
 
+
+> **🎯 BARS 407-A..D — pre-registered 2026-08-24 late, BEFORE code, on the
+> block-typing ruling:**
+> - **407-A:** the composer's `TextEditor` carries
+>   `.disabled(speechService.isListening)` — user keyboard input is
+>   rejected for exactly the dictation window. #399-shape structural pin,
+>   RED-witnessed first; mutation = removing the modifier.
+> - **407-B:** dictation's own text keeps flowing — SwiftUI's `disabled`
+>   gates INTERACTION only, and the merge writes the `text` binding
+>   programmatically; the existing suite stays green and no merge behavior
+>   changes.
+> - **407-C:** typing returns the instant listening ends — state-driven by
+>   the same flag, no second mechanism to test.
+> - **407-D:** `GATE: PASS`, count moved by exactly the additions; the
+>   10-second device look (type during dictation → nothing lands, merge
+>   intact) rides a future runbook card on the next staged build.
+> Note: the placeholder already reads "Listening…" while dictating, so the
+> blocked state is visually explained by existing copy; the send button's
+> merge-and-send path (`handlePrimaryAction`) is deliberately untouched.
+
 ## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. NOT STARTED; measure first.**
 
 `AppContainer.swift`'s `onRelayConfigurationChanged` calls
