@@ -1216,10 +1216,17 @@ final class AppContainer {
             // the relay client actually read now. One-way, every writer
             // covered, so the two records can't drift.
             profilesStore.updateActiveProfile { profile in
-                // Normalized when valid; the raw text while mid-edit, so a
-                // partially typed URL never snaps the bound field to "".
+                // #405: mirror the RAW text, never the normalized form. The
+                // old "normalized when valid; raw while mid-edit" rule had a
+                // hole: normalization SUCCEEDS on the mid-draft "http://"
+                // (empty path → "/v1"), so this hook rewrote the profile to
+                // "http:/v1" one hop after the keystroke and the pairing
+                // field re-read it under the user's cursor — the measured
+                // scramble. Consumers normalize on READ (the active-base-
+                // URL accessor); raw-to-raw also means the two records
+                // literally cannot drift.
                 // #310: an empty result stores nil — see ProfileEditorDraft.
-                let mirrored = configuration.activeBaseURLString ?? configuration.customRelayBaseURL
+                let mirrored = configuration.customRelayBaseURL
                 profile.relayBaseURL = mirrored.isEmpty ? nil : mirrored
             }
             await refreshUnpairedRelayContext()

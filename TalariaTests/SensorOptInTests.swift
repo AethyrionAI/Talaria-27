@@ -204,6 +204,9 @@ private final class InertPersistenceStore: AppPersistenceStoreProtocol {
     func loadConversationCache() -> Conversation? { nil }
     func saveConversationCache(_ conversation: Conversation) {}
     func clearConversationCache() {}
+    func loadPendingRunRecord() -> PendingRunRecord? { nil }
+    func savePendingRunRecord(_ record: PendingRunRecord) {}
+    func clearPendingRunRecord() {}
     func loadConversationJournal() -> ConversationJournal? { nil }
     func saveConversationJournal(_ journal: ConversationJournal) {}
     func clearConversationJournal() {}

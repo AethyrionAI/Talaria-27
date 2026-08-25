@@ -377,7 +377,25 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(relayField.waitForExistence(timeout: 5),
                       "the pairing screen must offer a Relay URL field (#310: the profile no longer arrives with one)")
         relayField.tap()
-        relayField.typeText("http://127.0.0.1:8000/v1")
+        // #405: this helper's diagnostics measured the scramble
+        // ('http:/v1127.0.0.1:8000/v1') that turned out to be the APP
+        // canonicalizing the mid-draft per keystroke — fixed in
+        // ConnectHermesScreen.setRelayURL, and pinned by
+        // RelayDraftIntegrityTests. Per-character typing plus one verified
+        // repair pass stay: they make any future input-path regression
+        // fail measured rather than blind.
+        let expectedRelay = "http://127.0.0.1:8000/v1"
+        for character in expectedRelay {
+            relayField.typeText(String(character))
+        }
+        if let relayValue = relayField.value as? String, relayValue != expectedRelay,
+           !relayValue.isEmpty {
+            relayField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue,
+                                       count: relayValue.count))
+            for character in expectedRelay {
+                relayField.typeText(String(character))
+            }
+        }
 
         let setupCodeField = app.textFields["Setup code"]
         XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
@@ -393,18 +411,41 @@ final class TalariaUITests: XCTestCase {
             setupCodeField.typeText(String(character))
         }
 
+        // #405: on the beta7 sim runtime (24A5423a) the reformatter's
+        // keystroke loss documented above got frequent enough to red about
+        // one full-suite run in fourteen, rotating among this helper's
+        // callers — and the branch-point control proved it pre-existing, not
+        // any lane's. One verified repair pass: read the field back and type
+        // a cleanly-truncated tail. Anything messier (a mid-string drop)
+        // still fails, now with both field values in the message, so the
+        // next occurrence is measured rather than blind.
+        let expectedDigits = setupCode.replacingOccurrences(of: "-", with: "")
+        let typedDigits = (setupCodeField.value as? String ?? "")
+            .replacingOccurrences(of: "-", with: "")
+        if typedDigits != expectedDigits,
+           typedDigits.count < expectedDigits.count,
+           expectedDigits.hasPrefix(typedDigits) {
+            for character in expectedDigits.dropFirst(typedDigits.count) {
+                setupCodeField.typeText(String(character))
+            }
+        }
+
         // The GlowButton is titled "Pair Device" but carries an explicit
         // "Connect Hermes" accessibility label. It stays disabled until the
         // code is complete AND the relay URL validates — wait for enablement
         // so a dropped keystroke fails HERE, not as a downstream timeout.
         let pairButton = app.buttons["Connect Hermes"]
         XCTAssertTrue(pairButton.waitForExistence(timeout: 5))
-        let enableDeadline = Date(timeIntervalSinceNow: 5)
+        let enableDeadline = Date(timeIntervalSinceNow: 10)
         while !pairButton.isEnabled, Date() < enableDeadline {
             RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.5))
         }
         XCTAssertTrue(pairButton.isEnabled,
-                      "pair button should enable once the full code is present and the relay URL validates")
+                      """
+                      pair button should enable once the full code is present and the relay URL validates \
+                      (#405 diagnostics — code field: '\(setupCodeField.value as? String ?? "?")', \
+                      relay field: '\(relayField.value as? String ?? "?")')
+                      """)
         pairButton.tap()
 
         // #137: a successful pair pops straight back to chat — no

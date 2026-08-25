@@ -318,10 +318,17 @@ struct ConnectHermesScreen: View {
             updated.relayBaseURL = trimmed
             profilesStore.upsert(updated)
             if target.id == profilesStore.activeProfileID {
-                settingsStore.settings.relayConfiguration = RelayConfiguration(customRelayBaseURL: trimmed)
+                // #405: DIRECT assignment, never the canonicalizing init —
+                // this setter runs per KEYSTROKE, and canonicalizing the
+                // mid-draft "http://" rewrites it to "http:/v1" under the
+                // user's cursor (measured; the remaining keystrokes then
+                // append). Normalization stays on the read side
+                // (activeBaseURLString) and in validation, where it belongs.
+                settingsStore.settings.relayConfiguration.customRelayBaseURL = trimmed
             }
         } else {
-            settingsStore.settings.relayConfiguration = RelayConfiguration(customRelayBaseURL: trimmed)
+            // #405: same rule as the mirror-write above.
+            settingsStore.settings.relayConfiguration.customRelayBaseURL = trimmed
         }
     }
 
