@@ -15235,6 +15235,19 @@ since #390 flipped the on-device tier sighted, there is no longer any path
 that sends an image as OCR-only on that tier. Pre-#390 this exact turn would
 have SUCCEEDED as an OCR turn.
 
+**📏 n=4 BY 15:05 THE SAME DAY (Owen's follow-up pair, device):** a second
+send of (apparently) the SAME photo declined again at 15:05 — that image is
+now **0/2 on-device** while 1/1 on PCC — and a DIFFERENT, brighter shot of
+the same wall **PASSED on-device at 15:04** with a rich scene description
+("a blue towel, a yellow bag… a white sheet… a vent above them") — **the
+first on-device sighted success, proving the on-device arm works when the
+guardrail admits the image.** Reading: the safety model's verdict looks
+STABLE and IMAGE-SPECIFIC (plausibly the close-up clothes against the glass
+in the declined shot), not sampling noise — which makes bare Retry useless
+for a tripped image and strengthens routes (a)/(b) over (c). Pending
+confirmation from Owen whether the two sends were truly different photos
+(the screenshots say yes; the record should say it in his words).
+
 **Candidate routes, for Owen's pick:**
 - **(a) auto-degrade once (recommended):** catch `.guardrailViolation` on an
   image-carrying on-device turn, retry ONCE with the images degraded to the
