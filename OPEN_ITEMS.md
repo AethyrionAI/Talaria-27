@@ -14994,6 +14994,28 @@ keystroke) before electing a debounce or a commit-time refresh. Related:
 #405 (the same hook's other half), #365 (profile-switch interstitial — the
 same refresh machinery on a different trigger).
 
+
+> **📏 MEASURED FROM SOURCE 2026-08-24 night (the entry's first bar — the
+> structural half; wall-time needs a runtime instrument and may not be
+> needed to elect):** per keystroke in the pairing relay field while
+> unpaired, `settings` didSet → `onRelayConfigurationChanged` fires an
+> UNTRACKED `Task` → `refreshUnpairedRelayContext()`:
+> 1. `sessionStore.clearSession()` — every keystroke;
+> 2. the `hasRelay` gate passes from the FIRST character (post-#405 raw
+>    storage: any non-empty draft counts), so
+> 3. `sessionStore.bootstrap(forceRegistration: true)` — ≥1 HTTP against
+>    the half-typed host — and
+> 4. `inboxStore.loadInbox(force: true)` — ≥1 more.
+> Typing the standard 24-char URL ⇒ **24 session clears + ~48+ doomed HTTP
+> attempts across ~24 concurrent unawaited task chains**, racing each other
+> against hosts like `http://1`. The protected-data and isPaired guards are
+> the only gates. **Electable fixes, for Owen's pick when he takes it:**
+> debounce the refresh (~1 s), or refresh on COMMIT (pair attempt / screen
+> dismissal) instead of per keystroke — the settings screen already uses
+> the commit-time draft pattern, so the pairing screen would be joining the
+> house norm. Not built tonight; measure-first satisfied at the structural
+> level.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
