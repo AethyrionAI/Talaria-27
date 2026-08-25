@@ -16022,6 +16022,15 @@ papercut resolves itself when the repo goes PUBLIC at the #269-B
 publication moment. Until then the gh-credentialed one-liner is the
 update path, by design.**
 
+
+> **⏰ 2026-08-25 (Tue, small hours) — the watch's clock ran and read an
+> HONEST ZERO again:** `hermes talaria prune --dry-run` → 0 scrubbed / 0
+> expired. The "first natural nonzero Tuesday" expectation was mis-derived:
+> the mirror's earliest artifact rows date from the #362-era deploys
+> (~2026-08-19/20), so 7-day retention ages the first rows out
+> **~2026-08-26/27**. Watch expectation corrected to Wed–Thu; the zero
+> tonight is the retention window working, not the sweep failing.
+
 ## 368. 🔧 Phase 3 slice 3E — the runs-transport CUTOVER: runs becomes the default plane — **FILED 2026-08-18 night per #268, the same session Owen RULED GO ("Go — build it Wed/Thu"; deferred that morning, unblocked by the OJAMD rollout putting the mirror on both hosts). Build 2026-08-19 PM → 08-20; M-sized. NOT STARTED; bars pre-register here before code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): MERGED 2026-08-19 as `33108d05` (PR #322).**
 
 - Owns the cutover DECISION #362 and #283 both deferred to an unnumbered "3E";
