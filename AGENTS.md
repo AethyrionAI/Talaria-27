@@ -1,6 +1,6 @@
 # AGENTS.md — Talaria
 
-Guidance for Codex / Codex working in this repo. This is the living, in-repo source
+Guidance for Codex working in this repo. This is the living, in-repo source
 of truth (the project-knowledge snapshot may lag). `OPEN_ITEMS.md` tracks live issues with
 dated notes; closed items live verbatim in `OPEN_ITEMS-ARCHIVE.md` (split by #261,
 2026-08-06 — one numbering sequence across both files, nothing ever renumbered); the local
@@ -9,17 +9,28 @@ dated notes; closed items live verbatim in `OPEN_ITEMS-ARCHIVE.md` (split by #26
 ## What this is
 
 **Talaria** is a native SwiftUI iOS client for the owner's self-hosted **Hermes** agent.
-It is **forked from `dylan-buck/Hermes-iOS`**, but the upstream shell + relay are retained
-**only** for sensor ingestion + the `hermes_mobile` MCP tools. **Chat and sensors are
+It is **forked from `dylan-buck/Hermes-iOS`**; the upstream shell + relay were retained
+**only** for sensor ingestion + the `hermes_mobile` MCP tools — **a rationale that is now
+HISTORICAL: #352 (2026-08-16) deleted the app-side sensor-ingestion/upload path** (sensors
+are query-time via the talaria plugin, #251 decision 2/#242), and the `hermes_mobile`
+toolset is disabled on OJAMD (#346). **Chat and sensors are
 independent paths** — never conflate a relay/connector issue with a chat issue or vice
 versa. Owen directs and tests; Codex writes all code + runs infrastructure (Owen does not
 write Swift). Device target is **iOS 27 beta**, which requires **Xcode-beta6**.
 
 ## Architecture — Clean Chat Path
 
-- **Chat** talks **directly** to the Hermes API server **Sessions API on `:8642`**
-  (Bearer `API_SERVER_KEY`). `POST /api/sessions` → id at **`.session.id`**;
-  `POST /api/sessions/{id}/chat` (sync) → `.message.content`; `/chat/stream` is SSE.
+- **Chat** talks **directly** to the Hermes API server on **`:8642`** (Bearer
+  `API_SERVER_KEY`). **Turns ride the RUNS plane exclusively** — default since
+  #368 (2026-08-19), and the ONLY transport since #382 deleted the sessions
+  turn transport (2026-08-23, PR #360): `POST /v1/runs` (202 + `run_id`;
+  history rides the body — runs WRITE the session transcript but never READ
+  it) → `GET /v1/runs/{id}/events` (SSE, `data:`-only frames, event name
+  INSIDE the JSON) → `GET /v1/runs/{id}` (status + output + usage; recovery's
+  status read). `/api/sessions*` survives ONLY as create/open/list/messages/
+  fork/model — `POST /api/sessions` → id at **`.session.id`**. There is no
+  `/chat` or `/chat/stream` call site left in the app (structurally pinned);
+  the restore recipe (bridge only, never a fallback) lives in #382's entry.
 - **Sensors** go through the dylan-buck shell + **relay `:8000`** + connector, plus the
   **models shim `:8765`**. Independent of chat.
 - **Two machines, all over Tailscale:**
@@ -48,9 +59,18 @@ endpoint** (`/openapi.json`, `/v1/files`, `/api/files`, `/files` all 404 — re-
 2026-08-02 on a CURRENT 0.19.1 process; Hermes DOES ship an `/api/files` family but it lives
 in the **dashboard app**, `web_server.py` :9119, dashboard auth — a separate app from the
 `:8642` api_server the phone speaks; don't mistake dashboard routes for chat-plane routes,
-see #21/#223). Durable host-side
+see #21/#223). ~~Durable host-side
 serving for binaries / other tools (#21 Tier 2) must live in **our relay sidecar**
-(`O:\Hermes\Talaria\relay`) — **never a patch to Hermes core**: `curl install.sh | bash`
+(`O:\Hermes\Talaria\relay`)~~ — **SUPERSEDED 2026-08-19 (#375): TIER 2 IS DELETED,
+app-side and as a concept.** Owen ruled the agent-file download unneeded ("I called
+that as unneeded"), and the relay it fetched over is retired on both hosts, so the
+app no longer mints a chip it cannot honour. **What replaced it is not a download at
+all: the talaria plugin's ARTIFACT MIRROR (#362) pushes a written file's content to
+the phone, which is why Tier 1 chips now appear on the runs plane where the stream
+carries no `args`.** A file whose bytes ride neither the tool args nor the mirror —
+a binary — simply lives on the host now; that is the accepted state, not a gap
+awaiting a fix (re-homing the fetch onto the plugin was scoped and NOT elected).
+The never-patch-Hermes-core rule survives on its own merits: `curl install.sh | bash`
 replaces `~/.hermes/hermes-agent` and wipes core edits, while `config.yaml`/`.env`/skills/
 sessions persist.
 
@@ -76,7 +96,14 @@ shim is not stopped at all (probed 2026-08-09): `tools/models-shim/shim.py` runs
 under the hermes venv, up since Jul 24, answering 401 on `:8765`.** Harmless —
 the app provably never calls it (`ModelsShimClient` deleted from the tree) — but
 "the shim is retired" describes the MODEL PATH, not the processes: one host will
-resurrect its listener on reboot and the other never stopped its own. The old dual-write
+resurrect its listener on reboot and the other never stopped its own. **→ SUPERSEDED
+2026-08-18 ~22:46 (#375, Owen's go): the Mac shim AND the Mac dev relay are booted
+out with their LaunchAgents retired backup-first — no reboot resurrection on either
+host, and "retired" finally describes the CONFIGURED state on BOTH hosts.** Restore
+recipes live in #375's evidence block (the relay's pairing DB is untouched, so a
+restore needs no re-pair) — and per Owen's same-night direction ruling (#309), any
+restore is a temporary migration bridge, never a fallback: capability gaps adapt to
+the runs interface / talaria plugin instead. The old dual-write
 description that stood here —
 shim POST → gateway session pin, 37s hangs, shim-flagged CONFIRM — was deleted with
 Lane 5; see #223 Lane 5 and archived #9, and **read the code, not this file's summary
@@ -111,7 +138,16 @@ a falsified mechanism while the tracker was right.)
   user Startup folder** (`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\`),
   which presets `HERMES_HOME`, `PYTHONIOENCODING`, `HERMES_GATEWAY_DETACHED=1`,
   `VIRTUAL_ENV` and `PYTHONPATH`, then runs the venv **`python.exe`** windowless
-  (window style 0) — **not `pythonw.exe`** as this file used to imply. **⛔ NEVER
+  (window style 0) — **not `pythonw.exe`** as this file used to imply.
+  **⚠️ CORRECTED 2026-08-22 (on-box, #383's deploy): it is a TWO-HOP SHIM.**
+  The Startup-folder file only DELEGATES to
+  `<HERMES_HOME>\gateway-service\Hermes_Gateway.vbs`, which is the real
+  launcher. ⛔ Never delete **either** file. **And the real launcher runs
+  `gateway run` WITHOUT `--replace`** — so a relaunch has no ability to evict
+  a survivor from a botched kill. That is what turns "leave the parent alive"
+  from an annoyance into a dead chat plane.
+  **`hermes gateway restart` EXISTS in the CLI and is NOT a substitute** — its
+  own help says "Restart gateway *service*", and this box has no service. **⛔ NEVER
   delete that .vbs: it is the chat plane's autostart, and it is the one thing in
   this whole section that must survive the retirement.** Relaunch by hand with
   `wscript.exe "<that path>"`.
@@ -142,7 +178,11 @@ a falsified mechanism while the tracker was right.)
   carried it *alongside* the bat-launched process. So "two hosts, two stories" was wrong;
   it was two shapes on one host. **All of it is now MOOT ON OJAMD (2026-08-15):**
   `mcp_servers.hermes_mobile` is `enabled: false` and there are **zero** `hermes-mobile`
-  processes on the box (#346). The Mac still runs its own copy.
+  processes on the box (#346) — with one same-day caveat #346's 15:28 block recorded:
+  the Hermes DESKTOP app's own backend held a legacy child until its next relaunch
+  (self-healing; verify per process, never once). **The Mac still runs its own copy —
+  config-registered, two live stdio children verified 2026-08-18 — retiring it is
+  tracker #375.**
   **The trap that outlives the correction: `config.yaml` takes effect PER PROCESS, and
   this box has THREE readers of it** — the gateway, the Hermes **Desktop app's own
   backend** (`hermes serve --host 127.0.0.1 --port 0`, a child of `Hermes.exe`), and the
@@ -159,6 +199,10 @@ a falsified mechanism while the tracker was right.)
   (git at head, `venv/bin/hermes` missing) — finish it with the venv's own
   `pip install -e ~/.hermes/hermes-agent`, don't reinstall. **Do NOT run
   `hermes gateway install` on Windows** (creates a conflicting login-only task).
+  **Diagnose a down chat plane from `gateway_state.json`** (`platforms.api_server.state`
+  + `error_code`; lives in HERMES_HOME on OJAMD, `~/.hermes/` on the Mac) — it names
+  the SECOND cause (`api_server_key_invalid`) and works with the port dead, which the
+  port probe alone cannot (#264's ruled ops upgrade, landed 2026-08-18).
 - **⛔ DO NOT SET "API server model name" (Hermes desktop → Messaging → API server →
   Advanced) — it is a ROUTING SENTINEL, not a display label, and changing it on a host
   with existing sessions triggers #241 on every one of them.** Found 2026-08-09 from
@@ -204,6 +248,32 @@ a falsified mechanism while the tracker was right.)
     has changed that name.**
 - **Diagnostic discipline:** verify OJAMD against live state — port listeners, DB rows,
   relay logs — never by text-matching a project-knowledge snapshot, which lags.
+- **✅ HOW TO WIRE-PROVE A PLUGIN DEPLOY WITHOUT A DEVICE TOKEN (2026-08-22,
+  #383/#396-B — keep this, it generalises to any additive verb).**
+  "The listener started after the pull" is an INFERENCE. This is a
+  measurement, and it needs no valid device credential:
+  `EnvelopeService.dispatch` resolves the handler **before** any auth check,
+  and the platform-events route accepts `API_SERVER_KEY` as a bearer. So a
+  deliberately BOGUS device token discriminates old code from new —
+  **old code ⇒ `unknown_event_type`** (no handler), **new code ⇒
+  `device_auth_mismatch`** (handler found, auth then fails).
+  ```bash
+  curl -s -X POST http://127.0.0.1:8642/api/platforms/talaria/events \
+    -H "Authorization: Bearer $API_SERVER_KEY" -H 'Content-Type: application/json' \
+    -d '{"type":"talk_readiness","device_id":"probe","auth":"probe"}'
+  ```
+  **Always include a nonsense verb as a CONTROL** (`definitely_not_a_verb` ⇒
+  `unknown_event_type`): without it, two positives prove nothing because
+  nothing showed the discriminator can still say no. Verified on both hosts.
+- **Adjacency in a log is NOT attribution (2026-08-22).** A deploy brief
+  listed `INFO talaria-push: watcher up (poll=4s)` as proof the talaria PLUGIN
+  had loaded. That string is nowhere in the plugin — it belongs to
+  `~/.hermes/hooks/talaria-push/handler.py`, a **hook** that merely shares the
+  name prefix and starts in the same second. Four lines were copied out of one
+  log and all four attributed to one component. **A verification step keyed on
+  a marker its component cannot emit is a check that always fails** — the next
+  operator either chases a phantom or learns to skip the step. Confirm which
+  LOGGER emits a line before making it a bar.
 - **🚨 THE `hermes-ojamd` MCP CAN FABRICATE OUTPUT ON THE FAILURE PATH (found
   2026-08-09).** It is a real agent with a real shell, and commands that SUCCEED
   return real output — but a command that FAILS can come back as invented text
@@ -245,7 +315,14 @@ a falsified mechanism while the tracker was right.)
   get rid of those extra things after all."* **Every hardening buys reliability in a
   component with a planned end-of-life (#223) and pays for it in permanent update
   friction** — the friction compounds and the benefit expires. The direction is
-  DELETION, not robustness.
+  DELETION, not robustness. **And its post-retirement corollary (Owen,
+  2026-08-18, ruling the Mac relay/shim retirement): when a capability gap
+  appears because a legacy process is gone, the fix is ADAPTING that capability
+  to the runs interface / talaria plugin — never restarting the old process.**
+  *"We can always bring the relay back up if we need it. The smarter thing to do
+  would be to adapt to the new runs interface and tools we have available with
+  the plugin instead of falling back to old processes."* A restored relay is a
+  temporary migration bridge, not a home.
   - **Fix app-side instead, and this is not a consolation prize** — #133/#143's
     duplicate-push root cause was fixed entirely in the app (durable installation
     identity) with **zero relay change**, and the relay turned out never to have been
@@ -419,7 +496,12 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   > `165c889e5b4277b56dadd42949a4112c1e6175a6`, `v0.20.1 (2026.8.13)`, pinned by
   > reflog-vs-start-time (head 14:14:22, listener 15:09:08 ⇒ no drift). **Any
   > note reasoning from "OJAMD is 0.20.0" describes a host that no longer
-  > exists.**
+  > exists.** *(And the 0.20.1 note aged the same way within days: OJAMD
+  > measured **0.20.3** on 2026-08-18 (#349's wire probe), the Mac's
+  > fresh-bounced gateway served **0.20.4** the same night (#375), and OJAMD
+  > measured **0.20.5** on 2026-08-22 (on-box `/health`, #383's deploy).
+  > Version
+  > claims in this file rot in DAYS — probe live, never quote this file.)*
   >
   > **`/v1/capabilities` is the cheap way to answer "is that route real?"** —
   > read live on 0.20.1, it self-describes the endpoint map and confirmed
@@ -453,10 +535,14 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   also trigger redaction. Console.app's default view suppresses `.info` — use `.notice`+ for
   diagnostics that must be visible. `TalariaLog` gates verbose diagnostics behind
   `UserSettings.verboseLogging` (the Developer screen toggle).
-- **iCloud Private Relay** intercepts HTTP to Tailscale IPs and blocks sensor delivery —
-  disable it.
-- **HealthKit** needs an explicit in-app `requestAuthorization()` on every
-  `SensorUploadService.start()` — Settings grants alone don't suffice.
+- **iCloud Private Relay** intercepts HTTP to Tailscale IPs — moot for sensors since #352
+  (nothing uploads), but the mechanism stands for any other HTTP-to-tailnet path the app
+  ever grows.
+- ~~**HealthKit** needs an explicit in-app `requestAuthorization()` on every
+  `SensorUploadService.start()`~~ — **superseded by #352 (2026-08-16): the service is
+  deleted.** The surviving form of the lesson: HealthKit read grants are invisible by
+  design, so `DeviceHealthTool.performRead` does its own `requestAuthorization()` per
+  read — which is why query-time needs no launch-time re-assert.
 - `Restart-ScheduledTask` doesn't exist in PowerShell 5.1 — use `Start-ScheduledTask`.
 - `mdfind -name` beats `find` for locating files on the Mac Mini.
 - **#24f is DEAD — never cite it as a cause.** The relay is DB-backed
@@ -488,13 +574,40 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
 
 ## Build / tooling
 
-- **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, iOS SDK
-  24A5422a) is the standard toolchain for iOS 27 targets — **promoted from beta5 on
-  2026-08-24 on Owen's word** (#401: gate green first-run, 2482 tests/200 suites Swift
-  Testing + 14 XCUITest + Release on sim runtime 24A5423a; SDK diff 6/280 real changes,
-  none Talaria-called — `planning/reports/2026-08-24-beta6-sdk-audit.md`). **Beta5
-  (27A5237l) stays on disk as the A/B fallback.** (Prior: beta5 promoted from beta4
-  2026-08-11, #324.) Release Xcode still can't build iOS 27.
+- **🚨 THE DEVICE HAS MOVED PAST THE TOOLCHAIN (measured 2026-08-22, #398).**
+  `whoGoesThere` runs **`24A5418b`** (beta 6); the newest sim runtime we hold is
+  **`24A5408d`** (beta 5), and **Apple has shipped no Xcode beta 6.** So every
+  gate result is measured on a runtime the user does not run, and there is no
+  local twin of the one they do. **A device restore IPSW cannot close this** —
+  `simctl runtime add` takes runtime disk images, not device images (different
+  architecture, different packaging). Read any battery number together with the
+  runtime it was measured on; a rate without one is now ambiguous. Worst for the
+  on-device BRAIN, because #324 established the simulator cannot generate on
+  that model at all, so its behaviour has only ever been device-answerable.
+  **⟵ SUPERSEDED 2026-08-24 (#401): Apple shipped Xcode 27 beta 6
+  (`/Applications/Xcode-beta6.app`, 27A5252f, swiftlang 6.4.0.33.1) carrying
+  the iOS-beta-7 SDK (24A5422a) and sim runtime (24A5423a) — so the sim now
+  LEAPFROGS the device (24A5418b) rather than trailing it. Still no exact
+  local twin of the phone's build until it takes iOS 27 beta 7. New corollary
+  of #324's dyld rule: a beta6-Xcode-built binary referencing new-in-24A5422a
+  symbols dies at launch on the phone's older runtime — no new-SDK API
+  adoption until the device updates. Regression round + promotion decision:
+  #401. ⟵ Same day PM: the phone UPDATED to beta 7 (Owen's word; exact build
+  string unmeasured until the next device log pass) — the fleet is ALIGNED
+  for the first time since beta 5 and the adoption freeze is LIFTED. PCC may
+  now be sim-testable (beta 7 fix): probe is #402.**
+- **Xcode-beta6** (`/Applications/Xcode-beta6.app`, Xcode 27.0 build 27A5252f, swiftlang
+  6.4.0.33.1, iOS SDK 24A5422a — the *iOS beta 7* vintage) is the standard toolchain for
+  iOS 27 targets — **promoted from beta5 on 2026-08-24 on Owen's explicit word** (#401:
+  gate green FIRST-RUN under beta6 — 2482 tests/200 suites Swift Testing + 14 XCUITest +
+  Release build on verified sim runtime 24A5423a; SDK diff 6 real changes in 280
+  interfaces, none Talaria-called — full evidence
+  `planning/reports/2026-08-24-beta6-sdk-audit.md`). **Beta5 (27A5237l) STAYS on disk as
+  the A/B fallback — Owen's ruling at promotion**, the first promotion since beta4's that
+  keeps one. *(The prior head of this paragraph — beta5 promoted from beta4 2026-08-11
+  under #324's pre-authorized auto-promote, 2056/156 + 14 —
+  is history, evidence `planning/reports/2026-08-11-beta5-sdk-audit.md`.)*
+  Release Xcode still can't build iOS 27.
   `DEVELOPER_DIR=/Applications/Xcode-beta6.app/Contents/Developer` in every shell.
   ~~**Beta4 (27A5228h) remains on disk as the A/B fallback**~~ — **FALSE as of
   2026-08-12: beta4 is GONE from `/Applications` (verified by direct path check,
@@ -508,18 +621,22 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
   is joined by "the other binary no longer exists." `Xcode-beta.app`/`Xcode-beta3.app`
   were deleted 2026-07-24. `xcode-select` still points at beta4's CLT — harmless, CLT ships no
   iOS SDK and no `xcodebuild`, so the `DEVELOPER_DIR` export is mandatory either way (re-point
-  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
-  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5390f` for NEW boots,
-  and ALWAYS `match set iphoneos27.0 --default` afterwards — and **iOS 26.5 (23F77)**.
+  needs sudo; no urgency). Sim runtimes kept: **iOS 27.0 (24A5423a, iOS beta 7 — the
+  DEFAULT match since 2026-08-24)**, **iOS 27.0 (24A5408d, beta5)**, **iOS 27.0
+  (24A5390f, beta4)** — A/B via `simctl runtime match set iphoneos27.0 24A5408d` (or
+  `24A5390f`) for NEW boots, and ALWAYS `match set iphoneos27.0 --default` afterwards —
+  and **iOS 26.5 (23F77)**.
   **⚠️ Beta-to-beta dyld hazard (proven #324): a beta5-built binary referencing new-in-beta5
   symbols (e.g. `SystemLanguageModel.variant`) dies at dyld launch on a beta4 27.0 runtime**
   (RBSProcessExitStatus domain:dyld(6) code:4, NO .ips, empty stdout) — `@available(iOS 27.0)`
-  cannot weak-link between betas of the same version, so adopt new beta5 API only while every
-  target device/sim runtime is on beta5. The pinned sim
+  cannot weak-link between betas of the same version, so adopt new-SDK API only while every
+  target device/sim runtime is at least that vintage. (Fleet state 2026-08-24, #401: the
+  phone took iOS beta 7 the same day beta6 arrived — device, sims and SDK are ALIGNED,
+  so nothing is currently frozen. Probe live before assuming this holds.) The pinned sim
   UDID survived both the beta-4 runtime rebind and the seed prune — no re-pin needed.
   Team `DNL25ZFSD2`. DerivedData for **this** repo is
   `Talaria-gzpowyfsuofejnbsytskngrskzkm` — corrected 2026-07-30. The long-documented
-  `Talaria-bkmofmhhchhruzcdudrizbbblrae` belongs to the OLD `~/Documents/Codex/Talaria`
+  `Talaria-bkmofmhhchhruzcdudrizbbblrae` belongs to the OLD `~/Documents/Claude/Talaria`
   checkout (verified via each dir's `info.plist` → `WorkspacePath`), so purging it to
   clear a stale build silently does nothing here. **Every worktree gets its own hash** —
   resolve it from `info.plist`, never from memory:
@@ -553,7 +670,9 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     time someone followed one. Advice names a **search string**; the self-test
     executes each pointer against `OPEN_ITEMS.md` and fails if it finds nothing.
     Consequence: a few tracker headers are now load-bearing text (#219's "runner
-    dies mid-bundle", #313's "CondenserFidelityTests") and say so in place.
+    dies mid-bundle" in the live board; #313's "CondenserFidelityTests" moved to
+    `OPEN_ITEMS-ARCHIVE.md` at the 2026-08-18 sweep and the gate's grep hint was
+    repointed there in the same commit) and say so in place.
   - **⚠️ ALWAYS pass `TALARIA_SIM_NAME` when lanes run in parallel — the
     default is a contention trap.** The gate defaults to the shared
     `iPhone 17 Pro Max`, but recent lanes have each been quietly using a
@@ -572,8 +691,7 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
     com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
     `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5423a
-    (iOS beta 7 since 2026-08-24; previously 24A5408d, beta5)** unless
-    someone set an A/B override, so verify with
+    (iOS beta 7; was 24A5408d until 2026-08-24)** unless someone set an A/B override, so verify with
     `xcrun simctl runtime match list` when it matters.
   - **`xcodebuild` cannot resolve these by NAME — pass the UDID**
     (`-destination 'platform=iOS Simulator,id=<udid>'`). `name=CC-lane-1` fails
@@ -588,22 +706,39 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     so **"the machine is working" and "I can start a process" are different
     facts** — if a gate run dies at app launch, check host load before
     suspecting the diff (#300's lane, 2026-08-10).
-  - **🔴 GRANT CALENDAR + REMINDERS TCC BEFORE EVERY GATE RUN — a fresh sim
-    HANGS the suite instead of failing it.**
-    ```bash
-    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
-    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
-    ```
+  - **🔴 A SIM WITH NO TCC RECORD HANGS THE SUITE INSTEAD OF FAILING IT — and
+    since 2026-08-19 THE GATE GRANTS IT ITSELF, so do not hand-grant before a
+    `lane-gate.sh` run.** ~~Grant calendar + reminders before every gate run.~~
+    The script boots the simulator it resolved and grants both services for the
+    bundle id it reads out of `project.yml`, printing a positive marker; it
+    FAILS the run rather than warning if it cannot.
     `BatteryReapEventKitProbeTests` calls `requestFullAccessToEvents()`. With a
     *denied* record it fails visibly, which is what its docstring promises — but
     on a **brand-new simulator there is no record at all**, so the call blocks
     forever: the suite stalls mid-run with no failure, no marker and no verdict.
-    Measured 2026-08-10 — ~20 minutes parked on one test, and the only tell was
-    a log that had stopped growing. That is the gate's founding sin ("absence of
-    a failure marker is not success") arriving as a hang rather than a pass.
-    **And the grant does not survive a rebuild/reinstall** (nor, per #254, a sim
-    reboot) — a run that passed does not mean the next one is set up. Re-grant
-    immediately before each run; it is idempotent and costs nothing.
+    Measured 2026-08-10 — ~20 minutes parked on one test — and again
+    **2026-08-19, for 47 minutes**, which is what moved it into the script: the
+    operator granted TCC to `CC-lane-1`'s UDID while passing
+    `TALARIA_SIM_NAME=CC-lane-2`. The instruction was followed in form and the
+    wrong device got the grants. **A step that pairs a NAME with a UDID by hand
+    is a step that can be done wrong silently**, so it no longer belongs to a
+    human. That is the gate's founding sin ("absence of a failure marker is not
+    success") arriving as a hang rather than a pass, twice.
+    **The grant still does not survive a rebuild/reinstall** (nor, per #254, a
+    sim reboot) — which is exactly why it now runs inside every gate invocation
+    rather than in someone's memory.
+    **Two probed facts behind the implementation, both load-bearing:**
+    `simctl privacy` errors on a **Shutdown** device (exit 149), so the script
+    boots first; and it accepts an **unknown bundle id and exits 0**, writing a
+    record nothing owns — so the id is read from `project.yml` rather than
+    hardcoded, because a grant whose failure mode is a green marker is worse
+    than no grant at all.
+    **Hand-granting is still correct for a bare `xcodebuild` run** (one that
+    does not go through `lane-gate.sh`) — there, the pairing is yours again:
+    ```bash
+    xcrun simctl privacy <udid> grant calendar  org.aethyrion.talaria27
+    xcrun simctl privacy <udid> grant reminders org.aethyrion.talaria27
+    ```
 - **CLI compile check:** `xcodebuild -project Talaria.xcodeproj -scheme Talaria
   -configuration Debug -destination 'generic/platform=iOS Simulator' build
   CODE_SIGNING_ALLOWED=NO`. Long builds exceed the 4-min MCP cap — run backgrounded
@@ -722,6 +857,14 @@ never enters.
 
 `runActionBattery`'s `routed-production` cell is the routed arm. Every other
 wrapper is still unrouted.
+
+**Scoring rules for phone-tool bars on a deferred-registry host (#347, promoted
+2026-08-18):** score from `agent.log` (`tool_search → tool_describe → <tool>`
+chains), NEVER from the model's reply — the model can contradict the log in prose
+while the call ran fine. A forced-tool bar must phrase the ask as "use
+`tool_search` to find X, then call it," or the deferral itself fails the trial.
+And do not read the plugin's `last_seen` as liveness — it lags in a ~45 s
+sawtooth; judge liveness by POST cadence instead.
 
 **🔴 A SECOND RULE OF THE SAME KIND (#343, 2026-08-15): EVERY BATTERY RATE MEASURED
 BETWEEN 2026-08-02 AND #343'S FIX IS GOVERNOR-STRANGLED.** #225's `ToolCallGovernor`
