@@ -44,6 +44,18 @@ struct ToolActivity: Codable, Identifiable, Hashable, Sendable {
     /// trusted.
     var failure: String?
 
+    /// #371: how this record came to exist. `nil` = witnessed live — the
+    /// historical value, and what every pre-change cache decodes to.
+    /// `.reconstructed` = rebuilt from the server transcript, which carries
+    /// no per-call outcome, so the app never saw these calls finish and the
+    /// chip must not claim it did. OPTIONAL ON PURPOSE — the same #42
+    /// silent-wipe reasoning `failure` documents above.
+    var provenance: Provenance?
+
+    enum Provenance: String, Codable, Sendable {
+        case reconstructed
+    }
+
     /// #296: the marker written when the user taps Stop on a turn with a tool
     /// still in flight. A constant rather than a literal at the call site so
     /// the store that writes it and the tests that assert it cannot drift.
@@ -60,7 +72,8 @@ struct ToolActivity: Codable, Identifiable, Hashable, Sendable {
         isActive: Bool = true,
         detail: String? = nil,
         anchorOffset: Int = 0,
-        failure: String? = nil
+        failure: String? = nil,
+        provenance: Provenance? = nil
     ) {
         self.id = id
         self.label = label
@@ -69,5 +82,6 @@ struct ToolActivity: Codable, Identifiable, Hashable, Sendable {
         self.detail = detail
         self.anchorOffset = anchorOffset
         self.failure = failure
+        self.provenance = provenance
     }
 }

@@ -726,7 +726,13 @@ final class SessionsHermesClient: HermesClientProtocol {
                         attachments.append(staged)
                     }
                 }
-                activities.append(ToolActivity(label: name, startedAt: ts, isActive: false, detail: detail))
+                // #371: this rebuild is the one site that mints activities
+                // the app never watched finish — the transcript carries no
+                // per-call outcome, so `isActive: false` here is a DEFAULT,
+                // not an observation. Stamp the provenance so the chip can
+                // say "completed while away" instead of wearing the
+                // witnessed checkmark.
+                activities.append(ToolActivity(label: name, startedAt: ts, isActive: false, detail: detail, provenance: .reconstructed))
             }
         }
 

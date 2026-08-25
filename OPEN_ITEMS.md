@@ -14932,7 +14932,7 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > - **398-C stands unchanged** — the gate silently advanced to 24A5423a this
 >   very day, which is exactly the behavior 398-C wants named in the output.
 
-## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. NOT STARTED; bars pre-register here before any code.**
+## 407. 📝 Text TYPED while dictation is live is DISCARDED on the next transcript tick — `mergedDictationText` recomputes from a base snapshot that predates the typing — **FILED 2026-08-24 night per #268, from #405's class sweep (read-only, verdict MINOR-adjacent). NOT a per-keystroke scrambler — the trigger is the dictation tick, not typing — but it is real input loss. ~~NOT STARTED; bars pre-register here before any code.~~** **⟵ RULED block-typing 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 407-A..D met; only the 10-second device look remains (runbook).**
 
 `ChatInputBar.swift:946-953` recomputes the composer text from an immutable
 `dictationBaseText` snapshot captured when dictation starts (`:917`); the
@@ -14970,6 +14970,15 @@ into the base snapshot vs block typing while dictating) is a product call.
 > Note: the placeholder already reads "Listening…" while dictating, so the
 > blocked state is visually explained by existing copy; the send button's
 > merge-and-send path (`handlePrimaryAction`) is deliberately untouched.
+
+
+> **✅ RESULT 2026-08-24 night — 407-A..D ALL MET (trio lane, one gate).**
+> One modifier: `.disabled(speechService.isListening)` on the composer
+> editor; the structural pin witnessed RED first (its RED run IS the
+> removal-mutation evidence). Programmatic merge writes untouched; the
+> "Listening…" placeholder already explains the state. GATE: PASS
+> 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
+> 10-second device look rides the runbook. **Remaining: that look only.**
 
 ## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. NOT STARTED; measure first.**
 
@@ -16330,7 +16339,7 @@ scope: **wholesale, or a permanent dual path?**
 - ⚠️ Read #331's entry before trusting any reap arithmetic — that lane's
   negative test caught shipped code deleting from the real default calendar.
 
-## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). NOT STARTED.**
+## 371. 🐛 History-restored ✓ chips assert completions the app never witnessed, on runs nobody stopped — **FILED 2026-08-18 night per #268, from #327's explicitly-unfiled residual ("NOT filed here — it needs Owen, and it is entangled with #328 route 1"). ~~NOT STARTED.~~** **⟵ RULED provenance-label 2026-08-24 (decision pass) and ✅ BUILT + GATED the same night (trio lane) — 371-A..F met; only the device look remains (runbook).**
 
 > **2026-08-19 — the surface this rides is now the DEFAULT** (#368 merged as
 > `33108d05`). #368 did **not** build this — deliberately: a restored chip's
@@ -16379,6 +16388,17 @@ scope: **wholesale, or a permanent dual path?**
 > - **371-F:** NO network on restore (the ruling's explicit exclusion);
 >   witnessed ✓ rendering byte-unchanged (296-B green); GATE: PASS, count
 >   moved exactly.
+
+> **✅ RESULT 2026-08-24 night — 371-A..F ALL MET (trio lane, one gate).**
+> `ToolActivity.provenance` optional (legacy JSON pin green); the
+> transcript rebuild stamps `.reconstructed` (producer pin RED-first,
+> unstamp mutation isolating 1/9); PARALLEL rail decisions (enum not
+> widened — all sixteen `summaryState` call sites untouched) drive a
+> dimmed glyph, a hollow step dot, and the VoiceOver phrase through the
+> pinned `completedWhileAwayPhrase`; interrupted wins outright (#327's
+> stops keep their rendering); provenance excluded from the #237 dedupe
+> key by its own test arm. Gate as #407's. **Remaining: the device look —
+> runbook.**
 
 ## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.**
 
@@ -16681,3 +16701,13 @@ scope: **wholesale, or a permanent dual path?**
 >   editing the resolver or its pins means the fix went to the wrong layer.
 >   GATE: PASS, count moved by exactly the additions; the 10-second device
 >   look rides a future runbook card.
+
+> **✅ RESULT 2026-08-24 night — 381-A..E ALL MET (trio lane, one gate).**
+> `ComposerDoor.busyAuxiliaryDoors` (pure, 6 unit arms incl. the defensive
+> queue-filter) + ONE shared menu body consumed by both the queue control's
+> long-press and a new `Menu` beside Stop in the `.busyNoCommit` arm —
+> structural pin RED-first; guard mutation reds exactly the empty-draft and
+> slash arms; the resolver suite untouched-green (editing it would have
+> been the wrong layer, per the bars). Labels verbatim; routes through
+> `handleExplicitDoor`. Gate as #407's. **Remaining: the device look
+> (steer menu appears while busy with the hold taken) — runbook.**
