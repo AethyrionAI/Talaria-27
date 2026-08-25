@@ -1586,6 +1586,20 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > at merge, the flipped arm reaching devices only via the OTA staged
 > after.
 
+> **📸 FIRST SIGHTED TURN ON DEVICE — 2026-08-25 12:43, build 3022, PCC β
+> (Owen's screenshot, same hour as install).** Laundromat photo + "What do
+> you see in this picture?" → *"a row of Speed Queen dryers in a
+> laundromat, with clothes visible inside some of them."* **That is scene
+> understanding, not OCR** — no text in the frame says clothes are in the
+> drums — so the image provably rode to PCC as real model input: the
+> 390-G PCC arm's defining criterion, met on its first live turn. The
+> `READIMAGETEXT` chip fired alongside (expected — the belt still offers
+> OCR on image turns by design; tool and vision compose). **First
+> image-cost datum:** IN 6.1K on the vision turn vs ~381 on a same-day
+> text turn — the picture costs real tokens on the PCC wire (the known
+> text-only context-fit scope note now has a number). Still owed from the
+> runbook card: the ON-DEVICE arm and the staged-composer caption texts.
+
 > **✅ 390-F DISCHARGED — the flip PR (2026-08-25, same day as the go):**
 > `docs/privacy.html` carries the approved sentence ("Your request leaves
 > the device — including any images you attached to that message"),
