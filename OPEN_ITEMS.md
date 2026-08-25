@@ -160,6 +160,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered **⟵ 2026-08-24: premise code-read inverted the mechanism (#382 killed the plane; only the run id was lost), Owen ruled 329-C reconcile-first, and the fix is ✅ BUILT + GATED the same night — 329-A..E met, only 329-F (device, next OTA) remains**
 - **#406** 🔬 every pairing-field keystroke fires clearSession + forced bootstrap + inbox load against the half-typed URL — filed from #405's sweep; structural measurement done 08-24 (24 clears + ~48 doomed HTTP per typed URL). **⚖️ RULED 2026-08-25 COMMIT-TIME → ✅ BUILT + MERGED the same day (PR #368, squash `54d7f55d`)** — bars 406-A..E met, gate 2529(+3)/14/Release, both mutations isolating, #405's five pins untouched. Looks closeable; formal close rides the next sweep
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
+- **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=1, Owen's laundromat photo: PCC described it, on-device declined it); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. **Mechanism UNKNOWN and deliberately not guessed** — 330-A names it by measurement. Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E. **→ MEASURED 9-FOR-9 on 2026-08-15 (drive-by, during #338-C's run): every one of nine staged cards carried `DUE` EMPTY, so on the BARE-HOUR shape the defect is effectively deterministic, not occasional (P=0.002 if the rate were even 0.5). All nine declined — no residue. Scope is one prompt shape and licenses nothing wider. **→ 340-A EXTENDED BY PHRASING at 2:57 PM AND THE OMISSION IS CONDITIONAL: "at 4pm" (time only) OMITS, "tomorrow at 4" (day-bearing) is CORRECT, "in 20 minutes" (relative) produces a WRONG value already six hours in the past. THE MODEL WILL NOT RESOLVE "TODAY" FROM A BARE TIME though it knows the date. That makes the GUIDE STRING the leading fix over #200S's optionality — and warns that the rollback arm may convert omissions into WRONG values, so the A/B must score four buckets, not a binary. Across 15 calls the model sent exactly ONE correct due date.** Discriminator handed to 340-A with NO mechanism elected: the model demonstrably HAS the time (it rendered `Time: 6:00` in prose and reasoned that "9 AM has passed"), so the time is absent only from the staged card's `DUE` field** **→ ✅ 340-C ANSWERED THE SAME AFTERNOON from the device log via #249's own instrument: THE MODEL OMITS THE ARGUMENT — 10 of 11 `createReminder` calls sent `due raw=""`, and all 9 card-staging turns did. NOT a parse failure; the session's own "the app silently degrades an unparseable time" hypothesis is REFUTED (the parser never saw a string). The single counterexample sent `2026-08-15T09:00` perfectly formatted, so the model is capable. CANDIDATE CAUSE NAMED NOT ELECTED — **#200S** made `due` optional (guide: *"or empty for no due date"*) to cure a stall, and was validated on whether a tool call happened, never on argument correctness; its pinned rollback `ReminderCreateToolRequiredFields` is ALREADY a selectable battery cell, so the A/B is built and only the SCORER needs changing. ~~**340-B still owed** (needs one APPROVED turn — every card today was declined)~~ **⟵ corrected 2026-08-23: 340-B MET 2026-08-15 2:41 PM — one approved turn, the within-turn witness (prose "4:00 PM", argument `due raw=""`, card DUE empty, reply "Done!"); the entry's own dated block records it**
@@ -1599,6 +1600,24 @@ gate should follow), **#386** (the published policy that describes the tiers),
 > text turn — the picture costs real tokens on the PCC wire (the known
 > text-only context-fit scope note now has a number). Still owed from the
 > runbook card: the ON-DEVICE arm and the staged-composer caption texts.
+
+> **📸 THE ON-DEVICE ARM'S FIRST TURN — 2026-08-25 14:42, build 3022,
+> same photo (Owen's second screenshot): `guardrailViolation`.** The turn
+> failed with our typed-case string "Apple's on-device safety guardrails
+> declined this request" — verified specific in the mapping
+> (`LocalChatBackend.swift:2652`, the `.guardrailViolation` arm, not a
+> catch-all). **Read precisely: the attach path WORKED — the safety layer
+> can only decline an image it received** — so both tiers' vision plumbing
+> is device-proven; what differs is SAFETY POSTURE: on-device's guardrail
+> (the small safety model) declined an innocuous laundromat photo that
+> PCC's passed the same day. Exactly the class the sim could never see
+> (#324 — no generation), which is why 390-G was a device card. The
+> HERMES HOST OFFLINE banner in the same shot is unrelated (off-tailnet
+> on cellular; on-device turns don't touch the host). **Consequence
+> spawned as #408:** 390-B's fallback is compose-time only — a
+> generation-time guardrail decline leaves an image turn with NO route
+> (Retry re-runs into the same wall, and post-#390 there is no way to opt
+> an on-device image DOWN to the OCR path). Design election filed there.
 
 > **✅ 390-F DISCHARGED — the flip PR (2026-08-25, same day as the go):**
 > `docs/privacy.html` carries the approved sentence ("Your request leaves
@@ -15201,6 +15220,37 @@ into the base snapshot vs block typing while dictating) is a product call.
 > "Listening…" placeholder already explains the state. GATE: PASS
 > 2515/205 + 14 XCUITest + Release (trio total +17/+3 exact). The
 > 10-second device look rides the runbook. **Remaining: that look only.**
+
+## 408. 🐛 A GUARDRAIL-DECLINED IMAGE TURN HAS NO ROUTE — on-device `.guardrailViolation` on a sighted turn dead-ends at Retry, and post-#390 there is no way to opt an image DOWN to the OCR path — **FILED 2026-08-25 per #268, from Owen's first on-device vision turn (build 3022, device screenshot). DESIGN ELECTION OWED; measure-informed bars pre-register here when a route is picked.**
+
+**The observation (device, 2026-08-25 14:42):** the same laundromat photo PCC
+described cleanly at 12:43 threw `LanguageModelError.guardrailViolation` on the
+ON-DEVICE tier — an innocuous image, declined by the small on-device safety
+model. **The attach path is NOT the defect** (the safety layer can only decline
+an image it received; both tiers' plumbing is device-proven under #390). The
+defect is what happens NEXT: #390-B's fallback is COMPOSE-time only (decode
+failure, capability off, arm off) — a GENERATION-time guardrail decline just
+fails the turn. Retry re-runs the identical prompt into the same wall, and
+since #390 flipped the on-device tier sighted, there is no longer any path
+that sends an image as OCR-only on that tier. Pre-#390 this exact turn would
+have SUCCEEDED as an OCR turn.
+
+**Candidate routes, for Owen's pick:**
+- **(a) auto-degrade once (recommended):** catch `.guardrailViolation` on an
+  image-carrying on-device turn, retry ONCE with the images degraded to the
+  honest OCR placeholder (the pre-#390 shape), and say so in the reply
+  surface — the model then reads the text it can and the turn completes.
+  One retry only; a guardrail decline on a TEXT-only turn stays a plain error
+  (degrading can't help it).
+- **(b) offer, don't auto:** the error surface gains a "Try text-only" action
+  beside Retry — the user chooses the degrade. More honest, one more tap.
+- **(c) leave it:** the error is truthful and rare; wait for more occurrences
+  before building. (Base rate unknown — n=1.)
+
+**Related:** #390 (the arm + the observation's home), #402 ("300m safety runs
+via host-inference" — the layer that fired), #212 (error messages must name
+the true cause — the current message DOES; this item is about the dead end,
+not the wording).
 
 ## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. Measured structurally 08-24; Owen ruled COMMIT-TIME 2026-08-25; ✅ BUILT + GATED the same day — bars 406-A..E met (result block below).**
 
