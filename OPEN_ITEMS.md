@@ -1245,6 +1245,31 @@ Marquee ships three of the worst-affected palettes).
 > `mutedForeground` (9/88) and `retroSciFi`'s decorative accent (declined
 > at election) — both contained by the ratchet, neither routed.
 
+> **📐 BARS PRE-REGISTERED 2026-08-25 (the mutedForeground lane's open,
+> before code — per the same-day ⚖️ ruling: fix elected, ramp order
+> pinned, merge waits on the eyeball; `retroSciFi` decorative is a
+> standing ACCEPTED state and is NOT in this lane):**
+> - **393-M-A — the ramp ORDER is pinned across all 88 cells** (call 2's
+>   `muted > dim` pin kept/extended to the relation the palette actually
+>   promises), and the pin is mutation-proven: swap one theme's steps →
+>   RED naming the theme and the exact cells.
+> - **393-M-B — the 9 failing `mutedForeground` cells rise as far as the
+>   ramp order allows,** call 2's honest shape: cells that hit a ramp cap
+>   stay baseline-listed with measured values rather than faked past the
+>   floor; the lane NAMES all 9 cells (theme × accent) with before/after
+>   ratios. Any deepField cell stays at its byte-pinned value per the
+>   08-23 "accept 3.16, keep the pin" ruling — named, not moved.
+> - **393-M-C — the ratchet tightens RED-first:** baseline tightened
+>   BEFORE the palette moves, witnessing RED at exactly the moved-cell
+>   count.
+> - **393-M-D — `DesignThemeTests` byte-identity (deepField × cyan) and
+>   the palette suites stay green;** terminal's locked-slot unreachable
+>   cells stay untouched (#215).
+> - **393-M-E — GATE PASS, count moved; then the PR HOLDS OPEN.** Merge
+>   waits on Owen's device eyeball of the ramp FEEL (call 2's closing-bar
+>   precedent verbatim). **Merge-on-green explicitly does NOT apply to
+>   this lane** — Owen's 2026-08-25 ruling.
+
 ## 392. 🔴 A DECLINED CALENDAR EVENT IS REPORTED AS THE CALENDAR REFUSING IT — *"your calendar didn't accept the request"* when the user declined the card — **MEASURED 2/30 ON DEVICE 2026-08-21 (#199A's re-run), CALENDAR-ONLY. Spawned rather than kept inside #199A, whose own claim is refuted. NOT STARTED; bars below.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built + merged 2026-08-23 (PR #353) with NO treatment elected, per Owen's route; the n≥30 device run is what remains.**
 
 **The measurement** (`planning/reports/2026-08-21-199a-decline.json`, decline
