@@ -2,7 +2,7 @@
 # #343 Track U sequencer. Priority-ordered: archive-matched and Class 1 rows
 # first, so a clock overrun truncates the LEAST valuable rows.
 set -uo pipefail   # NOT -e: one failed instrument must not end the sweep.
-export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta5.app/Contents/Developer}"
+export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-beta6.app/Contents/Developer}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DEVICE="${TALARIA_DEVICE:-whoGoesThere}"
 OUT_ROOT="${TALARIA_SWEEP_OUT:-$HOME/.talaria-instrument-runs}"
@@ -16,9 +16,14 @@ if [[ -n "$PREFLIGHT_ARTIFACT" ]]; then
   OSV=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('osVersion',''))" \
         "$PREFLIGHT_ARTIFACT")
   echo "pre-flight: most recent artifact reports osVersion=$OSV" | tee -a "$LOG"
+  # #339: the expected regime is overridable — Track U's anchors were beta5,
+  # and a hardcoded pin is a gate that can never pass again once the fleet
+  # moves (this one went dead when the phone took beta 7 on 2026-08-24).
+  # preota-subset.sh is the successor pattern (drift detection, no pin).
+  EXPECTED_OS="${TALARIA_EXPECTED_OS:-24A5408d}"
   case "$OSV" in
-    *24A5408d*) : ;;
-    *) echo "PRECONDITION: expected beta5 24A5408d, got '$OSV'" | tee -a "$LOG"; exit 3;;
+    *"$EXPECTED_OS"*) : ;;
+    *) echo "PRECONDITION: expected $EXPECTED_OS (TALARIA_EXPECTED_OS overrides), got '$OSV'" | tee -a "$LOG"; exit 3;;
   esac
 fi
 

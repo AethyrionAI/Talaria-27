@@ -9989,6 +9989,20 @@ routinely-red or routinely-ignored gate is worse than none.
 >   `TALARIA_EXPECTED_OS` override on its pin (historical default
 >   unchanged); everything else byte-identical.
 
+> **✅ SEQ-A..D BUILT 2026-08-25, RED-first.** `scripts/mac/preota-subset.sh`
+> (the one-command form of the ruled subset) + `preota-subset-test.sh`
+> (10 fixture checks, ~1 s). Evidence: the self-test ran RED against the
+> absent script (loud, not vacuous) → GREEN 10/10 → one mutation proven
+> (drift marker disabled → ONLY the RE-BASELINE check red) → restored,
+> green again. SEQ-D by inspection: run-sweep's diff is the DEVELOPER_DIR
+> default and the overridable pin, nothing else — its dead beta5 gate now
+> says how to override instead of failing forever. `card-clause` stays out
+> per the bars (its defaultCells trim + join are still a decision).
+> **What remains on #339: the FIRST live run** — device sitting, staged
+> build, Verbose ON — which BASELINES the beta7 bands (every anchor is
+> beta5/6-era; `pcc-surface` makes the transition legible). Carded in the
+> runbook §05.
+
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
 
 **The measurement** (artifact `run-20260812-214629-F6C46C82`, spiral battery, 120
