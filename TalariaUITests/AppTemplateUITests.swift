@@ -377,7 +377,25 @@ final class TalariaUITests: XCTestCase {
         XCTAssertTrue(relayField.waitForExistence(timeout: 5),
                       "the pairing screen must offer a Relay URL field (#310: the profile no longer arrives with one)")
         relayField.tap()
-        relayField.typeText("http://127.0.0.1:8000/v1")
+        // #405: the burst form (`typeText(whole string)`) SCRAMBLES on the
+        // beta7 sim runtime — measured by this helper's own diagnostics:
+        // 'http:/v1127.0.0.1:8000/v1', the tail landing mid-string while the
+        // cursor was still settling. This was the actual mechanism behind
+        // the rotating pair-button failures; the code field's reformatter
+        // (long blamed by the comment below) was clean in the same capture.
+        // Per-character typing plus one verified repair pass.
+        let expectedRelay = "http://127.0.0.1:8000/v1"
+        for character in expectedRelay {
+            relayField.typeText(String(character))
+        }
+        if let relayValue = relayField.value as? String, relayValue != expectedRelay,
+           !relayValue.isEmpty {
+            relayField.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue,
+                                       count: relayValue.count))
+            for character in expectedRelay {
+                relayField.typeText(String(character))
+            }
+        }
 
         let setupCodeField = app.textFields["Setup code"]
         XCTAssertTrue(setupCodeField.waitForExistence(timeout: 5))
