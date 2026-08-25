@@ -38252,3 +38252,662 @@ at save). Two adjacent findings filed, not fixed: **#406** (the same hook's
 per-keystroke bootstrap burst) and **#407** (typing during live dictation).
 
 > **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 222. 📝 On-device image capability: the OCR path WORKS (device-proven), and true image input exists in the SDK, unused. The in-source comment describes a CHOICE as a limitation.
+
+> **⟵ SUPERSEDED IN THE GOOD DIRECTION 2026-08-25: "unused" is no longer
+> true.** #390 (Owen's 08-24 ruling, built 08-25, PRs #369+#370) attaches
+> images as REAL model input on both local tiers via
+> `Attachment(cgImage)`-in-`Prompt`, with this entry's OCR path kept as the
+> fallback and the only access to history images. The "choice described as
+> a limitation" comment family was re-cut tier-honest in the same lane
+> (390-C). The device step this entry parked opportunistically is now the
+> runbook's 390-G VISION card. **This entry looks closeable into #390 —
+> Owen's formal close rides the next sweep.**
+
+> **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
+> **DEVICE ARM: OPPORTUNISTIC.** Rides whatever corded sitting has slack —
+> no dedicated run, no named row. (Not runnable on sim or the test host,
+> Code=5000.)
+
+> ## ⚠️ THIS ENTRY WAS OVERSTATED WHEN FIRST FILED, AND OWEN CORRECTED IT WITH A SCREENSHOT
+>
+> **Filed 2026-08-02 as "'the on-device model cannot see images at all' is FALSE."
+> That headline was too strong and the code does not support it.** Corrected the
+> same day. What follows is the accurate version; the original framing is preserved
+> below because the way it was wrong is instructive.
+>
+> ### What Owen demonstrated — and it is the first evidence of this on file
+>
+> Device screenshot, **ON-DEVICE brain, AIRPLANE MODE**, a screenshotted
+> neighbourhood-watch post + *"what's this say?"*: the **`READIMAGETEXT` chip fired**
+> and the model returned the post's full text. **The OCR path works end to end,
+> offline, with no network of any kind.** Nothing in the tracker recorded that.
+>
+> **And his account of why is confirmed in the code.** *"It had to be called with
+> other things"* — `ImageTextTool` and `BarcodeReaderTool` conform to our own
+> `ImageDependentTool` marker (`DeviceMediaTools.swift:75,125`;
+> `DeviceToolBelt.swift:95`), the belt gates them on `hasImageInContext`
+> (`DeviceToolBelt.swift:84-86`), and the tool reaches the image through
+> `ConversationImageSource.latestImage(...)`. **The capability is real and it is
+> the surrounding machinery that makes it fire.** That was a genuine breakthrough
+> and it is why the "blind turn" language reads as stale.
+>
+> ### What I got wrong, precisely
+>
+> I claimed the SDK falsifies *"the model cannot see images."* **It does not.** Our
+> tools run `VNRecognizeTextRequest` themselves and return a **`String`**; the model
+> receives text and **never receives image bytes**. The comment is an accurate
+> description of our implementation.
+>
+> **The real defect is narrower and worth keeping:** the comment states a
+> **design choice** as if it were a **property of the model**. "Cannot see images at
+> all" reads as a permanent limit. It is our integration, and the SDK offers the
+> other path.
+>
+> **A detail I first read as a symptom, and Owen corrected — the correction is the
+> better note.** The returned list includes `"7:40"` and `"92"`, the status bar of
+> the screenshotted phone, and I cited that as "OCR-reads-everything, not
+> understanding." **Owen, 2026-08-02:** *"I also asked vaguely. What's this say. Not
+> what's the comment in the message bubble. It gave me what I asked for, honestly;
+> I'd say that's awesome."*
+>
+> **He is right and the framing was unfair.** A vague whole-image question got
+> **every piece of text in the image, accurately, with nothing invented and nothing
+> omitted.** That is a correct, honest answer — and given how much of the #200
+> series is about this model over-serving or inventing, a complete literal answer to
+> a literal question is a **good result**, not a symptom. **I turned a success into
+> evidence for a distinction I had already decided on**, which is the same
+> confirmation-shaped error the battery lanes exist to prevent.
+>
+> **What would ACTUALLY probe the text-vs-image distinction** is a question OCR
+> cannot answer from a transcript of strings — *"who posted this?"*, *"is this the
+> Safe Harbor group?"*, or anything about layout, colour, or what is depicted.
+> **That test has not been run**, and until it is, this entry's distinction is a
+> reasoned architectural claim, not a measured one.
+>
+> ### What remains genuinely new and unused
+>
+> `Transcript.Segment.image` / `Transcript.ImageAttachment` / `ImageReference` are in
+> the beta4 SDK (details below) and **Talaria uses none of them** — 0 hits against 5
+> files using `LanguageModelSession` as a positive control. **A model that receives
+> the image could answer "is this the right screenshot" or "what is happening here";
+> OCR cannot.** That is an unexplored capability, not a missing one — and it is a
+> question for Owen, not a promotion.
+>
+> **Note on naming:** our `BarcodeReaderTool` (`DeviceMediaTools.swift:125`) is
+> **ours, Vision-direct** — distinct from Apple's `BarcodeReaderTool` in the
+> `_Vision_FoundationModels` overlay. Same name, different type. Say which.
+
+*(Original filing, preserved — the overlay finding and blast radius below still
+stand; only the "FALSE" headline and its first section were wrong.)*
+
+### 222 (original filing) — "The on-device model cannot see images at all"
+
+**FILED 2026-08-02. Found by OWEN, from memory, against a stale note of mine.**
+
+> *"There IS a vision model, but it has to work alongside another to function and
+> not by itself, and your OG grep missed it."* — Owen, 2026-08-02
+
+**He was right on all three counts.** Verified against the beta4 SDK interface, not
+recalled.
+
+### The falsified premise, and where it lives
+
+`LocalChatBackend+Battery.swift:1823-1828` states, as the justification for how
+image turns are routed:
+
+> *"The on-device model **cannot see images at all** — the transcript carries a
+> placeholder — so image capability exists ONLY through `readImageText` /
+> `BarcodeReaderTool`. A toolless route on a photo turn is a BLIND turn."*
+
+**The SDK contradicts the first clause.** In `FoundationModels` itself (beta4,
+`arm64e-apple-ios.swiftinterface`):
+
+- **`Transcript.Segment.image(Transcript.ImageAttachment)`** — the transcript
+  carries a real image segment, not only a placeholder.
+- **`Transcript.ImageAttachment`** — inits from `CGImage`, `CIImage`,
+  `CVPixelBuffer`, `imageURL`, with `orientation`.
+- **`ImageAttachmentContent`** + `extension Attachment where Content == ImageAttachmentContent`.
+- **⚠️ Which type to actually CONSTRUCT (pinned 2026-08-09 against the beta4 interface —
+  BOTH types carry the same four inits, and only one is usable as INPUT).** An earlier
+  draft correction claimed `Transcript.ImageAttachment` "declares no public init" — that
+  is **wrong, and the bullet above is right**: its four inits are at `:2369-2372`,
+  declared in an *extension*, which is why the struct body at `:2345` looks init-less.
+  The real distinction:
+  - `Transcript.ImageAttachment` (inits `:2369-2372`) **does NOT reach a `Prompt`.** It
+    is the payload of `Transcript.Attachment.image(_:)` (`:2338`), itself the `content`
+    of `Transcript.AttachmentSegment` (`:2325`), reached via
+    `Transcript.Segment.attachment(_:)` (`:2253`) — a transcript-INSPECTION chain.
+  - `Attachment where Content == ImageAttachmentContent` (`:2784`, inits `:2785-2788`)
+    **DOES.** `Attachment : PromptRepresentable` (`:2769`) →
+    `Prompt.init(_ content: some PromptRepresentable)` (`:2882`) →
+    `LanguageModelSession.respond(to prompt:…)` (`:2051`).
+
+  **So the shape to cost is `Attachment(cgImage) → Prompt → respond(to:)`**, not
+  "construct a `Transcript.ImageAttachment`."
+- **`ImageReference`** (iOS 27+) — holds only `attachmentLabel: String`, is
+  `ConvertibleFromGeneratedContent`, so **the model can emit one as structured
+  output**, and `resolved(in: transcript)` turns the label back into the image.
+
+**Precisely stated: the limitation is OURS, not the model's.** The comment
+describes our integration and presents it as a property of the on-device model.
+Both halves may be individually defensible; together they license a design
+decision on a capability claim that is not true.
+
+### Why the original grep missed it, and it is structural
+
+`OCRTool` and `BarcodeReaderTool` live in **`_Vision_FoundationModels.framework`
+— a CROSS-IMPORT OVERLAY**, which exists only when *both* Vision and
+FoundationModels are imported. **A grep of either framework's own interface can
+never see it.** That is exactly Owen's "has to work alongside another to function
+and not by itself", and it is the same shape as `ImageReference` being inert
+without its transcript.
+
+### What we already have, so the gap is stated honestly
+
+The app is **not** blind to images today: `readImageText`
+(`DeviceMediaTools.swift:76`, `VNRecognizeTextRequest`), `DocumentTextExtractor`,
+and VisionKit scanning all ship. **The distinction that matters is narrower and
+sharper:**
+
+| today | available and unused |
+|---|---|
+| the model receives **text extracted from an image** | the model receives **the image** |
+
+An OCR pass answers "what does this say". It cannot answer "is this the right
+screenshot", "what is happening in this photo", or anything about layout, colour,
+or objects. **Talaria uses none of the image surface** — 0 hits for
+`ImageAttachment`/`ImageReference` against 5 files using `LanguageModelSession` as
+a positive control (2026-08-02).
+
+### Blast radius — this premise is load-bearing in more than one place
+
+- **#205 / #207 (image-turn routing).** The router's whole treatment of photo
+  turns rests on "a toolless route on a photo turn is a BLIND turn." If the model
+  can be handed the image, that sentence needs re-deriving, and #207's verdict
+  ("the signal alone does NOTHING, the guide fixes it completely") was measured
+  under the old premise.
+- **#176** — on-device model fires `readImageText` on a text-only prompt. If images
+  ride the transcript, the tool may not need to be on the belt at all for image
+  turns, which changes the over-serving surface.
+- **#132 / #173** — image attachments dropped host-side, and the app answering
+  confidently about attachments the host cannot see. **These are HERMES-side items
+  and remain so** — but an on-device path that genuinely sees the image is a
+  possible answer nobody has costed, and it would be the honest one: no attachment
+  leaves the phone.
+
+### Owed — item 1 DONE; what remains is one no-phone slice + a device arm + Owen's call, and NOT a promotion
+
+> **✅ 222-A MET 2026-08-09 — the construction path COMPILES.** Xcode-beta4 27A5228h,
+> Swift 6.4, `iPhoneOS27.0.sdk`. Both the bare form and the explicitly-annotated form
+> type-check clean (empty output, exit 0):
+> ```
+> DEVELOPER_DIR=/Applications/Xcode-beta4.app/Contents/Developer \
+>   xcrun swiftc -typecheck -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+>   -target arm64-apple-ios27.0 probe1_bare_inference.swift
+> ```
+> Generic inference resolves with **no annotation** — `let x: Int = Attachment(cgImage,
+> orientation: .up)` prints *"cannot convert value of type
+> `Attachment<ImageAttachmentContent>` to specified type `Int`"*. Real code never needs
+> the explicit `<ImageAttachmentContent>`.
+>
+> **⚠️ AND THE BAR'S OWN METHODOLOGY WAS TOO WEAK TO ANSWER ITS OWN QUESTION — this is
+> the transferable finding.** `swiftc -typecheck` **never runs the region-isolation /
+> `Sendable` pass at all**; it fires at SIL generation. Proven with a control: a
+> non-Sendable class in a genuine two-region race compiled *silently clean* under
+> `-typecheck -strict-concurrency=complete -swift-version 6`, and only failed under
+> `-emit-sil -swift-version 6`. **Future Sendability probes must use `-emit-sil`, not
+> `-typecheck`** — otherwise a green result proves nothing, the same family as the
+> stale-incremental and no-op-marker traps.
+>
+> Re-run under full Swift 6 strict concurrency (`-emit-sil -swift-version 6`):
+> build-then-await **clean**; hold-across-an-unrelated-`await` **clean**; transfer into
+> `Task.detached` **clean**. Only an artificial double-use across two isolation domains
+> fails, with the identical diagnostic an ordinary non-Sendable class produces. **Every
+> shape our integration would actually use compiles.** `222-C` is therefore ARMED, but
+> stays opportunistic and is **NOT runnable on the sim or the test host** (`Code=5000` —
+> a green off-device result is a false negative dressed as evidence).
+
+1. **Correct the comment first.** It is wrong in the tree right now and it is being
+   read as a premise. That is a standalone fix regardless of what follows.
+   > **✅ DONE 2026-08-04 (queue item 5).** The `LocalChatBackend+Battery.swift`
+   > comment now states the blind turn as OUR integration choice (we OCR and
+   > hand the model a String; the SDK's image surface is unused), cites the
+   > 2026-08-02 §F1 device confirmation that the behavior is real today, and
+   > points re-derivation of the routing premise at this entry's decision.
+   > Items 2–3 below stay owed: 2 needs a code experiment + device run
+   > (attach via `Transcript.ImageAttachment`, ask a viewer-only question),
+   > 3 is Owen's adopt-or-not call — **the entry stays OPEN on those two.**
+2. **Prove the model actually sees an attached image** — attach one, ask something
+   only a viewer could answer (dominant colour, object count), on device. Until
+   that runs, "the SDK has the type" is availability, not capability. **Do not
+   re-derive router design on an unexercised API** — that is the mistake this
+   entry exists to correct, and repeating it in the other direction would be worse.
+3. Only then: re-open #205/#207's routing question.
+
+### The process note, because it is the third instance today
+
+**My memory file already recorded the overlay correction on 2026-07-28. The
+one-line INDEX above it still said "OCRTool/BarcodeReaderTool NOT in SDK" until
+today** — and the index is what loads first. **Owen caught from memory what my own
+notes would have had me repeat as a false negative.** Both are fixed. A summary
+line above corrected content is the highest-risk text anywhere, and this is the
+third example in two days (`CLAUDE.md`'s ATS rule, the device list's solo queue,
+and now this).
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 310. 🐛 `BackendProfile.relayBaseURL` is NON-OPTIONAL — the app literally cannot express a gateway-only profile, so "zero-setup" is unreachable app-side no matter what the host does — **FILED 2026-08-09 (Owen routed the filing; reconciliation NEW-2 — the 08-02 plan's Lane 8 first move, never made, no live item owned it). ⟵ HEADER CORRECTED 2026-08-25 (caught by Owen's "check they're still applicable" rider on an election ballot — this item was OFFERED as buildable off its stale header): ✅ BUILT + MERGED 2026-08-20 (PR #325, `7d72bf12`) — bars 310-A..F met, `relayBaseURL` is `String?` with the `hasRelay` gate at HEAD. Looks closeable; formal close rides the next sweep.**
+
+`Talaria/Models/BackendProfile.swift:17,19,22` — `relayBaseURL` is `String`
+while `shimBaseURL` is already `String?` (the pattern to follow). Until this
+changes, a new user must type a relay URL to exist as a profile, which
+contradicts the #251 goal ("install Hermes, paste one key") and the #269
+installer story. Scope when routed: make it optional, capability-detect +
+honest #180 degradation for relay-less profiles (#15/#94 recovery ladders scoped
+to relay-bearing profiles only), migration-safe decode of existing persisted
+profiles (the §1.5 persisted-state discipline — existing users' stored profiles
+must round-trip byte-for-byte). Gates #251 Phase 4 alongside #271 and #309.
+
+
+> **✅ 2026-08-19 — SEQUENCING RULED (Owen): this opens AFTER #368**, in
+> answer to #309's brief question 3. Rationale as recommended: one transport
+> change at a time. **⏰ TRIGGER: #368's merge.**
+>
+> **Why it matters more than the filing implied.** #310 was filed as a
+> zero-setup blocker — a new user should not have to type a relay URL. This
+> morning's #365 diagnosis added a present-tense cost: the relay auth chain
+> (#309 paths 1–4) runs from `AppSessionStore.bootstrap()`, which
+> `handleActiveProfileChanged` AWAITS, so every profile switch today blocks
+> the whole UI behind doomed round trips to relays retired on both hosts.
+> **#310 is what makes deleting that chain expressible**, and #365's own fix
+> only suppresses the symptom. Read this item as unblocking a live cost, not
+> only a future onboarding story.
+
+> **✅ 2026-08-20 AM — LANE OPENED, and the one scope question RULED (Owen):
+> the MIGRATION CLEARS existing profiles' relay URLs.** Asked because both
+> hosts' relays are retired, so OJAMD and Mac Mini each carry a URL pointing
+> at something dead — which is precisely what costs the #365 stall. The two
+> rejected options are recorded so a later lane does not reach for one as a
+> shortcut: *"you clear them by hand"* ships optionality that buys nothing
+> observable and leaves no bar that can fail; *"probe and clear only the dead
+> ones"* makes a **network-dependent migration**, where one transient failure
+> silently drops a URL the user wanted.
+>
+> **What clearing costs, stated rather than glossed:** the migration
+> overwrites both halves of the #41 dual store, so the old URL string is not
+> recoverable from persistence after it runs. It is logged at
+> `.notice`/`privacy: .public` before the write, and both hosts' relays are
+> retired anyway — but a `git revert` of this lane restores the TYPE, not the
+> strings. Say so at the PR rather than implying a rollback that does not
+> exist.
+
+> **📏 BARS 310-A…F PRE-REGISTERED 2026-08-20 AM, BEFORE ANY CODE OF THIS
+> LANE** — written into this entry per CLAUDE.md's *"Where the BARS live"*,
+> in a commit that lands before the first line of implementation. **A missed
+> bar is a falsification, not a redefinition.**
+>
+> **310-A — the type is optional, and blobs the SHIPPING build wrote still
+> decode.** Three literal-JSON fixtures through `BackendProfile.init(from:)`:
+> (i) `"relayBaseURL": "http://host:8000/v1"` → that exact string; (ii)
+> `"relayBaseURL": ""` → `nil`; (iii) key absent → `nil`.
+> *Evidence:* decode over **literal JSON strings, never a round-trip through
+> the new encoder** — a round-trip cannot produce the shape only the old
+> encoder wrote, so it would pass while the real blob broke. This is the
+> §1.5 persisted-state discipline; a miss here is a user-data regression.
+>
+> **310-B — the retirement migration runs EXACTLY ONCE, and a re-entered URL
+> survives it.** Phase 1: persistence holds profiles with non-nil relay URLs
+> and no migration marker → after `BackendProfilesStore` construction every
+> profile's `relayBaseURL` is `nil` and the marker is persisted. Phase 2: set
+> one profile's `relayBaseURL` to a NEW value, construct a FRESH store over
+> the same persistence → **the value survives**.
+> *Evidence:* a two-phase test on the in-memory persistence fake.
+> **This bar exists to kill one specific wrong implementation** — folding the
+> clear into `Self.normalized(_:)`, which is the obvious home and runs on
+> every load, so it would silently re-clear a URL the user had just typed.
+> Phase 2 is the whole bar; phase 1 alone passes under the bug.
+>
+> **310-C — a relay-less profile issues ZERO relay requests on activation.**
+> With the active profile's `relayBaseURL == nil` and the install paired,
+> `handleActiveProfileChanged(to:)` completes with **0** invocations of
+> `sessionStore.bootstrap()`, `hostStore.refresh()`, `inboxStore.loadInbox`,
+> `talkStore.refreshReadiness()` and the relay command-catalog fetch
+> (`AppContainer.swift:2237-2249` is the block; `:1845` is the catalog).
+> *Evidence:* counting spies asserted `== 0`. **RED FIRST against current
+> `main`**, where the count is ≥1 — if it does not go RED, the bar is
+> measuring the wrong thing and must be rewritten before the fix lands.
+>
+> **310-D — and therefore the switch never raises the launch splash.** Across
+> the whole of `handleActiveProfileChanged` for a relay-less profile,
+> `container.shouldShowLaunchSplash` is never `true`.
+> *Evidence:* **sampled across the handler's lifetime, not read once after it
+> returns** — a post-hoc read passes trivially, since the splash drops when
+> the bootstrap ends either way. `shouldShowLaunchSplash` is
+> `sessionStore.isBootstrapping && backgroundBootstrapTask == nil`
+> (`AppContainer.swift:219-226`) and a profile-switch bootstrap has no
+> background task, which is exactly why it holds the splash today. **This is
+> #365's symptom reached through its cause**, not #365's own suppression fix.
+>
+> **310-E — relay-dependent surfaces degrade HONESTLY (#180), never
+> silently.** For a relay-less profile the three relay-fed stores
+> (`hostStore`, `inboxStore`, `talkStore`) report a state DISTINGUISHABLE
+> from "fetched successfully and found nothing", and no surface renders an
+> empty relay-fed section as though it were data; unknown values read `"—"`
+> per the real-data-only rule.
+> *Evidence:* assertions on store state, plus the view-model read for each
+> surface. **A hidden section and an empty section are different verdicts —
+> the bar is scored on which one shipped**, not on "it didn't crash".
+>
+> **310-F — a relay-BEARING profile is untouched.** Every existing relay-path
+> test passes unchanged with a non-nil URL, and `GATE: PASS` with the Swift
+> Testing count moved **only** by the tests this lane adds — **state the
+> arithmetic** (#375's shape: a count that moves by exactly the delta is what
+> distinguishes a real run from a stale `.xctest`).
+
+> **✅ 2026-08-20 — BUILT. Branch `310-relay-url-optional`.** Bars scored
+> below; two of the six are reported with qualifications rather than as clean
+> passes, and both qualifications were found by trying to make the bar fail.
+>
+> **What shipped.**
+> - `BackendProfile.relayBaseURL` is `String?`. `hasRelay` and
+>   `resolvedRelayBaseURL` are the ONE spelling of the relay-plane gate —
+>   call sites ask those rather than testing for nil, because the two answers
+>   differ on `""` and a gate with two spellings is a gate with a hole.
+> - The decoder folds an ABSENT key and an EMPTY string to nil. Both shapes
+>   exist in the wild: the pre-#310 encoder always wrote the key, and wrote
+>   `""` for "no relay".
+> - **The relay-retirement migration**, one-shot and stamped
+>   (`loadRelayRetirementMigrationStamp`), Keychain-mirrored on the #137
+>   precedent. Applied AFTER whichever branch produced the state, so a fresh
+>   M-2 mint and an existing install converge on the same end state.
+> - **The gate**, at `handleActiveProfileChanged`'s relay block AND at the two
+>   relay calls that sit outside it — `refreshCommandCatalog` (#309 path 16)
+>   and `talk/readiness` (paths 11–12).
+> - **Capability detection inside `HermesHostStore` and `InboxStore`**, not
+>   only at the switch — see finding 2.
+> - `TalkStore.markRelayUnavailable()`, which STATES the unavailability
+>   instead of leaving the previous profile's verdict on screen.
+>
+> **THE SCORECARD.**
+>
+> - **310-A ✅ MET.** `legacyProfileBlobsDecodeUnderTheOptionalRelayType` —
+>   all three shapes over literal JSON, plus
+>   `aRelaylessProfileEncodesWithNoRelayKey` pinning that nil encodes as an
+>   ABSENT key. That second test exists because case (iii) of the bar depends
+>   on the synthesized encoder's `encodeIfPresent` behaviour: a future
+>   hand-written `encode(to:)` emitting `""` for nil would leave (iii) green
+>   while every newly-written blob carried the old ambiguity back.
+> - **310-B ✅ MET, both phases.** `relayRetirementClearsExistingProfilesOnce`
+>   (two relay-bearing profiles → both cleared, stamp set, identity and
+>   credential scope untouched, verified from RELOADED persistence rather
+>   than memory) and `aReEnteredRelayURLSurvivesTheNextLaunch` (phase 2, plus
+>   the `upsert` path, which `updateActiveProfile` does not exercise).
+>   A third test, `mintKeepsItsRelaySeedWhenTheRetirementAlreadyRan`, is the
+>   control that keeps the M-2 assertion honest: with the stamp pre-set the
+>   seed SURVIVES, which is what proves the nil in the M-2 test is the
+>   retirement clearing a seed and not the mint having stopped reading one.
+> - **310-C ✅ MET, and RED-verified.** `relaylessProfileActivationIssuesNo
+>   RelayRequests` — six counters at zero (bootstrap register + load, host
+>   fetch, inbox fetch, talk readiness, and RelayAPIClient request attempts).
+>   **The mutation run put all six RED**, so the bar measures the gate rather
+>   than the absence of the code. `relayBearingProfileActivationStillUses
+>   TheRelayPlane` is the positive control — without it, deleting the calls
+>   outright would pass 310-C.
+> - **310-D ⚠️ MET ON ITS MECHANISM, with a limitation named rather than
+>   glossed.** The bar as pre-registered says `shouldShowLaunchSplash` is
+>   never true. **That composite predicate is not measurable in this
+>   harness**, and the first version of the test failed on exactly that:
+>   the predicate is `(isPaired && !isInitialized) || (isBootstrapping && no
+>   background task)` (`AppContainer.swift:219-226`), and the launch harness
+>   builds a PAIRED container that never runs `initialize()`, so the first
+>   clause is true for the whole test regardless of what a switch does.
+>   What is measured is the switch's own clause, `sessionStore.isBootstrapping`
+>   — which is #365's actual mechanism, and which within this handler implies
+>   the predicate (`cancelBackgroundBootstrap()` runs on line 1). **The
+>   mutation run put it RED on `sawSplash`**, so the instrument works.
+>   Calling this a clean 310-D would be a redefinition; it is recorded as
+>   met-on-mechanism instead.
+> - **310-E ✅ MET — after the bar FAILED TO FAIL and had to be repaired.**
+>   `relaylessProfileMarksRealtimeVoiceUnavailableRatherThanStale` plus
+>   `relayFedStoresRefuseToFetchAndSayWhyWhenTheProfileHasNoRelay` and its
+>   positive control. See finding 3 — the first version passed against a
+>   build with the gate deliberately removed.
+> - **310-F ✅ MET, and RE-GATED ON MERGED `main` 2026-08-20 after PR #326 and
+>   PR #327 landed** — `GATE: PASS`, Swift Testing **2368** / XCUITest 14 /
+>   Release clean. Merged `main` is at 2356 and this lane adds 12, so
+>   2356 + 12 = 2368: the COMBINATION is clean, not merely each branch.
+>   That re-gate is #180-L/252R-A's rule being followed rather than quoted —
+>   two lanes can each pass a full gate, merge with no textual conflict, and
+>   leave `main` unable to compile. The original branch-only run follows.
+> - **310-F (original branch run).** `GATE: PASS` — Swift Testing **2358** / XCUITest 14 /
+>   Release clean. **The arithmetic, stated as the bar requires:** the control
+>   gate (this lane's code stashed) ran **2346**, and this lane adds exactly
+>   **12** tests — 5 in `BackendProfilesTests`, 7 in `AppStoresTests`. 2346 +
+>   12 = 2358. The count moved by the delta and nothing else, which is what
+>   distinguishes a real run from a stale `.xctest`.
+>
+> **⚠️ WHAT THAT GREEN COST, AND WHAT IT DOES NOT SETTLE — read before
+> treating 310-F as clean.** It took **six gate runs**. Three of them failed
+> on ONE XCUITest (`testQueuedChipCancelRemovesHeldMessageWithNothingPosted`),
+> which then passed on the fourth. Full data, and the three wrong conclusions
+> drawn along the way, are recorded at **#236**; the short version:
+>
+> - A control gate with this lane's code **stashed** passed — which I first
+>   reported as proof the failure was #310's. **That was overstated.** The
+>   test is intermittent on this branch (3 fail, 1 pass), and one control
+>   observation cannot separate causation from a three-run unlucky streak.
+> - Two candidate fixes were made and **both were falsified by the passing
+>   run's own log** — the #195 settled-text guard was inert (the run waited
+>   on the identical literal), and the launch-path change cannot be it either
+>   (the passing run's launch was SLOWER).
+> - So: **#310's involvement in that failure is unproven in both
+>   directions.** The gate is green and the arithmetic is exact, but nobody
+>   should read 310-F as evidence that the flake was understood.
+>
+> **Three real changes came out of the hunt and stay on their own merits**,
+> none of them "make the test pass" edits:
+> 1. `HermesHostStore.refresh()` fires `onHostChanged` **only on a
+>    transition** (finding 4 below) — with its own regression test.
+> 2. `loadRelayRetirementMigrationStamp()` reads **UserDefaults first**,
+>    Keychain only as the reinstall fallback — this runs inside
+>    `BackendProfilesStore.init`, on #136's launch critical path, and the
+>    first version put a synchronous Keychain hit in front of every launch
+>    forever.
+> 3. The failing assertion now **dumps the visible transcript and the settled
+>    composer text**. Six runs were spent partly because it reported only that
+>    something was absent.
+>
+> **📬 2026-08-20 — PR https://github.com/AethyrionAI/Talaria-27/pull/325
+> ✅ MERGED 2026-08-20 as `7d72bf12`.** Body = `handoffs/PR-BODY-310.md`
+> (gitignored). ⚠️ **PR #325 is not tracker #325** (the forge-token contrast
+> item) — CLAUDE.md's standing disambiguation rule; both will appear in this
+> week's notes.
+
+> **FOUR FINDINGS, all outside the filing's scope and all found by building
+> it rather than by reading it.**
+>
+> **1. THE PAIRING RECORD OUTLIVES THE PROFILE'S RELAY URL, so `isPaired`
+> cannot stand in for the gate.** `PairedRelayConfiguration` persists its OWN
+> `baseURLString` under a separate key, so after the retirement clears a
+> profile the install still reads as paired — and two paths keyed on
+> `isPaired` alone would have kept firing at the retired hosts forever:
+> **dormant token refresh** (M-9, on every foreground) and **`device/app-state`**
+> (#309 path 10). The second is fire-and-forget under `try?`, so **nobody
+> would ever have seen it fail** — it would simply have gone on posting to a
+> dead relay for the life of the app. Both now gate on `hasRelay`, ordered so
+> the cheap field read short-circuits before `isPaired` touches persistence.
+>
+> *Consequence worth stating plainly:* because `hasRelay` reads the PROFILE
+> and not the pairing record, clearing the profile's URL disables the relay
+> plane even where a pairing record survives. That is what the ruling
+> chose — reading the pairing record instead would leave Owen's two profiles
+> "relay-bearing" and the #365 stall untouched, which is the whole point of
+> the lane.
+>
+> **2. GATING AT THE SWITCH ALONE IS BYPASSED BY OPENING A TAB.**
+> `InboxScreen`, `BriefingDetailScreen` and `ConnectHermesHostScreen` each run
+> their own `.task { await loadInbox(force: true) / refresh() }`. A gate that
+> lived only in `handleActiveProfileChanged` would be walked straight past the
+> first time the user opened Inbox or Pairing & Devices. The capability check
+> now lives in `HermesHostStore` and `InboxStore` themselves, behind a
+> `relayAvailabilityProvider` that defaults to "yes" so every existing
+> construction is unchanged. **Capability detection belongs to the capability,
+> not to one of its callers.**
+>
+> **4. `onHostChanged` MEANS "THE HOST RECORD CHANGED", AND THE FIRST GUARD
+> ANNOUNCED IT ON EVERY POLL.** `HermesHostStore.refresh()`'s success path
+> fires the hook every call; its `catch` path deliberately never does — and a
+> relay-less profile is the FAILURE case, not the success case. The first
+> version of the #310 guard fired it unconditionally.
+>
+> That matters because the hook (`AppContainer.swift:1258`) does real
+> main-actor work — `updateWidgetData()` writes the App Group container and a
+> command-catalog Task is spawned — and `ChatScreen.monitorConnectionStatus()`
+> polls `refresh()` on a cadence for as long as chat is on screen. So a
+> gateway-only profile turned an idle chat screen into periodic App Group
+> I/O. **Found while hunting the gate failure; it did NOT turn out to be that
+> failure's cause** (run 3 kept failing with it fixed), so it is recorded as
+> what it is: a real defect found by accident, with its own regression test
+> (`relaylessRefreshAnnouncesAHostChangeOnlyOnATransition`) pinning the
+> transition contract across ten poll ticks. `InboxStore` had the same shape —
+> an unconditional `items` assignment on an `@Observable` — fixed alongside.
+
+> **3. 310-E's FIRST VERSION PASSED AGAINST A BUILD WITH THE GATE REMOVED.**
+> The mutation run is what caught it. `RecordingVoiceSessionService`'s
+> `refreshReadiness()` produced `.blocked` + `canStartSession: false` +
+> an all-nil `TalkReadinessInfo` — **byte-identical to what
+> `markRelayUnavailable()` produces**. So "refreshed against a live relay" and
+> "refused to ask" were the same observable state, and every assertion held in
+> both arms. The fixture now takes a `readinessLandsReady` knob and carries
+> its readiness on the snapshot; with those, the same mutation goes RED.
+> **A fixture whose success state coincides with the failure state cannot
+> discriminate, and a bar that cannot discriminate is not evidence** — this is
+> the #218/#300 family arriving inside a test double.
+>
+> **WHAT THIS UNBLOCKS.** #309's twelve DELETE rows — paths 1–4, 6, 8, 9 were
+> explicitly waiting on this item, and paths 13–15 were waiting only on a
+> lane. **#310 does NOT delete any of them**; it makes the end state
+> expressible and makes the app behave correctly in it. The deletions are
+> #309's follow-on lanes and are deliberately not smuggled in here.
+>
+> **THE COST, stated rather than glossed** (carried from the ruling block
+> above): the migration overwrites both halves of the #41 dual store, so
+> after it runs the old URL string is not recoverable from persistence. It is
+> logged at `.notice`/`privacy: .public` immediately BEFORE the write, and
+> that log is the only recovery route. **A `git revert` of this lane restores
+> the TYPE, not the strings.** Both hosts' relays are retired, so the value
+> of what is lost is nil in practice — but the PR must say this rather than
+> imply a rollback that does not exist.
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
+## 406. 🔬 EVERY KEYSTROKE in the pairing relay-URL field fires `clearSession()` + `bootstrap(forceRegistration:)` + `loadInbox(force:)` against the half-typed URL — **FILED 2026-08-24 night per #268, from #405's class sweep. A REQUEST BURST per keystroke while unpaired, aimed at a URL that is wrong by construction mid-draft. Measured structurally 08-24; Owen ruled COMMIT-TIME 2026-08-25; ✅ BUILT + GATED the same day — bars 406-A..E met (result block below).**
+
+`AppContainer.swift`'s `onRelayConfigurationChanged` calls
+`refreshUnpairedRelayContext()` on every settings-relay write, and the
+pairing screen writes per keystroke (#405's path — the scramble half is
+FIXED; this volume half is not). While unpaired — exactly the onboarding
+posture — each keystroke's refresh does a session clear + forced
+registration + forced inbox load against `http:`, `http:/`, `http://1`, …
+Cost is unmeasured (the requests presumably fail fast against a nonsense
+URL); the honest first bar is measuring the burst (count + wall time per
+keystroke) before electing a debounce or a commit-time refresh. Related:
+#405 (the same hook's other half), #365 (profile-switch interstitial — the
+same refresh machinery on a different trigger).
+
+
+> **📏 MEASURED FROM SOURCE 2026-08-24 night (the entry's first bar — the
+> structural half; wall-time needs a runtime instrument and may not be
+> needed to elect):** per keystroke in the pairing relay field while
+> unpaired, `settings` didSet → `onRelayConfigurationChanged` fires an
+> UNTRACKED `Task` → `refreshUnpairedRelayContext()`:
+> 1. `sessionStore.clearSession()` — every keystroke;
+> 2. the `hasRelay` gate passes from the FIRST character (post-#405 raw
+>    storage: any non-empty draft counts), so
+> 3. `sessionStore.bootstrap(forceRegistration: true)` — ≥1 HTTP against
+>    the half-typed host — and
+> 4. `inboxStore.loadInbox(force: true)` — ≥1 more.
+> Typing the standard 24-char URL ⇒ **24 session clears + ~48+ doomed HTTP
+> attempts across ~24 concurrent unawaited task chains**, racing each other
+> against hosts like `http://1`. The protected-data and isPaired guards are
+> the only gates. **Electable fixes, for Owen's pick when he takes it:**
+> debounce the refresh (~1 s), or refresh on COMMIT (pair attempt / screen
+> dismissal) instead of per keystroke — the settings screen already uses
+> the commit-time draft pattern, so the pairing screen would be joining the
+> house norm. Not built tonight; measure-first satisfied at the structural
+> level.
+
+> **⚖️ RULED 2026-08-25 (Owen, AskUserQuestion): COMMIT-TIME REFRESH
+> elected.** The pairing screen joins the settings screen's commit-time
+> draft pattern — refresh on pair attempt / screen dismissal, not per
+> keystroke. Debounce and leave-as-is both declined. Bars pre-register in
+> this entry at lane-open, after the code read (in particular: whether
+> #405's five raw-storage pins survive unchanged or are re-cut deliberately
+> must be named in the bars, not discovered in the diff).
+
+> **🎯 BARS 406-A..E — pre-registered 2026-08-25, after the code read,
+> BEFORE any code. The code read settled the door count: the per-keystroke
+> path is exactly ONE door — `ConnectHermesScreen.customRelayURLBinding`'s
+> setter (`setRelayURL`), which writes the target profile AND the legacy
+> settings field per keystroke; the settings write is what fires
+> `didSet` → mirror + `refreshUnpairedRelayContext()`. `SettingsStore`'s
+> `didSet` already no-ops on unchanged values, so a commit of an untouched
+> draft is free by construction.**
+> - **406-A (the fix, RED first):** the relay field edits a LOCAL DRAFT —
+>   the screen no longer writes `settingsStore`/`profilesStore` per
+>   keystroke. Pinned structurally (#405's own precedent for this screen):
+>   the per-keystroke binding setter is GONE and the field binds the draft.
+>   Mutation: reverting the field to a store-writing binding goes RED.
+> - **406-B (commit moments, RED first):** commit runs at (1) pair attempt,
+>   before `pairingStore.pair` — the redeem must see the committed URL;
+>   (2) QR auto-fill, via the draft so a failed pair still shows the
+>   scanned URL; (3) screen dismissal, BEFORE `pairingTargetProfileID` is
+>   cleared (the commit resolves the target through it — ordering is the
+>   bar, not a detail). Mutation: deleting the dismissal commit goes RED.
+> - **406-C (behavior preserved):** validation + pair-button enablement
+>   read the DRAFT — the XCUITest pairing helper (per-char typing → waits
+>   for enablement → pairs) passes UNCHANGED; a typed-but-unpaired URL
+>   still persists via the dismissal commit, matching today's end state.
+> - **406-D:** all five `RelayDraftIntegrityTests` pins (#405) stay green
+>   UNTOUCHED — they pin HOW storage happens (raw, never canonicalized),
+>   not WHEN, and this lane changes only when.
+> - **406-E:** GATE: PASS (units + XCUITest + Release), count delta
+>   reconciled test-by-test.
+
+> **✅ BUILT + GATED 2026-08-25, the ruling's same day — bars 406-A..E ALL
+> MET.** The pairing relay field now edits `@State relayURLDraft`;
+> validation and pair-button enablement read the draft; the stores are
+> written only by `commitRelayDraft()` at the three commit moments —
+> `completePairing` (before the redeem), QR auto-fill (via the draft, so a
+> failed pair keeps the scanned URL visible), and `.onDisappear` before
+> `pairingTargetProfileID` clears. Evidence, in order:
+> - **RED first:** all three new pins failed on the pre-fix source for
+>   exactly the pre-registered reasons (no draft binding; no commit at
+>   pair; no commit at dismissal) while the five #405 pins stayed green —
+>   8 tests ran, 3 red.
+> - **GREEN:** 8/8 after the minimal draft implementation.
+> - **Both mutations isolate:** restoring the store-writing
+>   `customRelayURLBinding` reddened ONLY the binding pin (406-A's
+>   mutation); deleting the dismissal commit reddened ONLY the ordering
+>   pin (406-B's). Final green re-confirmed 8/8 after restore.
+> - **406-C:** the XCUITest pairing helper passed UNCHANGED in the gate —
+>   per-char typing, enablement wait, pair; enablement now proves the
+>   draft feeds validation. 406-D: all five #405 pins green, byte-
+>   untouched. **406-E: GATE PASS 2529 Swift Testing (+3 exact over
+>   PR #367's 2526 — the three new pins) + 14 XCUITest + Release**, only
+>   the known-permanent CondenserFidelityTests skips.
+> - What did NOT change, on purpose: `setRelayURL`'s body (#405's raw-
+>   storage rules), AppContainer's hook and `refreshUnpairedRelayContext`
+>   (they now simply fire once per commit — `SettingsStore.didSet` already
+>   no-ops on unchanged values, so an untouched draft commits free), and
+>   the settings screen's own draft pattern (the norm pairing just joined).
+> **MERGED 2026-08-25 — PR #368, squash `54d7f55d`; lane branch deleted
+> both sides. Nothing remains on this item except the formal close (next
+> sweep). The device has no verification role here: the change is
+> structural and the gate's XCUITest pairing helper exercises the real
+> field path.**
+
+> **✅ CLOSED 2026-08-25 — Owen's formal close ("sweep approved", in-chat). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
+
