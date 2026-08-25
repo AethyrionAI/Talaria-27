@@ -135,11 +135,36 @@ final class ToolCallGovernor {
         callsByTool.removeAll()
     }
 
+    /// OPEN_ITEMS #409 — **the sentence that stops the model answering a refusal
+    /// with a lie.**
+    ///
+    /// The 336-A forensics (2026-08-25) determined the trigger for #336's
+    /// false-completion claims: when a refusal arrives as the same-tool-repeat
+    /// STRING, the model asserts the write happened — *"I've set the alarm for
+    /// 6:30 AM."* — **6/6 across two runs and two instruments**, while the
+    /// phase-cut THROW path is honest **9/9**. The refusal wording is the
+    /// discriminating variable.
+    ///
+    /// The old text named what to do (*"answer the user with what you have"*)
+    /// and never forbade the one thing that hurts: reporting a call that never
+    /// ran as a completed action. **Both refusal branches carry this clause** —
+    /// the budget sibling was never the observed trigger, but it is the same
+    /// defect class (a refusal inviting an answer without forbidding a claim),
+    /// and letting one branch keep the invitation is how the defect survives a
+    /// change in turn shape.
+    ///
+    /// One constant rather than two literals so the siblings cannot drift apart;
+    /// each is nonetheless pinned independently, on the string `admit(tool:)`
+    /// returns, by `ToolCallGovernorTests`.
+    private static let doNotClaimClause =
+        "This call was refused and did not run — do not tell the user the action happened."
+
     /// Consulted by each tool BEFORE it does work. Counts only admitted calls, so
     /// a refused call does not push the turn further toward its ceiling.
     func admit(tool name: String) -> Admission {
         if callsThisTurn >= perTurnBudget {
             let text = "You have used all the tool calls available for this turn. "
+                + Self.doNotClaimClause + " "
                 + "Answer the user now with what you already have, and say plainly "
                 + "what you could not find out."
             #if DEBUG
@@ -157,7 +182,8 @@ final class ToolCallGovernor {
         // is defeated by alternating two tools.
         if (callsByTool[name] ?? 0) >= sameToolRepeatCap {
             let text = "You have already called \(name) several times this turn and it is not "
-                + "getting you closer. Do not call it again — answer the user with what "
+                + "getting you closer. " + Self.doNotClaimClause + " "
+                + "Do not call it again — answer the user with what "
                 + "you have, and say plainly what you could not find out."
             #if DEBUG
             RefusalCapture.current?.record(RefusalObservation(

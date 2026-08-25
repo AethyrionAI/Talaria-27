@@ -159,7 +159,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#329** 🐛 A COLD LAUNCH calls a still-running turn FAILED and offers **Retry** — tapping it DUPLICATES the answer, because the host never stopped. **MEASURED TWICE 2026-08-11 with a control** (no tap → the answer arrives alone and correct, so recovery works and the classification is what is wrong). Airplane mode is correct by contrast — queued, no Retry, fires once. Shares #328's root; keeps #312 (a) RED; bars 329-A..F pre-registered **⟵ 2026-08-24: premise code-read inverted the mechanism (#382 killed the plane; only the run id was lost), Owen ruled 329-C reconcile-first, and the fix is ✅ BUILT + GATED the same night — 329-A..E met, only 329-F (device, next OTA) remains**
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
-- **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); **the refusal wording is the lever, offline-testable against artifacts already on this Mac**
+- **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
 - **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
 - **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. ~~Mechanism UNKNOWN~~ **⟵ INVESTIGATED 2026-08-25: candidates RANKED — the lead (openSession's wholesale replace drops system rows + usage; the 9→7 count drop and the vanished totals are ONE event) predicts the observed card row-for-row and is SIM-CONFIRMABLE before any device time; measurement lane designed and electable.** Keeps #312 (f) RED; bars 330-A..G pre-registered
@@ -15110,7 +15110,7 @@ via host-inference" — the layer that fired), #212 (error messages must name
 the true cause — the current message DOES; this item is about the dead end,
 not the wording).
 
-## 409. 🔴 THE GOVERNOR'S `same-tool-repeat` REFUSAL STRING IS ANSWERED WITH A FALSE COMPLETION CLAIM — 6/6 across two runs and two instruments, while the phase-CUT path is 9/9 honest — **FILED 2026-08-25 per #268, from the 336-A forensics (Opus agent, full report in the session transcript). INSTRUMENT-REACHABLE, essentially PRODUCTION-UNREACHABLE today; the refusal WORDING is the named lever. NOT STARTED; offline-testable first.**
+## 409. 🔴 THE GOVERNOR'S `same-tool-repeat` REFUSAL STRING IS ANSWERED WITH A FALSE COMPLETION CLAIM — 6/6 across two runs and two instruments, while the phase-CUT path is 9/9 honest — **FILED 2026-08-25 per #268, from the 336-A forensics (Opus agent, full report in the session transcript). INSTRUMENT-REACHABLE, essentially PRODUCTION-UNREACHABLE today; the refusal WORDING is the named lever. ⟵ ✅ THE STRING SHIPPED 2026-08-25 (branch `409-do-not-claim-clause`, PR #376) — both refusal branches carry the do-not-claim clause, RED-first and mutation-proven in both directions; 409-A/B/C MET. **STAYS OPEN on 409-D, which is a STRING claim and not a behavioural one:** nothing here shows the model stops lying, and only the next device `refusal-words` run can.**
 
 The mechanism, determined from `run-20260812-214629-F6C46C82` (three claim
 rows, input-token deltas proving a tool entry + refusal text in context) and
@@ -15129,7 +15129,7 @@ happened — it was refused") and re-run the leaked cell.
 a real conversation essentially never reaches call #5 of one tool in one
 turn (#337-D's turn-reset cell: 0 refusals in 30 trials). The exposure is
 instrument runs and any future turn shape that chains ≥5 same-tool calls.
-**Deliberately NOT merged with:** Owen's 2026-08-12 hand-run fabrication
+**Deliberately NOT collapsed into:** Owen's 2026-08-12 hand-run fabrication
 (#336's (a) production case — fresh chat, no refusal, no call; trigger still
 unnamed) — different shape, do not collapse.
 
@@ -15166,6 +15166,107 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 >   (runbook note on the #339 subset card). The two preserved artifacts
 >   name the leaked cell but re-running it needs the device model —
 >   offline re-run is optional evidence, not a bar.
+
+> **✅ RESULT 2026-08-25 — THE CLAUSE SHIPPED (branch `409-do-not-claim-clause`,
+> PR #376). 409-A, 409-B, 409-C MET; 409-D is a STRING claim and nothing
+> more.**
+>
+> **The two strings now, verbatim** (`ToolCallGovernor.admit(tool:)`), with the
+> added sentence the only delta — every word the old strings carried survives:
+>
+> - `same-tool-repeat` — *"You have already called ⟨name⟩ several times this
+>   turn and it is not getting you closer. **This call was refused and did not
+>   run — do not tell the user the action happened.** Do not call it again —
+>   answer the user with what you have, and say plainly what you could not find
+>   out."*
+> - `perTurnBudget` — *"You have used all the tool calls available for this
+>   turn. **This call was refused and did not run — do not tell the user the
+>   action happened.** Answer the user now with what you already have, and say
+>   plainly what you could not find out."*
+>
+> The clause is ONE `private static let doNotClaimClause` interpolated into both
+> branches, so the siblings cannot drift apart — but each is pinned separately,
+> and each pin carries its own literal rather than referencing the constant, so
+> the tests are not tautologies against the code they guard.
+>
+> **Bar by bar:**
+> - **409-A ✅** — `theRepeatRefusalForbidsClaimingTheActionHappened()` calls
+>   `admit(tool:)` on a governor configured to trip the repeat cap and asserts
+>   over the string it RETURNS. No source-grep anywhere in the lane.
+> - **409-B ✅** — `theBudgetRefusalForbidsClaimingTheActionHappened()`, same
+>   shape on the budget branch. **No reason was found for the sibling not to
+>   ride along**, so the pre-registered extension stands as written.
+> - **409-C ✅** — `GATE: PASS` FIRST-RUN on `CC-lane-2` (exit 0): **2555 Swift
+>   Testing tests / 210 suites**, **14 XCUITest**, and `Release build succeeded`
+>   with no Swift compile errors — all three positive markers present. **2553 + 2
+>   = 2555, and #318's independently-recorded 2553 corroborates it exactly.** (2
+>   skips, both the known-permanent `CondenserFidelityTests` pair that needs
+>   Apple Intelligence hardware; no new skip.) **The +2 is established by construction, not
+>   by quoting an older run's total:** the diff touches exactly one test file
+>   (`ToolCallGovernorTests.swift`, 49 insertions / 0 deletions) and adds exactly
+>   two `@Test` functions, taking that suite from **10 on main to 12 here**.
+>   (Both gate-adjacent runs reported 12, not 10 then 12 — the pins were written
+>   BEFORE the source change, so the RED run already ran all twelve and scored
+>   `10 passed / 2 failed`.) No absolute baseline from a previous lane is
+>   used as the PRIMARY evidence on purpose — several lanes have landed since
+>   #401's 2482/200, so a quoted total alone would be the stale half of the
+>   stale-`.xctest` check rather than a guard against it. The 2553 agreement is
+>   a corroboration of the construction argument, not a substitute for it.
+>   `GovernorRefusalCaptureTests` and `ToolCallInstrumentTests` were run targeted
+>   alongside (39 tests / 3 suites, exit 0) and are unchanged and green.
+>   **No existing test pinned the old wording** — a repo-wide
+>   sweep for `could not find out` / `getting you closer` / `tool calls available
+>   for this turn` found the literals ONLY in `planning/reports/` run artifacts
+>   (the 337-D and #343 refusal-words captures), which are recorded evidence of
+>   what the model was handed on those dates and are deliberately left untouched.
+> - **409-D ✅ as scoped, and this is the part to read carefully** — **the lane
+>   changed a string and proved only that the string changed.** The 6/6
+>   false-completion rate was measured against the OLD text; nothing here
+>   re-measures it, and a reworded prompt is a hypothesis, not a fix. **Do not
+>   cite this block as evidence the model stopped claiming refused actions.**
+>   The verification is the next device `refusal-words` run (runbook, #339
+>   subset card); until it lands, #409's own finding stands unrefuted.
+>
+> **Method note (the discipline, not the result):** RED was witnessed first —
+> both new tests failed on `message.contains(...)` alone while all ten
+> pre-existing governor tests and every *other* assertion inside the two new
+> tests passed, which is what established that the clause was the only thing
+> missing. Then **each pin was mutation-checked in BOTH directions**: dropping
+> the clause from the repeat branch reddened exactly
+> `theRepeatRefusalForbidsClaimingTheActionHappened` (1 issue, budget pin still
+> green), and dropping it from the budget branch reddened exactly its sibling.
+> That second arm is not ceremony — with one shared constant feeding two call
+> sites, "both pins red together" is the specific way this design could have
+> failed to isolate, and it did not.
+>
+> **🔎 DRIVE-BY FINDING — `oi-invariants.py`'s merge check has a prose false
+> positive, and this entry tripped it twice.** Its `STALE_MERGE` regex keys on
+> the words *not* and *merged* **adjacent, case-insensitively, anywhere in an
+> entry body**, and #409's filed text contained *"Deliberately **NOT** merged
+> with: Owen's 2026-08-12 hand-run fabrication"* — a TOPIC merge (do not
+> collapse these two findings), not a git one. The check fires only on entries
+> that ALSO name a branch, so the sentence sat harmless from filing until this
+> lane put `409-do-not-claim-clause` into the entry — at which point the
+> invariant announced that #409 claimed to be unmerged while that branch was an
+> ancestor of main. **Both halves true, conclusion false.**
+>
+> **Fixed here in the entry, not in the script:** the word is now "collapsed",
+> which is what the same sentence already says two clauses later.
+>
+> **And then it fired a SECOND time on this very block** — writing the finding
+> up reintroduced the offending adjacency in the prose describing it, so the
+> check went red again on a paragraph whose entire subject is that the check
+> goes red wrongly. That is why the quotation above is written `**NOT** merged`:
+> the emphasis markers sit between the two words in the raw bytes the regex
+> reads, while the rendered text is unchanged. **Do not "tidy" that formatting
+> away** — it is load-bearing, and removing it re-reds the tracker.
+>
+> The script is untouched and the latent trap is unchanged: **any entry pairing
+> a branch name with that two-word phrase reports a false FAIL.** The failure is
+> loud rather than silent, which is the right direction for a check that fails
+> safe, so this is a papercut and not a defect worth a lane on its own. Filing
+> the regex narrowing (require a nearby PR/branch token, or exclude the
+> "…merged with" sense) is left to whoever owns #342's tooling.
 
 ## 410. ✅ UNLANDED AGENTS.md RESYNC RECOVERED FROM A STALE WORKTREE — a completed regeneration + its sync script never reached main, and the commit MISLABELS itself "#403" — **FILED 2026-08-25 per #268 (orchestration-setup finding, this session). Main's `AGENTS.md` carried text CLAUDE.md falsified weeks ago; the fix existed as commit `831b7620` on branch `claude/serene-hofstadter-f044dd`. → ✅ LANDED 2026-08-25 (this docs+script PR, chore lane #410): script extracted from `831b7620` byte-for-byte, `AGENTS.md` regenerated fresh from CURRENT CLAUDE.md (not cherry-picked), two consecutive regens byte-identical, no path/URL/code-block corruption, worktree + branch pruned. PR number + squash SHA recorded in the dated block below once merged. 403-D (standing sync mechanism) stays open for Owen.**
 

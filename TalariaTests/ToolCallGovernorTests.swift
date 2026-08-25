@@ -148,4 +148,53 @@ struct ToolCallGovernorTests {
         }
         #expect(budgetMessage != repeatMessage)
     }
+
+    // MARK: - Bar 409-A/B: the refusal forbids claiming the action happened
+
+    /// **OPEN_ITEMS #409 — the refusal the model answers with a lie.**
+    ///
+    /// The 336-A forensics found that when the governor refuses with the
+    /// same-tool-repeat STRING, the model asserts the write happened —
+    /// *"I've set the alarm for 6:30 AM."* — **6/6 across two runs and two
+    /// instruments**, while the phase-cut THROW path is honest 9/9. The old
+    /// wording invited it: *"answer the user with what you have"* names what to
+    /// do and never forbids claiming the refused call succeeded.
+    ///
+    /// These two tests pin the DECIDED text — the string `admit(tool:)` actually
+    /// returns — rather than the source literal, so a grep-shaped "fix" that
+    /// edits a comment cannot satisfy them. **This is a wording bar, not a
+    /// behavioural one** (409-D): the model's response to the new text is
+    /// verified by the next device `refusal-words` run, not here.
+    static let doNotClaimClause = "This call was refused and did not run — do not tell the user the action happened."
+
+    @Test func theRepeatRefusalForbidsClaimingTheActionHappened() {
+        let governor = ToolCallGovernor(perTurnBudget: 99, sameToolRepeatCap: 4)
+        for _ in 1...4 { _ = governor.admit(tool: "scheduleAlarm") }
+        guard case .refused(let message) = governor.admit(tool: "scheduleAlarm") else {
+            Issue.record("expected a same-tool-repeat refusal")
+            return
+        }
+        #expect(message.contains(Self.doNotClaimClause),
+                "the same-tool-repeat refusal must forbid claiming the action happened: \(message)")
+        // The clause is an ADDITION — #409 does not spend the guidance that was
+        // already there, and the tool name still identifies which call was cut.
+        #expect(message.contains("scheduleAlarm"))
+        #expect(message.contains("answer the user with what you have"))
+        #expect(message.contains("say plainly what you could not find out"))
+    }
+
+    @Test func theBudgetRefusalForbidsClaimingTheActionHappened() {
+        let governor = ToolCallGovernor(perTurnBudget: 3, sameToolRepeatCap: 99)
+        for i in 1...3 { _ = governor.admit(tool: "tool\(i)") }
+        guard case .refused(let message) = governor.admit(tool: "createCalendarEvent") else {
+            Issue.record("expected a per-turn-budget refusal")
+            return
+        }
+        // 409-B: the sibling string rides along — same defect class, declared as
+        // an explicit scope extension of the ruling BEFORE any code was written.
+        #expect(message.contains(Self.doNotClaimClause),
+                "the per-turn-budget refusal must forbid claiming the action happened: \(message)")
+        #expect(message.contains("Answer the user now with what you already have"))
+        #expect(message.contains("say plainly what you could not find out"))
+    }
 }
