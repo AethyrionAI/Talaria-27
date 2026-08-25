@@ -230,6 +230,7 @@
 		57E2B573942BCA2EC78C8550 /* TurnReceiptsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8064CC89E452AB4576D02AAB /* TurnReceiptsTests.swift */; };
 		58A79513D2968FE0A9D5690E /* ThemeTextures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 639E35724ACC2C48AB542489 /* ThemeTextures.swift */; };
 		58EAE21B148EFB6CD6612474 /* Icon-SpringSprout@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */; };
+		5A412055D651E684DFBD4FB1 /* RelayDraftIntegrityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA81A88BF01CBBA0B7966E4 /* RelayDraftIntegrityTests.swift */; };
 		5A9C5EBDAC749A48E05CB003 /* Icon-AutumnHarvest@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 6086194E5DA00269632F6A09 /* Icon-AutumnHarvest@3x.png */; };
 		5B1BE28C0064375B3F848E75 /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AA6B0D4D2F75AB7C4862721 /* Design.swift */; };
 		5B4B95A7A82517C71DE5279B /* AppLockGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89F96377330A24AB8029976 /* AppLockGateTests.swift */; };
@@ -790,6 +791,7 @@
 		3D7F1F57C2248CD2244E3562 /* LiveSessionBootstrapService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveSessionBootstrapService.swift; sourceTree = "<group>"; };
 		3E227A45DC083CF27D41960B /* ChatStorePersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatStorePersistenceTests.swift; sourceTree = "<group>"; };
 		3EA2C8619D3D07F4F39E95AD /* MockVoiceSessionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockVoiceSessionService.swift; sourceTree = "<group>"; };
+		3EA81A88BF01CBBA0B7966E4 /* RelayDraftIntegrityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDraftIntegrityTests.swift; sourceTree = "<group>"; };
 		3EF25B1E060C654A07894F05 /* HermesHealthWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesHealthWidget.swift; sourceTree = "<group>"; };
 		3F0818490CD153ED5EBCD1CC /* AppStoresTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoresTests.swift; sourceTree = "<group>"; };
 		3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenUsage.swift; sourceTree = "<group>"; };
@@ -1478,6 +1480,7 @@
 				BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */,
 				6BB71CCECAE06823EA97EEDA /* ReasoningChannelTests.swift */,
 				D989D02F2565BA376F01FFC5 /* RefusalWordsInstrumentTests.swift */,
+				3EA81A88BF01CBBA0B7966E4 /* RelayDraftIntegrityTests.swift */,
 				928B03CEA5240B87D4B99D7A /* RequiredPropertyDecodeTests.swift */,
 				0535266D0B9B050419521177 /* RevokeRowStateTests.swift */,
 				A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */,
@@ -2947,6 +2950,7 @@
 				3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */,
 				542E125ADE6CFAD3AADC94AF /* ReasoningChannelTests.swift in Sources */,
 				3EEAC38DC0A4F59BD4B6447A /* RefusalWordsInstrumentTests.swift in Sources */,
+				5A412055D651E684DFBD4FB1 /* RelayDraftIntegrityTests.swift in Sources */,
 				7ED6B37BFBA2622B436E0881 /* RequiredPropertyDecodeTests.swift in Sources */,
 				9FEB4A121415BC5E95AA2C20 /* RevokeRowStateTests.swift in Sources */,
 				20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */,
