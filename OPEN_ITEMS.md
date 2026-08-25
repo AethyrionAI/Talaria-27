@@ -6394,6 +6394,43 @@ scored here.
 > plugin-verb route is recommended; deploy would ride a per-experiment go
 > like any plugin change.
 
+
+> **⚖️ ROUTE ELECTED 2026-08-24 late (Owen, on the probe: "For approvals,
+> thats great. Halfway easier, and just some verbs away. Sounds good to
+> me."): THE PLUGIN VERB.** Two design calls made and surfaced (no
+> objection): paired-device auth stands in for the slash gate's admin check
+> (the threat model is an unlocked phone in the wrong hands, which is App
+> Lock's own model), and `/yolo` is NOT exposed — the phone gets the three
+> persistent modes only. Owen also cleared updating the UNSENT OJAMD brief
+> in place ("I haven't sent ojamd's deploy yet... feel free"), so one desk
+> visit deploys presets + floor + this verb.
+
+> **🎯 BARS 224-V-A..F — pre-registered 2026-08-24 late, BEFORE any code
+> (the plugin half; the app picker's bars pre-register when its lane
+> opens):**
+> - **224-V-A:** a new `approval_mode` verb on the envelope dispatch,
+>   device-auth-gated exactly like the talk family (bogus auth ⇒
+>   `device_auth_mismatch`); with no `mode` field it READS — returns the
+>   current effective mode without mutating anything.
+> - **224-V-B:** with `mode` ∈ {manual, smart, off} it persists through
+>   upstream's own `run_approval_mode_command` chokepoint (canonical
+>   `set_config_value`, managed-scope safety preserved), verified by
+>   read-back in an isolated HERMES_HOME; the response carries
+>   `{ok, mode, changed, message}` mapped from `ApprovalModeResult`.
+> - **224-V-C:** an invalid mode passes through upstream's rejection —
+>   `ok: false`, the usage message, mode unchanged (we duplicate NO
+>   validation; upstream's table is the table).
+> - **224-V-D:** structural negative pin — the dispatch map carries NO yolo
+>   verb, RED-provable by adding one.
+> - **224-V-E:** an unavailable `hermes_cli` import degrades to a NAMED
+>   error code (`approval_mode_unavailable`), never the generic
+>   `storage_error`.
+> - **224-V-F:** plugin version 0.6.0 → 0.7.0; pytest count moves by
+>   exactly the additions; RED witnessed before code; a wiring mutation
+>   (delete the dispatch row) isolates. Deploy rides the per-experiment go
+>   — the OJAMD brief is retargeted in place (unsent, Owen's clearance
+>   above); the Mac's own deploy needs its own go.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
