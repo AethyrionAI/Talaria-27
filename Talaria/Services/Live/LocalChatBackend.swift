@@ -2074,10 +2074,13 @@ final class LocalChatBackend: HermesClientProtocol {
         let images: [TurnImage]
     }
 
-    /// ⛔ #390-F: the PCC image arm ships DISABLED — flipping this is the
-    /// policy-publish PR (privacy edit live on Owen's go + caption switch),
-    /// never a drive-by. Pinned by `ImageInputCompositionTests`.
-    nonisolated static let pccImageInputEnabled = false
+    /// #390-F DISCHARGED 2026-08-25: ON since the flip PR that also
+    /// published the privacy policy's image sentence (Owen's approved
+    /// wording + explicit publish go, both same day). ⛔ Turning this OFF
+    /// again is a product decision with a policy implication — it needs
+    /// its own ruling and the pin in `ImageInputCompositionTests` re-cut
+    /// with it, never a drive-by.
+    nonisolated static let pccImageInputEnabled = true
 
     /// Whether images ride as REAL model input for the given tier: the
     /// runtime capability read (#388's probe surface) AND, for PCC, the

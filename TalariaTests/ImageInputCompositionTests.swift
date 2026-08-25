@@ -108,13 +108,17 @@ struct ImageInputCompositionTests {
         #expect(input.promptText.contains("can't view the picture"))
     }
 
-    // MARK: - 390-F: the PCC arm ships disabled
+    // MARK: - 390-F: the PCC arm is ON, behind the published policy
 
-    /// ⛔ Flipping this constant is the POLICY-PUBLISH PR: the privacy
-    /// edit live on Owen's explicit go, the caption switch, and this pin
-    /// re-cut — atomically. A red here on any other lane is a drive-by.
-    @Test func thePCCImageArmShipsDisabled() {
-        #expect(LocalChatBackend.pccImageInputEnabled == false)
+    /// #390-F DISCHARGED (2026-08-25, Owen's go): the privacy policy's
+    /// image sentence published in the SAME PR that flipped this — the
+    /// Changes clause's "updated before the change ships" holds because
+    /// the policy goes live at merge and the arm reaches devices only via
+    /// the OTA staged after. ⛔ Turning the arm back OFF is a product
+    /// decision with a policy implication — not a drive-by; it needs its
+    /// own ruling, and this pin re-cut with it.
+    @Test func thePCCImageArmIsOnBehindThePublishedPolicy() {
+        #expect(LocalChatBackend.pccImageInputEnabled == true)
     }
 
     // MARK: - 390-A/E: the replay seam is text-only
@@ -215,7 +219,7 @@ struct ImageInputCompositionTests {
     @Test @MainActor func chatInputBarRoutesPrivateCloudToItsOwnCaption() {
         #expect(
             ChatInputBar.visionCaption(activeBrain: .privateCloud, carriesImage: true, imageInputEnabled: false)
-                == AttachmentCapabilityCopy.privateCloudCannotSeeImagesYet
+                == AttachmentCapabilityCopy.privateCloudCannotSeeImages
         )
         #expect(
             ChatInputBar.visionCaption(activeBrain: .privateCloud, carriesImage: true, imageInputEnabled: true)

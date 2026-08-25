@@ -83,7 +83,7 @@ struct AttachmentCapabilityCopyTests {
     func privateCloudArmOffCarriesItsOwnHonestOCRCaption() throws {
         let caption = AttachmentCapabilityCopy.caption(for: .privateCloud, carriesImageAttachment: true, imageInputEnabled: false)
         let text = try #require(caption)
-        #expect(text == AttachmentCapabilityCopy.privateCloudCannotSeeImagesYet)
+        #expect(text == AttachmentCapabilityCopy.privateCloudCannotSeeImages)
         #expect(text.localizedCaseInsensitiveContains("Private Cloud"))
         #expect(text != AttachmentCapabilityCopy.onDeviceCannotSeeImages)
     }
@@ -107,7 +107,7 @@ struct AttachmentCapabilityCopyTests {
         let all = [
             AttachmentCapabilityCopy.onDeviceCannotSeeImages,
             AttachmentCapabilityCopy.onDeviceReadsImagesOnDevice,
-            AttachmentCapabilityCopy.privateCloudCannotSeeImagesYet,
+            AttachmentCapabilityCopy.privateCloudCannotSeeImages,
             AttachmentCapabilityCopy.privateCloudSendsImagesToApple,
         ]
         #expect(Set(all).count == all.count)

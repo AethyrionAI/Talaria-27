@@ -92,7 +92,7 @@ enum AttachmentCapabilityCopy {
         case .onDevice:
             return imageInputEnabled ? onDeviceReadsImagesOnDevice : onDeviceCannotSeeImages
         case .privateCloud:
-            return imageInputEnabled ? privateCloudSendsImagesToApple : privateCloudCannotSeeImagesYet
+            return imageInputEnabled ? privateCloudSendsImagesToApple : privateCloudCannotSeeImages
         }
     }
 
@@ -107,12 +107,14 @@ enum AttachmentCapabilityCopy {
     static let onDeviceReadsImagesOnDevice =
         "Images are read on your iPhone by the on-device model."
 
-    /// #390-F interim — the PCC image arm ships disabled until the privacy
-    /// policy's image edit is published, so a PCC image turn is still an
-    /// OCR turn. Tier-named so the un-fold is real (the old code sent PCC
-    /// to the nil-caption Hermes arm — a silent blind turn, #173's sin).
-    static let privateCloudCannotSeeImagesYet =
-        "The Private Cloud model can't see images in this build — it will read text found in them, not the picture."
+    /// #390 — the blind PCC turn. Since the 390-F flip (2026-08-25) this
+    /// renders only when the CAPABILITY read comes back false (a sim, or a
+    /// runtime regression) — the arm itself is on — so the wording names
+    /// the device, not the build. Tier-named so the un-fold is real (the
+    /// pre-#390 code sent PCC to the nil-caption Hermes arm — a silent
+    /// blind turn, #173's sin).
+    static let privateCloudCannotSeeImages =
+        "The Private Cloud model can't see images on this device — it will read text found in them, not the picture."
 
     /// #390 — the sighted PCC turn, rendered only once the 390-F arm
     /// enables (policy published on Owen's go). Written and pinned NOW so
