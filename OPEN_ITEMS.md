@@ -1425,6 +1425,57 @@ gate should follow), **#386** (the published policy that describes the tiers),
 >   build queues behind the current elected set. Sim cannot generate (#324),
 >   so the verifying half is device work when it lands.
 
+
+> **🔍 THE PRE-BUILD POLICY CHECK RAN — 2026-08-24 late night. VERDICT: a
+> DISCLOSURE GAP, not a falsehood — and the policy's own Changes clause
+> makes an edit mandatory before the PCC arm ships** ("this policy will be
+> updated before the change ships").
+> - **No existing sentence becomes false**, but attachments are enumerated
+>   in the on-device and own-server tier paragraphs and ABSENT from PCC's —
+>   a conspicuous parallel-structure omission — and the Voice section
+>   already demonstrates the disclosure pattern images now need.
+> - **Draft edits recorded for Owen's read (NOT applied — outward-facing):**
+>   `docs/privacy.html:56` "Your request leaves the device" → "… — including
+>   any images you attached to that message." Optionally the Photos/Camera
+>   permission row gains the per-tier sentence. An affirmative "on-device
+>   images never leave the phone" line is RECOMMENDED AGAINST until the
+>   build proves the escalation seam clean (below).
+> - **Two in-app strings BECOME FALSE and are this lane's 390-C scope:**
+>   `AttachmentCapabilityCopy.onDeviceCannotSeeImages` and `composePrompt`'s
+>   image placeholder (which instructs the model to claim blindness — a
+>   false refusal on a sighted turn). Aggravator: the PCC tier is FOLDED
+>   into the on-device caption today (`ChatInputBar.swift:575-577`). Pins to
+>   re-cut: `AttachmentCapabilityCopyTests` ×3, `ChatStorePersistenceTests:1571`.
+>   The #385 identity pins are UNTOUCHED (neither tier sentence mentions
+>   images; the `hasImageTools:` axis is pre-wired).
+> - **The two build hazards, both privacy-load-bearing:** (1) TRANSCRIPT
+>   REPLAY — session rebuilds replay history; if images ride the replayed
+>   transcript, every retained image re-uploads on each PCC rebuild. Images
+>   must attach to the CURRENT TURN ONLY. (2) THE ESCALATION SEAM —
+>   the mid-conversation on-device→PCC offer must not carry prior images
+>   (clean by construction if (1) holds); its banner copy gets re-posed to
+>   Owen only if images ever enter escalation scope.
+>
+> **🎯 BARS 390-A..G — pre-registered 2026-08-24 late, BEFORE code:**
+> - **390-A:** images attach as real model input at the `composePrompt`
+>   image branch, CURRENT TURN ONLY — a rebuilt/replayed session carries NO
+>   image attachments from history (the hazard bar, tested directly).
+> - **390-B:** OCR fallback survives — when image input is unavailable or
+>   fails, the placeholder + `readImageText` path serves unchanged.
+> - **390-C:** the two false strings re-cut tier-honest (on-device: image
+>   read on your iPhone; PCC: image sent to Apple with your request); the
+>   PCC caption un-folds from on-device; the named pins re-cut in the same
+>   commit.
+> - **390-D:** every #385 identity pin green untouched.
+> - **390-E:** the escalation seam proven image-clean (390-A's corollary,
+>   pinned at the seam).
+> - **390-F — THE SHIP GATE:** the ON-DEVICE arm may land first (no policy
+>   dependency — the picture stays on the phone); **the PCC arm does not
+>   ship in a staged build until the policy edit is PUBLISHED on Owen's
+>   read** (the Changes clause + the no-external-submissions rule).
+> - **390-G:** GATE: PASS; sim cannot generate (#324), so behavioral
+>   verification is a device runbook card on the next staged build.
+
 ## 388. 🔬 BETA5 APPLE-INTELLIGENCE SURFACE SWEEP — what PCC can actually do, whether quota is even wired, and three frameworks we have never looked at — **NAMED BY OWEN 2026-08-20 ("send some probes out and see in case we missed it, or in case its changed in beta 5"). NOT BUILT. Bars pre-register here before any code.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): the INSTRUMENT is built and the probe RAN on device 2026-08-21; it spawned #390 and #391.**
 
 **The premise is earned, not cautious.** Hours before this was filed, #72's
@@ -6450,6 +6501,39 @@ scored here.
 > pre-register when that lane opens), the verb's deploy (rides the brief /
 > a Mac go), and Owen's Phases-1–3 reassessment once the picker exists.
 
+
+> **🎯 BARS 224-APP-A..F — pre-registered 2026-08-24 late, BEFORE code (the
+> app half). Recon: `voiceVerb` is already a generic envelope sender with
+> the `unknown_event_type → .unsupported` classifier built in; the picker
+> home is `ServerSettingsScreen` after the plugin-link panel (its refresh is
+> already keyed on the active profile); #396's segmented-row + pinned-copy +
+> predates-footnote pattern is the model.**
+> - **224-APP-A:** the link grows `approvalMode(setting: String?)` riding
+>   the existing verb sender — wire shape `{type: "approval_mode"[, mode]}`
+>   pinned by a TalariaPlatformLinkTests wire test (the #396 tuning-test
+>   pattern); decode of `{ok, mode, changed, message}` lives with the
+>   caller, not the transport.
+> - **224-APP-B:** host state is THREE-VALUED (`unknown` / `unsupported` /
+>   `mode(String)`) with UNKNOWN as the default branch (#180 rule 5) — the
+>   picker renders disabled/"—" until the read answers; mapping is
+>   `.ok → mode`, `.unsupported → unsupported`, `.unreachable → unknown`.
+> - **224-APP-C:** ⛔ the on-device `ApprovalMode` enum is NOT touched — the
+>   host mode is a DISTINCT type (raw wire string); every Phase-0 pin
+>   (`approvalModeExposesOnlyManual`, not-per-profile, clamping) stays green
+>   untouched. Touching `ApprovalModeCore.swift` is the wrong lane.
+> - **224-APP-D:** the host-predates footnote (unsupported state) ships
+>   pinned copy naming the remedy ("after the host updates" shape, #396's
+>   pinned form); set-path failures surface honestly (unreachable ≠
+>   unsupported ≠ refused).
+> - **224-APP-E:** a set round-trips: segment tap → verb with mode → state
+>   updates from the RESPONSE's mode (never optimistically); `ok: false`
+>   (managed config, upstream refusal) leaves the picker on the host's
+>   reported mode and surfaces the message.
+> - **224-APP-F:** GATE: PASS, count moved exactly; the device look rides
+>   the runbook's next-build card; both hosts answer `unsupported` until the
+>   plugin deploys, so the predates path is the FIRST-BUILT path, not an
+>   afterthought.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
@@ -9641,6 +9725,67 @@ routinely-red or routinely-ignored gate is worse than none.
 > mine:** name the subset (the cheapest 4–6 with the highest catch-rate
 > history) and pre-register the bands IN THIS ENTRY before the first
 > gated stage; the first run baselines the bands.
+
+
+> **📏 THE SUBSET IS NAMED — 2026-08-24 late night, the ruled deliverable.
+> Research from the registry + 31 sealed run artifacts (measured wall-clock,
+> not estimates); registry anchors `InstrumentRegistry.swift:56-858`,
+> eligibility = `confirmationMode != .autoAccept` ⇔ writes-nothing (enforced
+> both ways, `InstrumentRegistryTests.swift:109-125`).**
+>
+> **Correction first: this entry's "19 of 48" was a 2026-08-12 snapshot —
+> TODAY it is 23 of 52.** Four eligible instruments were added after the
+> snapshot (`due-date`, `refusal-words`, `card-clause`, `pcc-surface`) and
+> three of them are the best catchers in the suite.
+>
+> **THE PRE-OTA SUBSET — five members, ~12 min unattended, one shared
+> precondition set** (unlocked physical device on the staged build ·
+> **Verbose Logging ON** · no TCC grants needed · nothing written · nothing
+> to reap):
+> 1. **`due-date`** (~1.1 min/arm, `--trials 20 --cells armed`) — caught
+>    #340, still unsolved in production. Band: `correct`/TRIALS primary +
+>    `wrong-value`/TRIALS guard, all four buckets under both denominators
+>    (340-H5′'s own rules). Anchor: armed 3/20 correct, omission 85%,
+>    already-past 0/37 (2026-08-21, `fa5a1976`, qualifies). ⚠️ The fixed
+>    "at 4:30pm" prompt makes bands comparable ONLY within one clock regime
+>    (before/after 16:30 local) — the run's local time goes in the artifact.
+>    Scored from the DEVICE LOG (`score-due-omission.py`), hence the
+>    verbose-logging precondition.
+> 2. **`decline`** (~2.8 min, `--trials 10`) — caught #392. Two bands: (a)
+>    calendar `attributedToTool` (anchors 2/40 and 1/40, both qualify;
+>    remind+alarm 0/20 both runs — the calendar-only contrast IS the
+>    finding); (b) declines-reached/trials as the APPARATUS canary (26/40
+>    pre-#343 vs 40/40 post — a drop is the cut rate, not behaviour). ⚠️ At
+>    10 trials the calendar n is far below 392-A's n≥30 — band WIDE.
+> 3. **`long-context-probe`** (~3.3 min, `--trials 10`, no `--cells` — nil
+>    defaultCells REFUSES it) — caught #334; classification-only, no belt,
+>    mechanism-exempt from the #343 era rule (stated as inference, argued in
+>    the research). The suite's tightest band: words-only rows sit AT 0/10 or
+>    10/10 (anchor: 'Write another one' short 10/10 / long 0/10; every
+>    accept row 10/10; errors 0). Any row leaving its rail is the red.
+> 4. **`pcc-surface`** (~3 SECONDS, `--trials 3`) — spawned #390+#391.
+>    Not a rate: an EXACT-STATE snapshot (capabilities per tier, quota
+>    wiring, dlopen results) — it is the member that says whether a band
+>    move elsewhere is the app or the PLATFORM. A green sim run proves only
+>    that it sealed an artifact.
+> 5. **`refusal-words`** (~3.3 min, `--trials 10`) — the governor/cut-rate
+>    tripwire, era-clean since day one. Band: `turn-reset` cell only —
+>    cuts (anchor 0/30) and toolCallsAdmitted (anchor 25/30); `leaked` is
+>    the contrast, never a production estimate.
+> - **Conditional 6th: `card-clause`** (11.3 min and growing — nil
+>   defaultCells means all six arms every launch). Its post-promotion
+>   control rate (imitation 1/30, down from 13.3%) is exactly what a
+>   regression gate should watch, but trimming it to a control-only cell is
+>   a CODE change (give it defaultCells) — **that is this lane's first build
+>   task if it joins.**
+> **Standing caveats:** every anchor above was measured on beta5/beta6
+> runtimes and the phone moved to beta 7 on 2026-08-24 — **the first
+> pre-OTA run RE-BASELINES**; anchors give each band's shape and width, not
+> an absolute pin (`pcc-surface` is what makes that transition legible).
+> #215/#343 era rules govern all comparisons. Exact invocations and the
+> full 23-name roster are in the research record; `run-sweep.sh` is the
+> sequencer pattern but pins `osVersion` to 24A5408d and needs that moved
+> before it drives this subset.
 
 ## 336. 🐛 THE MODEL SAID IT SET A REMINDER AND NOTHING WAS WRITTEN — 3/120 armed trials claim an action with no recorded tool call; separately, 12 artifacts were reaped against 10 recorded calls — **MEASURED 2026-08-12 on `whoGoesThere` (#225's attended spiral run). TWO discrepancies pointing OPPOSITE ways; mechanism NOT elected. NOT STARTED; bars pre-registered below.**
 
@@ -16207,6 +16352,34 @@ scope: **wholesale, or a permanent dual path?**
 > alternative (#329's status-read infrastructure) was presented and NOT
 > elected. Small UI lane; bars pre-register here before code.
 
+
+> **🎯 BARS 371-A..F — pre-registered 2026-08-24 late, BEFORE code, on the
+> provenance-label ruling. Recon verdict: ONE construction site makes the
+> unwitnessed ✓ (`SessionsHermesClient.swift:729`, `isActive: false` with no
+> outcome — #327's own comment already names it "a ✓ there asserts a
+> completion nobody witnessed"); one render site consumes it
+> (`ToolActivityRail`).**
+> - **371-A:** `ToolActivity` gains an OPTIONAL provenance field
+>   (`nil` = witnessed, the historical value) — optional is load-bearing:
+>   `legacyToolActivityJSONStillDecodes` must stay green, or every pre-change
+>   cache wipes the transcript (#42's shape).
+> - **371-B:** the reconstruction site stamps `.reconstructed`; a PARALLEL
+>   pure function beside `state(of:)`/`summaryState(of:)` renders the
+>   distinguishable state — the enum is NOT widened, so all sixteen existing
+>   `summaryState` call sites stay green untouched.
+> - **371-C:** ordering — a restored activity that #327 marked interrupted
+>   (`failure` set) renders INTERRUPTED, never "completed while away";
+>   failure wins outright, as the rail already documents.
+> - **371-D:** the dedupe key excludes provenance — a new arm beside
+>   `failureIsNotPartOfTheAdoptedEchoKey`, same reasoning (#237's duplicate
+>   must not resurrect).
+> - **371-E:** copy — the ruled phrase "completed while away" is pinned, and
+>   the ACCESSIBILITY label carries the same distinction (#296's VoiceOver
+>   lesson: the non-visual reader must not get the ✓ version of the lie).
+> - **371-F:** NO network on restore (the ruling's explicit exclusion);
+>   witnessed ✓ rendering byte-unchanged (296-B green); GATE: PASS, count
+>   moved exactly.
+
 ## 372. 🔬 #337 successors — the DECLINE path has never been exercised, 337-H never built, and measuring the promotion needs a ROLLBACK arm — **FILED 2026-08-18 night per #268 at #337's close. NOT STARTED; bars pre-register here before any run.**
 
 - (a) Every clean arm made 29–30 of 30 calls, so no trial has ever exercised
@@ -16480,3 +16653,31 @@ scope: **wholesale, or a permanent dual path?**
 > held-slot state, wired to the existing #357 steer machinery. Small UI
 > lane; bars pre-register here before code.
 
+
+
+> **🎯 BARS 381-A..E — pre-registered 2026-08-24 late, BEFORE code, on the
+> build ruling. Recon verdict first: the RESOLVER already knows the answer —
+> `ComposerDoor.explicitDoors(...)` returns `[.steered, .interrupted]` with
+> the hold slot taken, and `occupiedHoldRemovesTheQueueDoorOnly` pins it
+> GREEN today. The defect is that the `.busyNoCommit` view arm never asks
+> (`ChatInputBar.swift:646-651` renders Stop and nothing else). Shape 1:
+> a `Menu` beside Stop, body shared with `queueCommitButton`'s context menu
+> so the two sites cannot drift.**
+> - **381-A:** a pure helper (`ComposerDoor.busyAuxiliaryDoors(doors:canSend:isSlashMode:)`
+>   or equivalent) returns the menu's doors — non-empty exactly when
+>   explicit doors exist AND the draft is sendable AND not slash-mode.
+>   RED-first unit tests on all arms.
+> - **381-B:** the three collapsed causes of `.busyNoCommit` stay
+>   distinguished — an EMPTY draft and a SLASH draft get NO steer menu
+>   (nothing to steer with; `ChatScreen` hard-guards slash anyway).
+> - **381-C:** row 3 stays closed — when `explicitDoors` is empty
+>   (streamLostRunLive + slot taken, the #307 guard), nothing renders; the
+>   helper keys on the resolver's answer, never on the door enum alone.
+> - **381-D:** the menu entry reuses "Steer the running turn" VERBATIM and
+>   routes through `handleExplicitDoor` (dictation settles, status strip
+>   appears, #357-G honesty preserved); `chipVocabularyNeverSaysSent`
+>   stays green untouched.
+> - **381-E:** every existing `SteeringComposerDoorsTests` test unchanged —
+>   editing the resolver or its pins means the fix went to the wrong layer.
+>   GATE: PASS, count moved by exactly the additions; the 10-second device
+>   look rides a future runbook card.
