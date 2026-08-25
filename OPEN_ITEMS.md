@@ -6431,6 +6431,25 @@ scored here.
 >   — the OJAMD brief is retargeted in place (unsent, Owen's clearance
 >   above); the Mac's own deploy needs its own go.
 
+
+> **✅ RESULT 2026-08-24 late — 224-V-A..F ALL MET (the plugin half).
+> Plugin main `b87cd6c`, version 0.6.0 → 0.7.0; DEPLOYED NOWHERE — the
+> unsent OJAMD brief was RETARGETED in place on Owen's clearance
+> (`HANDOFF-OJAMD-2026-08-24-PLUGIN-DEPLOY-B87CD6C.md` on the Workhorse
+> share; one desk visit now deploys presets + floor + this verb, expected
+> range fb2e364 → exactly three commits, plugins-list flip 0.5.0 → 0.7.0).**
+> RED-first honest: 6/6 verb tests failed `unknown_event_type` before code
+> (the two no-yolo pins were green negative controls). Suite **208 → 216**
+> (+8 exactly); `hermes plugins doctor --ci` clean. Two mutations, both
+> isolating: deleting the dispatch row reds the six verb tests and nothing
+> else; ADDING a yolo verb reds both 224-V-D arms. The isolated-home probe
+> before the tests pinned upstream's default (`smart` on an empty home) and
+> — worth knowing — the live Mac host runs `approvals.mode: 'off'`.
+> **What remains on the #224 board:** the APP half (picker row + state
+> read, capability-gated with #396's host-predates pattern — bars
+> pre-register when that lane opens), the verb's deploy (rides the brief /
+> a Mac go), and Owen's Phases-1–3 reassessment once the picker exists.
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
