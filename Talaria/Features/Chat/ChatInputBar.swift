@@ -230,6 +230,14 @@ struct ChatInputBar: View {
                 // Text input area
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $text)
+                        // #407: typing during live dictation was silently
+                        // DISCARDED — the merge recomputes from a base
+                        // snapshot that predates it. Blocked at the editor
+                        // for exactly the listening window (`disabled` gates
+                        // user interaction only; the dictation merge's
+                        // programmatic writes keep flowing, and the
+                        // placeholder already reads "Listening…").
+                        .disabled(speechService.isListening)
                         .accessibilityIdentifier("chat.composer")
                         .accessibilityLabel("Reply to Hermes")
                         .font(Design.Typography.body)

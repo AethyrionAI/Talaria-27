@@ -180,6 +180,7 @@
 		3DDB62A494936DCE3BDB6E53 /* SwiftDataLocalSessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AFB15076C630F7831CCF5DE /* SwiftDataLocalSessionStore.swift */; };
 		3EEAC38DC0A4F59BD4B6447A /* RefusalWordsInstrumentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D989D02F2565BA376F01FFC5 /* RefusalWordsInstrumentTests.swift */; };
 		3EF7F706BB5DC611E42EB4BC /* Icon-StickerBombToybox@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = B16ADAB41ACEF34717525A7B /* Icon-StickerBombToybox@3x.png */; };
+		3F0F7DE9FBF26698CAC6E163 /* DictationTypingBlockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B19CE7B3673036A0CB2F558 /* DictationTypingBlockTests.swift */; };
 		3FA62CFB23383532F664D192 /* RealtimeVoiceIndicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED8B67DE2C63EF0FC999D38 /* RealtimeVoiceIndicatorTests.swift */; };
 		3FC3D32BA5FCC6C051BE137C /* HermesActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5B4700A4C8D2978B2CA512 /* HermesActivityAttributes.swift */; };
 		3FD7C2A490B0F879343C1B97 /* CapabilityRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 705D5719310AF183CF384014 /* CapabilityRegistry.swift */; };
@@ -860,6 +861,7 @@
 		59F7F29D1DB87BEA4BCCE4D5 /* VoiceMemoRecorderSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceMemoRecorderSheet.swift; sourceTree = "<group>"; };
 		5ABF6ED023952DF5A80472D3 /* SelectedIconHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectedIconHandoff.swift; sourceTree = "<group>"; };
 		5AF319C0949C408965268990 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5B19CE7B3673036A0CB2F558 /* DictationTypingBlockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DictationTypingBlockTests.swift; sourceTree = "<group>"; };
 		5B746A419B2EA26609E0E370 /* HermesActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesActivityAttributes.swift; sourceTree = "<group>"; };
 		5BCA800ADCCF66249C2968C5 /* VoiceAttachmentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceAttachmentSheet.swift; sourceTree = "<group>"; };
 		5C2CA32208388B8F40E1EF71 /* Icon-SpringSprout@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-SpringSprout@3x.png"; sourceTree = "<group>"; };
@@ -1430,6 +1432,7 @@
 				1E331A6A95B8F14DCD79B956 /* DeviceLocationProviderTests.swift */,
 				4F7672B25F6886DDA7552BFE /* DeviceToolBeltTests.swift */,
 				660563716B10B069D9CB738A /* DictationTranscriptAssemblerTests.swift */,
+				5B19CE7B3673036A0CB2F558 /* DictationTypingBlockTests.swift */,
 				B9E1289205FE50BA0BEF7C4C /* DirectHealthTests.swift */,
 				6874BCC08D52FEC22B4949DF /* FilePreviewTests.swift */,
 				7E2D7B9075DF8CC3420C70D7 /* GatewayModelCatalogTests.swift */,
@@ -2900,6 +2903,7 @@
 				22F2CE9F8A34E0C2D6622CD4 /* DeviceLocationProviderTests.swift in Sources */,
 				D9F27DA7123DD417BCA3B145 /* DeviceToolBeltTests.swift in Sources */,
 				373E8E3041268E87B655374E /* DictationTranscriptAssemblerTests.swift in Sources */,
+				3F0F7DE9FBF26698CAC6E163 /* DictationTypingBlockTests.swift in Sources */,
 				39BD841CAF392C198D44C788 /* DirectHealthTests.swift in Sources */,
 				1AC5431689C6E653C516C975 /* FilePreviewTests.swift in Sources */,
 				2DC06B74C1A60E5C3B49A753 /* GatewayModelCatalogTests.swift in Sources */,
