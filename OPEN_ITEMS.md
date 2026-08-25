@@ -8014,6 +8014,32 @@ landing on a deck page inherits that behaviour as-is.
 > haptics keyword dropped → only B red; the availability filter bypassed →
 > only C red; the tap unwired → only D red.
 
+> **✅ BUILT + GATED 2026-08-25, the election's same day — bars 318-A..E
+> MET.** GATE: PASS **2553** Swift Testing (+6 exact: the
+> `SettingsSearchTests` suite) + 14 XCUITest + Release.
+> - `SettingsSearchIndex`: ~60 entries built from the day's full leaf
+>   inventory of the ten screens (real data only — every entry names a
+>   control that exists at HEAD); ranked matching (title-prefix > title >
+>   keyword-prefix > keyword, ties in deck order); DEBUG-only rows fenced
+>   in `#if DEBUG` so Release cannot offer them.
+> - The grid gains the HUD-style field; results replace the grid while a
+>   query is live; a tap clears the query and routes through
+>   `openSubsystem` — the deck's ONE door, structurally pinned (the pin
+>   caught its own first red honestly: its anchor found the first USAGE of
+>   the results view instead of the definition — re-anchored on
+>   `var searchResultsList`).
+> - **Evidence:** RED-first 5/6 on the stub (the garbage-query negative
+>   green by design — its teeth are the catalog not matching junk); GREEN
+>   37/37 across both Settings suites; **four mutations, each isolating**
+>   (Uplink entry deleted → only coverage red; haptics keyword dropped →
+>   only the B-family red; availability filter bypassed → only C red; the
+>   tap rewired to a raw `mode = .deck(...)` — the realistic second-door
+>   regression — → only the door pin red).
+> - **Remaining: the device look** (🎨 item — Owen's eye on the affordance;
+>   runbook card added). The filing's own promise works as written: typing
+>   "haptics" lands on APPEARANCE with "Appearance → Tuning" printed on
+>   the row.
+
 ---
 
 ## 323. 🐛 App Lock gates the SCREEN and nothing else — behind the cover, a full inference turn ran and the sensor pipeline collected GPS + health and tried to upload it — **FILED 2026-08-10 from #302's device run (§V1), which measured the microphone and caught this in the same corpus. MEASURED, not inferred. ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302; bars 323-A…E pre-registered before code and all MET. ~~**PR #329 OPEN**~~ **✅ PR #329 MERGED 2026-08-21 as `2767ca70` (marker corrected 2026-08-23 by the Opus-week audit — it sat stale through the header sweep because the checker's regex could not see this spelling; the regex is widened in the same commit)** (GATE: PASS, 2383/14/Release). DEVICE VERIFICATION rides #302's.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): 323-A…E ALL MET 2026-08-20, mutation-proven.**
