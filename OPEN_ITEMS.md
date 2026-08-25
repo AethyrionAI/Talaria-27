@@ -133,7 +133,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#127** 🔧 Monetization scaffold — MERGED DORMANT + gate walk DEVICE VERIFIED 2026-07-17 (fail-open live-confirmed on …
 - **#129** 🔧 Voice preview mid-session — MERGED (PR #127, merge `175261b`, 2026-07-20); device pass owed. Known accepted …
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
-- **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ **re-scoped 2026-08-25 (as-filed premise discharged): docs/ missed #383+#390 — stale relay-voice/download claims, beta5 toolchain line, the screens.html hardware-captures meta leftover, and NO public vision story. Elected on the 08-25 ballot; draft merges only on Owen's read (outward-facing)**
+- **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ re-scoped 2026-08-25 (as-filed premise discharged) → **✅ PUBLISHED the same day on Owen's go (PR #373, `47632a01`, verified live): relay claims retired, the vision story public, beta6 line, honest screens meta. Remaining: the P-4 screenshot batch + device rows R15/R16 (runbook-carded)**
 - **#148** 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation …
 - **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149)
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
@@ -4417,6 +4417,15 @@ Logged 2026-07-20 (Session V launch sweep).
 > policy, beta6 line, the screens meta leftover). The edit-by-edit list
 > with honesty rationale is in the session's draft doc; the PR body
 > carries the summary. **Merging PUBLISHES — nothing lands until his go.**
+>
+> **✅ PUBLISHED 2026-08-25 — Owen's go ("Looks good", answering the
+> say-the-word-and-it-goes-live framing after the summary presented the
+> two substantive new claims verbatim). MERGED PR #373, squash
+> `47632a01`; all four surfaces verified LIVE on Pages post-merge.**
+> The re-scoped lane is DONE. **What keeps this entry open:** the
+> screenshot batch (rides P-4, now also pre-vision-UI stale) and device
+> rows R15 (#140-D ATS mechanism) / R16 (56-U-H Siri hostless), both
+> runbook-carded — nothing else.
 
 > **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the copy
 > questions, decided:**
