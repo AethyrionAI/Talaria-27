@@ -81,6 +81,18 @@ struct ServerSettingsScreen: View {
         }
     }
 
+    // #224: the HOST's approval mode — three-valued, response-driven.
+    // UNKNOWN is the default branch (#180 rule 5): the picker renders "—"
+    // and disabled until the read answers; it never guesses.
+    @State private var hostApprovalMode: HostApprovalModeState = .unknown
+    @State private var hostApprovalMessage: String?
+    @State private var hostApprovalSetInFlight = false
+
+    // #224: the approval-mode picker's pinned copy — statics so the copy
+    // pins can reach them (#396's convention).
+    static let approvalCaption = "The host's persistent approval mode for dangerous commands — the same switch as its /approvals command."
+    static let approvalPredatesFootnote = "This Hermes host predates approval modes — the picker unlocks after the host updates."
+
     var body: some View {
         ZStack {
             if !embedded {
@@ -108,6 +120,7 @@ struct ServerSettingsScreen: View {
                     }
                     profileCards
                     talariaLinkPanel
+                    hostApprovalPanel
                     addProfileButton
                     autoConnectPanel
                     if let deleteErrorMessage {
@@ -129,6 +142,9 @@ struct ServerSettingsScreen: View {
         // so it settles ahead of the probes above rather than behind them.
         .task(id: container.profilesStore?.activeProfileID) {
             await refreshTalariaLinkState()
+            // #224: same invalidation the link row argued for — a switched
+            // profile's mode must not survive as the new host's claim.
+            await refreshHostApprovalMode()
         }
         // #193: was a `.confirmationDialog`, whose cancel role does not
         // render on iOS 26/27. Non-destructive, but a one-button sheet with
@@ -500,6 +516,116 @@ struct ServerSettingsScreen: View {
             observation: await observation,
             deviceToken: await token
         )
+    }
+
+    // MARK: Host approval mode (#224)
+
+    /// The host's persistent approval mode — upstream's own `/approvals`
+    /// switch, reached through the plugin verb behind the pairing's device
+    /// auth. Three-valued and response-driven: the picker lands on what the
+    /// HOST reports, never on what was tapped (224-APP-E).
+    private var hostApprovalPanel: some View {
+        VStack(alignment: .leading, spacing: Design.Spacing.xs) {
+            HStack(spacing: Design.Spacing.xs) {
+                MonoLabel("APPROVALS", size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                          color: Design.Colors.secondaryForeground)
+                Spacer(minLength: Design.Spacing.xs)
+                switch hostApprovalMode {
+                case .unknown:
+                    MonoLabel("—", size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                              color: Design.Colors.mutedForeground)
+                case .unsupported:
+                    MonoLabel("HOST PREDATES", size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                              color: Design.Brand.forgeText)
+                case .mode(let mode):
+                    MonoLabel(mode.uppercased(), size: 9, weight: .medium, tracking: Design.Tracking.mono,
+                              color: Design.Brand.accentText)
+                }
+            }
+
+            HStack(spacing: 0) {
+                ForEach(HostApprovalModeState.selectableModes, id: \.self) { mode in
+                    approvalSegment(mode)
+                }
+            }
+            .background(Design.Colors.background.opacity(0.5), in: RoundedRectangle(cornerRadius: Design.CornerRadius.md))
+            .overlay {
+                RoundedRectangle(cornerRadius: Design.CornerRadius.md)
+                    .strokeBorder(Design.Colors.hairline, lineWidth: 1)
+            }
+            .disabled(hostApprovalSetInFlight || !isHostApprovalPickerEnabled)
+            .opacity(isHostApprovalPickerEnabled ? 1 : 0.45)
+
+            Text(Self.approvalCaption)
+                .font(Design.Typography.caption)
+                .foregroundStyle(Design.Colors.secondaryForeground)
+
+            if case .unsupported = hostApprovalMode {
+                Text(Self.approvalPredatesFootnote)
+                    .font(.caption2)
+                    .foregroundStyle(Design.Brand.forgeText)
+            }
+
+            if let hostApprovalMessage {
+                Text(hostApprovalMessage)
+                    .font(.caption2)
+                    .foregroundStyle(Design.Brand.forgeText)
+            }
+        }
+        .padding(.horizontal, Design.Spacing.md)
+        .padding(.vertical, Design.Spacing.sm)
+        .hudPanel(
+            cornerRadius: Design.CornerRadius.lg,
+            borderColor: Design.Colors.accentTint(0.12),
+            fill: Design.Colors.background.opacity(0.5),
+            innerGlow: false
+        )
+        .accessibilityIdentifier("settings.server.hostApprovalMode")
+    }
+
+    private var isHostApprovalPickerEnabled: Bool {
+        if case .mode = hostApprovalMode { return true }
+        return false
+    }
+
+    private func approvalSegment(_ mode: String) -> some View {
+        let isCurrent: Bool = {
+            if case .mode(let current) = hostApprovalMode { return current == mode }
+            return false
+        }()
+        return Button {
+            Task { await setHostApprovalMode(mode) }
+        } label: {
+            Text(mode.capitalized)
+                .font(Design.Typography.caption)
+                .fontWeight(.medium)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, Design.Spacing.xs)
+                .background(isCurrent ? Design.Brand.accent : Color.clear,
+                            in: RoundedRectangle(cornerRadius: Design.CornerRadius.sm))
+                .foregroundStyle(isCurrent ? Design.Colors.background : Design.Colors.secondaryForeground)
+        }
+        .buttonStyle(.plain)
+        .hoverEffect(.highlight)
+        .accessibilityLabel("Approval mode \(mode)")
+    }
+
+    private func refreshHostApprovalMode() async {
+        hostApprovalMode = .unknown
+        hostApprovalMessage = nil
+        guard let link = container.talariaPlatformLink else { return }
+        let (state, message) = HostApprovalModeState.from(await link.approvalMode(setting: nil))
+        hostApprovalMode = state
+        hostApprovalMessage = message
+    }
+
+    private func setHostApprovalMode(_ mode: String) async {
+        guard let link = container.talariaPlatformLink, !hostApprovalSetInFlight else { return }
+        hostApprovalSetInFlight = true
+        defer { hostApprovalSetInFlight = false }
+        let (state, message) = HostApprovalModeState.from(await link.approvalMode(setting: mode))
+        hostApprovalMode = state
+        hostApprovalMessage = message
     }
 
     // MARK: Auto-connect (relocated from the retired Relay sub-page)

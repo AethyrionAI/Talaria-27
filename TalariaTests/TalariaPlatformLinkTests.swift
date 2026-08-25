@@ -102,6 +102,37 @@ struct TalariaPlatformLinkTests {
                 "the mint body must carry the pick — got: \(recorder.all.first ?? "nil")")
     }
 
+    // MARK: - #224: the approval-mode verb rides the same envelope
+
+    /// 224-APP-A — the READ carries no `mode` key (the plugin treats its
+    /// absence as "report the current mode"), and the SET carries exactly
+    /// the picked string. Both under the device-auth envelope the talk
+    /// family uses.
+    @Test func approvalModeReadOmitsTheModeKeyAndSetCarriesIt() async {
+        defer { StubURLProtocol.handler = nil }
+        let secure = MockSecureStore()
+        await secure.store(key: Self.tokenKey, value: "tok-1")
+        await secure.store(key: Self.deviceIDKey, value: "dev12")
+        let recorder = Recorder()
+        let link = await makeLink(secureStore: secure) { request in
+            let body = StubURLProtocol.bodyString(request)
+            if body.contains(#""approval_mode""#) {
+                recorder.record(body)
+                return (200, Data(#"{"ok": true, "mode": "manual", "changed": false, "message": "Approval mode: manual (persistent profile setting)."}"#.utf8))
+            }
+            return (200, Data("{}".utf8))
+        }
+
+        _ = await link.approvalMode(setting: nil)
+        _ = await link.approvalMode(setting: "smart")
+
+        #expect(recorder.all.count == 2, "both verbs must have been observed")
+        #expect(recorder.all.first?.contains(#""mode""#) == false,
+                "the read must omit the key entirely — got: \(recorder.all.first ?? "nil")")
+        #expect(recorder.all.last?.contains(#""mode":"smart""#) == true,
+                "the set must carry the pick — got: \(recorder.all.last ?? "nil")")
+    }
+
     // MARK: - Pairing
 
     @Test func pairStoresTokenInProfileScopedKeychainSlot() async {
