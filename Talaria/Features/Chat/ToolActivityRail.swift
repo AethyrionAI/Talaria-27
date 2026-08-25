@@ -94,9 +94,18 @@ struct ToolActivityRail: View {
                     // steps include one the user stopped (or one the host
                     // reported an error for) must not open with the glyph that
                     // means "this finished".
+                    // #371: an UNWITNESSED completion (rebuilt from the
+                    // transcript) wears a dimmed checkmark — same shape,
+                    // softer claim. Interrupted still outranks everything.
                     Image(systemName: summaryState == .interrupted ? "xmark" : "checkmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(summaryState == .interrupted ? Design.Brand.forge : Design.Brand.accentText)
+                        .foregroundStyle(
+                            summaryState == .interrupted
+                                ? Design.Brand.forge
+                                : (summaryIsReconstructed
+                                    ? Design.Colors.mutedForeground
+                                    : Design.Brand.accentText)
+                        )
 
                     MonoLabel(
                         collapsedLabel,
@@ -132,12 +141,17 @@ struct ToolActivityRail: View {
         .accessibilityLabel(
             summaryState == .interrupted
                 ? "Tools, stopped before finishing: \(activities.map(\.label).joined(separator: ", "))"
-                : "Tools: \(activities.map(\.label).joined(separator: ", "))"
+                : (summaryIsReconstructed
+                    ? "Tools, \(Self.completedWhileAwayPhrase): \(activities.map(\.label).joined(separator: ", "))"
+                    : "Tools: \(activities.map(\.label).joined(separator: ", "))")
         )
     }
 
     /// #296: the collapsed chip's state.
     private var summaryState: StepState { Self.summaryState(of: activities) }
+
+    /// #371: whether that state's "finished" claim was witnessed.
+    private var summaryIsReconstructed: Bool { Self.summaryIsReconstructed(activities) }
 
     // MARK: - Expanded Timeline
 
@@ -180,9 +194,15 @@ struct ToolActivityRail: View {
                     .foregroundStyle(Design.Brand.forge)
                     .frame(width: 11, height: 11)
             case .completed:
-                Image(systemName: "circle.fill")
+                // #371: a completion nobody witnessed renders hollow —
+                // the filled dot stays the witnessed form.
+                Image(systemName: Self.stepIsReconstructed(activity) ? "circle" : "circle.fill")
                     .font(.system(size: 8))
-                    .foregroundStyle(Design.Brand.accentText)
+                    .foregroundStyle(
+                        Self.stepIsReconstructed(activity)
+                            ? Design.Colors.mutedForeground
+                            : Design.Brand.accentText
+                    )
                     .frame(width: 11, height: 11)
             }
 
@@ -276,5 +296,28 @@ extension ToolActivityRail {
     /// exactly what shipped, and 296-B is the bar that says it must.
     nonisolated static func summaryState(of activities: [ToolActivity]) -> StepState {
         activities.contains { state(of: $0) == .interrupted } ? .interrupted : .completed
+    }
+
+    /// #371: the ruled copy, pinned so the visual and VoiceOver claims
+    /// cannot drift apart (#296's non-visual-reader lesson).
+    nonisolated static let completedWhileAwayPhrase = "completed while away"
+
+    /// #371: whether the collapsed chip's finished claim was UNWITNESSED —
+    /// a PARALLEL function beside `summaryState`, deliberately not a fourth
+    /// `StepState` case, so every existing call site stays untouched.
+    ///
+    /// `.interrupted` wins outright first (a #327-marked stop renders
+    /// interrupted, never "completed while away"); after that, ANY
+    /// reconstructed member makes the softer claim — over-claiming witness
+    /// for even one unobserved completion is the defect, so mixed sets take
+    /// the honest direction.
+    nonisolated static func summaryIsReconstructed(_ activities: [ToolActivity]) -> Bool {
+        guard summaryState(of: activities) == .completed else { return false }
+        return activities.contains { $0.provenance == .reconstructed }
+    }
+
+    /// #371: one step's unwitnessed-completion flag, same ordering rule.
+    nonisolated static func stepIsReconstructed(_ activity: ToolActivity) -> Bool {
+        state(of: activity) == .completed && activity.provenance == .reconstructed
     }
 }
