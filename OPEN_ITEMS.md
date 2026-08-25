@@ -15055,6 +15055,35 @@ same refresh machinery on a different trigger).
 > #405's five raw-storage pins survive unchanged or are re-cut deliberately
 > must be named in the bars, not discovered in the diff).
 
+> **🎯 BARS 406-A..E — pre-registered 2026-08-25, after the code read,
+> BEFORE any code. The code read settled the door count: the per-keystroke
+> path is exactly ONE door — `ConnectHermesScreen.customRelayURLBinding`'s
+> setter (`setRelayURL`), which writes the target profile AND the legacy
+> settings field per keystroke; the settings write is what fires
+> `didSet` → mirror + `refreshUnpairedRelayContext()`. `SettingsStore`'s
+> `didSet` already no-ops on unchanged values, so a commit of an untouched
+> draft is free by construction.**
+> - **406-A (the fix, RED first):** the relay field edits a LOCAL DRAFT —
+>   the screen no longer writes `settingsStore`/`profilesStore` per
+>   keystroke. Pinned structurally (#405's own precedent for this screen):
+>   the per-keystroke binding setter is GONE and the field binds the draft.
+>   Mutation: reverting the field to a store-writing binding goes RED.
+> - **406-B (commit moments, RED first):** commit runs at (1) pair attempt,
+>   before `pairingStore.pair` — the redeem must see the committed URL;
+>   (2) QR auto-fill, via the draft so a failed pair still shows the
+>   scanned URL; (3) screen dismissal, BEFORE `pairingTargetProfileID` is
+>   cleared (the commit resolves the target through it — ordering is the
+>   bar, not a detail). Mutation: deleting the dismissal commit goes RED.
+> - **406-C (behavior preserved):** validation + pair-button enablement
+>   read the DRAFT — the XCUITest pairing helper (per-char typing → waits
+>   for enablement → pairs) passes UNCHANGED; a typed-but-unpaired URL
+>   still persists via the dismissal commit, matching today's end state.
+> - **406-D:** all five `RelayDraftIntegrityTests` pins (#405) stay green
+>   UNTOUCHED — they pin HOW storage happens (raw, never canonicalized),
+>   not WHEN, and this lane changes only when.
+> - **406-E:** GATE: PASS (units + XCUITest + Release), count delta
+>   reconciled test-by-test.
+
 ## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
