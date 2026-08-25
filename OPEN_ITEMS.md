@@ -7559,6 +7559,13 @@ queue producers inherit whatever this decides.
 >   tests; the real chat client is `SessionsHermesClient`. High-
 >   confidence DELETION candidate (its relay path was already
 >   dispositioned DELETE in this entry's 08-20 block).
+>   **➡️ NO LONGER A CANDIDATE — DELETED the same day; see the ✅ result
+>   block under the 📐 bars. Consequence for the two counts above and in
+>   this entry's header: the app-side relay tenant list loses a whole
+>   SERVICE (the header's filing-time "SEVEN services" is six app-side
+>   now), and four register rows — 13, 14, 15, 20 — are executed. The
+>   three genuinely-live relay services named in this block are
+>   unchanged and are still the open question.**
 > - `device/provisioning` greps to ZERO hits anywhere — possibly already
 >   gone; one-line confirmation owed before assuming.
 > **The real remaining decision (Owen's):** does the pairing + host-
@@ -7593,6 +7600,144 @@ queue producers inherit whatever this decides.
 > - **309-DEL-D:** gate green (units + XCUITest + Release), with the
 >   suite count moved by exactly the net test change and the movement
 >   stated in the PR.
+
+> **✅ 2026-08-25 — RULING 1 EXECUTED: `LiveHermesClient` IS DELETED (PR
+> #375). The three test dispositions are the substantive half of this
+> block; the bars sit under them.**
+>
+> ⚠️ *Disambiguation, because the collision is confusing on this item in
+> particular: **GitHub PR #375** is not **tracker #375** (the Mac
+> relay/shim retirement, cited elsewhere in this very entry). Separate
+> sequences — see CLAUDE.md's note on that.*
+>
+> **What went.** `Talaria/Services/Live/LiveHermesClient.swift` — 511 lines,
+> the relay-era chat client — deleted whole. It was never constructed in
+> `Talaria/`, re-verified at HEAD by this register's OWN prescribed method
+> (`git grep -nE 'path: "' -- 'Talaria/*.swift'`) rather than by inheriting
+> the 📏 block's claim, per this entry's "re-derive, do not patch" rule.
+>
+> **Four register rows are now EXECUTED rather than merely dispositioned:**
+> **13** (`GET conversations/current`), **14** (`POST messages`), **15**
+> (`POST conversations/current/clear`) and **20** (`GET jobs/{id}/events`).
+> All four lived in this one file, which is why a single deletion closes
+> four rows. The relay call sites that SURVIVE are exactly the pairing+auth
+> family the 📏 block named, plus `AppContainer`'s two: `hosts/current`,
+> `hosts/enrollment-codes`, `hosts/current/revoke`, `phone-pairing/redeem`,
+> `device/register`, `session`, `auth/refresh`, `auth/revoke`, `commands`,
+> `device/app-state`.
+>
+> **The three test dispositions (309-DEL-B) — all TOMBSTONED, none PORTED.**
+> That is not a shortcut taken three times; it is the same shape three
+> times: each pin's *subject* died with the client, while each pin's *worry*
+> already holds a live guard elsewhere. Each tombstone sits at the deleted
+> test's own site, dated, naming this ruling and the surviving pin — the
+> #383 precedent already in that file (`liveVoiceSessionServiceRefreshes…`).
+>
+> 1. **`liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage`
+>    → TOMBSTONED.** Pinned the relay streaming tail: a `done` frame with no
+>    message → re-fetch `conversations/current` → final message picked out
+>    by matching jobId, in exactly three requests. Every moving part of that
+>    is relay-plane. The runs plane resolves its own tail from
+>    `assistant.completed` / `run.completed` and never reads the session
+>    transcript back, so there is no client-level re-fetch left to point at.
+>    The STORE-level form of the same worry is pinned live and was green in
+>    this lane's run:
+>    `chatStoreRefreshesConversationWhenStreamingInterruptedAfterJobAccepted`
+>    (asserts `reconcileFromServerCallCount == 1` **and** that the settled
+>    content came from the refreshed transcript), plus #295's ordering pin.
+> 2. **`liveHermesClientRejectsOversizedAggregateAttachmentPayloadBeforeSending`
+>    → TOMBSTONED.** Pinned a REJECTION — four over-budget attachments, zero
+>    requests issued, a failed message reading "The attachment was too
+>    large…". That behaviour was **deliberately replaced, not lost**:
+>    `AttachmentInlining.aggregateAttachmentBudget` (900 KB) carries the same
+>    ~1 MB server-body rationale in its own doc comment, and an attachment
+>    that cannot fit now ships an omission stub instead of failing the turn
+>    (#43's "never silently short the user an attachment" — #180's
+>    degrade-honestly rule applied to a size cap). The successor is pinned by
+>    `AttachmentInliningTests` (`:199` the omission list, `:216` the literal
+>    stub text) and, on the very same four-attachment shape the deleted test
+>    used, by
+>    `AttachmentDownscaleTests.fourImagesNoLongerOverrunTheAggregateBudget` —
+>    both green in this lane's run. Rewriting the test against the runs plane
+>    would have asserted a rejection the app no longer performs.
+> 3. **`liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad`
+>    → TOMBSTONED.** Pinned the relay 401 → refresh-once → retry ladder
+>    (#15/#94). **That ladder is NOT gone from production** — it is a
+>    per-service copy, and `LiveHermesHostService` still carries its own on a
+>    service the app really constructs. The very next test in the file,
+>    `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch`, pins that
+>    live copy with the same three assertions through the same
+>    `RelayAPIClient` 401 mapping — green in this lane's run. So the deleted
+>    test was a duplicate riding a dead client. Checked and rejected as a
+>    port target: `LiveSessionBootstrapService` has no in-client ladder to
+>    receive it — it OWNS `auth/refresh`, and the retry decision sits a layer
+>    up in the session store.
+>
+> **Bar-by-bar:**
+> - **309-DEL-A — MET, with one deviation stated rather than resolved
+>   unilaterally.** File deleted (`test -e` → ABSENT); `project.pbxproj` lost
+>   all four of its rows (the diff is exactly 4 deletions, all
+>   `LiveHermesClient`); **non-comment (code) hits = 0**. But
+>   `grep -rn LiveHermesClient Talaria/ TalariaTests/ TalariaUITests/
+>   Shared/` returns **3 hits, every one of them comment prose inside the
+>   tombstones bar B requires.** **A and B are in tension as written:** A
+>   wants zero grep hits, B wants a tombstone explaining where the type went
+>   — and a tombstone that cannot name the type is one a future grep can
+>   never find. Kept the name and recorded the choice here rather than
+>   quietly reinterpreting a pre-registered bar. Owen's to overrule.
+> - **309-DEL-B — MET.** Three dispositions above, each also written at the
+>   test's own site and in the PR body. No silent deletion.
+> - **309-DEL-C — MET.** `xcodegen generate` run twice; `project.pbxproj`
+>   sha256 `7d65838d248c55692dd600b9ef3d425d4f9ead9482cb052b856360701af50843`
+>   **both times** (byte-identical), and `Talaria.xcscheme` did not move —
+>   #319's `productName` fix still holding.
+> - **309-DEL-D — MET. `GATE: PASS`** (`TALARIA_SIM_NAME=CC-lane-3`,
+>   Xcode-beta6), every check on a positive marker: Debug `xcodebuild exit=0`
+>   + `TEST SUCCEEDED`, **Swift Testing 2550**, **XCUITest 14**, Release
+>   `xcodebuild exit=0` + build succeeded + no Swift compile errors. The two
+>   NOTEd skips are the known-permanent `CondenserFidelityTests` pair (needs
+>   the on-device Apple Intelligence model), not a regression from this
+>   change.
+>   **On "moved by exactly the net test change": the net is −3, and it is
+>   established BY CONSTRUCTION rather than by differencing against an older
+>   run's total** — which matters here because several lanes merged between
+>   #401's 2482/200 and this branch's base, so an absolute subtraction would
+>   have measured them, not this. Two independent proofs: the diff removes
+>   **3 `@Test` functions and adds 0**, and the static `@Test` count in the
+>   only test file touched goes **139 → 136**. `AppStoresTests` contains no
+>   parameterized tests (`arguments:` appears zero times in it), so the
+>   runtime delta equals the static delta.
+>
+> **Targeted pre-gate run** (CC-lane-3, Xcode-beta6): `AppStoresTests` +
+> `AttachmentInliningTests` + `AttachmentDownscaleTests` = **155 tests / 3
+> suites, TEST SUCCEEDED**, exit 0 — run before the gate per the cost rule
+> (the gate is a verification instrument, not a search tool).
+>
+> **Live-doc sweep (close-out rule).** CORRECTED: `tools/orphan-audit.sh`
+> (below) and `planning/reports/2026-08-19-309-relay-path-dispositions.md`
+> (a dated EXECUTED note under finding §1 — that finding's own "verify
+> before acting, do not inherit the claim" instruction was followed and the
+> claim held; its rows' file/line citations are now dead and say so).
+> Checked and deliberately LEFT: `CLEAN_CHAT_PATH.md:164`, whose header
+> already declares everything below it a historical planning record "not…
+> instructions"; `dispatch/FABLE-T27-223-251-reconciliation.md` and
+> `OPEN_ITEMS-ARCHIVE.md`, both history; `tools/orphan-audit-report.md`, a
+> generated snapshot that names its own commit.
+>
+> **Two findings this lane produced, neither in scope to fix here:**
+> - **`RelayAPIClient.streamEvents` (`:205`) now has ZERO callers.** It is
+>   the SSE primitive row 20 rode, and `LiveHermesClient` was its only
+>   consumer. Live-but-dead relay surface — deleting it is relay-client
+>   scope, and it belongs to whichever lane takes the pairing+auth family.
+> - **`tools/orphan-audit.sh` asserted this deletion could not happen.** Its
+>   `SELF_TEST_ORACLE` listed `LiveHermesClient`, and `--self-test` fails
+>   unless every name in it is *still re-flagged as an orphan* — so deleting
+>   a catalogued orphan broke the script exactly as wiring one up would.
+>   Fixed in this commit (name removed, dated note); the self-test now
+>   reports "all 4 known graveyard types re-flagged" and exits 0. **The
+>   general shape is worth keeping: an oracle asserting a type is STILL dead
+>   is falsified by that type's REMOVAL, not only by its revival — the
+>   graveyard has two exits and the script knew only one.**
 
 The counted inventory (live app, read at HEAD): **pairing + auth** (9 paths —
 `device/register`, `device/provisioning`, `auth/refresh`, `auth/revoke`,
@@ -7711,6 +7856,14 @@ argument for making the relay more robust.
 > as 13–15 and misses its fourth. Disposition **DELETE**, with 13–15 and for
 > the same reason: `LiveHermesClient` is never constructed anywhere in
 > `Talaria/`.
+>
+> *(➡️ 2026-08-25 pointer, not a rewrite: the line/file citations in the two
+> paragraphs above are a HISTORICAL record — `LiveHermesClient.swift` was
+> deleted whole by ruling 1 that day, so `:378` and `:104/:128/:260` no
+> longer resolve. Paths **13, 14, 15 and 20 are EXECUTED**, not merely
+> dispositioned; see the ✅ result block under the 📐 bars. The
+> `RelayAPIClient.streamEvents` primitive at `:205` survives the deletion
+> with **zero callers** — see that block's findings.)*
 >
 > **Read the count as TWENTY paths, and read the METHOD as the real
 > correction.** The count has now moved four times (18 → 16 → 17 → 20). Every

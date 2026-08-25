@@ -54,11 +54,18 @@ TYPE_KEYWORDS = ("struct", "class", "enum", "actor", "protocol")
 # Field Notes §5 graveyard, pinned at the commit that introduced this script.
 # --self-test asserts these still surface; expect churn as items get fixed
 # (e.g. #45 wires InboxScreen and guts MockInboxService).
+#
+# 2026-08-25 (#309 ruling 1): "LiveHermesClient" REMOVED from this oracle —
+# the type was deleted (production-dead relay-era chat client), so it can no
+# longer be re-flagged and the self-test would have failed on its absence.
+# This is the churn the note above predicted: the oracle asserts a type is
+# STILL an orphan, which a deletion falsifies just as surely as a wiring-up
+# does. An orphan that gets deleted leaves the list; it does not stay as a
+# ghost entry.
 SELF_TEST_ORACLE = [
     "TalkModeScreen",
     "VoiceAttachmentSheet",
     "CaptureScreen",
-    "LiveHermesClient",
     "MockInboxService",
 ]
 

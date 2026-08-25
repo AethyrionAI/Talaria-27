@@ -2630,188 +2630,40 @@ struct AppStoresTests {
         )
     }
 
-    @Test @MainActor
-    func liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-
-        let conversationID = UUID()
-        let userMessageID = UUID()
-        let assistantMessageID = UUID()
-        let jobID = UUID()
-        let requestCount = MutableBox(0)
-
-        StubURLProtocol.requestHandler = { request in
-            requestCount.value += 1
-            let url = try #require(request.url)
-
-            switch url.absoluteString {
-            case "https://relay.example.com/v1/messages":
-                let response = HTTPURLResponse(url: url, statusCode: 202, httpVersion: nil, headerFields: nil)!
-                let data = #"""
-                {"data":{
-                  "replyState":"pending",
-                  "jobId":"\#(jobID.uuidString.lowercased())",
-                  "conversation":{
-                    "id":"\#(conversationID.uuidString)",
-                    "title":"Hermes",
-                    "updatedAt":"2026-04-05T18:00:00Z",
-                    "messages":[
-                      {
-                        "id":"\#(userMessageID.uuidString)",
-                        "clientMessageId":"\#(userMessageID.uuidString)",
-                        "role":"user",
-                        "text":"Look at this",
-                        "timestamp":"2026-04-05T18:00:00Z",
-                        "deliveryStatus":"sent"
-                      }
-                    ]
-                  },
-                  "userMessage":{
-                    "id":"\#(userMessageID.uuidString)",
-                    "clientMessageId":"\#(userMessageID.uuidString)",
-                    "role":"user",
-                    "text":"Look at this",
-                    "timestamp":"2026-04-05T18:00:00Z",
-                    "deliveryStatus":"sent",
-                    "jobId":"\#(jobID.uuidString.lowercased())"
-                  }
-                }}
-                """#.data(using: .utf8)!
-                return (response, data)
-
-            case "https://relay.example.com/v1/jobs/\(jobID.uuidString.lowercased())/events":
-                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "text/event-stream"])!
-                let data = """
-                event: text_delta
-                data: {"jobId":"\(jobID.uuidString.lowercased())","delta":"Recovered ","kind":"text_delta"}
-
-                event: done
-                data: {"jobId":"\(jobID.uuidString.lowercased())","status":"completed"}
-
-                """.data(using: .utf8)!
-                return (response, data)
-
-            case "https://relay.example.com/v1/conversations/current":
-                let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-                let data = #"""
-                {"data":{
-                  "conversation":{
-                    "id":"\#(conversationID.uuidString)",
-                    "title":"Hermes",
-                    "updatedAt":"2026-04-05T18:00:01Z",
-                    "messages":[
-                      {
-                        "id":"\#(userMessageID.uuidString)",
-                        "clientMessageId":"\#(userMessageID.uuidString)",
-                        "role":"user",
-                        "text":"Look at this",
-                        "timestamp":"2026-04-05T18:00:00Z",
-                        "deliveryStatus":"delivered",
-                        "jobId":"\#(jobID.uuidString.lowercased())"
-                      },
-                      {
-                        "id":"\#(assistantMessageID.uuidString)",
-                        "role":"hermes",
-                        "text":"Recovered after refresh",
-                        "timestamp":"2026-04-05T18:00:01Z",
-                        "deliveryStatus":"delivered",
-                        "jobId":"\#(jobID.uuidString.lowercased())"
-                      }
-                    ]
-                  }
-                }}
-                """#.data(using: .utf8)!
-                return (response, data)
-
-            default:
-                Issue.record("Unexpected URL: \(url.absoluteString)")
-                throw URLError(.badURL)
-            }
-        }
-
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
-            session: session
-        )
-        let hermesClient = LiveHermesClient(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
-            allowDemoFallback: false
-        )
-
-        var updates: [StreamingUpdate] = []
-        for await update in hermesClient.sendStreaming(
-            message: "Look at this",
-            attachments: [],
-            clientMessageID: userMessageID
-        ) {
-            updates.append(update)
-        }
-
-        let finishedMessage = try #require(
-            updates.compactMap { update -> Message? in
-                guard case .finished(let message, _, _) = update else { return nil }
-                return message
-            }.last
-        )
-        #expect(finishedMessage.content == "Recovered after refresh")
-        #expect(requestCount.value == 3)
-    }
-
-    @Test @MainActor
-    func liveHermesClientRejectsOversizedAggregateAttachmentPayloadBeforeSending() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-        let requestCount = MutableBox(0)
-
-        StubURLProtocol.requestHandler = { request in
-            requestCount.value += 1
-            let url = try #require(request.url)
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (response, #"{"data":{"conversation":{"id":"00000000-0000-0000-0000-000000000000","title":"Hermes","updatedAt":"2026-04-05T18:00:00Z","messages":[]}}}"#.data(using: .utf8)!)
-        }
-
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let tempDirectory = FileManager.default.temporaryDirectory
-        let oversizedData = Data(repeating: 0x41, count: 300 * 1024)
-        var attachments: [PendingAttachment] = []
-
-        for index in 0 ..< 4 {
-            let url = tempDirectory.appendingPathComponent("oversized-\(index)-\(UUID().uuidString).txt")
-            try oversizedData.write(to: url)
-            attachments.append(try #require(PendingAttachment.file(at: url)))
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
-            session: session
-        )
-        let hermesClient = LiveHermesClient(
-            apiClient: apiClient,
-            accessTokenProvider: { "token" },
-            allowDemoFallback: false
-        )
-
-        let response = await hermesClient.send(
-            message: "Here are several attachments",
-            attachments: attachments,
-            clientMessageID: UUID()
-        )
-
-        #expect(requestCount.value == 0)
-        #expect(response.status == .failed)
-        #expect(response.content == "The attachment was too large for Hermes to process. Try a smaller image.")
-    }
+    // #309 (2026-08-25, Owen's ruling 1 — LiveHermesClient deleted as
+    // production-dead): two tests were DELETED here. Neither was repointed,
+    // and in both cases the reason is that the behaviour changed rather than
+    // moved — which is the part worth writing down.
+    //
+    // 1. `liveHermesClientRefreshesConversationBeforeResolvingFinishedStreamMessage`
+    //    pinned the relay streaming tail: a `done` frame carrying no message,
+    //    then a re-fetch of `conversations/current`, then the final message
+    //    picked out of the refreshed transcript by matching jobId (three
+    //    requests, no more). Every moving part of that is relay-plane —
+    //    `jobs/{id}/events`, a server-owned "current conversation", a job id.
+    //    The runs plane resolves its own tail from `assistant.completed` /
+    //    `run.completed` and never reads the session transcript back, so
+    //    there is no client-level re-fetch left to pin. What survived is the
+    //    STORE-level shape of the same worry — run committed server-side,
+    //    stream dropped, refresh before believing the local copy — and it is
+    //    pinned live by `chatStoreRefreshesConversationWhenStreamingInterruptedAfterJobAccepted`
+    //    (reconcilePendingRuns -> reconcileFromServer) plus #295's ordering
+    //    pin, `expirationGateReadsRecoverabilityBeforeAbandonActiveRunClearsIt`.
+    //
+    // 2. `liveHermesClientRejectsOversizedAggregateAttachmentPayloadBeforeSending`
+    //    pinned a REJECTION: four over-budget attachments, zero requests
+    //    issued, a failed message reading "The attachment was too large for
+    //    Hermes to process." That behaviour was deliberately replaced, not
+    //    lost. `AttachmentInlining.aggregateAttachmentBudget` (900 KB) now
+    //    carries the same ~1 MB server-body rationale, and an attachment that
+    //    cannot fit ships an omission stub inside its BEGIN/END frame instead
+    //    of failing the turn — #43's "never silently short the user an
+    //    attachment", the degrade-honestly rule (#180) applied to a size cap.
+    //    The successor is pinned by `AttachmentInliningTests` and, on the same
+    //    four-attachment shape this test used, by
+    //    `AttachmentDownscaleTests.fourImagesNoLongerOverrunTheAggregateBudget`.
+    //    Rewriting this test against the runs plane would have asserted a
+    //    rejection the app no longer performs, and should not.
 
     @Test @MainActor
     func chatStoreRetriesAttachmentOnlyMessageWithRestoredAttachments() async throws {
@@ -3353,70 +3205,24 @@ struct AppStoresTests {
         #expect(voiceService.blockedReason == "Session expired.")
     }
 
-    @Test @MainActor
-    func liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad() async throws {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [StubURLProtocol.self]
-        let session = URLSession(configuration: configuration)
-
-        let accessToken = MutableBox("expired-token")
-        let refreshCallCount = MutableBox(0)
-        let requestCount = MutableBox(0)
-        let conversationID = UUID()
-
-        StubURLProtocol.requestHandler = { request in
-            requestCount.value += 1
-            let url = try #require(request.url)
-            #expect(url.absoluteString == "https://relay.example.com/v1/conversations/current")
-
-            let authHeader = request.value(forHTTPHeaderField: "Authorization")
-            if authHeader == "Bearer expired-token" {
-                let response = HTTPURLResponse(url: url, statusCode: 401, httpVersion: nil, headerFields: nil)!
-                let data = #"{"error":{"code":"unauthorized","message":"expired or invalid access token","retryable":false}}"#.data(using: .utf8)!
-                return (response, data)
-            }
-
-            #expect(authHeader == "Bearer refreshed-token")
-            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
-            let data = #"""
-            {"data":{
-              "conversation":{
-                "id":"\#(conversationID.uuidString)",
-                "title":"Hermes",
-                "updatedAt":"2026-04-03T21:15:00Z",
-                "messages":[]
-              }
-            }}
-            """#.data(using: .utf8)!
-            return (response, data)
-        }
-
-        defer {
-            StubURLProtocol.requestHandler = nil
-        }
-
-        let apiClient = RelayAPIClient(
-            baseURLProvider: { "https://relay.example.com/v1" },
-            session: session
-        )
-        let hermesClient = LiveHermesClient(
-            apiClient: apiClient,
-            accessTokenProvider: { accessToken.value },
-            accessTokenRefresher: {
-                refreshCallCount.value += 1
-                accessToken.value = "refreshed-token"
-                return accessToken.value
-            },
-            allowDemoFallback: false
-        )
-
-        let conversation = await hermesClient.loadConversation()
-
-        #expect(refreshCallCount.value == 1)
-        #expect(requestCount.value == 2)
-        #expect(conversation.id == conversationID)
-        #expect(hermesClient.connectionStatus == .connected)
-    }
+    // #309 (2026-08-25, Owen's ruling 1 — LiveHermesClient deleted as
+    // production-dead): `liveHermesClientRefreshesExpiredAccessTokenDuringConversationLoad`
+    // was DELETED here rather than repointed.
+    //
+    // It pinned the relay's 401 -> refresh-once -> retry ladder (#15/#94) on
+    // `LiveHermesClient.performAuthorizedRequest`: one refresher call, two
+    // requests, a connected client. That ladder is NOT gone from production —
+    // it is a per-service copy, and `LiveHermesHostService` still carries its
+    // own (`LiveHermesHostService.swift`, `performAuthorizedRequest`) on a
+    // service the app really constructs. The very next test in this file,
+    // `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch`, pins that
+    // live copy with the same three assertions against the same
+    // `RelayAPIClient` 401 mapping. So the ladder keeps a live regression
+    // guard and this one was a duplicate riding a dead client.
+    //
+    // `LiveSessionBootstrapService` — the other live relay tenant — has no
+    // in-client ladder to port to: it OWNS `auth/refresh`, and the retry
+    // decision sits a layer up in the session store.
 
     @Test @MainActor
     func liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch() async throws {
