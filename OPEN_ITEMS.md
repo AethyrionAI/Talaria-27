@@ -15221,7 +15221,18 @@ does not need that answer.
 - **Worktree + branch pruned post-merge** from the main checkout path (see
   below for the exact outcome).
 
-## 324. 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
+> **✅ MERGED 2026-08-25 (the dated block the header promised): PR #374,
+> squash `e6ff5768`. Clean merge, no OPEN_ITEMS.md race with the parallel
+> lanes.** Prune outcome: `git worktree remove
+> .claude/worktrees/adoring-ellis-b5e8fd` succeeded WITHOUT `--force`
+> (tree was clean) and `git branch -D claude/serene-hofstadter-f044dd`
+> succeeded; both confirmed gone via `git worktree list` / `git branch
+> -a`. One honest deviation on the record: the agent's sandbox blocked
+> git operations addressed AT the main checkout path, so both commands
+> ran from its own worktree instead — identical effect, since worktrees
+> share one `.git` metadata store. CLOSED; archive move rides the next
+> sweep. (403-D — a standing sync mechanism, e.g. wiring the script's
+> `--check` into a procedure — remains Owen's.) 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
 CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained for A/B):**
