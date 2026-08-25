@@ -14697,6 +14697,14 @@ once per device session.
 > audio change never ships without device time. Options (a) build-now and
 > (c) leave-it are declined.
 
+> **🔓 UN-PARKED 2026-08-25 (Owen's stacking ruling, in-chat: "Don't hold
+> anything for my testing, it should stack"):** the 08-24 deferral that
+> held this lane behind the runbook's voice sitting (attribution
+> protection) is VOID — work stacks, the runbook adapts. The pre-device
+> condition is also met (evening device time is hours away). LANE OPENS
+> NOW; 198B-A rides the next staged build's runbook card, annotated with
+> the build boundary per the ruling.
+
 
 ## 198A. ⚠️ THE REAL-INTERRUPTION TEST: no false negative, but only ONE engine was verified and we cannot say which
 
