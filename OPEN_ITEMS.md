@@ -161,6 +161,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **Design election owed: auto-degrade once (recommended) / offer text-only / leave it**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); **the refusal wording is the lever, offline-testable against artifacts already on this Mac**
 - **#410** ✅ unlanded AGENTS.md resync recovered from a stale worktree (commit `831b7620` mislabeled itself "#403") — **LANDED 2026-08-25**: sync script extracted byte-for-byte, AGENTS.md regenerated fresh from current CLAUDE.md (two runs byte-identical), worktree + branch pruned; 403-D (standing mechanism) still awaits Owen
+- **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it** — while per-turn receipts render normally on the same thread. **MEASURED 2026-08-11; clipping RULED OUT** (that card does not scroll, other threads' cards do). `sessionUsageTotals` returns nil only when metered turns AND priming hops are both zero, and both should be non-zero. ~~Mechanism UNKNOWN~~ **⟵ INVESTIGATED 2026-08-25: candidates RANKED — the lead (openSession's wholesale replace drops system rows + usage; the 9→7 count drop and the vanished totals are ONE event) predicts the observed card row-for-row and is SIM-CONFIRMABLE before any device time; measurement lane designed and electable.** Keeps #312 (f) RED; bars 330-A..G pre-registered
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
 - **#340** 🔴 **THE TOOL RUNS, THE TIME IS DROPPED, AND THE MODEL CLAIMS IT ANYWAY** — *"Remind me to empty the dishwasher **at 11**"* → `createReminder` executed, card staged with **DUE EMPTY**, approved, and the reply said *"I've set a reminder … at 11."* The Reminders **Scheduled** view one minute later does not contain it, because a dateless reminder cannot appear there. **The reminder will never fire and the user was told it was set.** MEASURED IN PRODUCTION 2026-08-12 9:51 PM; resolves #249's empty-DUE discriminator (**not** a display gap). **#338's guard is BLIND to this by design** — 338-D forbids firing when a tool executed, so it checks EXISTENCE, not CONTENT. Raises an unchecked question over every #200-series create rate: nothing in that chain inspects the due date. Bars 340-A..E. **→ MEASURED 9-FOR-9 on 2026-08-15 (drive-by, during #338-C's run): every one of nine staged cards carried `DUE` EMPTY, so on the BARE-HOUR shape the defect is effectively deterministic, not occasional (P=0.002 if the rate were even 0.5). All nine declined — no residue. Scope is one prompt shape and licenses nothing wider. **→ 340-A EXTENDED BY PHRASING at 2:57 PM AND THE OMISSION IS CONDITIONAL: "at 4pm" (time only) OMITS, "tomorrow at 4" (day-bearing) is CORRECT, "in 20 minutes" (relative) produces a WRONG value already six hours in the past. THE MODEL WILL NOT RESOLVE "TODAY" FROM A BARE TIME though it knows the date. That makes the GUIDE STRING the leading fix over #200S's optionality — and warns that the rollback arm may convert omissions into WRONG values, so the A/B must score four buckets, not a binary. Across 15 calls the model sent exactly ONE correct due date.** Discriminator handed to 340-A with NO mechanism elected: the model demonstrably HAS the time (it rendered `Time: 6:00` in prose and reasoned that "9 AM has passed"), so the time is absent only from the staged card's `DUE` field** **→ ✅ 340-C ANSWERED THE SAME AFTERNOON from the device log via #249's own instrument: THE MODEL OMITS THE ARGUMENT — 10 of 11 `createReminder` calls sent `due raw=""`, and all 9 card-staging turns did. NOT a parse failure; the session's own "the app silently degrades an unparseable time" hypothesis is REFUTED (the parser never saw a string). The single counterexample sent `2026-08-15T09:00` perfectly formatted, so the model is capable. CANDIDATE CAUSE NAMED NOT ELECTED — **#200S** made `due` optional (guide: *"or empty for no due date"*) to cure a stall, and was validated on whether a tool call happened, never on argument correctness; its pinned rollback `ReminderCreateToolRequiredFields` is ALREADY a selectable battery cell, so the A/B is built and only the SCORER needs changing. ~~**340-B still owed** (needs one APPROVED turn — every card today was declined)~~ **⟵ corrected 2026-08-23: 340-B MET 2026-08-15 2:41 PM — one approved turn, the within-turn witness (prose "4:00 PM", argument `due raw=""`, card DUE empty, reply "Done!"); the entry's own dated block records it**
@@ -15232,7 +15233,49 @@ does not need that answer.
 > ran from its own worktree instead — identical effect, since worktrees
 > share one `.git` metadata store. CLOSED; archive move rides the next
 > sweep. (403-D — a standing sync mechanism, e.g. wiring the script's
-> `--check` into a procedure — remains Owen's.) 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
+> `--check` into a procedure — remains Owen's.)
+
+## 411. 🐛 FOUR LIFECYCLE ENTRY POINTS HARD-GATE ON RELAY `isPaired` — a gateway-only (or hostless) install gets NO lifecycle refresh at all — **FILED 2026-08-25 per #268, found by the #309 design-doc dependency sweep (Sonnet agent, main @ `e106943a`). A standing defect TODAY, independent of any deletion; the FIX rides #309's Lane A (design doc §5c) — Owen rules on the doc before code.**
+
+**The finding:** `AppContainer.initialize()` (`:1344`),
+`runForegroundActivation()` (`:1645`), `handleSystemLaunch()` (`:1732`),
+`handleBackgroundRefresh()` (`:1760`) — plus
+`retryCredentialHoldIfNeeded()` (`:1414`) — all open with
+`guard pairingStore.isPaired else { return }`. That is the RELAY pairing.
+An install that never relay-paired (gateway-only, or fully hostless — the
+launch pivot's DEFAULT user) runs **none** of what those bodies do on any
+lifecycle transition: host refresh, skills/command-catalog refresh,
+voice-readiness refresh, live-activity reconciliation, widget-data
+refresh, share-inbox drain, dormant-token refresh, and `initialize()`'s
+"local critical path" (`loadConversationIfNeeded`,
+`reconcileLiveActivities`, `updateWidgetData`, `drainShareInbox`,
+`isInitialized = true`). Only per-screen `.task` redundancy (e.g.
+`ChatScreen.swift:608`'s own `loadConversationIfNeeded`) papers over it.
+
+**The codebase already knows this trap in one place:**
+`TalariaPlatformLink`'s scene wiring (`AppContainer.swift:1010-1016`)
+explicitly refuses the `isPaired` gate — *"that is the RELAY pairing — a
+plane this transport does not use… Gating the link on it would leave the
+whole feature dark on a gateway-only host"* — but the four entry points
+above never got the same treatment.
+
+**⚠️ Before quoting user impact, VERIFY the redundancy coverage:** some
+starved work provably has per-screen fallbacks; some (share-inbox drain,
+widget refresh on background, live-activity reconciliation) may not. The
+lane that fixes this measures which paths are actually dead for an
+unpaired install rather than inheriting this entry's list as impact.
+
+**The fix (designed, not begun):** replace the guards with
+capability-appropriate gates — local work runs ALWAYS; gateway-plane work
+gates on profile-has-credentials. Scoped into #309 Lane A
+(`planning/2026-08-25-309-plugin-native-pairing-design.md` §5c/§7)
+because it is the same AppContainer region as the bootstrap deletion and
+the gate replacement is what makes that deletion safe.
+
+**Related:** #309 (home of the lane), #31/#137 (the no-pairing-wall
+stance this violates in spirit), #365/#310 (the sibling stall + its
+partial gate), #145 Part D (the `// harness-visible` foreground-activation
+instrumentation whose semantics change when the guard does). 🔁 iOS 27 BETA 5 / XCODE 27 BETA 5 OVERNIGHT SDK AUDIT — regressions, new API, fixed-by-update, toolchain promotion — **RUN 2026-08-10/11 (Owen's /goal, pre-bed authorization). AUDIT COMPLETE; TOOLCHAIN PROMOTED beta4→beta5 under Owen's pre-authorized "auto-promote if green" (gate green: 2056/156 Swift Testing + 14 XCUITest + Release build, 0 errors). Full evidence: `planning/reports/2026-08-11-beta5-sdk-audit.md`. WATCH items below remain open.**
 
 **2026-08-11 — what was run and what it found (Fable orchestrator + 4 subagents; sims
 CC-B5-{,probe-,control-}iPhone-Air on runtime 24A5408d, beta4 24A5390f retained for A/B):**
