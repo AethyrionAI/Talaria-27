@@ -4410,6 +4410,13 @@ Logged 2026-07-20 (Session V launch sweep).
 > branch and MERGES ONLY on Owen's read of the exact text** (the
 > no-external-submissions rule; his ballot pick elected the draft, not the
 > publish).
+>
+> **📬 DRAFT COMPLETE 2026-08-25 — PR #373 OPEN, HELD for Owen's read.**
+> 17 edits across 4 files (relay claims retired per #383/#375, the #390
+> vision story added with the per-tier privacy split matching the amended
+> policy, beta6 line, the screens meta leftover). The edit-by-edit list
+> with honesty rationale is in the session's draft doc; the PR body
+> carries the summary. **Merging PUBLISHES — nothing lands until his go.**
 
 > **⚖️ OWEN'S RULINGS 2026-08-09 (interactive decision pass) — the copy
 > questions, decided:**
