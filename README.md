@@ -3,7 +3,7 @@
 > [!NOTE]
 > Talaria is an independent community project. It is not affiliated with, endorsed by, or part of [Nous Research](https://nousresearch.com/) or the official [Hermes Agent](https://github.com/NousResearch/hermes-agent) project.
 
-Talaria is a native SwiftUI iPhone app with a **fully on-device chat brain** (Apple's FoundationModels framework): streaming chat, a device tool belt (calendar, reminders, contacts, weather, health, alarms — every action confirmed in-app), sessions, themes, and voice, with zero host setup and no data leaving the phone.
+Talaria is a native SwiftUI iPhone app with a **fully on-device chat brain** (Apple's FoundationModels framework): streaming chat with image understanding (photos you attach are read on the phone), a device tool belt (calendar, reminders, contacts, weather, health, alarms — every action confirmed in-app), sessions, themes, and voice, with zero host setup and no data leaving the phone.
 
 Pairing a self-hosted [Hermes AI agent](https://github.com/NousResearch/hermes-agent) is the **upgrade tier**: it adds your full agent, your desktop model roster, server sessions, and phone-aware answers — your agent can ask this phone for location, health, motion, calendar, and weather **at query time** (the talaria plugin) — without turning your runtime into a hosted service.
 
@@ -20,7 +20,7 @@ Talaria is a working alpha, developed and used daily on real hardware. Honestly,
 | Area | State |
 |------|-------|
 | Streaming chat (SSE) | Working — reasoning and answer channels separated, background continuation, reconciliation |
-| On-device chat | Working — Apple FoundationModels, no host required; a Private Cloud Compute tier shows only when the entitlement and availability check actually pass (beta) |
+| On-device chat | Working — Apple FoundationModels, no host required, with true image input (vision) on both local tiers; a Private Cloud Compute tier shows only when the entitlement and availability check actually pass (beta) |
 | Tool calls & agent files | Working |
 | Inbox / Directives & daily briefing | Working — actionable items (approvals, reminders, briefings) land in the in-app inbox; approve or dismiss in place |
 | Phone queries (location / HealthKit / motion / calendar / weather) | Working — your agent asks the phone at query time; deliberate opt-in (off by default) with per-sensor grants. The old always-on upload pipeline was retired 2026-08-16 (#352) — nothing streams, nothing queues |
@@ -39,7 +39,7 @@ One thing worth knowing up front: **pairing is optional.** On-device chat works 
 
 ## What it does
 
-- **On-device chat** — a full local backend on Apple's FoundationModels framework, behind the same client seam as the hosted path: streaming, sessions drawer, persistence, read-aloud. Context-window-aware condensation instead of errors; no data leaves the device
+- **On-device chat** — a full local backend on Apple's FoundationModels framework, behind the same client seam as the hosted path: streaming, sessions drawer, persistence, read-aloud. Sees attached photos as true image input on both the on-device and Private Cloud tiers, with OCR as the fallback — on-device the picture never leaves the phone; on Private Cloud it goes to Apple with the request, as the privacy policy states. Context-window-aware condensation instead of errors; no data leaves the device on the local tier
 - **Streaming chat** via the Hermes gateway (SSE), with markdown, code blocks, and inline images; agent-written text files surface in chat via the plugin's artifact mirror
 - **Voice mode** — real-time WebRTC speech-to-speech, server-side voice, continuous mic, mute/barge-in, multimodal image support; bootstraps over the talaria plugin (#383) and falls back to an on-device engine when no voice host is reachable
 - **Inbox / Directives** — your agent pushes to-dos, approvals, reminders, and a daily briefing to the phone; approve or dismiss in place, and the verdict lands back on the host

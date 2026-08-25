@@ -136,7 +136,7 @@ button { font: inherit; }
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Server sessions synced with the agent you already run</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Phone-aware answers: location, health, calendar, weather, motion — at query time</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Inbox and directives — your agent pushes work to your pocket</span></div>
-          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Realtime WebRTC voice, and agent-file downloads in chat</span></div>
+          <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Realtime WebRTC voice, and agent-written artifacts mirrored into chat</span></div>
           <div style="display:flex;gap:14px;padding:11px 0;border-top:1px solid rgba(84,230,240,.14)"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#FFC14D;flex:none;padding-top:2px">▸</span><span style="font-size:14.5px;line-height:1.55;color:#CFE1EA">Multiple host profiles, each with its own key in the Keychain</span></div>
         </div>
       </div>
@@ -227,17 +227,17 @@ button { font: inherit; }
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">01</div>
         <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">On-device brain</div>
-        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">A complete local chat backend on FoundationModels, behind the same client seam as the hosted path. Context-window-aware condensation instead of errors.</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">A complete local chat backend on FoundationModels, behind the same client seam as the hosted path. Sees the photos you attach — on-device, the picture never leaves the phone. Context-window-aware condensation instead of errors.</div>
       </div>
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">02</div>
         <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Streaming chat</div>
-        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Server-sent events from the Hermes Sessions API. Markdown, code blocks, inline images and agent file downloads, rendered natively.</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Server-sent events from the Hermes Sessions API. Markdown, code blocks, inline images and mirrored agent artifacts, rendered natively.</div>
       </div>
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">03</div>
         <div style="font-family:'Newsreader',serif;font-size:clamp(21px,2.2vw,25px);line-height:1.32;color:#EAF6F8;margin-bottom:11px">Voice mode</div>
-        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Realtime WebRTC speech-to-speech with server-side voice, continuous mic and barge-in — falling back to an on-device engine when the relay is unreachable.</div>
+        <div style="font-size:14.5px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Realtime WebRTC speech-to-speech with server-side voice, continuous mic and barge-in — bootstrapped through the talaria plugin, with an on-device engine when you're unpaired or offline.</div>
       </div>
       <div class="cap" style="background:#06080C;padding:30px 28px 32px;min-height:180px">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.2em;color:#4D6273;margin-bottom:20px">04</div>
@@ -280,7 +280,7 @@ button { font: inherit; }
         <p style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.26em;color:#5D7488;margin-bottom:18px">04 — ARCHITECTURE</p>
         <h2 style="font-family:'Newsreader',serif;font-weight:400;font-size:clamp(32px,4.6vw,52px);line-height:1.22;letter-spacing:.004em;color:#EAF6F8">Two paths. Nothing in the middle.</h2>
       </div>
-      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Chat connects <strong style="color:#CFE1EA;font-weight:500">directly</strong> to the Sessions API — model selection and mid-turn steering ride the same connection — and the talaria plugin on the same gateway carries pairing, phone asks, and the inbox. The relay tier is legacy and optional.</p>
+      <p style="font-size:17px;line-height:1.65;color:#7C93A6;text-wrap:pretty">Chat connects <strong style="color:#CFE1EA;font-weight:500">directly</strong> to the Sessions API — model selection and mid-turn steering ride the same connection — and the talaria plugin on the same gateway carries pairing, phone asks, and the inbox. The relay tier is retired — current builds don't call it.</p>
     </div>
 
     <div style="display:flex;flex-wrap:wrap;border:1px solid rgba(84,230,240,.14);border-radius:14px;overflow:hidden;background:rgba(8,18,26,.4)">
@@ -330,9 +330,9 @@ hermes talaria pair · status</div>
           <div>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
               <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#FFC14D">──→</span>
-              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#FFC14D">VOICE · LEGACY</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:.14em;color:#FFC14D">RETIRED</span>
             </div>
-            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">The relay tier's last job: the realtime-voice WebRTC bootstrap. Optional, on a retirement path — pairing, phone asks, the inbox, and agent-file downloads all moved to the plugin, and sensor ingestion is gone outright (query-time asks instead).</div>
+            <div style="font-size:14.5px;line-height:1.65;color:#7C93A6;text-wrap:pretty">The relay tier's jobs are all gone: the voice bootstrap moved to the plugin (2026-08), pairing, phone asks, the inbox and artifact delivery ride it too, and sensor ingestion is gone outright (query-time asks instead). The sidecar stays in the repo for history — current builds never call it.</div>
           </div>
           <div style="border-left:1px solid rgba(84,230,240,.14);padding-left:32px">
             <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px">
@@ -362,7 +362,7 @@ hermes talaria pair · status</div>
       </div>
       <div style="border:1px solid rgba(84,230,240,.14);border-radius:12px;padding:22px 24px;background:rgba(8,18,26,.4)">
         <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.16em;color:#54E6F0;margin-bottom:9px">FAILURE MODE</div>
-        <div style="font-size:14px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Everything restarts independently. If the legacy relay is down, chat keeps working. If the host is down entirely, the on-device brain takes over.</div>
+        <div style="font-size:14px;line-height:1.6;color:#7C93A6;text-wrap:pretty">Everything restarts independently. If the host is down entirely, the on-device brain takes over — chat, voice, and vision all run without it.</div>
       </div>
     </div>
   </div>
