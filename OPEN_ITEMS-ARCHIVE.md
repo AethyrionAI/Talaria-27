@@ -36580,6 +36580,15 @@ material" — that sentence named this file eleven days before it mattered).
 
 > **✅ CLOSED 2026-08-24 night — Owen's formal close ("Sweep approved", the interactive pass). Moved verbatim to `OPEN_ITEMS-ARCHIVE.md` per #261.**
 
+> **📌 2026-08-25 POINTER (append-only, #317 carve-out): the policy this
+> entry published was AMENDED — #390's flip PR added the image sentence to
+> the PCC paragraph ("Your request leaves the device — including any
+> images you attached to that message") and revised the effective date
+> 2026-08-20 → 2026-08-25, on Owen's approved wording + explicit publish
+> go (both 2026-08-25). The #390 entry holds the full record; #387 entry 1
+> (the Apple-pages watch) is unaffected — the quoted Apple text did not
+> change.**
+
 ## 389. 🎲 A #145 REGRESSION PIN ASSERTS AT AN INSTANT THE CODE GIVES NO GUARANTEE ABOUT — `foregroundWritesWidgetSnapshotEvenWhenTheNetworkChainNeverCompletes` is racy BY CONSTRUCTION, and it is latent on `main` — **FOUND 2026-08-21 while gating #388, PROVEN FROM SOURCE, and deliberately NOT fixed in that lane. ✅ FIXED + MERGED 2026-08-21 PM as `df6b987b` (PR #335) — 389-A/B/C all met, gate PASS. ⚠️ This header read "NOT STARTED" until 2026-08-22 because the result block was FILED UNDER #372; it is moved here verbatim below. A reader of this entry would have rebuilt finished work — and nearly did.** **⟵ HEADER CORRECTED 2026-08-23 (stale-header sweep): FIXED + MERGED 2026-08-21 as `df6b987b` (PR #335), 389-A/B/C all met.**
 
 **The test** (`TalariaTests/AppStoresTests.swift:5544`) does two things in
