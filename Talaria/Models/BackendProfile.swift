@@ -15,20 +15,12 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     var name: String
     /// Hermes Sessions API base URL, e.g. "http://your-host:8642".
     var gatewayBaseURL: String
-    /// Relay base URL including `/v1`, e.g. "http://your-host:8000/v1".
-    ///
-    /// **Optional since #310, and the optionality is the point:** a profile
-    /// with no relay is a GATEWAY-ONLY profile — the "install Hermes, paste
-    /// one key" end state #251/#269 are built toward. While this was
-    /// `String`, that state could not be expressed at all, so every profile
-    /// carried a relay URL whether or not a relay existed to answer it. With
-    /// both hosts' relays retired (#346 OJAMD, #375 Mac) that meant every
-    /// profile switch blocked the UI behind doomed round trips (#365).
-    ///
-    /// `nil` and `""` mean the same thing and the decoder collapses them —
-    /// see `init(from:)`. Read this through `hasRelay` rather than testing
-    /// for nil at the call site, so the relay-plane gate has ONE spelling.
-    var relayBaseURL: String?
+    // **`relayBaseURL` is DELETED (#309 Lane B, Owen's ruling 3).** #310 made
+    // it optional so a gateway-only profile could exist; every profile is one
+    // now, and the last reader of the relay plane went with `PairingStore`.
+    // A persisted blob that still carries the key decodes fine and the value
+    // is simply ignored — `init(from:)` never asks for it — so there is no
+    // migration and no state to rewrite.
     /// Talaria models-shim base URL, e.g. "http://your-host:8765". Optional — a
     /// profile without a shim simply exposes no model picker.
     var shimBaseURL: String?
@@ -58,7 +50,6 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         id: UUID = UUID(),
         name: String,
         gatewayBaseURL: String,
-        relayBaseURL: String? = nil,
         shimBaseURL: String? = nil,
         note: String? = nil,
         usesLegacyCredentialKeys: Bool = false,
@@ -69,7 +60,6 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         self.id = id
         self.name = name
         self.gatewayBaseURL = gatewayBaseURL
-        self.relayBaseURL = relayBaseURL
         self.shimBaseURL = shimBaseURL
         self.note = note
         self.usesLegacyCredentialKeys = usesLegacyCredentialKeys
@@ -82,7 +72,6 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         case id
         case name
         case gatewayBaseURL
-        case relayBaseURL
         case shimBaseURL
         case note
         case usesLegacyCredentialKeys
@@ -98,16 +87,8 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
         id = try container.decode(UUID.self, forKey: .id)
         name = try container.decodeIfPresent(String.self, forKey: .name) ?? "Backend"
         gatewayBaseURL = try container.decodeIfPresent(String.self, forKey: .gatewayBaseURL) ?? ""
-        // #310: an ABSENT key and an EMPTY string both decode to nil. Every
-        // blob written before this build stores a String, and the ones the
-        // pre-#310 encoder wrote for a "no relay" profile stored `""` — so
-        // collapsing the two here is what makes an old blob mean the same
-        // thing under the new type. Do not "simplify" this to
-        // `decodeIfPresent` alone: that would decode `""` as a relay URL and
-        // hand it to `URL(string:)`, which is the shape that produced the
-        // -1002 requests this item exists to stop.
-        let decodedRelay = try container.decodeIfPresent(String.self, forKey: .relayBaseURL)
-        relayBaseURL = (decodedRelay?.isEmpty == true) ? nil : decodedRelay
+        // #309 Lane B: the `relayBaseURL` key is not read. An old blob still
+        // carries it; `Codable` ignores unknown keys, and re-encoding drops it.
         shimBaseURL = try container.decodeIfPresent(String.self, forKey: .shimBaseURL)
         note = try container.decodeIfPresent(String.self, forKey: .note)
         usesLegacyCredentialKeys = try container.decodeIfPresent(Bool.self, forKey: .usesLegacyCredentialKeys) ?? false
@@ -120,24 +101,6 @@ struct BackendProfile: Codable, Hashable, Identifiable, Sendable {
     /// the legacy (pre-profile) keys — see `BackendProfileScopedKeys`.
     var credentialScopeID: UUID? {
         usesLegacyCredentialKeys ? nil : id
-    }
-
-    /// #310: does this profile have a relay plane at all?
-    ///
-    /// The ONE spelling of the relay-plane gate. Call sites ask this instead
-    /// of testing `relayBaseURL != nil`, because the two answers differ on
-    /// `""` — and a persisted blob can still carry `""` through paths that
-    /// do not go via `init(from:)` (an in-memory profile the Server screen
-    /// just emptied, for one). A gate with two spellings is a gate with a
-    /// hole.
-    var hasRelay: Bool {
-        relayBaseURL?.isEmpty == false
-    }
-
-    /// The relay base URL, normalized to nil when it is present but empty —
-    /// what a relay-plane caller actually wants.
-    var resolvedRelayBaseURL: String? {
-        hasRelay ? relayBaseURL : nil
     }
 
     /// **#384-C: does this profile have a gateway at all?**
@@ -217,7 +180,13 @@ struct BackendProfilesState: Codable, Hashable, Sendable {
 /// profile migration byte-identical for existing installs: no Keychain entry
 /// moves, no persisted state is rewritten.
 enum BackendProfileScopedKeys {
-    /// Relay session tokens (Keychain, `AppSessionStore`).
+    // **The four slots below are PURGE-ONLY since #309 Lane B (bar 309-B9).**
+    // Nothing writes or reads them; they are named here so
+    // `RelayCredentialHygiene` can enumerate the residue by its real key
+    // strings instead of reconstructing them, and so a reader can see at a
+    // glance which of this namespace is dead. Deleting the names would make
+    // the purge a set of string literals — the shape that goes stale silently.
+    /// Relay session tokens (Keychain) — written by the deleted `AppSessionStore`.
     static func accessToken(_ scope: UUID?) -> String { scoped("session.accessToken", scope) }
     static func refreshToken(_ scope: UUID?) -> String { scoped("session.refreshToken", scope) }
     /// Hermes Sessions API bearer key (Keychain, chat + shim fallback auth).
@@ -232,9 +201,10 @@ enum BackendProfileScopedKeys {
     /// can enumerate both halves of the credential from this namespace
     /// instead of reconstructing the suffix by hand.
     static func talariaDeviceID(_ scope: UUID?) -> String { talariaDeviceToken(scope) + ".deviceID" }
-    /// Paired relay configuration (UserDefaults + Keychain mirror, #41).
+    /// Paired relay configuration (UserDefaults + Keychain mirror, #41) —
+    /// purge-only, see above.
     static func pairedRelayConfiguration(_ scope: UUID?) -> String { scoped("hermes.pairedRelayConfiguration", scope) }
-    /// Relay session state (UserDefaults, `AppSessionStore.state`).
+    /// Relay session state (UserDefaults) — purge-only, see above.
     static func sessionState(_ scope: UUID?) -> String { scoped("hermes.sessionState", scope) }
 
     private static func scoped(_ base: String, _ scope: UUID?) -> String {

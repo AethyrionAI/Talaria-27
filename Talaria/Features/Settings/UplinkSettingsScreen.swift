@@ -91,7 +91,6 @@ struct UplinkSettingsScreen: View {
     var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
@@ -228,7 +227,7 @@ struct UplinkSettingsScreen: View {
 
     private var linkDetail: String {
         switch effectiveConnectionState {
-        case .online: "\(hostDisplay) · \(sessionStore.state.connectionStatus.displayLabel.uppercased())"
+        case .online: "\(hostDisplay) · CONNECTED"
         case .offline: "\(hostDisplay) · STANDBY"
         case .unreachable: "UNREACHABLE · CHECK UPLINK"
         case .notConnected: "NOT CONFIGURED"
@@ -392,11 +391,13 @@ struct UplinkSettingsScreen: View {
 
     private var actionButtons: some View {
         VStack(spacing: Design.Spacing.sm) {
-            // #152: the pairing surface owns revoke and disconnect too, so
-            // the label can't advertise only pairing.
-            GlowButton(title: "Pairing & Devices", systemImage: "link") {
+            // #309 Lane B: "Pairing & Devices" is now **Connect Host** — the
+            // screen it opens is a different screen, and #412 filed the old
+            // label's own advertisement as a defect (it instructed a flow that
+            // could not complete at either end).
+            GlowButton(title: ConnectHostCopy.screenTitle, systemImage: "link") {
                 router.dismissSheet()
-                router.navigate(to: .connectHost)
+                router.navigate(to: .connectHost(nil))
             }
             GhostButton(
                 title: testState == .testing ? "Testing…" : "Test Connection",

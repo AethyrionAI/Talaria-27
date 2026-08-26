@@ -55,7 +55,7 @@ enum SettingsSearchIndex {
             // UPLINK
             SettingsSearchEntry("Base URL", ["hermes url", "gateway address", "host address"], .uplink),
             SettingsSearchEntry("API Key", ["bearer key", "sessions key"], .uplink),
-            SettingsSearchEntry("Pairing & Devices", ["pair", "qr", "connect host"], .uplink),
+            SettingsSearchEntry("Connect Host", ["pair", "qr", "pairing", "devices", "gateway url", "api key", "scan"], .uplink),
             SettingsSearchEntry("Test Connection", ["ping", "probe", "check connection"], .uplink),
 
             // SERVER
@@ -64,8 +64,7 @@ enum SettingsSearchIndex {
             SettingsSearchEntry("Approvals", ["approval mode", "auto-approve", "dangerous commands"], .server),
             SettingsSearchEntry("Auto-Connect on Launch", ["auto connect", "startup"], .server),
             SettingsSearchEntry("Plugin Link", ["talaria plugin", "link status"], .server),
-            SettingsSearchEntry("Relay URL", ["relay"], .server, detail: "Server → Profile editor"),
-            SettingsSearchEntry("Forget Pairing", ["unpair", "disconnect"], .server),
+            SettingsSearchEntry("Disconnect Host", ["unpair", "disconnect", "forget host"], .uplink),
 
             // MODELS
             SettingsSearchEntry("Chat Brain", ["on-device model", "automatic routing", "which ai"], .models),

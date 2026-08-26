@@ -10,8 +10,16 @@ final class AppContainer {
     private static let sharedDefaultContainer = AppContainer.makeDefault()
 
     let router = TabRouter()
-    let sessionStore: AppSessionStore
-    let pairingStore: PairingStore
+    // #309 Lane B: `sessionStore` (the relay session) and `pairingStore` are
+    // DELETED. The last thing either held that the app still needs — the
+    // durable installation id — lives in `InstallationIdentity`, and the last
+    // question either answered — "is there a host?" — is
+    // `hasGatewayCredentials` below.
+    /// #309 Lane B: true when the app is running its UI-test doubles. It was
+    /// `usesMockServices`, named for the one service it first selected;
+    /// that service is gone and the flag still governs the host, inbox and
+    /// voice doubles, so it is named for what it means.
+    private(set) var usesMockServices = false
     let hostStore: HermesHostStore
     let chatStore: ChatStore
     let inboxStore: InboxStore
@@ -155,7 +163,12 @@ final class AppContainer {
     // catalog's `GET commands` (row 16, re-homed onto `/v1/skills` by bar C3).
     // The #136 short-timeout budget the probe client carried survives on its
     // own in `BootstrapProbeSession`, where the gateway host probe reads it.
-    private let secureStore: (any SecureStoreProtocol)?
+    // #309 Lane B widened this from `private`: Connect Host's environment
+    // (`AppContainer+ConnectHost.swift`) forgets a profile's credentials, and
+    // Swift's `private` is FILE-scoped. Same "private in spirit" widening the
+    // #216 harness split made, and the same rule applies — nothing outside
+    // this type's own extensions should touch it.
+    let secureStore: (any SecureStoreProtocol)?
     private(set) var hermesAPIKey: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
     private var isInitialized = false
@@ -268,8 +281,6 @@ final class AppContainer {
     private var commandCatalogRefreshTask: Task<Void, Never>?
 
     init(
-        sessionStore: AppSessionStore,
-        pairingStore: PairingStore,
         hostStore: HermesHostStore,
         chatStore: ChatStore,
         inboxStore: InboxStore,
@@ -281,8 +292,6 @@ final class AppContainer {
         localIntelligence: LocalIntelligenceService = LocalIntelligenceService(),
         chatBackendRouter: ChatBackendRouter? = nil
     ) {
-        self.sessionStore = sessionStore
-        self.pairingStore = pairingStore
         self.hostStore = hostStore
         self.chatStore = chatStore
         self.inboxStore = inboxStore
@@ -308,9 +317,12 @@ final class AppContainer {
         // callers are gone, so the clause could only ever read false now.
         // That is #365's stall dying at the source rather than being gated.
         //
-        // Re-keying the surviving clause off RELAY pairing is Lane B's
-        // (`AppRootView` splash logic, design doc §5b) — Lane A leaves it.
-        return pairingStore.isPaired && !isInitialized
+        // #309 Lane B re-keyed the surviving clause off RELAY pairing, as
+        // Lane A's note said it would: the splash exists to cover a host-backed
+        // launch's first reads, and whether there IS a host is
+        // `hasGatewayCredentials`. A hostless install never had anything to
+        // wait for and now never waits.
+        return hasGatewayCredentials && !isInitialized
     }
 
     // MARK: - Launch partition (#136)
@@ -461,7 +473,6 @@ final class AppContainer {
             persistence: persistence,
             migrationSeeds: BackendProfilesStore.MigrationSeeds(
                 gatewayBaseURL: settingsStore.settings.hermesAPIBaseURL,
-                relayBaseURL: settingsStore.settings.relayConfiguration.activeBaseURLString,
                 shimBaseURL: settingsStore.settings.modelsShimBaseURL
             )
         )
@@ -483,51 +494,25 @@ final class AppContainer {
         // and the Mac relay accumulated 97 junk device rows with live push
         // registrations. The guard now DETECTS the test run instead, so the safe
         // path is the default and the live path has to be earned.
-        let usesMockPairingService = TestRunGuard.mustUseMockPairing(
+        let usesMockServices = TestRunGuard.mustUseMockPairing(
             environment: processEnvironment,
             explicitMockRequested: processEnvironment["UITEST_PAIRING_MODE"] == "mock",
             allowsEnvironmentOverrides: allowMockFallbacks
         )
-        let pairingService: any PairingServiceProtocol
-        var activePairingStore: PairingStore?
-        // #383: the voice host. Captured by reference like `activePairingStore`
-        // above and assigned where the link is minted, further down — voice is
-        // constructed before it exists.
+        // #383: the voice host, captured by reference and assigned where the
+        // link is minted further down — voice is constructed before it exists.
         var activeTalariaLink: TalariaPlatformLink?
-
-        if usesMockPairingService {
-            pairingService = MockPairingService()
-        } else {
-            pairingService = LivePairingService()
-        }
 
         // #309 Lane C: the relay base-URL provider and the two `RelayAPIClient`
         // instances built on it are DELETED — nothing calls the relay any more.
-        // `BackendProfile.relayBaseURL` itself (and `PairingStore`'s copy of a
-        // pairing-minted URL) outlive this lane by the fence: they go with Lane
-        // B's profile-editor pass, per the 2026-08-25 cleanup ruling.
-
-        // #309 Lane A: the three-deep bootstrap service stack that stood here
-        // (`ResilientSessionBootstrapService` over a live-or-mock primary with
-        // a mock fallback — #144's "the PRIMARY must be the mock under test")
-        // is DELETED with the chain it fed. Nothing registers a device or
-        // loads a relay session any more, so there is no live call for a
-        // fallback to guard.
-        let sessionStore = AppSessionStore(
-            secureStore: secureStore,
-            persistence: persistence,
-            credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
-        )
-
-        let runtimePairingStore = PairingStore(
-            pairingService: pairingService,
-            sessionStore: sessionStore,
-            persistence: persistence,
-            environmentProvider: { settingsStore.settings.environment },
-            relayBaseURLProvider: { profilesStore.activeProfile.flatMap(\.resolvedRelayBaseURL) },
-            profileResolver: { id in profilesStore.resolvedProfile(id: id) }
-        )
-        activePairingStore = runtimePairingStore
+        // #309 Lane B finished the job: `BackendProfile.relayBaseURL`, the
+        // relay session store and the pairing store are gone too, so there is
+        // no relay vocabulary left in this construction at all.
+        //
+        // The durable installation id (#133/#143) used to be resolved as a
+        // side effect of building `AppSessionStore`. It is read directly now,
+        // ONCE, from the owner that survived the deletion.
+        let installationID = InstallationIdentity.resolve(persistence: persistence)
 
         // The active profile's gateway key, in memory. Hoisted above the
         // host-fed stores by #309 Lane C — both the gateway host probe and the
@@ -550,7 +535,7 @@ final class AppContainer {
         // the `accessTokenRefresher` parameter it left behind) goes with the
         // service: the gateway probe carries no relay token at all.
         let hostService: any HermesHostServiceProtocol
-        if usesMockPairingService {
+        if usesMockServices {
             hostService = MockHermesHostService()
         } else {
             hostService = GatewayHermesHostService(
@@ -574,7 +559,7 @@ final class AppContainer {
         // can fail. (#309 Lane C bar C6 finished the job the parenthesis here
         // used to defer: `InboxScreen.unreachableState`'s copy no longer names
         // the relay, and the store's gate is the gateway-credential one below.)
-        let inboxService: any InboxServiceProtocol = usesMockPairingService
+        let inboxService: any InboxServiceProtocol = usesMockServices
             ? MockInboxService()
             : TalariaPlatformInboxService(persistence: persistence)
 
@@ -655,7 +640,10 @@ final class AppContainer {
         let hermesClient = ResilientHermesClient(
             primary: sessionsClient,
             fallback: MockHermesClient(),
-            allowsFallback: { allowMockFallbacks && (activePairingStore?.isPaired != true || usesMockPairingService) }
+            // #309 Lane B: the first clause asked the RELAY pairing store
+            // whether a host existed; it asks the gateway credentials now — the
+            // same question, on the plane the fallback is actually about.
+            allowsFallback: { allowMockFallbacks && (!hasGatewayCredentials() || usesMockServices) }
         )
 
         // #190: keyed local-session storage. A nil store (container-creation
@@ -698,9 +686,10 @@ final class AppContainer {
             // chat screen's health probe re-resolves within seconds.)
             isHermesConfigured: { [hermesAPIKeyBox] in !hermesAPIKeyBox.value.isEmpty },
             // Picker-visibility signal: any Hermes host has ever been set up.
-            hasHermesHost: { [hermesAPIKeyBox] in
-                activePairingStore?.isPaired == true || !hermesAPIKeyBox.value.isEmpty
-            }
+            // #309 Lane B: the relay-pairing clause is gone. A key in the
+            // box IS "a Hermes host has been set up" — the disjunction only
+            // ever added the relay's opinion of the same question.
+            hasHermesHost: { [hermesAPIKeyBox] in !hermesAPIKeyBox.value.isEmpty }
         )
 
         let liveLocationService = LiveLocationService()
@@ -735,7 +724,7 @@ final class AppContainer {
         // writer; everything below is a reader.
         let appLockGate = AppLockGate()
 
-        if usesMockPairingService {
+        if usesMockServices {
             voiceService = MockVoiceSessionService()
         } else {
             let nativeVoice = NativeVoicePipelineService(
@@ -770,8 +759,6 @@ final class AppContainer {
         }
 
         let container = AppContainer(
-            sessionStore: sessionStore,
-            pairingStore: runtimePairingStore,
             hostStore: hostStore,
             chatStore: ChatStore(
                 hermesClient: chatBackendRouter,
@@ -898,20 +885,16 @@ final class AppContainer {
         container.entitlementService = entitlementService
         entitlementService.start()
 
-        // M-9: a successful pair mints fresh relay tokens — stamp freshness.
-        // (#375/#309 path 5: the post-pair provisioning fetch that used to
-        // hang off this hook is deleted with the relay it spoke to.)
-        runtimePairingStore.onProfileTokensMinted = { profileID in
-            profilesStore.stampTokenRefresh(profileID: profileID)
-        }
+        // #309 Lane B: `onProfileTokensMinted` is DELETED. It stamped M-9
+        // token freshness for the dormant-refresh pass, and Lane A deleted the
+        // pass; the tokens it dated are gone with `AppSessionStore`.
         // Keychain hygiene: a deleted profile's credential slot dies with it.
         // The migrated (legacy-keyed) profile is undeletable in practice —
         // it's active/sensor-destination until another profile takes over —
         // but scoped deletion is correct for it too.
         profilesStore.onProfileDeleted = { profile in
             let scope = profile.credentialScopeID
-            persistence.clearPairedRelayConfiguration(profileScope: scope)
-            persistence.clearSessionState(profileScope: scope)
+            persistence.purgeRelayCredentialResidue(profileScope: scope)
             Task { @MainActor in
                 await secureStore.delete(key: BackendProfileScopedKeys.accessToken(scope))
                 await secureStore.delete(key: BackendProfileScopedKeys.refreshToken(scope))
@@ -992,7 +975,7 @@ final class AppContainer {
         // Nil under the #144 mock-pairing gate for the same reason sensor
         // upload is: a UI-test run must never enrol this device with a live
         // host.
-        let talariaPlatformLink: TalariaPlatformLink? = usesMockPairingService ? nil : TalariaPlatformLink(
+        let talariaPlatformLink: TalariaPlatformLink? = usesMockServices ? nil : TalariaPlatformLink(
             gatewayBaseURL: {
                 let raw = (profilesStore.activeProfile?.gatewayBaseURL ?? "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1002,7 +985,7 @@ final class AppContainer {
             // under its turn's frozen scope (the in-memory box lags a cold
             // launch and a profile switch, and a live closure here was one of
             // the re-resolution seams the atomicity fix removed).
-            installID: { sessionStore.state.installationID.uuidString },
+            installID: { installationID.uuidString },
             deviceName: { UIDevice.current.name },
             credentialScopeID: { profilesStore.activeProfile?.credentialScopeID },
             secureStore: secureStore,
@@ -1165,14 +1148,12 @@ final class AppContainer {
         // acts on values that are currently empty.
         let refreshCredentialState: @MainActor () -> Void = { [weak container, hermesAPIKeyBox] in
             guard UIApplication.shared.isProtectedDataAvailable else { return }
-            container?.pairingStore.reloadPersistedConfigurationIfNeeded()
-            // #137: a migration deferred by a pre-unlock launch lands here,
-            // after the pairing re-read it depends on.
+            // #137: a migration deferred by a pre-unlock launch lands here.
             container?.migrateSensorStreamingOptInIfNeeded()
-            // #369: the same pre-unlock case for the ACCESS token. A launch
-            // that held (pairing intact, credential unreadable) resumes its
-            // deferred relay half here — this hook and the activation one
-            // below both fire on a single unlock, and the retry is idempotent.
+            // #369: the same pre-unlock case for the GATEWAY key. A launch
+            // that held (a host configured, its credential unreadable) resumes
+            // here — this hook and the activation one below both fire on a
+            // single unlock, and the retry is idempotent.
             Task { @MainActor in await container?.retryCredentialHoldIfNeeded() }
             if hermesAPIKeyBox.value.isEmpty {
                 Task { @MainActor in
@@ -1255,53 +1236,19 @@ final class AppContainer {
             }
         }
 
-        let refreshUnpairedRelayContext: @MainActor () async -> Void = { [weak sessionStore, weak container] in
-            // Never act on a pre-unlock reading of "unpaired": clearing the
-            // session off unreadable credentials would destroy a healthy
-            // identity.
-            guard UIApplication.shared.isProtectedDataAvailable else { return }
-            guard container?.pairingStore.isPaired == false else { return }
-            // #309 Lane A: the forced re-registration that followed this
-            // clear — `bootstrap(forceRegistration: true)` plus an inbox
-            // reload — is deleted with the bootstrap chain. Changing the
-            // environment or the relay URL of an UNPAIRED install now just
-            // drops the stale session; there is no relay left to enrol with.
-            await sessionStore?.clearSession()
-        }
-
-        settingsStore.onEnvironmentChanged = { _ in
-            await refreshUnpairedRelayContext()
-        }
-        settingsStore.onRelayConfigurationChanged = { configuration in
-            // Lane M: the legacy relay-config surface (Relay settings screen,
-            // onboarding QR auto-fill) still writes UserSettings — mirror the
-            // resolved URL onto the ACTIVE profile, which is what pairing and
-            // the relay client actually read now. One-way, every writer
-            // covered, so the two records can't drift.
-            profilesStore.updateActiveProfile { profile in
-                // #405: mirror the RAW text, never the normalized form. The
-                // old "normalized when valid; raw while mid-edit" rule had a
-                // hole: normalization SUCCEEDS on the mid-draft "http://"
-                // (empty path → "/v1"), so this hook rewrote the profile to
-                // "http:/v1" one hop after the keystroke and the pairing
-                // field re-read it under the user's cursor — the measured
-                // scramble. Consumers normalize on READ (the active-base-
-                // URL accessor); raw-to-raw also means the two records
-                // literally cannot drift.
-                // #310: an empty result stores nil — see ProfileEditorDraft.
-                let mirrored = configuration.customRelayBaseURL
-                profile.relayBaseURL = mirrored.isEmpty ? nil : mirrored
-            }
-            await refreshUnpairedRelayContext()
-        }
-
-        runtimePairingStore.onPairingChanged = { [weak container] isPaired in
-            if isPaired {
-                await container?.handlePairingActivated()
-            } else {
-                await container?.handlePairingRemoved()
-            }
-        }
+        // **#309 Lane B: three relay hooks DELETED here.**
+        //
+        // `refreshUnpairedRelayContext` cleared the relay session when the
+        // environment or the relay URL changed; `onEnvironmentChanged` and
+        // `onRelayConfigurationChanged` were its two callers, and the latter
+        // also mirrored `UserSettings.relayConfiguration` onto
+        // `BackendProfile.relayBaseURL` — a property this lane deleted, fed by
+        // a settings surface that retired with M-13. `onPairingChanged` fanned
+        // `PairingStore`'s notify into `handlePairingActivated` /
+        // `handlePairingRemoved`; the Connect Host screen's commit and
+        // disconnect are the only pairing transitions left, and each does its
+        // own work directly instead of through a store callback nothing else
+        // could observe.
 
         // Read-aloud (#2): wire the TTS service to persisted voice/rate prefs,
         // gate it off while a Talk session owns the .playAndRecord audio
@@ -1836,13 +1783,18 @@ final class AppContainer {
         updateWidgetData()
     }
 
-    /// Pairing-lifecycle reset seam (internal so the #136 reset-race tests
-    /// can drive it): wired to `PairingStore.onPairingChanged` in
-    /// `makeDefault`.
-    func handlePairingActivated() async {
+    /// Host-lifecycle reset seam (internal so the #136 reset-race tests can
+    /// drive it).
+    ///
+    /// **#309 Lane B renamed it from `handlePairingActivated` and re-homed its
+    /// caller.** It was wired to `PairingStore.onPairingChanged` — a store
+    /// callback fired by a relay redeem. The transition it models is real and
+    /// survives: acquiring a host means the launch's host-backed work has to
+    /// happen again. Connect Host's commit is the one caller now.
+    func handleHostConnected() async {
         isInitialized = false
         // #369: a hold belongs to the launch it was taken on; the fresh
-        // initialize() below decides the new pairing's state for itself.
+        // initialize() below decides the new host's state for itself.
         credentialsUnreadableHold = false
         // #136: supersede any in-flight background bootstrap — the fresh
         // initialize() below must run its own, on the new pairing's state.
@@ -1910,11 +1862,10 @@ final class AppContainer {
             containerLog.notice("sensor opt-in migration deferred — protected data unavailable")
             return
         }
-        pairingStore.reloadPersistedConfigurationIfNeeded()
         var settings = settingsStore.settings
         if SensorStreamingGrandfathering.migrateIfNeeded(
             settings: &settings,
-            isPaired: pairingStore.isPaired,
+            hasHost: hasGatewayCredentials,
             hadPersistedSettings: settingsStore.hadPersistedSettings,
             persistence: settingsStore.persistence
         ) {
@@ -2112,16 +2063,15 @@ final class AppContainer {
         SharedWidgetDataStore.write(data)
     }
 
-    /// Pairing-lifecycle reset seam (internal so the #136 reset-race tests
-    /// can drive it): wired to `PairingStore.onPairingChanged` in
-    /// `makeDefault`.
-    func handlePairingRemoved() async {
+    /// The other half of the seam — see `handleHostConnected`. Connect Host's
+    /// Disconnect is its one caller.
+    func handleHostDisconnected() async {
         isInitialized = false
-        // #369: nothing to resume once the pairing is gone (see
+        // #369: nothing to resume once the host is gone (see
         // `retryCredentialHoldIfNeeded`, which makes the same call).
         credentialsUnreadableHold = false
-        // #136: a half-flight background bootstrap must not land relay
-        // state into the freshly reset stores below.
+        // #136: a half-flight background bootstrap must not land host state
+        // into the freshly reset stores below.
         cancelBackgroundLaunchRefresh()
         await talkStore.endSessionIfNeeded()
         talkStore.reset()
@@ -2275,10 +2225,10 @@ final class AppContainer {
         // cross-profile. Restarted at the end iff this activation is still
         // the current one.
         talariaPlatformLink?.stop()
-        // Rebind the credential-scoped stores FIRST — their persistence
-        // writes resolve the live scope.
-        sessionStore.rebindToCurrentScope()
-        pairingStore.rebindToActiveProfile()
+        // #309 Lane B: the two credential-scoped stores that had to be
+        // rebound here are deleted. Everything scope-sensitive that survives
+        // resolves the scope per call from `profilesStore.activeProfile`, so
+        // there is nothing left to re-point at a switch.
 
         // Swap the in-memory credential boxes to the new profile's slots.
         let scope = profile.credentialScopeID

@@ -49,7 +49,6 @@ struct ServerSettingsScreen: View {
     var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var container
-    @Environment(PairingStore.self) private var pairingStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(TabRouter.self) private var router
 
@@ -59,7 +58,6 @@ struct ServerSettingsScreen: View {
     @State private var talariaLink: TalariaLinkDisplayState = .unknown
     @State private var pendingActivation: BackendProfile?
     @State private var editorTarget: ProfileEditorTarget?
-    @State private var pendingForget: BackendProfile?
     /// #153: delete is destructive AND purges the profile's Keychain
     /// credentials — it confirms, exactly like the (less destructive) Forget
     /// Pairing already did.
@@ -111,7 +109,7 @@ struct ServerSettingsScreen: View {
                             title: SettingsSubsystem.server.title,
                             status: SettingsCardValues.server(
                                 activeProfileName: container.profilesStore?.activeProfile?.name,
-                                isPaired: pairingStore.isPaired),
+                                hasHost: container.hasGatewayCredentials),
                             statusColor: container.profilesStore?.activeProfile != nil
                                 ? Design.Brand.accentText : Design.Colors.mutedForeground,
                             chip: SettingsSubsystem.server.chip,
@@ -166,26 +164,12 @@ struct ServerSettingsScreen: View {
         } message: { profile in
             Text("New chats, inbox, and models will use \(profile.name). Existing conversations keep talking to the host they started on, and sensors stay on their pinned destination. Nothing is un-paired.")
         }
-        // #193: destructive confirmation → `.alert` (visible Cancel).
-        .alert(
-            "Forget this pairing?",
-            isPresented: Binding(
-                get: { pendingForget != nil },
-                set: { if !$0 { pendingForget = nil } }
-            ),
-            presenting: pendingForget
-        ) { profile in
-            Button("Forget \(profile.name) Pairing", role: .destructive) {
-                pendingForget = nil
-                Task {
-                    await pairingStore.forgetPairing(profileID: profile.id)
-                    await probeAllProfiles()
-                }
-            }
-            Button("Cancel", role: .cancel) { pendingForget = nil }
-        } message: { profile in
-            Text("Disconnects \(profile.name)'s relay pairing only. Other profiles are untouched; you'll need to pair again to resume its sensor path.")
-        }
+        // #309 Lane B: the "Forget this pairing?" alert is DELETED with
+        // `PairingStore.forgetPairing`. Its subject was a relay-era pairing
+        // record — and its message ("you'll need to pair again to resume its
+        // sensor path") named a pipeline #352 deleted. Disconnect, on Connect
+        // Host, is the forget-this-host action; Delete below still removes the
+        // profile and purges its Keychain slots.
         // #193: destructive confirmation → `.alert` (visible Cancel).
         .alert(
             "Delete this profile?",
@@ -254,12 +238,7 @@ struct ServerSettingsScreen: View {
             // that gave no sign it was long-pressable — which is why "add a
             // delete feature" was filed against a screen that already had one.
             Menu {
-                profileActions(
-                    profile,
-                    isActive: isActive,
-                    isKeyed: isKeyed,
-                    hasPairingRecord: pairingStore.hasPairingRecord(profileID: profile.id)
-                )
+                profileActions(profile, isActive: isActive, isKeyed: isKeyed)
             } label: {
                 Image(systemName: "ellipsis.circle")
                     .font(.system(size: 17, weight: .medium))
@@ -343,12 +322,7 @@ struct ServerSettingsScreen: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(profile.name)\(isActive ? ", active" : ""), \(isKeyed ? "keyed" : "no key")")
         .contextMenu {
-            profileActions(
-                profile,
-                isActive: isActive,
-                isKeyed: isKeyed,
-                hasPairingRecord: pairingStore.hasPairingRecord(profileID: profile.id)
-            )
+            profileActions(profile, isActive: isActive, isKeyed: isKeyed)
         }
     }
 
@@ -358,30 +332,26 @@ struct ServerSettingsScreen: View {
     private func profileActions(
         _ profile: BackendProfile,
         isActive: Bool,
-        isKeyed: Bool,
-        hasPairingRecord: Bool
+        isKeyed: Bool
     ) -> some View {
         Button {
             editorTarget = .edit(profile)
         } label: {
             Label("Edit", systemImage: "pencil")
         }
+        // #309 Lane B: "Pair"/"Re-Pair" became "Connect"/"Reconnect" with the
+        // vocabulary. There is no pairing ceremony left to name — the action
+        // acquires two values and probes them.
         Button {
-            startPairing(profile)
+            startConnect(profile)
         } label: {
-            Label(isKeyed ? "Re-Pair" : "Pair", systemImage: "link")
+            Label(isKeyed ? "Reconnect" : "Connect", systemImage: "link")
         }
-        // #309 Lane C: offered on the RECORD, not on the gateway credentials
-        // — `forgetPairing` clears a relay-era pairing record, so on a profile
-        // that has none the row would do nothing at all. Both this action and
-        // the record it clears go with Lane B.
-        if hasPairingRecord {
-            Button(role: .destructive) {
-                pendingForget = profile
-            } label: {
-                Label("Forget Pairing", systemImage: "link.badge.plus")
-            }
-        }
+        // #309 Lane B: the FORGET PAIRING row is DELETED with `PairingStore`.
+        // It cleared a relay-era pairing record — a row that, on the gateway
+        // plane, has nothing to clear. The forget-this-host action is Connect
+        // Host's Disconnect, which clears the credentials that actually exist;
+        // DELETE below is still the louder one that removes the profile.
         if !isActive {
             // #153: confirms before deleting — this purges Keychain
             // credentials, so it is strictly more destructive than Forget
@@ -440,19 +410,22 @@ struct ServerSettingsScreen: View {
         }
     }
 
-    private func startPairing(_ profile: BackendProfile) {
-        // #127: pairing an UNPAIRED profile is a new connect; re-pairing one
-        // that is already paired is an existing pairing and always passes
-        // (the fail-open rule — a flaky entitlement check must never stand
-        // between the user and re-establishing a host they already have).
+    private func startConnect(_ profile: BackendProfile) {
+        // #127: connecting an UNKEYED profile is a new connect; re-opening one
+        // that already holds credentials is an existing connection and always
+        // passes (the fail-open rule — a flaky entitlement check must never
+        // stand between the user and a host they already have).
         let isKeyed = container.hasGatewayCredentials(forProfileID: profile.id)
         guard container.connectGateVerdict(for: isKeyed ? .existingPairing : .newConnect) == .allow else {
             paywallPresented = true
             return
         }
-        pairingStore.pairingTargetProfileID = profile.id
+        // #309 Lane B: the target rides the ROUTE. It used to be assigned to
+        // `PairingStore.pairingTargetProfileID` here and cleared by the
+        // destination screen's `onDisappear` — a target that outlived a
+        // mis-dismissed screen pointed the next visit at the wrong profile.
         router.dismissSheet()
-        router.navigate(to: .connectHost)
+        router.navigate(to: .connectHost(profile.id))
     }
 
     private func deleteProfile(_ profile: BackendProfile) {
@@ -771,7 +744,6 @@ private final class ProbeAccumulator {
 struct ProfileEditorDraft: Equatable {
     var name: String = ""
     var gatewayBaseURL: String = ""
-    var relayBaseURL: String = ""
     var note: String = ""
 
     init() {}
@@ -779,10 +751,6 @@ struct ProfileEditorDraft: Equatable {
     init(profile: BackendProfile) {
         name = profile.name
         gatewayBaseURL = profile.gatewayBaseURL
-        // #310: the DRAFT stays a plain String — an empty text field is the
-        // editor's way of saying "no relay", and the conversion back to nil
-        // happens in `apply(to:)`.
-        relayBaseURL = profile.relayBaseURL ?? ""
         note = profile.note ?? ""
     }
 
@@ -797,10 +765,6 @@ struct ProfileEditorDraft: Equatable {
         if !gateway.hasPrefix("http://") && !gateway.hasPrefix("https://") {
             return "Gateway URL must be an absolute http(s) URL."
         }
-        let relay = relayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !relay.isEmpty, RelayConfiguration.normalizeBaseURL(relay) == nil {
-            return "Relay URL must be an absolute http(s) URL ending with /v1."
-        }
         return nil
     }
 
@@ -812,13 +776,6 @@ struct ProfileEditorDraft: Equatable {
         var profile = existing ?? BackendProfile(name: "", gatewayBaseURL: "")
         profile.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.gatewayBaseURL = gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        let relay = relayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-        // #310: an emptied field PERSISTS AS nil, not as "". `hasRelay`
-        // treats them alike, so this is not what makes the gate work — it is
-        // what keeps the stored blob honest, so a later reader (or a support
-        // question about a profile) sees "no relay" rather than a key holding
-        // an empty string.
-        profile.relayBaseURL = relay.isEmpty ? nil : (RelayConfiguration.normalizeBaseURL(relay) ?? relay)
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.note = trimmedNote.isEmpty ? nil : trimmedNote
         return profile
@@ -846,7 +803,6 @@ private struct ProfileEditorSheet: View {
                     VStack(alignment: .leading, spacing: Design.Spacing.lg) {
                         field("Name", text: $draft.name, placeholder: "Mac Mini")
                         field("Gateway URL", text: $draft.gatewayBaseURL, placeholder: "http://100.79.222.100:8642", keyboard: .URL)
-                        field("Relay URL", text: $draft.relayBaseURL, placeholder: "http://100.79.222.100:8000/v1", keyboard: .URL)
                         field("Note", text: $draft.note, placeholder: "Apple ecosystem / Xcode / iMessage")
                         apiKeySection
 

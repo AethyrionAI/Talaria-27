@@ -24,7 +24,7 @@ struct AppRootView: View {
                     .transition(.opacity)
             }
         }
-        .animation(Design.Motion.standard, value: container.pairingStore.isPaired)
+        .animation(Design.Motion.standard, value: container.hasGatewayCredentials)
         .animation(Design.Motion.gentle, value: shouldShowSplash)
         // System chrome (keyboard, sheets, toggles, context menus) follows
         // the theme: light for the light environments, dark for the HUD
@@ -49,7 +49,7 @@ struct AppRootView: View {
     }
 
     private var shouldShowSplash: Bool {
-        container.shouldShowLaunchSplash || (container.pairingStore.isPaired && !hasSatisfiedMinimumSplashTime)
+        container.shouldShowLaunchSplash || (container.hasGatewayCredentials && !hasSatisfiedMinimumSplashTime)
     }
 }
 

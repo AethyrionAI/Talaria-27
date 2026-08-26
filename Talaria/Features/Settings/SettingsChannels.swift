@@ -79,9 +79,13 @@ enum SettingsCardValues {
         }
     }
 
-    static func server(activeProfileName: String?, isPaired: Bool) -> String {
+    /// #309 Lane B re-keyed the second argument off relay pairing. The
+    /// fallback word changed with it: "PAIRED" named a ceremony that no longer
+    /// exists, and a profile-less install that HOLDS credentials is described
+    /// by what it can do, not by what it once redeemed.
+    static func server(activeProfileName: String?, hasHost: Bool) -> String {
         if let name = activeProfileName, !name.isEmpty { return name.uppercased() }
-        return isPaired ? "PAIRED" : "NO PROFILE"
+        return hasHost ? "HOST SET" : "NO PROFILE"
     }
 
     static func models(activeModelName: String?, brainLabel: String?) -> String {
@@ -153,9 +157,12 @@ enum SettingsCardValues {
         return "\(link) · \(host) · \(model)"
     }
 
-    static func sessions(count: Int?, isPaired: Bool) -> String {
+    /// #309 Lane B: SYNCED now means "there is a host these sessions live
+    /// on", which is what the word always implied and what relay pairing
+    /// stopped being able to answer.
+    static func sessions(count: Int?, hasHost: Bool) -> String {
         guard let count else { return "…" }
-        if isPaired { return "\(count) · SYNCED" }
+        if hasHost { return "\(count) · SYNCED" }
         return "\(count) SESSION\(count == 1 ? "" : "S")"
     }
 

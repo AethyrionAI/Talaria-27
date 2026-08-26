@@ -26,8 +26,14 @@ enum ChatConnectionPresentation {
     /// exactly what the old optimistic mapping was defending against. The
     /// header still says CHECKING with a dim pip; the banner waits for a
     /// MEASURED offline.
-    static func showsConnectionBanner(isPaired: Bool, state: HermesHostConnectionState) -> Bool {
-        isPaired && state != .online && state != .checking
+    /// **#309 Lane B re-keyed the first argument.** It read
+    /// `PairingStore.isPaired` — the RELAY pairing — while the banner it gates
+    /// describes the DIRECT gateway transport, which is the misdescription the
+    /// design doc's §5b flagged. The question the banner is actually asking is
+    /// "does this user have a host that ought to be answering?", and that is
+    /// `hasGatewayCredentials`.
+    static func showsConnectionBanner(hasHost: Bool, state: HermesHostConnectionState) -> Bool {
+        hasHost && state != .online && state != .checking
     }
 }
 
@@ -35,8 +41,6 @@ struct ChatScreen: View {
     @Environment(AppContainer.self) private var container
     @Environment(ChatStore.self) private var chatStore
     @Environment(HermesHostStore.self) private var hostStore
-    @Environment(PairingStore.self) private var pairingStore
-    @Environment(AppSessionStore.self) private var sessionStore
     @Environment(SettingsStore.self) private var settingsStore
     @Environment(InboxStore.self) private var inboxStore
     @Environment(TabRouter.self) private var router
@@ -800,7 +804,7 @@ struct ChatScreen: View {
     // within the Swift type-checker's complexity budget.
     private var showsConnectionBanner: Bool {
         ChatConnectionPresentation.showsConnectionBanner(
-            isPaired: pairingStore.isPaired, state: effectiveConnectionState)
+            hasHost: container.hasGatewayCredentials, state: effectiveConnectionState)
     }
 
     private var isChatHostOnline: Bool {
@@ -1313,7 +1317,7 @@ struct ChatScreen: View {
 
             Button("Connect") {
                 router.dismissSheet()
-                router.navigate(to: .connectHost)
+                router.navigate(to: .connectHost(nil))
             }
             .font(Design.Typography.mono(11, weight: .medium))
             .foregroundStyle(Design.Brand.accentText)

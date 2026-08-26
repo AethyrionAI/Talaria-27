@@ -33,7 +33,6 @@ struct MainTabView: View {
     @Environment(TalkStore.self) private var talkStore
     @Environment(ChatStore.self) private var chatStore
     @Environment(SettingsStore.self) private var settingsStore
-    @Environment(PairingStore.self) private var pairingStore
     @Environment(HermesHostStore.self) private var hostStore
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -220,27 +219,26 @@ struct MainTabView: View {
             PermissionsScreen()
         case .capture:
             CaptureScreen()
-        case .connectHost:
-            // #31: the pairing flow's new home. Unpaired → the full pairing
-            // screen (relocated from the removed launch wall); paired → the
-            // host status/management screen as before.
-            // Lane M (M-12): a per-profile Pair action names its target
-            // before navigating here — that always means the pairing flow,
-            // even while the ACTIVE profile happens to be paired.
-            // #127: the pairing-flow branch is a gated connect entry point —
-            // this one seam covers every navigate(.connectHost) call site.
-            // Only a NEW connect can hit the paywall (re-pairing an
-            // already-paired profile is an existing pairing and always
-            // passes); the management screen below stays ungated so a live
-            // pairing is never severed. Dormant until the #127 flag flips.
-            if pairingStore.pairingTargetProfileID != nil || !pairingStore.isPaired {
-                if container.connectGateVerdict(for: pairingFlowAttempt) == .showPaywall {
-                    ConnectedPaywallView()
-                } else {
-                    ConnectHermesScreen()
-                }
+        case .connectHost(let profileID):
+            // **#309 Lane B: the wizard is ENTERED, never imposed.** This is
+            // its ONLY presentation site, and it is reached only by an
+            // explicit tap — Settings' Connect Host row, the Server screen's
+            // per-profile row, the chat header's connect affordance. There is
+            // no launch-time branch anywhere that lands here (bar 309-B1).
+            //
+            // An install with no host yet gets the WIZARD; one that already
+            // has credentials gets the manual screen, which is the
+            // always-available path. Same model behind both.
+            //
+            // #127: this seam is still the one gated connect entry point.
+            // Only a NEW connect can hit the paywall — re-opening a host you
+            // already have is never severed. Dormant until the #127 flag flips.
+            if container.connectGateVerdict(for: connectAttempt(for: profileID)) == .showPaywall {
+                ConnectedPaywallView()
+            } else if hasHost(profileID) {
+                ConnectHostScreen(target: connectTarget(for: profileID))
             } else {
-                ConnectHermesHostScreen()
+                ConnectHostWizard(target: connectTarget(for: profileID))
             }
         case .inbox:
             InboxScreen()
@@ -257,23 +255,33 @@ struct MainTabView: View {
         }
     }
 
-    /// #127: classify what the pairing flow would do. A named target that
-    /// ALREADY has a working host is a re-pair of an existing connection (fail
-    /// open); everything else reaching the flow is a new connect.
+    /// #127: classify what the connect flow would do. A profile that ALREADY
+    /// has a working host is an existing connection (fail open); everything
+    /// else reaching the flow is a new connect.
     ///
-    /// **#309 Lane C re-homed the predicate.** It used to ask
+    /// **#309 Lane C re-homed the predicate; Lane B moved the TARGET off a
+    /// store field and onto the route.** It used to ask
     /// `ProfileRelaySessionFactory.isPaired` — "does this profile hold a
     /// relay-era pairing record?" — which the retirement made permanently true
     /// for every profile that ever paired (the record persists its own relay
     /// URL and nothing clears it) and permanently false for a gateway-only
     /// one. Both answers were wrong for #127's question, which is whether the
     /// user already has this host set up.
-    private var pairingFlowAttempt: ConnectAttempt {
-        if let targetID = pairingStore.pairingTargetProfileID,
-           container.hasGatewayCredentials(forProfileID: targetID) {
-            return .existingPairing
-        }
-        return .newConnect
+    private func connectAttempt(for profileID: UUID?) -> ConnectAttempt {
+        hasHost(profileID) ? .existingPairing : .newConnect
+    }
+
+    /// Whether the named profile (or the active one) already holds a host this
+    /// app could route a turn to. The same predicate the whole app uses — not
+    /// a sibling of it.
+    private func hasHost(_ profileID: UUID?) -> Bool {
+        guard let id = profileID ?? container.profilesStore?.activeProfileID else { return false }
+        return container.hasGatewayCredentials(forProfileID: id)
+    }
+
+    private func connectTarget(for profileID: UUID?) -> ConnectHostTarget {
+        guard let profileID else { return .activeProfile }
+        return .profile(profileID)
     }
 
     @ViewBuilder

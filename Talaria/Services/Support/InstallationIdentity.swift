@@ -42,17 +42,11 @@ enum InstallationIdentity {
         return minted
     }
 
-    /// Stamps the durable id onto a session state loaded from persistence.
-    ///
-    /// **STAMP, do not adopt.** A state persisted before the #133 fix — or
-    /// under a different profile scope — carries its own churned id, and
-    /// adopting it would re-identify the device on the next profile switch
-    /// and mint another device row. Fixing only the construction path left
-    /// exactly this door open once already; `rebindToCurrentScope` is the
-    /// door.
-    static func stamp(_ id: UUID, onto state: AppSessionState) -> AppSessionState {
-        var stamped = state
-        stamped.installationID = id
-        return stamped
-    }
+    // `stamp(_:onto:)` is DELETED (#309 Lane B). Its whole job was to keep a
+    // profile-scoped, clearable `AppSessionState` from overwriting the durable
+    // id — the coupling this type was extracted to break. With that state
+    // deleted the id has no other home to be adopted FROM, so the hazard is
+    // gone structurally rather than guarded against: `resolve` reads one
+    // unscoped key that `purgeRelayCredentialResidue` deliberately never
+    // touches, and nothing else writes it.
 }

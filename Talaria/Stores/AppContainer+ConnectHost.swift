@@ -1,0 +1,280 @@
+import Foundation
+import os
+
+/// Which profile a Connect Host flow is about to write into.
+enum ConnectHostTarget: Equatable, Sendable, Hashable {
+    /// The profile the app is currently using — the ordinary case, and the one
+    /// a fresh install takes: #384 ships no default host, so the seeded profile
+    /// carries an EMPTY `gatewayBaseURL` until this flow fills it.
+    case activeProfile
+    /// A named profile — the roster's per-host edit (design B3).
+    case profile(UUID)
+    /// Mint a new profile and make it active — design B3's "Add another host".
+    case newHost
+}
+
+/// The last thing this screen actually MEASURED.
+///
+/// Held for the life of the Connect Host surface rather than persisted, and
+/// that is the honest scope: after a cold launch the app genuinely does not
+/// know whether the stored host is up, and `notChecked` says so until
+/// something asks. Persisting a latency across launches would let the card
+/// print a number nothing had re-measured — #350's defect with extra steps.
+@MainActor
+final class ConnectHostMeasurement {
+    var modelsSeen: Int?
+    var latencyMilliseconds: Int?
+    var reachability: ConnectHostRosterEntry.Reachability = .notChecked
+    var lastAnsweredAt: Date?
+
+    func record(_ outcome: HostProbeOutcome, at date: Date = .now) {
+        latencyMilliseconds = outcome.latencyMilliseconds
+        switch outcome {
+        case .connected(let ms, let models):
+            modelsSeen = models
+            reachability = .reachable(milliseconds: ms)
+            lastAnsweredAt = date
+        case .keyRefused(let ms), .notHermes(let ms):
+            // Something answered — that IS reachability, and conflating it
+            // with "down" is what sends a user to check their network over a
+            // mistyped key.
+            reachability = .reachable(milliseconds: ms)
+            lastAnsweredAt = date
+        case .noAnswer:
+            reachability = .noAnswer
+        }
+    }
+}
+
+extension AppContainer {
+
+    private static let connectHostLogger = Logger(
+        subsystem: TalariaLog.subsystem, category: "ConnectHost")
+
+    /// Builds the Connect Host state machine's world.
+    ///
+    /// **Everything that WRITES is behind `commit`,** which `ConnectHostModel`
+    /// calls on exactly one path — a green probe (bar 309-B4). The reads are
+    /// deliberately live closures rather than snapshots so a profile switch
+    /// underneath the screen re-renders it against the new profile.
+    func makeConnectHostEnvironment(
+        target: ConnectHostTarget = .activeProfile,
+        measurement: ConnectHostMeasurement = ConnectHostMeasurement()
+    ) -> ConnectHostModel.Environment {
+        ConnectHostModel.Environment(
+            probe: { [weak self] gatewayBaseURL, apiKey in
+                _ = self
+                return await GatewayHermesHostService.probeCandidateHost(
+                    gatewayBaseURL: gatewayBaseURL, apiKey: apiKey
+                )
+            },
+            commit: { [weak self] draft, outcome in
+                guard let self else { return }
+                measurement.record(outcome)
+                await self.commitConnectHost(draft: draft, target: target)
+            },
+            currentHost: { [weak self] in
+                self?.connectedHost(target: target, measurement: measurement)
+            },
+            roster: { [weak self] in
+                self?.connectHostRoster(measurement: measurement) ?? []
+            },
+            recheckCommitted: { [weak self] in
+                guard let self else { return .noAnswer(detail: "NO ANSWER") }
+                let outcome = await self.recheckConnectedHost(target: target)
+                measurement.record(outcome)
+                return outcome
+            },
+            disconnect: { [weak self] in
+                guard let self else { return .forgottenHostNotTold }
+                let outcome = await self.disconnectConnectedHost(target: target)
+                measurement.reachability = .notChecked
+                measurement.modelsSeen = nil
+                measurement.lastAnsweredAt = nil
+                return outcome
+            },
+            activate: { [weak self] profileID in
+                self?.profilesStore?.setActiveProfile(profileID)
+            }
+        )
+    }
+
+    // MARK: The one write path
+
+    /// Persists a probed-good host. Called ONLY from `commit` above.
+    private func commitConnectHost(draft: ConnectHostModel.Draft, target: ConnectHostTarget) async {
+        guard let profilesStore else { return }
+
+        let existing: BackendProfile?
+        switch target {
+        case .activeProfile: existing = profilesStore.activeProfile
+        case .profile(let id): existing = profilesStore.profile(id: id)
+        case .newHost: existing = nil
+        }
+
+        var profile = existing ?? BackendProfile(name: draft.resolvedName, gatewayBaseURL: "")
+        profile.name = draft.resolvedName
+        profile.gatewayBaseURL = draft.trimmedGateway
+        profilesStore.upsert(profile)
+        await saveGatewayAPIKey(draft.trimmedKey, for: profile)
+        if profilesStore.activeProfileID != profile.id {
+            profilesStore.setActiveProfile(profile.id)
+        }
+        Self.connectHostLogger.notice(
+            "commit: host '\(profile.name, privacy: .public)' saved after a green check")
+        // The lifecycle transition #136's reset-race tests pin: a launch that
+        // had no host to talk to has host-backed work to redo. Same seam the
+        // relay redeem used, reached from the one place a host can now appear.
+        await handleHostConnected()
+    }
+
+    /// The wizard's "Name this host" field, and the only write the flow makes
+    /// after the commit. A label is not a credential: renaming touches the
+    /// profile's `name` and nothing else, so it cannot un-connect a host.
+    func renameConnectedHost(to rawName: String, target: ConnectHostTarget) {
+        let name = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, let profilesStore else { return }
+        let resolved: BackendProfile?
+        switch target {
+        case .activeProfile, .newHost: resolved = profilesStore.activeProfile
+        case .profile(let id): resolved = profilesStore.profile(id: id)
+        }
+        guard var profile = resolved, profile.name != name else { return }
+        profile.name = name
+        profilesStore.upsert(profile)
+    }
+
+    // MARK: Reads
+
+    private func resolvedProfile(for target: ConnectHostTarget) -> BackendProfile? {
+        switch target {
+        case .activeProfile: profilesStore?.activeProfile
+        case .profile(let id): profilesStore?.profile(id: id)
+        case .newHost: nil
+        }
+    }
+
+    /// The connected-host card's data — or `nil`, which is the EMPTY state and
+    /// not an error (design A1).
+    private func connectedHost(
+        target: ConnectHostTarget,
+        measurement: ConnectHostMeasurement
+    ) -> ConnectedHost? {
+        guard let profile = resolvedProfile(for: target), profile.hasGateway else { return nil }
+        let hasKey = hasGatewayCredentials(forProfileID: profile.id)
+
+        // The standing host refresh is the app's OTHER measurement of the same
+        // fact; take whichever is real, and `notChecked` when neither is.
+        var reachability = measurement.reachability
+        var lastAnswered = measurement.lastAnsweredAt
+        if profile.id == profilesStore?.activeProfileID {
+            switch hostStore.connectionState {
+            case .online:
+                reachability = .reachable(milliseconds: measurement.latencyMilliseconds)
+                lastAnswered = hostStore.currentHost?.lastSeenAt ?? lastAnswered
+            case .unreachable, .offline:
+                if case .notChecked = reachability { reachability = .noAnswer }
+            case .notConnected, .checking:
+                break
+            }
+        }
+
+        return ConnectedHost(
+            profileID: profile.id,
+            name: profile.name,
+            address: Self.displayAddress(profile.gatewayBaseURL),
+            hasStoredKey: hasKey,
+            lastAnsweredAt: lastAnswered,
+            modelsSeen: measurement.modelsSeen,
+            reachability: reachability
+        )
+    }
+
+    /// Design B3's list. Only the ACTIVE profile can carry a measurement here
+    /// — the others honestly read NOT CHECKED, because nothing has asked them.
+    private func connectHostRoster(measurement: ConnectHostMeasurement) -> [ConnectHostRosterEntry] {
+        guard let profilesStore else { return [] }
+        let activeID = profilesStore.activeProfileID
+        return profilesStore.profiles.map { profile in
+            ConnectHostRosterEntry(
+                id: profile.id,
+                name: profile.name,
+                address: Self.displayAddress(profile.gatewayBaseURL),
+                isActive: profile.id == activeID,
+                keyState: hasGatewayCredentials(forProfileID: profile.id) ? .stored : .missing,
+                reachability: profile.id == activeID ? measurement.reachability : .notChecked
+            )
+        }
+    }
+
+    /// "Check now" on the resting card: re-measures with the STORED key, which
+    /// this model never sees.
+    private func recheckConnectedHost(target: ConnectHostTarget) async -> HostProbeOutcome {
+        guard let profile = resolvedProfile(for: target), profile.hasGateway else {
+            return .noAnswer(detail: "NO ANSWER")
+        }
+        let key = await gatewayAPIKey(for: profile) ?? ""
+        let outcome = await GatewayHermesHostService.probeCandidateHost(
+            gatewayBaseURL: profile.gatewayBaseURL, apiKey: key
+        )
+        // Keep the app's standing host state in step with what the user just
+        // watched happen — two surfaces disagreeing about one host is the
+        // failure #180 registers.
+        await hostStore.refresh()
+        return outcome
+    }
+
+    // MARK: Disconnect — both halves (bar 309-B6)
+
+    /// Tells the host first, forgets locally second, and reports which of the
+    /// two actually happened.
+    ///
+    /// **The order is the mechanism.** The plugin's `unpair` verb is authorised
+    /// by the device token this same call is about to delete, so the POST has
+    /// to go out while the credential still exists. There is no deferred
+    /// retry: a queue would have to RETAIN the credentials the card promises to
+    /// remove, which is why the unreachable case gets honest copy instead
+    /// (`ConnectHostCopy.disconnectRowBlurbUnreachable`).
+    private func disconnectConnectedHost(target: ConnectHostTarget) async -> HostDisconnectOutcome {
+        guard let profile = resolvedProfile(for: target) else { return .forgottenHostNotTold }
+        // The link resolves its credentials through the ACTIVE profile's scope
+        // (#285's frozen turn context), so a dormant profile's host cannot be
+        // told from here — and the copy says so rather than the code
+        // pretending. Disconnecting a dormant host is a switch away.
+        let isActive = profile.id == profilesStore?.activeProfileID
+        let told = isActive ? await (talariaPlatformLink?.unpairFromHost() ?? false) : false
+        await forgetHostCredentials(for: profile)
+        if isActive { await handleHostDisconnected() }
+        Self.connectHostLogger.notice(
+            "disconnect: local forget done; host told = \(told, privacy: .public)")
+        return told ? .forgottenAndHostTold : .forgottenHostNotTold
+    }
+
+    /// Clears BOTH credential families for one profile: the gateway key the
+    /// chat plane uses and the talaria device token/id the plugin link mints.
+    /// Endpoints stay — a profile with an address and no key is an honest
+    /// "HOST SET — KEY MISSING", and deleting the profile is a different,
+    /// louder action the Server screen owns.
+    private func forgetHostCredentials(for profile: BackendProfile) async {
+        await saveGatewayAPIKey("", for: profile)
+        guard let secureStore else { return }
+        let scope = profile.credentialScopeID
+        await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceToken(scope))
+        await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceID(scope))
+        hostStore.reset()
+    }
+
+    /// `100.110.102.59:8642` — what the card prints. The scheme is dropped
+    /// because every one of these is http over the tailnet and the prefix is
+    /// noise; the raw string is used verbatim when it will not parse, so a
+    /// weird address is shown as typed rather than mangled.
+    // harness-visible
+    static func displayAddress(_ gatewayBaseURL: String) -> String {
+        let trimmed = gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), let host = url.host, !host.isEmpty else {
+            return trimmed
+        }
+        if let port = url.port { return "\(host):\(port)" }
+        return host
+    }
+}
