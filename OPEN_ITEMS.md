@@ -8666,10 +8666,13 @@ host, because on that plane there is nothing to consult.
 >   claims struck rather than deleted.**
 
 > **✅ 2026-08-25 — MEASUREMENT LANE RAN. CANDIDATE ① IS CONFIRMED; THE
-> MECHANISM IS NAMED AND REPRODUCED IN UNITS.** PR: the `/usage` +
-> repro lane. Bars: **330-A, 330-B, 330-E DISCHARGED; 330-C, 330-D,
-> 330-G DEFERRED to the fix lane** per the ruling. **The entry stays
-> OPEN** — nothing was fixed, and 330-G is Owen's.
+> MECHANISM IS NAMED AND REPRODUCED IN UNITS.** MERGED as `56dd66c0`
+> (PR #379, squashed). **GATE: PASS — 2574 Swift Testing / 14 XCUITest /
+> Release clean on `CC-lane-3` under Xcode-beta6; the count moved by
+> exactly the 16 tests added (2558 → 2574).** Bars: **330-A, 330-B,
+> 330-E DISCHARGED; 330-C, 330-D, 330-G DEFERRED to the fix lane** per
+> the ruling. **The entry stays OPEN** — nothing was fixed, and 330-G is
+> Owen's.
 >
 > **THE MECHANISM, in one sentence:** `ChatStore.openSession` replaces
 > `conversation` wholesale with the server transcript, and that
