@@ -10852,6 +10852,17 @@ distinguish LIVE from the other two.
 > Restart Gateway affordance (popover Power icon / palette), matching
 > upstream's own deliberate-action UX. Awaiting his word.**
 
+> **⚖️ RULED 2026-08-25 night (Owen: "ruled, sounds good"): AS
+> RECOMMENDED.** The agent/app NEVER restarts the gateway silently;
+> 269-B's conversational-installer flow ends by directing the user to
+> the existing Restart Gateway affordance (statusbar Gateway popover's
+> Power icon, or the Command Palette entry). No new restart mechanism is
+> built, ever — the ruling is a standing constraint, recorded so a
+> future lane cannot reach for an auto-restart when the flow feels
+> long. **#269's remaining scope is now exactly one thing: the 269-B
+> publication moment (which also fires #308's repo-goes-public ruling),
+> gated on Owen per the standing external-submissions rule.**
+
 ## 264. ⚠️ A bounced gateway can come up WITHOUT the chat plane: api_server loses the :8642 bind race to the dying process's socket and NEVER RETRIES — **FILED 2026-08-06 late night (bit us live, mid-device-pass); upstream Hermes behavior, ops rule until fixed**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
