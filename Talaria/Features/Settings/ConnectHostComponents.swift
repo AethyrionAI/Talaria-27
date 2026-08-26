@@ -254,10 +254,12 @@ struct ConnectHostCard: View {
                     Divider().overlay(Design.Colors.divider)
                     detailRow(ConnectHostCopy.addressRowLabel, host.address)
                     Divider().overlay(Design.Colors.divider)
-                    detailRow(
-                        ConnectHostCopy.keyRowLabel,
-                        host.hasStoredKey ? ConnectHostCopy.keyInKeychain : ConnectHostCopy.keyNotStored
-                    )
+                    // Design A5 vs A4: the card the WIZARD shows right after a
+                    // green check can say ACCEPTED, because the probe just
+                    // watched the host take the key. A card resting on a stored
+                    // credential nobody has re-offered can only say where it
+                    // lives — vocabulary rule 1, on one row.
+                    detailRow(ConnectHostCopy.keyRowLabel, keyRowValue)
                     if let models = host.modelsSeen {
                         Divider().overlay(Design.Colors.divider)
                         detailRow(ConnectHostCopy.modelsSeenLabel, "\(models)")
@@ -273,6 +275,15 @@ struct ConnectHostCard: View {
     private var isReachable: Bool {
         if case .reachable = host.reachability { return true }
         return false
+    }
+
+    private var keyRowValue: String {
+        guard host.hasStoredKey else { return ConnectHostCopy.keyNotStored }
+        // `modelsSeen` is only ever non-nil because THIS launch's probe counted
+        // them, so it is the honest marker for "just accepted".
+        return (host.modelsSeen != nil && isReachable)
+            ? ConnectHostCopy.keyAcceptedInKeychain
+            : ConnectHostCopy.keyInKeychain
     }
 
     private var statusColor: Color {

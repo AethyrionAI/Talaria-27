@@ -341,7 +341,7 @@ final class TalariaUITests: XCTestCase {
         // screen says so instead of claiming both halves happened (309-B6).
         XCTAssertTrue(
             app.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS[c] %@", "wasn't reachable")
+                NSPredicate(format: "label CONTAINS[c] %@", "wasn't told")
             ).firstMatch.waitForExistence(timeout: 5),
             "a disconnect the host was not told about must say so"
         )

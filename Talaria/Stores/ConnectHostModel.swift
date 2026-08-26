@@ -74,8 +74,8 @@ struct ConnectHostRosterEntry: Identifiable, Equatable, Sendable {
 enum HostDisconnectOutcome: Equatable, Sendable {
     /// Both halves: the plugin took the `unpair`, and the credentials are gone.
     case forgottenAndHostTold
-    /// The local forget happened; the host could not be told. **The copy says
-    /// so** — see `ConnectHostCopy.disconnectHostNotToldBlurb`.
+    /// The local forget happened; the host was not told. **The copy says so**
+    /// — see `ConnectHostCopy.disconnectedHostNotTold`.
     case forgottenHostNotTold
 }
 

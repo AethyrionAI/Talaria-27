@@ -4098,6 +4098,61 @@ struct AppStoresTests {
         )
     }
 
+    /// **#309 Lane B — the splash is a LAUNCH surface, and a host-lifecycle
+    /// reset must never re-raise it.**
+    ///
+    /// Both host seams set `isInitialized = false` on purpose: the host-backed
+    /// work genuinely has to run again. But `shouldShowLaunchSplash` was
+    /// `hasGatewayCredentials && !isInitialized`, so committing credentials
+    /// from inside the Connect Host wizard flipped BOTH terms in one beat and
+    /// threw a full-screen splash over the user — for as long as the fresh
+    /// `initialize()`'s host half took, which against an unreachable address
+    /// is the full timeout.
+    ///
+    /// **Found by the UI journeys, not by reasoning:** all three connect
+    /// journeys failed the full-bundle gate at step 3 and passed in isolation,
+    /// because in isolation the splash cleared before the assertion looked.
+    ///
+    /// **This test drives DISCONNECT, and that is deliberate — the first draft
+    /// drove `handleHostConnected()` and the mutation SURVIVED it.** That
+    /// handler chases its own flag flip with an `await initialize()`, so on a
+    /// harness container the whole window closes inside one MainActor chunk
+    /// and a poll can never see it: a green test that measured timing rather
+    /// than the rule. `handleHostDisconnected()` performs the SAME flip and
+    /// does not re-initialize, so the state it leaves is exactly the one the
+    /// wizard's user stood in — observable, and not a race.
+    ///
+    /// Mutation that must turn this RED: drop
+    /// `&& !hasCompletedFirstInitialize` from `shouldShowLaunchSplash`.
+    /// (Verified: it does.)
+    @Test @MainActor
+    func aHostLifecycleResetNeverRaisesTheLaunchSplashAgain() async {
+        let harness = await makeLaunchHarness(
+            suiteName: "309-B-splash-\(UUID().uuidString)")
+        harness.openAllGates()
+        let container = harness.container
+
+        // A host-bearing launch DOES start on the splash — assert it, or the
+        // whole test could pass against a surface that never appears at all.
+        #expect(container.shouldShowLaunchSplash,
+                "fixture precondition: a host-bearing launch starts on the splash")
+        await container.initialize()
+        #expect(container.shouldShowLaunchSplash == false)
+
+        // The flag flip, in the seam that leaves it observable. The harness's
+        // credential probe still reports a host, which is what isolates the
+        // `isInitialized` term as the only thing that changed.
+        await container.handleHostDisconnected()
+        #expect(container.hasGatewayCredentials,
+                "fixture precondition: the probe still reports a host, so only isInitialized moved")
+        #expect(container.shouldShowLaunchSplash == false,
+                "a host-lifecycle reset re-raised the launch splash over the user")
+
+        // …and the connect seam, whose commit is where the defect was seen.
+        await container.handleHostConnected()
+        #expect(container.shouldShowLaunchSplash == false)
+    }
+
     /// Polls `condition` until it holds or the deadline passes; returns
     /// whether it held so the caller's `#expect` names the failing site.
     @MainActor

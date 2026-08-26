@@ -33,6 +33,11 @@ import Foundation
 ///    claims; tier claims that survive the tier's own escape hatches.
 enum ConnectHostCopy {
 
+    // Every string below is ON a surface. Six were removed before merge
+    // for failing exactly that: duplicate spellings of lines the views
+    // already render from another constant. A copy file whose entries no
+    // reader can reach is a second vocabulary drifting beside the first.
+
     // MARK: Wizard — step 0, the choice (design A1)
 
     static let wizardTitle = "TALARIA"
@@ -85,14 +90,12 @@ enum ConnectHostCopy {
     static let gatewayFieldPlaceholder = "http://your-host:8642"
     static let gatewayFieldHelp =
         "The address your Hermes gateway listens on — usually port 8642."
-    static let gatewayFieldHelpShort = "Where your Hermes gateway listens."
 
     static let keyFieldLabel = "API KEY"
     static let keyFieldPlaceholder = "Your host's API key"
     static let keyRevealPrompt = "TAP TO REVEAL"
     static let keyNotStored = "NOT STORED YET"
     static let keyNeedsAttention = "API KEY · NEEDS ATTENTION"
-    static let keyPasteHint = "PASTE"
     /// A STORAGE claim, deliberately — see vocabulary rule 6.
     static let keyFieldHelp =
         "Your host's API_SERVER_KEY. Stored in this device's Keychain."
@@ -137,9 +140,6 @@ enum ConnectHostCopy {
     static let keyRefusedHeadline = "The host is there — the key isn't right"
     static func keyRefusedBlurb(host: String, milliseconds: Int) -> String {
         "\(host) answered in \(milliseconds)ms and then refused this key. Copy it again from the host and retype it; the address is fine."
-    }
-    static func keyRefusedBlurbSettings(milliseconds: Int) -> String {
-        "The host answered in \(milliseconds)ms and refused this key. The address is right — the key isn't."
     }
 
     static let notHermesTitle = "NOT HERMES"
@@ -233,8 +233,6 @@ enum ConnectHostCopy {
     static let sensorSharingOff = "OFF · YOUR CHOICE"
     static let sensorSharingOn = "ON"
 
-    static let notAnsweringTitle = "NO ANSWER"
-    static func notAnsweringDetail(lastSeen: String) -> String { "NO ANSWER · LAST SEEN \(lastSeen.uppercased())" }
     static let stillSavedBlurb =
         "Still saved, just not reachable right now. Chat is answering on-device until it comes back."
     static let commonCausesHeader = "// COMMON CAUSES"
@@ -295,14 +293,19 @@ enum ConnectHostCopy {
     static let disconnectCancel = "Keep it connected"
     static let chatKeepsWorkingFootnote = "CHAT KEEPS WORKING ON-DEVICE AFTERWARDS."
 
-    /// Shown once after a disconnect that could not reach the host — the
-    /// outcome, reported rather than assumed.
+    /// Shown once after a disconnect the host did not take — the outcome,
+    /// reported rather than assumed.
+    ///
+    /// **It says "wasn't told", not "wasn't reachable".** The unpair can fail
+    /// three ways — no response, a non-200, or the envelope's 200-with-an-
+    /// error-body (#383 hazard 5) — and only the first of them is about
+    /// reachability. Naming a cause the app did not establish is the same
+    /// class of claim this whole lane exists to remove.
     static let disconnectedHostNotTold =
-        "Forgotten here. The host wasn't reachable, so it still has a record for this phone."
+        "Forgotten here. The host wasn't told, so it still has a record for this phone."
 
     // MARK: Scanner (design B1–B3 of the wizard sheet)
 
-    static let scannerScanning = "SCANNING"
     static let scannerPointAtCode = "POINT AT THE PRINTED CODE"
     static let scannerWhereItIs =
         "It's in the terminal where you ran hermes talaria pair-qr."

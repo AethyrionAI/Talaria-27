@@ -367,12 +367,24 @@ struct ConnectHostWizard: View {
 
                     ConnectHostCard(host: host)
 
-                    GlowButton(title: ConnectHostCopy.carryOn) { step = .done }
-                        .accessibilityIdentifier("connectHostWizard.continue")
+                    GlowButton(title: ConnectHostCopy.carryOn) {
+                        commitName(model)
+                        step = .done
+                    }
+                    .accessibilityIdentifier("connectHostWizard.continue")
 
                     // "Name this host" is editable HERE and later (the profile
                     // name) — spec §3.4.
-                    TextField(ConnectHostCopy.nameThisHost, text: nameBinding(model))
+                    //
+                    // **#406's rule applies to the LABEL too.** An earlier
+                    // draft bound this straight through `renameConnectedHost`,
+                    // which upserts the profile — a UserDefaults write plus a
+                    // Keychain-mirror write PER KEYSTROKE, which is the exact
+                    // shape this lane exists to remove, just with a cheaper
+                    // payload. The field edits the draft; the commit moments
+                    // are submit and CONTINUE.
+                    TextField(ConnectHostCopy.nameThisHost, text: $model.draft.name)
+                        .onSubmit { commitName(model) }
                         .font(Design.Typography.body(14, weight: .regular))
                         .foregroundStyle(Design.Colors.coolForeground)
                         .padding(Design.Spacing.md)
@@ -388,14 +400,11 @@ struct ConnectHostWizard: View {
         }
     }
 
-    private func nameBinding(_ model: ConnectHostModel) -> Binding<String> {
-        Binding(
-            get: { model.draft.name },
-            set: { newValue in
-                model.draft.name = newValue
-                container.renameConnectedHost(to: newValue, target: target)
-            }
-        )
+    /// The label's commit moment. Idempotent and no-ops on an unchanged or
+    /// empty name, so calling it from two places costs nothing.
+    private func commitName(_ model: ConnectHostModel) {
+        container.renameConnectedHost(to: model.draft.name, target: target)
+        model.refreshFromStores()
     }
 
     // MARK: Step 3 — done (design A6)

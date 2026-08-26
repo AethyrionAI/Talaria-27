@@ -172,6 +172,23 @@ final class AppContainer {
     private(set) var hermesAPIKey: String = ""
     private var _chatAPIKeyBox: MutableHermesAPIKeyBox?
     private var isInitialized = false
+    /// **#309 Lane B: the splash is a LAUNCH surface, and this is what keeps
+    /// it one.** `isInitialized` is re-armed by the host-lifecycle seams
+    /// (`handleHostConnected` / `handleHostDisconnected`), which is correct —
+    /// the host-backed work genuinely has to run again. It is NOT a reason to
+    /// re-raise a full-screen splash over a user who is standing in the
+    /// middle of the Connect Host wizard.
+    ///
+    /// Measured, not theorised: the three connect journeys failed the
+    /// full-bundle gate at step 3 and passed in isolation. Committing the
+    /// credentials flipped `hasGatewayCredentials` true and
+    /// `handleHostConnected` flipped `isInitialized` false in the same beat,
+    /// so `shouldShowLaunchSplash` became true and covered the wizard — for
+    /// as long as the fresh `initialize()`'s host half took, which against a
+    /// black-holed address is the full timeout. In isolation it cleared fast
+    /// enough to look fine. That is #365's family: a stall visible only when
+    /// the host does not answer.
+    private var hasCompletedFirstInitialize = false
     /// #369, re-keyed by #411: a launch ran its local half but the active
     /// profile's gateway credentials were not readable yet (the Keychain
     /// restore is async, and a pre-first-unlock launch cannot read it at all).
@@ -322,7 +339,9 @@ final class AppContainer {
         // launch's first reads, and whether there IS a host is
         // `hasGatewayCredentials`. A hostless install never had anything to
         // wait for and now never waits.
-        return hasGatewayCredentials && !isInitialized
+        // The third clause is the one that makes this a LAUNCH splash rather
+        // than an any-time one — see `hasCompletedFirstInitialize`.
+        return hasGatewayCredentials && !isInitialized && !hasCompletedFirstInitialize
     }
 
     // MARK: - Launch partition (#136)
@@ -1382,6 +1401,7 @@ final class AppContainer {
         // surface: stays on the critical path, before any host-gated work.
         drainShareInbox()
         isInitialized = true
+        hasCompletedFirstInitialize = true
 
         // Degraded is the DEFAULT launch posture — the host-backed half runs
         // behind the live UI and upgrades state as each step lands.
