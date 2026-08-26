@@ -1243,7 +1243,8 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// real discriminator; the resource ceiling here only has to be generous
     /// enough for the longest legitimate SSE run. **One hour, not seven days.**
     ///
-    /// Deliberately NOT `RelayAPIClient.makeBootstrapProbeSession()` — that one's
+    /// Deliberately NOT `BootstrapProbeSession.make()` (#309 Lane C's home for
+    /// what was `RelayAPIClient.makeBootstrapProbeSession()`) — that one's
     /// own comment says it must never serve the chat path or SSE streams, and a
     /// 10s resource timeout there would break exactly the runs this preserves.
     nonisolated static func makeChatPlaneSession() -> URLSession {

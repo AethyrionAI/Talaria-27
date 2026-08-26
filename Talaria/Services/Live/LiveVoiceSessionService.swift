@@ -123,10 +123,12 @@ final class LiveVoiceSessionService: NSObject, VoiceSessionServiceProtocol {
         voiceTransportProvider() ?? UnavailableVoiceTransport()
     }
 
-    /// Shared with `RelayAPIClient` ON PURPOSE — same ISO date shapes, and a
-    /// second date parser is how two decoders drift until they disagree about
-    /// a boundary case (#256). This is a coder, not a transport; nothing here
-    /// speaks to the relay any more.
+    /// The house's one lenient ISO date coder — a second date parser is how
+    /// two decoders drift until they disagree about a boundary case (#256).
+    /// This is a coder, not a transport; nothing here speaks to the relay any
+    /// more, and since #309 Lane C there is no relay client left to share it
+    /// with: `RelayCoders` lives in its own file, and voice is its main
+    /// reader.
     private static let decoder = RelayCoders.makeDecoder()
     private let urlSession: URLSession
     private let realtimeEventTransportOverride: ((Data) -> Bool)?
