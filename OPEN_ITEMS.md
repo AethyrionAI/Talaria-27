@@ -16351,6 +16351,16 @@ configuration the system never enters), **#388** (the beta5 surface sweep).
 > the Connect Host wizard. **A clean-box full-suite re-run is owed before anyone
 > calls `main` green on XCUITest.** No PR was opened from this lane, so nothing
 > merged behind this red.
+> **⟵ ✅ THE OWED CONTROL RAN — 2026-08-26 morning (orchestrator, quiet
+> box, no concurrent lanes): `GATE: PASS on 24A5423a` — 2693 Swift
+> Testing / 219 suites + 14/14 XCUITest + Release, first run. `main` IS
+> green on XCUITest.** The tally on this test across an unchanged tree is
+> now **1 fail in 4 full-suite runs** (Lane B 14/14 · this lane 13/14
+> under a loaded box · instruments 14/14 · the quiet-box control 14/14) —
+> consistent with the margin-not-load reading above (it failed 0.07 s
+> from where it passes). The deeper question (widen the wait budget vs a
+> real order-dependence) stays with this filed note for whoever touches
+> the wizard's tests next; recurrence data now has its baseline.
 >
 > **📱 398-B — DEVICE-OWED, and its target build is SUPERSEDED.** The bar reads
 > "re-measure on `24A5418b`"; that build is dead — the device left it on 08-24.
