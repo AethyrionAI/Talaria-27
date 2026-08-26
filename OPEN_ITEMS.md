@@ -5561,6 +5561,22 @@ scored here.
 > plugin ⇒ a REAL app-side gate defect, re-file with teeth. OJAMD rides
 > the standing brief either way. NOT closed — awaiting the post-deploy
 > re-check.
+
+> **📱 ~30 min later, same evening — THE DISCRIMINATOR ANSWERED: THE GATE
+> WAS HONEST.** Owen pulled the Mac's plugin checkout and hit Restart
+> Gateway (sidebar confirms **v0.8.0**), and: "now Talaria is showing
+> Manual Smart Off for Approvals with the mac selected." **The picker
+> unlocked the moment the host actually carried the verb** — same app,
+> same build 3087, zero app changes between FAIL and PASS. The runbook
+> row's Mac arm flips PASS, and the card's premise is fully exercised:
+> Owen has now seen BOTH honest worlds (the truthful lock against a
+> predates-host, and the live picker against a current one). This also
+> live-proves `b87cd6c`'s verb end-to-end on a real gateway for the first
+> time. **The OJAMD arm flips the same way after its own deploy** — the
+> superseded 08-24 brief is replaced on the share by
+> `HANDOFF-OJAMD-2026-08-26-PLUGIN-DEPLOY-B4E8DFA.md` (targets 0.8.0,
+> four commits; its step 7 now scores this exact picker flip).
+
 ## 303. 🐛 `VoiceEngineRouter` has no UPGRADE path — a cold Control Center voice launch pins the NATIVE engine even when the brain permits realtime, because the engine is chosen from a brain value that changes 35 ms later — **FILED 2026-08-09 from #254's device logs. MASKED on the host it was found on, so its user-visible cost is UNMEASURED. NOT STARTED; bars pre-register here before any code. ⟵ PREMISE RE-VERIFIED LIVE AT HEAD 2026-08-25 (Sonnet agent): the asymmetric gate survives exactly as filed (#221 built it this way; #383 only renamed the pairing predicate; a passing regression test PINS the cold-launch pin as current behavior, `RealtimeVoiceIndicatorTests.swift:193`). The runbook's #303-A/B card remains the right instrument and has never run — measurement first, fix election after.**
 
 > **📋 DISPATCH FILED 2026-08-10: `dispatch/FABLE-T27-voice-triage-301-302-303.md` (Lane 2).** 303-A/B ride the OJAMD sitting (realtime-configured host — see the OJAMD handoff §11); no fix before 303-A runs.
