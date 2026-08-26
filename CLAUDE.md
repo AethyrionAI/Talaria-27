@@ -687,7 +687,13 @@ own `~/.hermes/config.yaml` fallback is dead on that box.
     sprawl:** every lane created a sim, nothing ever deleted one, and Owen found
     ~30 accumulated and cleared them by hand. A lane claims a free pool member and
     leaves it in place; the pool is reused forever, and three is the ceiling
-    anyway because **>3 booted locks this Mac up**. Recreate a missing member with
+    anyway because **>3 booted locks this Mac up**. **⛔ HARDENED TO A RULING
+    2026-08-25 (Owen): MAX 3 BOOTED SIMULATORS, EVER — "that's the one thing
+    that's crashed the box before" (at 7 booted it CRASHED outright; 3 is
+    measured stable AND leaves headroom for accidental overages). Before
+    booting anything: `xcrun simctl list devices | grep -c Booted` — if the
+    answer is already 3, shut one down first; never boot past it for a flake
+    re-run or anything else.** Recreate a missing member with
     `xcrun simctl create "CC-lane-N" com.apple.CoreSimulator.SimDeviceType.iPhone-Air
     com.apple.CoreSimulator.SimRuntime.iOS-27-0` — and note that bare
     `SimRuntime.iOS-27-0` resolves to the CHOSEN match, which is **24A5423a

@@ -105,6 +105,12 @@ overnight orchestration. Same discipline as the day: bars at lane-open
 BEFORE code), RED-first, gates, merge-on-green (his standing grant),
 close-outs in the same PR, device halves become runbook cards.
 
+**⛔ HARD CONSTRAINT (Owen, 2026-08-25 ~23:05): MAX 3 BOOTED SIMULATORS
+at any moment — the box CRASHED at 7; 3 is measured stable with overage
+headroom. Every lane checks `xcrun simctl list devices | grep -c Booted`
+before booting; a #219 flake re-run on CC-lane-1 first SHUTS DOWN the sim
+it came from. Also in CLAUDE.md's pool section now.**
+
 **Lane groupings + order (max 2 concurrent gates; #309 Lane C is
 running and Lane B queues first):**
 1. **#150 discovery** — Opus, read-only, dispatched immediately (no sim).
