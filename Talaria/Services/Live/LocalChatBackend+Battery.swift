@@ -1884,8 +1884,13 @@ extension LocalChatBackend {
     /// #200W: the pre-#200V instrument, reachable on purpose — `warmup: false`
     /// reproduces a cold-first measurement exactly, which is what makes the
     /// cold-start artifact re-measurable rather than merely asserted.
-    func runColdCalfixBattery(trials: Int) async {
-        await runActionBattery(trials: trials, cells: Self.calfixWarmBatteryCells,
+    /// #373: takes `cells` like every sibling wrapper, so its registry entry can
+    /// declare `defaultCells` honestly. Declaring them while pinning the list
+    /// internally would ACCEPT a `TALARIA_CELLS` request and then ignore it —
+    /// which is the drift that field exists to prevent.
+    func runColdCalfixBattery(trials: Int,
+                              cells: [ActionBatteryCell] = LocalChatBackend.calfixWarmBatteryCells) async {
+        await runActionBattery(trials: trials, cells: cells,
                                includeGrabCanary: true, warmup: false)
     }
 

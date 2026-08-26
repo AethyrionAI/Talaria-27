@@ -66,6 +66,7 @@ struct DeveloperSettingsScreen: View {
                     sensorMigrationSection
                     #endif
                     buildSection
+                    AgentMemorySection()   // #378: read-only local agent memory
                     #if DEBUG
                     batteriesSection   // #252: relocated verbatim from DiagnosticsSettingsScreen (#200 harness)
                     #endif
@@ -915,6 +916,16 @@ struct DeveloperSettingsScreen: View {
                 // #200W: calendar arms warm, production last.
                 HStack(spacing: Design.Spacing.sm) {
                     instrumentButton("calfix-warm", trials: 10, label: "Calendar warm n=10 (80+4)")
+                }
+                // #200W's own control (#373): the SAME calendar arms with the
+                // warm-up pass OFF. `runColdCalfixBattery` has existed since
+                // #200W and had no registry entry, so the cold-first
+                // measurement was re-runnable only by editing code — which is
+                // to say it was an asserted artifact rather than a
+                // reproducible one. Pair it with the button above; the only
+                // difference between them is the discarded warm-up.
+                HStack(spacing: Design.Spacing.sm) {
+                    instrumentButton("cold-calfix", trials: 10, label: "Calendar COLD n=10 (80)")
                 }
                 // #200X: promoted calendar tool vs its pinned rollback.
                 HStack(spacing: Design.Spacing.sm) {

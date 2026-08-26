@@ -436,6 +436,29 @@ enum InstrumentRegistry {
                            guard let backend, let cells else { return }
                            await backend.runCalfixWarmBattery(trials: trials, cells: cells)
                        }),
+        // #200W's OWN CONTROL, registered by #373 (2026-08-26). Same calendar
+        // arms as `calfix-warm`, same prompt set, `warmup: false` — so the pair
+        // isolates the discarded warm-up pass and nothing else. The method has
+        // existed in `LocalChatBackend+Battery.swift` since #200W and had no
+        // entry here, which meant the cold-first measurement was re-runnable
+        // only by editing code: an asserted artifact rather than a reproducible
+        // one, and the exact gap #333's registry exists to close.
+        //
+        // FLAGS ARE DERIVED, NOT COPIED from the sibling above: this delegates
+        // to `runActionBattery` with the DEFAULT prompt set — remind / alarm /
+        // calendar creates, executed for real under auto-accept — so it writes
+        // EventKit AND AlarmKit, and Owen's 2026-08-11 ruling keeps it off an
+        // unattended device.
+        //
+        // Surface: `runActionBattery` on the DEFAULT prompt set, auto-accept.
+        // Button: `instrumentButton("cold-calfix", …)`.
+        InstrumentSpec(name: "cold-calfix", confirmationMode: .autoAccept,
+                       writesEventKit: true, writesAlarms: true,
+                       defaultCells: LocalChatBackend.calfixWarmBatteryCells,
+                       run: { backend, trials, cells in
+                           guard let backend, let cells else { return }
+                           await backend.runColdCalfixBattery(trials: trials, cells: cells)
+                       }),
         // #200X: the promoted calendar tool against its OWN pinned rollback,
         // warm, production last — the confidence run the promotion is owed.
         //
