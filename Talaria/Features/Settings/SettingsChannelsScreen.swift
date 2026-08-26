@@ -363,7 +363,6 @@ struct SettingsChannelsScreen: View {
     private var statusStripText: String {
         SettingsCardValues.statusStrip(
             state: effectiveConnectionState,
-            isDirect: container.chatStore.directConnectionStatus == .connected,
             hostName: container.profilesStore?.activeProfile?.name,
             modelName: container.chatStore.activeModelName,
             brainLabel: container.chatBackendRouter?.activeBrain.monoLabel)
@@ -502,8 +501,7 @@ struct SettingsChannelsScreen: View {
         switch subsystem {
         case .uplink:
             SettingsCardValues.uplink(
-                state: effectiveConnectionState,
-                isDirect: container.chatStore.directConnectionStatus == .connected)
+                state: effectiveConnectionState)
         case .server:
             SettingsCardValues.server(
                 activeProfileName: container.profilesStore?.activeProfile?.name,

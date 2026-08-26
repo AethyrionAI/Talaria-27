@@ -208,7 +208,8 @@ struct UplinkSettingsScreen: View {
 
     private var linkTitle: String {
         switch effectiveConnectionState {
-        case .online: isDirect ? "DIRECT LINK" : "RELAY LINK"
+        // #309 Lane B: there is one transport, so the qualifier is gone.
+        case .online: "CONNECTED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"

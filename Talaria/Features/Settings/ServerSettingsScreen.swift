@@ -186,7 +186,7 @@ struct ServerSettingsScreen: View {
             }
             Button("Cancel", role: .cancel) { pendingDelete = nil }
         } message: { profile in
-            Text("Removes \(profile.name) and its stored credentials — API key and relay session — from this device. Conversations that started on it stay in your history but can't reach it again until you re-add it. Other profiles are untouched.")
+            Text("Removes \(profile.name) and its stored credentials — its API key and this phone's link to it — from this device. Conversations that started on it stay in your history but can't reach it again until you re-add it. Other profiles are untouched.")
         }
         .sheet(item: $editorTarget) { target in
             switch target {

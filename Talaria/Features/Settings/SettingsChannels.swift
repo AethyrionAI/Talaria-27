@@ -68,9 +68,14 @@ enum SettingsSubsystem: Int, CaseIterable, Identifiable {
 enum SettingsCardValues {
     // #256 verbiage round (Owen): "DIRECT" answered a question users don't
     // ask — and the DIRECT/RELAY distinction dies with #251 Phase 4 anyway.
-    static func uplink(state: HermesHostConnectionState, isDirect: Bool) -> String {
+    //
+    // **#309 Lane B: it died.** The `isDirect` argument is gone with the
+    // second transport it distinguished; an ONLINE host is reached one way
+    // now, so the qualifier had exactly one possible value and printing the
+    // other was unreachable code that could still be read as a claim.
+    static func uplink(state: HermesHostConnectionState) -> String {
         switch state {
-        case .online: isDirect ? "CONNECTED" : "RELAY"
+        case .online: "CONNECTED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "NOT LINKED"
@@ -138,17 +143,16 @@ enum SettingsCardValues {
     /// #256: the grid's at-a-glance status strip — LINK · HOST · MODEL.
     /// Hostless collapses to the on-device story (no "—" host noise);
     /// unknowable hosts render "—" (real data only).
-    static func statusStrip(state: HermesHostConnectionState, isDirect: Bool,
+    static func statusStrip(state: HermesHostConnectionState,
                             hostName: String?, modelName: String?, brainLabel: String?) -> String {
         let model = models(activeModelName: modelName, brainLabel: brainLabel)
         if case .notConnected = state {
             return model == "ON-DEVICE" ? "ON-DEVICE" : "ON-DEVICE · \(model)"
         }
         let host = (hostName?.isEmpty == false) ? hostName!.uppercased() : "—"
-        // Direct is the norm — no transport qualifier; RELAY is the anomaly
-        // worth flagging (#256 verbiage round).
+        // #309 Lane B: one transport, so no qualifier — see `uplink` above.
         let link: String = switch state {
-        case .online: isDirect ? "LINKED" : "LINKED · RELAY"
+        case .online: "LINKED"
         case .offline: "STANDBY"
         case .unreachable: "OFFLINE"
         case .notConnected: "ON-DEVICE" // unreachable — handled above

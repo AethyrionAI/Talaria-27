@@ -100,7 +100,7 @@ enum GenUIDebugSamples {
                 GenUIItem(kind: .row, children: [
                     GenUILeaf(kind: .orb, text: "", tone: .standard, size: .medium,
                               blinks: false, prompt: ""),
-                    GenUILeaf(kind: .text, text: "Relay link nominal", tone: .bright,
+                    GenUILeaf(kind: .text, text: "Host link nominal", tone: .bright,
                               size: .medium, blinks: false, prompt: ""),
                     GenUILeaf(kind: .spacer, text: "", tone: .standard, size: .medium,
                               blinks: false, prompt: ""),

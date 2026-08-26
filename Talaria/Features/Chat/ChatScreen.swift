@@ -1519,9 +1519,9 @@ struct ChatScreen: View {
         case .offline:
             return "Your Hermes host isn't responding. Check that it's running and your connection settings."
         case .unreachable:
-            return hostStore.lastErrorMessage ?? "Check your relay connection or refresh your session."
+            return hostStore.lastErrorMessage ?? "Check that your Hermes host is running and reachable from this phone."
         case .notConnected:
-            return "Pair a Hermes host from Settings to send messages through your Mac."
+            return "Connect a Hermes host from Settings to send messages through your Mac."
         case .checking:
             return "Measuring the connection to your Hermes host."
         }
