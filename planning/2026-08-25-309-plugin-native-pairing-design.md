@@ -6,6 +6,18 @@ it before any lane opens (#309 ruling 2, filed 2026-08-25). Facts below were
 read from source at main @ `e106943a` and plugin checkout
 `~/.hermes/plugins/talaria` @ `e669549`; line cites are to those.**
 
+> **⚖️ RULED 2026-08-25 night — ALL FIVE QUESTIONS ANSWERED; the code
+> gate is OPEN (full ruling text in tracker #309):** posture RATIFIED
+> (with the clarification that nothing is "reimplemented" — the typed arm
+> was always the real handshake; first-credential delivery is the one
+> irreducibly manual step); ambition = **SKIPPABLE FIRST-RUN WIZARD +
+> the always-available manual Settings path** (Owen's own reframe —
+> read WITH #31: a front door, never a wall; this GROWS Lane B, and a
+> Claude Design spec from Owen feeds it); cleanups BOTH as recommended
+> (Q3, Q4 = delete); lanes ALL FOUR, order A → D∥ → C → B-after-spec
+> (Owen delegated the election — "Your call"). §6 is now read through
+> the wizard ruling; §7's order note is superseded by this one.
+
 ---
 
 ## 0. The one-sentence design

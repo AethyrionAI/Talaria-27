@@ -7793,6 +7793,85 @@ queue producers inherit whatever this decides.
 > construction (§4), the Connect Host screen (§6, reusing #406's draft
 > pattern), and four proposed lanes A–D (§7). **FIVE QUESTIONS FOR OWEN
 > at the foot — the ruling gate before any code.**
+
+> **⚖️ RULED 2026-08-25 night (Owen, AskUserQuestion + in-chat) — ALL
+> FIVE, the code gate is OPEN:**
+> 1. **Posture RATIFIED, conditionally-then-confirmed.** Owen's condition
+>    ("no way to do it behind the scenes… we have to reimplement the old
+>    way, right? If so, Ratify") was answered honestly: the first
+>    credential delivery cannot be invisible (no trust bootstraps from
+>    nothing), BUT nothing is reimplemented — the relay ceremony never
+>    delivered gateway credentials; the typed arm has always been the
+>    real handshake, and the QR is new sugar on it. Condition true ⇒
+>    RATIFIED, recorded with the clarification.
+> 2. **Ambition: SKIPPABLE FIRST-RUN WIZARD + the manual path** (Owen:
+>    "I kinda like the full wizard option for first time setup. New user
+>    onboarding. We'd need a skip option / manual option — some folks
+>    won't do a wizard, or do it begrudgingly"). Read WITH #31: the
+>    wizard is a skippable front door, never a pairing wall — first
+>    launch still lands in working local chat; the Settings Connect Host
+>    screen (fields + QR + probe-and-confirm) is the always-available
+>    manual path. This GROWS Lane B; Owen is producing a Claude Design
+>    spec for it (read source as spec, fact-check copy — the standing
+>    memory).
+> 3. **Cleanups: BOTH as recommended** — `relayBaseURL` property deleted
+>    with Lane B; the orphan CLI pairing arm (`create_pairing`) deleted
+>    in Lane D when `pair-qr` replaces it (#412's falsely-advertised
+>    flow dies with the screen).
+> 4. **Lanes: "Your call"** — orchestrator's election, recorded here:
+>    ALL FOUR, order **A now → D parallel (host-side, no sim) → C after
+>    A merges (both edit AppContainer) → B LAST, after Owen's design
+>    spec lands.** Merge-on-green applies (his standing 08-25 grant);
+>    Lane B's UI look gets a runbook card, not a merge hold, unless the
+>    spec review changes that.
+
+> **📐 BARS PRE-REGISTERED 2026-08-25 night (lanes A, C, D at their
+> open; Lane B's bars register when the design spec arrives):**
+> - **309-A1:** `LiveSessionBootstrapService`, `ResilientSessionBootstrapService`,
+>   their protocol + mock, and `AppSessionStore`'s bootstrap/refresh/
+>   revoke chain DELETED — all four construction sites' worth including
+>   `ProfileRelaySessionFactory`'s, plus the dormant-token refresh pass
+>   and its policy. Zero non-comment references (tombstones may name
+>   types — the 309-DEL-A adjudicated standard).
+> - **309-A2:** installation identity SURVIVES — `installationID`
+>   durability ported to a dedicated owner, `InstallationIdentityTests`
+>   PORTED (never tombstoned), proven by mutation or broken-double RED.
+> - **309-A3:** the four lifecycle gates + `retryCredentialHoldIfNeeded`
+>   re-keyed: LOCAL work unconditional, gateway-plane work gated on
+>   profile-has-gateway-credentials; `TalariaPlatformLink` stays ungated
+>   (its :1010 comment updated). The lane MEASURES which local steps were
+>   dead for unpaired installs pre-fix and records it — discharging
+>   #411's verify-first caveat with data, not the sweep's list.
+> - **309-A4:** the #310 and #136 AppStoresTests sections REWRITTEN to
+>   pin the new shape (never deleted as "relay tests"); a relay-bearing
+>   profile's switch now makes ZERO relay calls, test-pinned — #365's
+>   residual cause gone for EVERY profile, not just gateway-only ones.
+> - **309-A5:** gate green (units + XCUITest + Release — the gates are
+>   production paths, #218), count moved by exactly the net change.
+> - **309-C1:** `RelayAPIClient.ClientError` extracted to its own home
+>   first; voice compiles; zero behavior change.
+> - **309-C2:** row 7 adapt — host presence reads gateway `/health`
+>   (display name from the profile); the relay-unavailable message dies
+>   with it. **309-C3:** row 16 adapt — command catalog reads
+>   `/v1/skills`, degrading honestly per #180 (personalities/quick
+>   commands are a RULED loss — no empty section rendered).
+> - **309-C4:** row 10's `device/app-state` beacon deleted; row 5
+>   (`device/provisioning`) confirmed absent by grep, recorded.
+> - **309-C5:** `RelayAPIClient` + `ProfileRelaySession` deleted once
+>   references reach zero (C runs AFTER A by election). Gate green,
+>   count moved.
+> - **309-D1:** `hermes talaria pair-qr` (plugin repo) renders the
+>   versioned JSON payload `{"talaria":1,"gateway":…,"key":…,"name":…}`
+>   as an ANSI terminal QR (+ optional PNG path), credentials read from
+>   the host's own config/.env at print time, never stored. The payload
+>   fixture is pinned by a plugin test AND recorded in the design doc —
+>   Lane B's scanner pins the same fixture app-side (cross-repo
+>   contract).
+> - **309-D2:** the orphan CLI arm (`pair` subcommand + `create_pairing`)
+>   deleted per cleanup ruling; `status`/`unpair` untouched; plugin
+>   pytest suite green. **309-D3:** REPO COMMIT ONLY — no live deploy in
+>   the lane; deploy rides Owen's transmission per the standing
+>   plugin-deploy path.
 > lane's open — ruling 1 above; the design doc is a separate deliverable):**
 > - **309-DEL-A:** `LiveHermesClient.swift` deleted; `grep -rn
 >   LiveHermesClient` across `Talaria/ TalariaTests/ TalariaUITests/
