@@ -12591,6 +12591,39 @@ independently of length, with `expected` labels argued rather than assumed.
 > `LocalChatBackend+IntentRouting.swift:169-177` at HEAD (doc debt filed
 > under #334). The archive-blindness class, in its purest recorded form.
 
+> **📌 2026-08-25, SECOND POINTER (append-only, #317 carve-out): the "Owed"
+> row set above is BUILT — and this entry's own disambiguation pair never
+> disambiguated anything.** #334's lane added **E1**, the {offer, no-offer} ×
+> {short, long} 2×2 this entry closed by declaring owed (prompt held fixed,
+> no-offer contexts matched to the byte — 72 characters swapped for 72 — and
+> the `expected` labels argued in the code rather than assumed, which was the
+> other half of what this entry asked for), plus **E2**, a non-anaphoric
+> words-only turn over the offer tail that separates offer-tail salience from
+> anaphora. `routerLongContextGrid` went 8 rows → 14 and the probe's band
+> count 22 → 34; they are DEVICE rows and await the next `long-context-probe`
+> run.
+>
+> **Two structural facts found while building them, both of which change how
+> the table above reads:**
+> 1. **The row this entry calls the SHORT half of its pair was never
+>    shortened.** `longOffer` is 551 characters and the code took
+>    `suffix(560)` — a no-op. The pair held the prompt fixed and varied
+>    *nothing*, so "fails at 551, the same length where other rows pass" was
+>    reporting the SAME context as the 4,073 row's tail, not a shorter one.
+> 2. **At 551 the 800-char cap is a no-op too**, so that row's "capped" and
+>    "uncapped" cells are one configuration measured twice — and on the long
+>    row the two arms agree by construction, because `routerContextTail`
+>    keeps the offer BY DESIGN. "Capped and uncapped agree" was never
+>    evidence about the cap on any offer-tail row.
+>
+> Both are now pinned
+> (`longContextGridShortOfferRowWasNeverActuallyShortened`). Owen ruled the
+> same day that ARMED is the product-correct answer over an offer tail — the
+> reading this entry proposed in "after 'shall I set a reminder?', armed is
+> the safe read" — so the three words-only rows scored 0/5 above are
+> relabelled `expected: true` and neither run contains a routing failure.
+> The retracted length rationale is out of the router's comment.
+
 ## 199. ✅ post-decline fabrication: the disease is REAL but confined to GRABS, and the intended-create path is CLEAN
 
 > **CLOSED 2026-08-01** — duplicate entry for this item; the evidence is on the other `## 199` header. Two headers exist because the file's numbering convention changed mid-project (`## N.` → `## #N —`) and this item has one of each.

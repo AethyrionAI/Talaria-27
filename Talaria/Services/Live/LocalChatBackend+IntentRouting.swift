@@ -166,15 +166,37 @@ extension LocalChatBackend {
         }
     }
 
-    /// #206: the router context is capped to its TAIL. Two reasons, both
-    /// measured: at ~4,000 chars routing latency doubled (0.63s → 1.32s) and
-    /// a words-only row routed ARMED 0/5 — the first ctx-a failure recorded —
-    /// while everything at ≤590 chars was perfect. **The tail, not the head:**
-    /// an offer lands at the END of an assistant turn ("…Would you like me to
-    /// set a reminder?"), which is precisely the part the router must see.
+    /// #206: the router context is capped to its TAIL, and since #334
+    /// (2026-08-25) the basis on record is **LATENCY ALONE**.
     ///
-    /// `routerContextLimit` sits above every context measured clean (590) and
-    /// well below the length that broke (4,073). A no-op for ordinary turns.
+    /// **What it buys:** at 4,073 chars ctx-a routing took 1.47s uncapped and
+    /// 0.66s capped — 2.2×, which restores long-context routing to
+    /// short-context speed. The router runs on EVERY production turn, so that
+    /// is a shipping cost rather than a detail.
+    ///
+    /// **The ACCURACY justification is WITHDRAWN.** #206 retracted it the day
+    /// it was written; the retracted text nevertheless sat in this comment
+    /// for 26 days, and re-derived "length" as a live hypothesis for the lane
+    /// that replicated the finding (#334). What it used to claim — that a
+    /// words-only row routed armed only past ~590 chars — is FALSE: the same
+    /// prompt routes armed at 551 chars, the length at which other rows route
+    /// toolless, and the cap changed no row's score. Length was never the
+    /// mechanism. What those contexts share is that they **end in an OFFER to
+    /// act**, which is the same property that makes bare accepts route
+    /// correctly (#202D, 6/6) seen from its cost side — and Owen ruled on
+    /// 2026-08-25 that ARMED is the product-correct answer there, so they are
+    /// not routing failures at all.
+    ///
+    /// **The tail, not the head:** an offer lands at the END of an assistant
+    /// turn ("…Would you like me to set a reminder?"), which is precisely the
+    /// part the router must see. Note what that implies before reading any
+    /// capped-vs-uncapped comparison: this function PRESERVES the offer by
+    /// design, so the two arms agree on an offer-tail row by construction.
+    /// Their agreement is never evidence about length.
+    ///
+    /// 800 sits above the longest ordinary context in the measured grid (586)
+    /// so real turns pass through untouched, and far below the 4,073-char row
+    /// whose latency was the problem.
     nonisolated static let routerContextLimit = 800
 
     nonisolated static func routerContextTail(_ context: String) -> String {

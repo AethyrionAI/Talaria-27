@@ -2534,9 +2534,14 @@ struct DeviceToolBeltTests {
         // The OFFER — the whole reason context is supplied — must survive.
         #expect(capped.contains("Would you like me to set a reminder to call the dentist tomorrow at 9am?"))
         #expect(capped.hasPrefix("…"))
-        // The cap sits above every context measured clean and below the one
-        // that broke, so ordinary turns are unaffected.
-        #expect(LocalChatBackend.routerContextLimit > 590)
+        // A LATENCY bound, not an accuracy one — rewritten in #334
+        // (2026-08-25), which found this comment still pinning the cap under
+        // the story #206 retracted the day it shipped ("everything at ≤590
+        // chars was perfect", falsified by the 551-char row in that same
+        // run). 800 sits above the longest ordinary context in the grid (586)
+        // so real turns pass through untouched, and below 4,073 so the row
+        // whose LATENCY was the problem is actually capped.
+        #expect(LocalChatBackend.routerContextLimit > 586)
         #expect(LocalChatBackend.routerContextLimit < 4073)
         // And it is wired into the envelope, not just available.
         let envelope = LocalChatBackend.routerPrompt(context: long, prompt: "Yes please",
@@ -3131,6 +3136,200 @@ struct DeviceToolBeltTests {
         // Same two bands as the short grid, so the comparison is like-for-like.
         #expect(grid.contains { $0.band == .accept })
         #expect(grid.contains { $0.band == .wordsOnly })
+    }
+
+    // MARK: - (#334) the offer-tail relabel, and the rows that test its edge
+
+    /// The dentist offer, verbatim. Every "offer tail" context in the long
+    /// grid ends with exactly this sentence, so the tests key on it rather
+    /// than on a substring that could drift.
+    static let dentistOffer =
+        "Would you like me to set a reminder to call the dentist tomorrow at 9am?"
+
+    /// 🔴 #334-A — OWEN'S RULING, 2026-08-25: after the assistant OFFERS an
+    /// action, a words-only follow-up routing ARMED is the PRODUCT-CORRECT
+    /// answer ("armed is the safe read", #206). These three rows were
+    /// labelled `expected: false`, which asserts the router should IGNORE an
+    /// explicit offer — #206 flagged that as a strong claim it never argued
+    /// for, and then #334 replicated the same six "failures" on the iPad
+    /// thirteen days later. **The rows were wrong, not the router.** With
+    /// the labels corrected, run `48D4BD4B` and the 2026-08-12 replication
+    /// contain no failures at all.
+    ///
+    /// This is the ONLY place the ruling is written down in code, so it is
+    /// pinned per-row by id: a future edit that quietly reverts one of them
+    /// re-asserts a claim Owen ruled against.
+    @Test func offerTailWordsOnlyRowsExpectArmedPerOwensRuling() throws {
+        let grid = LocalChatBackend.routerLongContextGrid
+        for id in ["base-words-offer-long-say",
+                   "base-words-offer-natural-say",
+                   "base-words-offer-long-write"] {
+            let row = try #require(grid.first { $0.id == id }, "missing row \(id)")
+            #expect(row.band == .wordsOnly, "\(id) is not a words-only row")
+            #expect(row.context.hasSuffix(Self.dentistOffer), "\(id) is not an offer tail")
+            #expect(row.expected, "\(id) must expect ARMED per the 2026-08-25 ruling")
+        }
+        // The counterpart, unchanged: a words-only turn after ORDINARY prose
+        // still expects TOOLLESS. The ruling is scoped to offer tails — it is
+        // not a licence to arm the whole band, which is the degenerate #202A's
+        // words-only band exists to catch.
+        for id in ["base-words-nooffer-haiku", "base-words-nooffer-summary"] {
+            let row = try #require(grid.first { $0.id == id }, "missing row \(id)")
+            #expect(!row.context.hasSuffix(Self.dentistOffer))
+            #expect(!row.expected, "\(id) must still expect TOOLLESS")
+        }
+    }
+
+    /// #334-B / E1 — the 2×2 #206 closed by declaring OWED and never built:
+    /// "a properly built row set that varies ends-in-an-offer INDEPENDENTLY
+    /// of length, with `expected` labels argued rather than assumed."
+    ///
+    /// It is pinned STRUCTURALLY on purpose. These are DEVICE rows — the
+    /// simulator cannot generate on this model (#324) — so the only claim a
+    /// build can make is that the four cells exist and differ in exactly one
+    /// factor per axis. The numbers come from the next probe run.
+    @Test func e1IsAFullTwoByTwoVaryingTheOfferIndependentlyOfLength() throws {
+        let grid = LocalChatBackend.routerLongContextGrid
+        let e1 = grid.filter { $0.id.hasPrefix("E1-") }
+        #expect(e1.count == 4)
+        #expect(Set(e1.map(\.id)) == ["E1-offer-short", "E1-offer-long",
+                                      "E1-nooffer-short", "E1-nooffer-long"])
+        // ONE prompt across all four cells, or the design is not a 2×2 in
+        // the offer — which is the exact confound #206 owned up to.
+        #expect(Set(e1.map(\.prompt)) == ["Say that again more briefly"])
+        let offerShort = try #require(e1.first { $0.id == "E1-offer-short" })
+        let offerLong = try #require(e1.first { $0.id == "E1-offer-long" })
+        let plainShort = try #require(e1.first { $0.id == "E1-nooffer-short" })
+        let plainLong = try #require(e1.first { $0.id == "E1-nooffer-long" })
+        // Axis 1 — the offer: two contexts end in it, two do not.
+        #expect(offerShort.context.hasSuffix(Self.dentistOffer))
+        #expect(offerLong.context.hasSuffix(Self.dentistOffer))
+        #expect(!plainShort.context.hasSuffix(Self.dentistOffer))
+        #expect(!plainLong.context.hasSuffix(Self.dentistOffer))
+        // ...and the no-offer cells KEEP the device noun, so what varies is
+        // the offer as an act, not the mention of a reminder.
+        #expect(plainShort.context.contains("a reminder to call the dentist tomorrow at 9am"))
+        #expect(plainLong.context.contains("a reminder to call the dentist tomorrow at 9am"))
+        // Axis 2 — length, matched to the byte (72 characters swapped for 72).
+        #expect(offerShort.context.count == plainShort.context.count)
+        #expect(offerLong.context.count == plainLong.context.count)
+        #expect(offerShort.context.count == 551)
+        #expect(offerLong.context.count == 4073)
+        // Labels, per the ruling AND its scope.
+        #expect(offerShort.expected && offerLong.expected)
+        #expect(!plainShort.expected && !plainLong.expected)
+    }
+
+    /// #334-B / E2 — the ANAPHORA control, which the whole finding still
+    /// lacks. Both prompts that misroute point BACKWARD ("write another ONE",
+    /// "say THAT again"), so offer-tail salience and an anaphor resolving to
+    /// the offered action remain confounded. E2 puts a self-contained
+    /// composition request over the same offer tail: ARMED there means the
+    /// offer tail alone drives the route; TOOLLESS means anaphora does.
+    @Test func e2PutsANonAnaphoricWordsOnlyTurnOverTheOfferTail() throws {
+        let grid = LocalChatBackend.routerLongContextGrid
+        let e2 = grid.filter { $0.id.hasPrefix("E2-") }
+        #expect(e2.count == 2)
+        #expect(Set(e2.map(\.id)) == ["E2-offer-short", "E2-offer-long"])
+        #expect(Set(e2.map(\.prompt)) == ["Write a haiku about sledding"])
+        for row in e2 {
+            #expect(row.band == .wordsOnly)
+            #expect(row.context.hasSuffix(Self.dentistOffer))
+            // TOOLLESS: the ruling covers a turn that might BE an accept, and
+            // a new-subject composition request is not one. An armed result
+            // is the falsifying observation, which is what makes it a test.
+            #expect(!row.expected)
+            // Non-anaphoric in fact, not just in intent: it borrows no
+            // referring expression from the context.
+            let words = row.prompt.lowercased()
+                .split(whereSeparator: { !$0.isLetter }).map(String.init)
+            #expect(!words.contains("that"))
+            #expect(!words.contains("another"))
+            #expect(!words.contains("it"))
+        }
+        // Both lengths, so an E2 result cannot be blamed on length either.
+        #expect(Set(e2.map(\.context.count)) == [551, 4073])
+    }
+
+    /// #334: the long grid's rows are keyed by ID in the emitted probe line
+    /// and in the artifact's `notes`, because prompt + ctxchars is NOT a key:
+    /// after E1 there are THREE distinct rows sharing the prompt "Say that
+    /// again more briefly" at 551 characters. Without ids a scorer reading
+    /// the run would silently merge them.
+    @Test func everyLongContextRowCarriesAUniqueNonEmptyID() {
+        let grid = LocalChatBackend.routerLongContextGrid
+        let ids = grid.map(\.id)
+        #expect(ids.allSatisfy { !$0.isEmpty })
+        #expect(Set(ids).count == ids.count)
+        // The exact collision the id exists to break.
+        let collide = grid.filter {
+            $0.prompt == "Say that again more briefly" && $0.context.count == 551
+        }
+        #expect(collide.count == 3)
+        #expect(Set(collide.map(\.id)).count == 3)
+    }
+
+    /// #334-B: the long-context probe's BAND COUNT. Every long row runs in
+    /// BOTH arms (uncapped + capped) and the six short accept rows run once
+    /// as the latency baseline, so the probe emits `rows × 2 + accepts`
+    /// bands. #339's pre-OTA subset does drift detection over this series, so
+    /// the number is pinned rather than recomputed by hand — E1 and E2 moved
+    /// it **22 → 34** on 2026-08-25, which is a re-baseline, not a
+    /// regression, and the Developer-screen button label moved with it.
+    @Test func longContextProbeBandCountIsPinnedBecauseTheSubsetWatchesItForDrift() {
+        let longRows = LocalChatBackend.routerLongContextGrid.count
+        let shortAccepts = LocalChatBackend.routerContextGrid.filter { $0.band == .accept }.count
+        #expect(longRows == 14)
+        #expect(shortAccepts == 6)
+        #expect(longRows * 2 + shortAccepts == 34)
+    }
+
+    /// 🔴 #334-C / E4 — THE NO-OP SUFFIX, and it hid two things for 26 days.
+    ///
+    /// #206 built a "same prompt, SHORT context" row to isolate length, wrote
+    /// `String(longOffer.suffix(560))` for it, and never checked that
+    /// `longOffer` is 551 characters: the suffix returns the string WHOLE.
+    /// **The row named "short" was never shortened.** It is the same offer
+    /// tail at its natural length — which is exactly why it misroutes like
+    /// the 4,073-char row, and why the entry's "length-independent miss" was
+    /// never a second shape at all.
+    ///
+    /// The second thing: at 551 the 800-char cap is a no-op too, so that
+    /// row's capped and uncapped cells are the IDENTICAL configuration
+    /// measured twice. "Capped and uncapped agree" was never evidence about
+    /// the cap — and on the long row they agree by construction as well,
+    /// because `routerContextTail` keeps the offer BY DESIGN.
+    @Test func longContextGridShortOfferRowWasNeverActuallyShortened() throws {
+        let grid = LocalChatBackend.routerLongContextGrid
+        let row = try #require(grid.first { $0.id == "base-words-offer-natural-say" })
+        // 1. The row IS the untruncated source: `longOffer` is 551 characters
+        //    and the grid asks for `suffix(560)`, so nothing is removed and
+        //    the "short" row is byte-identical to the context the
+        //    natural-length accept rows use.
+        //
+        //    Pinned as an IDENTITY against that source and an exact length —
+        //    deliberately NOT as `String(row.context.suffix(560)) ==
+        //    row.context`, which is what this test asserted first and which
+        //    is a TAUTOLOGY for any context of 560 characters or fewer. The
+        //    mutation run proved it: shortening the row to `suffix(200)` left
+        //    that comparison green while the two assertions below went red.
+        //    A pin the mutation cannot move is not a pin.
+        let acceptRow = try #require(grid.first { $0.id == "base-accept-offer-natural-yes" })
+        #expect(row.context == acceptRow.context)
+        #expect(row.context.count == 551)
+        #expect(row.context.count < 560)  // ...which is WHY the suffix is a no-op.
+        // 2. And it still ends in the offer, so it is an offer-tail row.
+        #expect(row.context.hasSuffix(Self.dentistOffer))
+        // 3. The cap is a no-op on it as well: two cells, one configuration.
+        #expect(LocalChatBackend.routerContextTail(row.context) == row.context)
+        // 4. The long row it was meant to contrast with keeps the same tail
+        //    once capped — 801 chars, offer intact — which is the second half
+        //    of the same trap.
+        let longRow = try #require(grid.first { $0.id == "base-words-offer-long-say" })
+        #expect(longRow.context.count == 4073)
+        let cappedLong = LocalChatBackend.routerContextTail(longRow.context)
+        #expect(cappedLong.count == 801)
+        #expect(cappedLong.hasSuffix(Self.dentistOffer))
     }
 
     // MARK: - (#204) warm within-run re-verification of the promoted clauses

@@ -953,8 +953,14 @@ struct DeveloperSettingsScreen: View {
                     instrumentButton("honesty", trials: 10, label: "Honesty n=10 (20+24+1)")
                 }
                 // #202C companion: ctx-a on realistic LONG contexts, timed.
+                // The count is 14 grid rows × 2 arms (uncapped + capped) + 6
+                // short accept rows, all × n. It read "(50)" from #202C until
+                // #334 (2026-08-25): #206 doubled the arms and grew the grid
+                // without touching this label, so it under-reported the run
+                // by more than half for 26 days. `long-context-probe` band
+                // count is pinned in the suite, so the next drift is caught.
                 HStack(spacing: Design.Spacing.sm) {
-                    instrumentButton("long-context-probe", trials: 5, label: "Long-context probe n=5 (50)")
+                    instrumentButton("long-context-probe", trials: 5, label: "Long-context probe n=5 (170)")
                 }
                 // #207: can the router be told an image is attached, and is
                 // that enough? Pure classification — no grants, no reap.
