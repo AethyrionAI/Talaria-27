@@ -132,7 +132,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#138** 🐛 Realtime engine self-barge-in — assistant TTS captured as user speech (OJAMD voice host); slow turn …
 - **#140** 🔧 README + GitHub Pages refresh — ~~stale wedge narrative + pre-freemium positioning~~ re-scoped 2026-08-25 (as-filed premise discharged) → **✅ PUBLISHED the same day on Owen's go (PR #373, `47632a01`, verified live): relay claims retired, the vision story public, beta6 line, honest screens meta. Remaining: the P-4 screenshot batch + device rows R15/R16 (runbook-carded)**
 - **#148** 🔧 Hermes 0.19 “Quicksilver” impact assessment — wire, shim, and behavior deltas vs Talaria (investigation …
-- **#150** ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149) — **📏 discovery pass EXECUTED 2026-08-25 (08-09 ruling discharged): FM runtime-schema blocker FALSIFIED (typecheck-proven), host↔phone transport already shipped, Hermes ships its own MCP client; Lane C does NOT fit a 4096 window. Options + recommendation filed — Owen rules**
+- **#150** ✨ Talaria as an MCP CLIENT — **⚖️ RULED 08-26: record corrected, PARKED post-launch (option ①); Owen leans KILL ("value has plummeted") — next ballot offers kill first.** Discovery 08-25: FM blocker falsified, Hermes ships its own MCP client, Lane C does not fit a 4096 window
 - **#162** 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`) …
 - **#163** 🧩 156b Skills lane — **SHIPPED, on `main`** (`Talaria/Features/Skills/`, reachable at …
 - **#165** 🧩 156d Insights lane — **SHIPPED, on `main`** (`Talaria/Features/Insights/`, reachable at …
@@ -3442,7 +3442,7 @@ Logged 2026-07-20.
 
 ---
 
-## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149) — **📏 DISCOVERY PASS EXECUTED 2026-08-25, the 08-09 ruling DISCHARGED: the MECHANISM got easier (the FM runtime-schema blocker is falsified, typecheck-proven) and the VALUE got narrower (Hermes ships its own MCP client; the host↔phone transport already shipped). Free-tier Lane C does NOT fit a 4096-token window. Recommendation filed — DECISION BACK TO OWEN**
+## 150. ✨ Talaria as an MCP CLIENT — app-side MCP access (post-launch marquee candidate; distinct from #149) — **📏 DISCOVERY PASS EXECUTED 2026-08-25, the 08-09 ruling DISCHARGED: the MECHANISM got easier (the FM runtime-schema blocker is falsified, typecheck-proven) and the VALUE got narrower (Hermes ships its own MCP client; the host↔phone transport already shipped). Free-tier Lane C does NOT fit a 4096-token window. Recommendation filed — DECISION BACK TO OWEN** **⟵ ⚖️ RULED 2026-08-26: OPTION ① — record corrected (design-doc banner placed), PARKED post-launch; Owen's KILL-LEANING recorded verbatim at the foot — the next ballot offers kill first.**
 
 > **⚖️ OWEN'S RULING 2026-08-09 (interactive decision pass, recorded same day):**
 > **DISCOVERY PASS, not a park and not a build** — Owen: *"Can we do any
@@ -3689,6 +3689,18 @@ Logged 2026-07-20.
 > plane" as an open HITL gap, a note that predates #304's elicitation-shaped
 > approval card and may be stale. It needs its own look rather than a
 > correction written blind from here.)*
+
+> **⚖️ RULED 2026-08-26 morning (Owen, in-chat): OPTION ① — record
+> corrected, PARKED for a post-launch revisit.** Executed the same hour:
+> `design/MCP_CLIENT_DESIGN.md` carries a supersession banner naming all
+> four falsified premises and pointing at the discovery report; nothing
+> is built and nothing is scheduled. **AND HIS LEAN IS ON THE RECORD,
+> verbatim: "I'm leaning towards killing it. Value for it has plummeted
+> with Hermes being able to do it, and phone query being available prior
+> to Hermes even being connected."** So the next time this item surfaces
+> on a ballot, KILL is offered FIRST — the lean is a direction, not yet a
+> ruling, and this note exists so nobody re-argues the case from scratch
+> against a leaning he already stated.
 
 ## 162. 🛠 156a Tasks lane — **SHIPPED, on `main`** (`Talaria/Features/Tasks/`, reachable at `ContentView.swift:246`); **device checklist still owed** — header corrected 2026-08-01
 

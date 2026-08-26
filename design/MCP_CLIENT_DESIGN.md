@@ -1,5 +1,25 @@
 # MCP_CLIENT_DESIGN — Talaria as an MCP client (OPEN_ITEMS #150)
 
+> **⟵ ⚖️ SUPERSEDED IN PART — RULED 2026-08-26 (Owen: option ①, correct
+> the record and stay parked).** The 2026-08-25 discovery pass
+> (`planning/reports/2026-08-25-150-discovery.md`, filed at #150's foot)
+> falsified four premises of this doc — read it BEFORE reading on:
+> the "central OPEN QUESTION" (compile-time-only FM schemas) was never
+> true (runtime `DynamicGenerationSchema` since iOS 26.0,
+> typecheck-proven); the host↔phone transport this doc says "does not
+> exist" shipped (the plugin's `talaria_phone_query`, a hardcoded 7-kind
+> enum — making THAT dynamic is now the strongest surviving argument);
+> Hermes ships its own mature MCP client (gutting the Connected-tier
+> case); and free-tier Lane C does not fit a 4096-token window at all
+> (belt+schema+result > usable) — **Lane C is dead on 4K hardware until
+> selective arming ships.** This doc's Lane-D sketch also routes through
+> the retired relay. **PARKED, post-launch revisit; if ever built, build
+> the manual-console shape (Lane A+B), never Lane C. And Owen's recorded
+> lean at the ruling, verbatim: "I'm leaning towards killing it. Value
+> for it has plummeted with Hermes being able to do it, and phone query
+> being available prior to Hermes even being connected." A future ballot
+> should offer KILL first.**
+
 **Author:** Claude (Mac session, 2026-07-20 late) · **Status:** DESIGN GATE — reviewed by
 Owen before any implementation lane dispatches. · **Scope:** post-launch 1.1 marquee.
 Capability claims below are cited or marked OPEN QUESTION; nothing is guessed.
