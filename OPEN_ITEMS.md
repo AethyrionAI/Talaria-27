@@ -8761,7 +8761,7 @@ not free and must be visible" is that lane's own sentence, in the code at
 > **⚖️ ELECTED 2026-08-25 night (Owen, the ten-item ballot — ALL TEN elected, timing "Tonight, stacked"):** the FIX lane (receipts sidecar replayed at open + 330-C predicate convergence; the 16 defect pins flip RED-first; 330-D/G close behind it). Solo Opus lane. Bars pre-register in this entry at lane-open where missing (house rule); groupings + order in the plan doc's night-batch addendum (`planning/PLAN-2026-08-25-FINISH-TO-RUNBOOK.md`).
 
 > **✅ 2026-08-25 — FIX LANE RAN. THE MECHANISM IS FIXED; THE ENTRY STAYS
-> OPEN FOR 330-G ONLY.** MERGED as `SQUASH_SHA` (PR #PRNUM, squashed) on
+> OPEN FOR 330-G ONLY.** MERGED as `faa725df` (PR #383, squashed) on
 > branch `330-receipts-sidecar`. **GATE: PASS — 2609 Swift Testing / 14
 > XCUITest / Release clean on `CC-lane-3` under Xcode-beta6; the count moved
 > by exactly the 18 tests added (2591 → 2609).** Bars:
