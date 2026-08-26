@@ -97,15 +97,21 @@ final class ModelPricingCatalog {
             + Double(usage.completionTokens) / 1_000_000 * pricing.outputPerMTok
     }
 
-    /// Session-total estimate over every metered Hermes turn — plus context
+    /// Session-total estimate over every metered agent turn — plus context
     /// transplant priming turns (#90): priming is real spend and must land in
     /// the total. Returns the summed cost plus how many of the metered items
     /// it actually covers — partial coverage (a turn served by an unpriced
     /// model) must be shown honestly, never passed off as the full total.
+    ///
+    /// **330-C (2026-08-25): `isAgentAuthored`, not `== .hermes`.** This is
+    /// the second of the four sites that decide what a metered turn is, and it
+    /// has to agree with `ChatStore.sessionUsageTotals` or the card prints a
+    /// turn count and a cost computed over different rows — `Est. cost
+    /// (3/4 turns priced)` where the fourth was never unpriced, just spoken.
     func estimatedSessionCost(for messages: [Message]) -> (cost: Double, costedTurns: Int)? {
         var cost = 0.0
         var costed = 0
-        for message in messages where message.sender == .hermes || message.isContextPriming {
+        for message in messages where message.sender.isAgentAuthored || message.isContextPriming {
             guard let usage = message.usage else { continue }
             if let turnCost = estimatedCost(for: usage, model: message.servingModel) {
                 cost += turnCost

@@ -18,6 +18,7 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
         // the conversation cache and is cleared with it on unpair/reset —
         // it names what the agent wrote, so it must not outlive the pairing.
         static let agentAttachmentSidecar = "hermes.agentAttachmentSidecar"
+        static let turnReceiptSidecar = "hermes.turnReceiptSidecar"
         // #137: deliberately the SAME string the migration first stamped into
         // UserDefaults. Re-keying would have read every already-migrated
         // install as never-migrated and re-fired the migration on all of
@@ -386,6 +387,25 @@ final class UserDefaultsAppPersistenceStore: AppPersistenceStoreProtocol {
 
     func clearAgentAttachmentSidecar() {
         defaults.removeObject(forKey: Keys.agentAttachmentSidecar)
+    }
+
+    // #330: the turn-receipt sidecar. Same tolerance posture as the chip
+    // sidecar above — a decode failure reads as "no receipts", which is
+    // exactly the pre-#330 behaviour, and never a throw at session-open time.
+    func loadTurnReceiptSidecar() -> TurnReceiptSidecar {
+        load(TurnReceiptSidecar.self, key: Keys.turnReceiptSidecar) ?? TurnReceiptSidecar()
+    }
+
+    func saveTurnReceiptSidecar(_ sidecar: TurnReceiptSidecar) {
+        if sidecar.threads.isEmpty {
+            defaults.removeObject(forKey: Keys.turnReceiptSidecar)
+        } else {
+            save(sidecar, key: Keys.turnReceiptSidecar)
+        }
+    }
+
+    func clearTurnReceiptSidecar() {
+        defaults.removeObject(forKey: Keys.turnReceiptSidecar)
     }
 
     private func load<T: Decodable>(_ type: T.Type, key: String) -> T? {
