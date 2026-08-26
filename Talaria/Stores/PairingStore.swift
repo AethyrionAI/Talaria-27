@@ -162,19 +162,29 @@ final class PairingStore {
         }
     }
 
+    /// **LOCAL-ONLY since #309 Lane A (2026-08-25).** This used to open with
+    /// `await sessionStore.revokeCurrentSession()` — a `POST auth/revoke` at a
+    /// relay that is retired on both hosts, so the unpair sat on a doomed
+    /// round trip before clearing anything the user could see. The revoke
+    /// went with the rest of the bootstrap chain; forgetting the credentials
+    /// locally is the whole operation now, which is also what the ACTIVE and
+    /// the DORMANT arm already had in common.
+    ///
+    /// **Deliberately the minimum.** Unifying the unpair paths (this,
+    /// `forgetPairing`, `clearLocalPairing`) and giving the verb its
+    /// plugin-native `unpair` POST is Lane B's work, design doc §3b — Lane A
+    /// only removes the dead call.
     func disconnect() async {
         isWorking = true
         lastErrorMessage = nil
         defer { isWorking = false }
 
-        await sessionStore.revokeCurrentSession()
         await clearLocalPairing(notify: true)
     }
 
     /// Lane M (M-12): forgets ONE profile's pairing. The active profile takes
-    /// the full `disconnect()` path (server-side revoke + reset notify); a
-    /// dormant profile's slot is cleared locally — its relay session can't be
-    /// revoked through the active bootstrap client, and a dormant forget must
+    /// the full `disconnect()` path (local clear + reset notify); a dormant
+    /// profile's slot is cleared without the notify — a dormant forget must
     /// not log the active profile out.
     func forgetPairing(profileID: UUID) async {
         guard let profile = profileResolver(profileID) else { return }

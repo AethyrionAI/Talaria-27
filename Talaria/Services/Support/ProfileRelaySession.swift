@@ -1,42 +1,32 @@
 import Foundation
-import os
 
-private let profileRelayLog = Logger(subsystem: "org.aethyrion.talaria", category: "ProfileRelaySession")
-
-/// Per-profile relay access for the paths that must reach a NON-ACTIVE
-/// backend (Lane M PR 2): the pinned sensor destination (M-8), push
-/// registration/watches on every paired relay (M-7), and the dormant-token
-/// freshness pass (M-9).
+/// Per-profile relay READS for the paths that must reach a NON-ACTIVE backend
+/// (Lane M PR 2).
 ///
-/// The ACTIVE profile stays `AppSessionStore`'s business — it owns that
-/// profile's single-flight refresh and the #15 re-register ladder, and two
-/// refreshers racing one rotating refresh token would strand the loser. This
-/// factory therefore only ever REFRESHES dormant profiles; reads are safe for
-/// any profile.
+/// **#309 Lane A (2026-08-25) deleted this type's refresh half.**
+/// `refreshAccessToken(forProfileID:)` / `performRefresh` were the FOURTH
+/// constructor of `LiveSessionBootstrapService` — the dormant-profile arm of
+/// the same doomed `auth/refresh` round trip — and `DormantTokenRefreshPolicy`
+/// existed only to decide when to fire it. Both are gone with the bootstrap
+/// chain, along with `AppContainer.refreshDormantProfileTokensIfNeeded` and
+/// the `onTokensRefreshed` stamp it drove. What is left is pure local reads
+/// (pairing record, tokens, session state) that the Settings screens and
+/// `ContentView` still ask for; the whole file goes with Lane C's
+/// `RelayAPIClient` deletion.
 @MainActor
 final class ProfileRelaySessionFactory {
     private let persistence: any AppPersistenceStoreProtocol
     private let secureStore: any SecureStoreProtocol
     private let profileResolver: @MainActor (UUID) -> BackendProfile?
-    private let activeProfileIDProvider: @MainActor () -> UUID?
-    /// Fires after a successful dormant refresh so the profiles store can
-    /// stamp `lastTokenRefreshAt`.
-    var onTokensRefreshed: (@MainActor (UUID) -> Void)?
-
-    /// Single-flight per profile: concurrent refresh callers for the same
-    /// dormant profile coalesce onto one relay round trip.
-    private var refreshTasks: [UUID: Task<String?, Never>] = [:]
 
     init(
         persistence: any AppPersistenceStoreProtocol,
         secureStore: any SecureStoreProtocol,
-        profileResolver: @escaping @MainActor (UUID) -> BackendProfile?,
-        activeProfileIDProvider: @escaping @MainActor () -> UUID?
+        profileResolver: @escaping @MainActor (UUID) -> BackendProfile?
     ) {
         self.persistence = persistence
         self.secureStore = secureStore
         self.profileResolver = profileResolver
-        self.activeProfileIDProvider = activeProfileIDProvider
     }
 
     // MARK: - Reads (any profile)
@@ -80,91 +70,6 @@ final class ProfileRelaySessionFactory {
     func apiClient(forProfileID profileID: UUID) -> RelayAPIClient {
         RelayAPIClient { [weak self] in
             self?.relayBaseURL(forProfileID: profileID) ?? ""
-        }
-    }
-
-
-    // MARK: - Refresh (dormant profiles only)
-
-    /// Refreshes a DORMANT profile's relay tokens against its own relay and
-    /// returns the fresh access token (nil on any failure — callers treat it
-    /// like the existing refresher ladder's nil: don't retry with the stale
-    /// token). Refuses the active profile: `AppSessionStore` owns that
-    /// refresh, and racing its rotation would strand one of the two.
-    func refreshAccessToken(forProfileID profileID: UUID) async -> String? {
-        guard profileID != activeProfileIDProvider() else {
-            profileRelayLog.error("refresh: refused for the ACTIVE profile — AppSessionStore owns it")
-            return nil
-        }
-        if let running = refreshTasks[profileID] {
-            return await running.value
-        }
-        let task = Task { await performRefresh(profileID: profileID) }
-        refreshTasks[profileID] = task
-        let token = await task.value
-        refreshTasks[profileID] = nil
-        return token
-    }
-
-    private func performRefresh(profileID: UUID) async -> String? {
-        guard let profile = profileResolver(profileID) else { return nil }
-        let scope = profile.credentialScopeID
-        guard let refreshToken = await secureStore.retrieve(key: BackendProfileScopedKeys.refreshToken(scope)),
-              !refreshToken.isEmpty else {
-            return nil
-        }
-        let bootstrap = LiveSessionBootstrapService(apiClient: apiClient(forProfileID: profileID))
-        do {
-            let tokens = try await bootstrap.refreshAuth(refreshToken: refreshToken)
-            await secureStore.store(key: BackendProfileScopedKeys.accessToken(scope), value: tokens.accessToken)
-            await secureStore.store(key: BackendProfileScopedKeys.refreshToken(scope), value: tokens.refreshToken)
-            onTokensRefreshed?(profileID)
-            profileRelayLog.notice("refresh: dormant profile '\(profile.name, privacy: .public)' tokens rotated")
-            return tokens.accessToken
-        } catch {
-            profileRelayLog.notice("refresh: dormant profile '\(profile.name, privacy: .public)' failed — \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-    }
-}
-
-/// M-9: which dormant profiles are due a token refresh. Pure so the
-/// no-thrash rules are unit-testable: a profile is due when it is paired,
-/// not active, its last known refresh is older than `refreshInterval`
-/// (or unknown), and this process hasn't attempted it within
-/// `attemptFloor` — failures must not retry on every foreground.
-enum DormantTokenRefreshPolicy {
-    static let refreshInterval: TimeInterval = 7 * 24 * 60 * 60
-    static let attemptFloor: TimeInterval = 6 * 60 * 60
-
-    static func profilesDue(
-        profiles: [BackendProfile],
-        activeProfileID: UUID?,
-        isPaired: (BackendProfile) -> Bool,
-        lastAttempts: [UUID: Date],
-        now: Date = .now
-    ) -> [BackendProfile] {
-        profiles.filter { profile in
-            // #310: a profile with no relay has no relay TOKENS to refresh.
-            // `isPaired` alone is not enough here, because a pairing record
-            // OUTLIVES the profile's relay URL — the record persists its own
-            // `baseURLString`, so a profile the retirement migration cleared
-            // still reads as paired and would keep firing dormant refreshes
-            // at the retired host on every foreground. That is #365's cost
-            // arriving on a timer instead of on a switch.
-            //
-            // This is the entry's "#15/#94 recovery ladders scoped to
-            // relay-bearing profiles only", and the ordering matters: put
-            // `hasRelay` FIRST so the cheap field read short-circuits before
-            // `isPaired` touches persistence.
-            guard profile.hasRelay else { return false }
-            guard profile.id != activeProfileID, isPaired(profile) else { return false }
-            if let attempted = lastAttempts[profile.id],
-               now.timeIntervalSince(attempted) < attemptFloor {
-                return false
-            }
-            guard let refreshed = profile.lastTokenRefreshAt else { return true }
-            return now.timeIntervalSince(refreshed) >= refreshInterval
         }
     }
 }

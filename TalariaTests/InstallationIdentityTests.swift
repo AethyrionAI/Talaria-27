@@ -33,13 +33,7 @@ struct InstallationIdentityTests {
     }
 
     private func makeStore(_ persistence: UserDefaultsAppPersistenceStore) -> AppSessionStore {
-        AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
-            secureStore: MockSecureStore(),
-            persistence: persistence,
-            environmentProvider: { .development }
-        )
+        AppSessionStore(secureStore: MockSecureStore(), persistence: persistence)
     }
 
     /// THE defect. Unpair clears the profile-scoped session state; the next
@@ -78,19 +72,13 @@ struct InstallationIdentityTests {
         let scopeB = UUID()
 
         let storeA = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development },
             credentialScopeProvider: { scopeA }
         )
         let storeB = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development },
             credentialScopeProvider: { scopeB }
         )
 
@@ -123,11 +111,8 @@ struct InstallationIdentityTests {
         persistence.saveSessionState(stale, profileScope: scope)
 
         let store = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development },
             credentialScopeProvider: { scope }
         )
         let durable = persistence.loadInstallationID()

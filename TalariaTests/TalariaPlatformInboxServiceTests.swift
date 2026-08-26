@@ -536,13 +536,9 @@ struct TalariaPlatformInboxServiceTests {
         service: (any InboxServiceProtocol)? = nil
     ) async -> InboxStore {
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development }
         )
-        await sessionStore.bootstrap()
         return InboxStore(
             inboxService: service ?? TalariaPlatformInboxService(persistence: persistence),
             persistence: persistence,

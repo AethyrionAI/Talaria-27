@@ -68,11 +68,8 @@ struct ServerSettingsTests {
         profilesStore.upsert(mac)
 
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production },
             credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
         let pairingStore = PairingStore(

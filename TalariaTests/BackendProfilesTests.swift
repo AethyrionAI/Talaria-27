@@ -107,11 +107,8 @@ struct BackendProfilesTests {
         profilesStore: BackendProfilesStore
     ) -> AppSessionStore {
         AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: secureStore,
             persistence: persistence,
-            environmentProvider: { .production },
             credentialScopeProvider: { profilesStore.activeProfile?.credentialScopeID }
         )
     }

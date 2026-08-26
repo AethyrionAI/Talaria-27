@@ -210,13 +210,9 @@ struct InboxStoreMarkReadTests {
         persistence: MemoryPersistence = MemoryPersistence()
     ) async -> InboxStore {
         let sessionStore = AppSessionStore(
-            bootstrapService: MockSessionBootstrapService(),
-            syncCoordinator: MockSyncCoordinator(),
             secureStore: MockSecureStore(),
             persistence: persistence,
-            environmentProvider: { .development }
         )
-        await sessionStore.bootstrap()
         return InboxStore(inboxService: service, persistence: persistence, sessionStore: sessionStore)
     }
 
