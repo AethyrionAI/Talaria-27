@@ -329,6 +329,73 @@ struct SemanticForegroundContrastTests {
         }
     }
 
+    /// **393-M-A — the WHOLE ramp order, not just its last step.**
+    ///
+    /// Call 2 pinned one relation (`muted > dim`, above) because that was the
+    /// step it moved. This lane moves `mutedForeground`, which has a neighbour
+    /// on each side, so the pin is extended to the relation the palette
+    /// actually promises — **measured across all 88 reachable cells at HEAD,
+    /// not asserted from the token names**:
+    ///
+    /// ```
+    /// foregroundBright ≥ foreground > secondaryForeground ≥ mutedForeground > dimForeground
+    ///                                                       coolForeground ≥ mutedForeground
+    /// ```
+    ///
+    /// **The mixed strictness is a measurement, not a preference.** 24 of the
+    /// 30 themes set `secondaryForeground`, `coolForeground` and
+    /// `mutedForeground` to ONE literal — #393 call 4 recorded it in so many
+    /// words ("the ramp was already collapsed there, by design") — so a strict
+    /// `>` on those pairs would be RED on arrival and would forbid a shipped
+    /// design decision. `foreground > secondary` and `muted > dim` are strict
+    /// because every cell in the catalogue separates those two pairs.
+    ///
+    /// **`coolForeground` is deliberately pinned only against `muted`.** It is
+    /// not a monotone step: on `deepField`, `paperTape`, `solarForge` and
+    /// `terminal` the cool-tinted step reads far STRONGER than
+    /// `secondaryForeground` (deepField 14.90 vs 6.28). Pinning it into the
+    /// linear chain would encode an order the palette has never had — the
+    /// aperture error #393 exists to name, pointed at a ramp instead of a
+    /// token.
+    ///
+    /// Mutation-proven: swapping one theme's `secondary`/`muted` literals turns
+    /// this RED naming that theme and its three cells.
+    @Test func theRampOrderHoldsAcrossEveryStep() {
+        /// Pairs of (stronger, weaker) with the strictness each one actually
+        /// has in the catalogue.
+        let relations: [(name: String,
+                         stronger: (ThemePalette) -> Color, strongerName: String,
+                         weaker: (ThemePalette) -> Color, weakerName: String,
+                         strict: Bool)] = [
+            ("bright ≥ foreground", \.foregroundBright, "foregroundBright",
+             \.foreground, "foreground", false),
+            ("foreground > secondary", \.foreground, "foreground",
+             \.secondaryForeground, "secondaryForeground", true),
+            ("secondary ≥ muted", \.secondaryForeground, "secondaryForeground",
+             \.mutedForeground, "mutedForeground", false),
+            ("cool ≥ muted", \.coolForeground, "coolForeground",
+             \.mutedForeground, "mutedForeground", false),
+            ("muted > dim", \.mutedForeground, "mutedForeground",
+             \.dimForeground, "dimForeground", true),
+        ]
+
+        for (theme, accent) in ThemeContrastCells.reachable {
+            let p = ThemePalette(theme: theme, accent: accent)
+            for relation in relations {
+                let strong = ThemeContrastMath.ratio(relation.stronger(p), on: p.background)
+                let weak = ThemeContrastMath.ratio(relation.weaker(p), on: p.background)
+                let holds = relation.strict ? (strong > weak) : (strong >= weak)
+                #expect(holds, """
+                    \(theme.rawValue)|\(accent.rawValue): the ramp order broke at \
+                    \(relation.name) — \(relation.strongerName) \
+                    (\(String(format: "%.2f", strong))) must read \
+                    \(relation.strict ? "strictly stronger than" : "at least as strong as") \
+                    \(relation.weakerName) (\(String(format: "%.2f", weak)))
+                    """)
+            }
+        }
+    }
+
     /// **393-A. The survey, fenced at its measured size.**
     ///
     /// Every semantic foreground against its own cell's background, at the
