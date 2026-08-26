@@ -1,5 +1,33 @@
 # #309 — the 16 surviving relay paths, with adapt-or-delete dispositions
 
+> **🏁 EXECUTED — 2026-08-25. EVERY ROW IN THIS TABLE IS DONE EXCEPT ONE.**
+> Read the table below as history, not as work: it is the record of what
+> was decided, and each row now carries an outcome.
+>
+> | rows | outcome |
+> |---|---|
+> | 1–4 (the auth chain) | DELETED — #309 Lane A, PR #381 |
+> | 5 (`device/provisioning`) | ALREADY ABSENT — #375 took it; re-verified by grep, Lane C |
+> | **6 (`phone-pairing/redeem`)** | **THE ONLY ROW LEFT — #309 Lane B's, with `LivePairingService`, `PairingStore` and the pairing screens** |
+> | 7 (`hosts/current`) | **ADAPTED → gateway `GET /health`** — Lane C bar C2, `GatewayHermesHostService` |
+> | 8, 9 (enrollment, revoke) | DELETED — Lane C, with the host-service protocol's shrink to one method |
+> | 10 (`device/app-state`) | DELETED — Lane C bar C4, at all three call sites |
+> | 11, 12 (voice) | ADAPTED → the talaria plugin — #383 |
+> | 13–15, 20 (`LiveHermesClient`) | DELETED — Owen's ruling 1, 2026-08-25 |
+> | 16 (`commands`) | **ADAPTED → gateway `GET /v1/skills`** — Lane C bar C3, via `SkillsStore` |
+> | the 17th (`/v1/device/files`, added by this report's own correction) | DELETED — #375 |
+>
+> **One line of this report is falsified by Lane C and corrected here.**
+> The finding-1 block below ends "Left standing deliberately:
+> `RelayAPIClient.streamEvents` (`:205`), the SSE primitive row 20 rode. It
+> survives with **zero callers** — deleting it is relay-client surface, not
+> this lane's scope." **That scope arrived:** Lane C bar C5 deleted
+> `RelayAPIClient` whole, so `streamEvents` is gone with it. `RelayCoders`
+> is the only piece of that file still in the tree, in its own file, read by
+> voice and three decoding tests.
+>
+> Evidence and the bar-by-bar result: **OPEN_ITEMS #309, the Lane C block.**
+
 > **✅ ANSWERED 2026-08-19, the same day, ahead of the scheduled review.**
 > Owen ruled all three questions at the foot of this report: **(1) voice
 > re-homes onto the PLUGIN** — route (b), a phone-held provider key, is
