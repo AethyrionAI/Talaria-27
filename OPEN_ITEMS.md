@@ -149,7 +149,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#308** 📝 PUBLISH the talaria plugin repo — the unblock for #269-B, and the update path it needs
 - **#312** 🔬 Continuity fabric DEVICE PASS — ~~Group 7 has genuinely never run once~~ **→ IT RAN 2026-08-11 (Owen, `whoGoesThere`, build `6b9e7e2`): (c′) PASS — model switched mid-conversation, SAME hop reused, no priming notice, reply correctly attributed (`kimi-k3` → `deepseek-v4-flash`); (d) PASS — `[CONTEXT TRANSPLANTED INTO A FRESH SESSION — 36,939 TOKENS]` and the host read the prior exchange back; (e) PASS — airplane mode parks QUEUED with no Retry and fires exactly once on reconnect, *"almost instantly, like it was waiting on me"*; **(a) RED → filed as #329** (cold launch calls a live turn failed, offers Retry, tapping duplicates); (b) NOT RUN (needs a host-side gateway stop/restart); **(f) RED → filed as #330** (the whole SESSION block is absent on the transplanted thread — clipping ruled out by discriminator)**
 - **#314** 📝 Compose outbox: attachment turns have no durable wire-ready form — v1 limit, deliberately deferred, never re-examined
-- **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three
+- **#309** 📝 RELAY TENANT RE-HOMING — the app calls EIGHTEEN relay paths across SEVEN services, and the decommission plan names three — **all five ruled 2026-08-25 (design doc delivered, lanes A–D elected). ✅ LANE A DONE + MERGED the same night (PR #381, `b42967b7 → squash`): the bootstrap chain deleted at all four construction sites, the five lifecycle gates re-keyed to capability (#411 fixed here), installation identity ported, #365's residual gone for EVERY profile — gate PASS 2586 Swift Testing / 213 suites + 14 XCUITest + Release, FIRST RUN. Lanes D ∥, then C, then B (awaits Owen's design spec)**
 - **#318** 🎨 Settings SEARCH (Claude Design 1b) — filed 2026-08-09 by the #252 close; **elected and ✅ BUILT + MERGED 2026-08-25 (PR #372, `b5dd5f08`)** — data-driven index over the grid/deck, one navigation door, gate 2553(+6)/14/Release; only the device look remains (runbook)
 - **#323** 🐛 App Lock gates the SCREEN and nothing else — behind the cover a FULL INFERENCE TURN ran and committed to the transcript, and the sensor pipeline collected GPS (±9.7 m) + health and **attempted to upload them**; the uploads failed only because the OJAMD gateway happened to be off. Root cause is #302's: the cover is an opaque `UIWindow`, `scenePhase` stays `.active`, and — until 2026-08-20 — nothing else consulted lock state. **MEASURED on device 2026-08-10; ~~NOT STARTED~~ → ✅ BUILT 2026-08-20 with #302 (bars 323-A…E MET, mutation-proven; device verification rides #302's). ✅ SEVERITY BOUNDED same day: the device passcode gates the lock-screen path (no device-lock bypass) — the exposure is an UNLOCKED phone in someone else's hands, which is exactly App Lock's own threat model. Real defect, fix owed, not an emergency**
 - **#325** 🎨 The WARNING TOKEN is not legible on any LIGHT theme — `palette.forge` measures **2.18:1** on its own background (WCAG non-text floor 3.0:1, AA text 4.5:1) and it is the colour of shipping warning **TEXT**, including #18's `LOCAL VOICE` badge at 9pt. **MEASURED 2026-08-11 over all 90 (theme × slot) cells by the #320 lane and re-derived at filing; 11 of 88 reachable cells under 3.0:1, 21 under 4.5:1 — every light theme, no dark theme (dark floor 6.06:1). ✅ **BUILT 2026-08-21 — 325-A..E ALL MET.** Route (c)'s `forgeText` token (per-slot, optional, falls back to `forge` so DARK themes are untouched) **plus a second half the ruling did not anticipate:** route (c) alone could not satisfy 325-A, because it leaves `forge` decorative and FOUR light themes shipped a `forge` below even the 3.0 non-text floor. Owen ruled 2026-08-21 to nudge those four (only to 3.0, not route (a)'s 4.5 across seven). **And the real stake was never compliance — Owen: *"I'll finally be able to use those themes too"*; the only user could not use seven of his own themes.** 325-D demonstrated RED first and reproduced this entry's hand-computed 21/11 exactly. 69 text sites on `forgeText`, 61 decorative kept on `forge`. 🔴 Two migration errors caught by READING CALL SITES, both invisible to the gate (a green contrast sweep measures the tokens, not which sites use them). 🟡 Interaction with #320 named and corrected but NOT taken: its badge could now use the warning hue via `forgeText` — that is #320's ruled surface and Owen's call. GATE: PASS 2428/14/Release. **DEVICE verification still owed.**
@@ -157,7 +157,7 @@ Status legend: 🔧 in progress · ⛔ blocked · 💤 dormant · 🐛 bug · �
 - **#407** 📝 text typed during live dictation is discarded on the next transcript tick — filed from #405's sweep; design call (merge vs block)
 - **#408** 🐛 a guardrail-declined image turn has no route — on-device `.guardrailViolation` dead-ends at Retry (n=4: the declined photo stable at 0/2 on-device, 1/1 on PCC; a different shot passed on-device); post-#390 nothing can opt an image down to OCR on that tier. **⚖️ RULED auto-degrade-once 2026-08-25 and ✅ BUILT + MERGED the same night (PR #378, `b03fabfb`): BOTH turn paths retry once through #390-B's own `composeTurnInput(… imageInputEnabled: false)`, the reply says so in production copy, text-only + PCC declines untouched; 408-A..E met, RED-first, five mutations each reding one named pin; gate 2568(+16)/14/Release. OPEN on the device re-send only (runbook card in the entry)**
 - **#409** 🔴 the governor's `same-tool-repeat` refusal string is answered with a FALSE completion claim — 6/6 across two runs/instruments; the phase-cut path is 9/9 honest — filed from the 336-A forensics; production-safe today (beginTurn per turn); the refusal wording is the lever — **✅ THE STRING SHIPPED 2026-08-25 (PR #376): both branches carry an explicit do-not-claim clause, RED-first, mutation-proven both ways, 409-A/B/C MET. OPEN on 409-D only — the wording changed, the model's behaviour is UNVERIFIED until the next device `refusal-words` run**
-- **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh (widgets, live activities, skills, voice readiness, share-inbox drain) — found by the #309 design sweep; fix rides #309 Lane A, Owen rules on the design doc first; redundancy coverage verify owed before quoting impact
+- **#411** 🐛 four AppContainer lifecycle entry points hard-gate on relay `isPaired` — gateway-only/hostless installs get NO lifecycle refresh — **✅ FIXED + MERGED 2026-08-25 in #309 Lane A (PR #381, `b42967b7 → squash`): five gates re-keyed, local work unconditional, host work on `hasGatewayCredentials`; mutation-proven both ways. The owed redundancy measurement RAN and corrected the filed impact — five named paths had per-screen fallbacks (overstated), the BACKGROUND widget refresh has none by construction (understated), and `retryCredentialHoldIfNeeded` was vacuous rather than starved**
 - **#412** 🐛 the Pairing & Devices screen instructs a flow that cannot complete at either end — plugin-CLI copy (`hermes talaria pair`) over a relay-alphabet code field and a relay-plane gate — Owen's 3063 device find; absorbed by #309 Lane B (Connect Host), no separate lane
 - **#330** 🐛 The status card's entire **SESSION block vanishes on a transplanted thread** — no priming row, no metered turns, and **#122's cost surface with it**. **MEASURED 2026-08-11; clipping RULED OUT.** ~~Mechanism UNKNOWN~~ ~~⟵ INVESTIGATED 2026-08-25, candidates ranked~~ **⟵ ✅ MECHANISM MEASURED 2026-08-25 (measurement lane, unit repro): `openSession`'s wholesale replace + `mapStoredMessage`'s role refusal and empty usage fields zero BOTH totals inputs in ONE event, and the 9→7 row drop is the same event. Candidate ① CONFIRMED; candidate ③ (the `.voiceHermes` predicate split) is REAL but mutation-proven NOT the cause; the entry's "receipts render normally" claim is FALSIFIED — no reopened row carries `usage` or `turnDuration`, and the quoted numbers are the card's LAST TURN block via `SessionUsageIndex`. Shipped: 16 pins in `SessionTotalsAfterReopenTests`, a verbose-gated `/usage` instrument (NOT `#if DEBUG`), 3 seam breadcrumbs at `.notice`, and 330-G's six-step device script.** 330-A/B/E DISCHARGED; **330-C/330-D DEFERRED to the fix lane** (receipts sidecar + predicate convergence), 330-G is Owen's. Keeps #312 (f) RED
 - **#332** 🎲 **THE FIRST DEVICE SUITE RUN** — the full unit suite had never run on hardware; it ran on the phone AND Shelley's iPad on 2026-08-11 and failed on both, differently (2 issues / 5 issues, same commit green on sim). Three causes: **(a)** #224's 0F bar reads Swift SOURCE at runtime, so it works only in a sim sandbox and **reds every device run**; **(b)** a Spotlight test assumes an empty index that a real phone does not have; **(c)** three attachment-downscale assertions go vacuous on the iPad — probably 2× vs 3× fixtures, **not yet proven**, and 332-c's first bar is to tell a fixture bug from a real regression. Bars per finding. **(a) and (b) FIXED 2026-08-12** (`t27-332ab-device-suite-test-fixes`; sim-verified, negative controls witnessed, one device-only half each pending the next central device pass); **(c) untouched and open**
@@ -6904,6 +6904,270 @@ argument for making the relay more robust.
 > which client the file holds (`RelayAPIClient` = relay plane). Any Phase 4
 > lane claiming a path is covered must re-derive from this rather than
 > inherit a row count from here — including this one.
+
+> **✅ 2026-08-25 — LANE A LANDED: THE DOOMED BOOTSTRAP CHAIN IS DELETED AND
+> THE FIVE LIFECYCLE GATES ARE RE-KEYED TO CAPABILITY (PR #381, squash
+> `b42967b7 → squash`). Bars 309-A1..A5 all MET.** #411's fix lands here too and its
+> verify-first caveat is discharged with the measurement it asked for.
+>
+> **309-A1 — the chain is gone, at every construction site.** Deleted whole:
+> `LiveSessionBootstrapService`, `ResilientSessionBootstrapService`,
+> `SessionBootstrapServiceProtocol`, `MockSessionBootstrapService`,
+> `SessionBootstrapResponse` — plus `AppSessionStore`'s `bootstrap()`,
+> `refreshSession()`, `refreshAccessTokenIfNeeded()`, `performTokenRefresh`,
+> `recoverSessionByReRegistering()`/`performSessionRecovery`,
+> `revokeCurrentSession()`, `TokenRefreshOutcome`, `loadAndApplySessionState`,
+> `attemptRefreshAndReload`, `makeRegistrationRequest` and `isBootstrapping`.
+> All four construction sites are executed: `makeDefault`'s resilient stack,
+> the cold-launch `startBackgroundBootstrap`/`runBackgroundBootstrap` path,
+> the profile-switch await (`AppContainer.swift:2336`), and
+> `ProfileRelaySessionFactory.performRefresh` — the fourth, dormant one — with
+> `DormantTokenRefreshPolicy`, `refreshDormantProfileTokensIfNeeded` and the
+> `dormantRefreshAttempts` ledger. #15's 401-recovery ladder went with them
+> (`LiveHermesHostService` keeps its `accessTokenRefresher` parameter at its
+> `{ nil }` default, so a 401 now fails honestly instead of burning two more
+> doomed round trips). **Structural check: `git grep -nE
+> 'LiveSessionBootstrapService|ResilientSessionBootstrapService|SessionBootstrapServiceProtocol|MockSessionBootstrapService|SessionBootstrapResponse|DormantTokenRefreshPolicy'
+> -- Talaria/ TalariaTests/ TalariaUITests/ Shared/` returns COMMENT LINES
+> ONLY** (tombstones, per the adjudicated 309-DEL-A standard).
+>
+> **309-A2 — installation identity survives, ported not tombstoned.**
+> `AppSessionStore.swift:73-98`'s durable-`installationID` logic moved to
+> `Talaria/Services/Support/InstallationIdentity.swift` (`resolve` + `stamp`),
+> behaviour-equivalent; `AppSessionStore.init` and `rebindToCurrentScope` both
+> call it, so the #133/#143 STAMP-do-not-adopt rule keeps its one owner.
+> `InstallationIdentityTests` PORTED — all six tests, unchanged in claim.
+> **Proven by mutation, not by assertion — and the mutation corrected an
+> expectation on the way.** Making `resolve` mint a fresh `UUID()` per call
+> reds **3 of 6**, not the 5 predicted:
+> `identitySurvivesUnpairFollowedByAColdLaunch`,
+> `identityIsStableAcrossAnOrdinaryRelaunch`,
+> `identityIsSharedAcrossProfileScopes`. Worth recording WHY the other three
+> survive, because it says which tests actually carry the durability property:
+> `theIdentityIsPersistedOnFirstUse` and
+> `aProfileSwitchDoesNotAdoptAPersistedStatesStaleIdentity` both compare
+> against `persistence.loadInstallationID()`, which the mutation overwrites
+> with the same fresh value, and `clearingSessionStateLeavesTheInstallationIdAlone`
+> asserts at the persistence layer. So THREE of the six guard durability and
+> three guard adjacent properties — exactly what a mutation run exists to find
+> out, and not visible from the test names.
+>
+> **309-A3 — the five gates, re-keyed.** `initialize()`,
+> `retryCredentialHoldIfNeeded()`, `runForegroundActivation()`,
+> `handleSystemLaunch()`, `handleBackgroundRefresh()` all opened with
+> `guard pairingStore.isPaired else { return }` (four of them with a second
+> `currentAccessToken() != nil` guard). Now: **local work runs
+> unconditionally**; host-plane work gates on one derived predicate,
+> `AppContainer.hasGatewayCredentials` —
+>
+> ```swift
+> var hasGatewayCredentials: Bool {
+>     if let gatewayCredentialsProbe { return gatewayCredentialsProbe() }
+>     guard let profile = profilesStore?.activeProfile else { return false }
+>     guard !profile.gatewayBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+>         return false
+>     }
+>     return !hermesAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+> }
+> ```
+>
+> Derived, never stored: the two things it reads are the same active-profile
+> `gatewayBaseURL` that `SessionsHermesClient`'s base-URL provider reads and
+> the same key mirror `ChatBackendRouter.isHermesConfigured` reads through its
+> box — no new store, no second source of truth. `gatewayCredentialsProbe` is
+> nil in production (a bare `// harness-visible` seam), so the derivation
+> cannot be silently mis-wired by a forgotten assignment — the failure mode
+> an injected-with-a-default predicate would have had.
+> `#369`'s hold mechanism is kept and re-keyed onto the same predicate: the
+> gateway key restores asynchronously from the Keychain and not at all before
+> first unlock, so a launch still HOLDS its host half and
+> `retryCredentialHoldIfNeeded()` still resumes it. `TalariaPlatformLink`'s
+> scene wiring stays ungated and its `:1010-1016` comment is updated — it was
+> the only place in the file that refused the relay gate and said why, and it
+> now records that the five caught up and that the link stays ungated even by
+> the capability predicate.
+>
+> **🔬 THE #411 MEASUREMENT — which local steps were actually dead, traced
+> per gate at the branch point rather than inherited from #411's list.** Both
+> starved entry points are called unconditionally by the system
+> (`AppEntry.swift:86`, `BackgroundTaskService.swift:92`), so the guard was
+> the only thing stopping the work.
+>
+> | Gate | Local step | Redundant path for an unpaired install | Verdict |
+> |---|---|---|---|
+> | `initialize()` | `reloadCapabilities()` | PermissionsScreen `:34`, PrivacySettingsScreen `:176`, AboutSettingsContent `:61` | COVERED on visit |
+> | | `loadConversationIfNeeded()` | ChatScreen `:608`, AskHermesIntent `:146` | COVERED |
+> | | `reconcileLiveActivities()` | none — private, 4 sites, all inside gated bodies | **DEAD** |
+> | | `clearRetiredHealthMetrics()` | none — single call site | **DEAD** |
+> | | `updateWidgetData()` | event-driven only | **DEAD at launch** |
+> | | `drainShareInbox()` | `AppEntry:177`, but `onChange(scenePhase)` does not fire for the initial value | **DEAD on cold launch only** |
+> | | `isInitialized = true` | observable only through `shouldShowLaunchSplash`, whose first clause is `isPaired &&…` | INERT today |
+> | `retryCredentialHoldIfNeeded()` | whole body | `credentialsUnreadableHold` could never be set (initialize returned first) | **VACUOUS** |
+> | `runForegroundActivation()` | hoisted `reconcileLiveActivities()` + `updateWidgetData()` (#145 Part B) | none | **DEAD** |
+> | | `reconcilePendingRuns()` | ChatScreen `:491` | COVERED |
+> | | `condensePendingReasoning()` | ChatStore `:4114`, per turn | COVERED |
+> | | `talkStore.handleAppDidBecomeActive()` | none | **DEAD** |
+> | `handleSystemLaunch()` | `reconcileLiveActivities()` | none | **DEAD** |
+> | | `talkStore.refreshReadiness()` | VoiceSettings `:68`, TalkMode `:73`, SettingsChannels `:52`, CarPlay `:81` | COVERED on visit |
+> | `handleBackgroundRefresh()` | `reconcilePendingRuns()` | ChatScreen only — **and the app is backgrounded, so no screen is on screen** | **DEAD** |
+> | | `updateWidgetData()` | event-driven; nothing fires while backgrounded | **DEAD** |
+>
+> **What the measurement CORRECTS in #411's filed impact list.** Five of the
+> named starved paths — `loadConversationIfNeeded`, skills/capability reload,
+> `reconcilePendingRuns`, reasoning condensation and voice-readiness refresh —
+> have per-screen or per-turn fallbacks, so a user reaches them by opening the
+> relevant screen; the entry overstated those. What it UNDERSTATED is the
+> background one: **the widget refresh on a background wake has no fallback by
+> construction**, because the fallbacks are all `.task`s on visible screens.
+> Live-activity reconciliation is the other genuinely dead path, on every
+> transition. And the share-inbox drain was dead only on COLD launch — the
+> warm foreground drain at `AppEntry.swift:177` was already ungated, with the
+> #123 comment saying so in place. `retryCredentialHoldIfNeeded` was not
+> starved at all but VACUOUS, which no amount of reading the guard would have
+> shown.
+>
+> **309-A4 — the two AppStoresTests sections rewritten, plus the new pin.**
+> Rewritten, never deleted as "relay tests":
+> - **310-C** (`relaylessProfileActivationIssuesNoRelayRequests`) keeps its
+>   claim and its instruments; only the deleted counters left it.
+> - **310-D** loses its instrument with its mechanism. It sampled
+>   `sessionStore.isBootstrapping` across the handler's lifetime, and that
+>   flag no longer exists — sampling it would be sampling a constant, the
+>   "green result that proves nothing" shape arriving by deletion.
+>   `aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled` replaces it and is
+>   strictly stronger: run the switch with every gate SHUT and never opened
+>   and require it to complete. Under the old code that is #365 exactly — the
+>   bootstrap parks in `BlackHoleGate.wait()` and the handler never returns.
+>   Gates are opened only AFTER the verdict is taken, so the failing arm gets
+>   a terminating RED rather than a hang.
+> - **The #136 launch tests** (`blackHoledHostDoesNotHoldTheLaunchSplash`,
+>   `launchRefreshIsSingleFlight`, `resetDuringBackgroundInitLandsNoStaleState`,
+>   `rePairSupersedesInFlightBackgroundInit`) keep every claim — splash drops
+>   local, single-flight, reset supersedes, re-pair supersedes — re-pointed
+>   from the bootstrap counter onto the host-fetch counter, which is the
+>   background half's first step now.
+> - **The #369 hold tests** re-key onto gateway credentials, and gain 369-D
+>   (`aHeldLaunchStillFinishesTheLocalCriticalPath`) — the assertion that
+>   makes the hold honest rather than a quieter `isPaired` gate.
+> - **`launchCriticalPathIsLocalOnly` / `backgroundLaunchRefreshHasNoGhostSteps`**
+>   follow the `LaunchInitStep` partition, which loses `.sessionBootstrap` and
+>   `.validateRestoredIdentity`. #287's ghost-step pin is exactly why the enum
+>   had to be edited rather than left with two dead cases.
+>
+> **THE NEW PIN 309-A4 REQUIRED — and it INVERTS the test that stood there.**
+> `relayBearingProfileActivationStillUsesTheRelayPlane` was 310-C's positive
+> control: it asserted a relay-BEARING profile still ran bootstrap, host fetch
+> and inbox fetch, so "delete the calls outright" could not pass 310-C by
+> vacuum. **That control encoded #365's residual cause as a requirement** —
+> every profile paired before the relay retirement kept running the whole
+> doomed chain on every switch, and this test is what would have gone red if
+> anyone had tried to stop it. It is replaced by
+> `relayBearingProfileActivationAlsoMakesZeroRelayCalls`, with three positive
+> controls of its own so the zeros cannot pass by vacuum. **#365's residual
+> cause is gone for EVERY profile, not only gateway-only ones.**
+>
+> **Nine relay-session tests TOMBSTONED** with a dated block naming each and
+> where its surviving guard lives (`AppStoresTests.swift`), plus M-9's
+> `dormantRefreshPolicyFiresOncePerWindowAndSkipsFreshActiveUnpaired`
+> (`BackendProfileRoutingTests.swift`). Deleted rather than repointed because
+> their subject matter is deleted; each tombstone names the live pin that
+> still covers the surviving behaviour
+> (`pairingStorePersistsRelayConfigurationAndTokens`,
+> `pairingStoreDisconnectClearsRelayConfigurationAndSession`,
+> `liveHermesHostServiceRefreshesExpiredAccessTokenDuringFetch`).
+>
+> **309-A5 — GATE PASS 2586 Swift Testing / 213 suites + 14 XCUITest + Release, FIRST RUN.**
+>
+> **MUTATIONS — four, each isolating:**
+> 1. **Re-add `hostStore.refresh()` + `inboxStore.loadInbox(force:)` to the
+>    switch path** ⇒ `relayBearingProfileActivationAlsoMakesZeroRelayCalls` RED
+>    (2 issues), `relaylessProfileActivationIssuesNoRelayRequests` RED (2), and
+>    `aProfileSwitchCompletesWithEveryHostSurfaceBlackHoled` RED (3) — the last
+>    one failing on `completed` after **3.047 s**, which is the black-hole arm
+>    demonstrating that it produces a terminating RED rather than a hang.
+> 2. **Put `guard pairingStore.isPaired else { return }` back at the top of
+>    `initialize()`** ⇒ `aHostlessInstallStillRunsTheWholeLocalCriticalPathAtLaunch`
+>    RED on both the conversation load and the widget write.
+>    `aHeldLaunchStillFinishesTheLocalCriticalPath` stays GREEN (its harness is
+>    paired), which is what makes the pair isolating.
+> 3. **Remove the `guard hasGatewayCredentials` from
+>    `runForegroundActivation()`** ⇒ `aHostlessInstallStillRefreshesLocalStateOnForeground`
+>    RED on `hostService.fetchCallCount == 0`;
+>    `aCredentialedInstallStillRunsTheHostHalfOnForeground` stays GREEN. Note
+>    the failing arm takes **45 s** — it is #145 Part E(a)'s foreground budget
+>    cutting the ungated chain short against a black-holed host, i.e. the
+>    mutation is caught by the deadline rather than by a fast failure.
+> 4. **Make `InstallationIdentity.resolve` mint per call** ⇒ 3 of 6
+>    `InstallationIdentityTests` RED (detailed under 309-A2).
+>
+> **SCOPE-EDGE CALLS, stated because each is a judgement:**
+> 1. **`startBackgroundBootstrap`/`runBackgroundBootstrap` were RE-KEYED, not
+>    deleted whole** — renamed to `…LaunchRefresh` with the two relay-bootstrap
+>    steps removed and the remainder gated on `hasGatewayCredentials`. Deleting
+>    the machinery outright would have silently killed cold-launch host
+>    refresh, inbox load, command-catalog refresh and model seeding for a
+>    CREDENTIALED install: `onChange(of: scenePhase)` does not fire for the
+>    initial value, so `handleAppDidBecomeActive` never runs on a cold launch
+>    and there is no other caller. #136's architecture (splash drops local,
+>    network half lands behind the live UI) is exactly what #411 wants for the
+>    credentialed case.
+> 2. **The profile switch's `hostStore.refresh()`, `inboxStore.loadInbox()`
+>    and `refreshCommandCatalog()` were REMOVED from that path**, not gated —
+>    without that, "a relay-bearing switch makes ZERO relay calls" is
+>    unreachable, because all three are relay calls today. Both are Lane C
+>    re-homes (rows 7 and 16); until they land the switch leaves host presence
+>    and the catalog honestly empty instead of fetching from a retired
+>    service. Neither goes dark: `ChatScreen`'s health ticker and the
+>    foreground activation still refresh the host, `InboxScreen` runs its own
+>    `.task { loadInbox() }`, and the command catalog has been failing to a
+>    dead relay since the retirement anyway (#180's ruled loss).
+> 3. **`PairingStore.disconnect()` is now local-only — the MINIMUM change.**
+>    The `await sessionStore.revokeCurrentSession()` line is gone; the full
+>    unpair unification (and the plugin-native `unpair` POST, design doc §3b)
+>    stays Lane B's. `pairingStoreDisconnectClearsRelayConfigurationAndSession`
+>    passes unchanged, which is the evidence the local half was always doing
+>    the user-visible work.
+> 4. **`ProfileRelaySession.swift` SURVIVES for Lane C** — its read half
+>    (`relayBaseURL`, `isPaired`, `accessToken`, `sessionState`, `apiClient`)
+>    still has live callers in `ContentView`, `UplinkSettingsScreen` and
+>    `ServerSettingsScreen`. Only the refresh half and the now-unused
+>    `activeProfileIDProvider` went. It did NOT go fully dead, so its deletion
+>    stays with Lane C's `RelayAPIClient` removal per the bars.
+> 5. **`SyncCoordinatorProtocol` + `MockSyncCoordinator` DELETED** (two files,
+>    not in the brief's list). They were `AppSessionStore.refreshSession()`'s
+>    only collaborator; with it gone they had zero production references and
+>    only test-construction ones. Named here because it is a deletion the
+>    brief did not authorise by name.
+> 6. **`shouldShowLaunchSplash` lost its second clause** (`isBootstrapping &&
+>    backgroundBootstrapTask == nil`) — it could only ever read false once
+>    nothing sets `isBootstrapping`. The surviving `isPaired && !isInitialized`
+>    clause is left alone: re-keying `AppRootView`'s splash logic is Lane B's
+>    (design doc §5b).
+> 7. **`refreshUnpairedRelayContext`'s forced re-registration deleted.**
+>    Changing environment or relay URL on an UNPAIRED install now just drops
+>    the stale session; there is no relay left to enrol with.
+> 8. **`InstallationIdentity` needed `@MainActor`** — the logic inherited that
+>    isolation from `AppSessionStore` and a free-floating enum has to state it.
+>    Found by the compiler, recorded because "byte-equivalent in behaviour"
+>    did not mean "byte-identical in source".
+>
+> **📎 ONE FINDING FOR LANE C, recorded so it is not re-derived.** After this
+> lane, `ProfileRelaySessionFactory` has exactly ONE externally-called method
+> left: `isPaired(profileID:)` (`ContentView:261`, `ServerSettingsScreen:236`
+> and `:431`, `UplinkSettingsScreen:264`). `accessToken(forProfileID:)` and
+> `sessionState(forProfileID:)` were **already dead at the branch point** —
+> verified by grepping `7831686f`, not inferred — leftovers of the sensor
+> pipeline (#352) and the agent-file download (#375). `apiClient(forProfileID:)`
+> had exactly one caller, `performRefresh`, and died with it; `relayBaseURL`
+> is now only its own internal helper. So Lane C's `RelayAPIClient` deletion
+> takes four dead methods with it and needs to re-home only `isPaired`.
+>
+> **What Lane A does NOT touch, per the fence:** `PairingStore`,
+> `HermesHostStore`, `LivePairingService`, `LiveHermesHostService`,
+> `RelayAPIClient`, `ProfileRelaySession` (the file), every UI screen, and
+> `AppSessionState`'s UI-read surface. The `device/app-state` beacon
+> (`reportAppStateIfNeeded`, row 10) is gated correctly and left standing for
+> Lane C to delete.
 
 ## 318. 🎨 Settings SEARCH — Claude Design direction 1b, filed as its own item — **FILED 2026-08-09 by Owen's §7.3 routing call on #252 ("close #252; file 1b its own number"). Per #268, this is 1b's first tracker existence. ⟵ HEADER CORRECTED 2026-08-25 (the lane's own close-out missed it and the invariant caught it POST-merge — a `;` chain swallowed the checker's exit; process note in the result block's commit): elected on the 08-25 ballot and ✅ BUILT + MERGED the same day (PR #372, squash `b5dd5f08`) — bars 318-A..E met, gate 2553(+6)/14/Release, four mutations isolating. Remaining: the device look (runbook card).**
 
@@ -14698,7 +14962,7 @@ NOT a catcher here by design: these claims follow a refusal, not a tool run).
 > the regex narrowing (require a nearby PR/branch token, or exclude the
 > "…merged with" sense) is left to whoever owns #342's tooling.
 
-## 411. 🐛 FOUR LIFECYCLE ENTRY POINTS HARD-GATE ON RELAY `isPaired` — a gateway-only (or hostless) install gets NO lifecycle refresh at all — **FILED 2026-08-25 per #268, found by the #309 design-doc dependency sweep (Sonnet agent, main @ `e106943a`). A standing defect TODAY, independent of any deletion; the FIX rides #309's Lane A (design doc §5c) — Owen rules on the doc before code.**
+## 411. 🐛 FOUR LIFECYCLE ENTRY POINTS HARD-GATE ON RELAY `isPaired` — a gateway-only (or hostless) install gets NO lifecycle refresh at all — **FILED 2026-08-25 per #268, found by the #309 design-doc dependency sweep (Sonnet agent, main @ `e106943a`). ✅ FIXED + MERGED the same night in #309 Lane A (PR #381, squash `b42967b7 → squash`): local work now runs unconditionally, host-plane work gates on `AppContainer.hasGatewayCredentials`. The verify-first caveat below is DISCHARGED with a per-gate measurement — which corrects this entry's own impact list in both directions; see the ✅ block at the foot.**
 
 **The finding:** `AppContainer.initialize()` (`:1344`),
 `runForegroundActivation()` (`:1645`), `handleSystemLaunch()` (`:1732`),
@@ -14739,6 +15003,57 @@ the gate replacement is what makes that deletion safe.
 stance this violates in spirit), #365/#310 (the sibling stall + its
 partial gate), #145 Part D (the `// harness-visible` foreground-activation
 instrumentation whose semantics change when the guard does).
+
+> **✅ 2026-08-25 — FIXED AND MERGED, in #309 Lane A (PR #381, squash
+> `b42967b7 → squash`). Both halves of this entry land here: the verify-first caveat is
+> DISCHARGED with a measurement, and the fix is built on top of it.**
+>
+> **The fix.** All five entry points now run their LOCAL work unconditionally
+> and gate only host-plane work, on `AppContainer.hasGatewayCredentials` —
+> "the active profile holds a gateway URL and a key", derived from the same
+> two facts the chat plane already reads (the profile's `gatewayBaseURL` and
+> the container's mirror of the gateway key cache). No new store. #369's hold
+> mechanism survives, re-keyed onto the same predicate: the key restores
+> asynchronously and not at all before first unlock, so a launch still holds
+> its host half and `retryCredentialHoldIfNeeded()` still resumes it. Bar-by-bar
+> evidence, the gate numbers and the mutations are in #309's result block.
+>
+> **🔬 THE MEASUREMENT THIS ENTRY ASKED FOR — and it corrects this entry in
+> both directions.** Traced per gate at the branch point, for an install with
+> no `PairedRelayConfiguration` (the hostless default user, and any
+> gateway-only install that never relay-paired). Full table in #309's result
+> block; the verdict:
+>
+> - **OVERSTATED here (five of the named paths have fallbacks):**
+>   `loadConversationIfNeeded` (`ChatScreen:608`, `AskHermesIntent:146`),
+>   capability reload (three Settings/Permissions `.task`s),
+>   `reconcilePendingRuns` (`ChatScreen:491`), reasoning condensation
+>   (`ChatStore:4114`, per turn) and voice-readiness refresh (four screens +
+>   CarPlay). A user reaches all five by opening the relevant screen, so they
+>   were degraded-on-first-visit, not dead.
+> - **UNDERSTATED here:** the **widget refresh on a BACKGROUND wake has no
+>   fallback by construction** — every fallback is a `.task` on a visible
+>   screen, and on that path no screen is visible. `handleBackgroundRefresh()`
+>   is called unconditionally by `BackgroundTaskService.swift:92`, so the
+>   guard was the only thing stopping it. Live-activity reconciliation is the
+>   other genuinely dead path, on every transition — its four call sites are
+>   all inside gated bodies.
+> - **WRONGLY CHARACTERISED here:** the share-inbox drain was dead only on
+>   COLD launch. The warm foreground drain (`AppEntry.swift:177`) is already
+>   ungated and its #123 comment says so in place; `onChange(of: scenePhase)`
+>   simply does not fire for the initial value, which is what left the cold
+>   path uncovered.
+> - **NOT A STARVED PATH AT ALL:** `retryCredentialHoldIfNeeded()` was
+>   **VACUOUS** for an unpaired install — `credentialsUnreadableHold` could
+>   never be set true, because `initialize()` returned at its own guard before
+>   reaching the line that sets it. Reading the guard could not have shown
+>   that; only tracing the precondition could.
+>
+> **The general lesson, since this entry exists because a sweep listed
+> symptoms:** a list of steps behind a wrong gate is a list of CANDIDATES, not
+> of impact. Three of the four corrections above move in the direction the
+> caveat did not anticipate — one path was worse than filed, one was
+> narrower, and one was not a path at all.
 
 ## 412. 🐛 THE "PAIRING & DEVICES" SCREEN INSTRUCTS A FLOW THAT CANNOT COMPLETE AT EITHER END — plugin-CLI copy over a relay-plane gate and a relay-alphabet code field — **FILED 2026-08-25 night per #268, from Owen's device pass on build 3063 ("Side note, relay verbiage detected, settings > Uplink > pairing and devices"). NO LANE — the screen is already scheduled for retirement by #309 Lane B; this entry pins what his screenshot proved so the design ruling absorbs it.**
 
