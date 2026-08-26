@@ -68,7 +68,7 @@ struct SensorGrandfatheringTests {
         let persistence = InertPersistenceStore()
         var settings = UserSettings(healthCollectionEnabled: true, locationCollectionEnabled: true)
         let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: false, persistence: persistence)
+            settings: &settings, hasHost: true, hadPersistedSettings: false, persistence: persistence)
         #expect(mutated)
         #expect(settings.sensorStreamingEnabled == true)
         #expect(settings.motionCollectionEnabled == true)
@@ -80,7 +80,7 @@ struct SensorGrandfatheringTests {
         let persistence = InertPersistenceStore()
         var settings = UserSettings(healthCollectionEnabled: false, locationCollectionEnabled: true)
         _ = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: true, persistence: persistence)
+            settings: &settings, hasHost: true, hadPersistedSettings: true, persistence: persistence)
         #expect(settings.sensorStreamingEnabled == true)
         #expect(settings.motionCollectionEnabled == true)
         #expect(settings.healthCollectionEnabled == false)  // #6 revoke honored
@@ -91,7 +91,7 @@ struct SensorGrandfatheringTests {
         let persistence = InertPersistenceStore()
         var settings = UserSettings()
         let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: false, hadPersistedSettings: false, persistence: persistence)
+            settings: &settings, hasHost: false, hadPersistedSettings: false, persistence: persistence)
         #expect(!mutated)
         #expect(settings.sensorStreamingEnabled == false)
         #expect(persistence.loadSensorStreamingMigrationStamp())
@@ -101,11 +101,11 @@ struct SensorGrandfatheringTests {
         let persistence = InertPersistenceStore()
         var settings = UserSettings()
         _ = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: false, hadPersistedSettings: false, persistence: persistence)
+            settings: &settings, hasHost: false, hadPersistedSettings: false, persistence: persistence)
         // A later pair must not re-trigger grandfathering — pairing after
         // the migration means the user chose the new opt-in world.
         let second = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: true, persistence: persistence)
+            settings: &settings, hasHost: true, hadPersistedSettings: true, persistence: persistence)
         #expect(!second)
         #expect(settings.sensorStreamingEnabled == false)
     }
@@ -123,7 +123,7 @@ struct SensorGrandfatheringTests {
         persistence.saveSensorStreamingMigrationStamp()
         var settings = UserSettings()
         let mutated = SensorStreamingGrandfathering.migrateIfNeeded(
-            settings: &settings, isPaired: true, hadPersistedSettings: false, persistence: persistence)
+            settings: &settings, hasHost: true, hadPersistedSettings: false, persistence: persistence)
         #expect(!mutated)
         #expect(settings.sensorStreamingEnabled == false)
         #expect(settings.motionCollectionEnabled == false)
@@ -178,9 +178,7 @@ private final class InertPersistenceStore: AppPersistenceStoreProtocol {
 
     func loadUserSettings() -> UserSettings? { nil }
     func saveUserSettings(_ settings: UserSettings) {}
-    func loadSessionState(profileScope: UUID?) -> AppSessionState? { nil }
-    func saveSessionState(_ state: AppSessionState, profileScope: UUID?) {}
-    func clearSessionState(profileScope: UUID?) {}
+    func purgeRelayCredentialResidue(profileScope: UUID?) {}
     // #133/#143: in-memory, but REAL — a double that discards the id
     // would let the durability tests pass against nothing.
     var storedInstallationID: UUID?
@@ -189,9 +187,6 @@ private final class InertPersistenceStore: AppPersistenceStoreProtocol {
     func loadInboxState() -> InboxLocalState { InboxLocalState() }
     func saveInboxState(_ state: InboxLocalState) {}
     func clearInboxState() {}
-    func loadPairedRelayConfiguration(profileScope: UUID?) -> PairedRelayConfiguration? { nil }
-    func savePairedRelayConfiguration(_ configuration: PairedRelayConfiguration, profileScope: UUID?) {}
-    func clearPairedRelayConfiguration(profileScope: UUID?) {}
     func loadBackendProfilesState() -> BackendProfilesState? { nil }
     func saveBackendProfilesState(_ state: BackendProfilesState) {}
     func clearBackendProfilesState() {}

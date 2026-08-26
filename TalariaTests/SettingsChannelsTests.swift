@@ -49,9 +49,9 @@ struct SettingsChannelsTests {
     }
 
     @Test func serverValue() {
-        #expect(SettingsCardValues.server(activeProfileName: "Studio", isPaired: true) == "STUDIO")
-        #expect(SettingsCardValues.server(activeProfileName: nil, isPaired: true) == "PAIRED")
-        #expect(SettingsCardValues.server(activeProfileName: nil, isPaired: false) == "NO PROFILE")
+        #expect(SettingsCardValues.server(activeProfileName: "Studio", hasHost: true) == "STUDIO")
+        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: true) == "PAIRED")
+        #expect(SettingsCardValues.server(activeProfileName: nil, hasHost: false) == "NO PROFILE")
     }
 
     @Test func modelsValuePrefersModelThenBrain() {
@@ -123,10 +123,10 @@ struct SettingsChannelsTests {
     }
 
     @Test func sessionsValueHandlesUnloaded() {
-        #expect(SettingsCardValues.sessions(count: nil, isPaired: false) == "…")
-        #expect(SettingsCardValues.sessions(count: 12, isPaired: false) == "12 SESSIONS")
-        #expect(SettingsCardValues.sessions(count: 1, isPaired: false) == "1 SESSION")
-        #expect(SettingsCardValues.sessions(count: 148, isPaired: true) == "148 · SYNCED")
+        #expect(SettingsCardValues.sessions(count: nil, hasHost: false) == "…")
+        #expect(SettingsCardValues.sessions(count: 12, hasHost: false) == "12 SESSIONS")
+        #expect(SettingsCardValues.sessions(count: 1, hasHost: false) == "1 SESSION")
+        #expect(SettingsCardValues.sessions(count: 148, hasHost: true) == "148 · SYNCED")
     }
 
     @Test func aboutAndDeveloper() {
@@ -455,11 +455,11 @@ struct SettingsChannelsTests {
     /// on every launch until the first probe lands. It fires only on a
     /// MEASURED non-online state, and never unpaired.
     @Test func connectionBannerWaitsForAMeasurement() {
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .checking) == false)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .online) == false)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .offline) == true)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: true, state: .unreachable) == true)
-        #expect(ChatConnectionPresentation.showsConnectionBanner(isPaired: false, state: .offline) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .checking) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .online) == false)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .offline) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: true, state: .unreachable) == true)
+        #expect(ChatConnectionPresentation.showsConnectionBanner(hasHost: false, state: .offline) == false)
     }
 
     // MARK: - #395-D: the Private Cloud tile

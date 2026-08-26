@@ -65,7 +65,6 @@ struct BackendProfileRoutingTests {
 
     private static let ojamdSeeds = BackendProfilesStore.MigrationSeeds(
         gatewayBaseURL: "http://ojamd:8642",
-        relayBaseURL: "http://ojamd:8000/v1",
         shimBaseURL: "http://ojamd:8765"
     )
 
@@ -119,8 +118,8 @@ struct BackendProfileRoutingTests {
         // Active profile is OJAMD, but the session was born on the Mac —
         // opening it must hit the MAC's gateway with the MAC's key.
         let persistence = makePersistence("affinity")
-        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", relayBaseURL: "http://ojamd:8000/v1", usesLegacyCredentialKeys: true)
-        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
 
         let index = SessionProfileIndexStore(persistence: persistence)
         index.record(sessionID: "api_mac", profileID: mac.id)
@@ -155,8 +154,8 @@ struct BackendProfileRoutingTests {
         // at a non-active profile; the active profile is untouched and the
         // override is consumed.
         let persistence = makePersistence("override")
-        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", relayBaseURL: "http://ojamd:8000/v1", usesLegacyCredentialKeys: true)
-        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642", relayBaseURL: "http://macmini:8000/v1")
+        let ojamd = BackendProfile(name: "OJAMD", gatewayBaseURL: "http://ojamd:8642", usesLegacyCredentialKeys: true)
+        let mac = BackendProfile(name: "Mac Mini", gatewayBaseURL: "http://macmini:8642")
 
         let index = SessionProfileIndexStore(persistence: persistence)
         let client = makeClient(

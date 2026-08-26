@@ -163,16 +163,21 @@ struct DeveloperSettingsScreen: View {
         .buttonStyle(.plain)
     }
 
-    /// Real endpoint string for an environment. Production/Staging route through
-    /// the configured relay (no hardcoded host), so they show the relay origin or
-    /// "—" when none is configured.
+    /// Real endpoint string for an environment.
+    ///
+    /// **#309 Lane B:** production and staging used to print the configured
+    /// RELAY's origin here. There is no relay, so the honest answer is the
+    /// ACTIVE PROFILE's gateway — the host those environments actually talk
+    /// to — and "—" when none is set (#45's real-data-only rule).
     private func endpointLabel(_ env: AppEnvironment) -> String {
         if !env.baseURLString.isEmpty {
             return env.baseURLString.replacingOccurrences(of: "https://", with: "")
                 .replacingOccurrences(of: "http://", with: "")
         }
-        let origin = settingsStore.settings.relayConfiguration.relayOriginLabel
-        return origin == "Not Configured" ? "—" : origin
+        guard let gateway = container.profilesStore?.activeProfile?.resolvedGatewayBaseURL,
+              let host = URL(string: gateway)?.host, !host.isEmpty
+        else { return "—" }
+        return host
     }
 
     // MARK: Flags

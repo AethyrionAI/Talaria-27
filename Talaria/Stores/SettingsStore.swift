@@ -9,14 +9,10 @@ final class SettingsStore {
             if oldValue.environment != settings.environment {
                 Task { await onEnvironmentChanged?(settings.environment) }
             }
-            if oldValue.relayConfiguration != settings.relayConfiguration {
-                Task { await onRelayConfigurationChanged?(settings.relayConfiguration) }
-            }
         }
     }
 
     var onEnvironmentChanged: (@MainActor (AppEnvironment) async -> Void)?
-    var onRelayConfigurationChanged: (@MainActor (RelayConfiguration) async -> Void)?
     var availableEnvironments: [AppEnvironment] {
         environmentPolicy.availableEnvironments
     }

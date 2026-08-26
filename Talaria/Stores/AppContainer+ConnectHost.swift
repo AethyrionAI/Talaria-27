@@ -256,12 +256,35 @@ extension AppContainer {
     /// "HOST SET — KEY MISSING", and deleting the profile is a different,
     /// louder action the Server screen owns.
     private func forgetHostCredentials(for profile: BackendProfile) async {
+        // The gateway key rides `saveGatewayAPIKey("")` rather than a raw
+        // delete: that path also clears the in-memory box and the per-profile
+        // cache the chat client reads synchronously, so a forgotten host stops
+        // being routable in the same turn rather than at the next launch.
         await saveGatewayAPIKey("", for: profile)
         guard let secureStore else { return }
         let scope = profile.credentialScopeID
-        await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceToken(scope))
-        await secureStore.delete(key: BackendProfileScopedKeys.talariaDeviceID(scope))
+        for key in Self.disconnectClearedKeys(scope: scope) {
+            await secureStore.delete(key: key)
+        }
         hostStore.reset()
+    }
+
+    /// **What Disconnect clears, as DATA rather than as three statements.**
+    ///
+    /// Every entry is derived from the target scope, which is what makes the
+    /// #94/#3 per-profile isolation structural: there is no way to name
+    /// another profile's slot from here. A test proves both halves of the set
+    /// — that it covers BOTH credential families (the gateway key the chat
+    /// plane uses and the plugin link's device token/id, whose surviving half
+    /// would re-pair this phone to a host it just left), and that it does not
+    /// widen onto `shimToken` or the durable installation identity.
+    // harness-visible
+    static func disconnectClearedKeys(scope: UUID?) -> [String] {
+        [
+            BackendProfileScopedKeys.gatewayAPIKey(scope),
+            BackendProfileScopedKeys.talariaDeviceToken(scope),
+            BackendProfileScopedKeys.talariaDeviceID(scope),
+        ]
     }
 
     /// `100.110.102.59:8642` — what the card prints. The scheme is dropped
