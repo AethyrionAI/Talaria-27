@@ -298,18 +298,22 @@ struct SettingsChannelsTests {
     /// status must never present as online. (Before #350, `.disconnected`
     /// and `.connecting` both mapped to `.online` "optimistically" — a green
     /// LINKED · ONLINE against a dead port, across a cold launch.)
+    ///
+    /// #264 half 2 moved the mapping into `ConnectionSignal` (the app's one
+    /// derivation). Every expectation below is unchanged — only the type being
+    /// called moved.
     @Test func coldLaunchNeverClaimsOnline() {
-        #expect(ChatConnectionPresentation.effectiveState(.disconnected) != .online)
-        #expect(ChatConnectionPresentation.effectiveState(.connecting) != .online)
+        #expect(ConnectionSignal.chatState(direct: .disconnected) != .online)
+        #expect(ConnectionSignal.chatState(direct: .connecting) != .online)
     }
 
     /// The full mapping: measured verdicts present as themselves; anything
     /// unmeasured is `.checking` — #25's absent-not-asserted, as a link state.
     @Test func effectiveStateMapsMeasurementsOnly() {
-        #expect(ChatConnectionPresentation.effectiveState(.connected) == .online)
-        #expect(ChatConnectionPresentation.effectiveState(.error) == .offline)
-        #expect(ChatConnectionPresentation.effectiveState(.disconnected) == .checking)
-        #expect(ChatConnectionPresentation.effectiveState(.connecting) == .checking)
+        #expect(ConnectionSignal.chatState(direct: .connected) == .online)
+        #expect(ConnectionSignal.chatState(direct: .error) == .offline)
+        #expect(ConnectionSignal.chatState(direct: .disconnected) == .checking)
+        #expect(ConnectionSignal.chatState(direct: .connecting) == .checking)
     }
 
     /// `.checking`'s detail names what IS known (paired) and leaves what
@@ -326,23 +330,110 @@ struct SettingsChannelsTests {
     /// fallback could keep a dead link green); no verdict + a configured
     /// host is `.checking`; no verdict + hostless keeps the host-store
     /// story byte-identical.
+    /// #264 half 2: same expectations, new home — `ConnectionSignal.state`'s
+    /// `.settings` arm. The three argument labels survive verbatim; what
+    /// changed is that no VIEW may supply them any more.
     @Test func settingsEffectiveStateIsOneMeasuredTruth() {
+        func settings(
+            direct: ConnectionStatus,
+            hostFallback: HermesHostConnectionState,
+            hostConfigured: Bool
+        ) -> HermesHostConnectionState {
+            ConnectionSignal.state(
+                .init(direct: direct, hostFallback: hostFallback, hostConfigured: hostConfigured),
+                for: .settings)
+        }
         // Measured online.
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .connected, hostFallback: .notConnected, hostConfigured: true) == .online)
         // Measured direct failure cannot stay green via relay memory.
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .error, hostFallback: .online, hostConfigured: true) == .unreachable)
         // Unprobed + configured host: checking, never online.
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .disconnected, hostFallback: .online, hostConfigured: true) == .checking)
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .connecting, hostFallback: .notConnected, hostConfigured: true) == .checking)
         // Hostless: the on-device story unchanged.
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .disconnected, hostFallback: .notConnected, hostConfigured: false) == .notConnected)
-        #expect(ChatConnectionPresentation.settingsEffectiveState(
+        #expect(settings(
             direct: .disconnected, hostFallback: .unreachable, hostConfigured: false) == .unreachable)
+    }
+
+    // MARK: - #264 half 2: ONE connection signal
+
+    /// **264-D.** The two surface mappings are arms of one function, and the
+    /// divergence the 08-09 ruling warned about is PINNED rather than merely
+    /// commented: chat's measured failure is `.offline`, settings' is
+    /// `.unreachable`. Collapsing them would silently change chat-banner
+    /// wording, so a future "simplification" that unifies them goes RED here.
+    @Test func chatAndSettingsDivergeOnlyOnMeasuredFailure() {
+        for direct in [ConnectionStatus.connected, .connecting, .disconnected, .error] {
+            let inputs = ConnectionSignal.Inputs(
+                direct: direct, hostFallback: .notConnected, hostConfigured: true)
+            let chat = ConnectionSignal.state(inputs, for: .chat)
+            let settings = ConnectionSignal.state(inputs, for: .settings)
+            if direct == .error {
+                #expect(chat == .offline)
+                #expect(settings == .unreachable)
+            } else {
+                #expect(chat == settings)
+            }
+        }
+    }
+
+    /// **264-D, the chat plane's direct-only rule.** `.chat` ignores the
+    /// relay-sourced fallback and the configured flag entirely — the relay is
+    /// retired, and consulting it would paint a false "host offline" banner.
+    /// Pinned across every combination so no future arm can quietly start
+    /// reading them.
+    @Test func chatSurfaceIgnoresRelayFallbackAndConfiguredFlag() {
+        for direct in [ConnectionStatus.connected, .connecting, .disconnected, .error] {
+            for fallback in [HermesHostConnectionState.online, .offline, .unreachable, .notConnected, .checking] {
+                for configured in [true, false] {
+                    #expect(
+                        ConnectionSignal.state(
+                            .init(direct: direct, hostFallback: fallback, hostConfigured: configured),
+                            for: .chat)
+                            == ConnectionSignal.chatState(direct: direct))
+                }
+            }
+        }
+    }
+
+    /// **264-E — the drift this half was opened for.** Before the collapse,
+    /// Uplink asked `!gatewayBaseURL.isEmpty` (which falls back to the LEGACY
+    /// `settingsStore.settings.hermesAPIBaseURL`) while About and Channels
+    /// asked `activeProfile?.hasGateway == true`. On a container with no active
+    /// profile but a stale legacy URL, that is one signal rendering two states.
+    ///
+    /// The predicate now reads the profile only — the thing the app actually
+    /// dials — so the legacy value cannot make any surface claim a host.
+    /// **RED-witnessed** by restoring the old spelling: `hostConfigured` then
+    /// returns true for a profile-less container and this goes red.
+    @Test func hostConfiguredReadsTheProfileTheAppActuallyDials() {
+        // No profile at all: nothing to dial, whatever a legacy setting says.
+        #expect(ConnectionSignal.hostConfigured(activeProfile: nil) == false)
+        // A profile with no gateway is the normal local-brain-first state.
+        var profile = BackendProfile(name: "Local", gatewayBaseURL: "")
+        #expect(ConnectionSignal.hostConfigured(activeProfile: profile) == false)
+        // A profile that names a gateway is configured.
+        profile.gatewayBaseURL = "http://100.110.102.59:8642"
+        #expect(ConnectionSignal.hostConfigured(activeProfile: profile) == true)
+    }
+
+    /// **264-E, the surfaces' agreement stated as one assertion.** With no
+    /// active profile and no direct verdict, all three settings surfaces derive
+    /// from the SAME inputs, so they cannot disagree by construction — the
+    /// hostless story, not a CHECKING promise against an undialable URL.
+    @Test func hostlessContainerRendersOneStoryOnEverySettingsSurface() {
+        let inputs = ConnectionSignal.Inputs(
+            direct: .disconnected,
+            hostFallback: .notConnected,
+            hostConfigured: ConnectionSignal.hostConfigured(activeProfile: nil))
+        #expect(ConnectionSignal.state(inputs, for: .settings) == .notConnected)
+        #expect(ConnectionSignal.state(inputs, for: .settings) != .checking)
     }
 
     /// The card/strip values render `.checking` as explicitly unknown —
