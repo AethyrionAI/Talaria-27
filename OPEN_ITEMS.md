@@ -10426,10 +10426,16 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 > - **Three more live sites the bar did not name, all in the grid itself**
 >   (`+Battery.swift`): *"if THIS passes, length is the cause"*, *"the pair
 >   localises it to length rather than words"*, and the `#205` no-truncation
->   preamble. All rewritten. A repo grep for the retracted phrasings now
->   returns only `OPEN_ITEMS.md` / `OPEN_ITEMS-ARCHIVE.md` history and one
->   accurate dated line in `dispatch/OPUS-T27-199-decline-honesty.md` (which
->   states what #205 measured, not what #206 retracted).
+>   preamble. All rewritten. **The grep, stated precisely:** no code site
+>   asserts the retracted rationale any more. Outside the tracker's own
+>   history the only remaining hits are (a) `DeviceToolBeltTests.swift:2540`,
+>   which QUOTES *"everything at ≤590 chars was perfect"* inside the same
+>   sentence that calls it retracted — the house correction style, and what
+>   makes the correction checkable — and (b) one accurate dated line in
+>   `dispatch/OPUS-T27-199-decline-honesty.md`, which states what #205
+>   measured rather than what #206 retracted. The one place a retracted
+>   phrase sat BEFORE its refutation (in `+Battery.swift`, where a skim could
+>   read it as live) was reworded rather than quoted.
 >
 > **334-E — NO ROUTER CHANGE, shown structurally.** Over
 > `LocalChatBackend+IntentRouting.swift` the diff is **+30 / −8 lines and
