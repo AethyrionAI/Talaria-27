@@ -10450,8 +10450,8 @@ NOT cut), **#215** (routed-vs-unrouted: these rows are the `armed` control),
 >   work that never happened" rule (#180/#225). An integrity pin that only
 >   counted admissions would pass while a refusal quietly recorded a lie.
 
-> **✅ 2026-08-26 — 336-C BUILT (hygiene trio). This entry's BUILD work is
-> DISCHARGED.**
+> **✅ 2026-08-26 — 336-C BUILT AND MERGED (hygiene trio; PR #384, squash
+> `69e4471d`). This entry's BUILD work is DISCHARGED.**
 >
 > - **336-C — MET, RED-witnessed.**
 >   `TalariaTests/RecorderCaptureIntegrityTests.swift` drives the real
@@ -11738,7 +11738,8 @@ that looked up. A second `kill` (port verifiably free by then) came up clean.
 >   a redefinition (#218's promoted-clause discipline).
 > - **No bar on the ops half.** Half 1 landed 2026-08-18 and is untouched here.
 
-> **✅ 2026-08-26 — HALF 2 BUILT (hygiene trio). BAR BY BAR:**
+> **✅ 2026-08-26 — HALF 2 BUILT AND MERGED (hygiene trio; PR #384, squash
+> `69e4471d`). BAR BY BAR:**
 >
 > - **264-C — MET.** The inventory above was re-derived at HEAD and committed
 >   BEFORE the first line of code. It corrected the 08-09 count in both
@@ -17845,7 +17846,8 @@ scope: **wholesale, or a permanent dual path?**
 > - **No bar on detecting Private Relay itself.** Anything claiming to read that
 >   system setting would be invented. The row reports EVIDENCE, never a setting.
 
-> **✅ 2026-08-26 — BUILT (hygiene trio). BAR BY BAR:**
+> **✅ 2026-08-26 — BUILT AND MERGED (hygiene trio; PR #384, squash
+> `69e4471d`). BAR BY BAR:**
 >
 > **RELEVANCE VERDICT (restated as the result): the premise SURVIVES, NARROWED
 > to one plane.** #24e's two measured victims are retired components, so a row
