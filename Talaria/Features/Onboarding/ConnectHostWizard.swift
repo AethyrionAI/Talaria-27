@@ -403,6 +403,23 @@ struct ConnectHostWizard: View {
                         }
                         .accessibilityLabel("Name this host")
                 }
+            } else {
+                // **A step that can render NOTHING is a dead end with no name,
+                // and #180's convention forbids exactly that.** The three
+                // branches above cover checking, failed, and connected; a
+                // fourth state — not checking, no failure, no host — should be
+                // unreachable, and if it ever happens the user must get a
+                // sentence and a way out rather than a blank screen under two
+                // chrome buttons. (It is also what would have made the
+                // full-bundle failure diagnose itself instead of presenting as
+                // "the button never appeared".)
+                ConnectHostFailureCard(
+                    outcome: .noAnswer(detail: "NO ANSWER"),
+                    hostLabel: model.draft.resolvedName
+                )
+                GlowButton(title: ConnectHostCopy.tryAgain) { step = .connect }
+                    .accessibilityIdentifier("connectHostWizard.recover")
+                GhostButton(title: ConnectHostCopy.keepChattingLocally) { landInChat() }
             }
         }
     }

@@ -4955,7 +4955,7 @@ Logged 2026-07-23.
 > prose-failure instance, the health-permission card, the `lastErrorMessage`
 > gate, and #139's residual copy.
 
-## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout — **⟵ THE TEST WAS RENAMED 2026-08-25 (#309 Lane B): it is `testConnectingAHostViaSettingsEntryPointLandsBackInChat` now, and it drives the Connect Host wizard rather than the deleted pairing screen. Counter still 1; a recurrence would be recorded under the new name.**
+## 182. 🎲 Second flaky UI test — `testMockPairingViaSettingsEntryPoint` launch timeout — **⟵ THE TEST WAS RENAMED 2026-08-25 (#309 Lane B): it is `testConnectingAHostViaSettingsEntryPointLandsBackInChat` now, and it drives the Connect Host wizard rather than the deleted pairing screen. ⚠️ COUNTER 1 → 2: it flaked twice during that lane's own gate runs, together with its two sibling journeys, at the CONTINUE tap — a synthesized tap landing without invoking the action. PROVEN a flake rather than a regression by re-running the gate's exact invocation over identical bytes (14/14). Hedged with #164's fix shape — a bounded re-tap loop on the condition, not a longer timeout.**
 
 **Observed 2026-07-24 during the Bundle B lane (PR #144).** Flaked once mid-session with a launch
 timeout; passed in three other runs including the final clean one. **Filed, not fixed** — per the
@@ -8036,6 +8036,37 @@ argument for making the relay more robust.
 > `ConnectHostMeasurement.committedProfileID` lets the wizard's step 2 name the
 > profile it just minted (without it, `.newHost` resolved to nothing after its
 > own commit and the connected card rendered empty).
+
+> **🔴 AND A CORRECTION THIS LANE OWES ITS OWN CLOSE-OUT — the attribution
+> above was PARTLY WRONG, and the record says so rather than being tidied.**
+>
+> Defects (4) and (5) are real: the splash latch and the launch-only share
+> drain each fix something that is wrong on its own merits, and each has a
+> test. **What is NOT established is that either of them cured the journey
+> failures**, and the first draft of this block claimed exactly that.
+>
+> The measurement sequence, in order, because the order is the point:
+> 1. gate — three connect journeys FAIL at the CONTINUE tap;
+> 2. splash latch + share-drain gating applied — a UI-ONLY bundle run passes
+>    14/14. **I read that as the cure. The invocation had changed too** (that
+>    run omitted the unit suite), so the two variables moved together;
+> 3. rebase, full gate — the same three journeys FAIL again;
+> 4. the gate's EXACT invocation re-run over the IDENTICAL code — **14/14.**
+>
+> Step 4 is what settles it: the same bytes, the same command, both outcomes.
+> **The journeys are FLAKY at that tap, in the #164/#182 bundle-warm
+> signature** — a synthesized tap that lands without invoking the action — and
+> a single re-tap hedge was not enough. The test now waits on the CONDITION
+> with a bounded retry (#164's own fix shape): re-tap while CONTINUE is still
+> showing, up to 30 s, so a dropped tap is retried and a wizard that genuinely
+> never advances still reds.
+>
+> **Filed as a fourth occurrence in the #164/#182 flake family** — see #182's
+> counter, and note the renames recorded there. **And the product got one
+> thing out of the wrong attribution:** chasing it found that the wizard's
+> check step could render NOTHING in a state its three branches did not cover
+> — a dead end with no name, which is the very thing #180's convention
+> forbids. It now shows a named failure and a way out.
 
 > **📝 THE EXACT COPY, recorded because two of these strings are corrections
 > to a published claim and one replaces a falsehood.**

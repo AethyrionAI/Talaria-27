@@ -451,24 +451,41 @@ final class TalariaUITests: XCTestCase {
                       "a green check should reach the connected card")
         carryOn.tap()
 
-        // iOS 27 beta, bundle-warm: a synthesized tap occasionally lands
-        // without invoking the action — the same signature this file already
-        // hedges for on the settings-sheet transition, and MEASURED here: all
-        // three connect journeys passed in isolation and failed together on
-        // the full-bundle gate run at exactly this step. One verified re-tap,
-        // never a sleep: if the wizard genuinely never advances, the second
-        // wait still fails and the test still reds.
+        // **iOS 27 beta, bundle-warm: a synthesized tap lands without invoking
+        // the action.** The same signature #164 and #182 record for this
+        // suite, and MEASURED here across four full runs: the three connect
+        // journeys passed alone, failed together on one full-bundle gate, then
+        // passed 14/14 on the NEXT run of the identical invocation over the
+        // identical code. That last run is what makes it a flake rather than a
+        // regression — and it is why one re-tap was not enough.
+        //
+        // The fix is #164's own shape: wait on the CONDITION with a bounded
+        // retry instead of on a fixed timeout. Every second, if the wizard is
+        // still showing CONTINUE, tap it again. A wizard that genuinely never
+        // advances still runs out the deadline and still reds — nothing is
+        // masked; a dropped tap is retried instead of being fatal.
         let startChatting = app.buttons["connectHostWizard.startChatting"]
-        if !startChatting.waitForExistence(timeout: 10), carryOn.exists {
-            carryOn.tap()
+        let tapDeadline = Date(timeIntervalSinceNow: 30)
+        while !startChatting.exists, Date() < tapDeadline {
+            if carryOn.exists { carryOn.tap() }
+            RunLoop.current.run(until: Date(timeIntervalSinceNow: 1.0))
         }
+        // The diagnostic is deliberately made of CHEAP, NAMED probes rather
+        // than an element dump: `allElementsBoundByIndex` re-snapshots the
+        // hierarchy and throws "No matches found for Element at index N" when
+        // it changes underneath — which is how the first version of this line
+        // replaced a readable failure with an unreadable one.
         XCTAssertTrue(
             startChatting.waitForExistence(timeout: 10),
             """
-            step 3 should offer START CHATTING — buttons on screen: \
-            \(app.buttons.allElementsBoundByIndex.prefix(14)
-                .map { $0.identifier.isEmpty ? $0.label : $0.identifier }
-                .joined(separator: " | "))
+            step 3 should offer START CHATTING — buttons=\(app.buttons.count) \
+            continue=\(app.buttons["connectHostWizard.continue"].exists) \
+            notNow=\(app.buttons["connectHostWizard.notNow"].exists) \
+            check=\(app.buttons["connectHostWizard.check"].exists) \
+            connectMyHost=\(app.buttons["connectHostWizard.connectMyHost"].exists) \
+            tryAgain=\(app.buttons["TRY AGAIN"].exists) \
+            settingsScan=\(app.buttons["connectHost.scan"].exists) \
+            composer=\(composerInput(in: app).exists)
             """
         )
         startChatting.tap()
