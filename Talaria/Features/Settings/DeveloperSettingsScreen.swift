@@ -24,8 +24,16 @@ struct DeveloperSettingsScreen: View {
     var embedded: Bool = false
     @Environment(\.dismiss) private var dismiss
     @Environment(SettingsStore.self) private var settingsStore
-    #if DEBUG
+    // **#218's rule, caught by #218's own check.** This declaration was inside
+    // `#if DEBUG` — correct while its only readers were the DEBUG-only
+    // monetization and migration-stamp controls. #309 Lane B gave it a
+    // PRODUCTION reader (`endpointLabel`, which now resolves the active
+    // profile's gateway instead of a deleted relay config), and the Debug
+    // suite could not see the difference: the Release arm of the gate failed
+    // with `cannot find 'container' in scope`. A promoted reader promotes its
+    // dependency.
     @Environment(AppContainer.self) private var container
+    #if DEBUG
     // #127: local mirrors of MonetizationDebugSettings (UserDefaults-backed,
     // DEBUG-only) — seeded in onAppear, written through on change.
     @State private var monetizationGateEnabled = false
