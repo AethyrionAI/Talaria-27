@@ -98,6 +98,7 @@
 		1E063508199EBBDBBFCFF2BE /* LocalChatBackend+Preflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CDBC9C25C77FD0F587AD8F5 /* LocalChatBackend+Preflight.swift */; };
 		20A1ED6E62216A11AC9486BC /* RoutedTrialShapeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5E8EF024C3134EA534CFABD /* RoutedTrialShapeTests.swift */; };
 		20C96A75186B18743C7F200A /* ChakraPetch-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 80EF15B79F03C0BF47DAB3C2 /* ChakraPetch-SemiBold.ttf */; };
+		215881A117C945687D43878D /* APIClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5DBA27D751995B22737CB7 /* APIClientError.swift */; };
 		21ABBB6BEBC4263724B61735 /* HermesHostStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDA88A494348CA2669EA79C /* HermesHostStore.swift */; };
 		21E9A22A97CE3C9866ACFCE2 /* Icon-MoltenForge@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 0F52C49687672CA223A85A7A /* Icon-MoltenForge@2x.png */; };
 		22F2CE9F8A34E0C2D6622CD4 /* DeviceLocationProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E331A6A95B8F14DCD79B956 /* DeviceLocationProviderTests.swift */; };
@@ -1098,6 +1099,7 @@
 		BC30A26DCB3F128D9BDF9C69 /* Talaria 27.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Talaria 27.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BC3A6DB863992287B1727373 /* Icon-WinterFrost@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-WinterFrost@3x.png"; sourceTree = "<group>"; };
 		BCA3528874C96917E5C1B304 /* PermissionCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionCard.swift; sourceTree = "<group>"; };
+		BD5DBA27D751995B22737CB7 /* APIClientError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientError.swift; sourceTree = "<group>"; };
 		BDF1BE5651B4CF68E3034596 /* AgentFileFetchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentFileFetchTests.swift; sourceTree = "<group>"; };
 		BE01F06F2E1E1EF5A76FA7C5 /* SpotlightEntities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpotlightEntities.swift; sourceTree = "<group>"; };
 		BE9FB9404BF9F249895C14D2 /* SettingsChannelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsChannelsTests.swift; sourceTree = "<group>"; };
@@ -1576,6 +1578,7 @@
 		2567FA74BC353BECAB3916CC /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				BD5DBA27D751995B22737CB7 /* APIClientError.swift */,
 				AA13657305C577F4DC6CD814 /* AppLockCore.swift */,
 				1565F4DB346160A31AA5D80A /* AppLockGate.swift */,
 				F07CEE067A8CBEF04205E50D /* ApprovalModeCore.swift */,
@@ -2525,6 +2528,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				215881A117C945687D43878D /* APIClientError.swift in Sources */,
 				0687660C758D32E99E8B684C /* AboutSettingsContent.swift in Sources */,
 				ECEA616F630F0C122AB5824B /* ActionBatteryCellSelection.swift in Sources */,
 				1B7C40B4C1FEDB06CD585E7E /* ActionClaimDetector.swift in Sources */,

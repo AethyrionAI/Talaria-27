@@ -76,32 +76,11 @@ final class RelayAPIClient {
         let detail: String
     }
 
-    enum ClientError: LocalizedError {
-        case unauthorized(String)
-        case invalidURL(String)
-        case requestFailed(String)
-        /// The relay parsed the request and rejected the PAYLOAD itself
-        /// (400/422 — e.g. Pydantic validation): retrying identical bytes can
-        /// never succeed. Distinct from `requestFailed` so uploaders can
-        /// isolate poison data instead of wedging on infinite retries of the
-        /// same rejected body (OPEN_ITEMS #24a follow-up). Other 4xx (403/404
-        /// etc.) intentionally stay `requestFailed` — they're about auth or
-        /// routing, not the payload, and other services key off that mapping.
-        case payloadRejected(statusCode: Int, message: String)
-
-        var errorDescription: String? {
-            switch self {
-            case .unauthorized(let message):
-                message
-            case .invalidURL(let url):
-                "Invalid relay URL: \(url)"
-            case .requestFailed(let message):
-                message
-            case .payloadRejected(let statusCode, let message):
-                "Relay rejected the payload (\(statusCode)): \(message)"
-            }
-        }
-    }
+    /// #309 Lane C (C1): the enum itself now lives in `APIClientError.swift`
+    /// so voice can throw it without importing the relay client. This alias
+    /// keeps every existing `RelayAPIClient.ClientError` spelling compiling
+    /// for as long as this type survives.
+    typealias ClientError = APIClientError
 
 
     /// #136: timeouts for launch/bootstrap-class probes. A black-holed host
