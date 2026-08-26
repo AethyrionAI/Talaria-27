@@ -58,6 +58,7 @@
 		0F9B30079BE0C663A2DB1247 /* Icon-WitchsBrew@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 04CCEE369568ECDEC0C2C0A3 /* Icon-WitchsBrew@2x.png */; };
 		10178F8D353D61919D2FC400 /* RelayCoders.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5913F51FF7C78E4346CF7A /* RelayCoders.swift */; };
 		10199A455BCE13B63B0B82D2 /* VoiceState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FF00556E91BFAF97209DC8C /* VoiceState.swift */; };
+		1050A1CA62898718C4E9EEFE /* TurnReceiptSidecar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAFB3FCED57505A95EC500D8 /* TurnReceiptSidecar.swift */; };
 		10AC60C0BC2BB33146552566 /* Icon-NeonArcade@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 04601E35A47260A48E58E587 /* Icon-NeonArcade@3x.png */; };
 		110F9E0704E7DEFA6AF10416 /* PooledConnectionWedgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25D8C447B1F5E16B0EBCB49E /* PooledConnectionWedgeTests.swift */; };
 		1129B37439D5430176D73969 /* CronJobsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D086BA232F3A7F933073B7F8 /* CronJobsStore.swift */; };
@@ -1173,6 +1174,7 @@
 		DAC26BEA596A26F21093FF52 /* TalariaPlatformInboxServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TalariaPlatformInboxServiceTests.swift; sourceTree = "<group>"; };
 		DACB616F407B28D67410AC1F /* AppLockControllerRaceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockControllerRaceTests.swift; sourceTree = "<group>"; };
 		DAE15242F1EBCEF8DCE336A8 /* SharedWidgetDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedWidgetDataStore.swift; sourceTree = "<group>"; };
+		DAFB3FCED57505A95EC500D8 /* TurnReceiptSidecar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurnReceiptSidecar.swift; sourceTree = "<group>"; };
 		DC388517E5C6F45D742F0E43 /* StatusCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusCardView.swift; sourceTree = "<group>"; };
 		DC4D288F004D52E614E5A280 /* Icon-CyberCactus@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "Icon-CyberCactus@2x.png"; sourceTree = "<group>"; };
 		DC5601B3CB25FED88BF723E7 /* IconPreview-BubblegumMecha.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "IconPreview-BubblegumMecha.png"; sourceTree = "<group>"; };
@@ -1762,6 +1764,7 @@
 				F2FA13DEE0B0D8B6137FFF18 /* ThemeCatalog.swift */,
 				3F3EAD544A476678B4CAA8A8 /* TokenUsage.swift */,
 				0D05FEFC0C88B9061B363B56 /* ToolActivity.swift */,
+				DAFB3FCED57505A95EC500D8 /* TurnReceiptSidecar.swift */,
 				F26836C847785834B084F24B /* UserSettings.swift */,
 				9FF00556E91BFAF97209DC8C /* VoiceState.swift */,
 			);
@@ -2803,6 +2806,7 @@
 				BB58FB8A85D23FC930756416 /* ToolConfirmationCard.swift in Sources */,
 				91B415D4CE3BCCF1BBD2A55D /* ToolConfirmationCenter.swift in Sources */,
 				718B97699DC8A48CD18472B1 /* TranscriptView.swift in Sources */,
+				1050A1CA62898718C4E9EEFE /* TurnReceiptSidecar.swift in Sources */,
 				5E0758B2A415EB50FAF15068 /* TurnReceipts.swift in Sources */,
 				A971C915FE7F12A522B32237 /* TypingDotsView.swift in Sources */,
 				F554034D7B098340F5B960E5 /* UITestSecureStore.swift in Sources */,

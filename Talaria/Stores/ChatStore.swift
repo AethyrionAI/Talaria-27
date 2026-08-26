@@ -311,6 +311,26 @@ final class ChatStore {
         var primingHops = 0
     }
 
+    /// **330-C — THE CONVERGED PREDICATE (2026-08-25).** A metered turn is
+    /// `sender.isAgentAuthored && usage != nil && !isContextPriming`, and that
+    /// is now the expression at every one of the four sites that asks the
+    /// question: here, `ModelPricingCatalog.estimatedSessionCost`,
+    /// `usageDiagnosticReport`'s absent branch, and `openSessionSeamLine`.
+    /// `MessageBubble` renders its receipt from `message.usage` inside the
+    /// agent-authored branch of the bubble, which is the same test.
+    ///
+    /// It used to be `sender == .hermes` HERE and `isAgentAuthored` THERE, so
+    /// a `.voiceHermes` row carrying usage printed a per-turn receipt and
+    /// counted for nothing in the session totals — the divergence #330's entry
+    /// reasoned from. Converging it is **hygiene, not the fix**: #330's
+    /// measurement lane widened this predicate as mutation M2 and the reopen
+    /// reproduction STILL failed, which is the falsification. The receipts
+    /// come back from `TurnReceiptSidecar`, not from here.
+    ///
+    /// `isAgentAuthored` is #280's one answer to "did the assistant produce
+    /// this turn" — a voice reply is real spend on the same host, and a sixth
+    /// sender case now has to answer the question explicitly instead of being
+    /// silently excluded at one site out of four.
     var sessionUsageTotals: SessionUsageTotals? {
         guard let messages = conversation?.messages else { return nil }
         var totals = SessionUsageTotals()
@@ -322,7 +342,7 @@ final class ChatStore {
                 totals.primingTokens += message.usage?.totalTokens ?? 0
                 continue
             }
-            guard message.sender == .hermes, let usage = message.usage else { continue }
+            guard message.sender.isAgentAuthored, let usage = message.usage else { continue }
             totals.promptTokens += usage.promptTokens
             totals.completionTokens += usage.completionTokens
             totals.totalTokens += usage.totalTokens
@@ -373,7 +393,7 @@ final class ChatStore {
         } else {
             // The whole point of the instrument: name the two counters the
             // card's nil verdict is computed from, separately.
-            let metered = messages.filter { $0.sender == .hermes && $0.usage != nil && !$0.isContextPriming }.count
+            let metered = messages.filter { $0.sender.isAgentAuthored && $0.usage != nil && !$0.isContextPriming }.count
             let priming = messages.filter(\.isContextPriming).count
             lines.append("Totals ABSENT · metered \(metered) · priming \(priming) · SESSION BLOCK HIDDEN")
         }
@@ -432,7 +452,7 @@ final class ChatStore {
     ) -> String {
         func census(_ convo: Conversation?) -> String {
             guard let convo else { return "none" }
-            let metered = convo.messages.filter { $0.sender == .hermes && $0.usage != nil && !$0.isContextPriming }.count
+            let metered = convo.messages.filter { $0.sender.isAgentAuthored && $0.usage != nil && !$0.isContextPriming }.count
             let priming = convo.messages.filter(\.isContextPriming).count
             return "rows \(convo.messages.count) · metered \(metered) · priming \(priming)"
                 + " · totals \(metered > 0 || priming > 0 ? "PRESENT" : "ABSENT")"
@@ -482,6 +502,16 @@ final class ChatStore {
     /// back used to lose every chip in it while the staged bytes sat safe on
     /// disk.
     private var agentAttachments: AgentAttachmentSidecar
+
+    /// #330: the durable per-thread record of TURN RECEIPTS, write-through
+    /// cached here for the same reason and on the same key as the chip
+    /// sidecar above. See `TurnReceiptSidecar` for the design; the short
+    /// version is that `openSession` ASSIGNS the server transcript and the
+    /// stored transcript carries no usage of any kind, so leaving a thread and
+    /// coming back used to take the whole status-card SESSION block with it —
+    /// metered turns, session input/output, model time, the priming row, and
+    /// #122's `Est. cost`.
+    private var turnReceipts: TurnReceiptSidecar
 
     /// #277: the last thread opened from the drawer. The sidecar's thread key
     /// is the SERVER SESSION ID; `activeSessionID` (the journal hop) is the
@@ -751,6 +781,36 @@ final class ChatStore {
         self.appLockGate = appLockGate
         self.composeOutbox = persistence.loadComposeOutboxState()
         self.agentAttachments = persistence.loadAgentAttachmentSidecar()
+        self.turnReceipts = persistence.loadTurnReceiptSidecar()
+        // #330-D: a priming receipt that arrives after `runsSyncBudget` gave
+        // up on it (the measured cause of a live priming row reading PRIMING
+        // TOKENS 0). The journal is the durable carrier; this is the push that
+        // gets the number onto the transcript row the user is looking at,
+        // rather than waiting for the next turn to persist.
+        journal?.onPrimingUsageResolved = { [weak self] _, usage in
+            self?.adoptResolvedPrimingUsage(usage)
+        }
+    }
+
+    /// #330-D: stamps a late-resolved priming receipt onto the notice row it
+    /// belongs to and re-renders the label around it.
+    ///
+    /// Targets the LAST unpriced priming row: a thread can carry several hops,
+    /// and the one that just resolved is the newest — the earlier ones either
+    /// already have their receipts or were never going to get one. A thread
+    /// with no unpriced priming row takes nothing, which is what a resolution
+    /// arriving after a reopen or a New chat must do.
+    private func adoptResolvedPrimingUsage(_ usage: TokenUsage) {
+        guard var conversation,
+              let index = conversation.messages.lastIndex(where: { $0.isContextPriming && $0.usage == nil })
+        else { return }
+        conversation.messages[index].usage = usage
+        conversation.messages[index].content = ContextTransplanter.transplantNoticeLabel(usage: usage)
+        self.conversation = conversation
+        persistence.saveConversationCache(conversation)
+        recordTurnReceipts()
+        onConversationChanged?()
+        chatLog.notice("#330 priming: notice row repriced late — \(usage.totalTokens, privacy: .public) tokens")
     }
 
     /// #277: files the current thread's agent-file chips under its server
@@ -779,6 +839,25 @@ final class ChatStore {
         guard updated != agentAttachments else { return }
         agentAttachments = updated
         persistence.saveAgentAttachmentSidecar(updated)
+    }
+
+    /// #330: files the current thread's TURN RECEIPTS under its server session
+    /// id — the same contract, call sites and `under:` reasoning as
+    /// `recordAgentAttachments` above, because it is the same problem
+    /// (`openSession` assigns the server transcript over the local one) solved
+    /// the same way. Kept as a separate call rather than folded into that one
+    /// so a future change to either sidecar's eligibility rule cannot silently
+    /// move the other's rows.
+    private func recordTurnReceipts(under explicitSessionID: String? = nil) {
+        guard let sessionID = explicitSessionID ?? agentAttachmentThreadID,
+              let conversation else { return }
+        let rows = TurnReceiptSidecar.rows(from: conversation.messages)
+        guard !rows.isEmpty else { return }
+        var updated = turnReceipts
+        updated.record(sessionID: sessionID, rows: rows)
+        guard updated != turnReceipts else { return }
+        turnReceipts = updated
+        persistence.saveTurnReceiptSidecar(updated)
     }
 
     func loadConversationIfNeeded() async {
@@ -1668,6 +1747,10 @@ final class ChatStore {
             // chip back. Before the sync below, so the hop that carried this
             // turn is still the thread's id.
             recordAgentAttachments()
+            // #330: and so does this turn's RECEIPT — `usage`, `turnDuration`,
+            // `servingModel` were all stamped a few lines above and the server
+            // transcript will never give any of them back.
+            recordTurnReceipts()
             onConversationChanged?()
             // P1 (#90): re-sync the durable journal with the settled
             // transcript. A Hermes-brain finish bumps the hop waterline over
@@ -2203,6 +2286,10 @@ final class ChatStore {
             // already produced — a chip on the stopped reply is as durable as
             // the transcript this line just saved.
             recordAgentAttachments()
+            // #330: a stopped turn's partial receipt is as durable as the
+            // transcript too — and a transplant that happened before the Stop
+            // is spend the user still paid for.
+            recordTurnReceipts()
             onConversationChanged?()
         }
     }
@@ -2583,9 +2670,11 @@ final class ChatStore {
     /// turn's real usage, marked so the session totals separate priming from
     /// metered chat turns.
     private func makePrimingNotice(usage: TokenUsage?) -> Message {
-        let label = usage.map {
-            "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel($0.totalTokens)) tokens]"
-        } ?? "[Context transplanted into a fresh session]"
+        // #330-D: the label lives on `ContextTransplanter` beside the wire
+        // marker it is the counterpart of — the mapper re-mints this exact
+        // string when it recognises a stored primer row, and two copies of it
+        // would drift the first time either is edited.
+        let label = ContextTransplanter.transplantNoticeLabel(usage: usage)
         // #330 SEAM 3 — where the ONLY carrier of `isContextPriming` is born.
         // It is a `.system` row, which no host transcript can hand back
         // (seam 1), so from this moment its survival depends entirely on the
@@ -2612,6 +2701,12 @@ final class ChatStore {
         conversation?.messages.append(makePrimingNotice(usage: usage))
         if let conversation {
             persistence.saveConversationCache(conversation)
+            // #330: the notice is the app's ONLY carrier of
+            // `isContextPriming` and the host has no row that reproduces it —
+            // record it the moment it exists, on this path too, or a reopen
+            // after a voice-triggered hop loses the priming row while the
+            // streamed path keeps its own.
+            recordTurnReceipts()
             onConversationChanged?()
         }
     }
@@ -3526,6 +3621,19 @@ final class ChatStore {
                 agentAttachments.rows(forSessionID: id),
                 onto: convo.messages
             )
+            // #330: and the RECEIPTS, by the same mechanism and for the same
+            // reason. The stored transcript carries no usage of any kind
+            // (`SessionsHermesClient.openSession`'s probe comment), so without
+            // this line `sessionUsageTotals` returns nil the instant the
+            // assignment below lands and the status card's whole SESSION
+            // block — including #122's `Est. cost` — disappears off a thread
+            // that was showing it a second earlier. The deliberate non-merge
+            // below is untouched: this is a replay of four fields onto the
+            // ARRIVING rows, not a resurrection of the departing ones.
+            convo.messages = TurnReceiptSidecar.replaying(
+                turnReceipts.rows(forSessionID: id),
+                onto: convo.messages
+            )
             // #330 SEAM 2 — the REPLACE itself, measured on both sides of the
             // assignment below. The departing conversation's receipts and its
             // priming notice do not survive this line (the non-merge is
@@ -3545,6 +3653,7 @@ final class ChatStore {
             // ever needed for ONE crossing — the first return after the chip
             // was made on a client-minted placeholder id.
             recordAgentAttachments(under: id)
+            recordTurnReceipts(under: id)
             // #362 3D-D: a mirror item drained while ANOTHER thread was open
             // holds until its thread appears — this open may be that thread.
             artifactMirror.retryPending()
@@ -3612,6 +3721,10 @@ final class ChatStore {
         lastOpenedSessionID = nil
         agentAttachments = AgentAttachmentSidecar()
         persistence.clearAgentAttachmentSidecar()
+        // #330: the receipts name what this pairing SPENT — same lifetime as
+        // the chips and the conversation cache, never one unpair longer.
+        turnReceipts = TurnReceiptSidecar()
+        persistence.clearTurnReceiptSidecar()
     }
 
     func resolvedContextWindow(fallbackModelName: String?) -> Int? {

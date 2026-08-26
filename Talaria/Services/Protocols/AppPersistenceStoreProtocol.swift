@@ -64,6 +64,15 @@ protocol AppPersistenceStoreProtocol {
     func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar
     func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar)
     func clearAgentAttachmentSidecar()
+    // #330: turn receipts (usage / duration / serving model / the priming
+    // flag), keyed by SERVER SESSION ID. Same reason as the sidecar above and
+    // the same shape: `openSession` assigns the server transcript over the
+    // local one, and the stored transcript carries no usage of any kind — so
+    // without this the status card's whole SESSION block, `Est. cost`
+    // included, dies on every reopen.
+    func loadTurnReceiptSidecar() -> TurnReceiptSidecar
+    func saveTurnReceiptSidecar(_ sidecar: TurnReceiptSidecar)
+    func clearTurnReceiptSidecar()
     /// #137: whether the sensor opt-in grandfathering has already been
     /// considered on this device. Keychain-mirrored in the real store, so it
     /// shares the PAIRING's lifetime rather than the app container's — a
@@ -121,6 +130,14 @@ extension AppPersistenceStoreProtocol {
     func loadAgentAttachmentSidecar() -> AgentAttachmentSidecar { AgentAttachmentSidecar() }
     func saveAgentAttachmentSidecar(_ sidecar: AgentAttachmentSidecar) {}
     func clearAgentAttachmentSidecar() {}
+
+    // #330: same warning as the block above, and for the same reason — a
+    // default that swallows the save makes the reopen restore a structural
+    // no-op, so a green suite would certify the defect. The #330 pins use the
+    // REAL `UserDefaultsAppPersistenceStore`.
+    func loadTurnReceiptSidecar() -> TurnReceiptSidecar { TurnReceiptSidecar() }
+    func saveTurnReceiptSidecar(_ sidecar: TurnReceiptSidecar) {}
+    func clearTurnReceiptSidecar() {}
 
     func loadSessionState() -> AppSessionState? {
         loadSessionState(profileScope: nil)

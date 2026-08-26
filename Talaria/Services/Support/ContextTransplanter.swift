@@ -192,6 +192,33 @@ final class ContextTransplanter {
         return "(\(omittedCount) earlier turn\(omittedCount == 1 ? "" : "s") omitted — context begins mid-conversation)\n" + body
     }
 
+    /// #330-D: the first line of every priming turn, hoisted out of
+    /// `primingText` so the two sites that need it cannot drift.
+    ///
+    /// **It is a WIRE MARKER, and that is what makes it useful twice over.**
+    /// A run WRITES its turn into the session transcript (N4), so the primer
+    /// is stored host-side as an ordinary `user` row — which is why a
+    /// reopened thread used to render the whole transplant payload as a
+    /// wall of text under the user's own name (#330, device observation 2,
+    /// 2026-08-25). `SessionsHermesClient.mapStoredMessage` recognises this
+    /// prefix and re-maps such a row into the priming NOTICE it always
+    /// should have been.
+    ///
+    /// Recognition by prefix is exact rather than heuristic: no human types
+    /// this, and the app is the only writer of it. It also reaches threads
+    /// primed BEFORE this build, which no client-side record could.
+    nonisolated static let transplantMarker =
+        "[CONTEXT TRANSPLANT — this is turn zero of a continued conversation.]"
+
+    /// The transcript-side label for a transplant (#90) — the row the user
+    /// actually sees, as distinct from `transplantMarker`, which is the wire
+    /// preamble they never do. `nil` usage prints no token count rather than
+    /// a zero: unknown is not free (#180).
+    nonisolated static func transplantNoticeLabel(usage: TokenUsage?) -> String {
+        guard let usage else { return "[Context transplanted into a fresh session]" }
+        return "[Context transplanted into a fresh session — \(TurnReceiptFormat.fullTokenLabel(usage.totalTokens)) tokens]"
+    }
+
     /// The wire shape of the priming turn. The preamble tells the fresh
     /// session what the payload is (established conversation memory, facts at
     /// their latest corrected values) and pins the acknowledgment short, so
@@ -199,7 +226,7 @@ final class ContextTransplanter {
     /// to answer.
     nonisolated static func primingText(body: String) -> String {
         """
-        [CONTEXT TRANSPLANT — this is turn zero of a continued conversation.]
+        \(transplantMarker)
         The notes below carry the context of this conversation so far, from the user's device journal. Treat them as established conversation memory: every fact is already stated at its most recent corrected value. Do not re-answer or re-open anything below. Acknowledge in one short sentence and wait for the user's next message.
 
         \(body)

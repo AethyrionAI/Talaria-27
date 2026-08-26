@@ -670,13 +670,23 @@ final class SessionsHermesClient: HermesClientProtocol {
             throw error
         }
         Self.logger.verbose("openSession: decoded \(response.data.count) messages for '\(id)'")
-        let messages = response.data.compactMap { Self.mapStoredMessage($0, sessionId: id) }
+        let messages = Self.mappedTranscript(response.data, sessionId: id)
         // #330 SEAM 1 — where rows are REFUSED. `mapStoredMessage` returns nil
         // for every role but user/assistant, so the `.system` context-priming
         // notice cannot come back from the host; and the rows that do come
         // back carry no usage by protocol (see this file's openSession comment
         // — per-row `token_count` is always null). Both of
         // `ChatStore.sessionUsageTotals`' inputs are decided right here.
+        //
+        // [2026-08-25, #330 FIX LANE] Half of that is now false and the seam
+        // stays because the other half is not. `mappedTranscript` re-maps the
+        // stored primer row into a priming notice and collapses its
+        // acknowledgment, so `isContextPriming` DOES come back — but with no
+        // usage on it, and no usage on any other row either. The refusal
+        // count below therefore now includes the collapsed ack as well as the
+        // roles the map declines; the census beside it is what tells them
+        // apart. The receipts themselves are restored one layer up, by
+        // `TurnReceiptSidecar.replaying` in `ChatStore.openSession`.
         Self.logger.verboseNotice(
             "#330 seam 1 · fetchSessionConversation '\(id)': stored \(response.data.count) → mapped \(messages.count)"
             + " (refused \(response.data.count - messages.count))"
@@ -701,6 +711,47 @@ final class SessionsHermesClient: HermesClientProtocol {
         return counts.keys.sorted().map { "\($0) \(counts[$0] ?? 0)" }.joined(separator: ", ")
     }
 
+    /// #330-D: the whole map, rows in → rows out, so the ONE cross-row rule
+    /// the mapper needs has somewhere to live. `fetchSessionConversation`
+    /// calls this rather than `compactMap { mapStoredMessage }`, and so do
+    /// the tests — a per-row map cannot express "and the row after it".
+    // harness-visible (#330)
+    nonisolated static func mappedTranscript(
+        _ rows: [SessionMessagesResponse.StoredMessage],
+        sessionId: String
+    ) -> [Message] {
+        collapsingTransplantAcknowledgments(rows.compactMap { mapStoredMessage($0, sessionId: sessionId) })
+    }
+
+    /// #330-D: drops the priming turn's ACKNOWLEDGMENT — the assistant row
+    /// immediately after a re-mapped transplant primer.
+    ///
+    /// The primer exchange is meta-traffic, not conversation: `postPrimingTurn`
+    /// says so in as many words ("nothing streams and nothing is shown"), and
+    /// the LIVE thread shows neither half of it — only the one-line notice.
+    /// Leaving the ack behind would make a reopened thread carry a turn the
+    /// user never saw and never sent, which is the same class of dishonesty as
+    /// the wall-of-primer-text bubble this pass exists to remove.
+    ///
+    /// Deliberately the narrowest possible rule: the IMMEDIATELY following
+    /// row, and only when it is agent-authored. A real answer can never be
+    /// adjacent to a primer, because the primer is turn zero of a session the
+    /// user has not spoken into yet.
+    nonisolated static func collapsingTransplantAcknowledgments(_ messages: [Message]) -> [Message] {
+        var result: [Message] = []
+        result.reserveCapacity(messages.count)
+        var dropNextAgentRow = false
+        for message in messages {
+            if dropNextAgentRow, message.sender.isAgentAuthored {
+                dropNextAgentRow = false
+                continue
+            }
+            dropNextAgentRow = message.isContextPriming
+            result.append(message)
+        }
+        return result
+    }
+
     nonisolated static func mapStoredMessage(_ m: SessionMessagesResponse.StoredMessage, sessionId: String) -> Message? {   // harness-visible (#364)
         let sender: MessageSender
         switch (m.role ?? "").lowercased() {
@@ -710,6 +761,31 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
         let text = (m.content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let ts = m.timestamp.map { Date(timeIntervalSince1970: $0) } ?? .now
+
+        // #330-D: the transplant primer, as the HOST stored it. A run writes
+        // its turn into the session transcript (N4), so the priming turn is
+        // on record as an ordinary `user` row carrying ~1,500 tokens of
+        // condensed journal — and a reopened thread rendered every word of it
+        // under the user's own name (device observation 2, 2026-08-25). It is
+        // not user speech; it is the app's own bookkeeping, and the row it
+        // should map to is the notice `ChatStore.makePrimingNotice` mints on
+        // the live thread.
+        //
+        // The token count is NOT invented here: the label prints tokens only
+        // when a receipt is known, and the only thing that knows one is the
+        // `TurnReceiptSidecar` record replayed a moment later. Absent a
+        // record the notice reads honestly without a number.
+        if sender == .user, text.hasPrefix(ContextTransplanter.transplantMarker) {
+            let stableID = m.id.map { Self.stableMessageID(sessionId: sessionId, serverRowID: $0) }
+            return Message(
+                id: stableID ?? UUID(),
+                sender: .system,
+                content: ContextTransplanter.transplantNoticeLabel(usage: nil),
+                timestamp: ts,
+                status: .delivered,
+                isContextPriming: true
+            )
+        }
 
         // #10: restore the tool timeline when the API includes tool_calls on
         // an assistant row. The stored transcript carries no position data, so
@@ -933,7 +1009,8 @@ final class SessionsHermesClient: HermesClientProtocol {
         }
 
         let composition = await transplanter.composePriming(from: journal.entries)
-        let usage = try await postPrimingTurn(sessionId: sessionId, profileID: targetProfileID, text: composition.text)
+        let primed = try await postPrimingTurn(sessionId: sessionId, profileID: targetProfileID, text: composition.text)
+        let usage = primed.usage
         // #25: the priming turn IS the fresh session's context occupancy —
         // seed the resume cache so a session abandoned right after its
         // transplant still reads honestly when reopened.
@@ -944,8 +1021,29 @@ final class SessionsHermesClient: HermesClientProtocol {
         recordBirth(sessionId: sessionId, profileID: targetProfileID)
         pendingNewSessionProfileID = nil
         Self.logger.notice("hop: fresh session primed from \(composition.entryCount) journal entries (\(composition.condensedByModel ? "condensed" : "verbatim tail", privacy: .public), \(usage?.totalTokens ?? 0) tokens)")
+        if usage == nil {
+            // #330-D: the interactive budget ran out before the primer's
+            // answer landed, which is the measured cause of a live priming row
+            // reading PRIMING TOKENS 0. The run keeps its usage for an hour —
+            // read it again off the interactive path rather than discarding
+            // the only handle that knows the number. Nobody awaits this: the
+            // user's turn is submitted immediately below, and the answer, when
+            // it lands, reaches the transcript through the journal hop.
+            let runID = primed.runID
+            let hopSessionID = sessionId
+            let hopProfileID = targetProfileID
+            primingResolutionTask?.cancel()
+            primingResolutionTask = Task { [weak self] in
+                await self?.resolvePrimingUsage(runID: runID, sessionID: hopSessionID, profileID: hopProfileID)
+            }
+        }
         return PreparedHop(sessionId: sessionId, wasReused: false, priming: PrimingReceipt(usage: usage), profileID: targetProfileID)
     }
+
+    /// #330-D: the in-flight late read of a priming run's usage. One at a
+    /// time — a second hop supersedes the first, and a resolution for a hop
+    /// nobody is on any more has nothing to write to.
+    private var primingResolutionTask: Task<Void, Never>?
 
     // MARK: - #241 — session-model immunity
 
@@ -1085,7 +1183,7 @@ final class SessionsHermesClient: HermesClientProtocol {
     /// as the old drain did when the stream died: the submit was accepted,
     /// so the transplant text IS in the session either way (N4: runs WRITE
     /// the session transcript).
-    private func postPrimingTurn(sessionId: String, profileID: UUID?, text: String) async throws -> TokenUsage? {
+    private func postPrimingTurn(sessionId: String, profileID: UUID?, text: String) async throws -> PrimingTurnOutcome {
         let endpoint = try resolveTurnEndpoint(profileID: profileID)
         let submit: RunSubmitResponse = try await postJSON(
             path: Self.runsPath,
@@ -1106,8 +1204,69 @@ final class SessionsHermesClient: HermesClientProtocol {
             endpoint: endpoint,
             budget: runsSyncBudget,
             haltOnApprovalPark: true
-        ), snapshot.status == "completed" else { return nil }
-        return Self.decodeRunUsage(snapshot.rawJSON)
+        ), snapshot.status == "completed" else {
+            return PrimingTurnOutcome(usage: nil, runID: submit.runID)
+        }
+        return PrimingTurnOutcome(usage: Self.decodeRunUsage(snapshot.rawJSON), runID: submit.runID)
+    }
+
+    /// #330-D: what the priming turn produced — its usage AND the run id that
+    /// still knows the usage when the interactive poll did not wait long
+    /// enough to see it.
+    struct PrimingTurnOutcome: Sendable {   // harness-visible (#330)
+        let usage: TokenUsage?
+        let runID: String
+    }
+
+    // MARK: - #330-D — where the priming tokens actually come from
+
+    /// **The trace, recorded because the answer was not obvious and cost a
+    /// lane to find.** `postPrimingTurn` is the ONE source of the number the
+    /// transplant notice prints and `sessionUsageTotals.primingTokens` sums —
+    /// both the streamed path (`.contextPrimed(priming.usage)`) and the
+    /// non-streaming voice-context path (`journal.activeHop.primingUsage`)
+    /// read exactly this value and nothing else. And it returns nil by DESIGN
+    /// whenever the priming run has not reached `completed` inside
+    /// `runsSyncBudget` — twenty seconds, the #145 Part A interactive ceiling,
+    /// against a run that carries ~1,500 tokens of primer plus the agent's
+    /// whole system prompt and tool schemas. `postPrimingTurn`'s own docstring
+    /// predicted it: *"a primer whose answer never lands within budget … primes
+    /// with a nil receipt."* On device, 2026-08-25, that is exactly what Owen
+    /// saw — a live priming row reading **PRIMING TOKENS 0** before any reopen
+    /// was involved.
+    ///
+    /// The run itself never stopped knowing. `GET /v1/runs/{id}` serves status
+    /// **and usage** for an hour (N2), so the number was one read away and the
+    /// app was throwing the handle on the floor. This is that read, taken once
+    /// the interactive moment is over and nobody is waiting on it, writing the
+    /// answer into the JOURNAL's hop — the durable carrier both paths already
+    /// consult, and the one thing that survives the turn that created it.
+    ///
+    /// Silent on every failure: an unresolved priming stays honestly unpriced
+    /// (`—`, never `0`), exactly as it is today. A hop that has since been
+    /// replaced ignores the answer, because `recordPrimingUsage` matches on
+    /// the session id.
+    // harness-visible (#330): the production entry point spawns this; tests
+    // await it directly rather than racing a detached task.
+    func resolvePrimingUsage(runID: String, sessionID: String, profileID: UUID?) async {
+        guard let endpoint = try? resolveTurnEndpoint(profileID: profileID) else { return }
+        guard let snapshot = await pollRunToTerminal(
+            runID: runID,
+            profileID: profileID,
+            endpoint: endpoint,
+            budget: runsPollBudget
+        ), snapshot.status == "completed",
+              let usage = Self.decodeRunUsage(snapshot.rawJSON)
+        else {
+            Self.logger.verboseNotice(
+                "#330 priming: run \(runID) never resolved a usage — the hop stays honestly unpriced"
+            )
+            return
+        }
+        Self.logger.notice(
+            "#330 priming: run \(runID, privacy: .public) resolved late — \(usage.totalTokens, privacy: .public) tokens onto hop \(sessionID, privacy: .public)"
+        )
+        journal.recordPrimingUsage(usage, forSessionID: sessionID)
     }
 
     // MARK: - HTTP plumbing

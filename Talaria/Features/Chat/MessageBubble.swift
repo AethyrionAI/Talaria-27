@@ -309,6 +309,19 @@ struct MessageBubble: View {
                     // figure only when the serving model's pricing is known
                     // (the "~" marks it as an estimate). Absent entirely for
                     // unmetered turns — no placeholders in a receipt.
+                    //
+                    // **330-C (2026-08-25): this is the CONVERGED predicate.**
+                    // The receipt asks "is there usage?" from inside the
+                    // agent-authored branch of this bubble, i.e.
+                    // `sender.isAgentAuthored && usage != nil` — and
+                    // `ChatStore.sessionUsageTotals` now asks exactly that,
+                    // where it used to demand `sender == .hermes`. Under the
+                    // old pair a `.voiceHermes` row printed a receipt here and
+                    // counted for nothing there, which is the divergence
+                    // #330's entry reasoned from. It was real and it was not
+                    // the cause (mutation M2 falsified it); it is converged
+                    // rather than documented because one question deserves one
+                    // answer.
                     if let usage = message.usage {
                         turnReceipt(usage)
                     }

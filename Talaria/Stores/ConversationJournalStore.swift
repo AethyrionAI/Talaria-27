@@ -84,6 +84,34 @@ final class ConversationJournalStore {
         save()
     }
 
+    /// #330-D: a priming turn's usage arriving LATE — after
+    /// `runsSyncBudget` gave up on it and `beginHop` recorded the hop with no
+    /// receipt. `SessionsHermesClient.resolvePrimingUsage` is the only caller.
+    ///
+    /// Three guards, each of them a way this could otherwise write a lie:
+    /// the hop must still be the one that was primed (`apiSessionId`), it must
+    /// still be unpriced (a real receipt is never overwritten by a late read),
+    /// and a hop that has been ended or replaced simply takes nothing.
+    func recordPrimingUsage(_ usage: TokenUsage, forSessionID sessionID: String) {
+        guard var hop = journal.activeHop,
+              hop.apiSessionId == sessionID,
+              hop.primingUsage == nil
+        else { return }
+        hop.primingUsage = usage
+        journal.activeHop = hop
+        save()
+        Self.logger.notice("journal: hop priming usage resolved late — \(usage.totalTokens, privacy: .public) tokens")
+        onPrimingUsageResolved?(sessionID, usage)
+    }
+
+    /// #330-D: fired when `recordPrimingUsage` accepts a late receipt, so the
+    /// transcript's priming NOTICE can stop reading "— " and start reading the
+    /// number. `ChatStore` owns this hook (it is the only surface that renders
+    /// the notice); it is deliberately a single slot rather than a broadcast,
+    /// because a second consumer stamping the same row would double nothing
+    /// useful and hide which one did it.
+    var onPrimingUsageResolved: (@MainActor (String, TokenUsage) -> Void)?
+
     /// Discards the active hop WITHOUT touching the journal — the handle is
     /// ephemeral by design. The next Hermes turn creates a fresh session and
     /// transplants. Used on stale-session 404s, after a model switch, and on
